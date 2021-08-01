@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.{Async, Outcome, Ref}
+import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.{Alternative, Parallel, Traverse}
@@ -65,11 +66,8 @@ final class QuasiSucc[F[_], T[_], A, B](
     L: Alternative[T]): F[T[B]] =
     for {
       now <- realZonedDateTime(params.serviceParams)
-      actionInfo = ActionInfo(
-        actionName = actionName,
-        serviceInfo = serviceInfo,
-        id = UUID.randomUUID(),
-        launchTime = now)
+      uuid <- UUIDGen.randomUUID
+      actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
       _ <- channel.send(ActionStart(now, actionInfo, params))
       res <- F
         .background(eval.map { fte =>

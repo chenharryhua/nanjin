@@ -2,15 +2,14 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Outcome, Ref}
+import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.alert._
+import com.github.chenharryhua.nanjin.guard.alert.*
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.realZonedDateTime
 import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
-
-import java.util.UUID
 
 final private class ActionRetryBase[F[_], A, B](
   actionName: String,
@@ -26,8 +25,10 @@ final private class ActionRetryBase[F[_], A, B](
   private def failNotes(error: Throwable): Notes = Notes(fail.run((input, error)))
   private def succNotes(b: B): Notes             = Notes(succ.run((input, b)))
 
-  val actionInfo: F[ActionInfo] = realZonedDateTime(params.serviceParams).map(ts =>
-    ActionInfo(id = UUID.randomUUID(), launchTime = ts, actionName = actionName, serviceInfo = serviceInfo))
+  val actionInfo: F[ActionInfo] = for {
+    ts <- realZonedDateTime(params.serviceParams)
+    uuid <- UUIDGen.randomUUID
+  } yield ActionInfo(id = uuid, launchTime = ts, actionName = actionName, serviceInfo = serviceInfo)
 
   def onError(actionInfo: ActionInfo)(error: Throwable, details: RetryDetails): F[Unit] =
     details match {
