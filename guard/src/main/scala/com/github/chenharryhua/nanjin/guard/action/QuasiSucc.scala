@@ -23,8 +23,6 @@ import com.github.chenharryhua.nanjin.guard.realZonedDateTime
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.util.UUID
-
 final class QuasiSucc[F[_], T[_], A, B](
   serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
