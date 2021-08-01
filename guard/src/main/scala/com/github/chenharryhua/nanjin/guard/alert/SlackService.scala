@@ -116,21 +116,21 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
-    case ServiceDailySummariesReset(at, _, params, summaries) =>
-      val succ =
+    case ServiceDailySummariesReset(at, serviceInfo, params, summaries) =>
+      val succ: Option[SlackField] =
         if (summaries.actionSucc > 0)
           Some(SlackField("Number of Succed Actions", summaries.actionSucc.show, short = true))
         else None
-      val fail =
+      val fail: Option[SlackField] =
         if (summaries.actionFail > 0)
           Some(SlackField("Number of Failed Actions", summaries.actionFail.show, short = true))
         else None
-      val retries =
+      val retries: Option[SlackField] =
         if (summaries.actionRetries > 0)
           Some(SlackField("Number of Action Retries", summaries.actionRetries.show, short = true))
         else None
 
-      val errorReport =
+      val errorReport: Option[SlackField] =
         if (summaries.errorReport > 0)
           Some(SlackField("Number of Error Reports", summaries.errorReport.show, short = true))
         else None
@@ -146,6 +146,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
+                SlackField("Up Time", fmt.format(serviceInfo.launchTime, at), short = true),
                 SlackField("Number of Service Panics", summaries.servicePanic.show, short = true)
               ) ++ List(succ, fail, retries, errorReport).flatten
             ))
