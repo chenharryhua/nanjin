@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.Async
-import cats.effect.std.Dispatcher
+import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -13,8 +13,6 @@ import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
-
-import java.util.UUID
 
 // format: off
 /** @example
@@ -37,8 +35,10 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
   def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
     val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset.hour} ? * *")
-    val serviceInfo: F[ServiceInfo] =
-      realZonedDateTime(params).map(ts => ServiceInfo(id = UUID.randomUUID(), launchTime = ts))
+    val serviceInfo: F[ServiceInfo] = for {
+      ts <- realZonedDateTime(params)
+      uuid <- UUIDGen.randomUUID
+    } yield ServiceInfo(id = uuid, launchTime = ts)
 
     for {
       si <- Stream.eval(serviceInfo)

@@ -34,9 +34,7 @@ final class KafkaStreamsBuilder[F[_]] private (
 
     override def onChange(newState: State, oldState: State): Unit =
       dispatcher.unsafeRunSync(
-        stopSignal
-          .complete(KafkaStreamsException("Kafka streams were unexpectedly stopped"))
-          .whenA(newState == State.NOT_RUNNING))
+        stopSignal.complete(KafkaStreamsException("Kafka streams were stopped")).whenA(newState == State.NOT_RUNNING))
   }
 
   private def kickoff(
@@ -55,23 +53,21 @@ final class KafkaStreamsBuilder[F[_]] private (
             ks
           })
 
-  /** non-terminating function.
-    *
-    * exit until exception happens or being canceled
-    */
-  def resource: Resource[F, Nothing] = {
-    val exec: Resource[F, KafkaStreamsException] = for {
+  private val resource: Resource[F, (KafkaStreams, F[KafkaStreamsException])] =
+    for {
       dispatcher <- Dispatcher[F]
       errorListener <- Resource.eval(F.deferred[KafkaStreamsException])
       stopSignal <- Resource.eval(F.deferred[KafkaStreamsException])
-      _ <- kickoff(dispatcher, errorListener, stopSignal)
-      ex <- Resource.eval(F.race(errorListener.get, stopSignal.get)).map(_.fold(identity, identity))
-    } yield ex
+      ks <- kickoff(dispatcher, errorListener, stopSignal)
+    } yield (ks, F.race(errorListener.get, stopSignal.get).map(_.fold(identity, identity)))
 
-    exec.evalMap(F.raiseError)
-  }
+  def stream: Stream[F, Nothing] =
+    Stream.resource(resource).evalMap(_._2.flatMap[Nothing](F.raiseError))
 
-  def stream: Stream[F, Nothing] = Stream.resource(resource)
+  def query: Stream[F, KafkaStreams] =
+    Stream.resource(resource).flatMap { case (ks, err) =>
+      Stream(ks).concurrently(Stream.eval(err.flatMap[Nothing](F.raiseError)))
+    }
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
