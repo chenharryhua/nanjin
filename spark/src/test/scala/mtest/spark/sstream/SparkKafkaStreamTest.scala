@@ -83,7 +83,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .parquet
       .avro
       .withOptions(identity)
-      .queryStream
+      .stream
 
     val upload = sparKafka
       .topic(rooster)
@@ -144,7 +144,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .trigger(Trigger.ProcessingTime(1000))
       .complete
       .append
-      .queryStream
+      .stream
 
     val upload =
       sparKafka.topic(rooster).prRdd(data).withInterval(1.second).uploadByBatch.withBatchSize(6).run.delayBy(3.second)

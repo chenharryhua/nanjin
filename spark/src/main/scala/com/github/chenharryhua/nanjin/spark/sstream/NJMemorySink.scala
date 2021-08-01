@@ -18,7 +18,7 @@ final class NJMemorySink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig) 
 
   def trigger(trigger: Trigger): NJMemorySink[F, A] = updateCfg(_.trigger_mode(trigger))
 
-  override def queryStream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
+  override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
         .trigger(params.trigger)

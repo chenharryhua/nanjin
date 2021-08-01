@@ -29,16 +29,6 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  private val resource: Resource[F, StreamingContext] = {
-    for {
-      dispatcher <- Dispatcher[F]
-      sc <- Resource
-        .make(F.blocking(StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))))(ssc =>
-          F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
-        .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
-    } yield sc
-  }
-
   private class Listener(dispatcher: Dispatcher[F], channel: Channel[F, StreamingListenerEvent])
       extends StreamingListener {
 
@@ -69,6 +59,16 @@ final class DStreamRunner[F[_]] private (
     override def onOutputOperationCompleted(event: StreamingListenerOutputOperationCompleted): Unit =
       dispatcher.unsafeRunSync(channel.send(event).void)
 
+  }
+
+  private val resource: Resource[F, StreamingContext] = {
+    for {
+      dispatcher <- Dispatcher[F]
+      sc <- Resource
+        .make(F.blocking(StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))))(ssc =>
+          F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+        .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
+    } yield sc
   }
 
   def stream: Stream[F, StreamingListenerEvent] = for {

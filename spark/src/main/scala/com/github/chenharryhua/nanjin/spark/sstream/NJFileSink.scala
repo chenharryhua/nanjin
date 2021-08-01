@@ -28,7 +28,7 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
   def partitionBy(colNames: String*): NJFileSink[F, A] =
     new NJFileSink[F, A](dsw.partitionBy(colNames: _*), cfg, path)
 
-  override def queryStream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
+  override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
         .trigger(params.trigger)
