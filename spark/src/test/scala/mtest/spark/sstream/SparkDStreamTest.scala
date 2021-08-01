@@ -15,7 +15,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration.*
-
 @DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
@@ -47,14 +46,15 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     val checkpoint = root + "checkpont/"
 
     val runner: DStreamRunner[IO] = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
-
     sender
       .concurrently(
         runner
           .signup(topic.dstream)(_.avro(avro))
           .signup(topic.dstream)(_.coalesce.jackson(jackson))
           .signup(topic.dstream)(_.coalesce.circe(circe))
-          .stream)
+          .stream
+          .debug()
+      )
       .compile
       .drain
       .unsafeRunSync()

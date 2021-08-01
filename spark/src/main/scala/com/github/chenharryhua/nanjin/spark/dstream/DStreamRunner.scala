@@ -3,8 +3,11 @@ package com.github.chenharryhua.nanjin.spark.dstream
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
+import cats.syntax.all.*
 import fs2.Stream
+import fs2.concurrent.Channel
 import org.apache.spark.SparkContext
+import org.apache.spark.streaming.scheduler.*
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
 import scala.concurrent.duration.FiniteDuration
@@ -26,21 +29,56 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  /** non-terminating function
-    */
-  def run: F[Nothing] = {
-    val exec: Resource[F, Unit] = Dispatcher[F].evalMap { dispatcher =>
-      F.bracket(F.blocking {
-        val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
-        ssc.start()
-        ssc
-      })(ssc => F.interruptible(many = false)(ssc.awaitTermination()))(ssc =>
-        F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
-    }
-    exec.use[Nothing](_ => F.never)
+  private val resource: Resource[F, StreamingContext] = {
+    for {
+      dispatcher <- Dispatcher[F]
+      sc <- Resource
+        .make(F.blocking(StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))))(ssc =>
+          F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+        .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
+    } yield sc
   }
 
-  def stream: Stream[F, Nothing] = Stream.eval(run)
+  private class Listener(dispatcher: Dispatcher[F], channel: Channel[F, StreamingListenerEvent])
+      extends StreamingListener {
+
+    override def onStreamingStarted(event: StreamingListenerStreamingStarted): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onReceiverStarted(event: StreamingListenerReceiverStarted): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onReceiverError(event: StreamingListenerReceiverError): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onReceiverStopped(event: StreamingListenerReceiverStopped): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onBatchSubmitted(event: StreamingListenerBatchSubmitted): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onBatchStarted(event: StreamingListenerBatchStarted): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onBatchCompleted(event: StreamingListenerBatchCompleted): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onOutputOperationStarted(event: StreamingListenerOutputOperationStarted): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+    override def onOutputOperationCompleted(event: StreamingListenerOutputOperationCompleted): Unit =
+      dispatcher.unsafeRunSync(channel.send(event).void)
+
+  }
+
+  def stream: Stream[F, StreamingListenerEvent] = for {
+    dispatcher <- Stream.resource(Dispatcher[F])
+    ssc <- Stream.resource(resource)
+    event <- Stream.eval(Channel.unbounded[F, StreamingListenerEvent]).flatMap { bus =>
+      ssc.addStreamingListener(new Listener(dispatcher, bus))
+      bus.stream
+    }
+  } yield event
 }
 
 object DStreamRunner {
