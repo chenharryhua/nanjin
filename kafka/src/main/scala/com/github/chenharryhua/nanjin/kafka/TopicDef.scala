@@ -10,6 +10,7 @@ import org.apache.kafka.streams.Topology.AutoOffsetReset
 import org.apache.kafka.streams.kstream.Consumed as JConsumed
 import org.apache.kafka.streams.processor.TimestampExtractor
 import org.apache.kafka.streams.scala.kstream.Consumed
+import org.apache.kafka.streams.state.StateSerdes
 
 final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JConsumed[K, V])(implicit
   val serdeOfKey: SerdeOf[K],
@@ -43,6 +44,8 @@ final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JCon
 
   def withConsumed(resetPolicy: AutoOffsetReset): TopicDef[K, V] =
     updateConsumed(Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal))
+
+  def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, serdeOfKey, serdeOfVal)
 
 }
 

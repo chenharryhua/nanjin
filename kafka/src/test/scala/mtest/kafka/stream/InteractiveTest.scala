@@ -27,13 +27,8 @@ class InteractiveTest extends AnyFunSuite {
   val storeName  = "stream.test.interactive.local.store.2"
   val gstoreName = "stream.test.interactive.store.global.2"
 
-  val mat: Materialized[Int, String, ByteArrayKeyValueStore] =
-    Materialized.as[Int, String](Stores.inMemoryKeyValueStore(storeName))
-  val gmat: Materialized[Int, String, ByteArrayKeyValueStore] =
-    Materialized.as[Int, String](Stores.persistentKeyValueStore(gstoreName))
-
-  val top: Reader[StreamsBuilder, Unit]  = topic.kafkaStream.ktable(mat).void
-  val gtop: Reader[StreamsBuilder, Unit] = topic.kafkaStream.gktable(gmat).void
+  val top: Reader[StreamsBuilder, Unit]  = topic.kafkaStream.ktable(Stores.inMemoryKeyValueStore(storeName)).void
+  val gtop: Reader[StreamsBuilder, Unit] = topic.kafkaStream.gktable(Stores.persistentKeyValueStore(gstoreName)).void
 
   test("interactive") {
 
