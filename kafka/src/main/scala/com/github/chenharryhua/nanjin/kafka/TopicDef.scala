@@ -1,11 +1,17 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
+import cats.syntax.eq.*
 import cats.kernel.Eq
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
+import org.apache.kafka.streams.Topology.AutoOffsetReset
+import org.apache.kafka.streams.kstream.{Consumed as JConsumed, Materialized as JMaterialized}
+import org.apache.kafka.streams.processor.{StateStore, TimestampExtractor}
+import org.apache.kafka.streams.scala.kstream.{Consumed, Materialized}
+import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, ByteArraySessionStore, ByteArrayWindowStore}
+import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, SessionBytesStoreSupplier, WindowBytesStoreSupplier}
 
 final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   val serdeOfKey: SerdeOf[K],
@@ -25,8 +31,28 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   val schemaForKey: SchemaFor[K] = serdeOfKey.avroCodec.schemaFor
   val schemaForVal: SchemaFor[V] = serdeOfVal.avroCodec.schemaFor
 
-  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
-    ctx.topic[K, V](this)
+  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
+
+  def materialized[S <: StateStore](storeName: String): JMaterialized[K, V, S] =
+    Materialized.as[K, V, S](storeName)(serdeOfKey, serdeOfVal)
+  def materialized(supplier: WindowBytesStoreSupplier): JMaterialized[K, V, ByteArrayWindowStore] =
+    Materialized.as[K, V](supplier)(serdeOfKey, serdeOfVal)
+  def materialized(supplier: SessionBytesStoreSupplier): JMaterialized[K, V, ByteArraySessionStore] =
+    Materialized.as[K, V](supplier)(serdeOfKey, serdeOfVal)
+  def materialized(supplier: KeyValueBytesStoreSupplier): JMaterialized[K, V, ByteArrayKeyValueStore] =
+    Materialized.as[K, V](supplier)(serdeOfKey, serdeOfVal)
+
+  def consumed(timestampExtractor: TimestampExtractor, resetPolicy: AutoOffsetReset): JConsumed[K, V] =
+    Consumed.`with`(timestampExtractor, resetPolicy)(serdeOfKey, serdeOfVal)
+
+  def consumed(timestampExtractor: TimestampExtractor): JConsumed[K, V] =
+    Consumed.`with`(timestampExtractor)(serdeOfKey, serdeOfVal)
+
+  def consumed(resetPolicy: AutoOffsetReset): JConsumed[K, V] =
+    Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal)
+
+  def consumed: JConsumed[K, V] = Consumed.`with`(serdeOfKey, serdeOfVal)
+
 }
 
 object TopicDef {
