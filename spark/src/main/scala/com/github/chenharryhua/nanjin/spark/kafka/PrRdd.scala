@@ -66,10 +66,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
 
   def uploadByBatch: UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Updater.noUpdateProducer[F, K, V])
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
 
   def uploadByBulk: UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.noUpdateProducer[K, V])
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.unitProducer[K, V])
 }
 
 final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
