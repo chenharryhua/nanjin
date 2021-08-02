@@ -4,7 +4,7 @@ import cats.data.Reader
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsStoppedException
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsStoppedException, NJStateStore}
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
@@ -23,17 +23,16 @@ import scala.util.Random
 
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
-  val topic      = ctx.topic[Int, String]("stream.test.interactive.2")
-  val storeName  = "stream.test.interactive.local.store.2"
-  val gstoreName = "stream.test.interactive.store.global.2"
+  val topic       = ctx.topic[Int, String]("stream.test.interactive.2")
+  val localStore  = topic.asStateStore("stream.test.interactive.local.store.2")
+  val globalStore = NJStateStore[Int, String]("stream.test.interactive.store.global.2")
 
-  val top: Reader[StreamsBuilder, Unit]  = topic.kafkaStream.ktable(Stores.inMemoryKeyValueStore(storeName)).void
-  val gtop: Reader[StreamsBuilder, Unit] = topic.kafkaStream.gktable(Stores.persistentKeyValueStore(gstoreName)).void
+  val top: Reader[StreamsBuilder, Unit] =
+    topic.kafkaStream.ktable(localStore.inMemoryKeyValueStore.supplier).void
+  val gtop: Reader[StreamsBuilder, Unit] =
+    topic.kafkaStream.gktable(globalStore.persistentKeyValueStore.supplier).void
 
   test("interactive") {
-
-    val sq  = StoreQueryParameters.fromNameAndType(storeName, QueryableStoreTypes.keyValueStore[Int, String]())
-    val gsq = StoreQueryParameters.fromNameAndType(gstoreName, QueryableStoreTypes.keyValueStore[Int, String]())
 
     val data =
       Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}")))
@@ -46,8 +45,8 @@ class InteractiveTest extends AnyFunSuite {
         kss1 <- ctx.buildStreams(top).query
         kss2 <- ctx.buildStreams(gtop).query
       } yield {
-        val g = kss1.store(sq).all().asScala.toList.sortBy(_.key)
-        val q = kss2.store(gsq).all().asScala.toList.sortBy(_.key)
+        val g = kss1.store(localStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
+        val q = kss2.store(globalStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
         assert(q == g)
         q
       }
