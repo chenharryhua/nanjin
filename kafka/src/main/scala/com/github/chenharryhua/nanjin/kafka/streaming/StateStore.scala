@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.common.kafka.StoreName
+import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
@@ -9,10 +10,12 @@ import java.time.Duration
 import scala.compat.java8.DurationConverters.FiniteDurationops
 import scala.concurrent.duration.FiniteDuration
 
-final class StoreDef[K, V] private (val storeName: StoreName)(implicit
+final class StateStore[K, V] private (val storeName: StoreName)(implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfVal: SerdeOf[V])
     extends Serializable {
+
+  def asTopicDef(name: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(name))(serdeOfKey, serdeOfVal)
 
   object supplier {
     def persistent: KeyValueBytesStoreSupplier            = Stores.persistentKeyValueStore(storeName.value)
@@ -101,4 +104,8 @@ final class StoreDef[K, V] private (val storeName: StoreName)(implicit
       StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.sessionStore[K, V])
 
   }
+}
+
+object StateStore {
+  def apply[K: SerdeOf, V: SerdeOf](name: String): StateStore[K, V] = new StateStore[K, V](StoreName.unsafeFrom(name))
 }
