@@ -145,11 +145,13 @@ object cognito {
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
+
     private case class Token(
       access_token: String,
       token_type: String,
       expires_in: Int // in second
     )
+
     implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
     val params: AuthParams = config.evalConfig

@@ -2,19 +2,24 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
 import cats.kernel.Eq
-import cats.syntax.all.*
+import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
+import org.apache.kafka.streams.Topology.AutoOffsetReset
+import org.apache.kafka.streams.kstream.Consumed as JConsumed
+import org.apache.kafka.streams.processor.TimestampExtractor
+import org.apache.kafka.streams.scala.kstream.Consumed
 
-final class TopicDef[K, V] private (val topicName: TopicName)(implicit
+final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JConsumed[K, V])(implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfVal: SerdeOf[V])
     extends Serializable {
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(tn))
+  def withTopicName(tn: String): TopicDef[K, V] =
+    new TopicDef[K, V](TopicName.unsafeFrom(tn), consumed)(serdeOfKey, serdeOfVal)
 
   val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroCodec.avroEncoder
   val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroCodec.avroDecoder
@@ -25,8 +30,20 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   val schemaForKey: SchemaFor[K] = serdeOfKey.avroCodec.schemaFor
   val schemaForVal: SchemaFor[V] = serdeOfVal.avroCodec.schemaFor
 
-  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] =
-    ctx.topic[K, V](this)
+  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
+
+  private def updateConsumed(c: JConsumed[K, V]): TopicDef[K, V] =
+    new TopicDef[K, V](topicName, c)(serdeOfKey, serdeOfVal)
+
+  def withConsumed(timestampExtractor: TimestampExtractor, resetPolicy: AutoOffsetReset): TopicDef[K, V] =
+    updateConsumed(Consumed.`with`(timestampExtractor, resetPolicy)(serdeOfKey, serdeOfVal))
+
+  def withConsumed(timestampExtractor: TimestampExtractor): TopicDef[K, V] =
+    updateConsumed(Consumed.`with`(timestampExtractor)(serdeOfKey, serdeOfVal))
+
+  def withConsumed(resetPolicy: AutoOffsetReset): TopicDef[K, V] =
+    updateConsumed(Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal))
+
 }
 
 object TopicDef {
@@ -39,13 +56,22 @@ object TopicDef {
         x.schemaForKey.schema == y.schemaForKey.schema &&
         x.schemaForVal.schema == y.schemaForVal.schema
 
-  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valueSchema: AvroCodec[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema))
+  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valueSchema: AvroCodec[V]): TopicDef[K, V] = {
+    val sk = SerdeOf(keySchema)
+    val sv = SerdeOf(valueSchema)
+    new TopicDef(topicName, Consumed.`with`(sk, sv))(sk, sv)
+  }
 
-  def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf[K], SerdeOf[V])
+  def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] = {
+    val sk = SerdeOf[K]
+    val sv = SerdeOf[V]
+    new TopicDef(topicName, Consumed.`with`(sk, sv))(sk, sv)
+  }
 
-  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: AvroCodec[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
+  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: AvroCodec[V]): TopicDef[K, V] = {
+    val sk = SerdeOf[K]
+    val sv = SerdeOf(valueSchema)
+    new TopicDef(topicName, Consumed.`with`(sk, sv))(sk, sv)
+  }
 
 }

@@ -4,11 +4,11 @@ import cats.data.Reader
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.KafkaStreamsStoppedException
+import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsStoppedException
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
-import org.apache.kafka.streams.StoreQueryParameters
+import org.apache.kafka.streams.{KeyValue, StoreQueryParameters}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.scala.serialization.Serdes.*
@@ -43,7 +43,7 @@ class InteractiveTest extends AnyFunSuite {
         .covary[IO]
         .through(topic.fs2Channel.producerPipe)
 
-    val res =
+    val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
         _ <- data
         kss1 <- ctx.buildStreams(top).query
@@ -61,13 +61,19 @@ class InteractiveTest extends AnyFunSuite {
   test("startup timeout") {
     val to1 = ctx.buildStreams(top).withStartUpTimeout(0.seconds).stream.compile.drain
     assertThrows[TimeoutException](to1.unsafeRunSync())
-    val to2 = ctx.buildStreams(top).withStartUpTimeout(100.seconds).query.compile.drain
+    val to2 = ctx.buildStreams(top).withStartUpTimeout(1.day).query.map(_.state()).debug().compile.drain
     to2.unsafeRunSync()
   }
 
   test("detect stream stop") {
     val to1 =
-      ctx.buildStreams(top).query.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close())) >> Stream.sleep[IO](1.hour)
+      ctx.buildStreams(top).query.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
     assertThrows[KafkaStreamsStoppedException](to1.compile.drain.unsafeRunSync())
+  }
+
+  test("detect stream error") {
+    val to1 =
+      ctx.buildStreams(top).query.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.cleanUp()) >> IO.sleep(1.day))
+    assertThrows[IllegalStateException](to1.compile.drain.unsafeRunSync())
   }
 }

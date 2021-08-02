@@ -15,11 +15,6 @@ import fs2.kafka.KafkaByteConsumerRecord
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serde}
-import org.apache.kafka.streams.Topology.AutoOffsetReset
-import org.apache.kafka.streams.kstream.GlobalKTable
-import org.apache.kafka.streams.processor.TimestampExtractor
-import org.apache.kafka.streams.scala.ByteArrayKeyValueStore
-import org.apache.kafka.streams.scala.kstream.Materialized
 
 object KafkaChannels {
 
@@ -166,48 +161,5 @@ object KafkaChannels {
 
     val transactionalSource: Source[ConsumerMessage.TransactionalMessage[K, V], Consumer.Control] =
       Transactional.source(consumerSettings, Subscriptions.topics(topicName.value)).map(decoder(_).decode)
-
-  }
-
-  final class StreamingChannel[K, V] private[kafka] (
-    val topicName: TopicName,
-    keySerde: Serde[K],
-    valueSerde: Serde[V],
-    processorName: Option[String],
-    timestampExtractor: Option[TimestampExtractor],
-    resetPolicy: Option[AutoOffsetReset]) {
-    import org.apache.kafka.streams.scala.StreamsBuilder
-    import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
-
-    def withProcessorName(pn: String): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, Some(pn), timestampExtractor, resetPolicy)
-
-    def withTimestampExtractor(te: TimestampExtractor): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processorName, Some(te), resetPolicy)
-
-    def withResetPololicy(rp: AutoOffsetReset): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processorName, timestampExtractor, Some(rp))
-
-    def consumed: Consumed[K, V] = {
-      val base = Consumed.`with`(keySerde, valueSerde)
-      val pn   = processorName.fold(base)(pn => base.withName(pn))
-      val te   = timestampExtractor.fold(pn)(te => pn.withTimestampExtractor(te))
-      resetPolicy.fold(te)(rp => te.withOffsetResetPolicy(rp))
-    }
-
-    val kstream: Reader[StreamsBuilder, KStream[K, V]] =
-      Reader(builder => builder.stream[K, V](topicName.value)(consumed))
-
-    val ktable: Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicName.value)(consumed))
-
-    def ktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicName.value, mat)(consumed))
-
-    val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicName.value)(consumed))
-
-    def gktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicName.value, mat)(consumed))
   }
 }

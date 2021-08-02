@@ -34,6 +34,7 @@ object salesforce {
     config: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]] with UpdateConfig[AuthConfig, MarketingCloud[F]] {
+
     private case class Token(
       access_token: String,
       token_type: String,
@@ -136,6 +137,7 @@ object salesforce {
     config: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
+
     private case class Token(
       access_token: String,
       instance_url: String,
