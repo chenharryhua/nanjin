@@ -7,16 +7,9 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import org.apache.kafka.streams.Topology.AutoOffsetReset
-import org.apache.kafka.streams.kstream.{
-  Consumed as JConsumed,
-  Grouped as JGrouped,
-  Materialized as JMaterialized,
-  Produced as JProduced
-}
-import org.apache.kafka.streams.processor.{StateStore, StreamPartitioner, TimestampExtractor}
-import org.apache.kafka.streams.scala.kstream.{Consumed, Grouped, Materialized, Produced}
-import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, ByteArraySessionStore, ByteArrayWindowStore}
-import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, SessionBytesStoreSupplier, WindowBytesStoreSupplier}
+import org.apache.kafka.streams.kstream.Consumed as JConsumed
+import org.apache.kafka.streams.processor.TimestampExtractor
+import org.apache.kafka.streams.scala.kstream.Consumed
 
 final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JConsumed[K, V])(implicit
   val serdeOfKey: SerdeOf[K],
@@ -39,15 +32,6 @@ final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JCon
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 
-  def materialized[S <: StateStore](storeName: String): JMaterialized[K, V, S] =
-    Materialized.as[K, V, S](storeName)(serdeOfKey, serdeOfVal)
-  def materialized(supplier: WindowBytesStoreSupplier): JMaterialized[K, V, ByteArrayWindowStore] =
-    Materialized.as[K, V](supplier)(serdeOfKey, serdeOfVal)
-  def materialized(supplier: SessionBytesStoreSupplier): JMaterialized[K, V, ByteArraySessionStore] =
-    Materialized.as[K, V](supplier)(serdeOfKey, serdeOfVal)
-  def materialized(supplier: KeyValueBytesStoreSupplier): JMaterialized[K, V, ByteArrayKeyValueStore] =
-    Materialized.as[K, V](supplier)(serdeOfKey, serdeOfVal)
-
   private def updateConsumed(c: JConsumed[K, V]): TopicDef[K, V] =
     new TopicDef[K, V](topicName, c)(serdeOfKey, serdeOfVal)
 
@@ -59,13 +43,6 @@ final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JCon
 
   def withConsumed(resetPolicy: AutoOffsetReset): TopicDef[K, V] =
     updateConsumed(Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal))
-
-  def grouped: JGrouped[K, V]               = Grouped.`with`(serdeOfKey, serdeOfVal)
-  def grouped(name: String): JGrouped[K, V] = Grouped.`with`(name)(serdeOfKey, serdeOfVal)
-
-  def produced: JProduced[K, V] = Produced.`with`(serdeOfKey, serdeOfVal)
-  def produced(partitioner: StreamPartitioner[K, V]): JProduced[K, V] =
-    Produced.`with`(partitioner)(serdeOfKey, serdeOfVal)
 
 }
 
