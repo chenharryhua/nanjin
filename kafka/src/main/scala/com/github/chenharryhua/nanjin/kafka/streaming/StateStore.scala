@@ -10,89 +10,127 @@ import java.time.Duration
 import scala.compat.java8.DurationConverters.FiniteDurationops
 import scala.concurrent.duration.FiniteDuration
 
-final class StateStore[K, V] private (val storeName: StoreName)(implicit
-  val serdeOfKey: SerdeOf[K],
-  val serdeOfVal: SerdeOf[V])
+final class KeyValueBytesStoreSupplierHelper[K, V](
+  supplier: KeyValueBytesStoreSupplier,
+  serdeOfKey: SerdeOf[K],
+  serdeOfVal: SerdeOf[V]) {
+  def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
+    Stores.keyValueStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+
+  def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
+    Stores.timestampedKeyValueStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+}
+
+final class WindowBytesStoreSupplierHelper[K, V](
+  supplier: WindowBytesStoreSupplier,
+  serdeOfKey: SerdeOf[K],
+  serdeOfVal: SerdeOf[V]) {
+  def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
+    Stores.windowStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+
+  def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
+    Stores.timestampedWindowStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+}
+
+final class SessionBytesStoreSupplierHelper[K, V](
+  supplier: SessionBytesStoreSupplier,
+  serdeOfKey: SerdeOf[K],
+  serdeOfVal: SerdeOf[V]) {
+  def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
+    Stores.sessionStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+}
+
+final class StateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeOf[K], serdeOfVal: SerdeOf[V])
     extends Serializable {
+
+  def name: String = storeName.value
 
   def asTopicDef(name: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(name))(serdeOfKey, serdeOfVal)
 
   object supplier {
-    def persistent: KeyValueBytesStoreSupplier            = Stores.persistentKeyValueStore(storeName.value)
-    def persistentTimestamped: KeyValueBytesStoreSupplier = Stores.persistentTimestampedKeyValueStore(storeName.value)
-    def inMemory: KeyValueBytesStoreSupplier              = Stores.inMemoryKeyValueStore(storeName.value)
-    def lruMap(maxCacheSize: Int): KeyValueBytesStoreSupplier = Stores.lruMap(storeName.value, maxCacheSize)
+
+    def persistentKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
+      new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(storeName.value), serdeOfKey, serdeOfVal)
+
+    def persistentTimestampedKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
+      new KeyValueBytesStoreSupplierHelper(
+        Stores.persistentTimestampedKeyValueStore(storeName.value),
+        serdeOfKey,
+        serdeOfVal)
+
+    def inMemoryKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
+      new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(storeName.value), serdeOfKey, serdeOfVal)
+
+    def lruMap(maxCacheSize: Int): KeyValueBytesStoreSupplierHelper[K, V] =
+      new KeyValueBytesStoreSupplierHelper(Stores.lruMap(storeName.value, maxCacheSize), serdeOfKey, serdeOfVal)
+
     def persistentWindowStore(
       retentionPeriod: Duration,
       windowSize: Duration,
-      retainDuplicates: Boolean): WindowBytesStoreSupplier =
-      Stores.persistentWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates)
+      retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
+      new WindowBytesStoreSupplierHelper(
+        Stores.persistentWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
+        serdeOfKey,
+        serdeOfVal)
 
     def persistentWindowStore(
       retentionPeriod: FiniteDuration,
       windowSize: FiniteDuration,
-      retainDuplicates: Boolean): WindowBytesStoreSupplier =
+      retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
       persistentWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
     def persistentTimestampedWindowStore(
       retentionPeriod: Duration,
       windowSize: Duration,
-      retainDuplicates: Boolean): WindowBytesStoreSupplier =
-      Stores.persistentTimestampedWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates)
+      retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
+      new WindowBytesStoreSupplierHelper(
+        Stores.persistentTimestampedWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
+        serdeOfKey,
+        serdeOfVal)
 
     def persistentTimestampedWindowStore(
       retentionPeriod: FiniteDuration,
       windowSize: FiniteDuration,
-      retainDuplicates: Boolean): WindowBytesStoreSupplier =
+      retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
       persistentTimestampedWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
     def inMemoryWindowStore(
       retentionPeriod: Duration,
       windowSize: Duration,
-      retainDuplicates: Boolean): WindowBytesStoreSupplier =
-      Stores.inMemoryWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates)
+      retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
+      new WindowBytesStoreSupplierHelper(
+        Stores.inMemoryWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
+        serdeOfKey,
+        serdeOfVal)
 
     def inMemoryWindowStore(
       retentionPeriod: FiniteDuration,
       windowSize: FiniteDuration,
-      retainDuplicates: Boolean): WindowBytesStoreSupplier =
+      retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
       inMemoryWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
-    def persistentSessionStore(retentionPeriod: Duration): SessionBytesStoreSupplier =
-      Stores.persistentSessionStore(storeName.value, retentionPeriod)
+    def persistentSessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
+      new SessionBytesStoreSupplierHelper(
+        Stores.persistentSessionStore(storeName.value, retentionPeriod),
+        serdeOfKey,
+        serdeOfVal)
 
-    def inMemorySessionStore(retentionPeriod: Duration): SessionBytesStoreSupplier =
-      Stores.inMemorySessionStore(storeName.value, retentionPeriod)
+    def inMemorySessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
+      new SessionBytesStoreSupplierHelper(
+        Stores.inMemorySessionStore(storeName.value, retentionPeriod),
+        serdeOfKey,
+        serdeOfVal)
 
-    def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplier =
+    def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplierHelper[K, V] =
       inMemorySessionStore(retentionPeriod.toJava)
-  }
-
-  object builder {
-    def keyValueStoreBuilder(supplier: KeyValueBytesStoreSupplier): StoreBuilder[KeyValueStore[K, V]] =
-      Stores.keyValueStoreBuilder(supplier, serdeOfKey, serdeOfVal)
-
-    def timestampedKeyValueStoreBuilder(
-      supplier: KeyValueBytesStoreSupplier): StoreBuilder[TimestampedKeyValueStore[K, V]] =
-      Stores.timestampedKeyValueStoreBuilder(supplier, serdeOfKey, serdeOfVal)
-
-    def windowStoreBuilder(supplier: WindowBytesStoreSupplier): StoreBuilder[WindowStore[K, V]] =
-      Stores.windowStoreBuilder(supplier, serdeOfKey, serdeOfVal)
-
-    def timestampedWindowStoreBuilder(supplier: WindowBytesStoreSupplier): StoreBuilder[TimestampedWindowStore[K, V]] =
-      Stores.timestampedWindowStoreBuilder(supplier, serdeOfKey, serdeOfVal)
-
-    def sessionStoreBuilder(supplier: SessionBytesStoreSupplier): StoreBuilder[SessionStore[K, V]] =
-      Stores.sessionStoreBuilder(supplier, serdeOfKey, serdeOfVal)
-
   }
 
   object query {
     def keyValueStore: StoreQueryParameters[ReadOnlyKeyValueStore[K, V]] =
       StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.keyValueStore[K, V])
 
-    def timestampedKeyValueStore: QueryableStoreType[ReadOnlyKeyValueStore[K, ValueAndTimestamp[V]]] =
-      QueryableStoreTypes.timestampedKeyValueStore[K, V]
+    def timestampedKeyValueStore: StoreQueryParameters[ReadOnlyKeyValueStore[K, ValueAndTimestamp[V]]] =
+      StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.timestampedKeyValueStore[K, V])
 
     def windowStore: StoreQueryParameters[ReadOnlyWindowStore[K, V]] =
       StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.windowStore[K, V])
@@ -107,5 +145,7 @@ final class StateStore[K, V] private (val storeName: StoreName)(implicit
 }
 
 object StateStore {
-  def apply[K: SerdeOf, V: SerdeOf](name: String): StateStore[K, V] = new StateStore[K, V](StoreName.unsafeFrom(name))
+
+  def apply[K, V](name: String)(implicit serdeOfKey: SerdeOf[K], serdeOfVal: SerdeOf[V]): StateStore[K, V] =
+    new StateStore[K, V](StoreName.unsafeFrom(name), serdeOfKey, serdeOfVal)
 }
