@@ -15,11 +15,6 @@ import fs2.kafka.KafkaByteConsumerRecord
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, Serde}
-import org.apache.kafka.streams.Topology.AutoOffsetReset
-import org.apache.kafka.streams.kstream.GlobalKTable
-import org.apache.kafka.streams.processor.TimestampExtractor
-import org.apache.kafka.streams.scala.ByteArrayKeyValueStore
-import org.apache.kafka.streams.scala.kstream.Materialized
 
 object KafkaChannels {
 
@@ -166,26 +161,5 @@ object KafkaChannels {
 
     val transactionalSource: Source[ConsumerMessage.TransactionalMessage[K, V], Consumer.Control] =
       Transactional.source(consumerSettings, Subscriptions.topics(topicName.value)).map(decoder(_).decode)
-
-  }
-
-  final class StreamingChannel[K, V] private[kafka] (topicDef: TopicDef[K, V]) {
-    import org.apache.kafka.streams.scala.StreamsBuilder
-    import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
-
-    val kstream: Reader[StreamsBuilder, KStream[K, V]] =
-      Reader(builder => builder.stream[K, V](topicDef.topicName.value)(topicDef.consumed))
-
-    val ktable: Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicDef.topicName.value)(topicDef.consumed))
-
-    def ktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicDef.topicName.value, mat)(topicDef.consumed))
-
-    val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicDef.topicName.value)(topicDef.consumed))
-
-    def gktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicDef.topicName.value, mat)(topicDef.consumed))
   }
 }

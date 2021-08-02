@@ -1,9 +1,10 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Deferred, Resource}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.kafka.KafkaStreamSettings
 import fs2.Stream
 import fs2.concurrent.Channel
 import monocle.function.At.at
