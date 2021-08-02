@@ -9,7 +9,7 @@ import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
 import org.apache.kafka.streams.{KeyValue, StoreQueryParameters}
-import org.apache.kafka.streams.scala.StreamsBuilder
+import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, StreamsBuilder}
 import org.apache.kafka.streams.scala.kstream.Materialized
 import org.apache.kafka.streams.scala.serialization.Serdes.*
 import org.apache.kafka.streams.state.{QueryableStoreTypes, Stores}
@@ -27,8 +27,10 @@ class InteractiveTest extends AnyFunSuite {
   val storeName  = "stream.test.interactive.local.store.2"
   val gstoreName = "stream.test.interactive.store.global.2"
 
-  val mat  = Materialized.as[Int, String](Stores.inMemoryKeyValueStore(storeName))
-  val gmat = Materialized.as[Int, String](Stores.persistentKeyValueStore(gstoreName))
+  val mat: Materialized[Int, String, ByteArrayKeyValueStore] =
+    Materialized.as[Int, String](Stores.inMemoryKeyValueStore(storeName))
+  val gmat: Materialized[Int, String, ByteArrayKeyValueStore] =
+    Materialized.as[Int, String](Stores.persistentKeyValueStore(gstoreName))
 
   val top: Reader[StreamsBuilder, Unit]  = topic.kafkaStream.ktable(mat).void
   val gtop: Reader[StreamsBuilder, Unit] = topic.kafkaStream.gktable(gmat).void

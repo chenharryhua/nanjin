@@ -67,7 +67,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
       topic,
       ss.sparkContext.hadoopConfiguration,
       cfg,
-      akkaUpdater.noUpdateConsumer)
+      akkaUpdater.unitConsumer)
 
   /** rdd and dataset
     */

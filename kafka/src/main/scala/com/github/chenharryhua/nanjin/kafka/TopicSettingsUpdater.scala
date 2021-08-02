@@ -30,9 +30,9 @@ object akkaUpdater {
       new Committer(settings.andThen(f))
   }
 
-  val noUpdateConsumer: Consumer             = new Consumer(Reader(identity))
-  def noUpdateProducer[K, V]: Producer[K, V] = new Producer[K, V](Reader(identity))
-  val noUpdateCommitter: Committer           = new Committer(Reader(identity))
+  val unitConsumer: Consumer             = new Consumer(Reader(identity))
+  def unitProducer[K, V]: Producer[K, V] = new Producer[K, V](Reader(identity))
+  val unitCommitter: Committer           = new Committer(Reader(identity))
 
 }
 
@@ -55,7 +55,7 @@ object fs2Updater {
       new Producer[F, K, V](settings.andThen(f))
   }
 
-  def noUpdateConsumer[F[_]]: Consumer[F]             = new Consumer[F](Reader(identity))
-  def noUpdateProducer[F[_], K, V]: Producer[F, K, V] = new Producer[F, K, V](Reader(identity))
+  def unitConsumer[F[_]]: Consumer[F]             = new Consumer[F](Reader(identity))
+  def unitProducer[F[_], K, V]: Producer[F, K, V] = new Producer[F, K, V](Reader(identity))
 
 }
