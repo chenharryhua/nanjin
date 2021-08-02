@@ -1,15 +1,20 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import cats.syntax.eq.*
 import cats.kernel.Eq
+import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import org.apache.kafka.streams.Topology.AutoOffsetReset
-import org.apache.kafka.streams.kstream.{Consumed as JConsumed, Materialized as JMaterialized}
-import org.apache.kafka.streams.processor.{StateStore, TimestampExtractor}
-import org.apache.kafka.streams.scala.kstream.{Consumed, Materialized}
+import org.apache.kafka.streams.kstream.{
+  Consumed as JConsumed,
+  Grouped as JGrouped,
+  Materialized as JMaterialized,
+  Produced as JProduced
+}
+import org.apache.kafka.streams.processor.{StateStore, StreamPartitioner, TimestampExtractor}
+import org.apache.kafka.streams.scala.kstream.{Consumed, Grouped, Materialized, Produced}
 import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, ByteArraySessionStore, ByteArrayWindowStore}
 import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, SessionBytesStoreSupplier, WindowBytesStoreSupplier}
 
@@ -52,6 +57,13 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
     Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal)
 
   def consumed: JConsumed[K, V] = Consumed.`with`(serdeOfKey, serdeOfVal)
+
+  def grouped: JGrouped[K, V]               = Grouped.`with`(serdeOfKey, serdeOfVal)
+  def grouped(name: String): JGrouped[K, V] = Grouped.`with`(name)(serdeOfKey, serdeOfVal)
+
+  def produced: JProduced[K, V] = Produced.`with`(serdeOfKey, serdeOfVal)
+  def produced(partitioner: StreamPartitioner[K, V]): JProduced[K, V] =
+    Produced.`with`(partitioner)(serdeOfKey, serdeOfVal)
 
 }
 
