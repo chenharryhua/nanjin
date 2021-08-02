@@ -6,6 +6,8 @@ import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
 
 import java.time.Duration
+import scala.compat.java8.DurationConverters.FiniteDurationops
+import scala.concurrent.duration.FiniteDuration
 
 final class StoreDef[K, V] private (val storeName: StoreName)(implicit
   val serdeOfKey: SerdeOf[K],
@@ -23,11 +25,23 @@ final class StoreDef[K, V] private (val storeName: StoreName)(implicit
       retainDuplicates: Boolean): WindowBytesStoreSupplier =
       Stores.persistentWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates)
 
+    def persistentWindowStore(
+      retentionPeriod: FiniteDuration,
+      windowSize: FiniteDuration,
+      retainDuplicates: Boolean): WindowBytesStoreSupplier =
+      persistentWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
+
     def persistentTimestampedWindowStore(
       retentionPeriod: Duration,
       windowSize: Duration,
       retainDuplicates: Boolean): WindowBytesStoreSupplier =
       Stores.persistentTimestampedWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates)
+
+    def persistentTimestampedWindowStore(
+      retentionPeriod: FiniteDuration,
+      windowSize: FiniteDuration,
+      retainDuplicates: Boolean): WindowBytesStoreSupplier =
+      persistentTimestampedWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
     def inMemoryWindowStore(
       retentionPeriod: Duration,
@@ -35,11 +49,20 @@ final class StoreDef[K, V] private (val storeName: StoreName)(implicit
       retainDuplicates: Boolean): WindowBytesStoreSupplier =
       Stores.inMemoryWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates)
 
+    def inMemoryWindowStore(
+      retentionPeriod: FiniteDuration,
+      windowSize: FiniteDuration,
+      retainDuplicates: Boolean): WindowBytesStoreSupplier =
+      inMemoryWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
+
     def persistentSessionStore(retentionPeriod: Duration): SessionBytesStoreSupplier =
       Stores.persistentSessionStore(storeName.value, retentionPeriod)
 
     def inMemorySessionStore(retentionPeriod: Duration): SessionBytesStoreSupplier =
       Stores.inMemorySessionStore(storeName.value, retentionPeriod)
+
+    def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplier =
+      inMemorySessionStore(retentionPeriod.toJava)
   }
 
   object builder {
