@@ -169,45 +169,23 @@ object KafkaChannels {
 
   }
 
-  final class StreamingChannel[K, V] private[kafka] (
-    val topicName: TopicName,
-    keySerde: Serde[K],
-    valueSerde: Serde[V],
-    processorName: Option[String],
-    timestampExtractor: Option[TimestampExtractor],
-    resetPolicy: Option[AutoOffsetReset]) {
+  final class StreamingChannel[K, V] private[kafka] (topicDef: TopicDef[K, V]) {
     import org.apache.kafka.streams.scala.StreamsBuilder
     import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, KTable}
 
-    def withProcessorName(pn: String): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, Some(pn), timestampExtractor, resetPolicy)
-
-    def withTimestampExtractor(te: TimestampExtractor): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processorName, Some(te), resetPolicy)
-
-    def withResetPololicy(rp: AutoOffsetReset): StreamingChannel[K, V] =
-      new StreamingChannel[K, V](topicName, keySerde, valueSerde, processorName, timestampExtractor, Some(rp))
-
-    def consumed: Consumed[K, V] = {
-      val base = Consumed.`with`(keySerde, valueSerde)
-      val pn   = processorName.fold(base)(pn => base.withName(pn))
-      val te   = timestampExtractor.fold(pn)(te => pn.withTimestampExtractor(te))
-      resetPolicy.fold(te)(rp => te.withOffsetResetPolicy(rp))
-    }
-
     val kstream: Reader[StreamsBuilder, KStream[K, V]] =
-      Reader(builder => builder.stream[K, V](topicName.value)(consumed))
+      Reader(builder => builder.stream[K, V](topicDef.topicName.value)(topicDef.consumed))
 
     val ktable: Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicName.value)(consumed))
+      Reader(builder => builder.table[K, V](topicDef.topicName.value)(topicDef.consumed))
 
     def ktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, KTable[K, V]] =
-      Reader(builder => builder.table[K, V](topicName.value, mat)(consumed))
+      Reader(builder => builder.table[K, V](topicDef.topicName.value, mat)(topicDef.consumed))
 
     val gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicName.value)(consumed))
+      Reader(builder => builder.globalTable[K, V](topicDef.topicName.value)(topicDef.consumed))
 
     def gktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, GlobalKTable[K, V]] =
-      Reader(builder => builder.globalTable[K, V](topicName.value, mat)(consumed))
+      Reader(builder => builder.globalTable[K, V](topicDef.topicName.value, mat)(topicDef.consumed))
   }
 }

@@ -18,14 +18,15 @@ import org.apache.kafka.streams.scala.kstream.{Consumed, Grouped, Materialized, 
 import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, ByteArraySessionStore, ByteArrayWindowStore}
 import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, SessionBytesStoreSupplier, WindowBytesStoreSupplier}
 
-final class TopicDef[K, V] private (val topicName: TopicName)(implicit
+final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JConsumed[K, V])(implicit
   val serdeOfKey: SerdeOf[K],
   val serdeOfVal: SerdeOf[V])
     extends Serializable {
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(tn))
+  def withTopicName(tn: String): TopicDef[K, V] =
+    new TopicDef[K, V](TopicName.unsafeFrom(tn), consumed)(serdeOfKey, serdeOfVal)
 
   val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroCodec.avroEncoder
   val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroCodec.avroDecoder
@@ -47,16 +48,17 @@ final class TopicDef[K, V] private (val topicName: TopicName)(implicit
   def materialized(supplier: KeyValueBytesStoreSupplier): JMaterialized[K, V, ByteArrayKeyValueStore] =
     Materialized.as[K, V](supplier)(serdeOfKey, serdeOfVal)
 
-  def consumed(timestampExtractor: TimestampExtractor, resetPolicy: AutoOffsetReset): JConsumed[K, V] =
-    Consumed.`with`(timestampExtractor, resetPolicy)(serdeOfKey, serdeOfVal)
+  private def updateConsumed(c: JConsumed[K, V]): TopicDef[K, V] =
+    new TopicDef[K, V](topicName, c)(serdeOfKey, serdeOfVal)
 
-  def consumed(timestampExtractor: TimestampExtractor): JConsumed[K, V] =
-    Consumed.`with`(timestampExtractor)(serdeOfKey, serdeOfVal)
+  def withConsumed(timestampExtractor: TimestampExtractor, resetPolicy: AutoOffsetReset): TopicDef[K, V] =
+    updateConsumed(Consumed.`with`(timestampExtractor, resetPolicy)(serdeOfKey, serdeOfVal))
 
-  def consumed(resetPolicy: AutoOffsetReset): JConsumed[K, V] =
-    Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal)
+  def withConsumed(timestampExtractor: TimestampExtractor): TopicDef[K, V] =
+    updateConsumed(Consumed.`with`(timestampExtractor)(serdeOfKey, serdeOfVal))
 
-  def consumed: JConsumed[K, V] = Consumed.`with`(serdeOfKey, serdeOfVal)
+  def withConsumed(resetPolicy: AutoOffsetReset): TopicDef[K, V] =
+    updateConsumed(Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal))
 
   def grouped: JGrouped[K, V]               = Grouped.`with`(serdeOfKey, serdeOfVal)
   def grouped(name: String): JGrouped[K, V] = Grouped.`with`(name)(serdeOfKey, serdeOfVal)
@@ -77,13 +79,22 @@ object TopicDef {
         x.schemaForKey.schema == y.schemaForKey.schema &&
         x.schemaForVal.schema == y.schemaForVal.schema
 
-  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valueSchema: AvroCodec[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf(keySchema), SerdeOf(valueSchema))
+  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valueSchema: AvroCodec[V]): TopicDef[K, V] = {
+    val sk = SerdeOf(keySchema)
+    val sv = SerdeOf(valueSchema)
+    new TopicDef(topicName, Consumed.`with`(sk, sv))(sk, sv)
+  }
 
-  def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf[K], SerdeOf[V])
+  def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] = {
+    val sk = SerdeOf[K]
+    val sv = SerdeOf[V]
+    new TopicDef(topicName, Consumed.`with`(sk, sv))(sk, sv)
+  }
 
-  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: AvroCodec[V]): TopicDef[K, V] =
-    new TopicDef(topicName)(SerdeOf[K], SerdeOf(valueSchema))
+  def apply[K: SerdeOf, V](topicName: TopicName, valueSchema: AvroCodec[V]): TopicDef[K, V] = {
+    val sk = SerdeOf[K]
+    val sv = SerdeOf(valueSchema)
+    new TopicDef(topicName, Consumed.`with`(sk, sv))(sk, sv)
+  }
 
 }
