@@ -79,5 +79,4 @@ object TopicDef {
     val sv = SerdeOf(valueSchema)
     new TopicDef(topicName, Consumed.`with`(sk, sv))(sk, sv)
   }
-
 }

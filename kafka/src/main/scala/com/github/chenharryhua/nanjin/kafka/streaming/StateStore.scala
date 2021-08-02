@@ -40,10 +40,10 @@ final class SessionBytesStoreSupplierHelper[K, V](
     Stores.sessionStoreBuilder(supplier, serdeOfKey, serdeOfVal)
 }
 
-final class StateStore[K, V] private (val storeName: StoreName)(implicit
-  val serdeOfKey: SerdeOf[K],
-  val serdeOfVal: SerdeOf[V])
+final class StateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeOf[K], serdeOfVal: SerdeOf[V])
     extends Serializable {
+
+  def name: String = storeName.value
 
   def asTopicDef(name: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(name))(serdeOfKey, serdeOfVal)
 
@@ -145,5 +145,7 @@ final class StateStore[K, V] private (val storeName: StoreName)(implicit
 }
 
 object StateStore {
-  def apply[K: SerdeOf, V: SerdeOf](name: String): StateStore[K, V] = new StateStore[K, V](StoreName.unsafeFrom(name))
+
+  def apply[K, V](name: String)(implicit serdeOfKey: SerdeOf[K], serdeOfVal: SerdeOf[V]): StateStore[K, V] =
+    new StateStore[K, V](StoreName.unsafeFrom(name), serdeOfKey, serdeOfVal)
 }
