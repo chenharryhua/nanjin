@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.Reader
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import org.apache.kafka.streams.kstream.GlobalKTable
 import org.apache.kafka.streams.scala.ByteArrayKeyValueStore
 import org.apache.kafka.streams.scala.kstream.Materialized
-import com.github.chenharryhua.nanjin.kafka.TopicDef
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier
 
 final class StreamingChannel[K, V] private[kafka] (topicDef: TopicDef[K, V]) {
@@ -31,4 +31,10 @@ final class StreamingChannel[K, V] private[kafka] (topicDef: TopicDef[K, V]) {
 
   def gktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, GlobalKTable[K, V]] =
     Reader(builder => builder.globalTable[K, V](topicDef.topicName.value, mat)(topicDef.consumed))
+
+  def gktable(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, GlobalKTable[K, V]] = {
+    val mat: Materialized[K, V, ByteArrayKeyValueStore] =
+      Materialized.as[K, V](supplier)(topicDef.serdeOfKey, topicDef.serdeOfVal)
+    Reader((builder: StreamsBuilder) => builder.globalTable[K, V](topicDef.topicName.value, mat)(topicDef.consumed))
+  }
 }
