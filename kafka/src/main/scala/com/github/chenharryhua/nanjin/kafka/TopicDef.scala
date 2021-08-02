@@ -4,6 +4,7 @@ import cats.Show
 import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.streaming.StateStore
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import org.apache.kafka.streams.Topology.AutoOffsetReset
@@ -46,6 +47,8 @@ final class TopicDef[K, V] private (val topicName: TopicName, val consumed: JCon
     updateConsumed(Consumed.`with`(resetPolicy)(serdeOfKey, serdeOfVal))
 
   def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, serdeOfKey, serdeOfVal)
+
+  def asStateStore(name: String): StateStore[K, V] = StateStore[K, V](name)(serdeOfKey, serdeOfVal)
 
 }
 
