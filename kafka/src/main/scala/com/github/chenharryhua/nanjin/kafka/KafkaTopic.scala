@@ -4,11 +4,12 @@ import akka.actor.ActorSystem
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.streaming.{NJStateStore, StreamingChannel}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-import com.github.chenharryhua.nanjin.kafka.streaming.StreamingChannel
+
 import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
@@ -18,6 +19,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   val topicName: TopicName = topicDef.topicName
 
   def withTopicName(tn: String): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
+
+  def asStateStore(name: String): NJStateStore[K, V] = topicDef.asStateStore(name)
 
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
