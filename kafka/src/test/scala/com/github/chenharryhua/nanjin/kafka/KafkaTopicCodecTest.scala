@@ -8,7 +8,7 @@ class KafkaTopicCodecTest extends AnyFunSuite {
   test("topic name should be same") {
     assertThrows[Exception](
       new RegisteredKeyValueSerdePair[Int, Int](
-        topic.topicDef.serdePair.key.asKey(Map()).codec("a"),
-        topic.topicDef.serdePair.value.asValue(Map()).codec("b")))
+        topic.topicDef.rawSerdes.keySerde.asKey(Map()).codec("a"),
+        topic.topicDef.rawSerdes.valSerde.asValue(Map()).codec("b")))
   }
 }

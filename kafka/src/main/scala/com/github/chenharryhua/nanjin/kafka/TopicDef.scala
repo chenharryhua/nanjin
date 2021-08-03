@@ -7,22 +7,22 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 
-final class TopicDef[K, V] private (val topicName: TopicName, val serdePair: RawKeyValueSerdePair[K, V])
+final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
     extends Serializable {
 
   override def toString: String = topicName.value
 
   def withTopicName(tn: String): TopicDef[K, V] =
-    new TopicDef[K, V](TopicName.unsafeFrom(tn), serdePair)
+    new TopicDef[K, V](TopicName.unsafeFrom(tn), rawSerdes)
 
-  val avroKeyEncoder: AvroEncoder[K] = serdePair.key.avroCodec.avroEncoder
-  val avroKeyDecoder: AvroDecoder[K] = serdePair.key.avroCodec.avroDecoder
+  val avroKeyEncoder: AvroEncoder[K] = rawSerdes.keySerde.avroCodec.avroEncoder
+  val avroKeyDecoder: AvroDecoder[K] = rawSerdes.keySerde.avroCodec.avroDecoder
 
-  val avroValEncoder: AvroEncoder[V] = serdePair.value.avroCodec.avroEncoder
-  val avroValDecoder: AvroDecoder[V] = serdePair.value.avroCodec.avroDecoder
+  val avroValEncoder: AvroEncoder[V] = rawSerdes.valSerde.avroCodec.avroEncoder
+  val avroValDecoder: AvroDecoder[V] = rawSerdes.valSerde.avroCodec.avroDecoder
 
-  val schemaForKey: SchemaFor[K] = serdePair.key.avroCodec.schemaFor
-  val schemaForVal: SchemaFor[V] = serdePair.value.avroCodec.schemaFor
+  val schemaForKey: SchemaFor[K] = rawSerdes.keySerde.avroCodec.schemaFor
+  val schemaForVal: SchemaFor[V] = rawSerdes.valSerde.avroCodec.schemaFor
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 

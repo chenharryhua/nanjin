@@ -1,8 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
-import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
+import com.github.chenharryhua.nanjin.common.kafka.StoreName
+import com.github.chenharryhua.nanjin.kafka.{
+  RawKeyValueSerdePair,
+  RegisteredKeyValueSerdePair,
+  SchemaRegistrySettings,
+  TopicDef
+}
 import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
 
@@ -12,55 +16,47 @@ import scala.concurrent.duration.FiniteDuration
 
 final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
-  serdeOfKey: SerdeOf[K],
-  serdeOfVal: SerdeOf[V]) {
+  codec: RegisteredKeyValueSerdePair[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
-    Stores.keyValueStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+    Stores.keyValueStoreBuilder(supplier, codec.keySerde, codec.valSerde)
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
-    Stores.timestampedKeyValueStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+    Stores.timestampedKeyValueStoreBuilder(supplier, codec.keySerde, codec.valSerde)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
-  serdeOfKey: SerdeOf[K],
-  serdeOfVal: SerdeOf[V]) {
+  codec: RegisteredKeyValueSerdePair[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
-    Stores.windowStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+    Stores.windowStoreBuilder(supplier, codec.keySerde, codec.valSerde)
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
-    Stores.timestampedWindowStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+    Stores.timestampedWindowStoreBuilder(supplier, codec.keySerde, codec.valSerde)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
-  serdeOfKey: SerdeOf[K],
-  serdeOfVal: SerdeOf[V]) {
+  codec: RegisteredKeyValueSerdePair[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
-    Stores.sessionStoreBuilder(supplier, serdeOfKey, serdeOfVal)
+    Stores.sessionStoreBuilder(supplier, codec.keySerde, codec.valSerde)
 }
 
-final class NJStateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeOf[K], serdeOfVal: SerdeOf[V])
+final class NJStateStore[K, V] private (storeName: StoreName, codec: RegisteredKeyValueSerdePair[K, V])
     extends Serializable {
 
   def name: String = storeName.value
 
-  def asTopicDef(name: String): TopicDef[K, V] = TopicDef[K, V](TopicName.unsafeFrom(name))(serdeOfKey, serdeOfVal)
-
   def persistentKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(storeName.value), serdeOfKey, serdeOfVal)
+    new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(storeName.value), codec)
 
   def persistentTimestampedKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(
-      Stores.persistentTimestampedKeyValueStore(storeName.value),
-      serdeOfKey,
-      serdeOfVal)
+    new KeyValueBytesStoreSupplierHelper(Stores.persistentTimestampedKeyValueStore(storeName.value), codec)
 
   def inMemoryKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(storeName.value), serdeOfKey, serdeOfVal)
+    new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(storeName.value), codec)
 
   def lruMap(maxCacheSize: Int): KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.lruMap(storeName.value, maxCacheSize), serdeOfKey, serdeOfVal)
+    new KeyValueBytesStoreSupplierHelper(Stores.lruMap(storeName.value, maxCacheSize), codec)
 
   def persistentWindowStore(
     retentionPeriod: Duration,
@@ -68,8 +64,7 @@ final class NJStateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeO
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.persistentWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
-      serdeOfKey,
-      serdeOfVal)
+      codec)
 
   def persistentWindowStore(
     retentionPeriod: FiniteDuration,
@@ -83,8 +78,7 @@ final class NJStateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeO
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.persistentTimestampedWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
-      serdeOfKey,
-      serdeOfVal)
+      codec)
 
   def persistentTimestampedWindowStore(
     retentionPeriod: FiniteDuration,
@@ -98,8 +92,7 @@ final class NJStateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeO
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.inMemoryWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
-      serdeOfKey,
-      serdeOfVal)
+      codec)
 
   def inMemoryWindowStore(
     retentionPeriod: FiniteDuration,
@@ -108,16 +101,10 @@ final class NJStateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeO
     inMemoryWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
   def persistentSessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(
-      Stores.persistentSessionStore(storeName.value, retentionPeriod),
-      serdeOfKey,
-      serdeOfVal)
+    new SessionBytesStoreSupplierHelper(Stores.persistentSessionStore(storeName.value, retentionPeriod), codec)
 
   def inMemorySessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(
-      Stores.inMemorySessionStore(storeName.value, retentionPeriod),
-      serdeOfKey,
-      serdeOfVal)
+    new SessionBytesStoreSupplierHelper(Stores.inMemorySessionStore(storeName.value, retentionPeriod), codec)
 
   def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplierHelper[K, V] =
     inMemorySessionStore(retentionPeriod.toJava)
@@ -137,12 +124,14 @@ final class NJStateStore[K, V] private (storeName: StoreName, serdeOfKey: SerdeO
 
     def sessionStore: StoreQueryParameters[ReadOnlySessionStore[K, V]] =
       StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.sessionStore[K, V])
-
   }
 }
 
 object NJStateStore {
+  def apply[K, V](name: String, codec: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
+    new NJStateStore[K, V](StoreName.unsafeFrom(name), codec)
 
-  def apply[K, V](name: String)(implicit serdeOfKey: SerdeOf[K], serdeOfVal: SerdeOf[V]): NJStateStore[K, V] =
-    new NJStateStore[K, V](StoreName.unsafeFrom(name), serdeOfKey, serdeOfVal)
+  def apply[K, V](name: String, srs: SchemaRegistrySettings, serdes: RawKeyValueSerdePair[K, V]) =
+    new NJStateStore[K, V](StoreName.unsafeFrom(name), serdes.register(srs, name))
+
 }

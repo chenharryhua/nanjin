@@ -3,13 +3,11 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 import cats.data.Reader
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import org.apache.kafka.streams.kstream.GlobalKTable
-import org.apache.kafka.streams.scala.ByteArrayKeyValueStore
-import org.apache.kafka.streams.scala.kstream.{Consumed, Materialized, Produced}
+import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, StreamsBuilder}
+import org.apache.kafka.streams.scala.kstream.*
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier
 
 final class StreamingChannel[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]) {
-  import org.apache.kafka.streams.scala.StreamsBuilder
-  import org.apache.kafka.streams.scala.kstream.{KStream, KTable}
 
   val consumed: Consumed[K, V] = Consumed.`with`[K, V](topic.codec.keySerde, topic.codec.valSerde)
   val produced: Produced[K, V] = Produced.`with`[K, V](topic.codec.keySerde, topic.codec.valSerde)

@@ -14,16 +14,23 @@ import scala.util.{Failure, Try}
 /** [[https://github.com/sksamuel/avro4s]]
   */
 
-final class NJCodec[A](val topicName: String, val cfg: NJSerdeConfig[A]) extends Serializable {
-  def encode(a: A): Array[Byte]  = cfg.serde.serializer.serialize(topicName, a)
-  def decode(ab: Array[Byte]): A = cfg.serde.deserializer.deserialize(topicName, ab)
+/** @param name
+  *   - topic name or state store name
+  * @param registered
+  *   registered in kafka schema registry
+  * @tparam A
+  *   schema related type
+  */
+final class NJCodec[A](val name: String, val registered: RegisteredSerde[A]) extends Serializable {
+  def encode(a: A): Array[Byte]  = registered.serde.serializer.serialize(name, a)
+  def decode(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(name, ab)
 
   def tryDecode(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(new NullPointerException("NJCodec.tryDecode a null Array[Byte]")))(x =>
       Try(decode(x)))
 }
 
-sealed abstract class NJSerdeConfig[A](
+sealed abstract class RegisteredSerde[A](
   val tag: KeyValueTag,
   val serde: SerdeOf[A],
   val configProps: Map[String, String])
@@ -38,11 +45,11 @@ sealed abstract class NJSerdeConfig[A](
 trait SerdeOf[A] extends Serde[A] with Serializable {
   def avroCodec: AvroCodec[A]
 
-  final def asKey(props: Map[String, String]): NJSerdeConfig[A] =
-    new NJSerdeConfig(KeyValueTag.Key, this, props) {}
+  final def asKey(props: Map[String, String]): RegisteredSerde[A] =
+    new RegisteredSerde(KeyValueTag.Key, this, props) {}
 
-  final def asValue(props: Map[String, String]): NJSerdeConfig[A] =
-    new NJSerdeConfig(KeyValueTag.Value, this, props) {}
+  final def asValue(props: Map[String, String]): RegisteredSerde[A] =
+    new RegisteredSerde(KeyValueTag.Value, this, props) {}
 }
 
 private[codec] trait LowerPriority {

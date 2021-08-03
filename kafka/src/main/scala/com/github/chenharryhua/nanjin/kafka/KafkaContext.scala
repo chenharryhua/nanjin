@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.functor.*
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsBuilder
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import monix.eval.Task as MTask
 import org.apache.kafka.common.serialization.Serde
@@ -28,6 +28,9 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
+
+  final def store[K: SerdeOf, V: SerdeOf](storeName: String): NJStateStore[K, V] =
+    NJStateStore[K, V](storeName, settings.schemaRegistrySettings, RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
 
   final def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
     streaming.KafkaStreamsBuilder[F](settings.streamSettings, topology)
