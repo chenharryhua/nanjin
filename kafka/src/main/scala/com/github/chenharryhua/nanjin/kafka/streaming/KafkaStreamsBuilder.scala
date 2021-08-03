@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.Reader
+import cats.derived.auto.show.*
 import cats.effect.kernel.{Async, Deferred, Resource}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
@@ -24,6 +25,9 @@ final class KafkaStreamsBuilder[F[_]] private (
   top: Reader[StreamsBuilder, Unit],
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]],
   startUpTimeout: FiniteDuration)(implicit F: Async[F]) {
+
+  def showSettings: String = settings.show
+
   final private class StreamErrorHandler(dispatcher: Dispatcher[F], err: Deferred[F, Either[Throwable, Unit]])
       extends StreamsUncaughtExceptionHandler {
 

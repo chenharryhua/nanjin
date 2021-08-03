@@ -90,7 +90,7 @@ object NJProducerRecord {
   }
 
   def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJProducerRecord[K, V]] =
-    avroCodec(topicDef.serdeOfKey.avroCodec, topicDef.serdeOfVal.avroCodec)
+    avroCodec(topicDef.serdePair.key.avroCodec, topicDef.serdePair.value.avroCodec)
 
   implicit def jsonEncoder[K, V](implicit
     jck: JsonEncoder[K],
