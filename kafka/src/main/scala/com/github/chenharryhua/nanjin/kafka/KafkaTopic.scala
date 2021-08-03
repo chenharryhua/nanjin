@@ -14,7 +14,6 @@ import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
     extends TopicNameExtractor[K, V] with Serializable {
-  import topicDef.{serdeOfKey, serdeOfVal}
 
   val topicName: TopicName = topicDef.topicName
 
@@ -26,8 +25,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   //need to reconstruct codec when working in spark
   @transient lazy val codec: KafkaTopicCodec[K, V] = new KafkaTopicCodec(
-    serdeOfKey.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
-    serdeOfVal.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
+    topicDef.serdeOfKey.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
+    topicDef.serdeOfVal.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
   )
 
   @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
@@ -53,12 +52,11 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
 
   // channels
-  def kafkaStream: StreamingChannel[K, V] = new StreamingChannel[K, V](topicDef)
+  def kafkaStream: StreamingChannel[K, V] = topicDef.kafkaStream
 
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
-      topicDef.topicName,
-      codec,
+      this,
       context.settings.producerSettings,
       context.settings.consumerSettings,
       fs2Updater.unitConsumer[F],
@@ -66,9 +64,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
     new KafkaChannels.AkkaChannel[F, K, V](
-      topicName,
+      this,
       akkaSystem,
-      codec,
       context.settings.producerSettings,
       context.settings.consumerSettings,
       akkaUpdater.unitConsumer,
