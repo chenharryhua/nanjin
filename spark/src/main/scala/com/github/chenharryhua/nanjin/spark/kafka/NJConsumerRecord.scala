@@ -87,7 +87,7 @@ object NJConsumerRecord {
   }
 
   def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJConsumerRecord[K, V]] =
-    avroCodec(topicDef.rawKeySerde.avroCodec, topicDef.rawValSerde.avroCodec)
+    avroCodec(topicDef.serdePair.key.avroCodec, topicDef.serdePair.value.avroCodec)
 
   def ate[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
     tek: TypedEncoder[K],
@@ -99,7 +99,7 @@ object NJConsumerRecord {
   def ate[K, V](topicDef: TopicDef[K, V])(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
-    ate(topicDef.rawKeySerde.avroCodec, topicDef.rawValSerde.avroCodec)
+    ate(topicDef.serdePair.key.avroCodec, topicDef.serdePair.value.avroCodec)
 
   implicit def jsonEncoder[K, V](implicit
     jck: JsonEncoder[K],

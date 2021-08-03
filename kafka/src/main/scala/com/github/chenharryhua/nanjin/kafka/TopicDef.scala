@@ -7,22 +7,22 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 
-final class TopicDef[K, V] private (val topicName: TopicName, val rawKeySerde: SerdeOf[K], val rawValSerde: SerdeOf[V])
+final class TopicDef[K, V] private (val topicName: TopicName, val serdePair: RawKeyValueSerdePair[K, V])
     extends Serializable {
 
   override def toString: String = topicName.value
 
   def withTopicName(tn: String): TopicDef[K, V] =
-    new TopicDef[K, V](TopicName.unsafeFrom(tn), rawKeySerde, rawValSerde)
+    new TopicDef[K, V](TopicName.unsafeFrom(tn), serdePair)
 
-  val avroKeyEncoder: AvroEncoder[K] = rawKeySerde.avroCodec.avroEncoder
-  val avroKeyDecoder: AvroDecoder[K] = rawKeySerde.avroCodec.avroDecoder
+  val avroKeyEncoder: AvroEncoder[K] = serdePair.key.avroCodec.avroEncoder
+  val avroKeyDecoder: AvroDecoder[K] = serdePair.key.avroCodec.avroDecoder
 
-  val avroValEncoder: AvroEncoder[V] = rawValSerde.avroCodec.avroEncoder
-  val avroValDecoder: AvroDecoder[V] = rawValSerde.avroCodec.avroDecoder
+  val avroValEncoder: AvroEncoder[V] = serdePair.value.avroCodec.avroEncoder
+  val avroValDecoder: AvroDecoder[V] = serdePair.value.avroCodec.avroDecoder
 
-  val schemaForKey: SchemaFor[K] = rawKeySerde.avroCodec.schemaFor
-  val schemaForVal: SchemaFor[V] = rawValSerde.avroCodec.schemaFor
+  val schemaForKey: SchemaFor[K] = serdePair.key.avroCodec.schemaFor
+  val schemaForVal: SchemaFor[V] = serdePair.value.avroCodec.schemaFor
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 
@@ -41,18 +41,18 @@ object TopicDef {
   def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valSchema: AvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf(keySchema)
     val sv = SerdeOf(valSchema)
-    new TopicDef(topicName, sk, sv)
+    new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
   }
 
   def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] = {
     val sk = SerdeOf[K]
     val sv = SerdeOf[V]
-    new TopicDef(topicName, sk, sv)
+    new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
   }
 
   def apply[K: SerdeOf, V](topicName: TopicName, valSchema: AvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf[K]
     val sv = SerdeOf(valSchema)
-    new TopicDef(topicName, sk, sv)
+    new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
   }
 }

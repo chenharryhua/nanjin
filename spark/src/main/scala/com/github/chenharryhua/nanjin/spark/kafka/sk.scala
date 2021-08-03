@@ -62,7 +62,7 @@ private[kafka] object sk {
           topicPartitions.value,
           props(topic.context.settings.consumerSettings.config).asScala)
       KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
-        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.key, topic.codec.value)
         ms.map { m =>
           val (errs, cr) = decoder.decode(m).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
@@ -77,7 +77,7 @@ private[kafka] object sk {
     locationStrategy: LocationStrategy,
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
-      val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+      val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.key, topic.codec.value)
       ms.map { m =>
         val (errs, cr) = decoder.decode(m).run
         errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
@@ -118,7 +118,7 @@ private[kafka] object sk {
       .load()
       .as[NJConsumerRecord[Array[Byte], Array[Byte]]]
       .mapPartitions { ms =>
-        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.key, topic.codec.value)
         ms.map { cr =>
           val (errs, msg) = decoder.decode(cr).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))

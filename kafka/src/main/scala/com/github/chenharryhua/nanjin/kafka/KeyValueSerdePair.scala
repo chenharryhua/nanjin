@@ -7,11 +7,11 @@ import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
 final case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V])
 
-final class RegisteredKeyValueSerdePair[K, V] private[kafka](val keyCodec: NJCodec[K], val valCodec: NJCodec[V]) {
-  require(keyCodec.topicName === valCodec.topicName, "key and value codec should have same topic name")
+final case class RegisteredKeyValueSerdePair[K, V](key: NJCodec[K], value: NJCodec[V]) {
+  require(key.topicName === value.topicName, "key and value codec should have same topic name")
 
-  implicit val keySerde: SerdeOf[K] = keyCodec.cfg.serde
-  implicit val valSerde: SerdeOf[V] = valCodec.cfg.serde
+  implicit val keySerde: SerdeOf[K] = key.cfg.serde
+  implicit val valSerde: SerdeOf[V] = value.cfg.serde
 
   val keySchemaFor: SchemaFor[K] = keySerde.avroCodec.schemaFor
   val valSchemaFor: SchemaFor[V] = valSerde.avroCodec.schemaFor
