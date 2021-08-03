@@ -4,37 +4,28 @@ import cats.Show
 import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.streaming.{NJStateStore, StreamingChannel}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
-import org.apache.kafka.streams.state.StateSerdes
 
-final class TopicDef[K, V] private (val topicName: TopicName, val serdeOfKey: SerdeOf[K], val serdeOfVal: SerdeOf[V])
+final class TopicDef[K, V] private (val topicName: TopicName, val rawKeySerde: SerdeOf[K], val rawValSerde: SerdeOf[V])
     extends Serializable {
 
   override def toString: String = topicName.value
 
   def withTopicName(tn: String): TopicDef[K, V] =
-    new TopicDef[K, V](TopicName.unsafeFrom(tn), serdeOfKey, serdeOfVal)
+    new TopicDef[K, V](TopicName.unsafeFrom(tn), rawKeySerde, rawValSerde)
 
-  val avroKeyEncoder: AvroEncoder[K] = serdeOfKey.avroCodec.avroEncoder
-  val avroKeyDecoder: AvroDecoder[K] = serdeOfKey.avroCodec.avroDecoder
+  val avroKeyEncoder: AvroEncoder[K] = rawKeySerde.avroCodec.avroEncoder
+  val avroKeyDecoder: AvroDecoder[K] = rawKeySerde.avroCodec.avroDecoder
 
-  val avroValEncoder: AvroEncoder[V] = serdeOfVal.avroCodec.avroEncoder
-  val avroValDecoder: AvroDecoder[V] = serdeOfVal.avroCodec.avroDecoder
+  val avroValEncoder: AvroEncoder[V] = rawValSerde.avroCodec.avroEncoder
+  val avroValDecoder: AvroDecoder[V] = rawValSerde.avroCodec.avroDecoder
 
-  val schemaForKey: SchemaFor[K] = serdeOfKey.avroCodec.schemaFor
-  val schemaForVal: SchemaFor[V] = serdeOfVal.avroCodec.schemaFor
+  val schemaForKey: SchemaFor[K] = rawKeySerde.avroCodec.schemaFor
+  val schemaForVal: SchemaFor[V] = rawValSerde.avroCodec.schemaFor
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 
-  def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, serdeOfKey, serdeOfVal)
-
-  def asStateStore(name: String): NJStateStore[K, V] = {
-    require(name =!= topicName.value, "should provide a name other than the topic name")
-    NJStateStore[K, V](name)(serdeOfKey, serdeOfVal)
-  }
-  def kafkaStream: StreamingChannel[K, V] = new StreamingChannel[K, V](this)
 }
 
 object TopicDef {

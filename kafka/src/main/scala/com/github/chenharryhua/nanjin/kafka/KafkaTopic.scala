@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
+import org.apache.kafka.streams.state.StateSerdes
 
 import scala.util.Try
 
@@ -19,14 +20,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def withTopicName(tn: String): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
-  def asStateStore(name: String): NJStateStore[K, V] = topicDef.asStateStore(name)
-
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
   //need to reconstruct codec when working in spark
-  @transient lazy val codec: KafkaTopicCodec[K, V] = new KafkaTopicCodec(
-    topicDef.serdeOfKey.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
-    topicDef.serdeOfVal.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
+  @transient lazy val codec: RegisteredKeyValueSerdePair[K, V] = new RegisteredKeyValueSerdePair(
+    topicDef.rawKeySerde.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
+    topicDef.rawValSerde.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
   )
 
   @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
@@ -52,8 +51,15 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
 
   // channels
-  def kafkaStream: StreamingChannel[K, V] = topicDef.kafkaStream
 
+  def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, codec.keySerde, codec.valSerde)
+
+  def asStateStore(name: String): NJStateStore[K, V] = {
+    require(name =!= topicName.value, "should provide a name other than the topic name")
+    NJStateStore[K, V](name)(codec.keySerde, codec.valSerde)
+  }
+
+  def kafkaStream: StreamingChannel[F, K, V] = new StreamingChannel[F, K, V](this)
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       this,

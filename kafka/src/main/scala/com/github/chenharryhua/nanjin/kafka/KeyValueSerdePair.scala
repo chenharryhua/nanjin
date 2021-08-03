@@ -5,7 +5,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, SerdeOf}
 import com.sksamuel.avro4s.SchemaFor
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 
-final class KafkaTopicCodec[K, V] private[kafka] (val keyCodec: NJCodec[K], val valCodec: NJCodec[V]) {
+final case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V])
+
+final class RegisteredKeyValueSerdePair[K, V] private[kafka](val keyCodec: NJCodec[K], val valCodec: NJCodec[V]) {
   require(keyCodec.topicName === valCodec.topicName, "key and value codec should have same topic name")
 
   implicit val keySerde: SerdeOf[K] = keyCodec.cfg.serde
