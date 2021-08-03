@@ -24,7 +24,7 @@ import scala.concurrent.duration.*
 class TransformerTest extends AnyFunSuite {
 
   test("stream transformer") {
-    val store = NJStateStore[Int, String]("stream.builder.test.store")
+    val store = ctx.store[Int, String]("stream.builder.test.store")
 
     val topic1 = ctx.topic[Int, String]("stream.builder.test.stream1")
     val topic2 = ctx.topic[Int, String]("stream.builder.test.table2")
