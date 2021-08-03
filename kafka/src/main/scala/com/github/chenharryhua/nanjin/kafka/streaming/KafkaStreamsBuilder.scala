@@ -71,6 +71,8 @@ final class KafkaStreamsBuilder[F[_]] private (
     rrks.flatten
   }
 
+  /** one object KafkaStreams stream. for interactive state store query
+    */
   val query: Stream[F, KafkaStreams] = for {
     err <- Stream.eval(F.deferred[Either[Throwable, Unit]])
     stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])

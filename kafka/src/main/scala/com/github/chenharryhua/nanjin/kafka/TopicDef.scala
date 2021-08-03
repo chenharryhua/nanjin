@@ -50,8 +50,10 @@ final class TopicDef[K, V] private (
 
   def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, serdeOfKey, serdeOfVal)
 
-  def asStateStore(name: String): NJStateStore[K, V] = NJStateStore[K, V](name)(serdeOfKey, serdeOfVal)
-
+  def asStateStore(name: String): NJStateStore[K, V] = {
+    require(name =!= topicName.value, "should provide a name other than the topic name")
+    NJStateStore[K, V](name)(serdeOfKey, serdeOfVal)
+  }
 }
 
 object TopicDef {

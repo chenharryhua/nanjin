@@ -4,29 +4,27 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.kafka.StoreName
+import com.github.chenharryhua.nanjin.kafka.streaming.NJStateStore
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
-import mtest.kafka._
+import mtest.kafka.*
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.{Transformer, TransformerSupplier}
 import org.apache.kafka.streams.processor.ProcessorContext
-import org.apache.kafka.streams.scala.ImplicitConversions._
+import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.scala.serialization.Serdes._
-import org.apache.kafka.streams.state.{KeyValueStore, StoreBuilder, Stores}
+import org.apache.kafka.streams.scala.serialization.Serdes.*
+import org.apache.kafka.streams.state.KeyValueStore
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 @DoNotDiscover
 class TransformerTest extends AnyFunSuite {
 
   test("stream transformer") {
-    val storeName = StoreName("stream.builder.test.store")
-    val store: StoreBuilder[KeyValueStore[Int, String]] =
-      Stores.keyValueStoreBuilder(Stores.inMemoryKeyValueStore(storeName.value), ctx.asKey[Int], ctx.asValue[String])
+    val store = NJStateStore[Int, String]("stream.builder.test.store")
 
     val topic1 = ctx.topic[Int, String]("stream.builder.test.stream1")
     val topic2 = ctx.topic[Int, String]("stream.builder.test.table2")
@@ -38,7 +36,7 @@ class TransformerTest extends AnyFunSuite {
           var kvStore: KeyValueStore[Int, String] = _
 
           override def init(processorContext: ProcessorContext): Unit = {
-            kvStore = processorContext.getStateStore[KeyValueStore[Int, String]](storeName.value)
+            kvStore = processorContext.getStateStore[KeyValueStore[Int, String]](store.name)
             println("transformer initialized")
           }
 
@@ -55,9 +53,12 @@ class TransformerTest extends AnyFunSuite {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       s1 <- topic1.kafkaStream.kstream
       t2 <- topic2.kafkaStream.ktable
-    } yield s1.transform(transformer, storeName.value).join(t2)(_ + _).to(tgt)
+    } yield s1.transform(transformer, store.name).join(t2)(_ + _).to(tgt)
 
-    val kafkaStreamService = ctx.buildStreams(top).addStateStore(store).withProperty("unknown-feature", "unused")
+    val kafkaStreamService = ctx
+      .buildStreams(top)
+      .addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
+      .withProperty("unknown-feature", "unused")
     println(kafkaStreamService.topology.describe())
 
     val t2Data = Stream(
