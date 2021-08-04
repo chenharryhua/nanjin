@@ -4,36 +4,36 @@ import akka.actor.ActorSystem
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.streaming.{NJStateStore, StreamingChannel}
+import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamingTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-import org.apache.kafka.streams.state.StateSerdes
+import org.apache.kafka.streams.scala.kstream.Consumed
 
 import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
     extends TopicNameExtractor[K, V] with Serializable {
 
+  override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
+
+  override def toString: String = topicName.value
+
   val topicName: TopicName = topicDef.topicName
 
   def withTopicName(tn: String): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
-  override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
-
   //need to reconstruct codec when working in spark
-  @transient lazy val registered: RegisteredKeyValueSerdePair[K, V] =
+  @transient lazy val codec: KeyValueCodecPair[K, V] =
     topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName.value)
 
   @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    new KafkaGenericDecoder[G, K, V](cr, registered.keyCodec, registered.valCodec)
+    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
 
   def record(partition: Int, offset: Long)(implicit sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
     shortLiveConsumer.use(
       _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset)).map(_.map(decoder(_).tryDecodeKeyValue)))
-
-  override def toString: String = topicName.value
 
   // APIs
 
@@ -48,16 +48,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
 
+  // Streaming
+
+  def kafkaStream: KafkaStreamingTopic[F, K, V] =
+    new KafkaStreamingTopic[F, K, V](this, Consumed.`with`[K, V](codec.keySerde, codec.valSerde))
+
   // channels
-
-  def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, registered.keySerde, registered.valSerde)
-
-  def asStateStore(name: String): NJStateStore[K, V] = {
-    require(name =!= topicName.value, "should provide a name other than the topic name")
-    NJStateStore[K, V](name, registered)
-  }
-
-  def kafkaStream: StreamingChannel[F, K, V] = new StreamingChannel[F, K, V](this)
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
       this,

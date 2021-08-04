@@ -20,8 +20,8 @@ import scala.util.Random
 @DoNotDiscover
 class ExampleKafkaKStream extends AnyFunSuite {
   test("kafka streaming") {
-    implicit val keySerde: Serde[Bar]   = barTopic.registered.valSerde
-    implicit val valSerde: SerdeOf[Int] = barTopic.registered.keySerde
+    implicit val keySerde: Serde[Bar]   = barTopic.codec.valSerde
+    implicit val valSerde: SerdeOf[Int] = barTopic.codec.keySerde
     val top: Kleisli[Id, StreamsBuilder, Unit] =
       fooTopic.kafkaStream.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic))
 

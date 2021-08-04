@@ -131,7 +131,7 @@ object NJStateStore {
   def apply[K, V](storeName: String, registered: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
     new NJStateStore[K, V](StoreName.unsafeFrom(storeName), registered)
 
-  def apply[K, V](storeName: String, srs: SchemaRegistrySettings, rawSerdes: RawKeyValueSerdePair[K, V]) =
-    new NJStateStore[K, V](StoreName.unsafeFrom(storeName), rawSerdes.register(srs, storeName))
+  def apply[K, V](storeName: String, srs: SchemaRegistrySettings, rawSerdes: RawKeyValueSerdePair[K, V]): NJStateStore[K, V] =
+    apply[K, V](storeName, rawSerdes.register(srs, storeName).asRegisteredKeyValueSerdePair)
 
 }
