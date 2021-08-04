@@ -4,19 +4,16 @@ import akka.actor.ActorSystem
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamingTopic
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumed, KafkaStreamingProduced}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
-import org.apache.kafka.streams.scala.kstream.Consumed
+import org.apache.kafka.streams.scala.kstream.{Consumed, Produced}
 
 import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
-    extends TopicNameExtractor[K, V] with Serializable {
-
-  override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
+    extends Serializable {
 
   override def toString: String = topicName.value
 
@@ -50,8 +47,11 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   // Streaming
 
-  def kafkaStream: KafkaStreamingTopic[F, K, V] =
-    new KafkaStreamingTopic[F, K, V](this, Consumed.`with`[K, V](codec.keySerde, codec.valSerde))
+  def asConsumer: KafkaStreamingConsumed[F, K, V] =
+    new KafkaStreamingConsumed[F, K, V](this, Consumed.`with`[K, V](codec.keySerde, codec.valSerde))
+
+  def asProducer: KafkaStreamingProduced[F, K, V] =
+    new KafkaStreamingProduced[F, K, V](this, Produced.`with`[K, V](codec.keySerde, codec.valSerde))
 
   // channels
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =

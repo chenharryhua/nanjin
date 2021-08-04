@@ -6,29 +6,31 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, RegisteredKeyValueSerde
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.Topology
 import org.apache.kafka.streams.kstream.GlobalKTable
-import org.apache.kafka.streams.processor.TimestampExtractor
+import org.apache.kafka.streams.processor.{RecordContext, StreamPartitioner, TimestampExtractor, TopicNameExtractor}
 import org.apache.kafka.streams.scala.kstream.*
 import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, StreamsBuilder}
 import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, StateSerdes}
 
-final class KafkaStreamingTopic[F[_], K, V] private[kafka] (val topic: KafkaTopic[F, K, V], consumed: Consumed[K, V])
+final class KafkaStreamingConsumed[F[_], K, V] private[kafka] (val topic: KafkaTopic[F, K, V], consumed: Consumed[K, V])
     extends Consumed[K, V](consumed) {
+  val serdeVal: Serde[V] = valueSerde
+  val serdeKey: Serde[K] = keySerde
 
-  private def update(consumed: Consumed[K, V]) = new KafkaStreamingTopic[F, K, V](topic, consumed)
+  private def update(consumed: Consumed[K, V]) = new KafkaStreamingConsumed[F, K, V](topic, consumed)
 
-  override def withOffsetResetPolicy(resetPolicy: Topology.AutoOffsetReset): KafkaStreamingTopic[F, K, V] =
+  override def withOffsetResetPolicy(resetPolicy: Topology.AutoOffsetReset): KafkaStreamingConsumed[F, K, V] =
     update(consumed.withOffsetResetPolicy(resetPolicy))
 
-  override def withName(processorName: String): KafkaStreamingTopic[F, K, V] =
+  override def withName(processorName: String): KafkaStreamingConsumed[F, K, V] =
     update(consumed.withName(processorName))
 
-  override def withTimestampExtractor(timestampExtractor: TimestampExtractor): KafkaStreamingTopic[F, K, V] =
+  override def withTimestampExtractor(timestampExtractor: TimestampExtractor): KafkaStreamingConsumed[F, K, V] =
     update(consumed.withTimestampExtractor(timestampExtractor))
 
-  override def withKeySerde(keySerde: Serde[K]): KafkaStreamingTopic[F, K, V] =
+  override def withKeySerde(keySerde: Serde[K]): KafkaStreamingConsumed[F, K, V] =
     update(consumed.withKeySerde(keySerde))
 
-  override def withValueSerde(valueSerde: Serde[V]): KafkaStreamingTopic[F, K, V] =
+  override def withValueSerde(valueSerde: Serde[V]): KafkaStreamingConsumed[F, K, V] =
     update(consumed.withValueSerde(valueSerde))
 
   val stateSerdes: StateSerdes[K, V] =
@@ -59,4 +61,28 @@ final class KafkaStreamingTopic[F[_], K, V] private[kafka] (val topic: KafkaTopi
 
   def gktable(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, GlobalKTable[K, V]] =
     gktable(Materialized.as[K, V](supplier)(keySerde, valueSerde))
+}
+
+final class KafkaStreamingProduced[F[_], K, V] private[kafka] (val topic: KafkaTopic[F, K, V], produced: Produced[K, V])
+    extends Produced[K, V](produced) with TopicNameExtractor[K, V] {
+
+  val serdeVal: Serde[V] = valueSerde
+  val serdeKey: Serde[K] = keySerde
+
+  override def extract(key: K, value: V, rc: RecordContext): String = topic.topicName.value
+
+  private def update(produced: Produced[K, V]): KafkaStreamingProduced[F, K, V] =
+    new KafkaStreamingProduced[F, K, V](topic, produced)
+
+  override def withKeySerde(keySerde: Serde[K]): KafkaStreamingProduced[F, K, V] =
+    update(produced.withKeySerde(keySerde))
+
+  override def withStreamPartitioner(partitioner: StreamPartitioner[? >: K, ? >: V]): KafkaStreamingProduced[F, K, V] =
+    update(produced.withStreamPartitioner(partitioner))
+
+  override def withName(name: String): Produced[K, V] =
+    update(produced.withName(name))
+
+  override def withValueSerde(valueSerde: Serde[V]): Produced[K, V] =
+    update(produced.withValueSerde(valueSerde))
 }

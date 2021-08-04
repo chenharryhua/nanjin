@@ -23,7 +23,7 @@ class ExampleKafkaKStream extends AnyFunSuite {
     implicit val keySerde: Serde[Bar]   = barTopic.codec.valSerde
     implicit val valSerde: SerdeOf[Int] = barTopic.codec.keySerde
     val top: Kleisli[Id, StreamsBuilder, Unit] =
-      fooTopic.kafkaStream.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic))
+      fooTopic.asConsumer.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic))
 
     ctx.buildStreams(top).stream.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
