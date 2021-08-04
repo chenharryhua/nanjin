@@ -10,7 +10,6 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import monocle.function.At.at
 import org.apache.kafka.streams.KafkaStreams.State
-import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
@@ -24,18 +23,10 @@ final class KafkaStreamsBuilder[F[_]] private (
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]],
-  startUpTimeout: FiniteDuration)(implicit F: Async[F]) {
+  startUpTimeout: FiniteDuration,
+  errorHandler: StreamErrorHandler[F])(implicit F: Async[F]) {
 
   def showSettings: String = settings.show
-
-  final private class StreamErrorHandler(dispatcher: Dispatcher[F], err: Deferred[F, Either[Throwable, Unit]])
-      extends StreamsUncaughtExceptionHandler {
-
-    override def handle(throwable: Throwable): StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse = {
-      dispatcher.unsafeRunSync(err.complete(Left(throwable)))
-      StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.SHUTDOWN_APPLICATION
-    }
-  }
 
   final private class StateChange(
     dispatcher: Dispatcher[F],
@@ -66,7 +57,7 @@ final class KafkaStreamsBuilder[F[_]] private (
         latch <- CountDownLatch[F](1)
         _ <- F.blocking(uks.cleanUp())
         _ <- F.blocking {
-          uks.setUncaughtExceptionHandler(new StreamErrorHandler(dispatcher, err))
+          uks.setUncaughtExceptionHandler(errorHandler(dispatcher, err))
           uks.setStateListener(new StateChange(dispatcher, latch, stop, bus))
           uks.start()
         }
@@ -100,14 +91,24 @@ final class KafkaStreamsBuilder[F[_]] private (
       settings = settings,
       top = top,
       localStateStores = localStateStores,
-      startUpTimeout = value)
+      startUpTimeout = value,
+      errorHandler = errorHandler)
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings = KafkaStreamSettings.config.composeLens(at(key)).set(Some(value))(settings),
       top = top,
       localStateStores = localStateStores,
-      startUpTimeout = startUpTimeout)
+      startUpTimeout = startUpTimeout,
+      errorHandler = errorHandler)
+
+  def withErrorHandler(errorHandler: StreamErrorHandler[F]): KafkaStreamsBuilder[F] =
+    new KafkaStreamsBuilder[F](
+      settings = settings,
+      top = top,
+      localStateStores = localStateStores,
+      startUpTimeout = startUpTimeout,
+      errorHandler = errorHandler)
 
   def addStateStore[S <: StateStore](storeBuilder: StoreBuilder[S]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
@@ -115,7 +116,8 @@ final class KafkaStreamsBuilder[F[_]] private (
       top = top,
       localStateStores =
         Reader((sb: StreamsBuilder) => new StreamsBuilder(sb.addStateStore(storeBuilder))) :: localStateStores,
-      startUpTimeout = startUpTimeout)
+      startUpTimeout = startUpTimeout,
+      errorHandler = errorHandler)
 
   def topology: Topology = {
     val builder: StreamsBuilder = new StreamsBuilder()
@@ -127,5 +129,5 @@ final class KafkaStreamsBuilder[F[_]] private (
 
 object KafkaStreamsBuilder {
   def apply[F[_]: Async](settings: KafkaStreamSettings, top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings, top, Nil, 3.minutes)
+    new KafkaStreamsBuilder[F](settings, top, Nil, 3.minutes, StreamErrorHandler.default[F])
 }

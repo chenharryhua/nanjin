@@ -55,7 +55,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     new KafkaStreamingProduced[F, K, V](
       this,
       Produced.`with`[K, V](codec.keySerde, codec.valSerde),
-      (k: K, v: V, rc: RecordContext) => topicName.value // default extractor, can be replaced
+      (_: K, _: V, _: RecordContext) => topicName.value // default extractor, can be replaced
     )
 
   // channels
