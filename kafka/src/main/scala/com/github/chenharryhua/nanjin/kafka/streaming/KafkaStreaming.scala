@@ -14,6 +14,7 @@ import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, StateSerdes}
 
 final class KafkaStreamingConsumed[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], consumed: Consumed[K, V])
     extends Consumed[K, V](consumed) {
+
   val serdeVal: Serde[V]   = valueSerde
   val serdeKey: Serde[K]   = keySerde
   val topicName: TopicName = topic.topicName
@@ -68,7 +69,10 @@ final class KafkaStreamingConsumed[F[_], K, V] private[kafka] (topic: KafkaTopic
     gktable(Materialized.as[K, V](supplier)(keySerde, valueSerde))
 }
 
-final class KafkaStreamingProduced[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], produced: Produced[K, V])
+final class KafkaStreamingProduced[F[_], K, V] private[kafka] (
+  topic: KafkaTopic[F, K, V],
+  produced: Produced[K, V],
+  topicNameExtractor: TopicNameExtractor[K, V])
     extends Produced[K, V](produced) with TopicNameExtractor[K, V] {
 
   val serdeVal: Serde[V]   = valueSerde
@@ -76,12 +80,15 @@ final class KafkaStreamingProduced[F[_], K, V] private[kafka] (topic: KafkaTopic
   val topicName: TopicName = topic.topicName
 
   def withTopicName(topicName: String): KafkaStreamingProduced[F, K, V] =
-    new KafkaStreamingProduced[F, K, V](topic.withTopicName(topicName), produced)
+    new KafkaStreamingProduced[F, K, V](topic.withTopicName(topicName), produced, topicNameExtractor)
 
-  override def extract(key: K, value: V, rc: RecordContext): String = topic.topicName.value
+  def withTopicNameExtractor(topicNameExtractor: TopicNameExtractor[K, V]): KafkaStreamingProduced[F, K, V] =
+    new KafkaStreamingProduced[F, K, V](topic, produced, topicNameExtractor)
+
+  override def extract(key: K, value: V, rc: RecordContext): String = topicNameExtractor.extract(key, value, rc)
 
   private def update(produced: Produced[K, V]): KafkaStreamingProduced[F, K, V] =
-    new KafkaStreamingProduced[F, K, V](topic, produced)
+    new KafkaStreamingProduced[F, K, V](topic, produced, topicNameExtractor)
 
   override def withStreamPartitioner(partitioner: StreamPartitioner[? >: K, ? >: V]): KafkaStreamingProduced[F, K, V] =
     update(produced.withStreamPartitioner(partitioner))

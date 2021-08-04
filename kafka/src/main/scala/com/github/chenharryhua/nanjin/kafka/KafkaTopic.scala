@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumed, K
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.streams.processor.RecordContext
 import org.apache.kafka.streams.scala.kstream.{Consumed, Produced}
 
 import scala.util.Try
@@ -51,7 +52,11 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     new KafkaStreamingConsumed[F, K, V](this, Consumed.`with`[K, V](codec.keySerde, codec.valSerde))
 
   def asProducer: KafkaStreamingProduced[F, K, V] =
-    new KafkaStreamingProduced[F, K, V](this, Produced.`with`[K, V](codec.keySerde, codec.valSerde))
+    new KafkaStreamingProduced[F, K, V](
+      this,
+      Produced.`with`[K, V](codec.keySerde, codec.valSerde),
+      (k: K, v: V, rc: RecordContext) => topicName.value // default extractor, can be replaced
+    )
 
   // channels
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
