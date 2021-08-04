@@ -99,7 +99,7 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
-      .through(topic.fs2Channel.updateProducer(fs2Producer.settings.run).producerPipe)
+      .through(topic.fs2Channel.updateProducer(fs2Producer.updates.run).producerPipe)
 }
 
 final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
@@ -129,7 +129,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
           .takeWithin(params.loadParams.timeLimit)
           .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
           .buffer(params.loadParams.bufferSize, OverflowStrategy.backpressure)
-          .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.settings.run).flexiFlow)
+          .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.updates.run).flexiFlow)
           .throttle(
             params.loadParams.bulkSize,
             params.loadParams.interval,

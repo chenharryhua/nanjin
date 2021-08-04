@@ -51,13 +51,13 @@ object KafkaChannels {
       new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater, psUpdater.updateConfig(f))
 
     def producerSettings(implicit F: Sync[F]): ProducerSettings[F, K, V] =
-      psUpdater.settings.run(
+      psUpdater.updates.run(
         ProducerSettings[F, K, V](
           Serializer.delegate(topic.codec.keySerializer),
           Serializer.delegate(topic.codec.valSerializer)).withProperties(kps.config))
 
     def consumerSettings(implicit F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
-      csUpdater.settings.run(
+      csUpdater.updates.run(
         ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
           .withProperties(kcs.config))
 
@@ -122,17 +122,17 @@ object KafkaChannels {
       new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater.updateConfig(f))
 
     def producerSettings: ProducerSettings[K, V] =
-      psUpdater.settings.run(
+      psUpdater.updates.run(
         ProducerSettings[K, V](akkaSystem, topic.codec.keySerializer, topic.codec.valSerializer)
           .withProperties(kps.config))
 
     def consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
-      csUpdater.settings.run(
+      csUpdater.updates.run(
         ConsumerSettings[Array[Byte], Array[Byte]](akkaSystem, new ByteArrayDeserializer, new ByteArrayDeserializer)
           .withProperties(kcs.config))
 
     def committerSettings: CommitterSettings =
-      ctUpdater.settings.run(CommitterSettings(akkaSystem))
+      ctUpdater.updates.run(CommitterSettings(akkaSystem))
 
     @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
       topic.decoder[G](cr)
