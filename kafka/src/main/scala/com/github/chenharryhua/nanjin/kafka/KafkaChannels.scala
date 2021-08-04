@@ -68,6 +68,9 @@ object KafkaChannels {
     def producerPipe[P](implicit F: Async[F]): Pipe[F, ProducerRecords[P, K, V], ProducerResult[P, K, V]] =
       KafkaProducer.pipe[F, K, V, P](producerSettings)
 
+    def producer(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
+      KafkaProducer.stream(producerSettings)
+
     // sources
     def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       KafkaConsumer

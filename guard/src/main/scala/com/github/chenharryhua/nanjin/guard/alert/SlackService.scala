@@ -51,7 +51,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val msg =
         SlackNotification(
           params.taskParams.appName,
-          s""":system_restore: The service experienced a panic, $upcoming
+          s""":x: The service experienced a panic, $upcoming
              |Search *${error.id}* in log file to find full exception.""".stripMargin,
           List(
             Attachment(
