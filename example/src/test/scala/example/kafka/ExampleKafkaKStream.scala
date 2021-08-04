@@ -16,14 +16,14 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 import scala.util.Random
+import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamingProduced
 
 @DoNotDiscover
 class ExampleKafkaKStream extends AnyFunSuite {
   test("kafka streaming") {
-    implicit val keySerde: Serde[Bar]   = barTopic.codec.valSerde
-    implicit val valSerde: SerdeOf[Int] = barTopic.codec.keySerde
+    implicit val bar: KafkaStreamingProduced[IO,Int,Bar] = barTopic.asProducer
     val top: Kleisli[Id, StreamsBuilder, Unit] =
-      fooTopic.kafkaStream.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic))
+      fooTopic.asConsumer.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(bar))
 
     ctx.buildStreams(top).stream.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }

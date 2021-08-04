@@ -16,47 +16,47 @@ import scala.concurrent.duration.FiniteDuration
 
 final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
-  codec: RegisteredKeyValueSerdePair[K, V]) {
+  registered: RegisteredKeyValueSerdePair[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
-    Stores.keyValueStoreBuilder(supplier, codec.keySerde, codec.valSerde)
+    Stores.keyValueStoreBuilder(supplier, registered.keySerde, registered.valSerde)
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
-    Stores.timestampedKeyValueStoreBuilder(supplier, codec.keySerde, codec.valSerde)
+    Stores.timestampedKeyValueStoreBuilder(supplier, registered.keySerde, registered.valSerde)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
-  codec: RegisteredKeyValueSerdePair[K, V]) {
+  registered: RegisteredKeyValueSerdePair[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
-    Stores.windowStoreBuilder(supplier, codec.keySerde, codec.valSerde)
+    Stores.windowStoreBuilder(supplier, registered.keySerde, registered.valSerde)
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
-    Stores.timestampedWindowStoreBuilder(supplier, codec.keySerde, codec.valSerde)
+    Stores.timestampedWindowStoreBuilder(supplier, registered.keySerde, registered.valSerde)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
-  codec: RegisteredKeyValueSerdePair[K, V]) {
+  registered: RegisteredKeyValueSerdePair[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
-    Stores.sessionStoreBuilder(supplier, codec.keySerde, codec.valSerde)
+    Stores.sessionStoreBuilder(supplier, registered.keySerde, registered.valSerde)
 }
 
-final class NJStateStore[K, V] private (storeName: StoreName, codec: RegisteredKeyValueSerdePair[K, V])
+final class NJStateStore[K, V] private (storeName: StoreName, registered: RegisteredKeyValueSerdePair[K, V])
     extends Serializable {
 
   def name: String = storeName.value
 
   def persistentKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(storeName.value), codec)
+    new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(storeName.value), registered)
 
   def persistentTimestampedKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.persistentTimestampedKeyValueStore(storeName.value), codec)
+    new KeyValueBytesStoreSupplierHelper(Stores.persistentTimestampedKeyValueStore(storeName.value), registered)
 
   def inMemoryKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(storeName.value), codec)
+    new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(storeName.value), registered)
 
   def lruMap(maxCacheSize: Int): KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.lruMap(storeName.value, maxCacheSize), codec)
+    new KeyValueBytesStoreSupplierHelper(Stores.lruMap(storeName.value, maxCacheSize), registered)
 
   def persistentWindowStore(
     retentionPeriod: Duration,
@@ -64,7 +64,7 @@ final class NJStateStore[K, V] private (storeName: StoreName, codec: RegisteredK
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.persistentWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
-      codec)
+      registered)
 
   def persistentWindowStore(
     retentionPeriod: FiniteDuration,
@@ -78,7 +78,7 @@ final class NJStateStore[K, V] private (storeName: StoreName, codec: RegisteredK
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.persistentTimestampedWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
-      codec)
+      registered)
 
   def persistentTimestampedWindowStore(
     retentionPeriod: FiniteDuration,
@@ -92,7 +92,7 @@ final class NJStateStore[K, V] private (storeName: StoreName, codec: RegisteredK
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.inMemoryWindowStore(storeName.value, retentionPeriod, windowSize, retainDuplicates),
-      codec)
+      registered)
 
   def inMemoryWindowStore(
     retentionPeriod: FiniteDuration,
@@ -101,10 +101,10 @@ final class NJStateStore[K, V] private (storeName: StoreName, codec: RegisteredK
     inMemoryWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
   def persistentSessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(Stores.persistentSessionStore(storeName.value, retentionPeriod), codec)
+    new SessionBytesStoreSupplierHelper(Stores.persistentSessionStore(storeName.value, retentionPeriod), registered)
 
   def inMemorySessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(Stores.inMemorySessionStore(storeName.value, retentionPeriod), codec)
+    new SessionBytesStoreSupplierHelper(Stores.inMemorySessionStore(storeName.value, retentionPeriod), registered)
 
   def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplierHelper[K, V] =
     inMemorySessionStore(retentionPeriod.toJava)
@@ -128,10 +128,10 @@ final class NJStateStore[K, V] private (storeName: StoreName, codec: RegisteredK
 }
 
 object NJStateStore {
-  def apply[K, V](name: String, codec: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
-    new NJStateStore[K, V](StoreName.unsafeFrom(name), codec)
+  def apply[K, V](storeName: String, registered: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
+    new NJStateStore[K, V](StoreName.unsafeFrom(storeName), registered)
 
-  def apply[K, V](name: String, srs: SchemaRegistrySettings, serdes: RawKeyValueSerdePair[K, V]) =
-    new NJStateStore[K, V](StoreName.unsafeFrom(name), serdes.register(srs, name))
+  def apply[K, V](storeName: String, srs: SchemaRegistrySettings, rawSerdes: RawKeyValueSerdePair[K, V]): NJStateStore[K, V] =
+    apply[K, V](storeName, rawSerdes.register(srs, storeName).asRegisteredKeyValueSerdePair)
 
 }

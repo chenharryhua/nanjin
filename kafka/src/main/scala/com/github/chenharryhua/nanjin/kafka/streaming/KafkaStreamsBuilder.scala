@@ -48,7 +48,9 @@ final class KafkaStreamsBuilder[F[_]] private (
       dispatcher.unsafeRunSync(
         bus.send(newState) *>
           latch.release.whenA(newState == State.RUNNING) *>
-          stop.complete(Left(KafkaStreamsStoppedException())).whenA(newState == State.NOT_RUNNING))
+          stop
+            .complete(Left(KafkaStreamsStoppedException()))
+            .whenA(newState == State.NOT_RUNNING || newState == State.ERROR))
   }
 
   private def kickoff(

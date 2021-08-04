@@ -24,13 +24,13 @@ import scala.util.Random
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
   val topic       = ctx.topic[Int, String]("stream.test.interactive.2")
-  val localStore  = topic.asStateStore("stream.test.interactive.local.store.2")
+  val localStore  = topic.asConsumer.asStateStore("stream.test.interactive.local.store.2")
   val globalStore = ctx.store[Int, String]("stream.test.interactive.store.global.2")
 
   val top: Reader[StreamsBuilder, Unit] =
-    topic.kafkaStream.ktable(localStore.inMemoryKeyValueStore.supplier).void
+    topic.asConsumer.withName("abc").ktable(localStore.inMemoryKeyValueStore.supplier).void
   val gtop: Reader[StreamsBuilder, Unit] =
-    topic.kafkaStream.gktable(globalStore.persistentKeyValueStore.supplier).void
+    topic.asConsumer.gktable(globalStore.persistentKeyValueStore.supplier).void
 
   test("interactive") {
 

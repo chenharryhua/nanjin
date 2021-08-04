@@ -28,7 +28,7 @@ object Notes {
 final case class NJError private (id: UUID, message: String, stackTrace: String, throwable: Throwable)
 
 object NJError {
-  implicit val showNJError: Show[NJError] = _.message
+  implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.id}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(

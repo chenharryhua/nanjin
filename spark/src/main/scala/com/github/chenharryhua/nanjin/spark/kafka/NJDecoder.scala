@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.data.Chain
 import cats.mtl.Tell
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.RegisteredKeyValueSerdePair
+import com.github.chenharryhua.nanjin.kafka.KeyValueCodecPair
 import com.github.chenharryhua.nanjin.messages.kafka.*
 
 import scala.util.{Failure, Success}
 
-final private[kafka] class NJDecoder[F[_], K, V](codec: RegisteredKeyValueSerdePair[K, V]) extends Serializable {
+final private[kafka] class NJDecoder[F[_], K, V](codec: KeyValueCodecPair[K, V]) extends Serializable {
 
   def decode[G[_, _]](gaa: G[Array[Byte], Array[Byte]])(implicit
     cm: NJConsumerMessage[G],

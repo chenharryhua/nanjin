@@ -5,6 +5,7 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamingProduced
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka.*
@@ -61,17 +62,17 @@ object KafkaStreamingData {
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
-  implicit val oneValue: Serde[StreamOne]    = s1Topic.codec.valSerde
-  implicit val twoValue: Serde[TableTwo]     = t2Topic.codec.valSerde
-  implicit val tgtValue: Serde[StreamTarget] = tgt.codec.valSerde
+  implicit val oneValue: Serde[StreamOne]                            = s1Topic.asConsumer.serdeVal
+  implicit val twoValue: Serde[TableTwo]                             = t2Topic.asConsumer.serdeVal
+  implicit val target: KafkaStreamingProduced[IO, Int, StreamTarget] = tgt.asProducer
 
   before(sendT2Data.compile.drain.unsafeRunSync())
 
   test("stream-table join") {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
-      a <- s1Topic.kafkaStream.kstream
-      b <- t2Topic.kafkaStream.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
+      a <- s1Topic.asConsumer.kstream
+      b <- t2Topic.asConsumer.ktable
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(target)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
@@ -92,13 +93,13 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("kafka stream throw exception") {
-    val s1Topic: KafkaTopic[IO, Int, StreamOne]      = ctx.topic[Int, StreamOne]("stream.test.stream.exception.one")
-    val s1TopicBin: KafkaTopic[IO, Int, Array[Byte]] = ctx.topic[Int, Array[Byte]]("stream.test.stream.exception.one")
+    val s1Topic    = ctx.topic[Int, StreamOne]("stream.test.stream.exception.one")
+    val s1TopicBin = ctx.topic[Int, Array[Byte]]("stream.test.stream.exception.one")
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
-      a <- s1Topic.kafkaStream.kstream
-      b <- t2Topic.kafkaStream.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt)
+      a <- s1Topic.asConsumer.kstream
+      b <- t2Topic.asConsumer.ktable
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.asProducer)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
