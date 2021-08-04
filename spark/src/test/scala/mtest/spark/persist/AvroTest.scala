@@ -2,13 +2,13 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
-import com.github.chenharryhua.nanjin.pipes.GenericRecordCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import mtest.spark._
+import mtest.spark.*
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.pipes.serde.GenericRecordCodec
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {

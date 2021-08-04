@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
-import com.github.chenharryhua.nanjin.pipes
+import com.github.chenharryhua.nanjin.pipes.chunkSize
 import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{
@@ -33,7 +33,7 @@ private[spark] trait DatasetExtensions {
     def dismissNulls: RDD[A] = rdd.filter(_ != null)
     def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
 
-    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, pipes.chunkSize)
+    def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, chunkSize)
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload

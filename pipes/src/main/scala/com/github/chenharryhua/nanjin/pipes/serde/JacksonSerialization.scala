@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.pipes
+package com.github.chenharryhua.nanjin.pipes.serde
 
-import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Printer
@@ -10,6 +10,8 @@ import io.circe.jackson.jacksonToCirce
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
+
+import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
 final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
 

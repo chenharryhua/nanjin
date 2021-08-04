@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.pipes
+package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.ApplicativeError
 import com.sksamuel.avro4s.{ToRecord, Decoder as AvroDecoder, Encoder as AvroEncoder}

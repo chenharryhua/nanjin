@@ -1,11 +1,11 @@
 package mtest.pipes
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerialization, GenericRecordCodec}
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.pipes.serde.{BinaryAvroSerialization, GenericRecordCodec}
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData._
