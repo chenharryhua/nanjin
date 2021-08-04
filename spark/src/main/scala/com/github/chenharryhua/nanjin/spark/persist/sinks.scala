@@ -4,6 +4,15 @@ import cats.Show
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.pipes.*
+import com.github.chenharryhua.nanjin.pipes.serde.{
+  BinaryAvroSerialization,
+  CirceSerialization,
+  CsvSerialization,
+  DelimitedProtoBufSerialization,
+  GenericRecordCodec,
+  JacksonSerialization,
+  TextSerialization
+}
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.{Pipe, Stream}

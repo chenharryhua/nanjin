@@ -1,7 +1,7 @@
-package com.github.chenharryhua.nanjin.pipes
+package com.github.chenharryhua.nanjin.pipes.serde
 
-import fs2.{Pipe, Stream}
 import fs2.text.{lines, utf8Decode, utf8Encode}
+import fs2.{Pipe, Stream}
 
 final class TextSerialization[F[_]] extends Serializable {
 

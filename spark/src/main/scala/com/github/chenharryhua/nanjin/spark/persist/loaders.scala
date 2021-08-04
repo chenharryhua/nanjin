@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.{Async, Sync}
-import com.github.chenharryhua.nanjin.pipes.{CirceSerialization, GenericRecordCodec, JacksonSerialization}
+import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerialization, GenericRecordCodec, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}

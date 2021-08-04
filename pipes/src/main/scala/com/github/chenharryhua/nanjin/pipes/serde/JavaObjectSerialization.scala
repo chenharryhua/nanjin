@@ -1,7 +1,8 @@
-package com.github.chenharryhua.nanjin.pipes
+package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
