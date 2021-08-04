@@ -43,7 +43,7 @@ private object HoarderConfigF {
 }
 
 final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
-  import HoarderConfigF._
+  import HoarderConfigF.*
   val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
   def save_mode(saveMode: SaveMode): HoarderConfig =

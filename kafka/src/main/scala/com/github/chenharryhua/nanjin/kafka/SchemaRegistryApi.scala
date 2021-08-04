@@ -9,7 +9,7 @@ import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, Sch
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.avro.Schema
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 import scala.util.Try
 
 private case class SchemaLocation(topicName: TopicName) {

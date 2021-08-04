@@ -113,7 +113,7 @@ object ShortLiveConsumer {
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Sync](topicName: TopicName, consumerClient: KafkaByteConsumer)
       extends ShortLiveConsumer[F] {
-    import cats.mtl.implicits._
+    import cats.mtl.implicits.*
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)

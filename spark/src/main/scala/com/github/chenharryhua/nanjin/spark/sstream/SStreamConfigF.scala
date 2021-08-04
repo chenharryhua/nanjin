@@ -75,7 +75,7 @@ private object SStreamConfigF {
 }
 
 final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
-  import SStreamConfigF._
+  import SStreamConfigF.*
 
   def check_point_builder(f: NJFileFormat => String): SStreamConfig =
     SStreamConfig(Fix(WithCheckpointBuilder(f, value)))
