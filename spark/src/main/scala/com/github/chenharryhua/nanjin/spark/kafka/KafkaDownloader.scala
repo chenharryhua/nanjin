@@ -53,7 +53,7 @@ final class KafkaDownloader[F[_], K, V](
       topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten)).map { kor =>
         topic
           .akkaChannel(akkaSystem)
-          .updateConsumer(akkaConsumer.settings.run)
+          .updateConsumer(akkaConsumer.updates.run)
           .assign(kor.mapValues(_.from))
           .throttle(
             params.loadParams.bulkSize,
