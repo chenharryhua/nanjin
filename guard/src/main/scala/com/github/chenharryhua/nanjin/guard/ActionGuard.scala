@@ -109,7 +109,7 @@ final class ActionGuard[F[_]](
     apply("nonstop-guard")
       .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
       .run(fb)
-      .flatMap[Nothing](_ => F.never)
+      .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 
   def nonStop[B](sb: Stream[F, B])(implicit F: Async[F]): F[Nothing] =
     nonStop(sb.compile.drain)
