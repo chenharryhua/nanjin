@@ -53,8 +53,8 @@ object KafkaChannels {
     def producerSettings(implicit F: Sync[F]): ProducerSettings[F, K, V] =
       psUpdater.settings.run(
         ProducerSettings[F, K, V](
-          Serializer.delegate(topic.codec.keySerializer),
-          Serializer.delegate(topic.codec.valSerializer)).withProperties(kps.config))
+          Serializer.delegate(topic.registered.keySerializer),
+          Serializer.delegate(topic.registered.valSerializer)).withProperties(kps.config))
 
     def consumerSettings(implicit F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
       csUpdater.settings.run(
@@ -120,7 +120,7 @@ object KafkaChannels {
 
     def producerSettings: ProducerSettings[K, V] =
       psUpdater.settings.run(
-        ProducerSettings[K, V](akkaSystem, topic.codec.keySerializer, topic.codec.valSerializer)
+        ProducerSettings[K, V](akkaSystem, topic.registered.keySerializer, topic.registered.valSerializer)
           .withProperties(kps.config))
 
     def consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =

@@ -23,11 +23,11 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
 
   //need to reconstruct codec when working in spark
-  @transient lazy val codec: RegisteredKeyValueSerdePair[K, V] =
+  @transient lazy val registered: RegisteredKeyValueSerdePair[K, V] =
     topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName.value)
 
   @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
+    new KafkaGenericDecoder[G, K, V](cr, registered.keyCodec, registered.valCodec)
 
   def record(partition: Int, offset: Long)(implicit sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
     shortLiveConsumer.use(
@@ -50,11 +50,11 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   // channels
 
-  def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, codec.keySerde, codec.valSerde)
+  def stateSerdes: StateSerdes[K, V] = new StateSerdes[K, V](topicName.value, registered.keySerde, registered.valSerde)
 
   def asStateStore(name: String): NJStateStore[K, V] = {
     require(name =!= topicName.value, "should provide a name other than the topic name")
-    NJStateStore[K, V](name, codec)
+    NJStateStore[K, V](name, registered)
   }
 
   def kafkaStream: StreamingChannel[F, K, V] = new StreamingChannel[F, K, V](this)

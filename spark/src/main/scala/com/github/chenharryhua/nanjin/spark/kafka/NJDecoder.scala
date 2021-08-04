@@ -8,14 +8,14 @@ import com.github.chenharryhua.nanjin.messages.kafka.*
 
 import scala.util.{Failure, Success}
 
-final private[kafka] class NJDecoder[F[_], K, V](codec: RegisteredKeyValueSerdePair[K, V]) extends Serializable {
+final private[kafka] class NJDecoder[F[_], K, V](registered: RegisteredKeyValueSerdePair[K, V]) extends Serializable {
 
   def decode[G[_, _]](gaa: G[Array[Byte], Array[Byte]])(implicit
     cm: NJConsumerMessage[G],
     tell: Tell[F, Chain[Throwable]]): F[NJConsumerRecord[K, V]] = {
     val cr = cm.lens.get(gaa)
-    val k  = Option(cr.key).traverse(codec.keyCodec.tryDecode)
-    val v  = Option(cr.value).traverse(codec.valCodec.tryDecode)
+    val k  = Option(cr.key).traverse(registered.keyCodec.tryDecode)
+    val v  = Option(cr.value).traverse(registered.valCodec.tryDecode)
     val nj = NJConsumerRecord(cr.bimap(_ => k.toOption.flatten, _ => v.toOption.flatten))
 
     val log = (k, v) match {
@@ -29,8 +29,8 @@ final private[kafka] class NJDecoder[F[_], K, V](codec: RegisteredKeyValueSerdeP
 
   def decode(cr: NJConsumerRecord[Array[Byte], Array[Byte]])(implicit
     tell: Tell[F, Chain[Throwable]]): F[NJConsumerRecord[K, V]] = {
-    val k  = cr.key.traverse(codec.keyCodec.tryDecode)
-    val v  = cr.value.traverse(codec.valCodec.tryDecode)
+    val k  = cr.key.traverse(registered.keyCodec.tryDecode)
+    val v  = cr.value.traverse(registered.valCodec.tryDecode)
     val nj = cr.bimap(_ => k.toOption.flatten, _ => v.toOption.flatten).flatten[K, V]
 
     val log = (k, v) match {

@@ -61,9 +61,9 @@ object KafkaStreamingData {
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
-  implicit val oneValue: Serde[StreamOne]    = s1Topic.codec.valSerde
-  implicit val twoValue: Serde[TableTwo]     = t2Topic.codec.valSerde
-  implicit val tgtValue: Serde[StreamTarget] = tgt.codec.valSerde
+  implicit val oneValue: Serde[StreamOne]    = s1Topic.registered.valSerde
+  implicit val twoValue: Serde[TableTwo]     = t2Topic.registered.valSerde
+  implicit val tgtValue: Serde[StreamTarget] = tgt.registered.valSerde
 
   before(sendT2Data.compile.drain.unsafeRunSync())
 
