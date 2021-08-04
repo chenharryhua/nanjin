@@ -28,7 +28,7 @@ class InteractiveTest extends AnyFunSuite {
   val globalStore = ctx.store[Int, String]("stream.test.interactive.store.global.2")
 
   val top: Reader[StreamsBuilder, Unit] =
-    topic.asConsumer.ktable(localStore.inMemoryKeyValueStore.supplier).void
+    topic.asConsumer.withName("abc").ktable(localStore.inMemoryKeyValueStore.supplier).void
   val gtop: Reader[StreamsBuilder, Unit] =
     topic.asConsumer.gktable(globalStore.persistentKeyValueStore.supplier).void
 
