@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import fs2.Pipe
+import fs2.{compression, Pipe}
 import fs2.compression.DeflateParams
 import fs2.compression.DeflateParams.Level
 import org.apache.avro.file.{CodecFactory, DataFileConstants}
@@ -52,12 +52,12 @@ sealed trait Compression extends Serializable {
   }
 
   final def fs2Compression[F[_]: Sync]: Pipe[F, Byte, Byte] = {
-    val cps = fs2.compression.Compression[F]
+    val cps: compression.Compression[F] = fs2.compression.Compression[F]
     this match {
       case Compression.Uncompressed => identity
       case Compression.Gzip         => cps.gzip()
       case Compression.Deflate(level) =>
-        val lvl = level match {
+        val lvl: Level = level match {
           case 0 => Level.ZERO
           case 1 => Level.ONE
           case 2 => Level.TWO

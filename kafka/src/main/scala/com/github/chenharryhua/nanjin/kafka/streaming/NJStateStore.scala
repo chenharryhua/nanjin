@@ -127,11 +127,13 @@ final class NJStateStore[K, V] private (storeName: StoreName, registered: Regist
   }
 }
 
-object NJStateStore {
+private[kafka] object NJStateStore {
   def apply[K, V](storeName: String, registered: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
     new NJStateStore[K, V](StoreName.unsafeFrom(storeName), registered)
 
-  def apply[K, V](storeName: String, srs: SchemaRegistrySettings, rawSerdes: RawKeyValueSerdePair[K, V]): NJStateStore[K, V] =
+  def apply[K, V](
+    storeName: String,
+    srs: SchemaRegistrySettings,
+    rawSerdes: RawKeyValueSerdePair[K, V]): NJStateStore[K, V] =
     apply[K, V](storeName, rawSerdes.register(srs, storeName).asRegisteredKeyValueSerdePair)
-
 }
