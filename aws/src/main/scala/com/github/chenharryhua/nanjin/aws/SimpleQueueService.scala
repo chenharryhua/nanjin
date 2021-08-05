@@ -36,7 +36,8 @@ object SimpleQueueService {
   def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
     Resource.make(F.delay(new SQS[F](akkaSystem)))(_.shutdown)
 
-  final private class SQS[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]) extends SimpleQueueService[F] {
+  final private class SQS[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F])
+      extends SimpleQueueService[F] with ShutdownService[F] {
 
     implicit private val client: SqsAsyncClient =
       SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
@@ -53,7 +54,7 @@ object SimpleQueueService {
           .runWith(Sink.asPublisher(fanout = false))
           .toStream)
 
-    def shutdown: F[Unit] = F.blocking(client.close())
+    override def shutdown: F[Unit] = F.blocking(client.close())
   }
 }
 

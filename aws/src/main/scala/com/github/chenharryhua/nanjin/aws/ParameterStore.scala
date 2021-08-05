@@ -17,7 +17,6 @@ sealed trait ParameterStore[F[_]] {
   def fetch(path: ParameterStorePath): F[ParameterStoreContent]
 
   def base64(path: ParameterStorePath): F[Array[Byte]]
-
 }
 
 object ParameterStore {
@@ -38,7 +37,8 @@ object ParameterStore {
 
   def apply[F[_]: Async]: Resource[F, ParameterStore[F]] = apply[F](defaultRegion)
 
-  final private class PS[F[_]](regions: Regions)(implicit F: Sync[F]) extends ParameterStore[F] {
+  final private class PS[F[_]](regions: Regions)(implicit F: Sync[F])
+      extends ParameterStore[F] with ShutdownService[F] {
     private val client: AWSSimpleSystemsManagement =
       AWSSimpleSystemsManagementClientBuilder.standard.withRegion(regions).build
 
@@ -50,6 +50,6 @@ object ParameterStore {
     override def base64(path: ParameterStorePath): F[Array[Byte]] =
       fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 
-    def shutdown: F[Unit] = F.blocking(client.shutdown())
+    override def shutdown: F[Unit] = F.blocking(client.shutdown())
   }
 }

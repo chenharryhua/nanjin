@@ -23,7 +23,7 @@ object Email {
       override def send(txt: EmailContent): F[SendEmailResult] = F.pure(new SendEmailResult)
     }))(_ => F.unit)
 
-  final private class EmailImpl[F[_]](regions: Regions)(implicit F: Sync[F]) extends Email[F] {
+  final private class EmailImpl[F[_]](regions: Regions)(implicit F: Sync[F]) extends Email[F] with ShutdownService[F] {
 
     private val client: AmazonSimpleEmailService =
       AmazonSimpleEmailServiceClientBuilder.standard().withRegion(regions).build
@@ -39,6 +39,6 @@ object Email {
       F.blocking(client.sendEmail(request))
     }
 
-    def shutdown: F[Unit] = F.blocking(client.shutdown())
+    override def shutdown: F[Unit] = F.blocking(client.shutdown())
   }
 }

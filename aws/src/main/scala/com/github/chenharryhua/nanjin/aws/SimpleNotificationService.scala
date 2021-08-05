@@ -28,12 +28,12 @@ object SimpleNotificationService {
   def apply[F[_]: Sync](topic: SnsArn): Resource[F, SimpleNotificationService[F]] = apply[F](topic, defaultRegion)
 
   final private class SNS[F[_]](topic: SnsArn, region: Regions)(implicit F: Sync[F])
-      extends SimpleNotificationService[F] {
+      extends SimpleNotificationService[F] with ShutdownService[F] {
     private val snsClient: AmazonSNS = AmazonSNSClientBuilder.standard().withRegion(region).build()
 
     override def publish(msg: String): F[PublishResult] =
       F.blocking(snsClient.publish(new PublishRequest(topic.value, msg)))
 
-    def shutdown: F[Unit] = F.blocking(snsClient.shutdown())
+    override def shutdown: F[Unit] = F.blocking(snsClient.shutdown())
   }
 }

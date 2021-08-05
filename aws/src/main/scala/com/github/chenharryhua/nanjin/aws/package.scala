@@ -15,4 +15,5 @@ package object aws {
   lazy val ec2_private_ip: HostName = new HostName {
     override val name: String = EC2MetadataUtils.getPrivateIpAddress
   }
+
 }
