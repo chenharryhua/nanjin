@@ -29,17 +29,14 @@ import fs2.{INothing, Pipe, Stream}
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   alertServices: Resource[F, AlertService[F]])(implicit F: Async[F])
-    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
+    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] with HasAlertService[F, ServiceGuard[F]] {
   val params: ServiceParams = serviceConfig.evalConfig
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig), alertServices)
 
-  def withAlert(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
+  override def withAlert(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)))
-
-  def withAlert(as: AlertService[F]): ServiceGuard[F] =
-    withAlert(Resource.pure[F, AlertService[F]](as))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))

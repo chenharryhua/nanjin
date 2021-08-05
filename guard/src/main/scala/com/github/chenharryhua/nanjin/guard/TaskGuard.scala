@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, T
 /** credit to the excellent retry lib [[https://github.com/cb372/cats-retry]]
   */
 final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, alertServices: Resource[F, AlertService[F]])
-    extends UpdateConfig[TaskConfig, TaskGuard[F]] {
+    extends UpdateConfig[TaskConfig, TaskGuard[F]] with HasAlertService[F, TaskGuard[F]] {
   val params: TaskParams = taskConfig.evalConfig
 
   override def updateConfig(f: TaskConfig => TaskConfig): TaskGuard[F] =
@@ -18,11 +18,9 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, alertService
   def service(serviceName: String): ServiceGuard[F] =
     new ServiceGuard[F](ServiceConfig(serviceName, params), alertServices)
 
-  def withAlert(ras: Resource[F, AlertService[F]]): TaskGuard[F] =
+  override def withAlert(ras: Resource[F, AlertService[F]]): TaskGuard[F] =
     new TaskGuard[F](taskConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)))
 
-  def withAlert(as: AlertService[F]): TaskGuard[F] =
-    withAlert(Resource.pure[F, AlertService[F]](as))
 }
 
 object TaskGuard {
