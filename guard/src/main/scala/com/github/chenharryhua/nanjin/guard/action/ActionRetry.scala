@@ -21,7 +21,7 @@ final class ActionRetry[F[_], A, B](
   succ: Reader[(A, B), String],
   fail: Reader[(A, Throwable), String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B]) {
+  postCondition: Predicate[B])(implicit F: Async[F]) {
 
   def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -79,7 +79,7 @@ final class ActionRetry[F[_], A, B](
       isWorthRetry = isWorthRetry,
       postCondition = Predicate(postCondition))
 
-  def run(implicit F: Async[F]): F[B] =
+  def run: F[B] =
     for {
       retryCount <- F.ref(0) // hold number of retries
       base = new ActionRetryBase[F, A, B](
@@ -115,7 +115,7 @@ final class ActionRetry[F[_], A, B](
     } yield res
 }
 
-final class ActionRetryUnit[F[_], B](
+final class ActionRetryUnit[F[_]: Async, B](
   serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
@@ -179,7 +179,7 @@ final class ActionRetryUnit[F[_], B](
       isWorthRetry = isWorthRetry,
       postCondition = Predicate(postCondition))
 
-  def run(implicit F: Async[F]): F[B] =
+  def run: F[B] =
     new ActionRetry[F, Unit, B](
       serviceInfo,
       dailySummaries,

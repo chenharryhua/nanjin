@@ -311,12 +311,16 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
 object SlackService {
 
+  def apply[F[_]: Sync](topic: SnsArn, region: Regions, fmt: DurationFormatter): Resource[F, AlertService[F]] =
+    SimpleNotificationService(topic, region).map(s => new SlackService[F](s, fmt))
+
   def apply[F[_]: Sync](service: SimpleNotificationService[F]): AlertService[F] =
     new SlackService[F](service, DurationFormatter.defaultFormatter)
 
-  def apply[F[_]: Sync](topic: SnsArn): Resource[F, AlertService[F]] =
-    SimpleNotificationService(topic).map(apply[F])
+  def apply[F[_]: Sync](service: Resource[F, SimpleNotificationService[F]]): Resource[F, AlertService[F]] =
+    service.map(apply[F])
 
-  def apply[F[_]: Sync](topic: SnsArn, region: Regions, fmt: DurationFormatter): Resource[F, AlertService[F]] =
-    SimpleNotificationService(topic, region).map(s => new SlackService[F](s, fmt))
+  def apply[F[_]: Sync](topic: SnsArn): Resource[F, AlertService[F]] =
+    apply[F](SimpleNotificationService(topic))
+
 }

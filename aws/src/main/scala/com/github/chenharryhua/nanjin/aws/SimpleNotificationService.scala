@@ -23,7 +23,7 @@ object SimpleNotificationService {
     }))(_ => F.unit)
 
   def apply[F[_]](topic: SnsArn, region: Regions)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] =
-    Resource.make(F.pure(new SNS[F](topic, region)))(_.shutdown)
+    Resource.make(F.delay(new SNS[F](topic, region)))(_.shutdown)
 
   def apply[F[_]: Sync](topic: SnsArn): Resource[F, SimpleNotificationService[F]] = apply[F](topic, defaultRegion)
 

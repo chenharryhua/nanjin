@@ -19,6 +19,7 @@ import scala.concurrent.duration.*
 class CancellationTest extends AnyFunSuite {
   val serviceGuard = TaskGuard[IO]("retry-guard")
     .service("retry-test")
+    .withAlert(slack)
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   test("cancellation - canceled actions are failed actions") {

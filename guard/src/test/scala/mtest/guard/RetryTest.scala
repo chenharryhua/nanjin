@@ -28,10 +28,8 @@ class RetryTest extends AnyFunSuite {
 
   val serviceGuard = TaskGuard[IO]("retry-guard")
     .service("retry-test")
+    .withAlert(slack)
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
-
-  val logging =
-    MetricsService[IO](new MetricRegistry()) |+| LogService[IO]
 
   test("retry - success") {
     var i = 0
@@ -43,7 +41,7 @@ class RetryTest extends AnyFunSuite {
         .withFailNotes((a, e) => "")
         .withWorthRetry(_ => true)
         .run
-    }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
+    }.compile.toVector.unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
     assert(c.isInstanceOf[ServiceStopped])
@@ -59,7 +57,7 @@ class RetryTest extends AnyFunSuite {
             i += 1; throw new Exception
           } else i))
         .run
-    }.observe(_.evalMap(logging.alert).drain).compile.toVector.unsafeRunSync()
+    }.compile.toVector.unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
@@ -77,7 +75,6 @@ class RetryTest extends AnyFunSuite {
           .run
       }
       .debug()
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -98,7 +95,6 @@ class RetryTest extends AnyFunSuite {
         ag("null exception")
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .loudly(IO.raiseError(new NullPointerException)))
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -121,7 +117,6 @@ class RetryTest extends AnyFunSuite {
           .withWorthRetry(ex => (ex.isInstanceOf[MyException]))
           .run
       }
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -145,7 +140,6 @@ class RetryTest extends AnyFunSuite {
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -165,7 +159,6 @@ class RetryTest extends AnyFunSuite {
           .withPostCondition(_ > 1)
           .run
       }
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -187,7 +180,6 @@ class RetryTest extends AnyFunSuite {
           .withPostCondition(_ > 1)
           .run
       }
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -204,7 +196,6 @@ class RetryTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -226,7 +217,6 @@ class RetryTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
       .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -247,7 +237,6 @@ class RetryTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
       .eventStream(_.nonStop(IO(1) >> IO.canceled))
-      .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile
       .toList
