@@ -354,7 +354,7 @@ lazy val aws = (project in file("aws"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "com.typesafe.akka" %% "akka-http"                % "10.2.5",
+        "com.typesafe.akka" %% "akka-http"                % "10.2.6",
         "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.2"
       ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
