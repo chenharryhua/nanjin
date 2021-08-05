@@ -31,7 +31,7 @@ class RetryTest extends AnyFunSuite {
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   val logging =
-    SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](new MetricRegistry()) |+| LogService[IO]
+    MetricsService[IO](new MetricRegistry()) |+| LogService[IO]
 
   test("retry - success") {
     var i = 0
@@ -246,7 +246,7 @@ class RetryTest extends AnyFunSuite {
   test("retry - nonterminating - cancelation") {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withStartupDelay(1.hour))
-      .eventStream(_.nonStop(IO(1) >> IO.canceled)) 
+      .eventStream(_.nonStop(IO(1) >> IO.canceled))
       .observe(_.evalMap(logging.alert).drain)
       .interruptAfter(5.seconds)
       .compile

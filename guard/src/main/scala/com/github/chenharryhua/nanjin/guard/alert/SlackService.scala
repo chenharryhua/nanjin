@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -311,13 +311,12 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
 object SlackService {
 
-  def apply[F[_]: Sync](topic: SnsArn, region: Regions, fmt: DurationFormatter): AlertService[F] =
-    new SlackService[F](SimpleNotificationService(topic, region), fmt)
-
-  def apply[F[_]: Sync](topic: SnsArn): AlertService[F] =
-    new SlackService[F](SimpleNotificationService(topic), DurationFormatter.defaultFormatter)
-
   def apply[F[_]: Sync](service: SimpleNotificationService[F]): AlertService[F] =
     new SlackService[F](service, DurationFormatter.defaultFormatter)
 
+  def apply[F[_]: Sync](topic: SnsArn): Resource[F, AlertService[F]] =
+    SimpleNotificationService(topic).map(apply[F])
+
+  def apply[F[_]: Sync](topic: SnsArn, region: Regions, fmt: DurationFormatter): Resource[F, AlertService[F]] =
+    SimpleNotificationService(topic, region).map(s => new SlackService[F](s, fmt))
 }

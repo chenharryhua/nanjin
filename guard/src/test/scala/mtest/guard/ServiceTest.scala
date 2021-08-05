@@ -61,7 +61,6 @@ class ServiceTest extends AnyFunSuite {
 
   val metrics = new MetricRegistry
   val logging = Monoid[AlertService[IO]].empty |+|
-    SlackService(SimpleNotificationService.fake[IO]) |+|
     MetricsService[IO](metrics) |+|
     LogService[IO] |+|
     ConsoleService[IO]

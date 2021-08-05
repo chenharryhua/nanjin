@@ -2,9 +2,8 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.alert.{
   ForYourInformation,
@@ -12,20 +11,19 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   MetricsService,
   NJEvent,
   PassThrough,
-  ServiceStopped,
-  SlackService
+  ServiceStopped
 }
 import io.circe.Decoder
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import io.circe.parser.decode
-import io.circe.syntax._
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 final case class PassThroughObject(a: Int, b: String)
 
 class PassThroughTest extends AnyFunSuite {
   val metrics = new MetricRegistry
-  val logging = SlackService(SimpleNotificationService.fake[IO]) |+| MetricsService[IO](metrics) |+| LogService[IO]
+  val logging = MetricsService[IO](metrics) |+| LogService[IO]
   val guard   = TaskGuard[IO]("test").service("pass-throught")
   test("pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
