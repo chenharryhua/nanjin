@@ -15,12 +15,10 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 
 import java.util
-import java.util.concurrent.Executors
 import scala.collection.JavaConverters.*
 
 class LongpollTransport[F[_]](url: String, client: Client[F], dispatcher: Dispatcher[F])(implicit F: Async[F])
-    extends AbstractHttpClientTransport(url, new util.HashMap[String, AnyRef](), Executors.newScheduledThreadPool(0))
-    with Http4sClientDsl[F] {
+    extends AbstractHttpClientTransport(url, new util.HashMap[String, AnyRef](), null) with Http4sClientDsl[F] {
 
   override def send(listener: TransportListener, messages: util.List[Message.Mutable]): Unit = {
     val reqUri = Uri.unsafeFromString(url + messages.asScala.head.getChannel)

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.{Async, Ref, Temporal}
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -21,7 +21,7 @@ import io.circe.Encoder
 import io.circe.syntax.*
 
 import java.time.ZoneId
-final class ActionGuard[F[_]](
+final class ActionGuard[F[_]: Async](
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
   dailySummaries: Ref[F, DailySummaries],
@@ -64,57 +64,57 @@ final class ActionGuard[F[_]](
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
-  def fyi(msg: String)(implicit F: Temporal[F]): F[Unit] =
+  def fyi(msg: String): F[Unit] =
     realZonedDateTime(params.serviceParams)
       .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg, isError = false)))
       .void
 
-  def unsafeFYI(msg: String)(implicit F: Temporal[F]): Unit =
+  def unsafeFYI(msg: String): Unit =
     dispatcher.unsafeRunSync(fyi(msg))
 
-  def reportError(msg: String)(implicit F: Temporal[F]): F[Unit] =
+  def reportError(msg: String): F[Unit] =
     for {
       ts <- realZonedDateTime(params.serviceParams)
       _ <- dailySummaries.update(_.incErrorReport)
       _ <- channel.send(ForYourInformation(timestamp = ts, message = msg, isError = true))
     } yield ()
 
-  def unsafeReportError(msg: String)(implicit F: Temporal[F]): Unit =
+  def unsafeReportError(msg: String): Unit =
     dispatcher.unsafeRunSync(reportError(msg))
 
-  def passThrough[A: Encoder](a: A)(implicit F: Temporal[F]): F[Unit] =
+  def passThrough[A: Encoder](a: A): F[Unit] =
     realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(PassThrough(ts, a.asJson))).void
 
-  def unsafePassThrough[A: Encoder](a: A)(implicit F: Temporal[F]): Unit =
+  def unsafePassThrough[A: Encoder](a: A): Unit =
     dispatcher.unsafeRunSync(passThrough(a))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
 
   // post good news
-  def magpie[B](fb: F[B])(f: B => String)(implicit F: Async[F]): F[B] =
+  def magpie[B](fb: F[B])(f: B => String): F[B] =
     updateConfig(_.withSlackSuccOn.withSlackFailOff).retry(fb).withSuccNotes(f).run
 
   // post bad news
-  def croak[B](fb: F[B])(f: Throwable => String)(implicit F: Async[F]): F[B] =
+  def croak[B](fb: F[B])(f: Throwable => String): F[B] =
     updateConfig(_.withSlackSuccOff.withSlackFailOn).retry(fb).withFailNotes(f).run
 
-  def quietly[B](fb: F[B])(implicit F: Async[F]): F[B] =
+  def quietly[B](fb: F[B]): F[B] =
     updateConfig(_.withSlackSuccOff.withSlackFailOff).run(fb)
 
-  def loudly[B](fb: F[B])(implicit F: Async[F]): F[B] =
+  def loudly[B](fb: F[B]): F[B] =
     updateConfig(_.withSlackSuccOn.withSlackFailOn).run(fb)
 
-  def nonStop[B](fb: F[B])(implicit F: Async[F]): F[Nothing] =
+  def nonStop[B](fb: F[B]): F[Nothing] =
     apply("nonstop-guard")
       .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
       .run(fb)
-      .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
+      .flatMap[Nothing](_ => Async[F].raiseError(new Exception("never happen")))
 
-  def nonStop[B](sb: Stream[F, B])(implicit F: Async[F]): F[Nothing] =
+  def nonStop[B](sb: Stream[F, B]): F[Nothing] =
     nonStop(sb.compile.drain)
 
-  def run[B](fb: F[B])(implicit F: Async[F]): F[B] = retry[B](fb).run
+  def run[B](fb: F[B]): F[B] = retry[B](fb).run
 
   def zoneId: ZoneId = params.serviceParams.taskParams.zoneId
 

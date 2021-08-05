@@ -32,7 +32,7 @@ final class QuasiSucc[F[_], T[_], A, B](
   input: T[A],
   kfab: Kleisli[F, A, B],
   succ: Reader[List[(A, B)], String],
-  fail: Reader[List[(A, NJError)], String]) {
+  fail: Reader[List[(A, NJError)], String])(implicit F: Async[F]) {
 
   def withSuccNotes(succ: List[(A, B)] => String): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
@@ -59,7 +59,6 @@ final class QuasiSucc[F[_], T[_], A, B](
       fail = Reader(fail))
 
   private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
-    F: Async[F],
     T: Traverse[T],
     L: Alternative[T]): F[T[B]] =
     for {
@@ -123,18 +122,18 @@ final class QuasiSucc[F[_], T[_], A, B](
         }
     } yield T.map(res._2)(_._2)
 
-  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
 
-  def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
-  def parRun(n: Int)(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     internal(F.parTraverseN(n)(input)(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
 }
 
-final class QuasiSuccUnit[F[_], T[_], B](
+final class QuasiSuccUnit[F[_]: Async, T[_], B](
   serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
@@ -178,12 +177,12 @@ final class QuasiSuccUnit[F[_], T[_], B](
       succ = succ.local(_.map(_._2)),
       fail = fail.local(_.map(_._2)))
 
-  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     toQuasiSucc.seqRun
 
-  def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     toQuasiSucc.parRun
 
-  def parRun(n: Int)(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     toQuasiSucc.parRun(n)
 }

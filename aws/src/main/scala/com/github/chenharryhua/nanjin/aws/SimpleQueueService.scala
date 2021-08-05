@@ -5,7 +5,8 @@ import akka.stream.Materializer
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
-import cats.effect.kernel.Async
+import cats.Applicative
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
@@ -27,12 +28,16 @@ sealed trait SimpleQueueService[F[_]] {
 
 object SimpleQueueService {
 
-  def fake[F[_]](stream: Stream[F, SqsAckResult]): SimpleQueueService[F] =
-    new SimpleQueueService[F] {
+  def fake[F[_]](stream: Stream[F, SqsAckResult])(implicit F: Applicative[F]): Resource[F, SimpleQueueService[F]] =
+    Resource.make(F.pure(new SimpleQueueService[F] {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
-    }
+    }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): SimpleQueueService[F] = new SimpleQueueService[F] {
+  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
+    Resource.make(F.delay(new SQS[F](akkaSystem)))(_.shutdown)
+
+  final private class SQS[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F])
+      extends SimpleQueueService[F] with ShutdownService[F] {
 
     implicit private val client: SqsAsyncClient =
       SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
@@ -49,6 +54,7 @@ object SimpleQueueService {
           .runWith(Sink.asPublisher(fanout = false))
           .toStream)
 
+    override def shutdown: F[Unit] = F.blocking(client.close())
   }
 }
 
