@@ -65,7 +65,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       context.settings.producerSettings,
       context.settings.consumerSettings,
       fs2Updater.unitConsumer[F],
-      fs2Updater.unitProducer[F, K, V])
+      fs2Updater.unitProducer[F, K, V],
+      fs2Updater.unitTxnProducer[F, K, V])
 
   def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
     new KafkaChannels.AkkaChannel[F, K, V](

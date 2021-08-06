@@ -21,7 +21,7 @@ import io.circe.Encoder
 import io.circe.syntax.*
 
 import java.time.ZoneId
-final class ActionGuard[F[_]: Async](
+final class ActionGuard[F[_]: Async] private[guard] (
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
   dailySummaries: Ref[F, DailySummaries],
