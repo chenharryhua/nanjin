@@ -50,28 +50,31 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
 }
 
 object MetricsService {
-  def consoleReporter[F[_]](interval: FiniteDuration)(implicit F: Sync[F]): Resource[F, AlertService[F]] = Resource
-    .make(F.delay {
-      val registry = new MetricRegistry()
-      val reporter = ConsoleReporter.forRegistry(registry).build()
-      reporter.start(interval.toSeconds, TimeUnit.SECONDS)
-      (reporter, new MetricsService[F](registry))
-    })(r => F.delay(r._1.close()))
-    .map(_._2)
+  def consoleReporter[F[_]](interval: FiniteDuration)(implicit F: Sync[F]): Resource[F, AlertService[F]] =
+    Resource
+      .make(F.delay {
+        val registry = new MetricRegistry()
+        val reporter = ConsoleReporter.forRegistry(registry).build()
+        reporter.start(interval.toSeconds, TimeUnit.SECONDS)
+        (reporter, new MetricsService[F](registry))
+      })(r => F.delay(r._1.close()))
+      .map(_._2)
 
-  def csvReporter[F[_]](directory: File)(implicit F: Sync[F]): Resource[F, AlertService[F]] = Resource
-    .make(F.delay {
-      val registry = new MetricRegistry()
-      val reporter = CsvReporter.forRegistry(registry).build(directory)
-      (reporter, new MetricsService[F](registry))
-    })(r => F.delay(r._1.close()))
-    .map(_._2)
+  def csvReporter[F[_]](directory: File)(implicit F: Sync[F]): Resource[F, AlertService[F]] =
+    Resource
+      .make(F.delay {
+        val registry = new MetricRegistry()
+        val reporter = CsvReporter.forRegistry(registry).build(directory)
+        (reporter, new MetricsService[F](registry))
+      })(r => F.delay(r._1.close()))
+      .map(_._2)
 
-  def slf4jReporter[F[_]](implicit F: Sync[F]): Resource[F, AlertService[F]] = Resource
-    .make(F.delay {
-      val registry = new MetricRegistry()
-      val reporter = Slf4jReporter.forRegistry(registry).build()
-      (reporter, new MetricsService[F](registry))
-    })(r => F.delay(r._1.close()))
-    .map(_._2)
+  def slf4jReporter[F[_]](implicit F: Sync[F]): Resource[F, AlertService[F]] =
+    Resource
+      .make(F.delay {
+        val registry = new MetricRegistry()
+        val reporter = Slf4jReporter.forRegistry(registry).build()
+        (reporter, new MetricsService[F](registry))
+      })(r => F.delay(r._1.close()))
+      .map(_._2)
 }
