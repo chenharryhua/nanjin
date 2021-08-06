@@ -15,6 +15,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
+  MetricsService,
   NJEvent,
   ServiceHealthCheck,
   ServicePanic,
@@ -52,6 +53,7 @@ class ServiceTest extends AnyFunSuite {
       .withConstantDelay(1.seconds)
       .withSlackMaximumCauseSize(100)
       .withStartupNotes("ok"))
+    .withAlert(MetricsService.slf4jReporter[IO])
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
@@ -136,39 +138,6 @@ class ServiceTest extends AnyFunSuite {
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
-  }
-
-  test("metrics success count") {
-    val guard = TaskGuard[IO]("metrics-test")
-    val s     = guard.service("metrics-service").withAlert(metrics)
-    s.eventStream { gd =>
-      (gd("metrics-action-succ").retry(IO(1) >> IO.sleep(10.milliseconds)).run).replicateA(20)
-    }.compile.drain.unsafeRunSync()
-
-    metricRegistry.getMetrics.asScala.filter(_._1.contains("metrics-action-succ")).map { case (n, m) =>
-      m match {
-        case t: Timer   => assert(t.getCount == 20)
-        case c: Counter => assert(c.getCount == 20)
-      }
-    }
-  }
-
-  test("metrics failure count") {
-    val guard = TaskGuard[IO]("metrics-test")
-    val s     = guard.service("metrics-service").withAlert(metrics)
-    s.eventStream { gd =>
-      (gd("metrics-action-fail")
-        .updateConfig(_.withConstantDelay(10.milliseconds))
-        .retry(IO.raiseError(new Exception))
-        .run)
-        .replicateA(20)
-    }.interruptAfter(5.seconds).compile.drain.unsafeRunSync()
-
-    metricRegistry.getMetrics.asScala.filter(_._1.contains("metrics-action-fail.counter.retry")).map { case (n, m) =>
-      m match {
-        case c: Counter => assert(c.getCount == 3)
-      }
-    }
   }
 
   test("toWords") {

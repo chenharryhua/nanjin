@@ -2,7 +2,6 @@ package mtest
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.alert.{
   AlertService,
@@ -12,10 +11,11 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   SlackService
 }
 
+import scala.concurrent.duration.*
+
 package object guard {
-  val metricRegistry: MetricRegistry        = new MetricRegistry
-  val metrics: AlertService[IO]             = MetricsService[IO](metricRegistry)
-  val log: AlertService[IO]                 = LogService[IO]
-  val console: AlertService[IO]             = ConsoleService[IO]
-  val slack: Resource[IO, AlertService[IO]] = SlackService[IO](SimpleNotificationService.fake[IO])
+  val metrics: Resource[IO, AlertService[IO]] = MetricsService.consoleReporter[IO](1.second)
+  val log: AlertService[IO]                   = LogService[IO]
+  val console: AlertService[IO]               = ConsoleService[IO]
+  val slack: Resource[IO, AlertService[IO]]   = SlackService[IO](SimpleNotificationService.fake[IO])
 }
