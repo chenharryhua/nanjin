@@ -25,7 +25,8 @@ object KafkaChannels {
     kps: KafkaProducerSettings,
     kcs: KafkaConsumerSettings,
     csUpdater: fs2Updater.Consumer[F],
-    psUpdater: fs2Updater.Producer[F, K, V]) {
+    psUpdater: fs2Updater.Producer[F, K, V],
+    txnUpdater: fs2Updater.TxnProducer[F, K, V]) {
     import fs2.kafka.{
       CommittableConsumerRecord,
       ConsumerSettings,
@@ -35,7 +36,9 @@ object KafkaChannels {
       ProducerRecords,
       ProducerResult,
       ProducerSettings,
-      Serializer
+      Serializer,
+      TransactionalKafkaProducer,
+      TransactionalProducerSettings
     }
 
     val topicName: TopicName = topic.topicName
@@ -45,16 +48,23 @@ object KafkaChannels {
     def updateConsumer(
       f: ConsumerSettings[F, Array[Byte], Array[Byte]] => ConsumerSettings[F, Array[Byte], Array[Byte]])
       : Fs2Channel[F, K, V] =
-      new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater.updateConfig(f), psUpdater)
+      new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater.updateConfig(f), psUpdater, txnUpdater)
 
     def updateProducer(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
-      new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater, psUpdater.updateConfig(f))
+      new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater, psUpdater.updateConfig(f), txnUpdater)
+
+    def updateTxnProducer(
+      f: TransactionalProducerSettings[F, K, V] => TransactionalProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
+      new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater, psUpdater, txnUpdater.updateConfig(f))
 
     def producerSettings(implicit F: Sync[F]): ProducerSettings[F, K, V] =
       psUpdater.updates.run(
         ProducerSettings[F, K, V](
           Serializer.delegate(topic.codec.keySerializer),
           Serializer.delegate(topic.codec.valSerializer)).withProperties(kps.config))
+
+    def txnProducerSettings(transactionalId: String)(implicit F: Sync[F]): TransactionalProducerSettings[F, K, V] =
+      txnUpdater.updates.run(TransactionalProducerSettings(transactionalId, producerSettings))
 
     def consumerSettings(implicit F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
       csUpdater.updates.run(
@@ -70,6 +80,9 @@ object KafkaChannels {
 
     def producer(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
       KafkaProducer.stream(producerSettings)
+
+    def txnProducer(transactionalId: String)(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
+      TransactionalKafkaProducer.stream(txnProducerSettings(transactionalId))
 
     // sources
     def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =

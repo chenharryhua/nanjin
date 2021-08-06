@@ -7,7 +7,7 @@ import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Int]("monitor.test")

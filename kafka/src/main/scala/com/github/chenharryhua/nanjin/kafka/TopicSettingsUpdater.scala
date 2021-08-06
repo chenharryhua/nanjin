@@ -37,7 +37,7 @@ object akkaUpdater {
 }
 
 object fs2Updater {
-  import fs2.kafka.{ConsumerSettings, ProducerSettings}
+  import fs2.kafka.{ConsumerSettings, ProducerSettings, TransactionalProducerSettings}
 
   final class Consumer[F[_]](
     val updates: Reader[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumerSettings[F, Array[Byte], Array[Byte]]])
@@ -55,7 +55,16 @@ object fs2Updater {
       new Producer[F, K, V](updates.andThen(f))
   }
 
-  def unitConsumer[F[_]]: Consumer[F]             = new Consumer[F](Reader(identity))
-  def unitProducer[F[_], K, V]: Producer[F, K, V] = new Producer[F, K, V](Reader(identity))
+  final class TxnProducer[F[_], K, V](
+    val updates: Reader[TransactionalProducerSettings[F, K, V], TransactionalProducerSettings[F, K, V]])
+      extends UpdateConfig[TransactionalProducerSettings[F, K, V], TxnProducer[F, K, V]] {
+    override def updateConfig(
+      f: TransactionalProducerSettings[F, K, V] => TransactionalProducerSettings[F, K, V]): TxnProducer[F, K, V] =
+      new TxnProducer[F, K, V](updates.andThen(f))
+  }
+
+  def unitConsumer[F[_]]: Consumer[F]                   = new Consumer[F](Reader(identity))
+  def unitProducer[F[_], K, V]: Producer[F, K, V]       = new Producer[F, K, V](Reader(identity))
+  def unitTxnProducer[F[_], K, V]: TxnProducer[F, K, V] = new TxnProducer[F, K, V](Reader(identity))
 
 }
