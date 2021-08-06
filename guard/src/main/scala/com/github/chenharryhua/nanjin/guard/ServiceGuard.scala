@@ -103,7 +103,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // notify alert services
         val notify: Pipe[F, NJEvent, INothing] = { events =>
-          Stream.resource(alertServices).flatMap(sas => events.evalMap(sas.alert)).drain
+          Stream.resource(alertServices).flatMap(as => events.evalMap(as.alert)).drain
         }
 
         channel.stream

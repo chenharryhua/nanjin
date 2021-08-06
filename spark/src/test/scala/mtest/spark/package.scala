@@ -17,5 +17,5 @@ package object spark {
     .withoutUI
     .withUI
     .updateConfig(_.set("spark.sql.session.timeZone", sydneyTime.toString))
-    .session
+    .unsafeSession
 }

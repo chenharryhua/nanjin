@@ -19,7 +19,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, alertService
     new ServiceGuard[F](ServiceConfig(serviceName, params), alertServices)
 
   override def withAlert(ras: Resource[F, AlertService[F]]): TaskGuard[F] =
-    new TaskGuard[F](taskConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)))
+    new TaskGuard[F](taskConfig, alertServices.flatMap(as => ras.map(_ |+| as)))
 
 }
 
