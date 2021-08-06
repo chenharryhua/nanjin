@@ -424,9 +424,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(
     libraryDependencies ++=
       baseLib ++ fs2Lib ++ serdeLib ++ effectLib ++ monocleLib ++ kafkaLib ++ akkaLib ++ testLib ++ logLib,
-    excludeDependencies ++= Seq(
-      ExclusionRule(organization = "javax.ws.rs", name = "javax.ws.rs-api"),
-      ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
+    excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
 lazy val spark = (project in file("spark"))
