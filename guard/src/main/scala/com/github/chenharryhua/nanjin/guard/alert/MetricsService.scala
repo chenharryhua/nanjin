@@ -1,13 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
-import cats.effect.kernel.{Resource, Sync}
-import com.codahale.metrics.{ConsoleReporter, CsvReporter, MetricFilter, MetricRegistry, Slf4jReporter}
+import cats.effect.kernel.Sync
+import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 
-import java.io.File
 import java.time.Duration
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
 
 final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sync[F]) extends AlertService[F] {
   private def serviceKey(params: ServiceParams): String = s"${params.serviceName}.${params.taskParams.appName}"
@@ -47,34 +44,4 @@ final private class MetricsService[F[_]](metrics: MetricRegistry)(implicit F: Sy
     // no op
     case _: ActionStart => F.unit
   }
-}
-
-object MetricsService {
-  def consoleReporter[F[_]](interval: FiniteDuration)(implicit F: Sync[F]): Resource[F, AlertService[F]] =
-    Resource
-      .make(F.delay {
-        val registry = new MetricRegistry()
-        val reporter = ConsoleReporter.forRegistry(registry).build()
-        reporter.start(interval.toSeconds, TimeUnit.SECONDS)
-        (reporter, new MetricsService[F](registry))
-      })(r => F.delay(r._1.close()))
-      .map(_._2)
-
-  def csvReporter[F[_]](directory: File)(implicit F: Sync[F]): Resource[F, AlertService[F]] =
-    Resource
-      .make(F.delay {
-        val registry = new MetricRegistry()
-        val reporter = CsvReporter.forRegistry(registry).build(directory)
-        (reporter, new MetricsService[F](registry))
-      })(r => F.delay(r._1.close()))
-      .map(_._2)
-
-  def slf4jReporter[F[_]](implicit F: Sync[F]): Resource[F, AlertService[F]] =
-    Resource
-      .make(F.delay {
-        val registry = new MetricRegistry()
-        val reporter = Slf4jReporter.forRegistry(registry).build()
-        (reporter, new MetricsService[F](registry))
-      })(r => F.delay(r._1.close()))
-      .map(_._2)
 }

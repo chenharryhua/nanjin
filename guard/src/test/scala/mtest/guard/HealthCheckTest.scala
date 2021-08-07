@@ -11,11 +11,11 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceHealthCheck,
   ServiceStarted
 }
+import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto._
 
 import java.time.{LocalTime, ZoneId}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
