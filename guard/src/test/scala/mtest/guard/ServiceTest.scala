@@ -16,6 +16,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionStart,
   ActionSucced,
   MetricsService,
+  NJConsoleReporter,
   NJEvent,
   ServiceHealthCheck,
   ServicePanic,
@@ -40,6 +41,7 @@ class ServiceTest extends AnyFunSuite {
     DurationFormatter.defaultFormatter)
 
   val guard = TaskGuard[IO]("service-level-guard")
+    .withReporter(NJConsoleReporter(1.second))
     .updateConfig(
       _.withSlackWarnColor("danger")
         .withSlackFailColor("danger")
@@ -53,12 +55,10 @@ class ServiceTest extends AnyFunSuite {
       .withConstantDelay(1.seconds)
       .withSlackMaximumCauseSize(100)
       .withStartupNotes("ok"))
-    .withAlert(MetricsService.slf4jReporter[IO])
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
       .updateConfig(_.withStartupDelay(0.second).withJitterBackoff(3.second))
-      .withAlert(metrics)
       .withAlert(log)
       .withAlert(console)
       .withAlert(slack)
