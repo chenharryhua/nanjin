@@ -34,7 +34,7 @@ final class QuasiSucc[F[_], T[_], A, B](
   succ: Kleisli[F, List[(A, B)], String],
   fail: Kleisli[F, List[(A, NJError)], String])(implicit F: Async[F]) {
 
-  def withSuccNotesF(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
+  def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -47,9 +47,9 @@ final class QuasiSucc[F[_], T[_], A, B](
       fail = fail)
 
   def withSuccNotes(f: List[(A, B)] => String): QuasiSucc[F, T, A, B] =
-    withSuccNotesF(Kleisli.fromFunction(f).run)
+    withSuccNotesM(Kleisli.fromFunction(f).run)
 
-  def withFailNotesF(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
+  def withFailNotesM(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -62,7 +62,7 @@ final class QuasiSucc[F[_], T[_], A, B](
       fail = Kleisli(fail))
 
   def withFailNotes(f: List[(A, NJError)] => String): QuasiSucc[F, T, A, B] =
-    withFailNotesF(Kleisli.fromFunction(f).run)
+    withFailNotesM(Kleisli.fromFunction(f).run)
 
   private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
     T: Traverse[T],
@@ -151,7 +151,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
   succ: Kleisli[F, List[B], String],
   fail: Kleisli[F, List[NJError], String])(implicit F: Async[F]) {
 
-  def withSuccNotesF(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
+  def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -163,9 +163,9 @@ final class QuasiSuccUnit[F[_], T[_], B](
       fail = fail)
 
   def withSuccNotes(f: List[B] => String): QuasiSuccUnit[F, T, B] =
-    withSuccNotesF(Kleisli.fromFunction(f).run)
+    withSuccNotesM(Kleisli.fromFunction(f).run)
 
-  def withFailNotesF(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
+  def withFailNotesM(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -177,7 +177,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
       fail = Kleisli(fail))
 
   def withFailNotes(f: List[NJError] => String): QuasiSuccUnit[F, T, B] =
-    withFailNotesF(Kleisli.fromFunction(f).run)
+    withFailNotesM(Kleisli.fromFunction(f).run)
 
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
