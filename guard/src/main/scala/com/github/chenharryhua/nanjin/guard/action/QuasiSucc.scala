@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.{Kleisli, Reader}
+import cats.data.Kleisli
 import cats.effect.kernel.{Async, Outcome, Ref}
 import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
@@ -31,10 +31,10 @@ final class QuasiSucc[F[_], T[_], A, B](
   params: ActionParams,
   input: T[A],
   kfab: Kleisli[F, A, B],
-  succ: Reader[List[(A, B)], String],
-  fail: Reader[List[(A, NJError)], String])(implicit F: Async[F]) {
+  succ: Kleisli[F, List[(A, B)], String],
+  fail: Kleisli[F, List[(A, NJError)], String])(implicit F: Async[F]) {
 
-  def withSuccNotes(succ: List[(A, B)] => String): QuasiSucc[F, T, A, B] =
+  def withSuccNotesF(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -43,10 +43,13 @@ final class QuasiSucc[F[_], T[_], A, B](
       params = params,
       input = input,
       kfab = kfab,
-      succ = Reader(succ),
+      succ = Kleisli(succ),
       fail = fail)
 
-  def withFailNotes(fail: List[(A, NJError)] => String): QuasiSucc[F, T, A, B] =
+  def withSuccNotes(f: List[(A, B)] => String): QuasiSucc[F, T, A, B] =
+    withSuccNotesF(Kleisli.fromFunction(f).run)
+
+  def withFailNotesF(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -56,7 +59,10 @@ final class QuasiSucc[F[_], T[_], A, B](
       input = input,
       kfab = kfab,
       succ = succ,
-      fail = Reader(fail))
+      fail = Kleisli(fail))
+
+  def withFailNotes(f: List[(A, NJError)] => String): QuasiSucc[F, T, A, B] =
+    withFailNotesF(Kleisli.fromFunction(f).run)
 
   private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
     T: Traverse[T],
@@ -107,6 +113,8 @@ final class QuasiSucc[F[_], T[_], A, B](
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
               _ <- dailySummaries.update(_.incActionSucc)
+              sn <- succ(b._2.toList)
+              fn <- fail(b._1)
               _ <- channel.send(
                 ActionQuasiSucced(
                   timestamp = now,
@@ -114,8 +122,8 @@ final class QuasiSucc[F[_], T[_], A, B](
                   actionParams = params,
                   runMode = runMode,
                   numSucc = b._2.size,
-                  succNotes = Notes(succ(b._2.toList)),
-                  failNotes = Notes(fail(b._1)),
+                  succNotes = Notes(sn),
+                  failNotes = Notes(fn),
                   errors = b._1.map(_._2)
                 ))
             } yield ()
@@ -133,17 +141,17 @@ final class QuasiSucc[F[_], T[_], A, B](
 
 }
 
-final class QuasiSuccUnit[F[_]: Async, T[_], B](
+final class QuasiSuccUnit[F[_], T[_], B](
   serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
   tfb: T[F[B]],
-  succ: Reader[List[B], String],
-  fail: Reader[List[NJError], String]) {
+  succ: Kleisli[F, List[B], String],
+  fail: Kleisli[F, List[NJError], String])(implicit F: Async[F]) {
 
-  def withSuccNotes(succ: List[B] => String): QuasiSuccUnit[F, T, B] =
+  def withSuccNotesF(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -151,10 +159,13 @@ final class QuasiSuccUnit[F[_]: Async, T[_], B](
       actionName = actionName,
       params = params,
       tfb = tfb,
-      succ = Reader(succ),
+      succ = Kleisli(succ),
       fail = fail)
 
-  def withFailNotes(fail: List[NJError] => String): QuasiSuccUnit[F, T, B] =
+  def withSuccNotes(f: List[B] => String): QuasiSuccUnit[F, T, B] =
+    withSuccNotesF(Kleisli.fromFunction(f).run)
+
+  def withFailNotesF(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -163,7 +174,10 @@ final class QuasiSuccUnit[F[_]: Async, T[_], B](
       params = params,
       tfb = tfb,
       succ = succ,
-      fail = Reader(fail))
+      fail = Kleisli(fail))
+
+  def withFailNotes(f: List[NJError] => String): QuasiSuccUnit[F, T, B] =
+    withFailNotesF(Kleisli.fromFunction(f).run)
 
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](

@@ -18,12 +18,12 @@ final class ActionRetry[F[_], A, B](
   params: ActionParams,
   input: A,
   kfab: Kleisli[F, A, B],
-  succ: Reader[(A, B), String],
-  fail: Reader[(A, Throwable), String],
+  succ: Kleisli[F, (A, B), String],
+  fail: Kleisli[F, (A, Throwable), String],
   isWorthRetry: Reader[Throwable, Boolean],
   postCondition: Predicate[B])(implicit F: Async[F]) {
 
-  def withSuccNotes(succ: (A, B) => String): ActionRetry[F, A, B] =
+  def withSuccNotesF(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -32,12 +32,15 @@ final class ActionRetry[F[_], A, B](
       params = params,
       input = input,
       kfab = kfab,
-      succ = Reader(succ.tupled),
+      succ = Kleisli(succ.tupled),
       fail = fail,
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
 
-  def withFailNotes(fail: (A, Throwable) => String): ActionRetry[F, A, B] =
+  def withSuccNotes(f: (A, B) => String): ActionRetry[F, A, B] =
+    withSuccNotesF((a: A, b: B) => F.pure(f(a, b)))
+
+  def withFailNotesF(fail: (A, Throwable) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -47,9 +50,12 @@ final class ActionRetry[F[_], A, B](
       input = input,
       kfab = kfab,
       succ = succ,
-      fail = Reader(fail.tupled),
+      fail = Kleisli(fail.tupled),
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
+
+  def withFailNotes(f: (A, Throwable) => String): ActionRetry[F, A, B] =
+    withFailNotesF((a: A, b: Throwable) => F.pure(f(a, b)))
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -115,19 +121,19 @@ final class ActionRetry[F[_], A, B](
     } yield res
 }
 
-final class ActionRetryUnit[F[_]: Async, B](
+final class ActionRetryUnit[F[_], B](
   serviceInfo: ServiceInfo,
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
   fb: F[B],
-  succ: Reader[B, String],
-  fail: Reader[Throwable, String],
+  succ: Kleisli[F, B, String],
+  fail: Kleisli[F, Throwable, String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B]) {
+  postCondition: Predicate[B])(implicit F: Async[F]) {
 
-  def withSuccNotes(succ: B => String): ActionRetryUnit[F, B] =
+  def withSuccNotesF(succ: B => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -135,12 +141,15 @@ final class ActionRetryUnit[F[_]: Async, B](
       actionName = actionName,
       params = params,
       fb = fb,
-      succ = Reader(succ),
+      succ = Kleisli(succ),
       fail = fail,
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
 
-  def withFailNotes(fail: Throwable => String): ActionRetryUnit[F, B] =
+  def withSuccNotes(f: B => String): ActionRetryUnit[F, B] =
+    withSuccNotesF(Kleisli.fromFunction(f).run)
+
+  def withFailNotesF(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
       dailySummaries = dailySummaries,
@@ -149,9 +158,12 @@ final class ActionRetryUnit[F[_]: Async, B](
       params = params,
       fb = fb,
       succ = succ,
-      fail = Reader(fail),
+      fail = Kleisli(fail),
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
+
+  def withFailNotes(f: Throwable => String): ActionRetryUnit[F, B] =
+    withFailNotesF(Kleisli.fromFunction(f).run)
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](

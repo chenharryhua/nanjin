@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Reader
+import cats.data.Kleisli
 import cats.effect.kernel.{Async, Outcome, Ref}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
@@ -19,11 +19,11 @@ final private class ActionRetryBase[F[_], A, B](
   dailySummaries: Ref[F, DailySummaries],
   params: ActionParams,
   input: A,
-  succ: Reader[(A, B), String],
-  fail: Reader[(A, Throwable), String])(implicit F: Async[F]) {
+  succ: Kleisli[F, (A, B), String],
+  fail: Kleisli[F, (A, Throwable), String])(implicit F: Async[F]) {
 
-  private def failNotes(error: Throwable): Notes = Notes(fail.run((input, error)))
-  private def succNotes(b: B): Notes             = Notes(succ.run((input, b)))
+  private def failNotes(error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
+  private def succNotes(b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))
 
   val actionInfo: F[ActionInfo] = for {
     ts <- realZonedDateTime(params.serviceParams)
@@ -55,13 +55,14 @@ final private class ActionRetryBase[F[_], A, B](
           count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
           _ <- dailySummaries.update(_.incActionFail)
+          fn <- failNotes(ActionException.ActionCanceledExternally)
           _ <- channel.send(
             ActionFailed(
               timestamp = now,
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
-              notes = failNotes(ActionException.ActionCanceledExternally),
+              notes = fn,
               error = NJError(ActionException.ActionCanceledExternally)
             ))
         } yield ()
@@ -70,13 +71,14 @@ final private class ActionRetryBase[F[_], A, B](
           count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
           _ <- dailySummaries.update(_.incActionFail)
+          fn <- failNotes(error)
           _ <- channel.send(
             ActionFailed(
               timestamp = now,
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
-              notes = failNotes(error),
+              notes = fn,
               error = NJError(error)
             ))
         } yield ()
@@ -85,6 +87,7 @@ final private class ActionRetryBase[F[_], A, B](
           count <- retryCount.get // number of retries before success
           now <- realZonedDateTime(params.serviceParams)
           b <- fb
+          sn <- succNotes(b)
           _ <- dailySummaries.update(_.incActionSucc)
           _ <- channel.send(
             ActionSucced(
@@ -92,7 +95,7 @@ final private class ActionRetryBase[F[_], A, B](
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
-              notes = succNotes(b)))
+              notes = sn))
         } yield ()
     }
 }
