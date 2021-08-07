@@ -21,7 +21,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Duration as JavaDuration
 import scala.concurrent.duration.*
 class QuasiSuccTest extends AnyFunSuite {
-  val guard = TaskGuard[IO]("qusai succ app").service("quasi").withAlert(log)
+  val guard = TaskGuard[IO]("qusai succ app").service("quasi").addAlertService(log)
 
   def f(a: Int): IO[Int] = IO(100 / a)
 

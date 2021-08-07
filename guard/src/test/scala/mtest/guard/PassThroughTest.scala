@@ -5,14 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.alert.{
-  ForYourInformation,
-  LogService,
-  MetricsService,
-  NJEvent,
-  PassThrough,
-  ServiceStopped
-}
+import com.github.chenharryhua.nanjin.guard.alert.{ForYourInformation, LogService, NJEvent, PassThrough, ServiceStopped}
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import io.circe.parser.decode
@@ -22,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 final case class PassThroughObject(a: Int, b: String)
 
 class PassThroughTest extends AnyFunSuite {
-  val guard = TaskGuard[IO]("test").service("pass-throught").withAlert(console)
+  val guard = TaskGuard[IO]("test").service("pass-throught").addAlertService(console)
   test("pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
       action("send-json").passThrough(PassThroughObject(1, "a"))
