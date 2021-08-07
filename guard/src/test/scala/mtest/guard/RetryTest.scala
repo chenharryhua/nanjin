@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionStart,
   ActionSucced,
   LogService,
-  MetricsService,
   ServicePanic,
   ServiceStopped,
   SlackService
@@ -28,7 +27,7 @@ class RetryTest extends AnyFunSuite {
 
   val serviceGuard = TaskGuard[IO]("retry-guard")
     .service("retry-test")
-    .withAlert(slack)
+    .addAlertService(slack)
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   test("retry - success") {

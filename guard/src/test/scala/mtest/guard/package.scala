@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   AlertService,
   ConsoleService,
   LogService,
-  MetricsService,
   NJConsoleReporter,
   SlackService
 }

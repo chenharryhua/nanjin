@@ -4,7 +4,9 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.metrics.NJMetricsReporter
 import com.github.chenharryhua.nanjin.guard.alert.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import cron4s.Cron
@@ -28,15 +30,21 @@ import fs2.{INothing, Pipe, Stream}
 
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
-  alertServices: Resource[F, AlertService[F]])(implicit F: Async[F])
+  alertServices: Resource[F, AlertService[F]],
+  reporter: NJMetricsReporter)(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] with HasAlertService[F, ServiceGuard[F]] {
   val params: ServiceParams = serviceConfig.evalConfig
 
-  override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), alertServices)
+  private val metricRegistry = new MetricRegistry()
 
-  override def withAlert(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)))
+  override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
+    new ServiceGuard[F](f(serviceConfig), alertServices, reporter)
+
+  override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
+    new ServiceGuard[F](serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporter)
+
+  def withReporter(reporter: NJMetricsReporter): ServiceGuard[F] =
+    new ServiceGuard[F](serviceConfig, alertServices, reporter)
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
@@ -89,6 +97,7 @@ final class ServiceGuard[F[_]] private[guard] (
             (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
               actionGuard(
                 new ActionGuard[F](
+                  metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,
                   dailySummaries = dailySummaries,
@@ -103,7 +112,13 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // notify alert services
         val notify: Pipe[F, NJEvent, INothing] = { events =>
-          Stream.resource(alertServices).flatMap(as => events.evalMap(as.alert)).drain
+          val alerts: Resource[F, AlertService[F]] = for {
+            mr <- Resource.pure(new NJMetricRegistry[F](metricRegistry))
+            as <- alertServices
+            _ <- reporter.start[F](metricRegistry)
+          } yield as |+| mr
+
+          Stream.resource(alerts).flatMap(as => events.evalMap(as.alert)).drain
         }
 
         channel.stream

@@ -59,11 +59,11 @@ class HadoopTest extends AnyFunSuite {
     val pathStr    = "./data/test/devices/greeting.txt"
     val testString = s"hello hadoop ${Random.nextInt()}"
     val ts: Stream[IO, Byte] =
-      Stream(testString).through(fs2.text.utf8Encode)
+      Stream(testString).through(fs2.text.utf8.encode)
 
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.byteSink(pathStr)).compile.drain >>
-      hdp.byteSource(pathStr).through(fs2.text.utf8Decode).compile.toList
+      hdp.byteSource(pathStr).through(fs2.text.utf8.decode).compile.toList
     assert(action.unsafeRunSync.head == testString)
   }
 

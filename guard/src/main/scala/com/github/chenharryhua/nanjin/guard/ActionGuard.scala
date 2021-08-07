@@ -5,6 +5,7 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
 import com.github.chenharryhua.nanjin.guard.alert.{
@@ -22,6 +23,7 @@ import io.circe.syntax.*
 
 import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
+  val metricRegistry: MetricRegistry,
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
   dailySummaries: Ref[F, DailySummaries],
@@ -32,10 +34,10 @@ final class ActionGuard[F[_]] private[guard] (
   val params: ActionParams = actionConfig.evalConfig
 
   def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](serviceInfo, dispatcher, dailySummaries, channel, actionName, actionConfig)
+    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, dailySummaries, channel, actionName, actionConfig)
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](serviceInfo, dispatcher, dailySummaries, channel, actionName, f(actionConfig))
+    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, dailySummaries, channel, actionName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
