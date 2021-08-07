@@ -21,13 +21,13 @@ import io.circe.Encoder
 import io.circe.syntax.*
 
 import java.time.ZoneId
-final class ActionGuard[F[_]: Async] private[guard] (
+final class ActionGuard[F[_]] private[guard] (
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
   dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
-  actionConfig: ActionConfig)
+  actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
   val params: ActionParams = actionConfig.evalConfig
 
@@ -46,8 +46,8 @@ final class ActionGuard[F[_]: Async] private[guard] (
       params = params,
       input = input,
       kfab = Kleisli(f),
-      succ = Reader(_ => ""),
-      fail = Reader(_ => ""),
+      succ = Kleisli(_ => F.pure("")),
+      fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
@@ -59,8 +59,8 @@ final class ActionGuard[F[_]: Async] private[guard] (
       actionName = actionName,
       params = params,
       fb = fb,
-      succ = Reader(_ => ""),
-      fail = Reader(_ => ""),
+      succ = Kleisli(_ => F.pure("")),
+      fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
@@ -109,7 +109,7 @@ final class ActionGuard[F[_]: Async] private[guard] (
     apply("nonstop-guard")
       .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
       .run(fb)
-      .flatMap[Nothing](_ => Async[F].raiseError(new Exception("never happen")))
+      .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 
   def nonStop[B](sb: Stream[F, B]): F[Nothing] =
     nonStop(sb.compile.drain)
@@ -127,8 +127,8 @@ final class ActionGuard[F[_]: Async] private[guard] (
       params = params,
       input = ta,
       kfab = Kleisli(f),
-      succ = Reader(_ => ""),
-      fail = Reader(_ => ""))
+      succ = Kleisli(_ => F.pure("")),
+      fail = Kleisli(_ => F.pure("")))
 
   def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] = new QuasiSuccUnit[F, T, B](
     serviceInfo = serviceInfo,
@@ -137,8 +137,8 @@ final class ActionGuard[F[_]: Async] private[guard] (
     actionName = actionName,
     params = params,
     tfb = tfb,
-    succ = Reader(_ => ""),
-    fail = Reader(_ => ""))
+    succ = Kleisli(_ => F.pure("")),
+    fail = Kleisli(_ => F.pure("")))
 
   def quasi[B](bs: F[B]*): QuasiSuccUnit[F, List, B] = quasi[List, B](bs.toList)
 }

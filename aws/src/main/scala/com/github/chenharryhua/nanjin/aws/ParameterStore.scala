@@ -16,7 +16,8 @@ import java.util.Base64
 sealed trait ParameterStore[F[_]] {
   def fetch(path: ParameterStorePath): F[ParameterStoreContent]
 
-  def base64(path: ParameterStorePath): F[Array[Byte]]
+  final def base64(path: ParameterStorePath)(implicit F: Applicative[F]): F[Array[Byte]] =
+    fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 }
 
 object ParameterStore {
@@ -26,9 +27,6 @@ object ParameterStore {
 
       override def fetch(path: ParameterStorePath): F[ParameterStoreContent] =
         ParameterStoreContent(content).pure
-
-      override def base64(path: ParameterStorePath): F[Array[Byte]] =
-        fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 
     }))(_ => F.unit)
 
@@ -46,9 +44,6 @@ object ParameterStore {
       val req = new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
       F.blocking(ParameterStoreContent(client.getParameters(req).getParameters.get(0).getValue))
     }
-
-    override def base64(path: ParameterStorePath): F[Array[Byte]] =
-      fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 
     override def shutdown: F[Unit] = F.blocking(client.shutdown())
   }
