@@ -37,15 +37,15 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
       else
         F.delay(registry.counter(s"fyi").inc())
 
-    case ActionRetrying(_, info, _, _, _) => F.delay(registry.counter(s"action.[${info.actionName}].retry").inc())
+    case ActionRetrying(_, info, _, _, _) => F.delay(registry.counter(s"retry.action.*[${info.actionName}]*").inc())
 
     // timer
     case ActionFailed(at, info, _, _, _, _) =>
-      F.delay(registry.timer(s"action.[${info.actionName}].fail").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"fail.action.*[${info.actionName}]*").update(Duration.between(info.launchTime, at)))
     case ActionSucced(at, info, _, _, _) =>
-      F.delay(registry.timer(s"action.[${info.actionName}].succ").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"succ.action.*[${info.actionName}]*").update(Duration.between(info.launchTime, at)))
     case ActionQuasiSucced(at, info, _, _, _, _, _, _) =>
-      F.delay(registry.timer(s"action.[${info.actionName}].quasi").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"quasi.action.*[${info.actionName}]*").update(Duration.between(info.launchTime, at)))
 
     // reset
     case _: ServiceDailySummariesReset => F.delay(registry.removeMatching(MetricFilter.ALL))

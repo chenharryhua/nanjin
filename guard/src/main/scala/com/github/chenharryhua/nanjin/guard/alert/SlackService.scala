@@ -93,7 +93,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ServiceHealthCheck(at, info, params, dailySummaries) =>
       val msg = SlackNotification(
         params.taskParams.appName,
-        s":gottarun: ${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
+        s":gottarun: Health Check ${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
         List(
           Attachment(
             params.taskParams.color.info,
@@ -102,7 +102,6 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", params.taskParams.hostName, short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-              SlackField("HealthCheck Status", "Good", short = true),
               SlackField("Next Check in", fmt.format(params.healthCheck.interval), short = true)
             )
           ))
@@ -114,7 +113,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val msg =
         SlackNotification(
           params.taskParams.appName,
-          StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize),
+          dailySummaries.value,
           List(
             Attachment(
               params.taskParams.color.info,

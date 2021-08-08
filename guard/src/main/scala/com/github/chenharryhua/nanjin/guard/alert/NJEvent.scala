@@ -62,9 +62,9 @@ object DailySummaries {
       .filterNot(_._2.getCount == 0)
       .map { case (s, c) => s"$s: *${c.getCount}*" }
       .mkString("\n")
-    DailySummaries(s"""
-                      |$timer
+    DailySummaries(s"""                      
                       |$counter
+                      |$timer
                       |""".stripMargin)
   }
 }
