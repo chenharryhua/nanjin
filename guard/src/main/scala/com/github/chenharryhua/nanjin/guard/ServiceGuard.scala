@@ -113,7 +113,7 @@ final class ServiceGuard[F[_]] private[guard] (
             channel.close.void) // close channel and the stream as well
 
         // notify alert services
-        val notify: Pipe[F, NJEvent, INothing] = { events =>
+        val notify: Pipe[F, NJEvent, INothing] = {
           val alerts: Resource[F, AlertService[F]] = for {
             mr <- Resource.pure(new NJMetricRegistry[F](metricRegistry))
             as <- alertServices
@@ -123,7 +123,7 @@ final class ServiceGuard[F[_]] private[guard] (
                 .background
           } yield as |+| mr
 
-          Stream.resource(alerts).flatMap(as => events.evalMap(as.alert)).drain
+          (events: Stream[F, NJEvent]) => Stream.resource(alerts).flatMap(as => events.evalMap(as.alert)).drain
         }
 
         channel.stream
