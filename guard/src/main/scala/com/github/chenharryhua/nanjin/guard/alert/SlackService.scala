@@ -25,7 +25,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
   override def alert(event: NJEvent): F[Unit] = event match {
 
     case ServiceStarted(at, _, params) =>
-      val msg = SlackNotification(
+      def msg: String = SlackNotification(
         params.taskParams.appName,
         s":rocket: ${params.notes}",
         List(
@@ -43,11 +43,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).void
 
     case ServicePanic(at, info, params, details, error) =>
-      val upcoming: String = details.upcomingDelay.map(fmt.format) match {
+      def upcoming: String = details.upcomingDelay.map(fmt.format) match {
         case None     => "should never see this" // never happen
         case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is dysfunctional."
       }
-      val msg =
+      def msg: String =
         SlackNotification(
           params.taskParams.appName,
           s""":x: The service experienced a panic, $upcoming
@@ -71,7 +71,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).void
 
     case ServiceStopped(at, info, params) =>
-      val msg =
+      def msg: String =
         SlackNotification(
           params.taskParams.appName,
           s":octagonal_sign: The service was stopped.",
@@ -86,14 +86,14 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 SlackField("Status", "Stopped", short = true)
               )
             ))
-        )
+        ).asJson.noSpaces
 
-      service.publish(msg.asJson.noSpaces).void
+      service.publish(msg).void
 
     case ServiceHealthCheck(at, info, params, dailySummaries) =>
-      val msg = SlackNotification(
+      def msg: String = SlackNotification(
         params.taskParams.appName,
-        s":gottarun: Health Check ${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
+        s":gottarun: *Health Check* ${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
         List(
           Attachment(
             params.taskParams.color.info,
@@ -106,11 +106,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             )
           ))
       ).asJson.noSpaces
-      val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
+      def ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
     case ServiceDailySummariesReset(at, serviceInfo, params, dailySummaries) =>
-      val msg =
+      def msg: String =
         SlackNotification(
           params.taskParams.appName,
           dailySummaries.value,
@@ -128,7 +128,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(params.taskParams.dailySummaryReset.enabled)
 
     case ActionStart(at, action, params) =>
-      val msg =
+      def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
           "",
@@ -148,9 +148,9 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(params.alertMask.alertStart)
 
     case ActionRetrying(at, action, params, wdr, error) =>
-      val s1 = s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1)}* failure of the action, "
-      val s2 = s"retry of which takes place in *${fmt.format(wdr.nextDelay)}*"
-      val msg =
+      def s1 = s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1)}* failure of the action, "
+      def s2 = s"retry of which takes place in *${fmt.format(wdr.nextDelay)}*"
+      def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
           s1 + s2,
@@ -178,7 +178,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         .whenA(params.alertMask.alertRetry || (params.alertMask.alertFirstRetry && wdr.retriesSoFar == 0))
 
     case ActionFailed(at, action, params, numRetries, notes, error) =>
-      val msg =
+      def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
           notes.value,
@@ -205,7 +205,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(params.alertMask.alertFail)
 
     case ActionSucced(at, action, params, numRetries, notes) =>
-      val msg =
+      def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
           notes.value,
@@ -227,7 +227,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(params.alertMask.alertSucc)
 
     case ActionQuasiSucced(at, action, params, runMode, numSucc, succNotes, failNotes, errors) =>
-      val msg: SlackNotification = {
+      def msg: SlackNotification =
         if (errors.isEmpty)
           SlackNotification(
             params.serviceParams.taskParams.appName,
@@ -270,7 +270,6 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
                 )
               ))
           )
-      }
       service
         .publish(msg.asJson.noSpaces)
         .whenA((params.alertMask.alertSucc && errors.isEmpty) || (params.alertMask.alertFail && errors.nonEmpty))
