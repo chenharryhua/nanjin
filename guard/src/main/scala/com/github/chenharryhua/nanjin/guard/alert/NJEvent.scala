@@ -56,13 +56,16 @@ object DailySummaries {
   def apply(registry: MetricRegistry): DailySummaries = {
     val timer = registry.getTimers.asScala
       .filterNot(_._2.getCount == 0)
-      .map { case (s, t) => s"*$s:* ${t.getCount}" }
+      .map { case (s, t) => s"$s: *${t.getCount}*" }
       .mkString("\n")
     val counter = registry.getCounters.asScala
       .filterNot(_._2.getCount == 0)
-      .map { case (s, c) => s"*$s:* ${c.getCount}" }
+      .map { case (s, c) => s"$s: *${c.getCount}*" }
       .mkString("\n")
-    DailySummaries(timer + "\n" + counter)
+    DailySummaries(s"""
+                      |$timer
+                      |$counter
+                      |""".stripMargin)
   }
 }
 

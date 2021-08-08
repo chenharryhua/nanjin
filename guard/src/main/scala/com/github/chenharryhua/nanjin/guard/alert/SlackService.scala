@@ -10,7 +10,6 @@ import io.chrisdavenport.cats.time.instances.zoneid
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
-import squants.information.{Gigabytes, Megabytes}
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
@@ -94,7 +93,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ServiceHealthCheck(at, info, params, dailySummaries) =>
       val msg = SlackNotification(
         params.taskParams.appName,
-        s":gottarun: ${dailySummaries.value}",
+        s":gottarun: ${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
         List(
           Attachment(
             params.taskParams.color.info,
@@ -111,11 +110,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
-    case ServiceDailySummariesReset(at, serviceInfo, params, summaries) =>
+    case ServiceDailySummariesReset(at, serviceInfo, params, dailySummaries) =>
       val msg =
         SlackNotification(
           params.taskParams.appName,
-          summaries.value,
+          StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize),
           List(
             Attachment(
               params.taskParams.color.info,
