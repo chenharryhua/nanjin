@@ -80,14 +80,13 @@ final class ServiceGuard[F[_]] private[guard] (
           ) {
             val healthReport: F[Unit] = for {
               ts <- realZonedDateTime(params)
-              _ <- channel.send(ServiceHealthCheck(
-                timestamp = ts,
-                serviceInfo = si,
-                serviceParams = params,
-                dailySummaries = DailySummaries(metricRegistry),
-                totalMemory = Runtime.getRuntime.totalMemory,
-                freeMemory = Runtime.getRuntime.freeMemory
-              ))
+              _ <- channel.send(
+                ServiceHealthCheck(
+                  timestamp = ts,
+                  serviceInfo = si,
+                  serviceParams = params,
+                  dailySummaries = DailySummaries(metricRegistry)
+                ))
             } yield ()
 
             val start_health: F[Unit] = for { // fire service startup event and then health-check events

@@ -40,7 +40,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("success") {
-    val a :: b :: c :: d :: e :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
+    val a :: b :: c :: d :: e :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
       .service("success-test")
       .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.loudly(IO.never))
@@ -56,7 +56,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("retry") {
-    val a :: b :: c :: d :: ServiceHealthCheck(_, _, _, ds, _, _) :: rest = guard
+    val a :: b :: c :: d :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
       .service("failure-test")
       .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))

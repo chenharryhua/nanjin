@@ -37,7 +37,7 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
       F.delay(registry.counter(s"service.${serviceKey(params)}.panic").inc())
     case ServiceStopped(_, _, params) =>
       F.delay(registry.counter(s"service.${serviceKey(params)}.stop").inc())
-    case ServiceHealthCheck(_, _, params, _, _, _) =>
+    case ServiceHealthCheck(_, _, params, _) =>
       F.delay(registry.counter(s"service.${serviceKey(params)}.healthCheck").inc())
     case ActionRetrying(_, info, params, _, _) =>
       F.delay(registry.counter(s"action.${actionKey(info, params)}.retry").inc())

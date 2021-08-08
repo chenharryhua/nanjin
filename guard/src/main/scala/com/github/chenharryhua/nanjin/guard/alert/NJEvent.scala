@@ -102,9 +102,7 @@ final case class ServiceHealthCheck(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  dailySummaries: DailySummaries,
-  totalMemory: Long,
-  freeMemory: Long
+  dailySummaries: DailySummaries
 ) extends ServiceEvent
 
 final case class ServiceDailySummariesReset(
