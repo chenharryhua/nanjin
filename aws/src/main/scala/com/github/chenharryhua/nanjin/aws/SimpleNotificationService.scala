@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import org.log4s.Logger
 
 sealed trait SimpleNotificationService[F[_]] {
-  def publish(msg: String): F[PublishResult]
+  def publish(msg: => String): F[PublishResult]
 }
 
 object SimpleNotificationService {
@@ -18,7 +18,7 @@ object SimpleNotificationService {
     Resource.make(F.pure(new SimpleNotificationService[F] {
       private[this] val logger: Logger = org.log4s.getLogger("Fake_SNS")
 
-      override def publish(msg: String): F[PublishResult] =
+      override def publish(msg: => String): F[PublishResult] =
         F.blocking(logger.info(msg)) *> F.pure(new PublishResult())
     }))(_ => F.unit)
 
@@ -31,7 +31,7 @@ object SimpleNotificationService {
       extends SimpleNotificationService[F] with ShutdownService[F] {
     private val snsClient: AmazonSNS = AmazonSNSClientBuilder.standard().withRegion(region).build()
 
-    override def publish(msg: String): F[PublishResult] =
+    override def publish(msg: => String): F[PublishResult] =
       F.blocking(snsClient.publish(new PublishRequest(topic.value, msg)))
 
     override def shutdown: F[Unit] = F.blocking(snsClient.shutdown())
