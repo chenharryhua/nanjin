@@ -88,9 +88,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def diff(other: CrRdd[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[DiffResult[K, V]] =
     diff(other.rdd)
 
-  def diffKV(other: RDD[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[KvDiffResult[K, V]] =
-    inv.kvDiffRdd(rdd, other)
-
-  def diffKV(other: CrRdd[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[KvDiffResult[K, V]] =
-    diffKV(other.rdd)
+  def diffKV(other: RDD[NJConsumerRecord[K, V]]): RDD[KvDiffResult[K, V]] = inv.kvDiffRdd(rdd, other)
+  def diffKV(other: CrRdd[F, K, V]): RDD[KvDiffResult[K, V]]              = diffKV(other.rdd)
 }

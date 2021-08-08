@@ -74,7 +74,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       def msg: String =
         SlackNotification(
           params.taskParams.appName,
-          s":octagonal_sign: The service was stopped.",
+          ":octagonal_sign: The service was stopped.",
           List(
             Attachment(
               params.taskParams.color.succ,
