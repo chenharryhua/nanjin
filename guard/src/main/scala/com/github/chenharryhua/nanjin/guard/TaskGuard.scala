@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.semigroup.*
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.guard.alert.AlertService
@@ -22,7 +23,7 @@ final class TaskGuard[F[_]: Async] private (
     new TaskGuard[F](f(taskConfig), alertServices, reporters)
 
   def service(serviceName: String): ServiceGuard[F] =
-    new ServiceGuard[F](ServiceConfig(serviceName, params), alertServices, reporters)
+    new ServiceGuard[F](new MetricRegistry, ServiceConfig(serviceName, params), alertServices, reporters)
 
   override def addAlertService(ras: Resource[F, AlertService[F]]): TaskGuard[F] =
     new TaskGuard[F](taskConfig, alertServices.flatMap(as => ras.map(_ |+| as)), reporters)

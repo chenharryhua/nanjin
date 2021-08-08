@@ -3,7 +3,7 @@ ThisBuild / scapegoatVersion  := "1.3.11"
 ThisBuild / parallelExecution := false
 Global / cancelable           := true
 
-ThisBuild / version := "0.12.18-SNAPSHOT"
+ThisBuild / version := "0.12.19-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"
@@ -328,11 +328,19 @@ val cometdLib = Seq(
   "org.eclipse.jetty" % "jetty-client"                   % "11.0.6",
   "org.cometd.java"   % "cometd-java-client-http-common" % "7.0.3")
 
+val metrics = Seq(
+  "io.dropwizard.metrics" % "metrics-core" % "4.2.3",
+  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.3",
+  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.3"
+)
+
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
   .settings(
-    libraryDependencies ++= Seq("org.apache.commons" % "commons-lang3" % "3.12.0") ++
+    libraryDependencies ++= Seq(
+      "org.apache.commons"    % "commons-lang3" % "3.12.0",
+      "io.dropwizard.metrics" % "metrics-core"  % "4.2.3" % Provided) ++
       baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
@@ -380,9 +388,8 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry-mtl" % "3.0.0",
-      "eu.timepit" %% "fs2-cron-cron4s"      % "0.7.1",
-      "io.dropwizard.metrics"                % "metrics-core" % "4.2.3"
-    ) ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
+      "eu.timepit" %% "fs2-cron-cron4s"      % "0.7.1"
+    ) ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 

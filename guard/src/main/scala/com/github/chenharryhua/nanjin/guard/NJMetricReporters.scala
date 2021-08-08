@@ -1,9 +1,10 @@
-package com.github.chenharryhua.nanjin.guard.alert
+package com.github.chenharryhua.nanjin.guard
 
 import cats.data.Reader
 import cats.effect.kernel.Async
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{ConsoleReporter, CsvReporter, MetricRegistry, Slf4jReporter}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
@@ -65,4 +66,19 @@ final class NJCsvReporter private (
 object NJCsvReporter {
   def apply(directory: Path, period: FiniteDuration): NJCsvReporter =
     new NJCsvReporter(Reader(identity), directory, period)
+}
+
+final class NJJmxReporter private (updates: Reader[JmxReporter.Builder, JmxReporter.Builder])
+    extends UpdateConfig[JmxReporter.Builder, NJJmxReporter] with NJMetricReporter {
+
+  override def updateConfig(f: JmxReporter.Builder => JmxReporter.Builder): NJJmxReporter =
+    new NJJmxReporter(updates.andThen(f))
+
+  override def start[F[_]](registry: MetricRegistry)(implicit F: Async[F]): F[Nothing] = {
+    val reporter = updates.run(JmxReporter.forRegistry(registry)).build()
+    F.bracket[JmxReporter, Nothing](F.delay { reporter.start(); reporter })(_ => F.never)(r => F.blocking(r.close()))
+  }
+}
+object NJJmxReporter {
+  def apply(): NJJmxReporter = new NJJmxReporter(Reader(identity))
 }

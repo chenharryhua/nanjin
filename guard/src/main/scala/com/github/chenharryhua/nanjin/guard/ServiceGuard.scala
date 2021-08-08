@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
 import com.github.chenharryhua.nanjin.guard.alert.*
@@ -29,6 +29,7 @@ import fs2.{INothing, Pipe, Stream}
 // format: on
 
 final class ServiceGuard[F[_]] private[guard] (
+  metricRegistry: MetricRegistry,
   serviceConfig: ServiceConfig,
   alertServices: Resource[F, AlertService[F]],
   reporters: List[NJMetricReporter])(implicit F: Async[F])
@@ -37,16 +38,19 @@ final class ServiceGuard[F[_]] private[guard] (
 
   val params: ServiceParams = serviceConfig.evalConfig
 
-  private val metricRegistry = new MetricRegistry()
+  def registerMetricSet(metrics: MetricSet): ServiceGuard[F] = {
+    metricRegistry.registerAll(metrics)
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporters)
+  }
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), alertServices, reporters)
+    new ServiceGuard[F](metricRegistry, f(serviceConfig), alertServices, reporters)
 
   override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
 
   override def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, alertServices, reporter :: reporters)
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporter :: reporters)
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
@@ -58,7 +62,6 @@ final class ServiceGuard[F[_]] private[guard] (
 
     for {
       si <- Stream.eval(serviceInfo)
-      dailySummaries <- Stream.eval(F.ref(DailySummaries.zero))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val service: F[A] = retry.mtl
           .retryingOnAllErrors(
@@ -73,27 +76,25 @@ final class ServiceGuard[F[_]] private[guard] (
                     serviceParams = params,
                     retryDetails = rd,
                     error = NJError(ex)))
-                _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
+            val healthReport: F[Unit] = for {
+              ts <- realZonedDateTime(params)
+              _ <- channel.send(
+                ServiceHealthCheck(
+                  timestamp = ts,
+                  serviceInfo = si,
+                  serviceParams = params,
+                  dailySummaries = DailySummaries(metricRegistry)
+                ))
+            } yield ()
+
             val start_health: F[Unit] = for { // fire service startup event and then health-check events
               ts <- realZonedDateTime(params)
               _ <- channel
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params))
                 .delayBy(params.startUpEventDelay)
-              _ <- dailySummaries.get.flatMap { ds =>
-                for {
-                  ts <- realZonedDateTime(params)
-                  _ <- channel.send(ServiceHealthCheck(
-                    timestamp = ts,
-                    serviceInfo = si,
-                    serviceParams = params,
-                    dailySummaries = ds,
-                    totalMemory = Runtime.getRuntime.totalMemory,
-                    freeMemory = Runtime.getRuntime.freeMemory
-                  ))
-                } yield ()
-              }.delayBy(params.healthCheck.interval).foreverM[Unit]
+              _ <- healthReport.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
             (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
@@ -102,7 +103,6 @@ final class ServiceGuard[F[_]] private[guard] (
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,
-                  dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
                   actionConfig = ActionConfig(params)))
@@ -119,7 +119,7 @@ final class ServiceGuard[F[_]] private[guard] (
             as <- alertServices
             _ <-
               F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
-                _.start(metricRegistry))
+                _.start[F](metricRegistry))
                 .background
           } yield as |+| mr
 
@@ -135,13 +135,12 @@ final class ServiceGuard[F[_]] private[guard] (
               .evalMap(_ =>
                 for {
                   ts <- realZonedDateTime(params)
-                  ds <- dailySummaries.getAndUpdate(_.reset)
                   _ <- channel.send(
                     ServiceDailySummariesReset(
                       timestamp = ts,
                       serviceInfo = si,
                       serviceParams = params,
-                      dailySummaries = ds
+                      dailySummaries = DailySummaries(metricRegistry)
                     ))
                 } yield ()))
       }

@@ -4,7 +4,6 @@ import cats.effect.kernel.Sync
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
-  ActionInfo,
   ActionQuasiSucced,
   ActionRetrying,
   ActionStart,
@@ -19,42 +18,34 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ServiceStarted,
   ServiceStopped
 }
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 
 import java.time.Duration
 
 final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F: Sync[F]) extends AlertService[F] {
-  private def serviceKey(params: ServiceParams): String = s"${params.serviceName}.${params.taskParams.appName}"
-
-  private def actionKey(info: ActionInfo, params: ActionParams): String =
-    s"${info.actionName}.${params.serviceParams.serviceName}.${params.serviceParams.taskParams.appName}"
 
   override def alert(event: NJEvent): F[Unit] = event match {
     // counter
-    case ServiceStarted(_, _, params) =>
-      F.delay(registry.counter(s"start.${serviceKey(params)}").inc())
-    case ServicePanic(_, _, params, _, _) =>
-      F.delay(registry.counter(s"panic.${serviceKey(params)}").inc())
-    case ServiceStopped(_, _, params) =>
-      F.delay(registry.counter(s"stop.${serviceKey(params)}").inc())
-    case ServiceHealthCheck(_, _, params, _, _, _) =>
-      F.delay(registry.counter(s"health-check.${serviceKey(params)}").inc())
-    case ActionRetrying(_, info, params, _, _) =>
-      F.delay(registry.counter(s"retry.${actionKey(info, params)}").inc())
+    case _: ServiceStarted     => F.delay(registry.counter(s"service.start").inc())
+    case _: ServicePanic       => F.delay(registry.counter(s"service.panic").inc())
+    case _: ServiceStopped     => F.delay(registry.counter(s"service.stop").inc())
+    case _: ServiceHealthCheck => F.delay(registry.counter(s"service.health.check").inc())
+    case _: PassThrough        => F.delay(registry.counter("pass.through").inc())
+
     case ForYourInformation(_, _, isError) =>
       if (isError)
-        F.delay(registry.counter("report.error").inc())
+        F.delay(registry.counter("error.report").inc())
       else
         F.delay(registry.counter(s"fyi").inc())
-    case PassThrough(_, _) =>
-      F.delay(registry.counter("pass-through").inc())
+
+    case ActionRetrying(_, info, _, _, _) => F.delay(registry.counter(s"action.[${info.actionName}].retry").inc())
+
     // timer
-    case ActionFailed(at, info, params, _, _, _) =>
-      F.delay(registry.timer(s"fail.${actionKey(info, params)}").update(Duration.between(info.launchTime, at)))
-    case ActionSucced(at, info, params, _, _) =>
-      F.delay(registry.timer(s"succ.${actionKey(info, params)}").update(Duration.between(info.launchTime, at)))
-    case ActionQuasiSucced(at, info, params, _, _, _, _, _) =>
-      F.delay(registry.timer(s"quasi.${actionKey(info, params)}").update(Duration.between(info.launchTime, at)))
+    case ActionFailed(at, info, _, _, _, _) =>
+      F.delay(registry.timer(s"action.[${info.actionName}].fail").update(Duration.between(info.launchTime, at)))
+    case ActionSucced(at, info, _, _, _) =>
+      F.delay(registry.timer(s"action.[${info.actionName}].succ").update(Duration.between(info.launchTime, at)))
+    case ActionQuasiSucced(at, info, _, _, _, _, _, _) =>
+      F.delay(registry.timer(s"action.[${info.actionName}].quasi").update(Duration.between(info.launchTime, at)))
 
     // reset
     case _: ServiceDailySummariesReset => F.delay(registry.removeMatching(MetricFilter.ALL))

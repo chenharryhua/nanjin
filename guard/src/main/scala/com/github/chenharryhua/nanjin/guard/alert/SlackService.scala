@@ -10,7 +10,6 @@ import io.chrisdavenport.cats.time.instances.zoneid
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
-import squants.information.{Gigabytes, Megabytes}
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
@@ -91,12 +90,10 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
 
       service.publish(msg.asJson.noSpaces).void
 
-    case ServiceHealthCheck(at, info, params, dailySummaries, totalMemory, freeMemory) =>
-      val tm = Megabytes(totalMemory / (1024 * 1024)).toString(Gigabytes)
-      val fm = Megabytes(freeMemory / (1024 * 1024)).toString(Gigabytes)
+    case ServiceHealthCheck(at, info, params, dailySummaries) =>
       val msg = SlackNotification(
         params.taskParams.appName,
-        s":gottarun: ${params.notes}",
+        s":gottarun: ${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
         List(
           Attachment(
             params.taskParams.color.info,
@@ -104,11 +101,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             List(
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", params.taskParams.hostName, short = true),
-              SlackField("Free/Total Memory", s"$fm/$tm", short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
               SlackField("HealthCheck Status", "Good", short = true),
-              SlackField("Panics", dailySummaries.servicePanic.show, short = true),
-              SlackField("Time Zone", params.taskParams.zoneId.show, short = true),
               SlackField("Next Check in", fmt.format(params.healthCheck.interval), short = true)
             )
           ))
@@ -116,29 +110,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
       service.publish(msg).whenA(ltr.isInBetween(at))
 
-    case ServiceDailySummariesReset(at, serviceInfo, params, summaries) =>
-      val succ: Option[SlackField] =
-        if (summaries.actionSucc > 0)
-          Some(SlackField("Number of Succed Actions", summaries.actionSucc.show, short = true))
-        else None
-      val fail: Option[SlackField] =
-        if (summaries.actionFail > 0)
-          Some(SlackField("Number of Failed Actions", summaries.actionFail.show, short = true))
-        else None
-      val retries: Option[SlackField] =
-        if (summaries.actionRetries > 0)
-          Some(SlackField("Number of Action Retries", summaries.actionRetries.show, short = true))
-        else None
-
-      val errorReport: Option[SlackField] =
-        if (summaries.errorReport > 0)
-          Some(SlackField("Number of Error Reports", summaries.errorReport.show, short = true))
-        else None
-
+    case ServiceDailySummariesReset(at, serviceInfo, params, dailySummaries) =>
       val msg =
         SlackNotification(
           params.taskParams.appName,
-          "This is a summary of activities of the service in past 24 hours",
+          StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize),
           List(
             Attachment(
               params.taskParams.color.info,
@@ -146,9 +122,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
-                SlackField("Up Time", fmt.format(serviceInfo.launchTime, at), short = true),
-                SlackField("Number of Service Panics", summaries.servicePanic.show, short = true)
-              ) ++ List(succ, fail, retries, errorReport).flatten
+                SlackField("Up Time", fmt.format(serviceInfo.launchTime, at), short = true)
+              )
             ))
         ).asJson.noSpaces
       service.publish(msg).whenA(params.taskParams.dailySummaryReset.enabled)

@@ -12,7 +12,6 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
-  DailySummaries,
   NJError,
   NJEvent,
   Notes,
@@ -27,7 +26,6 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
   serviceInfo: ServiceInfo,
-  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
@@ -41,7 +39,6 @@ final class ActionRetry[F[_], A, B](
   def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -58,7 +55,6 @@ final class ActionRetry[F[_], A, B](
   def withFailNotesM(fail: (A, Throwable) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -75,7 +71,6 @@ final class ActionRetry[F[_], A, B](
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -89,7 +84,6 @@ final class ActionRetry[F[_], A, B](
   def withPostCondition(postCondition: B => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -123,7 +117,6 @@ final class ActionRetry[F[_], A, B](
               willDelayAndRetry = wdr,
               error = NJError(error)))
           _ <- retryCount.update(_ + 1)
-          _ <- dailySummaries.update(_.incActionRetries)
         } yield ()
       case _: GivingUp => F.unit
     }
@@ -135,7 +128,6 @@ final class ActionRetry[F[_], A, B](
         for {
           count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
-          _ <- dailySummaries.update(_.incActionFail)
           fn <- failNotes(ActionException.ActionCanceledExternally)
           _ <- channel.send(
             ActionFailed(
@@ -151,7 +143,6 @@ final class ActionRetry[F[_], A, B](
         for {
           count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
-          _ <- dailySummaries.update(_.incActionFail)
           fn <- failNotes(error)
           _ <- channel.send(
             ActionFailed(
@@ -169,7 +160,6 @@ final class ActionRetry[F[_], A, B](
           now <- realZonedDateTime(params.serviceParams)
           b <- fb
           sn <- succNotes(b)
-          _ <- dailySummaries.update(_.incActionSucc)
           _ <- channel.send(
             ActionSucced(
               timestamp = now,
@@ -208,7 +198,6 @@ final class ActionRetry[F[_], A, B](
 
 final class ActionRetryUnit[F[_], B](
   serviceInfo: ServiceInfo,
-  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
@@ -221,7 +210,6 @@ final class ActionRetryUnit[F[_], B](
   def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -237,7 +225,6 @@ final class ActionRetryUnit[F[_], B](
   def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -253,7 +240,6 @@ final class ActionRetryUnit[F[_], B](
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -266,7 +252,6 @@ final class ActionRetryUnit[F[_], B](
   def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -279,7 +264,6 @@ final class ActionRetryUnit[F[_], B](
   def run: F[B] =
     new ActionRetry[F, Unit, B](
       serviceInfo,
-      dailySummaries,
       channel,
       actionName,
       params,
