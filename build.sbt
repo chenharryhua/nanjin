@@ -328,6 +328,12 @@ val cometdLib = Seq(
   "org.eclipse.jetty" % "jetty-client"                   % "11.0.6",
   "org.cometd.java"   % "cometd-java-client-http-common" % "7.0.3")
 
+val metrics = Seq(
+  "io.dropwizard.metrics" % "metrics-core" % "4.2.3",
+  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.3",
+  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.3"
+)
+
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
@@ -382,9 +388,8 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry-mtl" % "3.0.0",
-      "eu.timepit" %% "fs2-cron-cron4s"      % "0.7.1",
-      "io.dropwizard.metrics"                % "metrics-core" % "4.2.3"
-    ) ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
+      "eu.timepit" %% "fs2-cron-cron4s"      % "0.7.1"
+    ) ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
@@ -477,4 +482,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
- 
+

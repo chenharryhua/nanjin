@@ -96,7 +96,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       val fm = Megabytes(freeMemory / (1024 * 1024)).toString(Gigabytes)
       val msg = SlackNotification(
         params.taskParams.appName,
-        s":gottarun: ${params.notes}",
+        s":gottarun: ${dailySummaries.value}",
         List(
           Attachment(
             params.taskParams.color.info,

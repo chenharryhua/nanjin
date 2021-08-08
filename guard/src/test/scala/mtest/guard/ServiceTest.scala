@@ -2,9 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
 import com.amazonaws.regions.Regions
-import com.codahale.metrics.{Counter, Timer}
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
@@ -15,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
-  NJConsoleReporter,
   NJEvent,
   ServiceHealthCheck,
   ServicePanic,
@@ -29,7 +26,6 @@ import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.JavaConverters.*
 import scala.concurrent.duration.*
 class ServiceTest extends AnyFunSuite {
   val slackNoUse1 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
