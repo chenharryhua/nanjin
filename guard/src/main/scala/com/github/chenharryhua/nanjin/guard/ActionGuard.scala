@@ -23,7 +23,7 @@ import io.circe.syntax.*
 
 import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
-  val metricRegistry: MetricRegistry,
+  metricRegistry: MetricRegistry,
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
   dailySummaries: Ref[F, DailySummaries],
@@ -70,6 +70,11 @@ final class ActionGuard[F[_]] private[guard] (
     realZonedDateTime(params.serviceParams)
       .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg, isError = false)))
       .void
+
+  def unsafeCount(name: String): Unit          = metricRegistry.counter(name).inc()
+  def count(name: String): F[Unit]             = F.delay(unsafeCount(name))
+  def unsafeCount(name: String, n: Long): Unit = metricRegistry.counter(name).inc(n)
+  def count(name: String, n: Long): F[Unit]    = F.delay(unsafeCount(name, n))
 
   def unsafeFYI(msg: String): Unit =
     dispatcher.unsafeRunSync(fyi(msg))

@@ -49,7 +49,7 @@ class ServiceTest extends AnyFunSuite {
         .withDailySummaryResetDisabled
         .withDailySummaryReset(1))
     .service("service")
-    .withReporter(NJConsoleReporter(1.second))
+    .addMetricReporter(NJConsoleReporter(1.second))
     .updateConfig(_.withHealthCheckInterval(3.hours)
       .withConstantDelay(1.seconds)
       .withSlackMaximumCauseSize(100)
