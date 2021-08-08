@@ -45,7 +45,7 @@ final class ServiceGuard[F[_]] private[guard] (
   override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
 
-  override def addReporter(reporter: NJMetricReporter): ServiceGuard[F] =
+  override def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, alertServices, reporter :: reporters)
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {

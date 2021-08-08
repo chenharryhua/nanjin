@@ -27,7 +27,7 @@ final class TaskGuard[F[_]: Async] private (
   override def addAlertService(ras: Resource[F, AlertService[F]]): TaskGuard[F] =
     new TaskGuard[F](taskConfig, alertServices.flatMap(as => ras.map(_ |+| as)), reporters)
 
-  override def addReporter(reporter: NJMetricReporter): TaskGuard[F] =
+  override def addMetricReporter(reporter: NJMetricReporter): TaskGuard[F] =
     new TaskGuard[F](taskConfig, alertServices, reporter :: reporters)
 
 }

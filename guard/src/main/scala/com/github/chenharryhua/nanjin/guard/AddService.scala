@@ -12,5 +12,5 @@ private[guard] trait AddAlertService[F[_], A] {
 }
 
 private[guard] trait AddMetricReporter[A] {
-  def addReporter(reporter: NJMetricReporter): A
+  def addMetricReporter(reporter: NJMetricReporter): A
 }

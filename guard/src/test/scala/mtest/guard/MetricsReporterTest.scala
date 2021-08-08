@@ -13,11 +13,11 @@ import scala.concurrent.duration.*
 class MetricsReporterTest extends AnyFunSuite {
   test("metrics reporter") {
     TaskGuard[IO]("task")
-      .addReporter(NJConsoleReporter(2.second))
+      .addMetricReporter(NJConsoleReporter(2.second))
       .service("service")
-      .addReporter(NJSlf4jReporter(3.second))
-      .addReporter(NJConsoleReporter(5.second).updateConfig(_.convertRatesTo(TimeUnit.HOURS)))
-      .addReporter(NJCsvReporter(File("./data/metrics").createDirectoryIfNotExists().path, 3.seconds))
+      .addMetricReporter(NJSlf4jReporter(3.second))
+      .addMetricReporter(NJConsoleReporter(5.second).updateConfig(_.convertRatesTo(TimeUnit.HOURS)))
+      .addMetricReporter(NJCsvReporter(File("./data/metrics").createDirectoryIfNotExists().path, 3.seconds))
       .eventStream(ag => ag.run(IO.println("running").delayBy(1.second)).foreverM)
       .interruptAfter(10.seconds)
       .compile
