@@ -3,7 +3,7 @@ ThisBuild / scapegoatVersion  := "1.3.11"
 ThisBuild / parallelExecution := false
 Global / cancelable           := true
 
-ThisBuild / version := "0.12.18-SNAPSHOT"
+ThisBuild / version := "0.12.19-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"
@@ -332,7 +332,9 @@ lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
   .settings(
-    libraryDependencies ++= Seq("org.apache.commons" % "commons-lang3" % "3.12.0") ++
+    libraryDependencies ++= Seq(
+      "org.apache.commons"    % "commons-lang3" % "3.12.0",
+      "io.dropwizard.metrics" % "metrics-core"  % "4.2.3" % Provided) ++
       baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
@@ -475,4 +477,4 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
-
+ 

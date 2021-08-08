@@ -119,7 +119,7 @@ final class ServiceGuard[F[_]] private[guard] (
             as <- alertServices
             _ <-
               F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
-                _.start(metricRegistry))
+                _.start[F](metricRegistry))
                 .background
           } yield as |+| mr
 
