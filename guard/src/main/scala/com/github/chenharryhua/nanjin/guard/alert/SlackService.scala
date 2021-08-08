@@ -93,7 +93,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ServiceHealthCheck(at, info, params, dailySummaries) =>
       def msg: String = SlackNotification(
         params.taskParams.appName,
-        s":gottarun: *Health Check* ${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
+        s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
         List(
           Attachment(
             params.taskParams.color.info,
@@ -113,7 +113,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       def msg: String =
         SlackNotification(
           params.taskParams.appName,
-          dailySummaries.value,
+          s":checklist: *Daily Summaries* \n${dailySummaries.value}",
           List(
             Attachment(
               params.taskParams.color.info,

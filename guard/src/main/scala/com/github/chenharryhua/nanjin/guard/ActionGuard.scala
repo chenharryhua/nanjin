@@ -57,15 +57,15 @@ final class ActionGuard[F[_]] private[guard] (
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
-  def fyi(msg: String): F[Unit] =
-    realZonedDateTime(params.serviceParams)
-      .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg, isError = false)))
-      .void
-
   def unsafeCount(name: String): Unit          = metricRegistry.counter(name).inc()
   def count(name: String): F[Unit]             = F.delay(unsafeCount(name))
   def unsafeCount(name: String, n: Long): Unit = metricRegistry.counter(name).inc(n)
   def count(name: String, n: Long): F[Unit]    = F.delay(unsafeCount(name, n))
+
+  def fyi(msg: String): F[Unit] =
+    realZonedDateTime(params.serviceParams)
+      .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg, isError = false)))
+      .void
 
   def unsafeFYI(msg: String): Unit =
     dispatcher.unsafeRunSync(fyi(msg))

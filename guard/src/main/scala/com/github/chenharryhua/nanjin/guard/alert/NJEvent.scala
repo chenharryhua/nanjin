@@ -54,18 +54,10 @@ final case class DailySummaries private (value: String)
 
 object DailySummaries {
   def apply(registry: MetricRegistry): DailySummaries = {
-    val timer = registry.getTimers.asScala
-      .filterNot(_._2.getCount == 0)
-      .map { case (s, t) => s"$s: ${t.getCount}" }
-      .mkString("\n")
-    val counter = registry.getCounters.asScala
-      .filterNot(_._2.getCount == 0)
-      .map { case (s, c) => s"$s: *${c.getCount}*" }
-      .mkString("\n")
-    DailySummaries(s"""                      
-                      |$counter
-                      |$timer
-                      |""".stripMargin)
+    val timer   = registry.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
+    val counter = registry.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
+    val all     = (timer ::: counter).sorted.mkString("\n")
+    DailySummaries(all)
   }
 }
 
