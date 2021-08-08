@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Outcome, Ref}
+import cats.effect.kernel.{Async, Outcome}
 import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionInfo,
   ActionQuasiSucced,
   ActionStart,
-  DailySummaries,
   NJError,
   NJEvent,
   Notes,
@@ -25,7 +24,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class QuasiSucc[F[_], T[_], A, B](
   serviceInfo: ServiceInfo,
-  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
@@ -37,7 +35,6 @@ final class QuasiSucc[F[_], T[_], A, B](
   def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -52,7 +49,6 @@ final class QuasiSucc[F[_], T[_], A, B](
   def withFailNotesM(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -83,7 +79,6 @@ final class QuasiSucc[F[_], T[_], A, B](
           case Outcome.Canceled() =>
             for {
               now <- realZonedDateTime(params.serviceParams)
-              _ <- dailySummaries.update(_.incActionFail)
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
@@ -97,7 +92,6 @@ final class QuasiSucc[F[_], T[_], A, B](
           case Outcome.Errored(error) =>
             for {
               now <- realZonedDateTime(params.serviceParams)
-              _ <- dailySummaries.update(_.incActionFail)
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
@@ -112,7 +106,6 @@ final class QuasiSucc[F[_], T[_], A, B](
             for {
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
-              _ <- dailySummaries.update(_.incActionSucc)
               sn <- succ(b._2.toList)
               fn <- fail(b._1)
               _ <- channel.send(
@@ -143,7 +136,6 @@ final class QuasiSucc[F[_], T[_], A, B](
 
 final class QuasiSuccUnit[F[_], T[_], B](
   serviceInfo: ServiceInfo,
-  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
@@ -154,7 +146,6 @@ final class QuasiSuccUnit[F[_], T[_], B](
   def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -168,7 +159,6 @@ final class QuasiSuccUnit[F[_], T[_], B](
   def withFailNotesM(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -182,7 +172,6 @@ final class QuasiSuccUnit[F[_], T[_], B](
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,

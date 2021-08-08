@@ -2,19 +2,13 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
-import com.github.chenharryhua.nanjin.guard.alert.{
-  DailySummaries,
-  ForYourInformation,
-  NJEvent,
-  PassThrough,
-  ServiceInfo
-}
+import com.github.chenharryhua.nanjin.guard.alert.{ForYourInformation, NJEvent, PassThrough, ServiceInfo}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -26,7 +20,6 @@ final class ActionGuard[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
-  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   actionConfig: ActionConfig)(implicit F: Async[F])
@@ -34,15 +27,14 @@ final class ActionGuard[F[_]] private[guard] (
   val params: ActionParams = actionConfig.evalConfig
 
   def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, dailySummaries, channel, actionName, actionConfig)
+    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, channel, actionName, actionConfig)
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, dailySummaries, channel, actionName, f(actionConfig))
+    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, channel, actionName, f(actionConfig))
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -56,7 +48,6 @@ final class ActionGuard[F[_]] private[guard] (
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -82,7 +73,6 @@ final class ActionGuard[F[_]] private[guard] (
   def reportError(msg: String): F[Unit] =
     for {
       ts <- realZonedDateTime(params.serviceParams)
-      _ <- dailySummaries.update(_.incErrorReport)
       _ <- channel.send(ForYourInformation(timestamp = ts, message = msg, isError = true))
     } yield ()
 
@@ -128,7 +118,6 @@ final class ActionGuard[F[_]] private[guard] (
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -139,7 +128,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] = new QuasiSuccUnit[F, T, B](
     serviceInfo = serviceInfo,
-    dailySummaries = dailySummaries,
     channel = channel,
     actionName = actionName,
     params = params,

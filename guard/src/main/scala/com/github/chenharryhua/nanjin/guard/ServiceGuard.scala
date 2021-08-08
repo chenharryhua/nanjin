@@ -58,7 +58,6 @@ final class ServiceGuard[F[_]] private[guard] (
 
     for {
       si <- Stream.eval(serviceInfo)
-      dailySummaries <- Stream.eval(F.ref(DailySummaries.zero))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val service: F[A] = retry.mtl
           .retryingOnAllErrors(
@@ -73,27 +72,26 @@ final class ServiceGuard[F[_]] private[guard] (
                     serviceParams = params,
                     retryDetails = rd,
                     error = NJError(ex)))
-                _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
+            val healthReport: F[Unit] = for {
+              ts <- realZonedDateTime(params)
+              _ <- channel.send(ServiceHealthCheck(
+                timestamp = ts,
+                serviceInfo = si,
+                serviceParams = params,
+                dailySummaries = DailySummaries(metricRegistry),
+                totalMemory = Runtime.getRuntime.totalMemory,
+                freeMemory = Runtime.getRuntime.freeMemory
+              ))
+            } yield ()
+
             val start_health: F[Unit] = for { // fire service startup event and then health-check events
               ts <- realZonedDateTime(params)
               _ <- channel
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params))
                 .delayBy(params.startUpEventDelay)
-              _ <- dailySummaries.get.flatMap { ds =>
-                for {
-                  ts <- realZonedDateTime(params)
-                  _ <- channel.send(ServiceHealthCheck(
-                    timestamp = ts,
-                    serviceInfo = si,
-                    serviceParams = params,
-                    dailySummaries = ds,
-                    totalMemory = Runtime.getRuntime.totalMemory,
-                    freeMemory = Runtime.getRuntime.freeMemory
-                  ))
-                } yield ()
-              }.delayBy(params.healthCheck.interval).foreverM[Unit]
+              _ <- healthReport.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
             (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
@@ -102,7 +100,6 @@ final class ServiceGuard[F[_]] private[guard] (
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,
-                  dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
                   actionConfig = ActionConfig(params)))
@@ -135,13 +132,12 @@ final class ServiceGuard[F[_]] private[guard] (
               .evalMap(_ =>
                 for {
                   ts <- realZonedDateTime(params)
-                  ds <- dailySummaries.getAndUpdate(_.reset)
                   _ <- channel.send(
                     ServiceDailySummariesReset(
                       timestamp = ts,
                       serviceInfo = si,
                       serviceParams = params,
-                      dailySummaries = ds
+                      dailySummaries = DailySummaries(metricRegistry)
                     ))
                 } yield ()))
       }
