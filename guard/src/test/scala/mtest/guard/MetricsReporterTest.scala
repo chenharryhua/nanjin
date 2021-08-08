@@ -3,6 +3,7 @@ package mtest.guard
 import better.files.*
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet
 import com.github.chenharryhua.nanjin.guard.{
   NJConsoleReporter,
   NJCsvReporter,
@@ -20,6 +21,7 @@ class MetricsReporterTest extends AnyFunSuite {
     TaskGuard[IO]("task")
       .addMetricReporter(NJConsoleReporter(2.second))
       .service("service")
+      .registerMetricSet(new MemoryUsageGaugeSet)
       .addMetricReporter(NJJmxReporter())
       .addMetricReporter(NJSlf4jReporter(3.second))
       .addMetricReporter(NJConsoleReporter(5.second).updateConfig(_.convertRatesTo(TimeUnit.HOURS)))

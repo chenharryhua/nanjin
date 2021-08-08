@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
 import com.github.chenharryhua.nanjin.guard.alert.*
@@ -37,6 +37,11 @@ final class ServiceGuard[F[_]] private[guard] (
     with AddMetricReporter[ServiceGuard[F]] {
 
   val params: ServiceParams = serviceConfig.evalConfig
+
+  def registerMetricSet(metrics: MetricSet): ServiceGuard[F] = {
+    metricRegistry.registerAll(metrics)
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporters)
+  }
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](metricRegistry, f(serviceConfig), alertServices, reporters)
