@@ -29,6 +29,7 @@ import fs2.{INothing, Pipe, Stream}
 // format: on
 
 final class ServiceGuard[F[_]] private[guard] (
+  metricRegistry: MetricRegistry,
   serviceConfig: ServiceConfig,
   alertServices: Resource[F, AlertService[F]],
   reporters: List[NJMetricReporter])(implicit F: Async[F])
@@ -37,16 +38,14 @@ final class ServiceGuard[F[_]] private[guard] (
 
   val params: ServiceParams = serviceConfig.evalConfig
 
-  private val metricRegistry = new MetricRegistry()
-
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), alertServices, reporters)
+    new ServiceGuard[F](metricRegistry, f(serviceConfig), alertServices, reporters)
 
   override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
 
   override def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, alertServices, reporter :: reporters)
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporter :: reporters)
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
