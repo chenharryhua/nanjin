@@ -17,7 +17,7 @@ import org.apache.kafka.streams.{KafkaStreams, Topology}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-final case class KafkaStreamsStoppedException() extends Exception("Kafka Streams were stopped")
+final case class KafkaStreamsStoppedException(from: State) extends Exception("Kafka Streams were stopped")
 
 final class KafkaStreamsBuilder[F[_]] private (
   settings: KafkaStreamSettings,
@@ -40,7 +40,7 @@ final class KafkaStreamsBuilder[F[_]] private (
         bus.send(newState) *>
           latch.release.whenA(newState == State.RUNNING) *>
           stop
-            .complete(Left(KafkaStreamsStoppedException()))
+            .complete(Left(KafkaStreamsStoppedException(oldState)))
             .whenA(newState == State.NOT_RUNNING || newState == State.ERROR))
   }
 
