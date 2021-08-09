@@ -44,5 +44,5 @@ final class SaveMultiBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], c
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.delay(saveRDD.binAvro(rdd, params.outPath, encoder)))
+      .checkAndRun(F.interruptible(many = true)(saveRDD.binAvro(rdd, params.outPath, encoder)))
 }

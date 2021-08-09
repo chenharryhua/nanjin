@@ -72,7 +72,7 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
 
   def run(implicit F: Async[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.delay {
+      .checkAndRun(F.interruptible(many = true) {
         val quoteAll: Boolean = csvConfiguration.quotePolicy match {
           case QuotePolicy.Always     => true
           case QuotePolicy.WhenNeeded => false

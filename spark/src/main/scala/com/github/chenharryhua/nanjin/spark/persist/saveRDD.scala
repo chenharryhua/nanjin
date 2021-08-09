@@ -17,7 +17,7 @@ import scalapb.GeneratedMessage
 
 import java.io.ByteArrayOutputStream
 
-object saveRDD {
+private[spark] object saveRDD {
 
   def avro[A](rdd: RDD[A], path: String, encoder: AvroEncoder[A], compression: Compression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
