@@ -10,7 +10,3 @@ private[guard] trait AddAlertService[F[_], A] {
   final def addAlertService(as: AlertService[F]): A =
     addAlertService(Resource.pure[F, AlertService[F]](as))
 }
-
-private[guard] trait AddMetricReporter[A] {
-  def addMetricReporter(reporter: NJMetricReporter): A
-}
