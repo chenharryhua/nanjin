@@ -37,8 +37,7 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
       F.delay(registry.timer(s"009.quasi.[${info.actionName}]").update(Duration.between(info.launchTime, at)))
     case _: PassThrough => F.delay(registry.counter("010.pass.through").inc())
     case ActionSucced(at, info, _, _, _) =>
-      F.delay(registry.timer(s"011.*[${info.actionName}]").update(Duration.between(info.launchTime, at)))
-
+      F.delay(registry.timer(s"011.succ[${info.actionName}]").update(Duration.between(info.launchTime, at)))
     // reset
     case _: ServiceDailySummariesReset => F.delay(registry.removeMatching(MetricFilter.ALL))
     // no op
