@@ -132,7 +132,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
-          "",
+          s"Start running action: *${action.actionName}*",
           List(
             Attachment(
               params.serviceParams.taskParams.color.info,
@@ -140,8 +140,6 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                SlackField("Action", action.actionName, short = true),
-                SlackField("Status", "Start", short = true),
                 SlackField("Action ID", action.id.show, short = false)
               )
             ))
@@ -149,12 +147,11 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
       service.publish(msg).whenA(params.alertMask.alertStart)
 
     case ActionRetrying(at, action, params, wdr, error) =>
-      def s1 = s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1)}* failure of the action, "
-      def s2 = s"retry of which takes place in *${fmt.format(wdr.nextDelay)}*"
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
-          s1 + s2,
+          s"This is the *${toOrdinalWords(
+            wdr.retriesSoFar + 1)}* failure of the action, retry of which takes place in *${fmt.format(wdr.nextDelay)}*",
           List(
             Attachment(
               params.serviceParams.taskParams.color.warn,

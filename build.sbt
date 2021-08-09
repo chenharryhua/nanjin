@@ -90,7 +90,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Xsource:3"
   ),
-  scapegoatDisabledInspections := Seq("VariableShadowing"),
+  scapegoatDisabledInspections       := Seq("VariableShadowing"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / PB.targets                  := Seq(scalapb.gen() -> (Test / sourceManaged).value)
 )
@@ -324,11 +324,6 @@ val jwtLib = Seq(
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.2"
 )
 
-val cometdLib = Seq(
-  "org.eclipse.jetty" % "jetty-util-ajax"                % "11.0.6",
-  "org.eclipse.jetty" % "jetty-client"                   % "11.0.6",
-  "org.cometd.java"   % "cometd-java-client-http-common" % "7.0.3")
-
 val metrics = Seq(
   "io.dropwizard.metrics" % "metrics-core" % "4.2.3",
   "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.3",
@@ -351,7 +346,7 @@ lazy val http = (project in file("http"))
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
   .settings(
-    libraryDependencies ++= jwtLib ++ cometdLib ++ http4sLib ++
+    libraryDependencies ++= jwtLib ++ http4sLib ++
       fs2Lib ++ effectLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )

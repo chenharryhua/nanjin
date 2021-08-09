@@ -138,7 +138,19 @@ class ServiceTest extends AnyFunSuite {
   test("toWords") {
     assert(toOrdinalWords(1) == "1st")
     assert(toOrdinalWords(2) == "2nd")
+    assert(toOrdinalWords(3) == "3rd")
     assert(toOrdinalWords(10) == "10th")
+    assert(toOrdinalWords(100) == "100th")
+    assert(toOrdinalWords(101) == "101st")
+    assert(toOrdinalWords(102) == "102nd")
+    assert(toOrdinalWords(103) == "103rd")
+    assert(toOrdinalWords(104) == "104th")
+    assert(toOrdinalWords(105) == "105th")
+    assert(toOrdinalWords(106) == "106th")
+    assert(toOrdinalWords(107) == "107th")
+    assert(toOrdinalWords(108) == "108th")
+    assert(toOrdinalWords(109) == "109th")
+    assert(toOrdinalWords(110) == "110th")
   }
 
   test("zoneId ") {
@@ -148,6 +160,7 @@ class ServiceTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
   test("all alert on") {
     guard.eventStream { ag =>
       val g = ag("").updateConfig(_.withSlackNone.withSlackAll.withMaxRetries(5))

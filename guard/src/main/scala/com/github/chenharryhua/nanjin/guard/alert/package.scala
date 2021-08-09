@@ -11,6 +11,13 @@ package object alert {
   implicit private[alert] val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
 
   def toOrdinalWords(n: Int): String = n + {
-    if (n % 100 / 10 == 1) "th" else ("thstndrd" + "th" * 6).sliding(2, 2).toSeq(n % 10)
+    if (n % 100 / 10 == 1) "th"
+    else
+      (n % 10) match {
+        case 1 => "st"
+        case 2 => "nd"
+        case 3 => "rd"
+        case _ => "th"
+      }
   }
 }
