@@ -21,6 +21,7 @@ import java.io.{DataOutputStream, OutputStream}
 
 final class NJJacksonKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
+  @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {
     val outDir = FileOutputFormat.getOutputPath(job)
     if (outDir == null) throw new InvalidJobConfException("Output directory not set.")

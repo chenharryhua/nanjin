@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.kernel.Sync
-import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.functions.aggregate.count
@@ -136,12 +135,13 @@ final class Statistics[F[_]] private[kafka] (
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
+  @SuppressWarnings(Array("UnnecessaryConversion")) // convert java long to scala long
   def missingOffsets: TypedDataset[MissingOffset] = {
-    import ds.sparkSession.implicits._
+    import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
     val all: Array[Dataset[MissingOffset]] = summaryDS.dataset.collect().map { kds =>
-      val expect = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
-      val exist  = ds.filter(col("partition") === kds.partition).map(_.offset)
+      val expect: Dataset[Long] = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
+      val exist: Dataset[Long]  = ds.filter(col("partition") === kds.partition).map(_.offset)
       expect.except(exist).map(os => MissingOffset(partition = kds.partition, offset = os))
     }
     val sum: Dataset[MissingOffset] = all
@@ -155,7 +155,7 @@ final class Statistics[F[_]] private[kafka] (
     * Timestamp is supposed to be ordered along with offset
     */
   def disorders: TypedDataset[Disorder] = {
-    import ds.sparkSession.implicits._
+    import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
     val all: Array[Dataset[Disorder]] =
       ds.map(_.partition).distinct().collect().map { pt =>
