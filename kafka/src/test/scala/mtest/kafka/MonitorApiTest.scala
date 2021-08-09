@@ -30,26 +30,15 @@ class MonitorApiTest extends AnyFunSuite {
     .through(st.fs2Channel.producerPipe)
 
   test("realtime filter and watch") {
-    val e   = Stream.eval(topic.monitor.filterFromEarliest(_.key().toOption.exists(_ == 2)))
-    val n   = Stream.eval(topic.monitor.filter(_.key().toOption.exists(_ < 2)))
-    val w   = Stream.eval(topic.monitor.watch)
-    val wn  = Stream.eval(topic.monitor.watchFromEarliest)
-    val wf  = Stream.eval(topic.monitor.watchFrom(s"${Instant.now.toString}"))
-    val bw  = Stream.eval(topic.monitor.badRecords)
-    val bwf = Stream.eval(topic.monitor.badRecordsFromEarliest)
+    val e   = topic.monitor.filterFromEarliest(_.key().toOption.exists(_ == 2))
+    val n   = topic.monitor.filter(_.key().toOption.exists(_ < 2))
+    val w   = topic.monitor.watch
+    val wn  = topic.monitor.watchFromEarliest
+    val wf  = topic.monitor.watchFrom(s"${Instant.now.toString}")
+    val bw  = topic.monitor.badRecords
+    val bwf = topic.monitor.badRecordsFromEarliest
 
-    sender
-      .concurrently(bw)
-      .concurrently(bwf)
-      .concurrently(e)
-      .concurrently(n)
-      .concurrently(w)
-      .concurrently(wn)
-      .concurrently(wf)
-      .interruptAfter(10.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
+    IO.parSequenceN(7)(List(e, n, w, wn, wf, bw, bwf)).unsafeRunTimed(10.seconds)
   }
   test("carbon copy") {
     topic.monitor.carbonCopyTo(tgt).unsafeRunTimed(3.seconds)
