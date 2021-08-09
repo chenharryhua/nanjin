@@ -58,5 +58,5 @@ final class SaveMultiCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull:
 
   def run(implicit F: Sync[F], je: JsonEncoder[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)))
+      .checkAndRun(F.interruptible(many = true)(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)))
 }

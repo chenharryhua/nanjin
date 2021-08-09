@@ -55,5 +55,5 @@ final class SaveMultiText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Stri
 
   def run(implicit F: Sync[F], show: Show[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
+      .checkAndRun(F.interruptible(many = true)(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
 }
