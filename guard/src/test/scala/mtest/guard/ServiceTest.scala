@@ -2,25 +2,17 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.kernel.Monoid
-import cats.syntax.all._
 import com.amazonaws.regions.Regions
-import com.codahale.metrics.{Counter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard._
+import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.alert.{
   toOrdinalWords,
   ActionFailed,
   ActionRetrying,
   ActionStart,
   ActionSucced,
-  AlertService,
-  ConsoleService,
-  LogService,
-  MetricsService,
   NJEvent,
   ServiceHealthCheck,
   ServicePanic,
@@ -29,20 +21,19 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   SlackService
 }
 import com.github.chenharryhua.nanjin.guard.config.{ConstantDelay, FibonacciBackoff}
-import eu.timepit.refined.auto._
+import eu.timepit.refined.auto.*
 import io.circe.parser.decode
-import io.circe.syntax._
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 class ServiceTest extends AnyFunSuite {
-  val slack = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
+  val slackNoUse1 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
 
-  val slack2 = SlackService[IO](
+  val slackNoUse2 = SlackService[IO](
     SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"),
     Regions.AP_SOUTHEAST_2,
-    DurationFormatter.default)
+    DurationFormatter.defaultFormatter)
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(
@@ -54,25 +45,21 @@ class ServiceTest extends AnyFunSuite {
         .withDailySummaryResetDisabled
         .withDailySummaryReset(1))
     .service("service")
+    .addMetricReporter(NJConsoleReporter(1.second))
     .updateConfig(_.withHealthCheckInterval(3.hours)
       .withConstantDelay(1.seconds)
       .withSlackMaximumCauseSize(100)
       .withStartupNotes("ok"))
 
-  val metrics = new MetricRegistry
-  val logging = Monoid[AlertService[IO]].empty |+|
-    SlackService(SimpleNotificationService.fake[IO]) |+|
-    MetricsService[IO](metrics) |+|
-    LogService[IO] |+|
-    ConsoleService[IO]
-
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
       .updateConfig(_.withStartupDelay(0.second).withJitterBackoff(3.second))
+      .addAlertService(log)
+      .addAlertService(console)
+      .addAlertService(slack)
       .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
-      .observe(_.evalMap(m => logging.alert(m)).drain)
       .compile
       .toVector
       .unsafeRunSync()
@@ -84,15 +71,14 @@ class ServiceTest extends AnyFunSuite {
 
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
-      .updateConfig(_.withConstantDelay(1.hour))
+      .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second).withSlackRetryOn)
           .croak(IO.raiseError(new Exception("oops")))(_ => null)
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
-      .observe(_.evalMap(m => logging.alert(m) >> IO.println(m.show)).drain)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -110,7 +96,6 @@ class ServiceTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: rest = guard
       .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(0.1.second))
       .eventStream(_.run(IO.never))
-      .observe(_.evalMap(m => logging.alert(m)).drain)
       .interruptAfter(5.second)
       .compile
       .toList
@@ -127,7 +112,6 @@ class ServiceTest extends AnyFunSuite {
       .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
-      .observe(_.evalMap(m => logging.alert(m)).drain)
       .compile
       .toVector
       .unsafeRunSync()
@@ -146,43 +130,9 @@ class ServiceTest extends AnyFunSuite {
     val ss1 = s1.eventStream(gd => gd("s1-a1").retry(IO(1)).run >> gd("s1-a2").retry(IO(2)).run)
     val ss2 = s2.eventStream(gd => gd("s2-a1").retry(IO(1)).run >> gd("s2-a2").retry(IO(2)).run)
 
-    val vector =
-      ss1.merge(ss2).observe(_.evalMap(m => logging.alert(m)).drain).compile.toVector.unsafeRunSync()
+    val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
-  }
-
-  test("metrics success count") {
-    val guard = TaskGuard[IO]("metrics-test")
-    val s     = guard.service("metrics-service")
-    s.eventStream { gd =>
-      (gd("metrics-action-succ").retry(IO(1) >> IO.sleep(10.milliseconds)).run).replicateA(20)
-    }.observe(_.evalMap(m => logging.alert(m)).drain).compile.drain.unsafeRunSync()
-
-    metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-succ")).map { case (n, m) =>
-      m match {
-        case t: Timer   => assert(t.getCount == 20)
-        case c: Counter => assert(c.getCount == 20)
-      }
-    }
-  }
-
-  test("metrics failure count") {
-    val guard = TaskGuard[IO]("metrics-test")
-    val s     = guard.service("metrics-service")
-    s.eventStream { gd =>
-      (gd("metrics-action-fail")
-        .updateConfig(_.withConstantDelay(10.milliseconds))
-        .retry(IO.raiseError(new Exception))
-        .run)
-        .replicateA(20)
-    }.observe(_.evalMap(m => logging.alert(m)).drain).interruptAfter(5.seconds).compile.drain.unsafeRunSync()
-
-    metrics.getMetrics.asScala.filter(_._1.contains("metrics-action-fail.counter.retry")).map { case (n, m) =>
-      m match {
-        case c: Counter => assert(c.getCount == 3)
-      }
-    }
   }
 
   test("toWords") {
@@ -208,8 +158,8 @@ class ServiceTest extends AnyFunSuite {
         assert(g.params.alertMask.alertFirstRetry)
         assert(g.params.alertMask.alertRetry)
         assert(g.params.shouldTerminate)
-        assert(g.params.maxRetries == 5)
-        assert(g.params.retryPolicy.isInstanceOf[ConstantDelay])
+        assert(g.params.retry.maxRetries == 5)
+        assert(g.params.retry.njRetryPolicy.isInstanceOf[ConstantDelay])
       })
     }.compile.drain.unsafeRunSync()
   }
@@ -223,8 +173,8 @@ class ServiceTest extends AnyFunSuite {
         assert(!g.params.alertMask.alertFirstRetry)
         assert(!g.params.alertMask.alertRetry)
         assert(!g.params.shouldTerminate)
-        assert(g.params.maxRetries == 0)
-        assert(g.params.retryPolicy.isInstanceOf[FibonacciBackoff])
+        assert(g.params.retry.maxRetries == 0)
+        assert(g.params.retry.njRetryPolicy.isInstanceOf[FibonacciBackoff])
       })
     }.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }

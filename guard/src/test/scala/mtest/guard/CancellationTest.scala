@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard._
+import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.action.ActionException
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
@@ -14,11 +14,12 @@ import com.github.chenharryhua.nanjin.guard.alert.{
 }
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class CancellationTest extends AnyFunSuite {
   val serviceGuard = TaskGuard[IO]("retry-guard")
     .service("retry-test")
+    .addAlertService(slack)
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   test("cancellation - canceled actions are failed actions") {

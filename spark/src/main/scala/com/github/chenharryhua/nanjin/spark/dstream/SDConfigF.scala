@@ -41,10 +41,10 @@ private object SDConfigF {
 }
 
 final private[spark] case class SDConfig private (value: Fix[SDConfigF]) {
-  import SDConfigF._
+  import SDConfigF.*
   def evalConfig: SDParams = SDConfigF.evalConfig(this)
 
-  def path_builder(f: String => NJTimestamp => String): SDConfig =
+  def pathBuilder(f: String => NJTimestamp => String): SDConfig =
     SDConfig(Fix(WithPathBuilder(f, value)))
 
 }

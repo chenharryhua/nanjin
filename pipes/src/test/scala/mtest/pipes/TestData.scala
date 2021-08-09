@@ -1,8 +1,8 @@
 package mtest.pipes
 
 import com.sksamuel.avro4s.{Decoder, Encoder}
+import kantan.csv.generic.*
 import kantan.csv.{RowDecoder, RowEncoder}
-import kantan.csv.generic._
 import mtest.pb.test.Lion
 
 import scala.util.Random

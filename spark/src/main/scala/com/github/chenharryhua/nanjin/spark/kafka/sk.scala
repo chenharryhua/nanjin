@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.{Chain, Writer}
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.mtl.Tell
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
@@ -19,10 +19,10 @@ import org.apache.spark.streaming.kafka010.*
 import org.log4s.Logger
 
 import java.util
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 
 private[kafka] object sk {
-  private val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
+  private[this] val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
   implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] = shapeless.cachedImplicit
 
@@ -62,7 +62,7 @@ private[kafka] object sk {
           topicPartitions.value,
           props(topic.context.settings.consumerSettings.config).asScala)
       KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
-        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
         ms.map { m =>
           val (errs, cr) = decoder.decode(m).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
@@ -77,7 +77,7 @@ private[kafka] object sk {
     locationStrategy: LocationStrategy,
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
-      val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+      val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
       ms.map { m =>
         val (errs, cr) = decoder.decode(m).run
         errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
@@ -106,11 +106,9 @@ private[kafka] object sk {
     }
   }
 
-  def kafkaSStream[F[_]: Sync, K, V, A](
-    topic: KafkaTopic[F, K, V],
-    ate: AvroTypedEncoder[A],
-    sparkSession: SparkSession)(f: NJConsumerRecord[K, V] => A): Dataset[A] = {
-    import sparkSession.implicits._
+  def kafkaSStream[F[_], K, V, A](topic: KafkaTopic[F, K, V], ate: AvroTypedEncoder[A], sparkSession: SparkSession)(
+    f: NJConsumerRecord[K, V] => A): Dataset[A] = {
+    import sparkSession.implicits.*
     sparkSession.readStream
       .format("kafka")
       .options(consumerOptions(topic.context.settings.consumerSettings.config))
@@ -118,7 +116,7 @@ private[kafka] object sk {
       .load()
       .as[NJConsumerRecord[Array[Byte], Array[Byte]]]
       .mapPartitions { ms =>
-        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec.keyCodec, topic.codec.valCodec)
+        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
         ms.map { cr =>
           val (errs, msg) = decoder.decode(cr).run
           errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))

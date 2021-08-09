@@ -1,31 +1,30 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
-import cats.effect.{Async, Resource, Sync}
+import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumed, KafkaStreamingProduced}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.streams.processor.{RecordContext, TopicNameExtractor}
+import org.apache.kafka.streams.processor.RecordContext
+import org.apache.kafka.streams.scala.kstream.{Consumed, Produced}
 
 import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
-    extends TopicNameExtractor[K, V] with Serializable {
-  import topicDef.{serdeOfKey, serdeOfVal}
+    extends Serializable {
+
+  override def toString: String = topicName.value
 
   val topicName: TopicName = topicDef.topicName
 
   def withTopicName(tn: String): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
-  override def extract(key: K, value: V, rc: RecordContext): String = topicName.value
-
   //need to reconstruct codec when working in spark
-  @transient lazy val codec: KafkaTopicCodec[K, V] = new KafkaTopicCodec(
-    serdeOfKey.asKey(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value),
-    serdeOfVal.asValue(context.settings.schemaRegistrySettings.config).codec(topicDef.topicName.value)
-  )
+  @transient lazy val codec: KeyValueCodecPair[K, V] =
+    topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName.value)
 
   @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
@@ -33,8 +32,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def record(partition: Int, offset: Long)(implicit sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
     shortLiveConsumer.use(
       _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset)).map(_.map(decoder(_).tryDecodeKeyValue)))
-
-  override def toString: String = topicName.value
 
   // APIs
 
@@ -49,29 +46,37 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
 
-  // channels
-  def kafkaStream: KafkaChannels.StreamingChannel[K, V] =
-    new KafkaChannels.StreamingChannel[K, V](topicDef.topicName, codec.keySerde, codec.valSerde, None, None, None)
+  // Streaming
 
+  def asConsumer: KafkaStreamingConsumed[F, K, V] =
+    new KafkaStreamingConsumed[F, K, V](this, Consumed.`with`[K, V](codec.keySerde, codec.valSerde))
+
+  def asProducer: KafkaStreamingProduced[F, K, V] =
+    new KafkaStreamingProduced[F, K, V](
+      this,
+      Produced.`with`[K, V](codec.keySerde, codec.valSerde),
+      (_: K, _: V, _: RecordContext) => topicName.value // default extractor, can be replaced
+    )
+
+  // channels
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
     new KafkaChannels.Fs2Channel[F, K, V](
-      topicDef.topicName,
-      codec,
+      this,
       context.settings.producerSettings,
       context.settings.consumerSettings,
-      fs2Updater.noUpdateConsumer[F],
-      fs2Updater.noUpdateProducer[F, K, V])
+      fs2Updater.unitConsumer[F],
+      fs2Updater.unitProducer[F, K, V],
+      fs2Updater.unitTxnProducer[F, K, V])
 
   def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
     new KafkaChannels.AkkaChannel[F, K, V](
-      topicName,
+      this,
       akkaSystem,
-      codec,
       context.settings.producerSettings,
       context.settings.consumerSettings,
-      akkaUpdater.noUpdateConsumer,
-      akkaUpdater.noUpdateProducer[K, V],
-      akkaUpdater.noUpdateCommitter)
+      akkaUpdater.unitConsumer,
+      akkaUpdater.unitProducer[K, V],
+      akkaUpdater.unitCommitter)
 }
 
 final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {

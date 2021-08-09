@@ -5,8 +5,8 @@ import akka.stream.alpakka.ftp.{FtpSettings, FtpsSettings, RemoteFileSettings, S
 import akka.stream.scaladsl.Source
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
-import cats.effect.Async
-import com.github.chenharryhua.nanjin.pipes
+import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.interop.reactivestreams.StreamOps
 import fs2.{Pipe, Stream}
 import net.schmizz.sshj.SSHClient
@@ -17,7 +17,7 @@ sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpA
   final def upload(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, Byte, IOResult] = {
     (ss: Stream[F, Byte]) =>
       val sink = ftpApi.toPath(pathStr, settings)
-      Stream.eval(ss.chunkN(pipes.chunkSize).toUnicastPublisher.use { p =>
+      Stream.eval(ss.chunkN(chunkSize).toUnicastPublisher.use { p =>
         F.fromFuture(F.blocking(Source.fromPublisher(p).map(x => ByteString.apply(x.toArray)).runWith(sink)))
       })
   }

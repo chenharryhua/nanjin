@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import org.log4s.Logger
 
 final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService[F] {
-  private val logger: Logger = org.log4s.getLogger
+  private[this] val logger: Logger = org.log4s.getLogger
 
   override def alert(event: NJEvent): F[Unit] =
     event match {

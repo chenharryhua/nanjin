@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.{Kleisli, Reader}
+import cats.data.Kleisli
+import cats.effect.kernel.{Async, Outcome}
+import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
-import cats.effect.{Async, Outcome, Ref}
 import cats.syntax.all.*
 import cats.{Alternative, Parallel, Traverse}
 import com.github.chenharryhua.nanjin.guard.alert.{
@@ -10,7 +11,6 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionInfo,
   ActionQuasiSucced,
   ActionStart,
-  DailySummaries,
   NJError,
   NJEvent,
   Notes,
@@ -22,54 +22,51 @@ import com.github.chenharryhua.nanjin.guard.realZonedDateTime
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.util.UUID
-
 final class QuasiSucc[F[_], T[_], A, B](
   serviceInfo: ServiceInfo,
-  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
   input: T[A],
   kfab: Kleisli[F, A, B],
-  succ: Reader[List[(A, B)], String],
-  fail: Reader[List[(A, NJError)], String]) {
+  succ: Kleisli[F, List[(A, B)], String],
+  fail: Kleisli[F, List[(A, NJError)], String])(implicit F: Async[F]) {
 
-  def withSuccNotes(succ: List[(A, B)] => String): QuasiSucc[F, T, A, B] =
+  def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
-      succ = Reader(succ),
+      succ = Kleisli(succ),
       fail = fail)
 
-  def withFailNotes(fail: List[(A, NJError)] => String): QuasiSucc[F, T, A, B] =
+  def withSuccNotes(f: List[(A, B)] => String): QuasiSucc[F, T, A, B] =
+    withSuccNotesM(Kleisli.fromFunction(f).run)
+
+  def withFailNotesM(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
       succ = succ,
-      fail = Reader(fail))
+      fail = Kleisli(fail))
+
+  def withFailNotes(f: List[(A, NJError)] => String): QuasiSucc[F, T, A, B] =
+    withFailNotesM(Kleisli.fromFunction(f).run)
 
   private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
-    F: Async[F],
     T: Traverse[T],
     L: Alternative[T]): F[T[B]] =
     for {
       now <- realZonedDateTime(params.serviceParams)
-      actionInfo = ActionInfo(
-        actionName = actionName,
-        serviceInfo = serviceInfo,
-        id = UUID.randomUUID(),
-        launchTime = now)
+      uuid <- UUIDGen.randomUUID
+      actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
       _ <- channel.send(ActionStart(now, actionInfo, params))
       res <- F
         .background(eval.map { fte =>
@@ -82,7 +79,6 @@ final class QuasiSucc[F[_], T[_], A, B](
           case Outcome.Canceled() =>
             for {
               now <- realZonedDateTime(params.serviceParams)
-              _ <- dailySummaries.update(_.incActionFail)
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
@@ -96,7 +92,6 @@ final class QuasiSucc[F[_], T[_], A, B](
           case Outcome.Errored(error) =>
             for {
               now <- realZonedDateTime(params.serviceParams)
-              _ <- dailySummaries.update(_.incActionFail)
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
@@ -111,7 +106,8 @@ final class QuasiSucc[F[_], T[_], A, B](
             for {
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
-              _ <- dailySummaries.update(_.incActionSucc)
+              sn <- succ(b._2.toList)
+              fn <- fail(b._1)
               _ <- channel.send(
                 ActionQuasiSucced(
                   timestamp = now,
@@ -119,61 +115,63 @@ final class QuasiSucc[F[_], T[_], A, B](
                   actionParams = params,
                   runMode = runMode,
                   numSucc = b._2.size,
-                  succNotes = Notes(succ(b._2.toList)),
-                  failNotes = Notes(fail(b._1)),
+                  succNotes = Notes(sn),
+                  failNotes = Notes(fn),
                   errors = b._1.map(_._2)
                 ))
             } yield ()
         }
     } yield T.map(res._2)(_._2)
 
-  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
 
-  def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
-  def parRun(n: Int)(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     internal(F.parTraverseN(n)(input)(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
 }
 
 final class QuasiSuccUnit[F[_], T[_], B](
   serviceInfo: ServiceInfo,
-  dailySummaries: Ref[F, DailySummaries],
   channel: Channel[F, NJEvent],
   actionName: String,
   params: ActionParams,
   tfb: T[F[B]],
-  succ: Reader[List[B], String],
-  fail: Reader[List[NJError], String]) {
+  succ: Kleisli[F, List[B], String],
+  fail: Kleisli[F, List[NJError], String])(implicit F: Async[F]) {
 
-  def withSuccNotes(succ: List[B] => String): QuasiSuccUnit[F, T, B] =
+  def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
       tfb = tfb,
-      succ = Reader(succ),
+      succ = Kleisli(succ),
       fail = fail)
 
-  def withFailNotes(fail: List[NJError] => String): QuasiSuccUnit[F, T, B] =
+  def withSuccNotes(f: List[B] => String): QuasiSuccUnit[F, T, B] =
+    withSuccNotesM(Kleisli.fromFunction(f).run)
+
+  def withFailNotesM(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
       tfb = tfb,
       succ = succ,
-      fail = Reader(fail))
+      fail = Kleisli(fail))
+
+  def withFailNotes(f: List[NJError] => String): QuasiSuccUnit[F, T, B] =
+    withFailNotesM(Kleisli.fromFunction(f).run)
 
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
       serviceInfo = serviceInfo,
-      dailySummaries = dailySummaries,
       channel = channel,
       actionName = actionName,
       params = params,
@@ -182,12 +180,12 @@ final class QuasiSuccUnit[F[_], T[_], B](
       succ = succ.local(_.map(_._2)),
       fail = fail.local(_.map(_._2)))
 
-  def seqRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T]): F[T[B]] =
+  def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     toQuasiSucc.seqRun
 
-  def parRun(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
     toQuasiSucc.parRun
 
-  def parRun(n: Int)(implicit F: Async[F], T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
+  def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     toQuasiSucc.parRun(n)
 }

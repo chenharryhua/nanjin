@@ -12,6 +12,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 final class KJson[A] private (val value: A) extends Serializable {
+  @SuppressWarnings(Array("IsInstanceOf"))
   def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[A]]
 
   override def equals(that: Any): Boolean =
@@ -75,6 +76,7 @@ object KJson {
         new Serializer[KJson[A]] with Serializable {
           override def close(): Unit = ()
 
+          @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: KJson[A]): Array[Byte] = {
             val value: String = Option(data).flatMap(v => Option(v.value)) match {
               case None    => null.asInstanceOf[String]
@@ -88,6 +90,7 @@ object KJson {
         new Deserializer[KJson[A]] with Serializable {
           override def close(): Unit = ()
 
+          @SuppressWarnings(Array("AsInstanceOf"))
           override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
             Option(data) match {
               case None => null.asInstanceOf[KJson[A]]

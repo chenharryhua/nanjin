@@ -2,8 +2,14 @@ package com.github.chenharryhua.nanjin.spark.ftp
 
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import akka.stream.{IOResult, Materializer}
-import cats.effect.Async
-import com.github.chenharryhua.nanjin.pipes.*
+import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.pipes.serde.{
+  CirceSerialization,
+  CsvSerialization,
+  GenericRecordCodec,
+  JacksonSerialization,
+  TextSerialization
+}
 import com.github.chenharryhua.nanjin.terminals.FtpUploader
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Pipe

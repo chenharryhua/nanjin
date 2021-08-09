@@ -1,20 +1,20 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.Async
-import cats.effect.std.Dispatcher
+import cats.effect.kernel.{Async, Resource}
+import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.{MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
 import com.github.chenharryhua.nanjin.guard.alert.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import cron4s.Cron
 import cron4s.expr.CronExpr
 import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
-import fs2.Stream
 import fs2.concurrent.Channel
-
-import java.util.UUID
+import fs2.{INothing, Pipe, Stream}
 
 // format: off
 /** @example
@@ -28,25 +28,44 @@ import java.util.UUID
   */
 // format: on
 
-final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
+final class ServiceGuard[F[_]] private[guard] (
+  metricRegistry: MetricRegistry,
+  serviceConfig: ServiceConfig,
+  alertServices: Resource[F, AlertService[F]],
+  reporters: List[NJMetricReporter])(implicit F: Async[F])
+    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] with AddAlertService[F, ServiceGuard[F]]
+    with AddMetricReporter[ServiceGuard[F]] {
+
   val params: ServiceParams = serviceConfig.evalConfig
 
-  override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig))
+  def registerMetricSet(metrics: MetricSet): ServiceGuard[F] = {
+    metricRegistry.registerAll(metrics)
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporters)
+  }
 
-  def eventStream[A](actionGuard: ActionGuard[F] => F[A])(implicit F: Async[F]): Stream[F, NJEvent] = {
+  override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
+    new ServiceGuard[F](metricRegistry, f(serviceConfig), alertServices, reporters)
+
+  override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
+
+  override def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
+    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporter :: reporters)
+
+  def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
     val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset.hour} ? * *")
-    val serviceInfo: F[ServiceInfo] =
-      realZonedDateTime(params).map(ts => ServiceInfo(id = UUID.randomUUID(), launchTime = ts))
+    val serviceInfo: F[ServiceInfo] = for {
+      ts <- realZonedDateTime(params)
+      uuid <- UUIDGen.randomUUID
+    } yield ServiceInfo(id = uuid, launchTime = ts)
 
     for {
       si <- Stream.eval(serviceInfo)
-      dailySummaries <- Stream.eval(F.ref(DailySummaries.zero))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val service: F[A] = retry.mtl
           .retryingOnAllErrors(
-            params.retryPolicy.policy[F],
+            params.retry.policy[F],
             (ex: Throwable, rd) =>
               for {
                 ts <- realZonedDateTime(params)
@@ -57,35 +76,33 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
                     serviceParams = params,
                     retryDetails = rd,
                     error = NJError(ex)))
-                _ <- dailySummaries.update(_.incServicePanic)
               } yield ()
           ) {
+            val healthReport: F[Unit] = for {
+              ts <- realZonedDateTime(params)
+              _ <- channel.send(
+                ServiceHealthCheck(
+                  timestamp = ts,
+                  serviceInfo = si,
+                  serviceParams = params,
+                  dailySummaries = DailySummaries(metricRegistry)
+                ))
+            } yield ()
+
             val start_health: F[Unit] = for { // fire service startup event and then health-check events
               ts <- realZonedDateTime(params)
               _ <- channel
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params))
                 .delayBy(params.startUpEventDelay)
-              _ <- dailySummaries.get.flatMap { ds =>
-                for {
-                  ts <- realZonedDateTime(params)
-                  _ <- channel.send(ServiceHealthCheck(
-                    timestamp = ts,
-                    serviceInfo = si,
-                    serviceParams = params,
-                    dailySummaries = ds,
-                    totalMemory = Runtime.getRuntime.totalMemory,
-                    freeMemory = Runtime.getRuntime.freeMemory
-                  ))
-                } yield ()
-              }.delayBy(params.healthCheck.interval).foreverM[Unit]
+              _ <- healthReport.delayBy(params.healthCheck.interval).foreverM[Unit]
             } yield ()
 
             (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
               actionGuard(
                 new ActionGuard[F](
+                  metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,
-                  dailySummaries = dailySummaries,
                   channel = channel,
                   actionName = "anonymous",
                   actionConfig = ActionConfig(params)))
@@ -95,7 +112,23 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
             channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> // stop event
             channel.close.void) // close channel and the stream as well
 
+        // notify alert services
+        @SuppressWarnings(Array("ListSize"))
+        val notify: Pipe[F, NJEvent, INothing] = {
+          val alerts: Resource[F, AlertService[F]] = for {
+            mr <- Resource.pure(new NJMetricRegistry[F](metricRegistry))
+            as <- alertServices
+            _ <-
+              F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
+                _.start[F](metricRegistry))
+                .background
+          } yield as |+| mr
+
+          (events: Stream[F, NJEvent]) => Stream.resource(alerts).flatMap(as => events.evalMap(as.alert)).drain
+        }
+
         channel.stream
+          .observe(notify)
           .concurrently(Stream.eval(service))
           .concurrently(
             scheduler
@@ -103,13 +136,12 @@ final class ServiceGuard[F[_]](serviceConfig: ServiceConfig) extends UpdateConfi
               .evalMap(_ =>
                 for {
                   ts <- realZonedDateTime(params)
-                  ds <- dailySummaries.getAndUpdate(_.reset)
                   _ <- channel.send(
                     ServiceDailySummariesReset(
                       timestamp = ts,
                       serviceInfo = si,
                       serviceParams = params,
-                      dailySummaries = ds
+                      dailySummaries = DailySummaries(metricRegistry)
                     ))
                 } yield ()))
       }

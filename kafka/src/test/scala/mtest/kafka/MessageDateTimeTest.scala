@@ -2,14 +2,14 @@ package mtest.kafka
 
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka._
+import com.github.chenharryhua.nanjin.kafka.*
 import com.sksamuel.avro4s.Encoder
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.{Date, Timestamp}
-import java.time._
+import java.time.*
 
 object DatetimeCase {
 

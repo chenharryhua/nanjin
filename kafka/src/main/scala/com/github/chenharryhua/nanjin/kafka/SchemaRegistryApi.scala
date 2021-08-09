@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
@@ -9,10 +9,10 @@ import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, Sch
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.avro.Schema
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 import scala.util.Try
 
-private case class SchemaLocation(topicName: TopicName) {
+final private case class SchemaLocation(topicName: TopicName) {
   val keyLoc: String = s"${topicName.value}-key"
   val valLoc: String = s"${topicName.value}-value"
 }

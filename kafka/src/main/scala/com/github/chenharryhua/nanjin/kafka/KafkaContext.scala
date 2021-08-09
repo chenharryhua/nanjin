@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.{IO, Sync}
+import cats.effect.IO
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.functor.*
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import monix.eval.Task as MTask
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -22,13 +24,21 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
   final def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
 
+  final def asKey[K](avro: AvroCodec[K]): Serde[K] =
+    SerdeOf[K](avro).asKey(settings.schemaRegistrySettings.config).serde
+  final def asValue[V](avro: AvroCodec[V]): Serde[V] =
+    SerdeOf[V](avro).asValue(settings.schemaRegistrySettings.config).serde
+
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef, this)
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
 
-  final def buildStreams(topology: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings.streamSettings, topology, Nil)
+  final def store[K: SerdeOf, V: SerdeOf](storeName: String): NJStateStore[K, V] =
+    NJStateStore[K, V](storeName, settings.schemaRegistrySettings, RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
+
+  final def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
+    streaming.KafkaStreamsBuilder[F](settings.streamSettings, topology)
 
   final def schema(topicName: String)(implicit F: Sync[F]): F[String] =
     new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(TopicName.unsafeFrom(topicName)).map(_.show)

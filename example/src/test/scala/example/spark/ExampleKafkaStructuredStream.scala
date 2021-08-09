@@ -18,7 +18,7 @@ class ExampleKafkaStructuredStream extends AnyFunSuite {
       .sstream
       .datePartitionSink(path)
       .parquet
-      .queryStream
+      .stream
       .interruptAfter(3.seconds)
       .compile
       .drain

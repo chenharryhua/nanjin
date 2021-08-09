@@ -5,7 +5,8 @@ import akka.stream.Materializer
 import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
-import cats.effect.Async
+import cats.Applicative
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
@@ -22,17 +23,21 @@ sealed trait SimpleQueueService[F[_]] {
   def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult]
 
   final def fetchS3(sqs: SqsUrl): Stream[F, S3Path] =
-    fetchRecords(sqs).flatMap(sar => Stream.emits(sqs_s3_parser(sar.messageAction.message.body())))
+    fetchRecords(sqs).flatMap(sar => Stream.emits(sqsS3Parser(sar.messageAction.message.body())))
 }
 
 object SimpleQueueService {
 
-  def fake[F[_]](stream: Stream[F, SqsAckResult]): SimpleQueueService[F] =
-    new SimpleQueueService[F] {
+  def fake[F[_]](stream: Stream[F, SqsAckResult])(implicit F: Applicative[F]): Resource[F, SimpleQueueService[F]] =
+    Resource.make(F.pure(new SimpleQueueService[F] {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
-    }
+    }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): SimpleQueueService[F] = new SimpleQueueService[F] {
+  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
+    Resource.make(F.delay(new SQS[F](akkaSystem)))(_.shutdown)
+
+  final private class SQS[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F])
+      extends SimpleQueueService[F] with ShutdownService[F] {
 
     implicit private val client: SqsAsyncClient =
       SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
@@ -49,10 +54,11 @@ object SimpleQueueService {
           .runWith(Sink.asPublisher(fanout = false))
           .toStream)
 
+    override def shutdown: F[Unit] = F.blocking(client.close())
   }
 }
 
-private object sqs_s3_parser {
+private object sqsS3Parser {
 
   /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore messages
     * which does not have s3 structure

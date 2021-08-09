@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import kantan.csv.CsvConfiguration.QuotePolicy
@@ -32,20 +32,20 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   private def updateConfig(cfg: HoarderConfig): SaveSingleCsv[F, A] =
     new SaveSingleCsv[F, A](ds, csvConfiguration, cfg)
 
-  def overwrite: SaveSingleCsv[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveSingleCsv[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveSingleCsv[F, A] = updateConfig(cfg.ignore_mode)
+  def overwrite: SaveSingleCsv[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveSingleCsv[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveSingleCsv[F, A] = updateConfig(cfg.ignoreMode)
 
-  def gzip: SaveSingleCsv[F, A]                = updateConfig(cfg.output_compression(Compression.Gzip))
-  def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.output_compression(Compression.Deflate(level)))
-  def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.output_compression(Compression.Uncompressed))
+  def gzip: SaveSingleCsv[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
+  def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
+  def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
   def stream(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val csvConf: CsvConfiguration =
       if (csvConfiguration.hasHeader)
-        csvConfiguration.withHeader(ds.schema.fieldNames: _*)
+        csvConfiguration.withHeader(ds.schema.fieldNames*)
       else csvConfiguration
 
     sma.checkAndRun(ds.rdd.stream[F].through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression)))
@@ -60,17 +60,17 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
   private def updateConfig(cfg: HoarderConfig): SaveMultiCsv[F, A] =
     new SaveMultiCsv[F, A](ds, csvConfiguration, cfg)
 
-  def append: SaveMultiCsv[F, A]         = updateConfig(cfg.append_mode)
-  def overwrite: SaveMultiCsv[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveMultiCsv[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveMultiCsv[F, A] = updateConfig(cfg.ignore_mode)
+  def append: SaveMultiCsv[F, A]         = updateConfig(cfg.appendMode)
+  def overwrite: SaveMultiCsv[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveMultiCsv[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveMultiCsv[F, A] = updateConfig(cfg.ignoreMode)
 
-  def bzip2: SaveMultiCsv[F, A]               = updateConfig(cfg.output_compression(Compression.Bzip2))
-  def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.output_compression(Compression.Gzip))
-  def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.output_compression(Compression.Deflate(level)))
-  def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.output_compression(Compression.Uncompressed))
+  def bzip2: SaveMultiCsv[F, A]               = updateConfig(cfg.outputCompression(Compression.Bzip2))
+  def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
+  def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
+  def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def run(implicit F: Async[F], rowEncoder: RowEncoder[A]): F[Unit] =
+  def run(implicit F: Async[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
       .checkAndRun(F.delay {
         val quoteAll: Boolean = csvConfiguration.quotePolicy match {

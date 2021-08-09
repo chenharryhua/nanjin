@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.pipes
+import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
@@ -74,7 +74,7 @@ object NJHadoop {
       override def byteSource(pathStr: String): Stream[F, Byte] =
         for {
           is <- Stream.resource(fsInput(pathStr))
-          bt <- readInputStream[F](F.blocking(is), pipes.chunkSize)
+          bt <- readInputStream[F](F.blocking(is), chunkSize)
         } yield bt
 
       override def parquetSink(
@@ -146,7 +146,7 @@ object NJHadoop {
           Resource.make[F, DataFileStream[GenericRecord]](
             F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r =>
             F.blocking(r.close()).attempt.void))
-        gr <- Stream.fromIterator(dfs.iterator().asScala, pipes.chunkSize)
+        gr <- Stream.fromIterator(dfs.iterator().asScala, chunkSize)
       } yield gr
     }
 }

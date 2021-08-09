@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.Show
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import enumeratum.*
 import io.chrisdavenport.cats.time.instances.{localtime, zoneddatetime, zoneid}
@@ -13,6 +14,7 @@ import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
 import java.util.UUID
+import scala.collection.JavaConverters.*
 import scala.collection.immutable
 
 final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime)
@@ -28,7 +30,7 @@ object Notes {
 final case class NJError private (id: UUID, message: String, stackTrace: String, throwable: Throwable)
 
 object NJError {
-  implicit val showNJError: Show[NJError] = _.message
+  implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.id}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
@@ -48,23 +50,15 @@ object NJError {
     NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
-final case class DailySummaries private (
-  actionSucc: Long,
-  actionFail: Long,
-  actionRetries: Long,
-  servicePanic: Long,
-  errorReport: Long) {
-  def incServicePanic: DailySummaries  = copy(servicePanic = servicePanic + 1)
-  def incActionSucc: DailySummaries    = copy(actionSucc = actionSucc + 1)
-  def incActionFail: DailySummaries    = copy(actionFail = actionFail + 1)
-  def incActionRetries: DailySummaries = copy(actionRetries = actionRetries + 1)
-  def incErrorReport: DailySummaries   = copy(errorReport = errorReport + 1)
-
-  def reset: DailySummaries = DailySummaries.zero
-}
+final case class DailySummaries private (value: String)
 
 object DailySummaries {
-  val zero: DailySummaries = DailySummaries(0L, 0L, 0L, 0L, 0L)
+  def apply(registry: MetricRegistry): DailySummaries = {
+    val timer   = registry.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
+    val counter = registry.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
+    val all     = (timer ::: counter).sorted.mkString("\n")
+    DailySummaries(all)
+  }
 }
 
 sealed trait NJEvent {
@@ -103,9 +97,7 @@ final case class ServiceHealthCheck(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  dailySummaries: DailySummaries,
-  totalMemory: Long,
-  freeMemory: Long
+  dailySummaries: DailySummaries
 ) extends ServiceEvent
 
 final case class ServiceDailySummariesReset(

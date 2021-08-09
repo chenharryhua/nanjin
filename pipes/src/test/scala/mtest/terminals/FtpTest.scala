@@ -17,13 +17,13 @@ class FtpTest extends AnyFunSuite {
   val pathStr    = "ftp-test.txt"
   val testString = s"send a string to ftp and read it back ${Random.nextInt()}"
 
-  val ts: Stream[IO, Byte] = Stream(testString).through(fs2.text.utf8Encode)
+  val ts: Stream[IO, Byte] = Stream(testString).through(fs2.text.utf8.encode)
 
   implicit val mat = Materializer(akkaSystem)
 
   test("ftp should overwrite target file") {
     val action = ts.through(uploader.upload(pathStr)).compile.drain >>
-      downloader.download(pathStr).through(fs2.text.utf8Decode).compile.string
+      downloader.download(pathStr).through(fs2.text.utf8.decode).compile.string
     val readback = action.unsafeRunSync()
     assert(readback == testString)
   }

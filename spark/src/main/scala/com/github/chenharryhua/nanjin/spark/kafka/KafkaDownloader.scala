@@ -4,10 +4,10 @@ import akka.actor.ActorSystem
 import akka.kafka.ConsumerSettings
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
-import cats.effect.{Async, Sync}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, akkaUpdater, stages}
-import com.github.chenharryhua.nanjin.spark.persist.{Compression, sinks}
+import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
+import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import fs2.interop.reactivestreams.*
@@ -40,20 +40,20 @@ final class KafkaDownloader[F[_], K, V](
   private def updateCfg(f: SKConfig => SKConfig): KafkaDownloader[F, K, V] =
     new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg), akkaConsumer)
 
-  def withInterval(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.load_interval(fd))
-  def withBulkSize(num: Int): KafkaDownloader[F, K, V]           = updateCfg(_.load_bulk_size(num))
+  def withInterval(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadInterval(fd))
+  def withBulkSize(num: Int): KafkaDownloader[F, K, V]           = updateCfg(_.loadBulkSize(num))
 
-  def withRecordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.load_records_limit(num))
-  def withTimeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.load_time_limit(fd))
+  def withRecordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
+  def withTimeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadTimeLimit(fd))
 
-  def withIdleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.load_idle_timeout(fd))
+  def withIdleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadIdleTimeout(fd))
 
   private def stream(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
       topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten)).map { kor =>
         topic
           .akkaChannel(akkaSystem)
-          .updateConsumer(akkaConsumer.settings.run)
+          .updateConsumer(akkaConsumer.updates.run)
           .assign(kor.mapValues(_.from))
           .throttle(
             params.loadParams.bulkSize,

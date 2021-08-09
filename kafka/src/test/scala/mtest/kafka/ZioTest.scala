@@ -2,22 +2,22 @@ package mtest.kafka
 
 import akka.stream.scaladsl.Sink
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka._
+import com.github.chenharryhua.nanjin.kafka.*
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
 import zio.blocking.Blocking
 import zio.clock.Clock
 import zio.console.Console
-import zio.interop.catz._
+import zio.interop.catz.*
 import zio.random.Random
 import zio.system.System
 import zio.{Runtime, Task}
 
 import scala.concurrent.Await
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class ZioTest extends AnyFunSuite {
-  type Environment = Clock with Console with System with Random with Blocking
+  type Environment = Clock & Console & System & Random & Blocking
 
   implicit val runtime: Runtime[zio.ZEnv] = Runtime.default
 

@@ -2,13 +2,13 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.CsvSerialization
+import com.github.chenharryhua.nanjin.pipes.serde.CsvSerialization
 import fs2.Stream
 import kantan.csv.CsvConfiguration
 import org.scalatest.funsuite.AnyFunSuite
 
 class CsvPipeTest extends AnyFunSuite {
-  import TestData._
+  import TestData.*
   val ser = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc)
 
   test("csv identity") {

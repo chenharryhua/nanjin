@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
@@ -19,9 +19,9 @@ final class SaveSingleBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], 
   private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
     new SaveBinaryAvro[F, A](rdd, encoder, cfg)
 
-  def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignore_mode)
+  def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
 
   def stream(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
@@ -37,10 +37,10 @@ final class SaveMultiBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], c
   private def updateConfig(cfg: HoarderConfig): SaveMultiBinaryAvro[F, A] =
     new SaveMultiBinaryAvro[F, A](rdd, encoder, cfg)
 
-  def append: SaveMultiBinaryAvro[F, A]         = updateConfig(cfg.append_mode)
-  def overwrite: SaveMultiBinaryAvro[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveMultiBinaryAvro[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveMultiBinaryAvro[F, A] = updateConfig(cfg.ignore_mode)
+  def append: SaveMultiBinaryAvro[F, A]         = updateConfig(cfg.appendMode)
+  def overwrite: SaveMultiBinaryAvro[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveMultiBinaryAvro[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveMultiBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

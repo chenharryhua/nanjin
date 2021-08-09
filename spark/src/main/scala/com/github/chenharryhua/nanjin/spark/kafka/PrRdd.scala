@@ -5,7 +5,7 @@ import akka.actor.ActorSystem
 import akka.kafka.{ProducerMessage, ProducerSettings as AkkaProducerSettings}
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
-import cats.effect.{Async, Sync}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
@@ -30,10 +30,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, topic, f(cfg))
 
-  def withInterval(ms: FiniteDuration): PrRdd[F, K, V]  = updateCfg(_.load_interval(ms))
-  def withBufferSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.load_buffer_size(num))
-  def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.load_records_limit(num))
-  def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.load_time_limit(fd))
+  def withInterval(ms: FiniteDuration): PrRdd[F, K, V]  = updateCfg(_.loadInterval(ms))
+  def withBufferSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.loadBufferSize(num))
+  def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
+  def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.loadTimeLimit(fd))
 
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
@@ -66,10 +66,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
 
   def uploadByBatch: UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Updater.noUpdateProducer[F, K, V])
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
 
   def uploadByBulk: UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.noUpdateProducer[K, V])
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.unitProducer[K, V])
 }
 
 final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
@@ -88,7 +88,7 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
     new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer)
 
   def withBatchSize(num: Int): UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.upload_batch_size(num), fs2Producer)
+    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.uploadBatchSize(num), fs2Producer)
 
   def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
     rdd
@@ -99,7 +99,7 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
-      .through(topic.fs2Channel.updateProducer(fs2Producer.settings.run).producerPipe)
+      .through(topic.fs2Channel.updateProducer(fs2Producer.updates.run).producerPipe)
 }
 
 final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
@@ -117,7 +117,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer)
 
   def withBulkSize(num: Int): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.load_bulk_size(num), akkaProducer)
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.loadBulkSize(num), akkaProducer)
 
   def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
@@ -129,7 +129,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
           .takeWithin(params.loadParams.timeLimit)
           .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
           .buffer(params.loadParams.bufferSize, OverflowStrategy.backpressure)
-          .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.settings.run).flexiFlow)
+          .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.updates.run).flexiFlow)
           .throttle(
             params.loadParams.bulkSize,
             params.loadParams.interval,

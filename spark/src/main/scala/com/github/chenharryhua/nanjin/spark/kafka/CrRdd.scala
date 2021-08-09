@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
-import cats.effect.Sync
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
@@ -88,9 +88,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def diff(other: CrRdd[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[DiffResult[K, V]] =
     diff(other.rdd)
 
-  def diffKV(other: RDD[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[KvDiffResult[K, V]] =
-    inv.kvDiffRdd(rdd, other)
-
-  def diffKV(other: CrRdd[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[KvDiffResult[K, V]] =
-    diffKV(other.rdd)
+  def diffKV(other: RDD[NJConsumerRecord[K, V]]): RDD[KvDiffResult[K, V]] = inv.kvDiffRdd(rdd, other)
+  def diffKV(other: CrRdd[F, K, V]): RDD[KvDiffResult[K, V]]              = diffKV(other.rdd)
 }

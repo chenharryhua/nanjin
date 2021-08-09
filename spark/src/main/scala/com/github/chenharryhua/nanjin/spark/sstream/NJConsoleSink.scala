@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.utils.random4d
 import fs2.Stream
@@ -22,14 +22,14 @@ final class NJConsoleSink[F[_], A](
   override def updateConfig(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dsw, f(cfg), numRows, isTruncate)
 
-  def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.trigger_mode(trigger))
+  def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.triggerMode(trigger))
   // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
-  def append: NJConsoleSink[F, A]                  = updateConfig(_.append_mode)
-  def update: NJConsoleSink[F, A]                  = updateConfig(_.update_mode)
-  def complete: NJConsoleSink[F, A]                = updateConfig(_.complete_mode)
-  def queryName(name: String): NJConsoleSink[F, A] = updateConfig(_.query_name(name))
+  def append: NJConsoleSink[F, A]                  = updateConfig(_.appendMode)
+  def update: NJConsoleSink[F, A]                  = updateConfig(_.updateMode)
+  def complete: NJConsoleSink[F, A]                = updateConfig(_.completeMode)
+  def queryName(name: String): NJConsoleSink[F, A] = updateConfig(_.queryName(name))
 
-  override def queryStream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
+  override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
     ss.queryStream(
       dsw
         .trigger(params.trigger)

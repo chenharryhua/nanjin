@@ -4,13 +4,13 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, SparKafkaTopic}
 import frameless.TypedEncoder
 import io.circe.Codec
 //import frameless.cats.implicits._
 import cats.effect.unsafe.implicits.global
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -80,7 +80,7 @@ object DecimalTopicTestCase {
 }
 
 class DecimalTopicTest extends AnyFunSuite {
-  import DecimalTopicTestCase._
+  import DecimalTopicTestCase.*
 
   val topic: KafkaTopic[IO, Int, HasDecimal]      = topicDef.in(ctx)
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)

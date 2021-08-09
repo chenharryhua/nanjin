@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration
@@ -19,9 +19,9 @@ final class SaveSingleProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends
   private def updateConfig(cfg: HoarderConfig): SaveSingleProtobuf[F, A] =
     new SaveSingleProtobuf[F, A](rdd, cfg)
 
-  def overwrite: SaveSingleProtobuf[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveSingleProtobuf[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveSingleProtobuf[F, A] = updateConfig(cfg.ignore_mode)
+  def overwrite: SaveSingleProtobuf[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveSingleProtobuf[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveSingleProtobuf[F, A] = updateConfig(cfg.ignoreMode)
 
   def stream(implicit F: Async[F], enc: A <:< GeneratedMessage): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
@@ -37,10 +37,10 @@ final class SaveMultiProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends 
   private def updateConfig(cfg: HoarderConfig): SaveMultiProtobuf[F, A] =
     new SaveMultiProtobuf[F, A](rdd, cfg)
 
-  def append: SaveMultiProtobuf[F, A]         = updateConfig(cfg.append_mode)
-  def overwrite: SaveMultiProtobuf[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveMultiProtobuf[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveMultiProtobuf[F, A] = updateConfig(cfg.ignore_mode)
+  def append: SaveMultiProtobuf[F, A]         = updateConfig(cfg.appendMode)
+  def overwrite: SaveMultiProtobuf[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveMultiProtobuf[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveMultiProtobuf[F, A] = updateConfig(cfg.ignoreMode)
 
   def run(implicit F: Async[F], enc: A <:< GeneratedMessage): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

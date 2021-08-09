@@ -43,24 +43,24 @@ private object HoarderConfigF {
 }
 
 final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
-  import HoarderConfigF._
+  import HoarderConfigF.*
   val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
-  def save_mode(saveMode: SaveMode): HoarderConfig =
-    HoarderConfig(Fix(WithSaveMode(saveMode, value)))
+  def saveMode(sm: SaveMode): HoarderConfig =
+    HoarderConfig(Fix(WithSaveMode(sm, value)))
 
-  def error_mode: HoarderConfig     = save_mode(SaveMode.ErrorIfExists)
-  def ignore_mode: HoarderConfig    = save_mode(SaveMode.Ignore)
-  def overwrite_mode: HoarderConfig = save_mode(SaveMode.Overwrite)
-  def append_mode: HoarderConfig    = save_mode(SaveMode.Append)
+  def errorMode: HoarderConfig     = saveMode(SaveMode.ErrorIfExists)
+  def ignoreMode: HoarderConfig    = saveMode(SaveMode.Ignore)
+  def overwriteMode: HoarderConfig = saveMode(SaveMode.Overwrite)
+  def appendMode: HoarderConfig    = saveMode(SaveMode.Append)
 
-  def output_path(outPath: String): HoarderConfig =
+  def outputPath(outPath: String): HoarderConfig =
     HoarderConfig(Fix(WithOutputPath(outPath, value)))
 
-  def output_format(fmt: NJFileFormat): HoarderConfig =
+  def outputFormat(fmt: NJFileFormat): HoarderConfig =
     HoarderConfig(Fix(WithFileFormat(fmt, value)))
 
-  def output_compression(compression: Compression): HoarderConfig =
+  def outputCompression(compression: Compression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
 }
 

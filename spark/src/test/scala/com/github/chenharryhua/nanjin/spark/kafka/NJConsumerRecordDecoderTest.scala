@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.data.{Chain, Writer}
+import com.github.chenharryhua.nanjin.kafka.KeyValueCodecPair
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import fs2.kafka.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite
@@ -8,8 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class NJConsumerRecordDecoderOptionalKVTest extends AnyFunSuite {
 
   val decoder = new NJDecoder[Writer[Chain[Throwable], *], Int, Int](
-    SerdeOf[Int].asKey(Map.empty).codec("test"),
-    SerdeOf[Int].asValue(Map.empty).codec("test"))
+    KeyValueCodecPair(SerdeOf[Int].asKey(Map.empty).codec("test"), SerdeOf[Int].asValue(Map.empty).codec("test")))
 
   val goodData: NJConsumerRecord[Array[Byte], Array[Byte]] =
     NJConsumerRecord(0, 0, 0, Some(Array[Byte](0, 0, 0, 1)), Some(Array[Byte](0, 0, 0, 2)), "test", 0)
@@ -51,8 +51,7 @@ class NJConsumerRecordDecoderOptionalKVTest extends AnyFunSuite {
 class NJConsumerRecordDecoderTest extends AnyFunSuite {
 
   val decoder = new NJDecoder[Writer[Chain[Throwable], *], Int, Int](
-    SerdeOf[Int].asKey(Map.empty).codec("test"),
-    SerdeOf[Int].asValue(Map.empty).codec("test"))
+    KeyValueCodecPair(SerdeOf[Int].asKey(Map.empty).codec("test"), SerdeOf[Int].asValue(Map.empty).codec("test")))
 
   val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))

@@ -12,6 +12,7 @@ import java.io.DataOutputStream
 
 final class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWritable] {
 
+  @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {
     val outDir = FileOutputFormat.getOutputPath(job)
     if (outDir == null) throw new InvalidJobConfException("Output directory not set.")

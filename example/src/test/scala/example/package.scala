@@ -10,7 +10,7 @@ package object example {
   implicit val akkaSystem: ActorSystem = ActorSystem("nj-example")
 
   lazy val sparkSession: SparkSession =
-    SparkSettings.default.withLogLevel(NJLogLevel.ERROR).session
+    SparkSettings.default.withLogLevel(NJLogLevel.ERROR).unsafeSession
 
   val ctx: KafkaContext[IO] =
     KafkaSettings.local

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.{Resource, Sync}
+import cats.effect.kernel.{Resource, Sync}
 import com.github.chenharryhua.nanjin.common.{NJLogLevel, UpdateConfig}
 import fs2.Stream
 import monocle.macros.Lenses
@@ -38,14 +38,14 @@ import org.apache.spark.sql.SparkSession
   def updateConfig(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.modify(f)(this)
 
-  def session: SparkSession = {
+  def unsafeSession: SparkSession = {
     val spk = SparkSession.builder().config(conf).getOrCreate()
     spk.sparkContext.setLogLevel(logLevel.entryName)
     spk
   }
 
   def sessionResource[F[_]: Sync]: Resource[F, SparkSession] =
-    Resource.make(Sync[F].blocking(session))(spk => Sync[F].blocking(spk.close()))
+    Resource.make(Sync[F].blocking(unsafeSession))(spk => Sync[F].blocking(spk.close()))
 
   def sessionStream[F[_]: Sync]: Stream[F, SparkSession] =
     Stream.resource(sessionResource)

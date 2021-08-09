@@ -23,7 +23,7 @@ import scala.concurrent.duration.*
   serviceName: String,
   taskParams: TaskParams,
   healthCheck: NJHealthCheck,
-  retryPolicy: NJRetryPolicy,
+  retry: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   maxCauseSize: Int, // number of chars allowed to display in slack
   notes: String
@@ -40,7 +40,7 @@ object ServiceParams {
         LocalTime.of(7, 0), // business open
         FiniteDuration(24, TimeUnit.HOURS) // working hours
       ),
-      retryPolicy = ConstantDelay(30.seconds),
+      retry = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       maxCauseSize = 500,
       notes = ""
@@ -71,7 +71,7 @@ private object ServiceConfigF {
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.interval).set(v)(c)
       case WithHealthCheckOpenTime(v, c) => ServiceParams.healthCheck.composeLens(NJHealthCheck.openTime).set(v)(c)
       case WithHealthCheckSpan(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.span).set(v)(c)
-      case WithRetryPolicy(v, c)         => ServiceParams.retryPolicy.set(v)(c)
+      case WithRetryPolicy(v, c)         => ServiceParams.retry.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithMaxCauseSize(v, c)        => ServiceParams.maxCauseSize.set(v)(c)
       case WithNotes(v, c)               => ServiceParams.notes.set(v)(c)
@@ -79,7 +79,7 @@ private object ServiceConfigF {
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
-  import ServiceConfigF._
+  import ServiceConfigF.*
 
   def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
@@ -96,8 +96,13 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
 
+  def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
+    require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strickly bigger than minDelay($minDelay)")
+    ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(minDelay, maxDelay), value)))
+  }
+
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(maxDelay), value)))
+    withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 
   def withSlackMaximumCauseSize(size: Int): ServiceConfig =
     ServiceConfig(Fix(WithMaxCauseSize(size, value)))

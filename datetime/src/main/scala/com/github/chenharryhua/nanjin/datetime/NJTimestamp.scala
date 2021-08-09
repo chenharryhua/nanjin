@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.datetime
 
+import cats.syntax.all.*
+import cats.{Hash, Order, Show}
+
 import java.sql.Timestamp
 import java.time.*
 import java.time.temporal.{ChronoUnit, TemporalUnit}
 import java.util.concurrent.TimeUnit
-
-import cats.syntax.all.*
-import cats.{Hash, Order, Show}
-
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
@@ -29,15 +28,19 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def minuteStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMinute}%02d"
   def secondStr(zoneId: ZoneId): String = f"${atZone(zoneId).getSecond}%02d"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `yyyy-mm-dd`(zoneId: ZoneId): String =
     s"${yearStr(zoneId)}-${monthStr(zoneId)}-${dayStr(zoneId)}"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd`(zoneId: ZoneId): String =
     s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh`(zoneId: ZoneId): String =
     s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(zoneId)}"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh/Minute=mm`(zoneId: ZoneId): String =
     s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(zoneId)}/Minute=${minuteStr(zoneId)}"
 
@@ -82,7 +85,7 @@ object NJTimestamp {
     apply(toLocalDateTime(lt), zoneId)
 
   def apply(str: String, zoneId: ZoneId): NJTimestamp = {
-    val parser = DateTimeParser[Instant].map(NJTimestamp(_)) <+>
+    val parser: DateTimeParser[NJTimestamp] = DateTimeParser[Instant].map(NJTimestamp(_)) <+>
       DateTimeParser[OffsetDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[ZonedDateTime].map(NJTimestamp(_)) <+>
       DateTimeParser[LocalDate].map(NJTimestamp(_, zoneId)) <+>
@@ -110,7 +113,7 @@ object NJTimestamp {
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
   def now(): NJTimestamp             = NJTimestamp(Instant.now)
 
-  implicit val njTimestampInstance: Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] =
+  implicit val njTimestampInstance: Hash[NJTimestamp] & Order[NJTimestamp] & Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {
       override def hash(x: NJTimestamp): Int = x.hashCode
 

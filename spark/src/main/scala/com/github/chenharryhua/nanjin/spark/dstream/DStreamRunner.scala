@@ -1,15 +1,18 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Kleisli
-import cats.effect.Async
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
+import cats.syntax.all.*
 import fs2.Stream
+import fs2.concurrent.Channel
 import org.apache.spark.SparkContext
+import org.apache.spark.streaming.scheduler.*
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
 import scala.concurrent.duration.FiniteDuration
 
-sealed abstract class DStreamRunner[F[_]] private (
+final class DStreamRunner[F[_]] private (
   sparkContext: SparkContext,
   checkpoint: String,
   batchDuration: Duration,
@@ -17,7 +20,7 @@ sealed abstract class DStreamRunner[F[_]] private (
     extends Serializable {
 
   def signup[A](rd: Kleisli[F, StreamingContext, A])(f: A => DStreamRunner.Mark): DStreamRunner[F] =
-    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f)) {}
+    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, rd.map(f) :: streamings)
 
   private def createContext(dispatcher: Dispatcher[F])(): StreamingContext = {
     val ssc = new StreamingContext(sparkContext, batchDuration)
@@ -26,17 +29,55 @@ sealed abstract class DStreamRunner[F[_]] private (
     ssc
   }
 
-  def run: Stream[F, Unit] =
+  private class Listener(dispatcher: Dispatcher[F], bus: Channel[F, StreamingListenerEvent]) extends StreamingListener {
+
+    override def onStreamingStarted(event: StreamingListenerStreamingStarted): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onReceiverStarted(event: StreamingListenerReceiverStarted): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onReceiverError(event: StreamingListenerReceiverError): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onReceiverStopped(event: StreamingListenerReceiverStopped): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onBatchSubmitted(event: StreamingListenerBatchSubmitted): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onBatchStarted(event: StreamingListenerBatchStarted): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onBatchCompleted(event: StreamingListenerBatchCompleted): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onOutputOperationStarted(event: StreamingListenerOutputOperationStarted): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+    override def onOutputOperationCompleted(event: StreamingListenerOutputOperationCompleted): Unit =
+      dispatcher.unsafeRunSync(bus.send(event).void)
+
+  }
+
+  private val resource: Resource[F, StreamingContext] = {
     for {
-      dispatcher <- Stream.resource(Dispatcher[F])
-      _ <- Stream
-        .bracket(F.blocking {
-          val ssc: StreamingContext = StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))
-          ssc.start()
-          ssc
-        })(ssc => F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
-        .evalMap(ssc => F.interruptible(many = false)(ssc.awaitTermination()))
-    } yield ()
+      dispatcher <- Dispatcher[F]
+      sc <- Resource
+        .make(F.blocking(StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))))(ssc =>
+          F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
+        .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
+    } yield sc
+  }
+
+  def stream: Stream[F, StreamingListenerEvent] = for {
+    dispatcher <- Stream.resource(Dispatcher[F])
+    ssc <- Stream.resource(resource)
+    event <- Stream.eval(Channel.unbounded[F, StreamingListenerEvent]).flatMap { bus =>
+      ssc.addStreamingListener(new Listener(dispatcher, bus))
+      bus.stream
+    }
+  } yield event
 }
 
 object DStreamRunner {
@@ -47,5 +88,5 @@ object DStreamRunner {
     sparkContext: SparkContext,
     checkpoint: String,
     batchDuration: FiniteDuration): DStreamRunner[F] =
-    new DStreamRunner[F](sparkContext, checkpoint, Seconds(batchDuration.toSeconds), Nil) {}
+    new DStreamRunner[F](sparkContext, checkpoint, Seconds(batchDuration.toSeconds), Nil)
 }
