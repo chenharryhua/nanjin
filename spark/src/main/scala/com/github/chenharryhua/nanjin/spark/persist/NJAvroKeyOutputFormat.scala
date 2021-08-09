@@ -20,6 +20,7 @@ import java.io.{DataOutputStream, OutputStream}
 // avro build-in(AvroKeyOutputFormat) does not support s3, yet
 final class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
+  @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {
     val outDir = FileOutputFormat.getOutputPath(job)
     if (outDir == null) throw new InvalidJobConfException("Output directory not set.")

@@ -20,10 +20,10 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
   val params: STParams = cfg.evalConfig
 
   def withQuery(query: String): SparkDBTable[F, A] =
-    new SparkDBTable[F, A](tableDef, dbs, cfg.unload_query(query), ss)
+    new SparkDBTable[F, A](tableDef, dbs, cfg.unloadQuery(query), ss)
 
   def withReplayPathBuilder(f: (DatabaseName, TableName) => String): SparkDBTable[F, A] =
-    new SparkDBTable[F, A](tableDef, dbs, cfg.replay_path_builder(f), ss)
+    new SparkDBTable[F, A](tableDef, dbs, cfg.replayPathBuilder(f), ss)
 
   def fromDB(implicit F: Sync[F]): F[TableDS[F, A]] = F.blocking {
     val df: DataFrame =

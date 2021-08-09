@@ -34,11 +34,11 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   override def updateConfig(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
-  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateConfig(_.start_time(str))
-  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateConfig(_.end_time(str))
-  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.time_range_one_day(ld))
-  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.time_range(tr))
-  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.location_strategy(ls))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateConfig(_.startTime(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateConfig(_.endTime(str))
+  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.timeRangeOneDay(ld))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.timeRange(tr))
+  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.locationStrategy(ls))
 
   val params: SKParams = cfg.evalConfig
 
@@ -62,12 +62,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
   def download(akkaSystem: ActorSystem): KafkaDownloader[F, K, V] =
-    new KafkaDownloader[F, K, V](
-      akkaSystem,
-      topic,
-      ss.sparkContext.hadoopConfiguration,
-      cfg,
-      akkaUpdater.unitConsumer)
+    new KafkaDownloader[F, K, V](akkaSystem, topic, ss.sparkContext.hadoopConfiguration, cfg, akkaUpdater.unitConsumer)
 
   /** rdd and dataset
     */
@@ -97,24 +92,20 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   /** structured stream
     */
 
-  def sstream[A](f: NJConsumerRecord[K, V] => A, ate: AvroTypedEncoder[A])(implicit sync: Sync[F]): SparkSStream[F, A] =
+  def sstream[A](f: NJConsumerRecord[K, V] => A, ate: AvroTypedEncoder[A]): SparkSStream[F, A] =
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, ss)(f),
-      SStreamConfig(params.timeRange).check_point_builder(fmt =>
+      SStreamConfig(params.timeRange).checkpointBuilder(fmt =>
         s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
 
-  def sstream(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V],
-    F: Sync[F]): SparkSStream[F, NJConsumerRecord[K, V]] =
-    sstream(identity, ate)
+  def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] =
+    sstream(identity[NJConsumerRecord[K, V]](_), ate)
 
   def jsonStream(implicit
     jek: JsonEncoder[K],
     jev: JsonEncoder[V],
     jdk: JsonDecoder[K],
-    jdv: JsonDecoder[V],
-    F: Sync[F]): SparkSStream[F, NJConsumerRecord[KJson[K], KJson[V]]] = {
+    jdv: JsonDecoder[V]): SparkSStream[F, NJConsumerRecord[KJson[K], KJson[V]]] = {
     import com.github.chenharryhua.nanjin.spark.injection.kjsonInjection
     val ack: AvroCodec[KJson[K]]             = AvroCodec[KJson[K]]
     val acv: AvroCodec[KJson[V]]             = AvroCodec[KJson[V]]

@@ -12,7 +12,7 @@ import org.apache.avro.Schema
 import scala.collection.JavaConverters.*
 import scala.util.Try
 
-private case class SchemaLocation(topicName: TopicName) {
+final private case class SchemaLocation(topicName: TopicName) {
   val keyLoc: String = s"${topicName.value}-key"
   val valLoc: String = s"${topicName.value}-value"
 }

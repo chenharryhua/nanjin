@@ -35,6 +35,7 @@ object cognito {
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
+    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       access_token: String,
       refresh_token: String,
@@ -146,6 +147,7 @@ object cognito {
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
 
+    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       access_token: String,
       token_type: String,

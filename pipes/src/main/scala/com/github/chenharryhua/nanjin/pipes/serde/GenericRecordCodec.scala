@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.pipes.serde
 
-import cats.ApplicativeError
 import com.sksamuel.avro4s.{ToRecord, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 
 final class GenericRecordCodec[F[_], A] extends Serializable {
 
-  def encode(enc: AvroEncoder[A])(implicit F: ApplicativeError[F, Throwable]): Pipe[F, A, GenericRecord] = {
+  def encode(enc: AvroEncoder[A]): Pipe[F, A, GenericRecord] = {
     val toRec: ToRecord[A] = ToRecord(enc)
     (ss: Stream[F, A]) => ss.map(toRec.to)
   }

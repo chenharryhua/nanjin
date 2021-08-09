@@ -174,6 +174,6 @@ object NJDateTimeRange {
 
     }
 
-  final def apply(zoneId: ZoneId): NJDateTimeRange = NJDateTimeRange(None, None, zoneId)
+  def apply(zoneId: ZoneId): NJDateTimeRange = NJDateTimeRange(None, None, zoneId)
 
 }

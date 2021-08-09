@@ -14,6 +14,7 @@ import java.util
 // kafka protobuf
 final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedMessage with Serializable {
   // equality
+  @SuppressWarnings(Array("IsInstanceOf"))
   def canEqual(a: Any): Boolean = a.isInstanceOf[KPB[A]]
 
   override def equals(that: Any): Boolean =
@@ -79,6 +80,7 @@ object KPB {
           override def close(): Unit =
             ser.close()
 
+          @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: KPB[A]): Array[Byte] =
             Option(data).flatMap(v => Option(v.value)) match {
               case None => null.asInstanceOf[Array[Byte]]
@@ -100,6 +102,7 @@ object KPB {
           override def close(): Unit =
             deSer.close()
 
+          @SuppressWarnings(Array("AsInstanceOf"))
           override def deserialize(topic: String, data: Array[Byte]): KPB[A] =
             Option(data) match {
               case None    => null.asInstanceOf[KPB[A]]

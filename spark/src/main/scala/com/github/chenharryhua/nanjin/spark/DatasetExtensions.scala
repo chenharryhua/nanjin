@@ -25,13 +25,14 @@ import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.ZoneId
+import scala.reflect.ClassTag
 
 private[spark] trait DatasetExtensions {
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 
-    def dismissNulls: RDD[A] = rdd.filter(_ != null)
-    def numOfNulls: Long     = rdd.subtract(dismissNulls).count()
+    def dismissNulls(implicit ev: ClassTag[A]): RDD[A] = rdd.flatMap(Option(_))
+    def numOfNulls(implicit ev: ClassTag[A]): Long     = rdd.subtract(dismissNulls).count()
 
     def stream[F[_]: Sync]: Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, chunkSize)
 
@@ -49,7 +50,7 @@ private[spark] trait DatasetExtensions {
 
     def stream[F[_]: Sync]: Stream[F, A] = tds.rdd.stream[F]
 
-    def dismissNulls: TypedDataset[A] = tds.deserialized.filter(_ != null)
+    def dismissNulls: TypedDataset[A] = tds.deserialized.flatMap(Option(_))(tds.encoder) 
     def numOfNulls: Long              = tds.except(dismissNulls).dataset.count()
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(tds).upload

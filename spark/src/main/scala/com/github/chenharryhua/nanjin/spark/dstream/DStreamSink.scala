@@ -15,7 +15,7 @@ final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig)
   override def updateConfig(f: SDConfig => SDConfig): DStreamSink[A] =
     new DStreamSink[A](dstream, f(cfg))
 
-  def pathBuilder(f: String => NJTimestamp => String): DStreamSink[A] = updateConfig(_.path_builder(f))
+  def pathBuilder(f: String => NJTimestamp => String): DStreamSink[A] = updateConfig(_.pathBuilder(f))
 
   def transform[B](f: DStream[A] => DStream[B]): DStreamSink[B] = new DStreamSink(f(dstream), cfg)
 
@@ -32,7 +32,7 @@ final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg
   private def updateConfig(f: SDConfig => SDConfig): AvroDStreamSink[A] =
     new AvroDStreamSink[A](dstream, encoder, f(cfg))
 
-  def pathBuilder(f: String => NJTimestamp => String): AvroDStreamSink[A] = updateConfig(_.path_builder(f))
+  def pathBuilder(f: String => NJTimestamp => String): AvroDStreamSink[A] = updateConfig(_.pathBuilder(f))
 
   def transform[B](f: DStream[A] => DStream[B], encoder: AvroEncoder[B]): AvroDStreamSink[B] =
     new AvroDStreamSink(f(dstream), encoder, cfg)

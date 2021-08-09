@@ -28,15 +28,19 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
   def minuteStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMinute}%02d"
   def secondStr(zoneId: ZoneId): String = f"${atZone(zoneId).getSecond}%02d"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `yyyy-mm-dd`(zoneId: ZoneId): String =
     s"${yearStr(zoneId)}-${monthStr(zoneId)}-${dayStr(zoneId)}"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd`(zoneId: ZoneId): String =
     s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh`(zoneId: ZoneId): String =
     s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(zoneId)}"
 
+  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh/Minute=mm`(zoneId: ZoneId): String =
     s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(zoneId)}/Minute=${minuteStr(zoneId)}"
 

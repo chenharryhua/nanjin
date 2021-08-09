@@ -106,10 +106,8 @@ private[kafka] object sk {
     }
   }
 
-  def kafkaSStream[F[_]: Sync, K, V, A](
-    topic: KafkaTopic[F, K, V],
-    ate: AvroTypedEncoder[A],
-    sparkSession: SparkSession)(f: NJConsumerRecord[K, V] => A): Dataset[A] = {
+  def kafkaSStream[F[_], K, V, A](topic: KafkaTopic[F, K, V], ate: AvroTypedEncoder[A], sparkSession: SparkSession)(
+    f: NJConsumerRecord[K, V] => A): Dataset[A] = {
     import sparkSession.implicits.*
     sparkSession.readStream
       .format("kafka")

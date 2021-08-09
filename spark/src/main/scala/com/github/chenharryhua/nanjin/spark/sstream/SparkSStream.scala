@@ -11,11 +11,11 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   private def updateConfig(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
     new SparkSStream[F, A](dataset, f(cfg))
 
-  def checkpoint(cp: String): SparkSStream[F, A] = updateConfig(_.check_point(cp))
-  def failOnDataLoss: SparkSStream[F, A]         = updateConfig(_.data_loss_failure)
-  def ignoreDataLoss: SparkSStream[F, A]         = updateConfig(_.data_loss_ignore)
+  def checkpoint(cp: String): SparkSStream[F, A] = updateConfig(_.checkpoint(cp))
+  def failOnDataLoss: SparkSStream[F, A]         = updateConfig(_.dataLossFailure)
+  def ignoreDataLoss: SparkSStream[F, A]         = updateConfig(_.dataLossIgnore)
 
-  def progressInterval(ms: Long): SparkSStream[F, A] = updateConfig(_.progress_nterval(ms))
+  def progressInterval(ms: Long): SparkSStream[F, A] = updateConfig(_.progressInterval(ms))
 
   // transforms
 
@@ -41,7 +41,7 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
     new NJFileSink[F, A](dataset.writeStream, cfg, path)
 
   def memorySink(queryName: String): NJMemorySink[F, A] =
-    new NJMemorySink[F, A](dataset.writeStream, cfg.query_name(queryName))
+    new NJMemorySink[F, A](dataset.writeStream, cfg.queryName(queryName))
 
   def datePartitionSink(path: String): NJFileSink[F, Row] = {
     val year  = udf((ts: Long) => NJTimestamp(ts).yearStr(params.timeRange.zoneId))

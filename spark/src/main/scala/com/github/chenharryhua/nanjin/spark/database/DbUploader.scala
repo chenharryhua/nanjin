@@ -10,7 +10,7 @@ final class DbUploader[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, cf
   val params: STParams = cfg.evalConfig
 
   private def mode(sm: SaveMode): DbUploader[F, A] =
-    new DbUploader[F, A](ds, dbSettings, cfg.save_mode(sm))
+    new DbUploader[F, A](ds, dbSettings, cfg.saveMode(sm))
 
   def overwrite: DbUploader[F, A]      = mode(SaveMode.Overwrite)
   def append: DbUploader[F, A]         = mode(SaveMode.Append)
@@ -18,7 +18,7 @@ final class DbUploader[F[_], A](ds: Dataset[A], dbSettings: DatabaseSettings, cf
   def errorIfExists: DbUploader[F, A]  = mode(SaveMode.ErrorIfExists)
 
   def withTableName(tableName: String): DbUploader[F, A] =
-    new DbUploader[F, A](ds, dbSettings, cfg.table_name(TableName.unsafeFrom(tableName)))
+    new DbUploader[F, A](ds, dbSettings, cfg.tableName(TableName.unsafeFrom(tableName)))
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.delay {

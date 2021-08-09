@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets
 
 final class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
 
+  @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {
     val outDir = FileOutputFormat.getOutputPath(job)
     if (outDir == null) throw new InvalidJobConfException("Output directory not set.")

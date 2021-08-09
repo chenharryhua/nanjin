@@ -34,6 +34,8 @@ object adobe {
     config: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
+
+    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       token_type: String,
       expires_in: Long, // in milliseconds
@@ -122,6 +124,8 @@ object adobe {
     config: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
+
+    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       token_type: String,
       expires_in: Long, // in milliseconds

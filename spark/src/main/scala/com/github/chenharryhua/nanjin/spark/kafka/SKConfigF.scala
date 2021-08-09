@@ -117,35 +117,35 @@ private object SKConfigF {
 }
 
 final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends AnyVal {
-  import SKConfigF._
+  import SKConfigF.*
 
-  def topic_name(tn: String): SKConfig = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
+  def topicName(tn: String): SKConfig = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
-  def load_bulk_size(bs: Int): SKConfig               = SKConfig(Fix(WithLoadBulkSize(bs, value)))
-  def load_interval(fd: FiniteDuration): SKConfig     = SKConfig(Fix(WithLoadInterval(fd, value)))
-  def load_records_limit(num: Long): SKConfig         = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
-  def load_time_limit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
-  def load_buffer_size(num: Int): SKConfig            = SKConfig(Fix(WithLoadBufferSize(num, value)))
-  def load_idle_timeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
+  def loadBulkSize(bs: Int): SKConfig               = SKConfig(Fix(WithLoadBulkSize(bs, value)))
+  def loadInterval(fd: FiniteDuration): SKConfig    = SKConfig(Fix(WithLoadInterval(fd, value)))
+  def loadRecordsLimit(num: Long): SKConfig         = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
+  def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
+  def loadBufferSize(num: Int): SKConfig            = SKConfig(Fix(WithLoadBufferSize(num, value)))
+  def loadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
 
-  def upload_batch_size(num: Int): SKConfig = SKConfig(Fix(WithUploadLoadBatchSize(num, value)))
+  def uploadBatchSize(num: Int): SKConfig = SKConfig(Fix(WithUploadLoadBatchSize(num, value)))
 
-  def start_time(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
-  def start_time(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
-  def end_time(s: String): SKConfig                    = SKConfig(Fix(WithEndTimeStr(s, value)))
-  def end_time(s: LocalDateTime): SKConfig             = SKConfig(Fix(WithEndTime(s, value)))
-  def zone_id(s: ZoneId): SKConfig                     = SKConfig(Fix(WithZoneId(s, value)))
-  def time_range(tr: NJDateTimeRange): SKConfig        = SKConfig(Fix(WithTimeRange(tr, value)))
-  def time_range(start: String, end: String): SKConfig = start_time(start).end_time(end)
-  def time_range_n_seconds(s: Long): SKConfig          = SKConfig(Fix(WithNSeconds(s, value)))
-  def time_range_one_day(s: String): SKConfig          = SKConfig(Fix(WithOneDayStr(s, value)))
-  def time_range_one_day(s: LocalDate): SKConfig       = SKConfig(Fix(WithOneDay(s, value)))
-  def time_range_today: SKConfig                       = time_range_one_day(LocalDate.now)
-  def time_range_yesterday: SKConfig                   = time_range_one_day(LocalDate.now.minusDays(1))
+  def startTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
+  def startTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
+  def endTime(s: String): SKConfig                    = SKConfig(Fix(WithEndTimeStr(s, value)))
+  def endTime(s: LocalDateTime): SKConfig             = SKConfig(Fix(WithEndTime(s, value)))
+  def zoneId(s: ZoneId): SKConfig                     = SKConfig(Fix(WithZoneId(s, value)))
+  def timeRange(tr: NJDateTimeRange): SKConfig        = SKConfig(Fix(WithTimeRange(tr, value)))
+  def timeRange(start: String, end: String): SKConfig = startTime(start).endTime(end)
+  def timeRangeNSeconds(s: Long): SKConfig            = SKConfig(Fix(WithNSeconds(s, value)))
+  def timeRangeOneDay(s: String): SKConfig            = SKConfig(Fix(WithOneDayStr(s, value)))
+  def timeRangeOneDay(s: LocalDate): SKConfig         = SKConfig(Fix(WithOneDay(s, value)))
+  def timeRangeToday: SKConfig                        = timeRangeOneDay(LocalDate.now)
+  def timeRangeYesterday: SKConfig                    = timeRangeOneDay(LocalDate.now.minusDays(1))
 
-  def location_strategy(ls: LocationStrategy): SKConfig = SKConfig(Fix(WithLocationStrategy(ls, value)))
+  def locationStrategy(ls: LocationStrategy): SKConfig = SKConfig(Fix(WithLocationStrategy(ls, value)))
 
-  def replay_path_builder(f: TopicName => String): SKConfig = SKConfig(Fix(WithReplayPathBuilder(f, value)))
+  def replayPathBuilder(f: TopicName => String): SKConfig = SKConfig(Fix(WithReplayPathBuilder(f, value)))
 
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }

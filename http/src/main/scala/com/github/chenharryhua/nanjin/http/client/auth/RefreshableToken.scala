@@ -26,6 +26,7 @@ final class RefreshableToken[F[_]] private (
   middleware: Reader[Client[F], Resource[F, Client[F]]])
     extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
+  @SuppressWarnings(Array("FinalModifierOnCaseClass"))
   private case class Token(
     token_type: String,
     access_token: String,

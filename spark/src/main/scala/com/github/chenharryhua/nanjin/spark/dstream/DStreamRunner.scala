@@ -20,7 +20,7 @@ final class DStreamRunner[F[_]] private (
     extends Serializable {
 
   def signup[A](rd: Kleisli[F, StreamingContext, A])(f: A => DStreamRunner.Mark): DStreamRunner[F] =
-    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, streamings :+ rd.map(f))
+    new DStreamRunner[F](sparkContext, checkpoint, batchDuration, rd.map(f) :: streamings)
 
   private def createContext(dispatcher: Dispatcher[F])(): StreamingContext = {
     val ssc = new StreamingContext(sparkContext, batchDuration)

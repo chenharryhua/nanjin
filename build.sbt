@@ -1,5 +1,5 @@
 ThisBuild / scalaVersion      := "2.12.14"
-ThisBuild / scapegoatVersion  := "1.3.11"
+ThisBuild / scapegoatVersion  := "1.4.9"
 ThisBuild / parallelExecution := false
 Global / cancelable           := true
 
@@ -90,6 +90,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Xsource:3"
   ),
+  scapegoatDisabledInspections := Seq("VariableShadowing"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / PB.targets                  := Seq(scalapb.gen() -> (Test / sourceManaged).value)
 )

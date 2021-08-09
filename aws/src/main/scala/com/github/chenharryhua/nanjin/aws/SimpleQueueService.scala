@@ -23,7 +23,7 @@ sealed trait SimpleQueueService[F[_]] {
   def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult]
 
   final def fetchS3(sqs: SqsUrl): Stream[F, S3Path] =
-    fetchRecords(sqs).flatMap(sar => Stream.emits(sqs_s3_parser(sar.messageAction.message.body())))
+    fetchRecords(sqs).flatMap(sar => Stream.emits(sqsS3Parser(sar.messageAction.message.body())))
 }
 
 object SimpleQueueService {
@@ -58,7 +58,7 @@ object SimpleQueueService {
   }
 }
 
-private object sqs_s3_parser {
+private object sqsS3Parser {
 
   /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore messages
     * which does not have s3 structure
