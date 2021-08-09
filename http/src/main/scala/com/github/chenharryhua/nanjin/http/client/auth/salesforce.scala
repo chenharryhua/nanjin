@@ -35,6 +35,7 @@ object salesforce {
     middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]] with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
+    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       access_token: String,
       token_type: String,
@@ -138,6 +139,7 @@ object salesforce {
     middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
 
+    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       access_token: String,
       instance_url: String,

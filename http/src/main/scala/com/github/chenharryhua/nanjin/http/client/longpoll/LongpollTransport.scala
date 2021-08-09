@@ -17,6 +17,7 @@ import org.http4s.client.dsl.Http4sClientDsl
 import java.util
 import scala.collection.JavaConverters.*
 
+@SuppressWarnings(Array("NullParameter"))
 class LongpollTransport[F[_]](url: String, client: Client[F], dispatcher: Dispatcher[F])(implicit F: Async[F])
     extends AbstractHttpClientTransport(url, new util.HashMap[String, AnyRef](), null) with Http4sClientDsl[F] {
 
