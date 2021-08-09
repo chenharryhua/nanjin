@@ -23,6 +23,7 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
 
   /** rely on EOFException.. not sure it is the right way
     */
+  @SuppressWarnings(Array("AsInstanceOf"))
   private def pullAll(ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(

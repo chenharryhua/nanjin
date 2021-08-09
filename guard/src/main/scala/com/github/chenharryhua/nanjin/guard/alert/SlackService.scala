@@ -22,6 +22,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
   F: Sync[F])
     extends AlertService[F] with zoneid {
 
+  @SuppressWarnings(Array("ListSize"))
   override def alert(event: NJEvent): F[Unit] = event match {
 
     case ServiceStarted(at, _, params) =>

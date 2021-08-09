@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Monad
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync}
-import cats.syntax.all.*
 import cats.mtl.Ask
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
@@ -49,6 +49,7 @@ private[kafka] object KafkaPrimitiveConsumerApi {
         ListOfTopicPartitions(ret)
       }
 
+    @SuppressWarnings(Array("UnnecessaryConversion"))
     val beginningOffsets: F[KafkaTopicPartition[Option[KafkaOffset]]] =
       for {
         tps <- partitionsFor
@@ -57,6 +58,7 @@ private[kafka] object KafkaPrimitiveConsumerApi {
         }
       } yield KafkaTopicPartition(ret)
 
+    @SuppressWarnings(Array("UnnecessaryConversion"))
     val endOffsets: F[KafkaTopicPartition[Option[KafkaOffset]]] =
       for {
         tps <- partitionsFor

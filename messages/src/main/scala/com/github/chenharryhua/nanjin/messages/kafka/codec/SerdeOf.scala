@@ -73,6 +73,7 @@ object SerdeOf extends LowerPriority {
 
           override def close(): Unit = ser.close()
 
+          @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: A): Array[Byte] =
             Option(data) match {
               case None => null.asInstanceOf[Array[Byte]]
@@ -96,6 +97,7 @@ object SerdeOf extends LowerPriority {
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             deSer.configure(configs, isKey)
 
+          @SuppressWarnings(Array("AsInstanceOf"))
           override def deserialize(topic: String, data: Array[Byte]): A =
             Option(data) match {
               case None        => null.asInstanceOf[A]
