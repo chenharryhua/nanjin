@@ -3,14 +3,8 @@ package mtest.guard
 import better.files.*
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.codahale.metrics.jvm.{MemoryUsageGaugeSet, ThreadStatesGaugeSet}
-import com.github.chenharryhua.nanjin.guard.{
-  NJConsoleReporter,
-  NJCsvReporter,
-  NJJmxReporter,
-  NJSlf4jReporter,
-  TaskGuard
-}
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet
+import com.github.chenharryhua.nanjin.guard.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.util.concurrent.TimeUnit
@@ -19,8 +13,8 @@ import scala.concurrent.duration.*
 class MetricsReporterTest extends AnyFunSuite {
   test("metrics reporter") {
     TaskGuard[IO]("task")
-      .addMetricReporter(NJConsoleReporter(2.second))
       .service("service")
+      .addMetricReporter(NJConsoleReporter(2.second))
       .registerMetricSet(new ThreadStatesGaugeSet)
       .addMetricReporter(NJJmxReporter())
       .addMetricReporter(NJSlf4jReporter(3.second))
