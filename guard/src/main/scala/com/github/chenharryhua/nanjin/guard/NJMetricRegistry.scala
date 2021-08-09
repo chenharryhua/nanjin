@@ -27,14 +27,14 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
     case _: ServiceHealthCheck                        => F.delay(registry.counter("001.health.check").inc())
     case _: ServiceStarted                            => F.delay(registry.counter("002.service.start").inc())
     case _: ServiceStopped                            => F.delay(registry.counter("003.service.stop").inc())
-    case _: ServicePanic                              => F.delay(registry.counter("`004.service.panic`").inc())
-    case ForYourInformation(_, _, isError) if isError => F.delay(registry.counter("`005.error.report`").inc())
+    case _: ServicePanic                              => F.delay(registry.counter("004.`service.panic`").inc())
+    case ForYourInformation(_, _, isError) if isError => F.delay(registry.counter("005.`error.report`").inc())
     case _: ForYourInformation                        => F.delay(registry.counter("006.fyi").inc())
     case _: PassThrough                               => F.delay(registry.counter("007.pass.through").inc())
 
     case ActionFailed(at, info, _, _, _, _) =>
-      F.delay(registry.timer(s"`008.fail.[${info.actionName}]`").update(Duration.between(info.launchTime, at)))
-    case ActionRetrying(_, info, _, _, _) => F.delay(registry.counter(s"`009.retry.[${info.actionName}]`").inc())
+      F.delay(registry.timer(s"008.fail.`[${info.actionName}]`").update(Duration.between(info.launchTime, at)))
+    case ActionRetrying(_, info, _, _, _) => F.delay(registry.counter(s"009.retry.`[${info.actionName}]`").inc())
 
     case ActionQuasiSucced(at, info, _, _, _, _, _, _) =>
       F.delay(registry.timer(s"010.quasi.[${info.actionName}]").update(Duration.between(info.launchTime, at)))
