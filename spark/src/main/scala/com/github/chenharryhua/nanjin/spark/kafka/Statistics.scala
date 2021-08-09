@@ -136,7 +136,7 @@ final class Statistics[F[_]] private[kafka] (
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
-  def missingOffsets(implicit ev: Sync[F]): TypedDataset[MissingOffset] = {
+  def missingOffsets: TypedDataset[MissingOffset] = {
     import ds.sparkSession.implicits._
     import org.apache.spark.sql.functions.col
     val all: Array[Dataset[MissingOffset]] = summaryDS.dataset.collect().map { kds =>

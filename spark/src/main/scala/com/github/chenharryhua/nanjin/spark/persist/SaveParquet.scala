@@ -21,16 +21,16 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
   private def updateConfig(cfg: HoarderConfig): SaveSingleParquet[F, A] =
     new SaveSingleParquet[F, A](ds, encoder, cfg)
 
-  def overwrite: SaveSingleParquet[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveSingleParquet[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveSingleParquet[F, A] = updateConfig(cfg.ignore_mode)
+  def overwrite: SaveSingleParquet[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveSingleParquet[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveSingleParquet[F, A] = updateConfig(cfg.ignoreMode)
 
 //  def brotli: SaveSingleParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Brotli))
 //  def lzo: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lzo))
 //  def lz4: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lz4))
-  def snappy: SaveSingleParquet[F, A]     = updateConfig(cfg.output_compression(Compression.Snappy))
-  def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.output_compression(Compression.Gzip))
-  def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.output_compression(Compression.Uncompressed))
+  def snappy: SaveSingleParquet[F, A]     = updateConfig(cfg.outputCompression(Compression.Snappy))
+  def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.outputCompression(Compression.Gzip))
+  def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
   def stream(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration         = ds.sparkSession.sparkContext.hadoopConfiguration
@@ -48,14 +48,14 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], c
   private def updateConfig(cfg: HoarderConfig): SaveMultiParquet[F, A] =
     new SaveMultiParquet[F, A](ds, encoder, cfg)
 
-  def append: SaveMultiParquet[F, A]         = updateConfig(cfg.append_mode)
-  def overwrite: SaveMultiParquet[F, A]      = updateConfig(cfg.overwrite_mode)
-  def errorIfExists: SaveMultiParquet[F, A]  = updateConfig(cfg.error_mode)
-  def ignoreIfExists: SaveMultiParquet[F, A] = updateConfig(cfg.ignore_mode)
+  def append: SaveMultiParquet[F, A]         = updateConfig(cfg.appendMode)
+  def overwrite: SaveMultiParquet[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveMultiParquet[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveMultiParquet[F, A] = updateConfig(cfg.ignoreMode)
 
-  def snappy: SaveMultiParquet[F, A]     = updateConfig(cfg.output_compression(Compression.Snappy))
-  def gzip: SaveMultiParquet[F, A]       = updateConfig(cfg.output_compression(Compression.Gzip))
-  def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.output_compression(Compression.Uncompressed))
+  def snappy: SaveMultiParquet[F, A]     = updateConfig(cfg.outputCompression(Compression.Snappy))
+  def gzip: SaveMultiParquet[F, A]       = updateConfig(cfg.outputCompression(Compression.Gzip))
+  def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
