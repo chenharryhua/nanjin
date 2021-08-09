@@ -33,8 +33,7 @@ final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   alertServices: Resource[F, AlertService[F]],
   reporters: List[NJMetricReporter])(implicit F: Async[F])
-    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] with AddAlertService[F, ServiceGuard[F]]
-    with AddMetricReporter[ServiceGuard[F]] {
+    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] with AddAlertService[F, ServiceGuard[F]] {
 
   val params: ServiceParams = serviceConfig.evalConfig
 
@@ -49,7 +48,7 @@ final class ServiceGuard[F[_]] private[guard] (
   override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
     new ServiceGuard[F](metricRegistry, serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
 
-  override def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
+  def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
     new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporter :: reporters)
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {

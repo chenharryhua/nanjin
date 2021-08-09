@@ -14,8 +14,7 @@ final class TaskGuard[F[_]: Async] private (
   taskConfig: TaskConfig,
   alertServices: Resource[F, AlertService[F]],
   reporters: List[NJMetricReporter])
-    extends UpdateConfig[TaskConfig, TaskGuard[F]] with AddAlertService[F, TaskGuard[F]]
-    with AddMetricReporter[TaskGuard[F]] {
+    extends UpdateConfig[TaskConfig, TaskGuard[F]] with AddAlertService[F, TaskGuard[F]] {
 
   val params: TaskParams = taskConfig.evalConfig
 
@@ -28,8 +27,7 @@ final class TaskGuard[F[_]: Async] private (
   override def addAlertService(ras: Resource[F, AlertService[F]]): TaskGuard[F] =
     new TaskGuard[F](taskConfig, alertServices.flatMap(as => ras.map(_ |+| as)), reporters)
 
-  override def addMetricReporter(reporter: NJMetricReporter): TaskGuard[F] =
-    new TaskGuard[F](taskConfig, alertServices, reporter :: reporters)
+  // adding metrics report in task level will cause message overlap issue.
 
 }
 

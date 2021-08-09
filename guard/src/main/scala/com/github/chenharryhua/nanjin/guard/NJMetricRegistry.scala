@@ -31,7 +31,7 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
     case ForYourInformation(_, _, isError) if isError => F.delay(registry.counter("05.`error.report`").inc())
     case _: ForYourInformation                        => F.delay(registry.counter("06.fyi").inc())
     case _: PassThrough                               => F.delay(registry.counter("07.pass.through").inc())
-    case _: ActionStart                               => F.delay(registry.counter("08.action.started").inc())
+    case _: ActionStart                               => F.delay(registry.counter("08.action.start").inc())
     case ActionFailed(at, info, _, _, _, _) =>
       F.delay(registry.timer(s"09.fail.`[${info.actionName}]`").update(Duration.between(info.launchTime, at)))
     case ActionRetrying(_, info, _, _, _) => F.delay(registry.counter(s"010.retry.`[${info.actionName}]`").inc())
