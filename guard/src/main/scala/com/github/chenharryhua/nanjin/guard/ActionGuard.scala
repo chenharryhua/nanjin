@@ -96,14 +96,10 @@ final class ActionGuard[F[_]] private[guard] (
   def croak[B](fb: F[B])(f: Throwable => String): F[B] =
     updateConfig(_.withSlackSuccOff.withSlackFailOn).retry(fb).withFailNotes(f).run
 
-  def quietly[B](fb: F[B]): F[B] =
-    updateConfig(_.withSlackSuccOff.withSlackFailOff).run(fb)
-
-  def loudly[B](fb: F[B]): F[B] =
-    updateConfig(_.withSlackSuccOn.withSlackFailOn).run(fb)
+  def quietly[B](fb: F[B]): F[B] = updateConfig(_.withSlackNone).run(fb)
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    apply("nonstop-guard")
+    apply("nonStop")
       .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
       .run(fb)
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))

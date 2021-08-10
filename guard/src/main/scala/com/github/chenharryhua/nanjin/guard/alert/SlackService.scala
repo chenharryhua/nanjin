@@ -28,7 +28,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
     case ServiceStarted(at, _, params) =>
       def msg: String = SlackNotification(
         params.taskParams.appName,
-        s":rocket: ${params.notes}",
+        s":rocket: ${params.brief}",
         List(
           Attachment(
             params.taskParams.color.info,
@@ -103,7 +103,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", params.taskParams.hostName, short = true),
               SlackField("Up Time", fmt.format(info.launchTime, at), short = true),
-              SlackField("Next Check in", fmt.format(params.healthCheck.interval), short = true)
+              SlackField("Next Check in", fmt.format(params.healthCheck.interval), short = true),
+              SlackField("Brief", params.brief, short = false)
             )
           ))
       ).asJson.noSpaces
@@ -122,7 +123,8 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
               List(
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
-                SlackField("Up Time", fmt.format(serviceInfo.launchTime, at), short = true)
+                SlackField("Up Time", fmt.format(serviceInfo.launchTime, at), short = true),
+                SlackField("Brief", params.brief, short = false)
               )
             ))
         ).asJson.noSpaces
