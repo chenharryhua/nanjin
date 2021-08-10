@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
+  FailureSeverity,
   NJError,
   NJEvent,
   Notes,
@@ -25,6 +26,7 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
+  severity: FailureSeverity,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -38,6 +40,7 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -54,6 +57,7 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotesM(fail: (A, Throwable) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -70,6 +74,7 @@ final class ActionRetry[F[_], A, B](
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -83,6 +88,7 @@ final class ActionRetry[F[_], A, B](
 
   def withPostCondition(postCondition: B => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -115,7 +121,7 @@ final class ActionRetry[F[_], A, B](
               actionInfo = actionInfo,
               actionParams = params,
               willDelayAndRetry = wdr,
-              error = NJError(error)))
+              error = NJError(error, severity)))
           _ <- retryCount.update(_ + 1)
         } yield ()
       case _: GivingUp => F.unit
@@ -136,7 +142,7 @@ final class ActionRetry[F[_], A, B](
               actionParams = params,
               numRetries = count,
               notes = fn,
-              error = NJError(ActionException.ActionCanceledExternally)
+              error = NJError(ActionException.ActionCanceledExternally, severity)
             ))
         } yield ()
       case Outcome.Errored(error) =>
@@ -151,7 +157,7 @@ final class ActionRetry[F[_], A, B](
               actionParams = params,
               numRetries = count,
               notes = fn,
-              error = NJError(error)
+              error = NJError(error, severity)
             ))
         } yield ()
       case Outcome.Succeeded(fb) =>
@@ -197,6 +203,7 @@ final class ActionRetry[F[_], A, B](
 }
 
 final class ActionRetryUnit[F[_], B](
+  severity: FailureSeverity,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -209,6 +216,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -224,6 +232,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -239,6 +248,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -251,6 +261,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -263,6 +274,7 @@ final class ActionRetryUnit[F[_], B](
 
   def run: F[B] =
     new ActionRetry[F, Unit, B](
+      severity,
       serviceInfo,
       channel,
       actionName,

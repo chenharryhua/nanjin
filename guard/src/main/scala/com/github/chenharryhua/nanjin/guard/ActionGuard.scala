@@ -8,7 +8,13 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
-import com.github.chenharryhua.nanjin.guard.alert.{ForYourInformation, NJEvent, PassThrough, ServiceInfo}
+import com.github.chenharryhua.nanjin.guard.alert.{
+  FailureSeverity,
+  ForYourInformation,
+  NJEvent,
+  PassThrough,
+  ServiceInfo
+}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -17,6 +23,7 @@ import io.circe.syntax.*
 
 import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
+  severity: FailureSeverity,
   metricRegistry: MetricRegistry,
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
@@ -27,13 +34,44 @@ final class ActionGuard[F[_]] private[guard] (
   val params: ActionParams = actionConfig.evalConfig
 
   def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, channel, actionName, actionConfig)
+    new ActionGuard[F](
+      severity = severity,
+      metricRegistry = metricRegistry,
+      serviceInfo = serviceInfo,
+      dispatcher = dispatcher,
+      channel = channel,
+      actionName = actionName,
+      actionConfig = actionConfig)
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](metricRegistry, serviceInfo, dispatcher, channel, actionName, f(actionConfig))
+    new ActionGuard[F](
+      severity = severity,
+      metricRegistry = metricRegistry,
+      serviceInfo = serviceInfo,
+      dispatcher = dispatcher,
+      channel = channel,
+      actionName = actionName,
+      actionConfig = f(actionConfig))
+
+  private def updateSeverity(severity: FailureSeverity): ActionGuard[F] =
+    new ActionGuard[F](
+      severity = severity,
+      metricRegistry = metricRegistry,
+      serviceInfo = serviceInfo,
+      dispatcher = dispatcher,
+      channel = channel,
+      actionName = actionName,
+      actionConfig = actionConfig)
+
+  // emergency is reserved. error is the default.
+  def alert: ActionGuard[F]         = updateSeverity(FailureSeverity.Alert)
+  def critical: ActionGuard[F]      = updateSeverity(FailureSeverity.Critical)
+  def notice: ActionGuard[F]        = updateSeverity(FailureSeverity.Notice)
+  def informational: ActionGuard[F] = updateSeverity(FailureSeverity.Informational)
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -47,6 +85,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -100,6 +139,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     apply("nonStop")
+      .updateSeverity(FailureSeverity.Emergency)
       .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
       .run(fb)
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
