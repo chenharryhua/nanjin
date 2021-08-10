@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.alert.{
   ActionFailed,
+  ActionInfo,
   ActionQuasiSucced,
   ActionRetrying,
   ActionStart,
@@ -23,6 +24,8 @@ import java.time.Duration
 
 final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F: Sync[F]) extends AlertService[F] {
 
+  private def name(info: ActionInfo) = s"[${info.actionName}]"
+
   override def alert(event: NJEvent): F[Unit] = event match {
     case _: ServiceHealthCheck                        => F.delay(registry.counter("01.health.check").inc())
     case _: ServiceStarted                            => F.delay(registry.counter("02.service.start").inc())
@@ -32,15 +35,22 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
     case _: ForYourInformation                        => F.delay(registry.counter("06.fyi").inc())
     case _: PassThrough                               => F.delay(registry.counter("07.pass.through").inc())
     case _: ActionStart                               => F.delay(registry.counter("08.action.start").inc())
-    case ActionFailed(at, info, _, _, _, _) =>
-      F.delay(registry.timer(s"09.fail.`[${info.actionName}]`").update(Duration.between(info.launchTime, at)))
-    case ActionRetrying(_, info, _, _, _) => F.delay(registry.counter(s"010.retry.`[${info.actionName}]`").inc())
+
+    case ActionFailed(at, info, _, _, _, err) =>
+      F.delay(
+        registry
+          .timer(s"09${err.severity.value}.`${err.severity.entryName}`.${name(info)}")
+          .update(Duration.between(info.launchTime, at)))
+
+    case ActionRetrying(_, info, _, _, err) =>
+      F.delay(registry.counter(s"10${err.severity.value}.retry.${err.severity.entryName}.${name(info)}").inc())
 
     case ActionQuasiSucced(at, info, _, _, _, _, _, _) =>
-      F.delay(registry.timer(s"11.quasi.[${info.actionName}]").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"11.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     case ActionSucced(at, info, _, _, _) =>
-      F.delay(registry.timer(s"12.succ.[${info.actionName}]").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"12.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
+
     // reset
     case _: ServiceDailySummariesReset => F.delay(registry.removeMatching(MetricFilter.ALL))
     // no op

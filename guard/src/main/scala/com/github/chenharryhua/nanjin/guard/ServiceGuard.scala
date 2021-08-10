@@ -74,7 +74,7 @@ final class ServiceGuard[F[_]] private[guard] (
                     serviceInfo = si,
                     serviceParams = params,
                     retryDetails = rd,
-                    error = NJError(ex)))
+                    error = NJError(ex, FailureSeverity.Critical)))
               } yield ()
           ) {
             val healthReport: F[Unit] = for {
@@ -99,6 +99,7 @@ final class ServiceGuard[F[_]] private[guard] (
             (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
               actionGuard(
                 new ActionGuard[F](
+                  severity = FailureSeverity.Error,
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,

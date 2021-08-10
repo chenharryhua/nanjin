@@ -166,7 +166,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.PostConditionUnsatisfied])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action post condition unsatisfied")
     assert(f.isInstanceOf[ServicePanic])
   }
   test("retry - should fail the action if post condition is unsatisfied - 2") {
@@ -187,7 +187,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.PostConditionUnsatisfied])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action post condition unsatisfied")
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -201,13 +201,13 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was terminated unexpectedly")
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was terminated unexpectedly")
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ActionStart])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.UnexpectedlyTerminated])
+    assert(h.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was terminated unexpectedly")
     assert(i.isInstanceOf[ServicePanic])
   }
 
@@ -242,13 +242,13 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
+    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
+    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ActionStart])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
+    assert(h.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
     assert(i.isInstanceOf[ServicePanic])
   }
 }

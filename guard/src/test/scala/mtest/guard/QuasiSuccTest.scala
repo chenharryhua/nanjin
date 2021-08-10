@@ -148,7 +148,7 @@ class QuasiSuccTest extends AnyFunSuite {
         .toVector
         .unsafeRunSync()
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.isInstanceOf[ActionException.ActionCanceledInternally])
+    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
     assert(c.isInstanceOf[ServicePanic])
   }
 

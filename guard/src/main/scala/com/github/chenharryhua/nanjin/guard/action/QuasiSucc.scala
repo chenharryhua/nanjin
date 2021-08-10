@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionInfo,
   ActionQuasiSucced,
   ActionStart,
+  FailureSeverity,
   NJError,
   NJEvent,
   Notes,
@@ -71,12 +72,13 @@ final class QuasiSucc[F[_], T[_], A, B](
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
-          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))
+          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2, FailureSeverity.Warning)))
           (errors, rs) // error on the left, result on the right
         })
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
         .guaranteeCase {
           case Outcome.Canceled() =>
+            val err = ActionException.ActionCanceledExternally
             for {
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
@@ -85,8 +87,8 @@ final class QuasiSucc[F[_], T[_], A, B](
                   actionInfo = actionInfo,
                   actionParams = params,
                   numRetries = 0,
-                  notes = Notes(ExceptionUtils.getMessage(ActionException.ActionCanceledExternally)),
-                  error = NJError(ActionException.ActionCanceledExternally)
+                  notes = Notes(ExceptionUtils.getMessage(err)),
+                  error = NJError(err, FailureSeverity.Error)
                 ))
             } yield ()
           case Outcome.Errored(error) =>
@@ -99,7 +101,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                   actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(error)),
-                  error = NJError(error)
+                  error = NJError(error, FailureSeverity.Error)
                 ))
             } yield ()
           case Outcome.Succeeded(fb) =>
@@ -180,12 +182,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
       succ = succ.local(_.map(_._2)),
       fail = fail.local(_.map(_._2)))
 
-  def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    toQuasiSucc.seqRun
-
-  def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    toQuasiSucc.parRun
-
-  def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    toQuasiSucc.parRun(n)
+  def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]]                 = toQuasiSucc.seqRun
+  def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] = toQuasiSucc.parRun
+  def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T]): F[T[B]]         = toQuasiSucc.parRun(n)
 }

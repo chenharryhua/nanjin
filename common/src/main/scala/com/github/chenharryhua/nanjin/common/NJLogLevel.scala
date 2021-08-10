@@ -4,9 +4,9 @@ import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract class NJLogLevel(val value: Int, logLevel: org.log4s.LogLevel)
+sealed abstract class NJLogLevel(val value: Int, val logLevel: org.log4s.LogLevel)
     extends EnumEntry with Ordered[NJLogLevel] with Serializable {
-  final override def compare(that: NJLogLevel): Int = value - that.value
+  final override def compare(that: NJLogLevel): Int = Integer.compare(value, that.value)
 }
 
 object NJLogLevel extends Enum[NJLogLevel] with CatsEnum[NJLogLevel] with CirceEnum[NJLogLevel] {
