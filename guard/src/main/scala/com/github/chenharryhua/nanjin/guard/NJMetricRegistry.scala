@@ -39,17 +39,17 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
     case ActionFailed(at, info, _, _, _, err) =>
       F.delay(
         registry
-          .timer(s"09${err.severity.value}.`${err.severity.entryName}`.${name(info)}")
+          .timer(s"1${err.severity.value}.`${err.severity.entryName}`.${name(info)}")
           .update(Duration.between(info.launchTime, at)))
 
     case ActionRetrying(_, info, _, _, err) =>
-      F.delay(registry.counter(s"10${err.severity.value}.retry.${err.severity.entryName}.${name(info)}").inc())
+      F.delay(registry.counter(s"2${err.severity.value}.retry.${err.severity.entryName}.${name(info)}").inc())
 
     case ActionQuasiSucced(at, info, _, _, _, _, _, _) =>
-      F.delay(registry.timer(s"11.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"30.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     case ActionSucced(at, info, _, _, _) =>
-      F.delay(registry.timer(s"12.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"31.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     // reset
     case _: ServiceDailySummariesReset => F.delay(registry.removeMatching(MetricFilter.ALL))
