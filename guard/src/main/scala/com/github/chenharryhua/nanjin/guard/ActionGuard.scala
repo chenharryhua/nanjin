@@ -139,7 +139,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     apply("nonStop")
-      .updateSeverity(FailureSeverity.Emergency)
       .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
       .run(fb)
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
@@ -153,6 +152,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
+      severity = severity,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -163,6 +163,7 @@ final class ActionGuard[F[_]] private[guard] (
       fail = Kleisli(_ => F.pure("")))
 
   def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] = new QuasiSuccUnit[F, T, B](
+    severity = severity,
     serviceInfo = serviceInfo,
     channel = channel,
     actionName = actionName,

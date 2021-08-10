@@ -31,7 +31,8 @@ final case class NJError private (
   severity: FailureSeverity)
 
 object NJError {
-  implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.id}, message=${ex.message})"
+  implicit val showNJError: Show[NJError] = ex =>
+    s"NJError(id=${ex.id}, message=${ex.message}, severity=${ex.severity})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(

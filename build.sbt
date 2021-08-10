@@ -258,7 +258,6 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
-  "org.typelevel" %% "squants"                     % "1.8.1",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.0",
   "org.typelevel" %% "case-insensitive"            % "1.1.4",
   "io.scalaland" %% "chimney"                      % chimney,
