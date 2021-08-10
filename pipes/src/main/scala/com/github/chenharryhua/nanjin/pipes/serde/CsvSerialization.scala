@@ -14,7 +14,7 @@ final class CsvSerialization[F[_], A](conf: CsvConfiguration) extends Serializab
       def go(as: Stream[F, A], cw: CsvWriter[A]): Pull[F, Unit, Unit] =
         as.pull.uncons.flatMap {
           case Some((hl, tl)) =>
-            Pull.eval(F.blocking(hl.foldLeft(cw) { case (w, item) => w.write(item) })).flatMap(go(tl, _))
+            Pull.eval(F.delay(hl.foldLeft(cw) { case (w, item) => w.write(item) })).flatMap(go(tl, _))
           case None => Pull.eval(F.blocking(cw.close())) >> Pull.done
         }
       go(ss, os.asCsvWriter(conf)).stream.compile.drain
