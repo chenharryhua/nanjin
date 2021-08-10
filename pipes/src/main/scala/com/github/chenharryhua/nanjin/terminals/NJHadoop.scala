@@ -67,14 +67,14 @@ object NJHadoop {
       override def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
         for {
           fs <- Stream.resource(fsOutput(pathStr))
-          res <- ss.through(writeOutputStream[F](F.blocking(fs)))
+          res <- ss.through(writeOutputStream[F](F.delay(fs)))
         } yield res
       }
 
       override def byteSource(pathStr: String): Stream[F, Byte] =
         for {
           is <- Stream.resource(fsInput(pathStr))
-          bt <- readInputStream[F](F.blocking(is), chunkSize)
+          bt <- readInputStream[F](F.delay(is), chunkSize)
         } yield bt
 
       override def parquetSink(
@@ -84,12 +84,12 @@ object NJHadoop {
         def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.blocking(writer.write(gr)))) >> go(tl, writer)
+              Pull.eval(hl.traverse(gr => F.delay(writer.write(gr)))) >> go(tl, writer)
             case None =>
               Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
+        val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
         (ss: Stream[F, GenericRecord]) =>
-          val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
           for {
             writer <- Stream.resource(
               Resource.make(
@@ -118,7 +118,7 @@ object NJHadoop {
                   .withDataModel(GenericData.get())
                   .withConf(config)
                   .build()))(r => F.blocking(r.close()).attempt.void))
-          gr <- Stream.repeatEval(F.blocking(Option(reader.read()))).unNoneTerminate
+          gr <- Stream.repeatEval(F.delay(Option(reader.read()))).unNoneTerminate
         } yield gr
       }
 
@@ -126,7 +126,7 @@ object NJHadoop {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.blocking(writer.append(gr)))) >> go(tl, writer)
+              Pull.eval(hl.traverse(gr => F.delay(writer.append(gr)))) >> go(tl, writer)
             case None => Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
         (ss: Stream[F, GenericRecord]) =>

@@ -27,7 +27,7 @@ final class JavaObjectSerialization[F[_], A] extends Serializable {
   private def pullAll(ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
-        F.blocking(try Some(ois.readObject().asInstanceOf[A])
+        F.delay(try Some(ois.readObject().asInstanceOf[A])
         catch { case _: EOFException => None }))
       .flatMap {
         case Some(a) => Pull.output1(a) >> Pull.pure(Some(ois))

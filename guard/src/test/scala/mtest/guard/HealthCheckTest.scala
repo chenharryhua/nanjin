@@ -43,7 +43,7 @@ class HealthCheckTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
       .service("success-test")
       .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(1.second))
-      .eventStream(gd => gd.run(IO(1)) >> gd.loudly(IO.never))
+      .eventStream(gd => gd.run(IO(1)) >> gd.quietly(IO.never))
       .interruptAfter(5.second)
       .compile
       .toList

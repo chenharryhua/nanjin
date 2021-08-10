@@ -93,7 +93,7 @@ class RetryTest extends AnyFunSuite {
       .eventStream(ag =>
         ag("null exception")
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
-          .loudly(IO.raiseError(new NullPointerException)))
+          .quietly(IO.raiseError(new NullPointerException)))
       .interruptAfter(5.seconds)
       .compile
       .toList

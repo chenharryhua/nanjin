@@ -26,7 +26,7 @@ import scala.concurrent.duration.*
   retry: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   maxCauseSize: Int, // number of chars allowed to display in slack
-  notes: String
+  brief: String
 )
 
 object ServiceParams {
@@ -43,7 +43,7 @@ object ServiceParams {
       retry = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       maxCauseSize = 500,
-      notes = ""
+      brief = "The developer is too lazy to provide a brief"
     )
 }
 
@@ -63,7 +63,7 @@ private object ServiceConfigF {
 
   final case class WithMaxCauseSize[K](value: Int, cont: K) extends ServiceConfigF[K]
 
-  final case class WithNotes[K](value: String, cont: K) extends ServiceConfigF[K]
+  final case class WithServiceBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -74,7 +74,7 @@ private object ServiceConfigF {
       case WithRetryPolicy(v, c)         => ServiceParams.retry.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithMaxCauseSize(v, c)        => ServiceParams.maxCauseSize.set(v)(c)
-      case WithNotes(v, c)               => ServiceParams.notes.set(v)(c)
+      case WithServiceBrief(v, c)        => ServiceParams.brief.set(v)(c)
     }
 }
 
@@ -91,7 +91,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     ServiceConfig(Fix(WithHealthCheckSpan(duration, value)))
 
   def withStartupDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
-  def withStartupNotes(notes: String): ServiceConfig         = ServiceConfig(Fix(WithNotes(notes, value)))
+  def withBrief(notes: String): ServiceConfig                = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
