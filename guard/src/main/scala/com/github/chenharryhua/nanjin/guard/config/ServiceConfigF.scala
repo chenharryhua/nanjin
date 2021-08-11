@@ -45,7 +45,7 @@ object ServiceParams {
       startUpEventDelay = 15.seconds,
       maxCauseSize = 500,
       brief = "The developer is too lazy to provide a brief",
-      severity = Severity.Informative
+      severity = Severity.Error
     )
 }
 

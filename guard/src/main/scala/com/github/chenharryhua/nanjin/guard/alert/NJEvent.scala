@@ -75,7 +75,7 @@ sealed trait ActionEvent extends NJEvent {
 
 final case class ActionStart(timestamp: ZonedDateTime, actionInfo: ActionInfo, actionParams: ActionParams)
     extends NJEvent {
-  override val severity: Severity = Severity.Informative
+  override val severity: Severity = Severity.Notice
 }
 
 final case class ActionRetrying(
@@ -89,13 +89,14 @@ final case class ActionRetrying(
 
 final case class ActionFailed(
   timestamp: ZonedDateTime,
-  severity: Severity,
   actionInfo: ActionInfo,
   actionParams: ActionParams,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError
-) extends ActionEvent
+) extends ActionEvent {
+  override val severity: Severity = Severity.Critical
+}
 
 final case class ActionSucced(
   timestamp: ZonedDateTime,
@@ -118,7 +119,7 @@ final case class ActionQuasiSucced(
   errors: List[NJError]
 ) extends ActionEvent
 
-final case class ForYourInformation(timestamp: ZonedDateTime, message: String, isError: Boolean) extends NJEvent {
+final case class ForYourInformation(timestamp: ZonedDateTime, message: String) extends NJEvent {
   override val severity: Severity = Severity.Critical
 }
 

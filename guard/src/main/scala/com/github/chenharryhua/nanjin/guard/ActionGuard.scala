@@ -95,20 +95,10 @@ final class ActionGuard[F[_]] private[guard] (
 
   def fyi(msg: String): F[Unit] =
     realZonedDateTime(params.serviceParams)
-      .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg, isError = false)))
+      .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg)))
       .void
 
-  def unsafeFYI(msg: String): Unit =
-    dispatcher.unsafeRunSync(fyi(msg))
-
-  def reportError(msg: String): F[Unit] =
-    for {
-      ts <- realZonedDateTime(params.serviceParams)
-      _ <- channel.send(ForYourInformation(timestamp = ts, message = msg, isError = true))
-    } yield ()
-
-  def unsafeReportError(msg: String): Unit =
-    dispatcher.unsafeRunSync(reportError(msg))
+  def unsafeFYI(msg: String): Unit = dispatcher.unsafeRunSync(fyi(msg))
 
   def passThrough[A: Encoder](a: A): F[Unit] =
     realZonedDateTime(params.serviceParams)

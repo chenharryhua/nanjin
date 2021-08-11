@@ -27,19 +27,18 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
   private def name(info: ActionInfo) = s"[${info.actionName}]"
 
   override def alert(event: NJEvent): F[Unit] = event match {
-    case _: ServiceHealthCheck                        => F.delay(registry.counter("01.health.check").inc())
-    case _: ServiceStarted                            => F.delay(registry.counter("02.service.start").inc())
-    case _: ServiceStopped                            => F.delay(registry.counter("03.service.stop").inc())
-    case _: ServicePanic                              => F.delay(registry.counter("04.`service.panic`").inc())
-    case ForYourInformation(_, _, isError) if isError => F.delay(registry.counter("05.`error.report`").inc())
-    case _: ForYourInformation                        => F.delay(registry.counter("06.fyi").inc())
-    case _: PassThrough                               => F.delay(registry.counter("07.pass.through").inc())
-    case _: ActionStart                               => F.delay(registry.counter("08.action.count").inc())
+    case _: ServiceHealthCheck => F.delay(registry.counter("01.health.check").inc())
+    case _: ServiceStarted     => F.delay(registry.counter("02.service.start").inc())
+    case _: ServiceStopped     => F.delay(registry.counter("03.service.stop").inc())
+    case _: ServicePanic       => F.delay(registry.counter("04.`service.panic`").inc())
+    case _: ForYourInformation => F.delay(registry.counter("05.fyi").inc())
+    case _: PassThrough        => F.delay(registry.counter("06.pass.through").inc())
+    case _: ActionStart        => F.delay(registry.counter("07.action.count").inc())
 
-    case ActionFailed(at, severity, info, _, _, _, err) =>
+    case ActionFailed(at, info, _, _, _, err) =>
       F.delay(
         registry
-          .timer(s"1${severity.value}.`${severity.entryName}`.${name(info)}")
+          .timer(s"1${err.severity.value}.`${err.severity.entryName}`.${name(info)}")
           .update(Duration.between(info.launchTime, at)))
 
     case ActionRetrying(_, severity, info, _, _, _) =>

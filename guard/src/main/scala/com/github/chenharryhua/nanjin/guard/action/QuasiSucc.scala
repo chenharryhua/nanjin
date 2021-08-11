@@ -80,18 +80,16 @@ final class QuasiSucc[F[_], T[_], A, B](
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
         .guaranteeCase {
           case Outcome.Canceled() =>
-            val err = ActionException.ActionCanceledExternally
             for {
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
-                  severity = severity,
                   actionInfo = actionInfo,
                   actionParams = params,
                   numRetries = 0,
-                  notes = Notes(ExceptionUtils.getMessage(err)),
-                  error = NJError(err, severity)
+                  notes = Notes(ExceptionUtils.getMessage(ActionException.ActionCanceledExternally)),
+                  error = NJError(ActionException.ActionCanceledExternally, severity)
                 ))
             } yield ()
           case Outcome.Errored(error) =>
@@ -100,7 +98,6 @@ final class QuasiSucc[F[_], T[_], A, B](
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
-                  severity = severity,
                   actionInfo = actionInfo,
                   actionParams = params,
                   numRetries = 0,

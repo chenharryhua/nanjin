@@ -46,7 +46,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(!a.asInstanceOf[ForYourInformation].isError)
+    assert(a.isInstanceOf[ForYourInformation])
     assert(b.isInstanceOf[ServiceStopped])
   }
 
@@ -58,31 +58,8 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(!a.asInstanceOf[ForYourInformation].isError)
+    assert(a.isInstanceOf[ForYourInformation])
     assert(b.isInstanceOf[ServiceStopped])
   }
 
-  test("report error") {
-    val Vector(a, b) = guard
-      .eventStream(_.reportError("error"))
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(a.asInstanceOf[ForYourInformation].isError)
-    assert(b.isInstanceOf[ServiceStopped])
-  }
-
-  test("unsafe report error") {
-    val Vector(a, b) = guard
-      .eventStream(ag => IO(1).map(_ => ag.unsafeReportError("error")))
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(a.asInstanceOf[ForYourInformation].isError)
-    assert(b.isInstanceOf[ServiceStopped])
-  }
 }

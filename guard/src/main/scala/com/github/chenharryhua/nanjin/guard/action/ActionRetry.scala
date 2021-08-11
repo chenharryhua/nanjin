@@ -138,7 +138,6 @@ final class ActionRetry[F[_], A, B](
           _ <- channel.send(
             ActionFailed(
               timestamp = now,
-              severity = severity,
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
@@ -154,7 +153,6 @@ final class ActionRetry[F[_], A, B](
           _ <- channel.send(
             ActionFailed(
               timestamp = now,
-              severity = severity,
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,

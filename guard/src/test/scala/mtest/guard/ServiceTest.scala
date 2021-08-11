@@ -30,11 +30,6 @@ import scala.concurrent.duration.*
 class ServiceTest extends AnyFunSuite {
   val slackNoUse1 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
 
-  val slackNoUse2 = SlackService[IO](
-    SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"),
-    Regions.AP_SOUTHEAST_2,
-    DurationFormatter.defaultFormatter)
-
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host).withDailySummaryResetDisabled.withDailySummaryReset(1))
     .service("service")

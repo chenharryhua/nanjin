@@ -15,5 +15,4 @@ object Severity extends CatsOrderValueEnum[Int, Severity] with IntEnum[Severity]
   case object Critical extends Severity(1)
   case object Error extends Severity(2)
   case object Notice extends Severity(3)
-  case object Informative extends Severity(4)
 }
