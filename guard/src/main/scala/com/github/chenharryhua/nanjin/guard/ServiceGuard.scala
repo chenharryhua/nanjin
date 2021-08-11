@@ -8,7 +8,7 @@ import com.codahale.metrics.{MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
 import com.github.chenharryhua.nanjin.guard.alert.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams, Severity}
 import cron4s.Cron
 import cron4s.expr.CronExpr
 import eu.timepit.fs2cron.Scheduler
@@ -74,7 +74,7 @@ final class ServiceGuard[F[_]] private[guard] (
                     serviceInfo = si,
                     serviceParams = params,
                     retryDetails = rd,
-                    error = NJError(ex, FailureSeverity.Critical)))
+                    error = NJError(ex, Severity.Critical)))
               } yield ()
           ) {
             val healthReport: F[Unit] = for {
@@ -99,7 +99,7 @@ final class ServiceGuard[F[_]] private[guard] (
             (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
               actionGuard(
                 new ActionGuard[F](
-                  severity = FailureSeverity.Error,
+                  severity = Severity.Error,
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,

@@ -12,13 +12,12 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
-  FailureSeverity,
   NJError,
   NJEvent,
   Notes,
   ServiceInfo
 }
-import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Severity}
 import com.github.chenharryhua.nanjin.guard.realZonedDateTime
 import fs2.concurrent.Channel
 import retry.RetryDetails
@@ -26,7 +25,7 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
-  severity: FailureSeverity,
+  severity: Severity,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -203,7 +202,7 @@ final class ActionRetry[F[_], A, B](
 }
 
 final class ActionRetryUnit[F[_], B](
-  severity: FailureSeverity,
+  severity: Severity,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,

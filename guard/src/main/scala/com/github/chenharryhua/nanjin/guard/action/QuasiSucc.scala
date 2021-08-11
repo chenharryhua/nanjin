@@ -11,20 +11,19 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionInfo,
   ActionQuasiSucced,
   ActionStart,
-  FailureSeverity,
   NJError,
   NJEvent,
   Notes,
   RunMode,
   ServiceInfo
 }
-import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Severity}
 import com.github.chenharryhua.nanjin.guard.realZonedDateTime
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class QuasiSucc[F[_], T[_], A, B](
-  severity: FailureSeverity,
+  severity: Severity,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -140,7 +139,7 @@ final class QuasiSucc[F[_], T[_], A, B](
 }
 
 final class QuasiSuccUnit[F[_], T[_], B](
-  severity: FailureSeverity,
+  severity: Severity,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
