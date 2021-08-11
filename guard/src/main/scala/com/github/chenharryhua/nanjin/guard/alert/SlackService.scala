@@ -6,6 +6,7 @@ import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
+import com.github.chenharryhua.nanjin.guard.config.Severity
 import io.chrisdavenport.cats.time.instances.zoneid
 import io.circe.generic.auto.*
 import io.circe.syntax.*
@@ -31,7 +32,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         s":rocket: ${params.brief}",
         List(
           Attachment(
-            params.taskParams.color.info,
+            Severity.Informational.color,
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
@@ -55,7 +56,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
              |Search *${error.id}* in log file to find full exception.""".stripMargin,
           List(
             Attachment(
-              params.taskParams.color.fail,
+              Severity.Critical.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
@@ -78,7 +79,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           ":octagonal_sign: The service was stopped.",
           List(
             Attachment(
-              params.taskParams.color.succ,
+              Severity.Informational.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
@@ -97,7 +98,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
         s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
         List(
           Attachment(
-            params.taskParams.color.info,
+            Severity.Informational.color,
             at.toInstant.toEpochMilli,
             List(
               SlackField("Service", params.serviceName, short = true),
@@ -118,7 +119,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           s":checklist: *Daily Summaries* \n${dailySummaries.value}",
           List(
             Attachment(
-              params.taskParams.color.info,
+              Severity.Informational.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
@@ -137,7 +138,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           s"Start running action: *${action.actionName}*",
           List(
             Attachment(
-              params.serviceParams.taskParams.color.info,
+              Severity.Informational.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -156,7 +157,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             wdr.retriesSoFar + 1)}* failure of the action, retry of which takes place in *${fmt.format(wdr.nextDelay)}*",
           List(
             Attachment(
-              params.serviceParams.taskParams.color.warn,
+              error.severity.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -184,7 +185,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           notes.value,
           List(
             Attachment(
-              params.serviceParams.taskParams.color.fail,
+              error.severity.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -211,7 +212,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           notes.value,
           List(
             Attachment(
-              params.serviceParams.taskParams.color.succ,
+              Severity.Success.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -234,7 +235,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             succNotes.value,
             List(
               Attachment(
-                params.serviceParams.taskParams.color.succ,
+                Severity.Success.color,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -255,7 +256,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             failNotes.value,
             List(
               Attachment(
-                params.serviceParams.taskParams.color.warn,
+                Severity.Warning.color,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),

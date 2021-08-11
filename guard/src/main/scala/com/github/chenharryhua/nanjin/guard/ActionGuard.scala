@@ -8,14 +8,8 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
-import com.github.chenharryhua.nanjin.guard.alert.{
-  FailureSeverity,
-  ForYourInformation,
-  NJEvent,
-  PassThrough,
-  ServiceInfo
-}
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
+import com.github.chenharryhua.nanjin.guard.alert.{ForYourInformation, NJEvent, PassThrough, ServiceInfo}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams, Severity}
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
@@ -23,7 +17,7 @@ import io.circe.syntax.*
 
 import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
-  severity: FailureSeverity,
+  severity: Severity,
   metricRegistry: MetricRegistry,
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
@@ -53,7 +47,7 @@ final class ActionGuard[F[_]] private[guard] (
       actionName = actionName,
       actionConfig = f(actionConfig))
 
-  private def updateSeverity(severity: FailureSeverity): ActionGuard[F] =
+  private def updateSeverity(severity: Severity): ActionGuard[F] =
     new ActionGuard[F](
       severity = severity,
       metricRegistry = metricRegistry,
@@ -63,11 +57,10 @@ final class ActionGuard[F[_]] private[guard] (
       actionName = actionName,
       actionConfig = actionConfig)
 
-  // emergency is reserved. error is the default.
-  def alert: ActionGuard[F]         = updateSeverity(FailureSeverity.Alert)
-  def critical: ActionGuard[F]      = updateSeverity(FailureSeverity.Critical)
-  def notice: ActionGuard[F]        = updateSeverity(FailureSeverity.Notice)
-  def informational: ActionGuard[F] = updateSeverity(FailureSeverity.Informational)
+  // error is the default.
+  def critical: ActionGuard[F]      = updateSeverity(Severity.Critical)
+  def notice: ActionGuard[F]        = updateSeverity(Severity.Notice)
+  def informational: ActionGuard[F] = updateSeverity(Severity.Informational)
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](

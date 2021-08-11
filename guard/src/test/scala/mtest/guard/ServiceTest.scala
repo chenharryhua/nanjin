@@ -36,14 +36,7 @@ class ServiceTest extends AnyFunSuite {
     DurationFormatter.defaultFormatter)
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateConfig(
-      _.withSlackWarnColor("danger")
-        .withSlackFailColor("danger")
-        .withSlackSuccColor("good")
-        .withSlackInfoColor("good")
-        .withHostName(HostName.local_host)
-        .withDailySummaryResetDisabled
-        .withDailySummaryReset(1))
+    .updateConfig(_.withHostName(HostName.local_host).withDailySummaryResetDisabled.withDailySummaryReset(1))
     .service("service")
     .addMetricReporter(NJConsoleReporter(1.second))
     .updateConfig(
@@ -70,6 +63,7 @@ class ServiceTest extends AnyFunSuite {
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
+      .addAlertService(slack)
       .eventStream { gd =>
         gd("escalate-after-3-time")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second).withSlackRetryOn)

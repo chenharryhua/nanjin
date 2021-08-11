@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.Show
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.guard.config.Severity
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -25,33 +26,34 @@ object Notes {
 
 final case class NJError private (
   id: UUID,
+  severity: Severity,
   message: String,
   stackTrace: String,
-  throwable: Throwable,
-  severity: FailureSeverity)
+  throwable: Throwable
+)
 
 object NJError {
   implicit val showNJError: Show[NJError] = ex =>
-    s"NJError(id=${ex.id}, message=${ex.message}, severity=${ex.severity})"
+    s"NJError(id=${ex.id}, severity=${ex.severity}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
       ("id", Json.fromString(a.id.toString)),
       ("message", Json.fromString(a.message)),
       ("stackTrace", Json.fromString(a.stackTrace)),
-      ("severity", Json.fromString(a.severity.entryName))
+      ("severity", Json.fromInt(a.severity.value))
     )
 
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
     for {
       id <- c.downField("id").as[UUID]
+      sv <- c.downField("severity").as[Severity]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-      sv <- c.downField("severity").as[FailureSeverity]
-    } yield NJError(id, msg, st, new Throwable("fake Throwable"), sv) // can not recover throwables.
+    } yield NJError(id, sv, msg, st, new Throwable("fake Throwable")) // can not recover throwables.
 
-  def apply(ex: Throwable, severity: FailureSeverity): NJError =
-    NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex, severity)
+  def apply(ex: Throwable, severity: Severity): NJError =
+    NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
 final case class DailySummaries private (value: String)
@@ -70,21 +72,4 @@ object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMo
   override val values: immutable.IndexedSeq[RunMode] = findValues
   case object Parallel extends RunMode
   case object Sequential extends RunMode
-}
-
-// https://en.wikipedia.org/wiki/Syslog
-sealed abstract class FailureSeverity(val value: Int) extends EnumEntry with Ordered[FailureSeverity] {
-  final override def compare(that: FailureSeverity): Int = Integer.compare(value, that.value)
-}
-
-object FailureSeverity extends Enum[FailureSeverity] with CatsEnum[FailureSeverity] with CirceEnum[FailureSeverity] {
-  override def values: immutable.IndexedSeq[FailureSeverity] = findValues
-  case object Emergency extends FailureSeverity(0)
-  case object Alert extends FailureSeverity(1)
-  case object Critical extends FailureSeverity(2)
-  case object Error extends FailureSeverity(3)
-  case object Warning extends FailureSeverity(4)
-  case object Notice extends FailureSeverity(5)
-  case object Informational extends FailureSeverity(6)
-  case object Debug extends FailureSeverity(7)
 }
