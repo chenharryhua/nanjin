@@ -114,7 +114,7 @@ final class ServiceGuard[F[_]] private[guard] (
             channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> // stop event
             channel.close.void) // close channel and the stream as well
 
-        // notify alert services
+        // notify metrics and alert services
         val notifying: Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
           Stream
             .resource(alertServices)

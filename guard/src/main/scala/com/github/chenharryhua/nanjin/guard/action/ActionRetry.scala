@@ -181,7 +181,8 @@ final class ActionRetry[F[_], A, B](
     for {
       retryCount <- F.ref(0) // hold number of retries
       ai <- actionInfo
-      _ <- channel.send(ActionStart(timestamp = ai.launchTime, actionInfo = ai, actionParams = params))
+      _ <- channel.send(
+        ActionStart(timestamp = ai.launchTime, severity = severity, actionInfo = ai, actionParams = params))
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](

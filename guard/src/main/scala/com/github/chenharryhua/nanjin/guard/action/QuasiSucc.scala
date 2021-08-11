@@ -70,7 +70,8 @@ final class QuasiSucc[F[_], T[_], A, B](
       now <- realZonedDateTime(params.serviceParams)
       uuid <- UUIDGen.randomUUID
       actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
-      _ <- channel.send(ActionStart(now, actionInfo, params))
+      _ <- channel.send(
+        ActionStart(timestamp = now, severity = severity, actionInfo = actionInfo, actionParams = params))
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)

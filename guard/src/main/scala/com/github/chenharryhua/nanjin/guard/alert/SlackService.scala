@@ -149,7 +149,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
         ).asJson.noSpaces
       service.publish(msg).whenA(params.taskParams.dailySummaryReset.enabled)
 
-    case ActionStart(at, action, params) =>
+    case ActionStart(at, _, action, params) =>
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,

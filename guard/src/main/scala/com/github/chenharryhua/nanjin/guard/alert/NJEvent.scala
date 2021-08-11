@@ -73,10 +73,12 @@ sealed trait ActionEvent extends NJEvent {
   def actionParams: ActionParams // action static parameters
 }
 
-final case class ActionStart(timestamp: ZonedDateTime, actionInfo: ActionInfo, actionParams: ActionParams)
-    extends NJEvent {
-  override val severity: Severity = Severity.Notice
-}
+final case class ActionStart(
+  timestamp: ZonedDateTime,
+  severity: Severity,
+  actionInfo: ActionInfo,
+  actionParams: ActionParams)
+    extends NJEvent
 
 final case class ActionRetrying(
   timestamp: ZonedDateTime,
