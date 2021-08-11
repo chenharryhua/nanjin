@@ -31,10 +31,10 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
   def withFormatter(fmt: DurationFormatter): SlackService[F]    = new SlackService[F](service, fmt, mask)
   private def updateMask(mask: SlackAlertMask): SlackService[F] = new SlackService[F](service, fmt, mask)
 
-  def alertSucc: SlackService[F]       = updateMask(SlackAlertMask.alertSucc.set(true)(mask))
-  def alertRetry: SlackService[F]      = updateMask(SlackAlertMask.alertRetry.set(true)(mask))
-  def alertFirstRetry: SlackService[F] = updateMask(SlackAlertMask.alertFirstRetry.set(true)(mask))
-  def alertStart: SlackService[F]      = updateMask(SlackAlertMask.alertStart.set(true)(mask))
+  def showSucc: SlackService[F]       = updateMask(SlackAlertMask.alertSucc.set(true)(mask))
+  def showRetry: SlackService[F]      = updateMask(SlackAlertMask.alertRetry.set(true)(mask))
+  def showFirstRetry: SlackService[F] = updateMask(SlackAlertMask.alertFirstRetry.set(true)(mask))
+  def showStart: SlackService[F]      = updateMask(SlackAlertMask.alertStart.set(true)(mask))
 
   private val good_color   = "good"
   private val warn_color   = "#ffd79a"
