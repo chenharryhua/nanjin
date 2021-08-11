@@ -121,19 +121,9 @@ final class ActionGuard[F[_]] private[guard] (
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
 
-  // post good news
-  def magpie[B](fb: F[B])(f: B => String): F[B] =
-    updateConfig(_.withSlackSuccOn.withSlackFailOff).retry(fb).withSuccNotes(f).run
-
-  // post bad news
-  def croak[B](fb: F[B])(f: Throwable => String): F[B] =
-    updateConfig(_.withSlackSuccOff.withSlackFailOn).retry(fb).withFailNotes(f).run
-
-  def quietly[B](fb: F[B]): F[B] = updateConfig(_.withSlackNone).run(fb)
-
   def nonStop[B](fb: F[B]): F[Nothing] =
     apply("nonStop")
-      .updateConfig(_.withSlackNone.withNonTermination.withMaxRetries(0))
+      .updateConfig(_.withNonTermination.withMaxRetries(0))
       .run(fb)
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 

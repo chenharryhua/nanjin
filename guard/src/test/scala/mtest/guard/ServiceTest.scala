@@ -48,7 +48,7 @@ class ServiceTest extends AnyFunSuite {
       .addAlertService(log)
       .addAlertService(console)
       .addAlertService(slack)
-      .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
+      .eventStream(gd => gd("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -66,8 +66,10 @@ class ServiceTest extends AnyFunSuite {
       .addAlertService(slack)
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second).withSlackRetryOn)
-          .croak(IO.raiseError(new Exception("oops")))(_ => null)
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .retry(IO.raiseError(new Exception("oops")))
+          .withFailNotes(_ => null)
+          .run
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -151,36 +153,5 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-  }
-
-  test("all alert on") {
-    guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.withSlackNone.withSlackAll.withMaxRetries(5))
-      g.run(IO {
-        assert(g.params.alertMask.alertStart)
-        assert(g.params.alertMask.alertSucc)
-        assert(g.params.alertMask.alertFail)
-        assert(g.params.alertMask.alertFirstRetry)
-        assert(g.params.alertMask.alertRetry)
-        assert(g.params.shouldTerminate)
-        assert(g.params.retry.maxRetries == 5)
-        assert(g.params.retry.njRetryPolicy.isInstanceOf[ConstantDelay])
-      })
-    }.compile.drain.unsafeRunSync()
-  }
-  test("all alert off") {
-    guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.withSlackAll.withSlackNone.withNonTermination.withFibonacciBackoff(1.second))
-      g.run(IO {
-        assert(!g.params.alertMask.alertStart)
-        assert(!g.params.alertMask.alertSucc)
-        assert(!g.params.alertMask.alertFail)
-        assert(!g.params.alertMask.alertFirstRetry)
-        assert(!g.params.alertMask.alertRetry)
-        assert(!g.params.shouldTerminate)
-        assert(g.params.retry.maxRetries == 0)
-        assert(g.params.retry.njRetryPolicy.isInstanceOf[FibonacciBackoff])
-      })
-    }.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }
