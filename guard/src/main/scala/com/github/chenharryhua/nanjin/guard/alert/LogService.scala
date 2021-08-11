@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.alert
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.NJLogLevel
+import com.github.chenharryhua.nanjin.guard.config.Severity
 import org.log4s.Logger
 
 final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService[F] {
@@ -20,11 +21,11 @@ final private class LogService[F[_]]()(implicit F: Sync[F]) extends AlertService
       case _: ActionStart       => F.blocking(logger.info(event.show))
       case _: ServiceStopped    => F.blocking(logger.info(event.show))
 
-      case ServicePanic(_, _, _, _, error)   => F.blocking(logger.warn(error.throwable)(event.show))
-      case ActionRetrying(_, _, _, _, error) => F.blocking(logger.warn(error.throwable)(event.show))
+      case ServicePanic(_, _, _, _, error)      => F.blocking(logger.warn(error.throwable)(event.show))
+      case ActionRetrying(_, _, _, _, _, error) => F.blocking(logger.warn(error.throwable)(event.show))
 
-      case ActionFailed(_, _, _, _, _, error) =>
-        if (error.severity.logLevel >= NJLogLevel.ERROR)
+      case ActionFailed(_, severity, _, _, _, _, error) =>
+        if (severity <= Severity.Error)
           F.blocking(logger.error(error.throwable)(event.show))
         else
           F.blocking(logger.warn(error.throwable)(event.show))

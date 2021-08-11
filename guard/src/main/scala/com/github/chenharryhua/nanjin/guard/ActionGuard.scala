@@ -58,9 +58,8 @@ final class ActionGuard[F[_]] private[guard] (
       actionConfig = actionConfig)
 
   // error is the default.
-  def critical: ActionGuard[F]      = updateSeverity(Severity.Critical)
-  def notice: ActionGuard[F]        = updateSeverity(Severity.Notice)
-  def informational: ActionGuard[F] = updateSeverity(Severity.Informational)
+  def critical: ActionGuard[F] = updateSeverity(Severity.Critical)
+  def notice: ActionGuard[F]   = updateSeverity(Severity.Notice)
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -112,7 +111,9 @@ final class ActionGuard[F[_]] private[guard] (
     dispatcher.unsafeRunSync(reportError(msg))
 
   def passThrough[A: Encoder](a: A): F[Unit] =
-    realZonedDateTime(params.serviceParams).flatMap(ts => channel.send(PassThrough(ts, a.asJson))).void
+    realZonedDateTime(params.serviceParams)
+      .flatMap(ts => channel.send(PassThrough(timestamp = ts, value = a.asJson)))
+      .void
 
   def unsafePassThrough[A: Encoder](a: A): Unit =
     dispatcher.unsafeRunSync(passThrough(a))
@@ -136,8 +137,7 @@ final class ActionGuard[F[_]] private[guard] (
       .run(fb)
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 
-  def nonStop[B](sb: Stream[F, B]): F[Nothing] =
-    nonStop(sb.compile.drain)
+  def nonStop[B](sb: Stream[F, B]): F[Nothing] = nonStop(sb.compile.drain)
 
   def run[B](fb: F[B]): F[B] = retry[B](fb).run
 

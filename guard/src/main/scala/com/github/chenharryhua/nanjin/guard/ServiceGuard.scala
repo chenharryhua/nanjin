@@ -59,6 +59,8 @@ final class ServiceGuard[F[_]] private[guard] (
       uuid <- UUIDGen.randomUUID
     } yield ServiceInfo(id = uuid, launchTime = ts)
 
+    val mrSevice: NJMetricRegistry[F] = new NJMetricRegistry[F](metricRegistry)
+
     for {
       si <- Stream.eval(serviceInfo)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
@@ -113,10 +115,12 @@ final class ServiceGuard[F[_]] private[guard] (
             channel.close.void) // close channel and the stream as well
 
         // notify alert services
-        val notifying: Pipe[F, NJEvent, INothing] = {
-          val mr = new NJMetricRegistry[F](metricRegistry)
-          (events: Stream[F, NJEvent]) =>
-            Stream.resource(alertServices).flatMap(as => events.evalMap(evt => mr.alert(evt) *> as.alert(evt))).drain
+        val notifying: Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
+          Stream
+            .resource(alertServices)
+            .flatMap(as => // send to metric anyway, but conditionally send to alert services
+              events.evalMap(evt => mrSevice.alert(evt) *> as.alert(evt).whenA(evt.severity <= params.severity)))
+            .drain
         }
 
         @SuppressWarnings(Array("ListSize"))

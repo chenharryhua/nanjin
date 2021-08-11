@@ -36,19 +36,19 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
     case _: PassThrough                               => F.delay(registry.counter("07.pass.through").inc())
     case _: ActionStart                               => F.delay(registry.counter("08.action.count").inc())
 
-    case ActionFailed(at, info, _, _, _, err) =>
+    case ActionFailed(at, severity, info, _, _, _, err) =>
       F.delay(
         registry
-          .timer(s"1${err.severity.value}.`${err.severity.entryName}`.${name(info)}")
+          .timer(s"1${severity.value}.`${severity.entryName}`.${name(info)}")
           .update(Duration.between(info.launchTime, at)))
 
-    case ActionRetrying(_, info, _, _, err) =>
-      F.delay(registry.counter(s"2${err.severity.value}.retry.${err.severity.entryName}.${name(info)}").inc())
+    case ActionRetrying(_, severity, info, _, _, _) =>
+      F.delay(registry.counter(s"2${severity.value}.retry.${severity.entryName}.${name(info)}").inc())
 
-    case ActionQuasiSucced(at, info, _, _, _, _, _, _) =>
+    case ActionQuasiSucced(at, _, info, _, _, _, _, _, _) =>
       F.delay(registry.timer(s"30.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
 
-    case ActionSucced(at, info, _, _, _) =>
+    case ActionSucced(at, _, info, _, _, _) =>
       F.delay(registry.timer(s"31.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     // reset

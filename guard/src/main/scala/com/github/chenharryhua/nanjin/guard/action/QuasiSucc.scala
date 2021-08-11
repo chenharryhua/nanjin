@@ -86,6 +86,7 @@ final class QuasiSucc[F[_], T[_], A, B](
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
+                  severity = severity,
                   actionInfo = actionInfo,
                   actionParams = params,
                   numRetries = 0,
@@ -99,6 +100,7 @@ final class QuasiSucc[F[_], T[_], A, B](
               _ <- channel.send(
                 ActionFailed(
                   timestamp = now,
+                  severity = severity,
                   actionInfo = actionInfo,
                   actionParams = params,
                   numRetries = 0,
@@ -115,6 +117,7 @@ final class QuasiSucc[F[_], T[_], A, B](
               _ <- channel.send(
                 ActionQuasiSucced(
                   timestamp = now,
+                  severity = severity,
                   actionInfo = actionInfo,
                   actionParams = params,
                   runMode = runMode,
