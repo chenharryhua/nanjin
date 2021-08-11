@@ -212,7 +212,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
           notes.value,
           List(
             Attachment(
-              Severity.Good.color,
+              Severity.Success.color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -235,7 +235,7 @@ final private class SlackService[F[_]](service: SimpleNotificationService[F], fm
             succNotes.value,
             List(
               Attachment(
-                Severity.Good.color,
+                Severity.Success.color,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
