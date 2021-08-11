@@ -26,14 +26,15 @@ object Notes {
 
 final case class NJError private (
   id: UUID,
+  severity: Severity,
   message: String,
   stackTrace: String,
-  throwable: Throwable,
-  severity: Severity)
+  throwable: Throwable
+)
 
 object NJError {
   implicit val showNJError: Show[NJError] = ex =>
-    s"NJError(id=${ex.id}, message=${ex.message}, severity=${ex.severity})"
+    s"NJError(id=${ex.id}, severity=${ex.severity}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
@@ -46,13 +47,13 @@ object NJError {
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
     for {
       id <- c.downField("id").as[UUID]
+      sv <- c.downField("severity").as[Severity]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-      sv <- c.downField("severity").as[Severity]
-    } yield NJError(id, msg, st, new Throwable("fake Throwable"), sv) // can not recover throwables.
+    } yield NJError(id, sv, msg, st, new Throwable("fake Throwable")) // can not recover throwables.
 
   def apply(ex: Throwable, severity: Severity): NJError =
-    NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex, severity)
+    NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
 final case class DailySummaries private (value: String)
