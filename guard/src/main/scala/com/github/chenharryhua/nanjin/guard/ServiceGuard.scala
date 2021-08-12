@@ -59,10 +59,12 @@ final class ServiceGuard[F[_]] private[guard] (
       uuid <- UUIDGen.randomUUID
     } yield ServiceInfo(id = uuid, launchTime = ts)
 
+    val mrSevice: NJMetricRegistry[F] = new NJMetricRegistry[F](metricRegistry)
+
     for {
       si <- Stream.eval(serviceInfo)
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
-        val service: F[A] = retry.mtl
+        val runningService: F[A] = retry.mtl
           .retryingOnAllErrors(
             params.retry.policy[F],
             (ex: Throwable, rd) =>
@@ -112,38 +114,40 @@ final class ServiceGuard[F[_]] private[guard] (
             channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> // stop event
             channel.close.void) // close channel and the stream as well
 
-        // notify alert services
-        @SuppressWarnings(Array("ListSize"))
-        val notify: Pipe[F, NJEvent, INothing] = {
-          val alerts: Resource[F, AlertService[F]] = for {
-            mr <- Resource.pure(new NJMetricRegistry[F](metricRegistry))
-            as <- alertServices
-            _ <-
-              F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
-                _.start[F](metricRegistry))
-                .background
-          } yield as |+| mr
-
-          (events: Stream[F, NJEvent]) => Stream.resource(alerts).flatMap(as => events.evalMap(as.alert)).drain
+        // notify metrics and alert services
+        val notifying: Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
+          Stream
+            .resource(alertServices)
+            .flatMap(as => // send to metric anyway, but conditionally send to alert services
+              events.evalMap(evt =>
+                mrSevice.alert(evt) *> as.alert(evt).whenA(evt.severity.value <= params.severity.value)))
+            .drain
         }
 
+        @SuppressWarnings(Array("ListSize"))
+        val reporting: Stream[F, List[Nothing]] = Stream.eval(
+          F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
+            _.start[F](metricRegistry)))
+
+        val dailyRest: Stream[F, Unit] = scheduler
+          .awakeEvery(cron)
+          .evalMap(_ =>
+            for {
+              ts <- realZonedDateTime(params)
+              _ <- channel.send(
+                ServiceDailySummariesReset(
+                  timestamp = ts,
+                  serviceInfo = si,
+                  serviceParams = params,
+                  dailySummaries = DailySummaries(metricRegistry)
+                ))
+            } yield ())
+
         channel.stream
-          .observe(notify)
-          .concurrently(Stream.eval(service))
-          .concurrently(
-            scheduler
-              .awakeEvery(cron)
-              .evalMap(_ =>
-                for {
-                  ts <- realZonedDateTime(params)
-                  _ <- channel.send(
-                    ServiceDailySummariesReset(
-                      timestamp = ts,
-                      serviceInfo = si,
-                      serviceParams = params,
-                      dailySummaries = DailySummaries(metricRegistry)
-                    ))
-                } yield ()))
+          .observe(notifying)
+          .concurrently(reporting)
+          .concurrently(Stream.eval(runningService))
+          .concurrently(dailyRest)
       }
     } yield event
   }

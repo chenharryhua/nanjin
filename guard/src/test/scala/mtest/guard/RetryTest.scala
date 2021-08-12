@@ -50,7 +50,7 @@ class RetryTest extends AnyFunSuite {
     var i = 0
     val Vector(a, b, c, d, e) = serviceGuard.eventStream { gd =>
       gd("1-time-succ")("2-time-succ") // funny syntax
-        .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second).withSlackNone.withSlackFirstFailOn)
+        .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry(1)(x =>
           IO(if (i < 2) {
             i += 1; throw new Exception
@@ -93,7 +93,7 @@ class RetryTest extends AnyFunSuite {
       .eventStream(ag =>
         ag("null exception")
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
-          .quietly(IO.raiseError(new NullPointerException)))
+          .run(IO.raiseError(new NullPointerException)))
       .interruptAfter(5.seconds)
       .compile
       .toList

@@ -36,12 +36,7 @@ class QuasiSuccTest extends AnyFunSuite {
 
   test("quasi all fail - chunk") {
     val Vector(a, b, c) = guard
-      .eventStream(action =>
-        action("all-fail")
-          .updateConfig(_.withSlackSuccOn.withSlackFailOff)
-          .quasi(Chunk(0, 0, 0))(f)
-          .withFailNotes(_ => "failure")
-          .seqRun)
+      .eventStream(action => action("all-fail").quasi(Chunk(0, 0, 0))(f).withFailNotes(_ => "failure").seqRun)
       .compile
       .toVector
       .unsafeRunSync()

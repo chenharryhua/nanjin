@@ -70,7 +70,8 @@ final class QuasiSucc[F[_], T[_], A, B](
       now <- realZonedDateTime(params.serviceParams)
       uuid <- UUIDGen.randomUUID
       actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
-      _ <- channel.send(ActionStart(now, actionInfo, params))
+      _ <- channel.send(
+        ActionStart(timestamp = now, severity = severity, actionInfo = actionInfo, actionParams = params))
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
@@ -80,7 +81,6 @@ final class QuasiSucc[F[_], T[_], A, B](
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
         .guaranteeCase {
           case Outcome.Canceled() =>
-            val err = ActionException.ActionCanceledExternally
             for {
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
@@ -89,8 +89,8 @@ final class QuasiSucc[F[_], T[_], A, B](
                   actionInfo = actionInfo,
                   actionParams = params,
                   numRetries = 0,
-                  notes = Notes(ExceptionUtils.getMessage(err)),
-                  error = NJError(err, severity)
+                  notes = Notes(ExceptionUtils.getMessage(ActionException.ActionCanceledExternally)),
+                  error = NJError(ActionException.ActionCanceledExternally, severity)
                 ))
             } yield ()
           case Outcome.Errored(error) =>
@@ -115,6 +115,7 @@ final class QuasiSucc[F[_], T[_], A, B](
               _ <- channel.send(
                 ActionQuasiSucced(
                   timestamp = now,
+                  severity = severity,
                   actionInfo = actionInfo,
                   actionParams = params,
                   runMode = runMode,

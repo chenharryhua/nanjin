@@ -30,11 +30,6 @@ import scala.concurrent.duration.*
 class ServiceTest extends AnyFunSuite {
   val slackNoUse1 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
 
-  val slackNoUse2 = SlackService[IO](
-    SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"),
-    Regions.AP_SOUTHEAST_2,
-    DurationFormatter.defaultFormatter)
-
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host).withDailySummaryResetDisabled.withDailySummaryReset(1))
     .service("service")
@@ -47,8 +42,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withStartupDelay(0.second).withJitterBackoff(3.second))
       .addAlertService(log)
       .addAlertService(console)
-      .addAlertService(slack)
-      .eventStream(gd => gd("normal-exit-action").max(10).magpie(IO(1))(_ => null).delayBy(1.second))
+      .eventStream(gd => gd("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -63,11 +57,13 @@ class ServiceTest extends AnyFunSuite {
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
-      .addAlertService(slack)
+      .addAlertService(log)
       .eventStream { gd =>
         gd("escalate-after-3-time")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second).withSlackRetryOn)
-          .croak(IO.raiseError(new Exception("oops")))(_ => null)
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .retry(IO.raiseError(new Exception("oops")))
+          .withFailNotes(_ => null)
+          .run
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -82,6 +78,25 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetrying])
     assert(e.isInstanceOf[ActionFailed])
     assert(f.isInstanceOf[ServicePanic])
+  }
+
+  test("json codec") {
+    val vec = guard
+      .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
+      .addAlertService(console)
+      .eventStream { gd =>
+        gd("json-codec")
+          .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
+          .retry(IO.raiseError(new Exception("oops")))
+          .withFailNotes(_ => null)
+          .run
+      }
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
   }
 
   test("should receive 3 health check event") {
@@ -151,36 +166,5 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-  }
-
-  test("all alert on") {
-    guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.withSlackNone.withSlackAll.withMaxRetries(5))
-      g.run(IO {
-        assert(g.params.alertMask.alertStart)
-        assert(g.params.alertMask.alertSucc)
-        assert(g.params.alertMask.alertFail)
-        assert(g.params.alertMask.alertFirstRetry)
-        assert(g.params.alertMask.alertRetry)
-        assert(g.params.shouldTerminate)
-        assert(g.params.retry.maxRetries == 5)
-        assert(g.params.retry.njRetryPolicy.isInstanceOf[ConstantDelay])
-      })
-    }.compile.drain.unsafeRunSync()
-  }
-  test("all alert off") {
-    guard.eventStream { ag =>
-      val g = ag("").updateConfig(_.withSlackAll.withSlackNone.withNonTermination.withFibonacciBackoff(1.second))
-      g.run(IO {
-        assert(!g.params.alertMask.alertStart)
-        assert(!g.params.alertMask.alertSucc)
-        assert(!g.params.alertMask.alertFail)
-        assert(!g.params.alertMask.alertFirstRetry)
-        assert(!g.params.alertMask.alertRetry)
-        assert(!g.params.shouldTerminate)
-        assert(g.params.retry.maxRetries == 0)
-        assert(g.params.retry.njRetryPolicy.isInstanceOf[FibonacciBackoff])
-      })
-    }.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }

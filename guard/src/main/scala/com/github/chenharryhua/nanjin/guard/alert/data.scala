@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.Show
+import cats.implicits.toShow
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.Severity
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
@@ -34,14 +35,14 @@ final case class NJError private (
 
 object NJError {
   implicit val showNJError: Show[NJError] = ex =>
-    s"NJError(id=${ex.id}, severity=${ex.severity}, message=${ex.message})"
+    s"NJError(id=${ex.id}, severity=${ex.severity.show}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
       ("id", Json.fromString(a.id.toString)),
+      ("severity", Json.fromString(a.severity.show)),
       ("message", Json.fromString(a.message)),
-      ("stackTrace", Json.fromString(a.stackTrace)),
-      ("severity", Json.fromInt(a.severity.value))
+      ("stackTrace", Json.fromString(a.stackTrace))
     )
 
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>

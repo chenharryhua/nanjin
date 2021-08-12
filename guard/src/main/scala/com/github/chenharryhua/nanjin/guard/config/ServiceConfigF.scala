@@ -26,7 +26,8 @@ import scala.concurrent.duration.*
   retry: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   maxCauseSize: Int, // number of chars allowed to display in slack
-  brief: String
+  brief: String,
+  severity: Severity
 )
 
 object ServiceParams {
@@ -43,7 +44,8 @@ object ServiceParams {
       retry = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
       maxCauseSize = 500,
-      brief = "The developer is too lazy to provide a brief"
+      brief = "The developer is too lazy to provide a brief",
+      severity = Severity.Error
     )
 }
 
@@ -65,6 +67,8 @@ private object ServiceConfigF {
 
   final case class WithServiceBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
+  final case class WithSeverity[K](value: Severity, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(s, t)              => ServiceParams(s, t)
@@ -75,6 +79,7 @@ private object ServiceConfigF {
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithMaxCauseSize(v, c)        => ServiceParams.maxCauseSize.set(v)(c)
       case WithServiceBrief(v, c)        => ServiceParams.brief.set(v)(c)
+      case WithSeverity(v, c)            => ServiceParams.severity.set(v)(c)
     }
 }
 
@@ -106,6 +111,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withSlackMaximumCauseSize(size: Int): ServiceConfig =
     ServiceConfig(Fix(WithMaxCauseSize(size, value)))
+
+  def withCritical: ServiceConfig = ServiceConfig(Fix(WithSeverity(Severity.Critical, value)))
+  def withNotice: ServiceConfig   = ServiceConfig(Fix(WithSeverity(Severity.Notice, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
