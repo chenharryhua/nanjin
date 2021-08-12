@@ -105,6 +105,8 @@ final class ActionGuard[F[_]] private[guard] (
       .flatMap(ts => channel.send(PassThrough(timestamp = ts, value = a.asJson)))
       .void
 
+  def passThroughM[A: Encoder](fa: F[A]): F[Unit] = F.flatMap(fa)(a => passThrough(a))
+
   def unsafePassThrough[A: Encoder](a: A): Unit =
     dispatcher.unsafeRunSync(passThrough(a))
 
@@ -112,7 +114,7 @@ final class ActionGuard[F[_]] private[guard] (
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    apply("nonStop")
+    apply("nonStop").notice
       .updateConfig(_.withNonTermination.withMaxRetries(0))
       .run(fb)
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
