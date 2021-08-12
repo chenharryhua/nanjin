@@ -12,21 +12,18 @@ import monocle.macros.Lenses
 
 import java.time.ZoneId
 
-@Lenses final case class DailySummaryReset(hour: Int, enabled: Boolean) // 0 - 23,
-
 @Lenses final case class TaskParams private (
   appName: String,
   zoneId: ZoneId,
-  dailySummaryReset: DailySummaryReset,
-  hostName: String
-)
+  summaryResetAt: Int, // 0 - 23
+  hostName: String)
 
 object TaskParams {
 
   def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
-    dailySummaryReset = DailySummaryReset(hour = 0, enabled = true), // midnight
+    summaryResetAt = 0, // midnight
     hostName = hostName.name
   )
 }
@@ -40,8 +37,7 @@ private object TaskConfigF {
 
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
 
-  final case class WithDSRHour[K](value: Int, cont: K) extends TaskConfigF[K]
-  final case class WithDSREnable[K](value: Boolean, cont: K) extends TaskConfigF[K]
+  final case class WithSummaryResetAt[K](value: Int, cont: K) extends TaskConfigF[K]
 
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
 
@@ -49,9 +45,8 @@ private object TaskConfigF {
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName, hostName) => TaskParams(appName, hostName)
       case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
-      case WithDSRHour(v, c)             => TaskParams.dailySummaryReset.composeLens(DailySummaryReset.hour).set(v)(c)
-      case WithDSREnable(v, c) => TaskParams.dailySummaryReset.composeLens(DailySummaryReset.enabled).set(v)(c)
-      case WithHostName(v, c)  => TaskParams.hostName.set(v.name)(c)
+      case WithSummaryResetAt(v, c)      => TaskParams.summaryResetAt.set(v)(c)
+      case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
     }
 }
 
@@ -61,10 +56,7 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
   def withZoneId(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
 
   def withDailySummaryReset(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
-    TaskConfig(Fix(WithDSRHour(hour.value, value)))
-
-  def withDailySummaryResetDisabled: TaskConfig =
-    TaskConfig(Fix(WithDSREnable(value = false, value)))
+    TaskConfig(Fix(WithSummaryResetAt(hour.value, value)))
 
   def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
 

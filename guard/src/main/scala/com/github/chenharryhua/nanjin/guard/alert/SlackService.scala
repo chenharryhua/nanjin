@@ -125,13 +125,13 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               SlackField("Service", params.serviceName, short = true),
               SlackField("Host", params.taskParams.hostName, short = true),
               SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
-              SlackField("Next Check in", fmt.format(params.healthCheck.interval), short = true),
+              SlackField("Next Check in", fmt.format(params.healthCheckInterval), short = true),
               SlackField("Brief", params.brief, short = false)
             )
           ))
       ).asJson.noSpaces
-      def ltr = NJLocalTimeRange(params.healthCheck.openTime, params.healthCheck.span, params.taskParams.zoneId)
-      service.publish(msg).whenA(ltr.isInBetween(at))
+
+      service.publish(msg).void
 
     case ServiceDailySummariesReset(at, si, params, dailySummaries) =>
       def msg: String =
@@ -150,7 +150,8 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(params.taskParams.dailySummaryReset.enabled)
+
+      service.publish(msg).void
 
     case ActionStart(at, _, action, params) =>
       def msg: String =

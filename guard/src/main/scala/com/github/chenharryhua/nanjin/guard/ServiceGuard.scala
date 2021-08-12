@@ -53,7 +53,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
-    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset.hour} ? * *")
+    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.summaryResetAt} ? * *")
     val serviceInfo: F[ServiceInfo] = for {
       ts <- realZonedDateTime(params)
       uuid <- UUIDGen.randomUUID
@@ -95,7 +95,7 @@ final class ServiceGuard[F[_]] private[guard] (
               _ <- channel
                 .send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params))
                 .delayBy(params.startUpEventDelay)
-              _ <- healthReport.delayBy(params.healthCheck.interval).foreverM[Unit]
+              _ <- healthReport.delayBy(params.healthCheckInterval).foreverM[Unit]
             } yield ()
 
             (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
