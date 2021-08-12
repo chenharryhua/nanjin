@@ -120,7 +120,7 @@ final class ServiceGuard[F[_]] private[guard] (
             .resource(alertServices)
             .flatMap(as => // send to metric anyway, but conditionally send to alert services
               events.evalMap(evt =>
-                mrSevice.alert(evt) *> as.alert(evt).whenA(evt.severity.value <= params.severity.value)))
+                mrSevice.alert(evt) *> as.alert(evt).whenA(evt.severity.value <= params.threshold.value)))
             .drain
         }
 

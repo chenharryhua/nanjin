@@ -25,9 +25,8 @@ import scala.concurrent.duration.*
   healthCheck: NJHealthCheck,
   retry: NJRetryPolicy,
   startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
-  maxCauseSize: Int, // number of chars allowed to display in slack
   brief: String,
-  severity: Severity
+  threshold: Severity // filter out events whose severity bigger than this one.
 )
 
 object ServiceParams {
@@ -43,9 +42,8 @@ object ServiceParams {
       ),
       retry = ConstantDelay(30.seconds),
       startUpEventDelay = 15.seconds,
-      maxCauseSize = 500,
       brief = "The developer is too lazy to provide a brief",
-      severity = Severity.Error
+      threshold = Severity.Error
     )
 }
 
@@ -63,11 +61,9 @@ private object ServiceConfigF {
 
   final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
 
-  final case class WithMaxCauseSize[K](value: Int, cont: K) extends ServiceConfigF[K]
-
   final case class WithServiceBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
-  final case class WithSeverity[K](value: Severity, cont: K) extends ServiceConfigF[K]
+  final case class WithSeverityThreshold[K](value: Severity, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -77,9 +73,8 @@ private object ServiceConfigF {
       case WithHealthCheckSpan(v, c)     => ServiceParams.healthCheck.composeLens(NJHealthCheck.span).set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retry.set(v)(c)
       case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
-      case WithMaxCauseSize(v, c)        => ServiceParams.maxCauseSize.set(v)(c)
       case WithServiceBrief(v, c)        => ServiceParams.brief.set(v)(c)
-      case WithSeverity(v, c)            => ServiceParams.severity.set(v)(c)
+      case WithSeverityThreshold(v, c)   => ServiceParams.threshold.set(v)(c)
     }
 }
 
@@ -109,11 +104,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 
-  def withSlackMaximumCauseSize(size: Int): ServiceConfig =
-    ServiceConfig(Fix(WithMaxCauseSize(size, value)))
-
-  def withCritical: ServiceConfig = ServiceConfig(Fix(WithSeverity(Severity.Critical, value)))
-  def withNotice: ServiceConfig   = ServiceConfig(Fix(WithSeverity(Severity.Notice, value)))
+  def withCritical: ServiceConfig = ServiceConfig(Fix(WithSeverityThreshold(Severity.Critical, value)))
+  def withNotice: ServiceConfig   = ServiceConfig(Fix(WithSeverityThreshold(Severity.Notice, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
