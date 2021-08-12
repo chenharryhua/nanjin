@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
+import com.github.chenharryhua.nanjin.guard.config.Severity
 import io.chrisdavenport.cats.time.instances.zoneid
 import io.circe.generic.auto.*
 import io.circe.syntax.*
@@ -36,10 +37,10 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
   def showFirstRetry: SlackService[F] = updateMask(SlackAlertMask.alertFirstRetry.set(true)(mask))
   def showStart: SlackService[F]      = updateMask(SlackAlertMask.alertStart.set(true)(mask))
 
-  private val good_color   = "good"
-  private val warn_color   = "#ffd79a"
-  private val info_color   = "#b3d1ff"
-  private val danger_color = "danger"
+  private val good_color  = "good"
+  private val warn_color  = "#ffd79a"
+  private val info_color  = "#b3d1ff"
+  private val error_color = "danger"
 
   @SuppressWarnings(Array("ListSize"))
   override def alert(event: NJEvent): F[Unit] = event match {
@@ -74,7 +75,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
              |Search *${error.id}* in log file to find full exception.""".stripMargin,
           List(
             Attachment(
-              danger_color,
+              error_color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
@@ -201,7 +202,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
           notes.value,
           List(
             Attachment(
-              danger_color,
+              if (error.severity.value === Severity.Notice.value) warn_color else error_color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),

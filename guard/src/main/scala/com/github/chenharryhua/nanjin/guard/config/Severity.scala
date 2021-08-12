@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import enumeratum.EnumEntry.Lowercase
-import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
 // https://en.wikipedia.org/wiki/Syslog
-sealed abstract class Severity(val value: Int) extends IntEnumEntry with Lowercase
+sealed abstract class Severity(val value: Int) extends EnumEntry with Lowercase
 
-object Severity extends CatsOrderValueEnum[Int, Severity] with IntEnum[Severity] with IntCirceEnum[Severity] {
+object Severity extends CatsEnum[Severity] with Enum[Severity] with CirceEnum[Severity] {
   override def values: immutable.IndexedSeq[Severity] = findValues
 
   case object SystemEvent extends Severity(0)

@@ -42,7 +42,6 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withStartupDelay(0.second).withJitterBackoff(3.second))
       .addAlertService(log)
       .addAlertService(console)
-      .addAlertService(slack)
       .eventStream(gd => gd("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -58,7 +57,7 @@ class ServiceTest extends AnyFunSuite {
   test("escalate to up level if retry failed") {
     val Vector(a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
-      .addAlertService(slack)
+      .addAlertService(log)
       .eventStream { gd =>
         gd("escalate-after-3-time")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
@@ -79,6 +78,25 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetrying])
     assert(e.isInstanceOf[ActionFailed])
     assert(f.isInstanceOf[ServicePanic])
+  }
+
+  test("json codec") {
+    val vec = guard
+      .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
+      .addAlertService(console)
+      .eventStream { gd =>
+        gd("json-codec")
+          .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
+          .retry(IO.raiseError(new Exception("oops")))
+          .withFailNotes(_ => null)
+          .run
+      }
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
+      .interruptAfter(5.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
   }
 
   test("should receive 3 health check event") {
