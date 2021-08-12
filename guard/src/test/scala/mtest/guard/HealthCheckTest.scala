@@ -23,11 +23,7 @@ class HealthCheckTest extends AnyFunSuite {
     val a :: b :: c :: d :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withDailySummaryReset(1))
       .service("normal")
-      .updateConfig(
-        _.withHealthCheckInterval(1.second)
-          .withStartupDelay(1.second)
-          .withHealthCheckOpenTime(LocalTime.of(7, 0))
-          .withHealthCheckSpan(10.hour))
+      .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(1.second))
       .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))
       .interruptAfter(5.second)
       .compile

@@ -31,7 +31,7 @@ class ServiceTest extends AnyFunSuite {
   val slackNoUse1 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateConfig(_.withHostName(HostName.local_host).withDailySummaryResetDisabled.withDailySummaryReset(1))
+    .updateConfig(_.withHostName(HostName.local_host))
     .service("service")
     .addMetricReporter(NJConsoleReporter(1.second))
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withBrief("ok"))
