@@ -34,8 +34,7 @@ class ServiceTest extends AnyFunSuite {
     .updateConfig(_.withHostName(HostName.local_host).withDailySummaryResetDisabled.withDailySummaryReset(1))
     .service("service")
     .addMetricReporter(NJConsoleReporter(1.second))
-    .updateConfig(
-      _.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withSlackMaximumCauseSize(100).withBrief("ok"))
+    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withBrief("ok"))
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard

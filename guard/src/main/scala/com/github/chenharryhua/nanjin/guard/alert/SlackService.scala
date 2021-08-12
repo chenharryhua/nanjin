@@ -23,7 +23,8 @@ final private case class SlackNotification(username: String, text: String, attac
   alertSucc: Boolean,
   alertRetry: Boolean, // alert every retry
   alertFirstRetry: Boolean, // alert first time failure of the action
-  alertStart: Boolean) // alert action start
+  alertStart: Boolean,
+  maxCauseSize: Int) // alert action start
 
 final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: DurationFormatter, mask: SlackAlertMask)(
   implicit F: Sync[F])
@@ -32,10 +33,11 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
   def withFormatter(fmt: DurationFormatter): SlackService[F]    = new SlackService[F](service, fmt, mask)
   private def updateMask(mask: SlackAlertMask): SlackService[F] = new SlackService[F](service, fmt, mask)
 
-  def showSucc: SlackService[F]       = updateMask(SlackAlertMask.alertSucc.set(true)(mask))
-  def showRetry: SlackService[F]      = updateMask(SlackAlertMask.alertRetry.set(true)(mask))
-  def showFirstRetry: SlackService[F] = updateMask(SlackAlertMask.alertFirstRetry.set(true)(mask))
-  def showStart: SlackService[F]      = updateMask(SlackAlertMask.alertStart.set(true)(mask))
+  def showSucc: SlackService[F]                     = updateMask(SlackAlertMask.alertSucc.set(true)(mask))
+  def showRetry: SlackService[F]                    = updateMask(SlackAlertMask.alertRetry.set(true)(mask))
+  def showFirstRetry: SlackService[F]               = updateMask(SlackAlertMask.alertFirstRetry.set(true)(mask))
+  def showStart: SlackService[F]                    = updateMask(SlackAlertMask.alertStart.set(true)(mask))
+  def withMaxCauseSize(value: Int): SlackService[F] = updateMask(SlackAlertMask.maxCauseSize.set(value)(mask))
 
   private val good_color  = "good"
   private val warn_color  = "#ffd79a"
@@ -85,7 +87,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
                 SlackField("Restarted so far", details.retriesSoFar.show, short = true),
                 SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
                 SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                SlackField("Cause", StringUtils.abbreviate(error.message, params.maxCauseSize), short = false)
+                SlackField("Cause", StringUtils.abbreviate(error.message, mask.maxCauseSize), short = false)
               )
             ))
         ).asJson.noSpaces
@@ -114,7 +116,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
     case ServiceHealthCheck(at, si, params, dailySummaries) =>
       def msg: String = SlackNotification(
         params.taskParams.appName,
-        s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.value, params.maxCauseSize)}",
+        s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.value, mask.maxCauseSize)}",
         List(
           Attachment(
             info_color,
@@ -186,10 +188,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                 SlackField("Action ID", action.id.show, short = false),
-                SlackField(
-                  "Cause",
-                  StringUtils.abbreviate(error.message, params.serviceParams.maxCauseSize),
-                  short = false)
+                SlackField("Cause", StringUtils.abbreviate(error.message, mask.maxCauseSize), short = false)
               )
             ))
         ).asJson.noSpaces
@@ -213,10 +212,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
                 SlackField("Retried", numRetries.show, short = true),
                 SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                 SlackField("Action ID", action.id.show, short = false),
-                SlackField(
-                  "Cause",
-                  StringUtils.abbreviate(error.message, params.serviceParams.maxCauseSize),
-                  short = false)
+                SlackField("Cause", StringUtils.abbreviate(error.message, mask.maxCauseSize), short = false)
               )
             ))
         ).asJson.noSpaces
@@ -305,7 +301,12 @@ object SlackService {
     new SlackService[F](
       service,
       DurationFormatter.defaultFormatter,
-      SlackAlertMask(alertSucc = false, alertRetry = false, alertFirstRetry = false, alertStart = false))
+      SlackAlertMask(
+        alertSucc = false,
+        alertRetry = false,
+        alertFirstRetry = false,
+        alertStart = false,
+        maxCauseSize = 500))
 
   def apply[F[_]: Sync](service: Resource[F, SimpleNotificationService[F]]): Resource[F, SlackService[F]] =
     service.map(apply[F])
