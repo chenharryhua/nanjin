@@ -20,51 +20,52 @@ import scala.concurrent.duration.*
 class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
-    val a :: b :: c :: d :: rest = guard
+    val s :: a :: b :: c :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withDailySummaryReset(1))
       .service("normal")
-      .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(1.second))
+      .updateConfig(_.withHealthCheckInterval(1.second))
       .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))
+      .debug()
       .interruptAfter(5.second)
       .compile
       .toList
       .unsafeRunSync()
+
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ServiceStarted])
+    assert(b.isInstanceOf[ServiceHealthCheck])
     assert(c.isInstanceOf[ServiceHealthCheck])
-    assert(d.isInstanceOf[ServiceHealthCheck])
   }
 
   test("success") {
-    val a :: b :: c :: d :: e :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
+    val s :: a :: b :: c :: d :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
       .service("success-test")
-      .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(1.second))
+      .updateConfig(_.withHealthCheckInterval(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.run(IO.never))
       .interruptAfter(5.second)
       .compile
       .toList
       .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
     assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[ServiceStarted])
-    assert(e.isInstanceOf[ServiceHealthCheck])
+    assert(d.isInstanceOf[ServiceHealthCheck])
   }
 
   test("retry") {
-    val a :: b :: c :: d :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
+    val s :: a :: b :: c :: ServiceHealthCheck(_, _, _, ds) :: rest = guard
       .service("failure-test")
-      .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(1.second).withConstantDelay(1.hour))
+      .updateConfig(_.withHealthCheckInterval(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
       .debug()
       .interruptAfter(5.second)
       .compile
       .toList
       .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ServiceStarted])
-    assert(d.isInstanceOf[ServiceHealthCheck])
+    assert(c.isInstanceOf[ServiceHealthCheck])
   }
-
 }

@@ -13,7 +13,6 @@ import scala.concurrent.duration.*
   taskParams: TaskParams,
   healthCheckInterval: FiniteDuration,
   retry: NJRetryPolicy,
-  startUpEventDelay: FiniteDuration, // delay to sent out ServiceStarted event
   brief: String,
   threshold: Severity // filter out events whose severity bigger than this one.
 )
@@ -26,7 +25,6 @@ object ServiceParams {
       taskParams = taskParams,
       healthCheckInterval = 6.hours,
       retry = ConstantDelay(30.seconds),
-      startUpEventDelay = 15.seconds,
       brief = "The developer is too lazy to provide a brief",
       threshold = Severity.Error
     )
@@ -42,8 +40,6 @@ private object ServiceConfigF {
 
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
-  final case class WithStartUpDelay[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
-
   final case class WithServiceBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   final case class WithSeverityThreshold[K](value: Severity, cont: K) extends ServiceConfigF[K]
@@ -53,7 +49,6 @@ private object ServiceConfigF {
       case InitParams(s, t)              => ServiceParams(s, t)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retry.set(v)(c)
-      case WithStartUpDelay(v, c)        => ServiceParams.startUpEventDelay.set(v)(c)
       case WithServiceBrief(v, c)        => ServiceParams.brief.set(v)(c)
       case WithSeverityThreshold(v, c)   => ServiceParams.threshold.set(v)(c)
     }
@@ -65,8 +60,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
 
-  def withStartupDelay(delay: FiniteDuration): ServiceConfig = ServiceConfig(Fix(WithStartUpDelay(delay, value)))
-  def withBrief(notes: String): ServiceConfig                = ServiceConfig(Fix(WithServiceBrief(notes, value)))
+  def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))

@@ -68,37 +68,21 @@ final class ServiceGuard[F[_]] private[guard] (
           .retryingOnAllErrors(
             params.retry.policy[F],
             (ex: Throwable, rd) =>
-              for {
-                ts <- realZonedDateTime(params)
-                _ <- channel.send(
-                  ServicePanic(
-                    timestamp = ts,
-                    serviceInfo = si,
-                    serviceParams = params,
-                    retryDetails = rd,
-                    error = NJError(ex, Severity.Critical)))
-              } yield ()
+              realZonedDateTime(params).flatMap(ts =>
+                channel
+                  .send(
+                    ServicePanic(
+                      timestamp = ts,
+                      serviceInfo = si,
+                      serviceParams = params,
+                      retryDetails = rd,
+                      error = NJError(ex, Severity.Critical)))
+                  .void)
           ) {
-            val healthReport: F[Unit] = for {
-              ts <- realZonedDateTime(params)
-              _ <- channel.send(
-                ServiceHealthCheck(
-                  timestamp = ts,
-                  serviceInfo = si,
-                  serviceParams = params,
-                  dailySummaries = DailySummaries(metricRegistry)
-                ))
-            } yield ()
+            val startUp = realZonedDateTime(params).flatMap(ts =>
+              channel.send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params)))
 
-            val start_health: F[Unit] = for { // fire service startup event and then health-check events
-              ts <- realZonedDateTime(params)
-              _ <- channel
-                .send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params))
-                .delayBy(params.startUpEventDelay)
-              _ <- healthReport.delayBy(params.healthCheckInterval).foreverM[Unit]
-            } yield ()
-
-            (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
+            startUp *> Dispatcher[F].use(dispatcher =>
               actionGuard(
                 new ActionGuard[F](
                   severity = Severity.Error,
@@ -107,12 +91,30 @@ final class ServiceGuard[F[_]] private[guard] (
                   dispatcher = dispatcher,
                   channel = channel,
                   actionName = "anonymous",
-                  actionConfig = ActionConfig(params)))
-            }
+                  actionConfig = ActionConfig(params))))
           }
           .guarantee(realZonedDateTime(params).flatMap(ts =>
             channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> // stop event
             channel.close.void) // close channel and the stream as well
+
+        /** concurrent streams
+          */
+
+        // fix-rate health check
+        val healthChecking: Stream[F, Unit] =
+          Stream
+            .fixedRate[F](params.healthCheckInterval)
+            .evalMap(_ =>
+              realZonedDateTime(params)
+                .flatMap(ts =>
+                  channel.send(
+                    ServiceHealthCheck(
+                      timestamp = ts,
+                      serviceInfo = si,
+                      serviceParams = params,
+                      dailySummaries = DailySummaries(metricRegistry)
+                    )))
+                .void)
 
         // notify metrics and alert services
         val notifying: Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
@@ -124,12 +126,14 @@ final class ServiceGuard[F[_]] private[guard] (
             .drain
         }
 
+        // metrics reporting
         @SuppressWarnings(Array("ListSize"))
         val reporting: Stream[F, List[Nothing]] =
           Stream.eval(
             F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
               _.start[F](metricRegistry)))
 
+        // reset metrics
         val dailyReset: Stream[F, Unit] =
           scheduler
             .awakeEvery(cron)
@@ -145,11 +149,13 @@ final class ServiceGuard[F[_]] private[guard] (
                   ))
               } yield ())
 
+        // put together
         channel.stream
           .observe(notifying)
+          .concurrently(healthChecking)
           .concurrently(reporting)
-          .concurrently(Stream.eval(runningService))
           .concurrently(dailyReset)
+          .concurrently(Stream.eval(runningService))
       }
     } yield event
   }
