@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.alert.{
   ActionStart,
   ActionSucced,
   ServicePanic,
+  ServiceStarted,
   ServiceStopped
 }
 import org.scalatest.funsuite.AnyFunSuite
@@ -23,7 +24,7 @@ class CancellationTest extends AnyFunSuite {
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   test("cancellation - canceled actions are failed actions") {
-    val Vector(a, b, c, d, e, f) = serviceGuard
+    val Vector(s, a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(action =>
         action("canceled").updateConfig(_.withConstantDelay(1.second).withMaxRetries(3)).run(IO(1) >> IO.canceled))
@@ -31,7 +32,7 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
@@ -41,8 +42,8 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("cancellation - can be canceled externally") {
-    val Vector(a, b, c) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour).withStartupDelay(1.hour))
+    val Vector(s, a, b, c) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
         val a1 = action("never").run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
@@ -50,15 +51,15 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled externally")
     assert(c.isInstanceOf[ServiceStopped])
   }
 
   test("compare to exception") {
-    val Vector(a, b, c) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour).withStartupDelay(1.hour))
+    val Vector(s, a, b, c) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
         val a1 = action("never").run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
@@ -67,14 +68,15 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled externally")
     assert(c.isInstanceOf[ServicePanic])
   }
 
   test("cancellation - can be protected from external cancel") {
-    val Vector(a, b, c, d, e, f, g, h) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour).withStartupDelay(1.hour))
+    val Vector(s, a, b, c, d, e, f, g, h) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
         val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
         val a1     = action("never").run(IO.never[Int])
@@ -85,7 +87,7 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionStart])
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
@@ -100,8 +102,8 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("cancellation - sequentially - cancel after two succ") {
-    val Vector(a, b, c, d, e) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour).withStartupDelay(1.hour))
+    val Vector(s, a, b, c, d, e) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
         action("a1").run(IO(1)) >>
           action("a2").run(IO(1)) >>
@@ -111,6 +113,7 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionSucced].actionInfo.actionName == "a1")
     assert(c.isInstanceOf[ActionStart])
@@ -119,8 +122,8 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("cancellation - sequentially - no chance to cancel") {
-    val Vector(a, b, c, d, e, f) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour).withStartupDelay(1.hour))
+    val Vector(s, a, b, c, d, e, f) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
         action("a1").run(IO(1)) >>
           action("a2")
@@ -134,6 +137,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionSucced].actionInfo.actionName == "a1")
     assert(c.isInstanceOf[ActionStart])
@@ -157,40 +161,43 @@ class CancellationTest extends AnyFunSuite {
             .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
             .run(IO.parSequenceN(5)(List(a1, a2, a3)))
         }
+        .debug()
         .interruptAfter(10.second)
         .compile
         .toVector
         .unsafeRunSync()
-    assert(v(0).isInstanceOf[ActionStart])
+
+    assert(v(0).isInstanceOf[ServiceStarted])
     assert(v(1).isInstanceOf[ActionStart])
     assert(v(2).isInstanceOf[ActionStart])
     assert(v(3).isInstanceOf[ActionStart])
+    assert(v(4).isInstanceOf[ActionStart])
 
-    assert(v(4).isInstanceOf[ActionRetrying]) // a2
-    assert(v(5).isInstanceOf[ActionSucced] || v(5).isInstanceOf[ActionRetrying]) // a1
-    assert(v(6).isInstanceOf[ActionRetrying] || v(6).isInstanceOf[ActionSucced]) // a2
-    assert(v(7).isInstanceOf[ActionRetrying]) // a2
-    assert(v(8).isInstanceOf[ActionFailed]) // a2 failed
-    assert(v(9).isInstanceOf[ActionFailed]) // a3 cancelled
+    assert(v(5).isInstanceOf[ActionRetrying]) // a2
+    assert(v(6).isInstanceOf[ActionSucced] || v(6).isInstanceOf[ActionRetrying]) // a1
+    assert(v(7).isInstanceOf[ActionRetrying] || v(7).isInstanceOf[ActionSucced]) // a2
+    assert(v(8).isInstanceOf[ActionRetrying]) // a2
+    assert(v(9).isInstanceOf[ActionFailed]) // a2 failed
+    assert(v(10).isInstanceOf[ActionFailed]) // a3 cancelled
 
-    assert(v(10).isInstanceOf[ActionRetrying]) // supervisor
-    assert(v(11).isInstanceOf[ActionStart])
+    assert(v(11).isInstanceOf[ActionRetrying]) // supervisor
     assert(v(12).isInstanceOf[ActionStart])
     assert(v(13).isInstanceOf[ActionStart])
+    assert(v(14).isInstanceOf[ActionStart])
 
-    assert(v(14).isInstanceOf[ActionRetrying] || v(14).isInstanceOf[ActionSucced]) // a1 or a2
-    assert(v(15).isInstanceOf[ActionSucced] || v(15).isInstanceOf[ActionRetrying]) // a1 or a2
-    assert(v(16).isInstanceOf[ActionRetrying] || v(16).isInstanceOf[ActionSucced]) // a1 or a2
-    assert(v(17).isInstanceOf[ActionRetrying]) // a2
-    assert(v(18).isInstanceOf[ActionFailed]) // a2 failed
-    assert(v(19).isInstanceOf[ActionFailed]) // a3 cancelled
-    assert(v(20).isInstanceOf[ActionFailed]) // supervisor
-    assert(v(21).isInstanceOf[ServicePanic])
+    assert(v(15).isInstanceOf[ActionRetrying] || v(15).isInstanceOf[ActionSucced]) // a1 or a2
+    assert(v(16).isInstanceOf[ActionSucced] || v(16).isInstanceOf[ActionRetrying]) // a1 or a2
+    assert(v(17).isInstanceOf[ActionRetrying] || v(17).isInstanceOf[ActionSucced]) // a1 or a2
+    assert(v(18).isInstanceOf[ActionRetrying]) // a2
+    assert(v(19).isInstanceOf[ActionFailed]) // a2 failed
+    assert(v(20).isInstanceOf[ActionFailed]) // a3 cancelled
+    assert(v(21).isInstanceOf[ActionFailed]) // supervisor
+    assert(v(22).isInstanceOf[ServicePanic])
   }
 
   test("cancellation - cancel in middle of retrying") {
-    val Vector(a, b, c, d, e) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour).withStartupDelay(1.hour))
+    val Vector(s, a, b, c, d, e) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
         val a1 = action("exception")
           .updateConfig(_.withConstantDelay(2.second).withMaxRetries(100))
@@ -200,6 +207,7 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
@@ -208,8 +216,8 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("cancellation - wrapped within uncancelable") {
-    val Vector(a, b, c, d, e, f) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour).withStartupDelay(1.hour))
+    val Vector(s, a, b, c, d, e, f) = serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
         val a1 = action("exception")
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
@@ -220,6 +228,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])

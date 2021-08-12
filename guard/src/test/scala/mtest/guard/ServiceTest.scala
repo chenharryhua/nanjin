@@ -38,7 +38,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
-      .updateConfig(_.withStartupDelay(0.second).withJitterBackoff(3.second))
+      .updateConfig(_.withJitterBackoff(3.second))
       .addAlertService(log)
       .addAlertService(console)
       .eventStream(gd => gd("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
@@ -54,7 +54,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("escalate to up level if retry failed") {
-    val Vector(a, b, c, d, e, f) = guard
+    val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .addAlertService(log)
       .eventStream { gd =>
@@ -71,6 +71,7 @@ class ServiceTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
@@ -99,28 +100,29 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("should receive 3 health check event") {
-    val a :: b :: c :: d :: e :: rest = guard
-      .updateConfig(_.withHealthCheckInterval(1.second).withStartupDelay(0.1.second))
+    val s :: a :: b :: c :: d :: rest = guard
+      .updateConfig(_.withHealthCheckInterval(1.second))
       .eventStream(_.run(IO.never))
       .interruptAfter(5.second)
       .compile
       .toList
       .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ServiceStarted])
+    assert(b.isInstanceOf[ServiceHealthCheck])
     assert(c.isInstanceOf[ServiceHealthCheck])
     assert(d.isInstanceOf[ServiceHealthCheck])
-    assert(e.isInstanceOf[ServiceHealthCheck])
   }
 
   test("normal service stop after two operations") {
-    val Vector(a, b, c, d, e) = guard
+    val Vector(s, a, b, c, d, e) = guard
       .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
       .toVector
       .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
     assert(c.isInstanceOf[ActionStart])
