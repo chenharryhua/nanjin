@@ -82,12 +82,13 @@ final case class ActionStart(
 
 final case class ActionRetrying(
   timestamp: ZonedDateTime,
-  severity: Severity,
   actionInfo: ActionInfo,
   actionParams: ActionParams,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError
-) extends ActionEvent
+) extends ActionEvent {
+  override val severity: Severity = error.severity
+}
 
 final case class ActionFailed(
   timestamp: ZonedDateTime,

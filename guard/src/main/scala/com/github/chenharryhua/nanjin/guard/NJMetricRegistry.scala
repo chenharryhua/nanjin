@@ -43,7 +43,7 @@ final private class NJMetricRegistry[F[_]](registry: MetricRegistry)(implicit F:
           .timer(s"1${err.severity.value}.`${err.severity.entryName}`.${name(info)}")
           .update(Duration.between(info.launchTime, at)))
 
-    case ActionRetrying(at, _, info, _, _, _) =>
+    case ActionRetrying(at, info, _, _, _) =>
       F.delay(registry.timer(s"20.retry.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     case ActionQuasiSucced(at, _, info, _, _, _, _, _, _) =>

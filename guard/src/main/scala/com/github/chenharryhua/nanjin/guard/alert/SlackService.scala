@@ -170,7 +170,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
         ).asJson.noSpaces
       service.publish(msg).whenA(mask.alertStart)
 
-    case ActionRetrying(at, severity, action, params, wdr, error) =>
+    case ActionRetrying(at, action, params, wdr, error) =>
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
@@ -184,7 +184,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
                 SlackField("Service", params.serviceParams.serviceName, short = true),
                 SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                 SlackField("Action", action.actionName, short = true),
-                SlackField("Severity", severity.entryName, short = true),
+                SlackField("Severity", error.severity.entryName, short = true),
                 SlackField("Took", fmt.format(action.launchTime, at), short = true),
                 SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                 SlackField("Action ID", action.id.show, short = false),
