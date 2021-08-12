@@ -29,7 +29,7 @@ sealed trait ServiceEvent extends NJEvent {
 
 final case class ServiceStarted(timestamp: ZonedDateTime, serviceInfo: ServiceInfo, serviceParams: ServiceParams)
     extends ServiceEvent {
-  override val severity: Severity = Severity.SystemEvent
+  override val severity: Severity = Severity.Essential
 }
 
 final case class ServicePanic(
@@ -39,7 +39,7 @@ final case class ServicePanic(
   retryDetails: RetryDetails,
   error: NJError
 ) extends ServiceEvent {
-  override val severity: Severity = Severity.SystemEvent
+  override val severity: Severity = Severity.Essential
 }
 
 final case class ServiceStopped(
@@ -47,7 +47,7 @@ final case class ServiceStopped(
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams
 ) extends ServiceEvent {
-  override val severity: Severity = Severity.SystemEvent
+  override val severity: Severity = Severity.Essential
 }
 
 final case class ServiceHealthCheck(
@@ -56,7 +56,7 @@ final case class ServiceHealthCheck(
   serviceParams: ServiceParams,
   dailySummaries: DailySummaries
 ) extends ServiceEvent {
-  override val severity: Severity = Severity.SystemEvent
+  override val severity: Severity = Severity.Essential
 }
 
 final case class ServiceDailySummariesReset(
@@ -65,7 +65,7 @@ final case class ServiceDailySummariesReset(
   serviceParams: ServiceParams,
   dailySummaries: DailySummaries)
     extends ServiceEvent {
-  override val severity: Severity = Severity.SystemEvent
+  override val severity: Severity = Severity.Essential
 }
 
 sealed trait ActionEvent extends NJEvent {
@@ -82,12 +82,13 @@ final case class ActionStart(
 
 final case class ActionRetrying(
   timestamp: ZonedDateTime,
-  severity: Severity,
   actionInfo: ActionInfo,
   actionParams: ActionParams,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError
-) extends ActionEvent
+) extends ActionEvent {
+  override val severity: Severity = error.severity
+}
 
 final case class ActionFailed(
   timestamp: ZonedDateTime,

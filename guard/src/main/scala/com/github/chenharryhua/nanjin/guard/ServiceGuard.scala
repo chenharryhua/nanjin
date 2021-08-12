@@ -59,7 +59,7 @@ final class ServiceGuard[F[_]] private[guard] (
       uuid <- UUIDGen.randomUUID
     } yield ServiceInfo(id = uuid, launchTime = ts)
 
-    val mrSevice: NJMetricRegistry[F] = new NJMetricRegistry[F](metricRegistry)
+    val mrService: NJMetricRegistry[F] = new NJMetricRegistry[F](metricRegistry)
 
     for {
       si <- Stream.eval(serviceInfo)
@@ -120,34 +120,36 @@ final class ServiceGuard[F[_]] private[guard] (
             .resource(alertServices)
             .flatMap(as => // send to metric anyway, but conditionally send to alert services
               events.evalMap(evt =>
-                mrSevice.alert(evt) *> as.alert(evt).whenA(evt.severity.value <= params.threshold.value)))
+                mrService.alert(evt) *> as.alert(evt).whenA(evt.severity.value <= params.threshold.value)))
             .drain
         }
 
         @SuppressWarnings(Array("ListSize"))
-        val reporting: Stream[F, List[Nothing]] = Stream.eval(
-          F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
-            _.start[F](metricRegistry)))
+        val reporting: Stream[F, List[Nothing]] =
+          Stream.eval(
+            F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
+              _.start[F](metricRegistry)))
 
-        val dailyRest: Stream[F, Unit] = scheduler
-          .awakeEvery(cron)
-          .evalMap(_ =>
-            for {
-              ts <- realZonedDateTime(params)
-              _ <- channel.send(
-                ServiceDailySummariesReset(
-                  timestamp = ts,
-                  serviceInfo = si,
-                  serviceParams = params,
-                  dailySummaries = DailySummaries(metricRegistry)
-                ))
-            } yield ())
+        val dailyReset: Stream[F, Unit] =
+          scheduler
+            .awakeEvery(cron)
+            .evalMap(_ =>
+              for {
+                ts <- realZonedDateTime(params)
+                _ <- channel.send(
+                  ServiceDailySummariesReset(
+                    timestamp = ts,
+                    serviceInfo = si,
+                    serviceParams = params,
+                    dailySummaries = DailySummaries(metricRegistry)
+                  ))
+              } yield ())
 
         channel.stream
           .observe(notifying)
           .concurrently(reporting)
           .concurrently(Stream.eval(runningService))
-          .concurrently(dailyRest)
+          .concurrently(dailyReset)
       }
     } yield event
   }

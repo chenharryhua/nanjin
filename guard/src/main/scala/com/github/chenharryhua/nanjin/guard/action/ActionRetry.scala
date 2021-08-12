@@ -117,7 +117,6 @@ final class ActionRetry[F[_], A, B](
           _ <- channel.send(
             ActionRetrying(
               timestamp = now,
-              severity = severity,
               actionInfo = actionInfo,
               actionParams = params,
               willDelayAndRetry = wdr,
