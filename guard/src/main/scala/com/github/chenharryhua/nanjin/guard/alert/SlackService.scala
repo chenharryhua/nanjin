@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.config.Severity
+import com.github.chenharryhua.nanjin.guard.event.*
 import io.chrisdavenport.cats.time.instances.zoneid
 import io.circe.generic.auto.*
 import io.circe.syntax.*
@@ -30,6 +30,17 @@ final private case class SlackNotification(username: String, text: String, attac
 final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: DurationFormatter, mask: SlackAlertMask)(
   implicit F: Sync[F])
     extends AlertService[F] with zoneid {
+
+  private def toOrdinalWords(n: Int): String = n + {
+    if (n % 100 / 10 == 1) "th"
+    else
+      n % 10 match {
+        case 1 => "st"
+        case 2 => "nd"
+        case 3 => "rd"
+        case _ => "th"
+      }
+  }
 
   def withFormatter(fmt: DurationFormatter): SlackService[F]    = new SlackService[F](service, fmt, mask)
   private def updateMask(mask: SlackAlertMask): SlackService[F] = new SlackService[F](service, fmt, mask)
@@ -204,7 +215,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
           notes.value,
           List(
             Attachment(
-              if (error.severity.value === Severity.Notice.value) warn_color else error_color,
+              if (error.severity.value === Importance.Low.value) warn_color else error_color,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -219,7 +230,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(mask.showNotice || error.severity.value > Severity.Notice.value)
+      service.publish(msg).whenA(mask.showNotice || error.severity.value > Importance.Low.value)
 
     case ActionSucced(at, _, action, params, numRetries, notes) =>
       def msg: String =

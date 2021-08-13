@@ -1,9 +1,9 @@
-package com.github.chenharryhua.nanjin.guard.alert
+package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import cats.implicits.toShow
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.Severity
+import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -27,7 +27,7 @@ object Notes {
 
 final case class NJError private (
   id: UUID,
-  severity: Severity,
+  severity: Importance,
   message: String,
   stackTrace: String,
   throwable: Throwable
@@ -48,12 +48,12 @@ object NJError {
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
     for {
       id <- c.downField("id").as[UUID]
-      sv <- c.downField("severity").as[Severity]
+      sv <- c.downField("severity").as[Importance]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
     } yield NJError(id, sv, msg, st, new Throwable("fake Throwable")) // can not recover throwables.
 
-  def apply(ex: Throwable, severity: Severity): NJError =
+  def apply(ex: Throwable, severity: Importance): NJError =
     NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
@@ -73,4 +73,15 @@ object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMo
   override val values: immutable.IndexedSeq[RunMode] = findValues
   case object Parallel extends RunMode
   case object Sequential extends RunMode
+}
+
+sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercase
+
+object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
+  override def values: immutable.IndexedSeq[Importance] = findValues
+
+  case object SystemEvent extends Importance(0)
+  case object High extends Importance(1)
+  case object Medium extends Importance(2)
+  case object Low extends Importance(3)
 }

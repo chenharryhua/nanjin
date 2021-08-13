@@ -6,26 +6,16 @@ import cats.effect.kernel.{Async, Outcome, Ref}
 import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.alert.{
-  ActionFailed,
-  ActionInfo,
-  ActionRetrying,
-  ActionStart,
-  ActionSucced,
-  NJError,
-  NJEvent,
-  Notes,
-  ServiceInfo
-}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Severity}
-import com.github.chenharryhua.nanjin.guard.realZonedDateTime
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.{event, realZonedDateTime}
 import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
-  severity: Severity,
+  importance: Importance,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -39,7 +29,7 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -56,7 +46,7 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotesM(fail: (A, Throwable) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -73,7 +63,7 @@ final class ActionRetry[F[_], A, B](
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -87,7 +77,7 @@ final class ActionRetry[F[_], A, B](
 
   def withPostCondition(postCondition: B => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -120,7 +110,7 @@ final class ActionRetry[F[_], A, B](
               actionInfo = actionInfo,
               actionParams = params,
               willDelayAndRetry = wdr,
-              error = NJError(error, severity)))
+              error = NJError(error, importance)))
           _ <- retryCount.update(_ + 1)
         } yield ()
       case _: GivingUp => F.unit
@@ -141,7 +131,7 @@ final class ActionRetry[F[_], A, B](
               actionParams = params,
               numRetries = count,
               notes = fn,
-              error = NJError(ActionException.ActionCanceledExternally, severity)
+              error = NJError(ActionException.ActionCanceledExternally, importance)
             ))
         } yield ()
       case Outcome.Errored(error) =>
@@ -150,13 +140,13 @@ final class ActionRetry[F[_], A, B](
           now <- realZonedDateTime(params.serviceParams)
           fn <- failNotes(error)
           _ <- channel.send(
-            ActionFailed(
+            event.ActionFailed(
               timestamp = now,
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
               notes = fn,
-              error = NJError(error, severity)
+              error = NJError(error, importance)
             ))
         } yield ()
       case Outcome.Succeeded(fb) =>
@@ -168,7 +158,7 @@ final class ActionRetry[F[_], A, B](
           _ <- channel.send(
             ActionSucced(
               timestamp = now,
-              severity = severity,
+              importance = importance,
               actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
@@ -181,7 +171,7 @@ final class ActionRetry[F[_], A, B](
       retryCount <- F.ref(0) // hold number of retries
       ai <- actionInfo
       _ <- channel.send(
-        ActionStart(timestamp = ai.launchTime, severity = severity, actionInfo = ai, actionParams = params))
+        ActionStart(timestamp = ai.launchTime, importance = importance, actionInfo = ai, actionParams = params))
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](
@@ -204,7 +194,7 @@ final class ActionRetry[F[_], A, B](
 }
 
 final class ActionRetryUnit[F[_], B](
-  severity: Severity,
+  importance: Importance,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -217,7 +207,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -233,7 +223,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -249,7 +239,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -262,7 +252,7 @@ final class ActionRetryUnit[F[_], B](
 
   def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -275,7 +265,7 @@ final class ActionRetryUnit[F[_], B](
 
   def run: F[B] =
     new ActionRetry[F, Unit, B](
-      severity,
+      importance,
       serviceInfo,
       channel,
       actionName,

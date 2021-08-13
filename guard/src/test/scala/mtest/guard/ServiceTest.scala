@@ -2,26 +2,12 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.amazonaws.regions.Regions
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.alert.{
-  toOrdinalWords,
-  ActionFailed,
-  ActionRetrying,
-  ActionStart,
-  ActionSucced,
-  NJEvent,
-  ServiceHealthCheck,
-  ServicePanic,
-  ServiceStarted,
-  ServiceStopped,
-  SlackService
-}
-import com.github.chenharryhua.nanjin.guard.config.{ConstantDelay, FibonacciBackoff}
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.guard.alert.SlackService
+import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -39,8 +25,6 @@ class ServiceTest extends AnyFunSuite {
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
       .updateConfig(_.withJitterBackoff(3.second))
-      .addAlertService(log)
-      .addAlertService(console)
       .eventStream(gd => gd("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -56,7 +40,6 @@ class ServiceTest extends AnyFunSuite {
   test("escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
-      .addAlertService(log)
       .eventStream { gd =>
         gd("escalate-after-3-time")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
@@ -83,7 +66,6 @@ class ServiceTest extends AnyFunSuite {
   test("json codec") {
     val vec = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
-      .addAlertService(console)
       .eventStream { gd =>
         gd("json-codec")
           .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
@@ -107,6 +89,7 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
+
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ServiceHealthCheck])
@@ -122,6 +105,7 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
+
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
@@ -141,24 +125,6 @@ class ServiceTest extends AnyFunSuite {
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
-  }
-
-  test("toWords") {
-    assert(toOrdinalWords(1) == "1st")
-    assert(toOrdinalWords(2) == "2nd")
-    assert(toOrdinalWords(3) == "3rd")
-    assert(toOrdinalWords(10) == "10th")
-    assert(toOrdinalWords(100) == "100th")
-    assert(toOrdinalWords(101) == "101st")
-    assert(toOrdinalWords(102) == "102nd")
-    assert(toOrdinalWords(103) == "103rd")
-    assert(toOrdinalWords(104) == "104th")
-    assert(toOrdinalWords(105) == "105th")
-    assert(toOrdinalWords(106) == "106th")
-    assert(toOrdinalWords(107) == "107th")
-    assert(toOrdinalWords(108) == "108th")
-    assert(toOrdinalWords(109) == "109th")
-    assert(toOrdinalWords(110) == "110th")
   }
 
   test("zoneId ") {

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.alert
 
 import cats.effect.std.Console
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import io.circe.syntax.*
 
 final private class ConsoleService[F[_]](implicit C: Console[F]) extends AlertService[F] {
