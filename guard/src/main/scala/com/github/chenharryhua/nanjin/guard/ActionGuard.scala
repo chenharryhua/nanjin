@@ -49,7 +49,7 @@ final class ActionGuard[F[_]] private[guard] (
       actionName = actionName,
       actionConfig = f(actionConfig))
 
-  private def updateSeverity(importance: Importance): ActionGuard[F] =
+  private def updateImportance(importance: Importance): ActionGuard[F] =
     new ActionGuard[F](
       importance = importance,
       metricRegistry = metricRegistry,
@@ -59,9 +59,9 @@ final class ActionGuard[F[_]] private[guard] (
       actionName = actionName,
       actionConfig = actionConfig)
 
-  // error is the default.
-  def critical: ActionGuard[F] = updateSeverity(Importance.High)
-  def notice: ActionGuard[F]   = updateSeverity(Importance.Low)
+  // medium is the default.
+  def critical: ActionGuard[F] = updateImportance(Importance.High)
+  def notice: ActionGuard[F]   = updateImportance(Importance.Low)
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](

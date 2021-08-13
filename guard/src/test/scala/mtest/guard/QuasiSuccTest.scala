@@ -4,8 +4,9 @@ import cats.data.Chain
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.sinks.{jsonConsole, showLog}
+import com.github.chenharryhua.nanjin.guard.sinks.{jsonConsole, showLog, slack}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Chunk
 import io.circe.parser.decode
@@ -46,6 +47,7 @@ class QuasiSuccTest extends AnyFunSuite {
   }
 
   test("quasi partial succ - chain") {
+    val sns = SimpleNotificationService.fake[IO]
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
@@ -56,8 +58,9 @@ class QuasiSuccTest extends AnyFunSuite {
             .seqRun)
         .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
         .unNone
-        .observe(showLog.sink)
-        .observe(jsonConsole.sink)
+        .observe(showLog)
+        .observe(jsonConsole)
+        .observe(slack(sns))
         .compile
         .toVector
         .unsafeRunSync()
