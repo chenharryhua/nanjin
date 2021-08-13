@@ -13,7 +13,7 @@ import com.sksamuel.avro4s.*
 import frameless.TypedEncoder
 import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
 import io.circe.generic.auto.*
-import io.circe.{Json, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import monocle.Optional
 import monocle.macros.Lenses
 import monocle.std.option.some

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
 import cats.syntax.all.*
-import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
+import com.sksamuel.avro4s.{Decoder as AvroDecoder, DecoderHelpers, Encoder as AvroEncoder, EncoderHelpers, SchemaFor}
 import eu.timepit.refined.string.MatchesRegex
 import eu.timepit.refined.{refineV, W}
 import io.circe.optics.JsonPath

@@ -21,7 +21,7 @@ import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamingProduced
 @DoNotDiscover
 class ExampleKafkaKStream extends AnyFunSuite {
   test("kafka streaming") {
-    implicit val bar: KafkaStreamingProduced[IO,Int,Bar] = barTopic.asProducer
+    implicit val bar: KafkaStreamingProduced[IO, Int, Bar] = barTopic.asProducer
     val top: Kleisli[Id, StreamsBuilder, Unit] =
       fooTopic.asConsumer.kstream.map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(bar))
 

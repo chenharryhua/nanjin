@@ -6,7 +6,7 @@ import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.Decoder.Result
 import io.circe.parser.{decode, parse}
 import io.circe.syntax._
-import io.circe.{Codec, HCursor, Json, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Codec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
 
