@@ -20,10 +20,11 @@ final private case class Attachment(color: String, ts: Long, fields: List[SlackF
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
 @Lenses final case class SlackAlertMask private (
-  alertSucc: Boolean,
-  alertRetry: Boolean, // alert every retry
-  alertFirstRetry: Boolean, // alert first time failure of the action
-  alertStart: Boolean,
+  showSucc: Boolean,
+  showRetry: Boolean, // alert every retry
+  showFirstRetry: Boolean, // alert first time failure of the action
+  showStartEvent: Boolean,
+  showNotice: Boolean,
   maxCauseSize: Int) // alert action start
 
 final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: DurationFormatter, mask: SlackAlertMask)(
@@ -33,10 +34,11 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
   def withFormatter(fmt: DurationFormatter): SlackService[F]    = new SlackService[F](service, fmt, mask)
   private def updateMask(mask: SlackAlertMask): SlackService[F] = new SlackService[F](service, fmt, mask)
 
-  def showSucc: SlackService[F]                     = updateMask(SlackAlertMask.alertSucc.set(true)(mask))
-  def showRetry: SlackService[F]                    = updateMask(SlackAlertMask.alertRetry.set(true)(mask))
-  def showFirstRetry: SlackService[F]               = updateMask(SlackAlertMask.alertFirstRetry.set(true)(mask))
-  def showStart: SlackService[F]                    = updateMask(SlackAlertMask.alertStart.set(true)(mask))
+  def showSucc: SlackService[F]                     = updateMask(SlackAlertMask.showSucc.set(true)(mask))
+  def showRetry: SlackService[F]                    = updateMask(SlackAlertMask.showRetry.set(true)(mask))
+  def showFirstRetry: SlackService[F]               = updateMask(SlackAlertMask.showFirstRetry.set(true)(mask))
+  def showStart: SlackService[F]                    = updateMask(SlackAlertMask.showStartEvent.set(true)(mask))
+  def showNotice: SlackService[F]                   = updateMask(SlackAlertMask.showNotice.set(true)(mask))
   def withMaxCauseSize(value: Int): SlackService[F] = updateMask(SlackAlertMask.maxCauseSize.set(value)(mask))
 
   private val good_color  = "good"
@@ -169,7 +171,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(mask.alertStart)
+      service.publish(msg).whenA(mask.showStartEvent)
 
     case ActionRetrying(at, action, params, wdr, error) =>
       def msg: String =
@@ -193,7 +195,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(mask.alertRetry || (mask.alertFirstRetry && wdr.retriesSoFar == 0))
+      service.publish(msg).whenA(mask.showRetry || (mask.showFirstRetry && wdr.retriesSoFar == 0))
 
     case ActionFailed(at, action, params, numRetries, notes, error) =>
       def msg: String =
@@ -217,7 +219,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).void
+      service.publish(msg).whenA(mask.showNotice || error.severity.value > Severity.Notice.value)
 
     case ActionSucced(at, _, action, params, numRetries, notes) =>
       def msg: String =
@@ -239,7 +241,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               )
             ))
         ).asJson.noSpaces
-      service.publish(msg).whenA(mask.alertSucc)
+      service.publish(msg).whenA(mask.showSucc)
 
     case ActionQuasiSucced(at, _, action, params, runMode, numSucc, succNotes, failNotes, errors) =>
       def msg: SlackNotification =
@@ -286,7 +288,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
               ))
           )
 
-      service.publish(msg.asJson.noSpaces).whenA(mask.alertSucc)
+      service.publish(msg.asJson.noSpaces).whenA(mask.showSucc)
 
     case ForYourInformation(_, message) => service.publish(message).void
 
@@ -303,10 +305,11 @@ object SlackService {
       service,
       DurationFormatter.defaultFormatter,
       SlackAlertMask(
-        alertSucc = false,
-        alertRetry = false,
-        alertFirstRetry = false,
-        alertStart = false,
+        showSucc = false,
+        showRetry = false,
+        showFirstRetry = false,
+        showStartEvent = false,
+        showNotice = false,
         maxCauseSize = 500))
 
   def apply[F[_]: Sync](service: Resource[F, SimpleNotificationService[F]]): Resource[F, SlackService[F]] =
