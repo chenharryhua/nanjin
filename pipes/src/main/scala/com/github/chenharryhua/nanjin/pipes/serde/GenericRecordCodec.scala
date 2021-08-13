@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes.serde
 
-import com.sksamuel.avro4s.{ToRecord, Decoder as AvroDecoder, Encoder as AvroEncoder}
+import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, ToRecord}
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 

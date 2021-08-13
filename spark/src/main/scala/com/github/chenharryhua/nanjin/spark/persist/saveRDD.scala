@@ -4,7 +4,7 @@ import cats.Show
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder}
-import io.circe.{Json, Encoder as JsonEncoder}
+import io.circe.{Encoder as JsonEncoder, Json}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.AvroJob
