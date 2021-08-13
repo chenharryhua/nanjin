@@ -3,10 +3,9 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.alert.SlackService
+import com.github.chenharryhua.nanjin.guard.alert.jsonConsole
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -14,12 +13,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 class ServiceTest extends AnyFunSuite {
-  val slackNoUse1 = SlackService[IO](SnsArn("arn:aws:sns:ap-southeast-2:123456789012:abc-123xyz"))
 
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host))
     .service("service")
-    .addMetricReporter(NJConsoleReporter(1.second))
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withBrief("ok"))
 
   test("should stopped if the operation normally exits") {
@@ -75,6 +72,7 @@ class ServiceTest extends AnyFunSuite {
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
+      .through(jsonConsole.pipe)
       .interruptAfter(5.seconds)
       .compile
       .toVector

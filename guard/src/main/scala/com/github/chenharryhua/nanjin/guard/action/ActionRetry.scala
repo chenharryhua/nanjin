@@ -106,8 +106,8 @@ final class ActionRetry[F[_], A, B](
           now <- realZonedDateTime(params.serviceParams)
           _ <- channel.send(
             ActionRetrying(
-              timestamp = now,
               actionInfo = actionInfo,
+              timestamp = now,
               actionParams = params,
               willDelayAndRetry = wdr,
               error = NJError(error, importance)))
@@ -126,13 +126,12 @@ final class ActionRetry[F[_], A, B](
           fn <- failNotes(ActionException.ActionCanceledExternally)
           _ <- channel.send(
             ActionFailed(
-              timestamp = now,
               actionInfo = actionInfo,
+              timestamp = now,
               actionParams = params,
               numRetries = count,
               notes = fn,
-              error = NJError(ActionException.ActionCanceledExternally, importance)
-            ))
+              error = NJError(ActionException.ActionCanceledExternally, importance)))
         } yield ()
       case Outcome.Errored(error) =>
         for {
@@ -141,13 +140,12 @@ final class ActionRetry[F[_], A, B](
           fn <- failNotes(error)
           _ <- channel.send(
             event.ActionFailed(
-              timestamp = now,
               actionInfo = actionInfo,
+              timestamp = now,
               actionParams = params,
               numRetries = count,
               notes = fn,
-              error = NJError(error, importance)
-            ))
+              error = NJError(error, importance)))
         } yield ()
       case Outcome.Succeeded(fb) =>
         for {
@@ -157,9 +155,9 @@ final class ActionRetry[F[_], A, B](
           sn <- succNotes(b)
           _ <- channel.send(
             ActionSucced(
+              actionInfo = actionInfo,
               timestamp = now,
               importance = importance,
-              actionInfo = actionInfo,
               actionParams = params,
               numRetries = count,
               notes = sn))
@@ -171,7 +169,7 @@ final class ActionRetry[F[_], A, B](
       retryCount <- F.ref(0) // hold number of retries
       ai <- actionInfo
       _ <- channel.send(
-        ActionStart(timestamp = ai.launchTime, importance = importance, actionInfo = ai, actionParams = params))
+        ActionStart(actionInfo = ai, timestamp = ai.launchTime, importance = importance, actionParams = params))
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](

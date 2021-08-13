@@ -78,53 +78,53 @@ sealed trait ActionEvent extends NJEvent {
 }
 
 final case class ActionStart(
+  actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   importance: Importance,
-  actionInfo: ActionInfo,
   actionParams: ActionParams)
     extends NJEvent
 
 final case class ActionRetrying(
-  timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
+  timestamp: ZonedDateTime,
   actionParams: ActionParams,
   willDelayAndRetry: WillDelayAndRetry,
-  error: NJError
-) extends ActionEvent {
+  error: NJError)
+    extends ActionEvent {
   override val importance: Importance = error.severity
 }
 
 final case class ActionFailed(
-  timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
+  timestamp: ZonedDateTime,
   actionParams: ActionParams,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
-  error: NJError
-) extends ActionEvent {
+  error: NJError)
+    extends ActionEvent {
   override val importance: Importance = error.severity
 }
 
 final case class ActionSucced(
+  actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   importance: Importance,
-  actionInfo: ActionInfo,
   actionParams: ActionParams,
   numRetries: Int, // number of retries before success
   notes: Notes // success notes
 ) extends ActionEvent
 
 final case class ActionQuasiSucced(
+  actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   importance: Importance,
-  actionInfo: ActionInfo,
   actionParams: ActionParams,
   runMode: RunMode,
   numSucc: Long,
   succNotes: Notes,
   failNotes: Notes,
-  errors: List[NJError]
-) extends ActionEvent
+  errors: List[NJError])
+    extends ActionEvent
 
 final case class ForYourInformation(timestamp: ZonedDateTime, message: String) extends NJEvent {
   override val importance: Importance = Importance.High

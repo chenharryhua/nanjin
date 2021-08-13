@@ -75,8 +75,8 @@ final class QuasiSucc[F[_], T[_], A, B](
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
                 ActionFailed(
-                  timestamp = now,
                   actionInfo = actionInfo,
+                  timestamp = now,
                   actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(ActionException.ActionCanceledExternally)),
@@ -88,13 +88,12 @@ final class QuasiSucc[F[_], T[_], A, B](
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
                 event.ActionFailed(
-                  timestamp = now,
                   actionInfo = actionInfo,
+                  timestamp = now,
                   actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(error)),
-                  error = NJError(error, importance)
-                ))
+                  error = NJError(error, importance)))
             } yield ()
           case Outcome.Succeeded(fb) =>
             for {
@@ -104,9 +103,9 @@ final class QuasiSucc[F[_], T[_], A, B](
               fn <- fail(b._1)
               _ <- channel.send(
                 ActionQuasiSucced(
+                  actionInfo = actionInfo,
                   timestamp = now,
                   importance = importance,
-                  actionInfo = actionInfo,
                   actionParams = params,
                   runMode = runMode,
                   numSucc = b._2.size,

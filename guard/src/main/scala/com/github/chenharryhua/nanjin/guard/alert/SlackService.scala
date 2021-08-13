@@ -166,7 +166,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
 
       service.publish(msg).void
 
-    case ActionStart(at, _, action, params) =>
+    case ActionStart(action, at, _, params) =>
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
@@ -184,7 +184,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
         ).asJson.noSpaces
       service.publish(msg).whenA(mask.showStartEvent)
 
-    case ActionRetrying(at, action, params, wdr, error) =>
+    case ActionRetrying(action, at, params, wdr, error) =>
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
@@ -208,7 +208,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
         ).asJson.noSpaces
       service.publish(msg).whenA(mask.showRetry || (mask.showFirstRetry && wdr.retriesSoFar == 0))
 
-    case ActionFailed(at, action, params, numRetries, notes, error) =>
+    case ActionFailed(action, at, params, numRetries, notes, error) =>
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
@@ -232,7 +232,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
         ).asJson.noSpaces
       service.publish(msg).whenA(mask.showNotice || error.severity.value > Importance.Low.value)
 
-    case ActionSucced(at, _, action, params, numRetries, notes) =>
+    case ActionSucced(action, at, _, params, numRetries, notes) =>
       def msg: String =
         SlackNotification(
           params.serviceParams.taskParams.appName,
@@ -254,7 +254,7 @@ final class SlackService[F[_]](service: SimpleNotificationService[F], fmt: Durat
         ).asJson.noSpaces
       service.publish(msg).whenA(mask.showSucc)
 
-    case ActionQuasiSucced(at, _, action, params, runMode, numSucc, succNotes, failNotes, errors) =>
+    case ActionQuasiSucced(action, at, _, params, runMode, numSucc, succNotes, failNotes, errors) =>
       def msg: SlackNotification =
         if (errors.isEmpty)
           SlackNotification(

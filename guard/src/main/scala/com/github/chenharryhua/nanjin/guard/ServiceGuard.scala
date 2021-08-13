@@ -163,16 +163,16 @@ final private class NJMetricRegistry(registry: MetricRegistry) {
     case _: PassThrough        => F.delay(registry.counter("07.pass.through").inc())
 
     // timers
-    case ActionFailed(at, info, _, _, _, _) =>
+    case ActionFailed(info, at, _, _, _, _) =>
       F.delay(registry.timer(s"08.`fail`.${name(info)}").update(Duration.between(info.launchTime, at)))
 
-    case ActionRetrying(at, info, _, _, _) =>
+    case ActionRetrying(info, at, _, _, _) =>
       F.delay(registry.timer(s"09.retry.${name(info)}").update(Duration.between(info.launchTime, at)))
 
-    case ActionQuasiSucced(at, _, info, _, _, _, _, _, _) =>
+    case ActionQuasiSucced(info, at, _, _, _, _, _, _, _) =>
       F.delay(registry.timer(s"10.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
 
-    case ActionSucced(at, _, info, _, _, _) =>
+    case ActionSucced(info, at, _, _, _, _) =>
       F.delay(registry.timer(s"11.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     // reset
