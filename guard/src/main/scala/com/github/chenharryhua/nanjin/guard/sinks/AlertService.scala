@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.alert
+package com.github.chenharryhua.nanjin.guard.sinks
 
 import cats.syntax.all.*
 import cats.{Applicative, Monoid}

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.alert
+package com.github.chenharryhua.nanjin.guard.sinks
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*

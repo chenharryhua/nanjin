@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.alert.showLog
+import com.github.chenharryhua.nanjin.guard.sinks.showLog
 import com.github.chenharryhua.nanjin.guard.event.{
   ForYourInformation,
   NJEvent,

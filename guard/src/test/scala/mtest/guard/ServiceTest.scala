@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.alert.jsonConsole
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -72,7 +71,6 @@ class ServiceTest extends AnyFunSuite {
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
-      .through(jsonConsole.pipe)
       .interruptAfter(5.seconds)
       .compile
       .toVector

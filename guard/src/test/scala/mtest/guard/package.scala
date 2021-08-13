@@ -3,7 +3,7 @@ package mtest
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
-import com.github.chenharryhua.nanjin.guard.alert.{jsonConsole, showLog, AlertService, SlackService}
+import com.github.chenharryhua.nanjin.guard.sinks.{jsonConsole, showLog, AlertService, SlackService}
 
 import scala.concurrent.duration.*
 
