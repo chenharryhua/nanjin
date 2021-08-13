@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.sksamuel.avro4s.{ToRecord, Encoder as AvroEncoder}
+import com.sksamuel.avro4s.{Encoder as AvroEncoder, ToRecord}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.hadoop.io.NullWritable
