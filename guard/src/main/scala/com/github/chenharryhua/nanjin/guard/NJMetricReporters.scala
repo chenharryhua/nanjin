@@ -7,10 +7,14 @@ import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{ConsoleReporter, CsvReporter, MetricRegistry, Slf4jReporter}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
 
 import java.nio.file.Path
 import scala.concurrent.duration.FiniteDuration
+
+@FunctionalInterface
+trait NJMetricReporter {
+  def start[F[_]](registry: MetricRegistry)(implicit F: Async[F]): F[Nothing]
+}
 
 final class NJConsoleReporter private (
   updates: Reader[ConsoleReporter.Builder, ConsoleReporter.Builder],

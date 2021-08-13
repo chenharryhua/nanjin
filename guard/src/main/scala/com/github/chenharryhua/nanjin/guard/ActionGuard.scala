@@ -8,16 +8,17 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
-import com.github.chenharryhua.nanjin.guard.alert.{ForYourInformation, NJEvent, PassThrough, ServiceInfo}
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams, Severity}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
+import com.github.chenharryhua.nanjin.guard.event.{ForYourInformation, Importance, NJEvent, PassThrough, ServiceInfo}
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax.*
 
 import java.time.ZoneId
+
 final class ActionGuard[F[_]] private[guard] (
-  severity: Severity,
+  importance: Importance,
   metricRegistry: MetricRegistry,
   serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
@@ -25,11 +26,12 @@ final class ActionGuard[F[_]] private[guard] (
   actionName: String,
   actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
+
   val params: ActionParams = actionConfig.evalConfig
 
   def apply(actionName: String): ActionGuard[F] =
     new ActionGuard[F](
-      severity = severity,
+      importance = importance,
       metricRegistry = metricRegistry,
       serviceInfo = serviceInfo,
       dispatcher = dispatcher,
@@ -39,7 +41,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](
-      severity = severity,
+      importance = importance,
       metricRegistry = metricRegistry,
       serviceInfo = serviceInfo,
       dispatcher = dispatcher,
@@ -47,9 +49,9 @@ final class ActionGuard[F[_]] private[guard] (
       actionName = actionName,
       actionConfig = f(actionConfig))
 
-  private def updateSeverity(severity: Severity): ActionGuard[F] =
+  private def updateImportance(importance: Importance): ActionGuard[F] =
     new ActionGuard[F](
-      severity = severity,
+      importance = importance,
       metricRegistry = metricRegistry,
       serviceInfo = serviceInfo,
       dispatcher = dispatcher,
@@ -57,13 +59,13 @@ final class ActionGuard[F[_]] private[guard] (
       actionName = actionName,
       actionConfig = actionConfig)
 
-  // error is the default.
-  def critical: ActionGuard[F] = updateSeverity(Severity.Critical)
-  def notice: ActionGuard[F]   = updateSeverity(Severity.Notice)
+  // medium is the default.
+  def critical: ActionGuard[F] = updateImportance(Importance.High)
+  def notice: ActionGuard[F]   = updateImportance(Importance.Low)
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -77,7 +79,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -127,7 +129,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -137,15 +139,16 @@ final class ActionGuard[F[_]] private[guard] (
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")))
 
-  def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] = new QuasiSuccUnit[F, T, B](
-    severity = severity,
-    serviceInfo = serviceInfo,
-    channel = channel,
-    actionName = actionName,
-    params = params,
-    tfb = tfb,
-    succ = Kleisli(_ => F.pure("")),
-    fail = Kleisli(_ => F.pure("")))
+  def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] =
+    new QuasiSuccUnit[F, T, B](
+      importance = importance,
+      serviceInfo = serviceInfo,
+      channel = channel,
+      actionName = actionName,
+      params = params,
+      tfb = tfb,
+      succ = Kleisli(_ => F.pure("")),
+      fail = Kleisli(_ => F.pure("")))
 
   def quasi[B](bs: F[B]*): QuasiSuccUnit[F, List, B] = quasi[List, B](bs.toList)
 }

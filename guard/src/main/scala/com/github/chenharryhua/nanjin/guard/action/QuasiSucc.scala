@@ -6,24 +6,14 @@ import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.{Alternative, Parallel, Traverse}
-import com.github.chenharryhua.nanjin.guard.alert.{
-  ActionFailed,
-  ActionInfo,
-  ActionQuasiSucced,
-  ActionStart,
-  NJError,
-  NJEvent,
-  Notes,
-  RunMode,
-  ServiceInfo
-}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Severity}
-import com.github.chenharryhua.nanjin.guard.realZonedDateTime
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.{event, realZonedDateTime}
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class QuasiSucc[F[_], T[_], A, B](
-  severity: Severity,
+  importance: Importance,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -35,7 +25,7 @@ final class QuasiSucc[F[_], T[_], A, B](
 
   def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -50,7 +40,7 @@ final class QuasiSucc[F[_], T[_], A, B](
 
   def withFailNotesM(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -71,11 +61,11 @@ final class QuasiSucc[F[_], T[_], A, B](
       uuid <- UUIDGen.randomUUID
       actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
       _ <- channel.send(
-        ActionStart(timestamp = now, severity = severity, actionInfo = actionInfo, actionParams = params))
+        ActionStart(timestamp = now, importance = importance, actionInfo = actionInfo, actionParams = params))
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
-          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2, severity)))
+          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2, importance)))
           (errors, rs) // error on the left, result on the right
         })
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
@@ -85,26 +75,25 @@ final class QuasiSucc[F[_], T[_], A, B](
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
                 ActionFailed(
-                  timestamp = now,
                   actionInfo = actionInfo,
+                  timestamp = now,
                   actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(ActionException.ActionCanceledExternally)),
-                  error = NJError(ActionException.ActionCanceledExternally, severity)
+                  error = NJError(ActionException.ActionCanceledExternally, importance)
                 ))
             } yield ()
           case Outcome.Errored(error) =>
             for {
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
-                ActionFailed(
-                  timestamp = now,
+                event.ActionFailed(
                   actionInfo = actionInfo,
+                  timestamp = now,
                   actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(error)),
-                  error = NJError(error, severity)
-                ))
+                  error = NJError(error, importance)))
             } yield ()
           case Outcome.Succeeded(fb) =>
             for {
@@ -114,9 +103,9 @@ final class QuasiSucc[F[_], T[_], A, B](
               fn <- fail(b._1)
               _ <- channel.send(
                 ActionQuasiSucced(
-                  timestamp = now,
-                  severity = severity,
                   actionInfo = actionInfo,
+                  timestamp = now,
+                  importance = importance,
                   actionParams = params,
                   runMode = runMode,
                   numSucc = b._2.size,
@@ -140,7 +129,7 @@ final class QuasiSucc[F[_], T[_], A, B](
 }
 
 final class QuasiSuccUnit[F[_], T[_], B](
-  severity: Severity,
+  importance: Importance,
   serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
   actionName: String,
@@ -151,7 +140,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
 
   def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -165,7 +154,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
 
   def withFailNotesM(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,
@@ -179,7 +168,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
 
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
-      severity = severity,
+      importance = importance,
       serviceInfo = serviceInfo,
       channel = channel,
       actionName = actionName,

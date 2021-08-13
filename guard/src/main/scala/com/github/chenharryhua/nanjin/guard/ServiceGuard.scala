@@ -1,20 +1,21 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.{MetricRegistry, MetricSet}
+import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
-import com.github.chenharryhua.nanjin.guard.alert.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams, Severity}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.Cron
 import cron4s.expr.CronExpr
 import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
+import fs2.Stream
 import fs2.concurrent.Channel
-import fs2.{INothing, Pipe, Stream}
+
+import java.time.Duration
 
 // format: off
 /** @example
@@ -31,25 +32,21 @@ import fs2.{INothing, Pipe, Stream}
 final class ServiceGuard[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
   serviceConfig: ServiceConfig,
-  alertServices: Resource[F, AlertService[F]],
   reporters: List[NJMetricReporter])(implicit F: Async[F])
-    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] with AddAlertService[F, ServiceGuard[F]] {
+    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   val params: ServiceParams = serviceConfig.evalConfig
 
   def registerMetricSet(metrics: MetricSet): ServiceGuard[F] = {
     metricRegistry.registerAll(metrics)
-    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporters)
+    new ServiceGuard[F](metricRegistry, serviceConfig, reporters)
   }
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, f(serviceConfig), alertServices, reporters)
-
-  override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
+    new ServiceGuard[F](metricRegistry, f(serviceConfig), reporters)
 
   def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporter :: reporters)
+    new ServiceGuard[F](metricRegistry, serviceConfig, reporter :: reporters)
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
@@ -59,7 +56,7 @@ final class ServiceGuard[F[_]] private[guard] (
       uuid <- UUIDGen.randomUUID
     } yield ServiceInfo(id = uuid, launchTime = ts)
 
-    val mrService: NJMetricRegistry[F] = new NJMetricRegistry[F](metricRegistry)
+    val mrService: NJMetricRegistry = new NJMetricRegistry(metricRegistry)
 
     for {
       si <- Stream.eval(serviceInfo)
@@ -76,7 +73,7 @@ final class ServiceGuard[F[_]] private[guard] (
                       serviceInfo = si,
                       serviceParams = params,
                       retryDetails = rd,
-                      error = NJError(ex, Severity.Critical)))
+                      error = NJError(ex, Importance.High)))
                   .void)
           ) {
             val startUp = realZonedDateTime(params).flatMap(ts =>
@@ -85,7 +82,7 @@ final class ServiceGuard[F[_]] private[guard] (
             startUp *> Dispatcher[F].use(dispatcher =>
               actionGuard(
                 new ActionGuard[F](
-                  severity = Severity.Error,
+                  importance = Importance.Medium,
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,
@@ -116,16 +113,6 @@ final class ServiceGuard[F[_]] private[guard] (
                     )))
                 .void)
 
-        // notify metrics and alert services
-        val notifying: Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
-          Stream
-            .resource(alertServices)
-            .flatMap(as => // send to metric anyway, but conditionally send to alert services
-              events.evalMap(evt =>
-                mrService.alert(evt) *> as.alert(evt).whenA(evt.severity.value <= params.threshold.value)))
-            .drain
-        }
-
         // metrics reporting
         @SuppressWarnings(Array("ListSize"))
         val reporting: Stream[F, List[Nothing]] =
@@ -151,12 +138,44 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // put together
         channel.stream
-          .observe(notifying)
+          .evalTap(mrService.compute[F])
           .concurrently(healthChecking)
           .concurrently(reporting)
           .concurrently(dailyReset)
           .concurrently(Stream.eval(runningService))
       }
     } yield event
+  }
+}
+
+final private class NJMetricRegistry(registry: MetricRegistry) {
+
+  private def name(info: ActionInfo) = s"[${info.actionName}]"
+
+  def compute[F[_]](event: NJEvent)(implicit F: Sync[F]): F[Unit] = event match {
+    // counters
+    case _: ServiceHealthCheck => F.delay(registry.counter("01.health.check").inc())
+    case _: ServiceStarted     => F.delay(registry.counter("02.service.start").inc())
+    case _: ServiceStopped     => F.delay(registry.counter("03.service.stop").inc())
+    case _: ServicePanic       => F.delay(registry.counter("04.service.`panic`").inc())
+    case _: ActionStart        => F.delay(registry.counter("05.action.count").inc())
+    case _: ForYourInformation => F.delay(registry.counter("06.fyi").inc())
+    case _: PassThrough        => F.delay(registry.counter("07.pass.through").inc())
+
+    // timers
+    case ActionFailed(info, at, _, _, _, _) =>
+      F.delay(registry.timer(s"08.`fail`.${name(info)}").update(Duration.between(info.launchTime, at)))
+
+    case ActionRetrying(info, at, _, _, _) =>
+      F.delay(registry.timer(s"09.retry.${name(info)}").update(Duration.between(info.launchTime, at)))
+
+    case ActionQuasiSucced(info, at, _, _, _, _, _, _, _) =>
+      F.delay(registry.timer(s"10.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
+
+    case ActionSucced(info, at, _, _, _, _) =>
+      F.delay(registry.timer(s"11.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
+
+    // reset
+    case _: ServiceDailySummariesReset => F.delay(registry.removeMatching(MetricFilter.ALL))
   }
 }

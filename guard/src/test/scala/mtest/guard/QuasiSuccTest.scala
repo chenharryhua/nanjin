@@ -4,25 +4,20 @@ import cats.data.Chain
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.ActionException
-import com.github.chenharryhua.nanjin.guard.alert.{
-  ActionFailed,
-  ActionQuasiSucced,
-  ActionRetrying,
-  ActionStart,
-  ActionSucced,
-  ServicePanic,
-  ServiceStarted,
-  ServiceStopped
-}
+import com.github.chenharryhua.nanjin.guard.sinks.{jsonConsole, showLog, slack}
+import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Chunk
+import io.circe.parser.decode
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration as JavaDuration
 import scala.concurrent.duration.*
+
 class QuasiSuccTest extends AnyFunSuite {
-  val guard = TaskGuard[IO]("qusai succ app").service("quasi").addAlertService(log)
+  val guard = TaskGuard[IO]("qusai succ app").service("quasi")
 
   def f(a: Int): IO[Int] = IO(100 / a)
 
@@ -52,6 +47,7 @@ class QuasiSuccTest extends AnyFunSuite {
   }
 
   test("quasi partial succ - chain") {
+    val sns = SimpleNotificationService.fake[IO]
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
@@ -60,6 +56,11 @@ class QuasiSuccTest extends AnyFunSuite {
             .withFailNotes(_ => "quasi succ")
             .withSuccNotes(_ => "succ")
             .seqRun)
+        .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+        .unNone
+        .observe(showLog)
+        .observe(jsonConsole)
+        .observe(slack(sns))
         .compile
         .toVector
         .unsafeRunSync()

@@ -2,22 +2,8 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.action.ActionException
-import com.github.chenharryhua.nanjin.guard.alert.{
-  ActionFailed,
-  ActionRetrying,
-  ActionStart,
-  ActionSucced,
-  LogService,
-  ServicePanic,
-  ServiceStarted,
-  ServiceStopped,
-  SlackService
-}
+import com.github.chenharryhua.nanjin.guard.event.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -28,7 +14,6 @@ class RetryTest extends AnyFunSuite {
 
   val serviceGuard = TaskGuard[IO]("retry-guard")
     .service("retry-test")
-    .addAlertService(slack)
     .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
 
   test("retry - success") {
@@ -42,6 +27,7 @@ class RetryTest extends AnyFunSuite {
         .withWorthRetry(_ => true)
         .run
     }.compile.toVector.unsafeRunSync()
+
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
@@ -59,6 +45,7 @@ class RetryTest extends AnyFunSuite {
           } else i))
         .run
     }.compile.toVector.unsafeRunSync()
+
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
@@ -76,11 +63,11 @@ class RetryTest extends AnyFunSuite {
           .retry(1)(x => IO.raiseError[Int](new Exception("oops")))
           .run
       }
-      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
+
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])

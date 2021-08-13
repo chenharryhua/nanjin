@@ -1,7 +1,7 @@
-package com.github.chenharryhua.nanjin.guard.alert
+package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams, Severity}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import io.chrisdavenport.cats.time.instances.{localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -9,17 +9,21 @@ import io.circe.{Decoder, Encoder, Json}
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
-import java.time.ZonedDateTime
+import java.time.{Duration, ZonedDateTime}
+import scala.compat.java8.DurationConverters.*
+import scala.concurrent.duration.FiniteDuration
 
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
-  def severity: Severity
+  def importance: Importance
 }
 
 object NJEvent extends zoneddatetime with localtime with zoneid {
-  implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
-  implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
-  implicit val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
+  implicit private val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
+  implicit private val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
+  implicit val showNJEvent: Show[NJEvent]                             = cats.derived.semiauto.show[NJEvent]
+  implicit val encoderNJEvent: Encoder[NJEvent]                       = io.circe.generic.semiauto.deriveEncoder[NJEvent]
+  implicit val decoderNJEvent: Decoder[NJEvent]                       = io.circe.generic.semiauto.deriveDecoder[NJEvent]
 }
 
 sealed trait ServiceEvent extends NJEvent {
@@ -29,7 +33,7 @@ sealed trait ServiceEvent extends NJEvent {
 
 final case class ServiceStarted(timestamp: ZonedDateTime, serviceInfo: ServiceInfo, serviceParams: ServiceParams)
     extends ServiceEvent {
-  override val severity: Severity = Severity.Essential
+  override val importance: Importance = Importance.SystemEvent
 }
 
 final case class ServicePanic(
@@ -39,7 +43,7 @@ final case class ServicePanic(
   retryDetails: RetryDetails,
   error: NJError
 ) extends ServiceEvent {
-  override val severity: Severity = Severity.Essential
+  override val importance: Importance = Importance.SystemEvent
 }
 
 final case class ServiceStopped(
@@ -47,7 +51,7 @@ final case class ServiceStopped(
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams
 ) extends ServiceEvent {
-  override val severity: Severity = Severity.Essential
+  override val importance: Importance = Importance.SystemEvent
 }
 
 final case class ServiceHealthCheck(
@@ -56,7 +60,7 @@ final case class ServiceHealthCheck(
   serviceParams: ServiceParams,
   dailySummaries: DailySummaries
 ) extends ServiceEvent {
-  override val severity: Severity = Severity.Essential
+  override val importance: Importance = Importance.SystemEvent
 }
 
 final case class ServiceDailySummariesReset(
@@ -65,7 +69,7 @@ final case class ServiceDailySummariesReset(
   serviceParams: ServiceParams,
   dailySummaries: DailySummaries)
     extends ServiceEvent {
-  override val severity: Severity = Severity.Essential
+  override val importance: Importance = Importance.SystemEvent
 }
 
 sealed trait ActionEvent extends NJEvent {
@@ -74,58 +78,58 @@ sealed trait ActionEvent extends NJEvent {
 }
 
 final case class ActionStart(
-  timestamp: ZonedDateTime,
-  severity: Severity,
   actionInfo: ActionInfo,
+  timestamp: ZonedDateTime,
+  importance: Importance,
   actionParams: ActionParams)
     extends NJEvent
 
 final case class ActionRetrying(
-  timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
+  timestamp: ZonedDateTime,
   actionParams: ActionParams,
   willDelayAndRetry: WillDelayAndRetry,
-  error: NJError
-) extends ActionEvent {
-  override val severity: Severity = error.severity
+  error: NJError)
+    extends ActionEvent {
+  override val importance: Importance = error.severity
 }
 
 final case class ActionFailed(
-  timestamp: ZonedDateTime,
   actionInfo: ActionInfo,
+  timestamp: ZonedDateTime,
   actionParams: ActionParams,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
-  error: NJError
-) extends ActionEvent {
-  override val severity: Severity = Severity.Critical
+  error: NJError)
+    extends ActionEvent {
+  override val importance: Importance = error.severity
 }
 
 final case class ActionSucced(
-  timestamp: ZonedDateTime,
-  severity: Severity,
   actionInfo: ActionInfo,
+  timestamp: ZonedDateTime,
+  importance: Importance,
   actionParams: ActionParams,
-  numRetries: Int, // how many retries before success
+  numRetries: Int, // number of retries before success
   notes: Notes // success notes
 ) extends ActionEvent
 
 final case class ActionQuasiSucced(
-  timestamp: ZonedDateTime,
-  severity: Severity,
   actionInfo: ActionInfo,
+  timestamp: ZonedDateTime,
+  importance: Importance,
   actionParams: ActionParams,
   runMode: RunMode,
   numSucc: Long,
   succNotes: Notes,
   failNotes: Notes,
-  errors: List[NJError]
-) extends ActionEvent
+  errors: List[NJError])
+    extends ActionEvent
 
 final case class ForYourInformation(timestamp: ZonedDateTime, message: String) extends NJEvent {
-  override val severity: Severity = Severity.Critical
+  override val importance: Importance = Importance.High
 }
 
 final case class PassThrough(timestamp: ZonedDateTime, value: Json) extends NJEvent {
-  override val severity: Severity = Severity.Critical
+  override val importance: Importance = Importance.High
 }

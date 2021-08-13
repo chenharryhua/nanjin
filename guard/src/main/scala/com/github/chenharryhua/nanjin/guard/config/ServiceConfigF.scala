@@ -13,8 +13,7 @@ import scala.concurrent.duration.*
   taskParams: TaskParams,
   healthCheckInterval: FiniteDuration,
   retry: NJRetryPolicy,
-  brief: String,
-  threshold: Severity // filter out events whose severity bigger than this one.
+  brief: String
 )
 
 object ServiceParams {
@@ -25,8 +24,7 @@ object ServiceParams {
       taskParams = taskParams,
       healthCheckInterval = 6.hours,
       retry = ConstantDelay(30.seconds),
-      brief = "The developer is too lazy to provide a brief",
-      threshold = Severity.Error
+      brief = "The developer is too lazy to provide a brief"
     )
 }
 
@@ -42,15 +40,12 @@ private object ServiceConfigF {
 
   final case class WithServiceBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
-  final case class WithSeverityThreshold[K](value: Severity, cont: K) extends ServiceConfigF[K]
-
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(s, t)              => ServiceParams(s, t)
       case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
       case WithRetryPolicy(v, c)         => ServiceParams.retry.set(v)(c)
       case WithServiceBrief(v, c)        => ServiceParams.brief.set(v)(c)
-      case WithSeverityThreshold(v, c)   => ServiceParams.threshold.set(v)(c)
     }
 }
 
@@ -72,9 +67,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
-
-  def withCritical: ServiceConfig = ServiceConfig(Fix(WithSeverityThreshold(Severity.Critical, value)))
-  def withNotice: ServiceConfig   = ServiceConfig(Fix(WithSeverityThreshold(Severity.Notice, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }

@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.alert.{
+import com.github.chenharryhua.nanjin.guard.event.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
@@ -25,7 +25,6 @@ class HealthCheckTest extends AnyFunSuite {
       .service("normal")
       .updateConfig(_.withHealthCheckInterval(1.second))
       .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))
-      .debug()
       .interruptAfter(5.second)
       .compile
       .toList
@@ -58,7 +57,6 @@ class HealthCheckTest extends AnyFunSuite {
       .service("failure-test")
       .updateConfig(_.withHealthCheckInterval(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
-      .debug()
       .interruptAfter(5.second)
       .compile
       .toList
