@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.Stream
+import fs2.{INothing, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
@@ -23,7 +23,7 @@ final class SaveSingleProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends
   def errorIfExists: SaveSingleProtobuf[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleProtobuf[F, A] = updateConfig(cfg.ignoreMode)
 
-  def stream(implicit F: Async[F], enc: A <:< GeneratedMessage): Stream[F, Unit] = {
+  def sink(implicit F: Async[F], enc: A <:< GeneratedMessage): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     sma.checkAndRun(rdd.stream[F].through(sinks.protobuf(params.outPath, hc)))

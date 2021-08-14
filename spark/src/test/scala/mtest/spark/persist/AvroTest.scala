@@ -73,7 +73,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - single.uncompressed") {
     val path = "./data/test/spark/persist/avro/rooster/single.uncompressed.avro"
-    rooster.avro(path).file.stream.compile.drain.unsafeRunSync()
+    rooster.avro(path).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(RoosterData.expected == r)
@@ -92,7 +92,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - single.snappy") {
     val path = "./data/test/spark/persist/avro/rooster/single.snappy.avro"
-    rooster.avro(path).snappy.file.stream.compile.drain.unsafeRunSync()
+    rooster.avro(path).snappy.file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(RoosterData.expected == r)
@@ -102,7 +102,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - single.bzip2") {
     val path = "./data/test/spark/persist/avro/rooster/single.bzip2.avro"
-    rooster.avro(path).bzip2.file.stream.compile.drain.unsafeRunSync()
+    rooster.avro(path).bzip2.file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(RoosterData.expected == r)
@@ -112,7 +112,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - single.deflate") {
     val path = "./data/test/spark/persist/avro/rooster/single.deflate.avro"
-    rooster.avro(path).deflate(5).file.stream.compile.drain.unsafeRunSync()
+    rooster.avro(path).deflate(5).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(RoosterData.expected == r)
@@ -122,7 +122,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - single.xz") {
     val path = "./data/test/spark/persist/avro/rooster/single.xz.avro"
-    rooster.avro(path).xz(5).file.stream.compile.drain.unsafeRunSync()
+    rooster.avro(path).xz(5).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect.toSet
     assert(RoosterData.expected == r)
@@ -168,7 +168,7 @@ class AvroTest extends AnyFunSuite {
   test("byte-array read/write identity single") {
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/single.raw.avro"
-    bee.avro(path).file.stream.compile.drain.unsafeRunSync()
+    bee.avro(path).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.avro[Bee](path, Bee.ate, sparkSession).dataset.collect.toList
     assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -182,7 +182,7 @@ class AvroTest extends AnyFunSuite {
   test("byte-array read/write identity single - use customized codec") {
     import cats.implicits._
     val path = "./data/test/spark/persist/avro/bee/single2.raw.avro"
-    bee.avro(path).file.stream.compile.drain.unsafeRunSync()
+    bee.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.avro[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
     println(loaders.rdd.avro[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).map(_.toWasp).collect().toList)
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
@@ -192,7 +192,7 @@ class AvroTest extends AnyFunSuite {
   test("collection read/write identity single") {
     import AntData._
     val path = "./data/test/spark/persist/avro/ant/single.raw.avro"
-    ant.avro(path).file.stream.compile.drain.unsafeRunSync()
+    ant.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.avro[Ant](path, Ant.avroCodec.avroDecoder, sparkSession).collect().toSet
     val r = loaders.avro[Ant](path, Ant.ate, sparkSession).dataset.collect.toSet
     assert(ants.toSet == t)
@@ -214,7 +214,7 @@ class AvroTest extends AnyFunSuite {
     import CopData._
     val path  = "./data/test/spark/persist/avro/emcop/single.avro"
     val saver = new RddAvroFileHoarder[IO, EmCop](emRDD, EmCop.avroCodec.avroEncoder)
-    saver.avro(path).file.stream.compile.drain.unsafeRunSync()
+    saver.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.avro[EmCop](path, EmCop.ate, sparkSession).dataset.collect.toSet
     val r = loaders.rdd.avro[EmCop](path, EmCop.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(emCops.toSet == t)
@@ -236,7 +236,7 @@ class AvroTest extends AnyFunSuite {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cocop/single.avro"
     val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.avroCodec.avroEncoder)
-    saver.avro(path).file.stream.compile.drain.unsafeRunSync()
+    saver.avro(path).file.sink.compile.drain.unsafeRunSync()
     intercept[Throwable](loaders.rdd.avro[CoCop](path, CoCop.avroCodec.avroDecoder, sparkSession).collect().toSet)
     // assert(coCops.toSet == t)
   }
@@ -263,7 +263,7 @@ class AvroTest extends AnyFunSuite {
     import CopData._
     val path  = "./data/test/spark/persist/avro/cpcop/single.avro"
     val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder)
-    saver.avro(path).file.stream.compile.drain.unsafeRunSync()
+    saver.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(cpCops.toSet == t)
   }
@@ -272,7 +272,7 @@ class AvroTest extends AnyFunSuite {
     import JacketData._
     val path  = "./data/test/spark/persist/avro/jacket.avro"
     val saver = new RddAvroFileHoarder[IO, Jacket](rdd, Jacket.avroCodec.avroEncoder)
-    saver.avro(path).file.stream.compile.drain.unsafeRunSync()
+    saver.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.avro[Jacket](path, Jacket.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(expected.toSet == t)
     val t2 = loaders.avro[Jacket](path, Jacket.ate, sparkSession).dataset.collect.toSet
@@ -283,7 +283,7 @@ class AvroTest extends AnyFunSuite {
     import FractualData._
     val path  = "./data/test/spark/persist/avro/fractual.avro"
     val saver = new RddAvroFileHoarder[IO, Fractual](rdd, Fractual.avroCodec.avroEncoder)
-    saver.avro(path).file.stream.compile.drain.unsafeRunSync()
+    saver.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t =
       loaders.rdd.avro[Fractual](path, Fractual.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(data.toSet == t)

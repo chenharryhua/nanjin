@@ -123,7 +123,7 @@ class SparkTableTest extends AnyFunSuite {
   val saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save).unsafeRunSync()
 
   test("save avro") {
-    val avro = saver.avro(root + "single.raw.avro").file.stream.compile.drain >>
+    val avro = saver.avro(root + "single.raw.avro").file.sink.compile.drain >>
       saver.avro(root + "multi.raw.avro").folder.run
     avro.unsafeRunSync()
     val shead = tb.load.avro(root + "single.raw.avro").map(_.dataset.collect.head).unsafeRunSync()
@@ -133,14 +133,14 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save bin avro") {
-    val avro = saver.binAvro(root + "single.binary.avro").file.stream.compile.drain
+    val avro = saver.binAvro(root + "single.binary.avro").file.sink.compile.drain
     avro.unsafeRunSync()
     val head = tb.load.binAvro(root + "single.binary.avro").map(_.dataset.collect.head)
     assert(head.unsafeRunSync() == dbData)
   }
 
   test("save jackson") {
-    val avro = saver.jackson(root + "single.jackson.json").file.stream.compile.drain
+    val avro = saver.jackson(root + "single.jackson.json").file.sink.compile.drain
     avro.unsafeRunSync()
     val head = tb.load.jackson(root + "single.jackson.json").map(_.dataset.collect.head)
     assert(head.unsafeRunSync() == dbData)
@@ -154,7 +154,7 @@ class SparkTableTest extends AnyFunSuite {
   }
   test("save circe") {
     val circe = saver.circe(root + "multi.circe.json").folder.run >>
-      saver.circe(root + "single.circe.json").file.stream.compile.drain
+      saver.circe(root + "single.circe.json").file.sink.compile.drain
     circe.unsafeRunSync()
     val mhead = tb.load.circe(root + "multi.circe.json").map(_.dataset.collect.head)
     assert(mhead.unsafeRunSync() == dbData)
@@ -164,7 +164,7 @@ class SparkTableTest extends AnyFunSuite {
 
   test("save csv") {
     val csv = saver.csv(root + "multi.csv").folder.run >>
-      saver.csv(root + "single.csv").file.stream.compile.drain
+      saver.csv(root + "single.csv").file.sink.compile.drain
     csv.unsafeRunSync()
     val mhead = tb.load.csv(root + "multi.csv").map(_.dataset.collect.head)
     assert(mhead.unsafeRunSync() == dbData)

@@ -11,12 +11,7 @@ import fs2.Stream
 class ExampleKafakDump extends AnyFunSuite {
   test("dump kafka data in json") {
     val path = "./data/example/foo/batch/circe.json"
-    Stream
-      .eval(sparKafka.topic(fooTopic).fromKafka)
-      .flatMap(_.save.circe(path).file.stream)
-      .compile
-      .drain
-      .unsafeRunSync()
+    Stream.eval(sparKafka.topic(fooTopic).fromKafka).flatMap(_.save.circe(path).file.sink).compile.drain.unsafeRunSync()
   }
   test("dump kafka data in avro compressed by snappy") {
     val path = "./data/example/foo/batch/avro"

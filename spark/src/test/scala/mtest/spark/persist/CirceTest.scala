@@ -39,7 +39,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity single.uncompressed") {
     val path = "./data/test/spark/persist/circe/rooster/single.json"
-    rooster.circe(path).file.uncompress.stream.compile.drain.unsafeRunSync()
+    rooster.circe(path).file.uncompress.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
@@ -55,7 +55,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity single.gzip") {
     val path = "./data/test/spark/persist/circe/rooster/single.json.gz"
-    rooster.circe(path).file.gzip.stream.compile.drain.unsafeRunSync()
+    rooster.circe(path).file.gzip.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
@@ -64,7 +64,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity single.deflate") {
     val path = "./data/test/spark/persist/circe/rooster/single.json.deflate"
-    rooster.circe(path).file.deflate(3).stream.compile.drain.unsafeRunSync()
+    rooster.circe(path).file.deflate(3).sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
@@ -88,13 +88,13 @@ class CirceTest extends AnyFunSuite {
 
   test("circe bee byte-array rdd read/write identity single gz -- happy failure") {
     val path = "./data/test/spark/persist/circe/bee/single.json.gz"
-    bee.circe(path).file.gzip.stream.compile.drain.unsafeRunSync()
+    bee.circe(path).file.gzip.sink.compile.drain.unsafeRunSync()
     assertThrows[Exception](loaders.rdd.circe[Bee](path, sparkSession))
   }
 
   test("circe bee byte-array rdd read/write identity single uncompressed -- happy failure") {
     val path = "./data/test/spark/persist/circe/bee/single.json"
-    bee.circe(path).file.stream.compile.drain.unsafeRunSync()
+    bee.circe(path).file.sink.compile.drain.unsafeRunSync()
     assertThrows[Exception](loaders.rdd.circe[Bee](path, sparkSession))
   }
 
@@ -109,7 +109,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity single.uncompressed - keep null") {
     val path = "./data/test/spark/persist/circe/rooster/single.keepNull.uncompressed.json"
-    rooster.circe(path).dropNull.file.stream.compile.drain.unsafeRunSync()
+    rooster.circe(path).dropNull.file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
@@ -118,7 +118,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity single.uncompressed - drop null") {
     val path = "./data/test/spark/persist/circe/rooster/single.dropNull.uncompressed.json"
-    rooster.circe(path).dropNull.file.stream.compile.drain.unsafeRunSync()
+    rooster.circe(path).dropNull.file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
@@ -128,7 +128,7 @@ class CirceTest extends AnyFunSuite {
   test("circe jacket") {
     val path  = "./data/test/spark/persist/circe/jacket.json"
     val saver = new RddFileHoarder[IO, Jacket](JacketData.ds.rdd)
-    saver.circe(path).file.stream.compile.drain.unsafeRunSync()
+    saver.circe(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Jacket](path, sparkSession).collect().toSet
     assert(JacketData.expected.toSet == t)
     val t2 = loaders.circe[Jacket](path, Jacket.ate, sparkSession).dataset.collect.toSet
@@ -150,7 +150,7 @@ class CirceTest extends AnyFunSuite {
     val data  = JacketData.expected.map(_.neck)
     val rdd   = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[IO, KJson[Neck]](rdd.repartition(1))
-    saver.circe(path).file.stream.compile.drain.unsafeRunSync()
+    saver.circe(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Neck](path, sparkSession).collect().toSet
     assert(data.map(_.value).toSet == t)
   }
@@ -160,7 +160,7 @@ class CirceTest extends AnyFunSuite {
     val data  = JacketData.expected.map(_.neck.value.j)
     val rdd   = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[IO, Json](rdd.repartition(1))
-    saver.circe(path).file.stream.compile.drain.unsafeRunSync()
+    saver.circe(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet
     assert(data.toSet == t)
   }
@@ -191,7 +191,7 @@ class CirceTest extends AnyFunSuite {
   test("circe fractual") {
     val path  = "./data/test/spark/persist/circe/fractual.json"
     val saver = new RddFileHoarder[IO, Fractual](FractualData.rdd)
-    saver.circe(path).file.stream.compile.drain.unsafeRunSync()
+    saver.circe(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Fractual](path, sparkSession).collect().toSet
     assert(FractualData.data.toSet == t)
   }
@@ -200,7 +200,7 @@ class CirceTest extends AnyFunSuite {
     val path          = "./data/test/spark/persist/circe/primitive.json"
     val rdd: RDD[Int] = RoosterData.rdd.map(_.index)
     val expected      = rdd.collect().toSet
-    rdd.save[IO].circe(path).file.stream.compile.drain.unsafeRunSync()
+    rdd.save[IO].circe(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.circe[Int](path, AvroTypedEncoder[Int](AvroCodec[Int]), sparkSession).dataset.collect.toSet
     assert(expected == t)
   }
