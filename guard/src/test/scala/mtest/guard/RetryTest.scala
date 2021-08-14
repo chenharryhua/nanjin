@@ -159,7 +159,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action post condition unsatisfied")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action post condition unsatisfied")
     assert(f.isInstanceOf[ServicePanic])
   }
   test("retry - should fail the action if post condition is unsatisfied - 2") {
@@ -181,7 +181,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action post condition unsatisfied")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action post condition unsatisfied")
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -196,15 +196,15 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was terminated unexpectedly")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(c.isInstanceOf[ServicePanic])
     assert(s1.isInstanceOf[ServiceStarted])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was terminated unexpectedly")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(f.isInstanceOf[ServicePanic])
     assert(s2.isInstanceOf[ServiceStarted])
     assert(g.isInstanceOf[ActionStart])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was terminated unexpectedly")
+    assert(h.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(i.isInstanceOf[ServicePanic])
   }
 
@@ -220,15 +220,15 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(c.isInstanceOf[ServicePanic])
     assert(s1.isInstanceOf[ServiceStarted])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(f.isInstanceOf[ServicePanic])
     assert(s2.isInstanceOf[ServiceStarted])
     assert(g.isInstanceOf[ActionStart])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(h.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(i.isInstanceOf[ServicePanic])
   }
 
@@ -242,15 +242,15 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(c.isInstanceOf[ServicePanic])
     assert(s2.isInstanceOf[ServiceStarted])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(f.isInstanceOf[ServicePanic])
     assert(s3.isInstanceOf[ServiceStarted])
     assert(g.isInstanceOf[ActionStart])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
+    assert(h.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(i.isInstanceOf[ServicePanic])
   }
 }

@@ -27,7 +27,7 @@ class CancellationTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -43,7 +43,7 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled externally")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
     assert(c.isInstanceOf[ServiceStopped])
   }
 
@@ -60,7 +60,7 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled externally")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
     assert(c.isInstanceOf[ServicePanic])
   }
 
@@ -80,13 +80,13 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionStart])
     assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(c.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled externally")
+    assert(c.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
     assert(d.asInstanceOf[ActionRetrying].actionInfo.actionName == "supervisor")
     assert(e.isInstanceOf[ActionStart])
     assert(f.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
-    assert(f.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled externally")
+    assert(f.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
     assert(g.asInstanceOf[ActionFailed].actionInfo.actionName == "supervisor")
-    assert(g.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
+    assert(g.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(h.isInstanceOf[ServicePanic])
   }
 
@@ -199,7 +199,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
-    assert(d.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled externally")
+    assert(d.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
     assert(e.isInstanceOf[ServiceStopped])
   }
 

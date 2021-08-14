@@ -161,7 +161,7 @@ class QuasiSuccTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(c.isInstanceOf[ServicePanic])
   }
 

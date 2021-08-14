@@ -30,7 +30,7 @@ final case class NJError private (
   severity: Importance,
   message: String,
   stackTrace: String,
-  throwable: Throwable
+  throwable: Option[Throwable]
 )
 
 object NJError {
@@ -51,10 +51,10 @@ object NJError {
       sv <- c.downField("severity").as[Importance]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-    } yield NJError(id, sv, msg, st, new Throwable("fake Throwable")) // can not recover throwables.
+    } yield NJError(id, sv, msg, st, None) // can not reconstruct throwables.
 
   def apply(ex: Throwable, severity: Importance): NJError =
-    NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
+    NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
 }
 
 final case class DailySummaries private (value: String)

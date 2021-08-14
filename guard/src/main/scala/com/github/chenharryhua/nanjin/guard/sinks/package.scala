@@ -9,21 +9,31 @@ import io.circe.syntax.*
 import org.log4s.Logger
 
 package object sinks {
-  def jsonConsole[F[_]](implicit C: Console[F]): Pipe[F, NJEvent, INothing] =
-    _.evalMap(event => C.println(event.asJson)).drain
+
+  def jsonConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
+    _.evalMap(event => Console[F].println(event.asJson)).drain
+
+  def showConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
+    _.evalMap(event => Console[F].println(event.show)).drain
 
   private[this] val logger: Logger = org.log4s.getLogger
 
-  def showLog[F[_]](implicit F: Sync[F]): Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
-    events.evalMap { event =>
-      val out: String = event.show
-      event match {
-        case ServicePanic(_, _, _, _, error)    => F.blocking(logger.warn(error.throwable)(out))
-        case ActionRetrying(_, _, _, _, error)  => F.blocking(logger.warn(error.throwable)(out))
-        case ActionFailed(_, _, _, _, _, error) => F.blocking(logger.error(error.throwable)(out))
-        case _                                  => F.blocking(logger.info(out))
-      }
-    }.drain
+  private def logging[F[_]](f: NJEvent => String)(implicit F: Sync[F]): Pipe[F, NJEvent, INothing] = {
+    (events: Stream[F, NJEvent]) =>
+      events.evalMap { event =>
+        val out: String = f(event)
+        event match {
+          case ServicePanic(_, _, _, _, error) =>
+            F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
+          case ActionRetrying(_, _, _, _, error) =>
+            F.blocking(error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out)))
+          case ActionFailed(_, _, _, _, _, error) =>
+            F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
+          case _ => F.blocking(logger.info(out))
+        }
+      }.drain
   }
 
+  def showLog[F[_]: Sync]: Pipe[F, NJEvent, INothing] = logging[F](_.show)
+  def jsonLog[F[_]: Sync]: Pipe[F, NJEvent, INothing] = logging[F](_.asJson.noSpaces)
 }
