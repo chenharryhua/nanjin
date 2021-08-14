@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import cats.implicits.toShow
 import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.json.MetricsModule
+import com.fasterxml.jackson.databind.ObjectMapper
 import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.auto.*
@@ -12,6 +14,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZonedDateTime
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters.*
 import scala.collection.immutable
 
@@ -57,15 +60,29 @@ object NJError {
     NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
 }
 
-final case class DailySummaries private (value: String)
+final case class MetricRegistryWrapper(value: Option[MetricRegistry]) extends AnyVal
 
-object DailySummaries {
-  def apply(registry: MetricRegistry): DailySummaries = {
-    val timer   = registry.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
-    val counter = registry.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
-    val all     = (timer ::: counter).sorted.mkString("\n")
-    DailySummaries(all)
-  }
+object MetricRegistryWrapper {
+  implicit val showMetricRegistryWrapper: Show[MetricRegistryWrapper] =
+    _.value.fold("") { mr =>
+      val timer   = mr.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
+      val counter = mr.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
+      (timer ::: counter).sorted.mkString("\n")
+    }
+
+  import io.circe.jackson.parse
+  implicit val encodeMetricRegistryWrapper: Encoder[MetricRegistryWrapper] =
+    _.value.flatMap { mr =>
+      val str =
+        new ObjectMapper()
+          .registerModule(new MetricsModule(TimeUnit.MILLISECONDS, TimeUnit.MILLISECONDS, false))
+          .writerWithDefaultPrettyPrinter()
+          .writeValueAsString(mr)
+      parse(str).toOption
+    }.getOrElse(Json.Null)
+
+  implicit val decodeMetricRegistryWrapper: Decoder[MetricRegistryWrapper] =
+    (c: HCursor) => Right(MetricRegistryWrapper(None))
 }
 
 sealed trait RunMode extends EnumEntry

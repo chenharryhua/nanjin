@@ -16,7 +16,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, reporters: L
     new TaskGuard[F](f(taskConfig), reporters)
 
   def service(serviceName: String): ServiceGuard[F] =
-    new ServiceGuard[F](new MetricRegistry, ServiceConfig(serviceName, params), reporters)
+    new ServiceGuard[F](new MetricRegistry, ServiceConfig(serviceName, params))
 
 }
 

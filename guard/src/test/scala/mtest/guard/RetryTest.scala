@@ -12,9 +12,7 @@ final case class MyException() extends Exception("my exception")
 
 class RetryTest extends AnyFunSuite {
 
-  val serviceGuard = TaskGuard[IO]("retry-guard")
-    .service("retry-test")
-    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds))
+  val serviceGuard = TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
 
   test("retry - success") {
     var i = 0

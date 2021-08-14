@@ -11,9 +11,9 @@ import scala.concurrent.duration.*
 @Lenses final case class ServiceParams private (
   serviceName: String,
   taskParams: TaskParams,
-  healthCheckInterval: FiniteDuration,
   retry: NJRetryPolicy,
-  brief: String
+  brief: String,
+  reportInterval: FiniteDuration
 )
 
 object ServiceParams {
@@ -22,9 +22,9 @@ object ServiceParams {
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,
-      healthCheckInterval = 6.hours,
       retry = ConstantDelay(30.seconds),
-      brief = "The developer is too lazy to provide a brief"
+      brief = "The developer is too lazy to provide a brief",
+      reportInterval = 1.hour
     )
 }
 
@@ -34,7 +34,7 @@ private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K](serviceName: String, taskParams: TaskParams) extends ServiceConfigF[K]
-  final case class WithHealthCheckInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
+  final case class WithReportInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
 
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
@@ -42,18 +42,18 @@ private object ServiceConfigF {
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(s, t)              => ServiceParams(s, t)
-      case WithHealthCheckInterval(v, c) => ServiceParams.healthCheckInterval.set(v)(c)
-      case WithRetryPolicy(v, c)         => ServiceParams.retry.set(v)(c)
-      case WithServiceBrief(v, c)        => ServiceParams.brief.set(v)(c)
+      case InitParams(s, t)         => ServiceParams(s, t)
+      case WithRetryPolicy(v, c)    => ServiceParams.retry.set(v)(c)
+      case WithServiceBrief(v, c)   => ServiceParams.brief.set(v)(c)
+      case WithReportInterval(v, c) => ServiceParams.reportInterval.set(v)(c)
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
-  def withHealthCheckInterval(interval: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithHealthCheckInterval(interval, value)))
+  def withReportingInterval(interval: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithReportInterval(interval, value)))
 
   def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 

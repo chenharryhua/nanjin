@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -29,24 +29,14 @@ import java.time.Duration
   */
 // format: on
 
-final class ServiceGuard[F[_]] private[guard] (
-  metricRegistry: MetricRegistry,
-  serviceConfig: ServiceConfig,
-  reporters: List[NJMetricReporter])(implicit F: Async[F])
+final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, serviceConfig: ServiceConfig)(implicit
+  F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   val params: ServiceParams = serviceConfig.evalConfig
 
-  def registerMetricSet(metrics: MetricSet): ServiceGuard[F] = {
-    metricRegistry.registerAll(metrics)
-    new ServiceGuard[F](metricRegistry, serviceConfig, reporters)
-  }
-
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, f(serviceConfig), reporters)
-
-  def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, serviceConfig, reporter :: reporters)
+    new ServiceGuard[F](metricRegistry, f(serviceConfig))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
@@ -97,51 +87,43 @@ final class ServiceGuard[F[_]] private[guard] (
         /** concurrent streams
           */
 
-        // fix-rate health check
-        val healthChecking: Stream[F, Unit] =
+        // fix-rate metrics report
+        val reporting: Stream[F, Unit] =
           Stream
-            .fixedRate[F](params.healthCheckInterval)
+            .fixedRate[F](params.reportInterval)
             .evalMap(_ =>
               realZonedDateTime(params)
                 .flatMap(ts =>
                   channel.send(
-                    ServiceHealthCheck(
+                    MetricsReport(
                       timestamp = ts,
                       serviceInfo = si,
                       serviceParams = params,
-                      dailySummaries = DailySummaries(metricRegistry)
+                      metrics = MetricRegistryWrapper(Some(metricRegistry))
                     )))
                 .void)
 
-        // metrics reporting
-        @SuppressWarnings(Array("ListSize"))
-        val reporting: Stream[F, List[Nothing]] =
-          Stream.eval(
-            F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
-              _.start[F](metricRegistry)))
-
         // reset metrics
-        val dailyReset: Stream[F, Unit] =
+        val metricsReset: Stream[F, Unit] =
           scheduler
             .awakeEvery(cron)
             .evalMap(_ =>
               for {
                 ts <- realZonedDateTime(params)
                 _ <- channel.send(
-                  ServiceDailySummariesReset(
+                  MetricsReset(
                     timestamp = ts,
                     serviceInfo = si,
                     serviceParams = params,
-                    dailySummaries = DailySummaries(metricRegistry)
+                    metrics = MetricRegistryWrapper(Some(metricRegistry))
                   ))
               } yield ())
 
         // put together
         channel.stream
           .evalTap(mrService.compute[F])
-          .concurrently(healthChecking)
           .concurrently(reporting)
-          .concurrently(dailyReset)
+          .concurrently(metricsReset)
           .concurrently(Stream.eval(runningService))
       }
     } yield event
@@ -154,7 +136,7 @@ final private class NJMetricRegistry(registry: MetricRegistry) {
 
   def compute[F[_]](event: NJEvent)(implicit F: Sync[F]): F[Unit] = event match {
     // counters
-    case _: ServiceHealthCheck => F.delay(registry.counter("01.health.check").inc())
+    case _: MetricsReport      => F.delay(registry.counter("01.health.check").inc())
     case _: ServiceStarted     => F.delay(registry.counter("02.service.start").inc())
     case _: ServiceStopped     => F.delay(registry.counter("03.service.stop").inc())
     case _: ServicePanic       => F.delay(registry.counter("04.service.`panic`").inc())
@@ -176,6 +158,6 @@ final private class NJMetricRegistry(registry: MetricRegistry) {
       F.delay(registry.timer(s"11.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     // reset
-    case _: ServiceDailySummariesReset => F.delay(registry.removeMatching(MetricFilter.ALL))
+    case _: MetricsReset => F.delay(registry.removeMatching(MetricFilter.ALL))
   }
 }

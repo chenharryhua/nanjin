@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.sinks
 
+import cats.derived.auto.show.kittensMkShow
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -122,10 +123,10 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case ServiceHealthCheck(at, si, params, dailySummaries) =>
+      case MetricsReport(at, si, params, dailySummaries) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.value, maxCauseSize)}",
+          s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.show, maxCauseSize)}",
           List(
             Attachment(
               info_color,
@@ -134,7 +135,6 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
-                SlackField("Next Check in", fmt.format(params.healthCheckInterval), short = true),
                 SlackField("Brief", params.brief, short = false)
               )
             ))
@@ -142,7 +142,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case ServiceDailySummariesReset(at, si, params, dailySummaries) =>
+      case MetricsReset(at, si, params, dailySummaries) =>
         def msg: String =
           SlackNotification(
             params.taskParams.appName,
