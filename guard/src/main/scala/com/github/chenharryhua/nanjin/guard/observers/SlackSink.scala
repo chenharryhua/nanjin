@@ -202,7 +202,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", action.actionName, short = true),
-                  SlackField("Severity", error.severity.entryName, short = true),
+                  SlackField("Severity", error.importance.entryName, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.id.show, short = false),
@@ -219,13 +219,13 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
             notes.value,
             List(
               Attachment(
-                if (error.severity.value === Importance.Low.value) warn_color else error_color,
+                if (error.importance.value === Importance.Low.value) warn_color else error_color,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", action.actionName, short = true),
-                  SlackField("Severity", error.severity.entryName, short = true),
+                  SlackField("Severity", error.importance.entryName, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retried", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),

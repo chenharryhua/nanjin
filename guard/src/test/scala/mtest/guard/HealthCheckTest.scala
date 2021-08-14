@@ -22,7 +22,7 @@ class HealthCheckTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
     val s :: a :: b :: c :: rest = guard
-      .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withDailySummaryReset(1))
+      .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withMetricsResetAt(1))
       .service("normal")
       .updateConfig(_.withReportingInterval(1.second))
       .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))

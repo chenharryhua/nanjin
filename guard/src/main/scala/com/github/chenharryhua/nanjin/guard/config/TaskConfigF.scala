@@ -15,7 +15,7 @@ import java.time.ZoneId
 @Lenses final case class TaskParams private (
   appName: String,
   zoneId: ZoneId,
-  summaryResetAt: Int, // 0 - 23
+  metricsResetAt: Int, // 0 - 23
   hostName: String)
 
 object TaskParams {
@@ -23,7 +23,7 @@ object TaskParams {
   def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
-    summaryResetAt = 0, // midnight
+    metricsResetAt = 0, // midnight
     hostName = hostName.name
   )
 }
@@ -37,7 +37,7 @@ private object TaskConfigF {
 
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
 
-  final case class WithSummaryResetAt[K](value: Int, cont: K) extends TaskConfigF[K]
+  final case class WithMetricsResetAt[K](value: Int, cont: K) extends TaskConfigF[K]
 
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
 
@@ -45,7 +45,7 @@ private object TaskConfigF {
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName, hostName) => TaskParams(appName, hostName)
       case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
-      case WithSummaryResetAt(v, c)      => TaskParams.summaryResetAt.set(v)(c)
+      case WithMetricsResetAt(v, c)      => TaskParams.metricsResetAt.set(v)(c)
       case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
     }
 }
@@ -55,8 +55,8 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
 
   def withZoneId(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
 
-  def withDailySummaryReset(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
-    TaskConfig(Fix(WithSummaryResetAt(hour.value, value)))
+  def withMetricsResetAt(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
+    TaskConfig(Fix(WithMetricsResetAt(hour.value, value)))
 
   def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
 

@@ -40,7 +40,7 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
-    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.summaryResetAt} ? * *")
+    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.metricsResetAt} ? * *")
     val serviceInfo: F[ServiceInfo] = for {
       ts <- realZonedDateTime(params)
       uuid <- UUIDGen.randomUUID
