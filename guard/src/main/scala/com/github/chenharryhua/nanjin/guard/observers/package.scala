@@ -11,12 +11,6 @@ import org.log4s.Logger
 
 package object observers {
 
-  def jsonConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
-    _.evalMap(event => Console[F].println(event.asJson)).drain
-
-  def showConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
-    _.evalMap(event => Console[F].println(event.show)).drain
-
   private[this] val logger: Logger = org.log4s.getLogger
 
   private def logging[F[_]](f: NJEvent => String)(implicit F: Sync[F]): Pipe[F, NJEvent, INothing] = {
@@ -46,5 +40,11 @@ package object observers {
   }
   def metricConsole[F[_]](implicit F: Sync[F]): Pipe[F, NJEvent, INothing] =
     metricConsole[F]((b: ConsoleReporter.Builder) => b)
+
+  def jsonConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
+    _.evalMap(event => Console[F].println(event.asJson)).drain
+
+  def showConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
+    _.evalMap(event => Console[F].println(event.show)).drain
 
 }
