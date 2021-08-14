@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.sinks.{jsonConsole, showLog, slack}
+import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, showLog, slack}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Chunk
 import io.circe.parser.decode

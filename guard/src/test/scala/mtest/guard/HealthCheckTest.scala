@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   MetricsReport,
   ServiceStarted
 }
-import com.github.chenharryhua.nanjin.guard.sinks.jsonConsole
+import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, metricConsole, showLog}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -26,7 +26,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("normal")
       .updateConfig(_.withReportingInterval(1.second))
       .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))
-      .observe(jsonConsole)
+      .observe(metricConsole)
       .interruptAfter(5.second)
       .compile
       .toList
@@ -43,6 +43,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .updateConfig(_.withReportingInterval(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.run(IO.never))
+      .observe(jsonConsole)
       .interruptAfter(5.second)
       .compile
       .toList
@@ -60,6 +61,7 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withReportingInterval(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
       .interruptAfter(5.second)
+      .observe(showLog)
       .compile
       .toList
       .unsafeRunSync()

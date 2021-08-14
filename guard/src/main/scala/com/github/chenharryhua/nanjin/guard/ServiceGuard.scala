@@ -90,7 +90,7 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
         // fix-rate metrics report
         val reporting: Stream[F, Unit] =
           Stream
-            .fixedRate[F](params.reportInterval)
+            .fixedRate[F](params.reportingInterval)
             .evalMap(_ =>
               realZonedDateTime(params)
                 .flatMap(ts =>

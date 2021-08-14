@@ -65,9 +65,20 @@ final case class MetricRegistryWrapper(value: Option[MetricRegistry]) extends An
 object MetricRegistryWrapper {
   implicit val showMetricRegistryWrapper: Show[MetricRegistryWrapper] =
     _.value.fold("") { mr =>
-      val timer   = mr.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
-      val counter = mr.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
-      (timer ::: counter).sorted.mkString("\n")
+      val timer = mr.getTimers.asScala.map { case (s, t) =>
+        s"Timer(name=$s, count=${t.getCount}, mean=${t.getMeanRate}}, median=${t.getSnapshot.getMedian})"
+      }.toList
+      val gauge =
+        mr.getGauges.asScala.mapValues(_.getValue.toString).map { case (s, t) => s"Gauge(name=$s, value=$t)" }.toList
+      val counter =
+        mr.getCounters.asScala.mapValues(_.getCount).map { case (s, t) => s"Counter(name=$s, count=$t)" }.toList
+      val histogram = mr.getHistograms.asScala.map { case (s, t) =>
+        s"Histogram(name=$s, count=${t.getCount}, mean=${t.getSnapshot.getMean})"
+      }.toList
+      val meters = mr.getMeters.asScala.map { case (s, t) =>
+        s"Meter(name=$s, count=${t.getCount}, mean=${t.getMeanRate})"
+      }.toList
+      (timer ::: gauge ::: counter ::: histogram ::: meters).mkString("\n")
     }
 
   import io.circe.jackson.parse

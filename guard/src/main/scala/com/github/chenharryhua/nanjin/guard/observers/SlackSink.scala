@@ -1,6 +1,5 @@
-package com.github.chenharryhua.nanjin.guard.sinks
+package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.derived.auto.show.kittensMkShow
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -13,6 +12,7 @@ import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
+import scala.collection.JavaConverters.*
 object slack {
   def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): Pipe[F, NJEvent, INothing] =
     new SlackSink[F](snsResource).sink
@@ -52,6 +52,13 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
     Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s))).drain
 
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
+
+  private def translate(mrw: MetricRegistryWrapper): String =
+    mrw.value.fold("") { mr =>
+      val timer   = mr.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
+      val counter = mr.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
+      (timer ::: counter).sorted.mkString("\n")
+    }
 
   @SuppressWarnings(Array("ListSize"))
   private def send(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
@@ -126,7 +133,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
       case MetricsReport(at, si, params, dailySummaries) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.show, maxCauseSize)}",
+          s":gottarun: *Health Check* \n${StringUtils.abbreviate(translate(dailySummaries), maxCauseSize)}",
           List(
             Attachment(
               info_color,
@@ -135,6 +142,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
+                SlackField("Next Check in", fmt.format(params.reportingInterval), short = true),
                 SlackField("Brief", params.brief, short = false)
               )
             ))
@@ -146,7 +154,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
         def msg: String =
           SlackNotification(
             params.taskParams.appName,
-            s":checklist: *Daily Summaries* \n${dailySummaries.value}",
+            s":checklist: *Daily Summaries* \n${translate(dailySummaries)}",
             List(
               Attachment(
                 info_color,
