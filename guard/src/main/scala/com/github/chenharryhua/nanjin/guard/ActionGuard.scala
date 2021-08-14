@@ -9,7 +9,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
-import com.github.chenharryhua.nanjin.guard.event.{ForYourInformation, Importance, NJEvent, PassThrough, ServiceInfo}
+import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Encoder

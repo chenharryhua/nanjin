@@ -21,9 +21,10 @@ sealed trait NJEvent {
 object NJEvent extends zoneddatetime with localtime with zoneid {
   implicit private val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
   implicit private val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
-  implicit val showNJEvent: Show[NJEvent]                             = cats.derived.semiauto.show[NJEvent]
-  implicit val encoderNJEvent: Encoder[NJEvent]                       = io.circe.generic.semiauto.deriveEncoder[NJEvent]
-  implicit val decoderNJEvent: Decoder[NJEvent]                       = io.circe.generic.semiauto.deriveDecoder[NJEvent]
+
+  implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
+  implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
+  implicit val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
 }
 
 sealed trait ServiceEvent extends NJEvent {
@@ -54,20 +55,20 @@ final case class ServiceStopped(
   override val importance: Importance = Importance.SystemEvent
 }
 
-final case class ServiceHealthCheck(
+final case class MetricsReport(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  dailySummaries: DailySummaries
+  metrics: MetricRegistryWrapper
 ) extends ServiceEvent {
   override val importance: Importance = Importance.SystemEvent
 }
 
-final case class ServiceDailySummariesReset(
+final case class MetricsReset(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  dailySummaries: DailySummaries)
+  metrics: MetricRegistryWrapper)
     extends ServiceEvent {
   override val importance: Importance = Importance.SystemEvent
 }
@@ -102,7 +103,7 @@ final case class ActionFailed(
   notes: Notes, // failure notes
   error: NJError)
     extends ActionEvent {
-  override val importance: Importance = error.severity
+  override val importance: Importance = Importance.High
 }
 
 final case class ActionSucced(

@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.sinks.{jsonConsole, showLog, slack}
+import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, showLog, slack}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Chunk
 import io.circe.parser.decode
@@ -161,7 +161,7 @@ class QuasiSuccTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.getMessage == "action was canceled internally")
+    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(c.isInstanceOf[ServicePanic])
   }
 

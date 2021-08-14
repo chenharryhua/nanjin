@@ -16,7 +16,7 @@ class ServiceTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host))
     .service("service")
-    .updateConfig(_.withHealthCheckInterval(3.hours).withConstantDelay(1.seconds).withBrief("ok"))
+    .updateConfig(_.withConstantDelay(1.seconds).withBrief("ok"))
 
   test("should stopped if the operation normally exits") {
     val Vector(a, b, c, d) = guard
@@ -77,9 +77,9 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("should receive 3 health check event") {
+  test("should receive at least 3 report event") {
     val s :: a :: b :: c :: d :: rest = guard
-      .updateConfig(_.withHealthCheckInterval(1.second))
+      .updateConfig(_.withReportingInterval(1.second))
       .eventStream(_.run(IO.never))
       .interruptAfter(5.second)
       .compile
@@ -88,9 +88,9 @@ class ServiceTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ServiceHealthCheck])
-    assert(c.isInstanceOf[ServiceHealthCheck])
-    assert(d.isInstanceOf[ServiceHealthCheck])
+    assert(b.isInstanceOf[MetricsReport])
+    assert(c.isInstanceOf[MetricsReport])
+    assert(d.isInstanceOf[MetricsReport])
   }
 
   test("normal service stop after two operations") {

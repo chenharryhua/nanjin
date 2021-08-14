@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.sinks
+package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
@@ -12,11 +12,12 @@ import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
+import scala.collection.JavaConverters.*
 object slack {
-  def apply[F[_]](service: Resource[F, SimpleNotificationService[F]])(implicit F: Sync[F]): Pipe[F, NJEvent, INothing] =
-    new SlackSink[F](service).sink
+  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): Pipe[F, NJEvent, INothing] =
+    new SlackSink[F](snsResource).sink
 
-  def apply[F[_]: Sync](topic: SnsArn): Pipe[F, NJEvent, INothing] = apply[F](SimpleNotificationService[F](topic))
+  def apply[F[_]: Sync](snsArn: SnsArn): Pipe[F, NJEvent, INothing] = apply[F](SimpleNotificationService[F](snsArn))
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -26,7 +27,8 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationService[F]]) extends zoneid {
+final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationService[F]])(implicit F: Sync[F])
+    extends zoneid {
 
   private def toOrdinalWords(n: Int): String = n + {
     if (n % 100 / 10 == 1) "th"
@@ -44,15 +46,22 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
   private val info_color  = "#b3d1ff"
   private val error_color = "danger"
 
-  private val maxCauseSize = 500
+  private val maxCauseSize: Int = 500
 
-  def sink(implicit F: Sync[F]): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
-    Stream.resource(service).flatMap(s => es.evalMap(e => translate(e, s))).drain
+  val sink: Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
+    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s))).drain
 
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
+  private def translate(mrw: MetricRegistryWrapper): String =
+    mrw.value.fold("") { mr =>
+      val timer   = mr.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
+      val counter = mr.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
+      (timer ::: counter).sorted.mkString("\n")
+    }
+
   @SuppressWarnings(Array("ListSize"))
-  private def translate(event: NJEvent, service: SimpleNotificationService[F])(implicit F: Sync[F]): F[Unit] =
+  private def send(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
 
       case ServiceStarted(at, _, params) =>
@@ -71,7 +80,7 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
               )
             ))
         ).asJson.noSpaces
-        service.publish(msg).void
+        sns.publish(msg).void
 
       case ServicePanic(at, si, params, details, error) =>
         def upcoming: String = details.upcomingDelay.map(fmt.format) match {
@@ -99,7 +108,7 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
                 )
               ))
           ).asJson.noSpaces
-        service.publish(msg).void
+        sns.publish(msg).void
 
       case ServiceStopped(at, si, params) =>
         def msg: String =
@@ -119,12 +128,12 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
               ))
           ).asJson.noSpaces
 
-        service.publish(msg).void
+        sns.publish(msg).void
 
-      case ServiceHealthCheck(at, si, params, dailySummaries) =>
+      case MetricsReport(at, si, params, dailySummaries) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s":gottarun: *Health Check* \n${StringUtils.abbreviate(dailySummaries.value, maxCauseSize)}",
+          s":gottarun: *Health Check* \n${StringUtils.abbreviate(translate(dailySummaries), maxCauseSize)}",
           List(
             Attachment(
               info_color,
@@ -133,19 +142,19 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
-                SlackField("Next Check in", fmt.format(params.healthCheckInterval), short = true),
+                SlackField("Next Check in", fmt.format(params.reportingInterval), short = true),
                 SlackField("Brief", params.brief, short = false)
               )
             ))
         ).asJson.noSpaces
 
-        service.publish(msg).void
+        sns.publish(msg).void
 
-      case ServiceDailySummariesReset(at, si, params, dailySummaries) =>
+      case MetricsReset(at, si, params, dailySummaries) =>
         def msg: String =
           SlackNotification(
             params.taskParams.appName,
-            s":checklist: *Daily Summaries* \n${dailySummaries.value}",
+            s":checklist: *Daily Summaries* \n${translate(dailySummaries)}",
             List(
               Attachment(
                 info_color,
@@ -159,7 +168,7 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
               ))
           ).asJson.noSpaces
 
-        service.publish(msg).void
+        sns.publish(msg).void
 
       case ActionStart(action, at, _, params) =>
         def msg: String =
@@ -177,7 +186,7 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
                 )
               ))
           ).asJson.noSpaces
-        service.publish(msg).void
+        sns.publish(msg).void
 
       case ActionRetrying(action, at, params, wdr, error) =>
         def msg: String =
@@ -201,7 +210,7 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
                 )
               ))
           ).asJson.noSpaces
-        service.publish(msg).void
+        sns.publish(msg).void
 
       case ActionFailed(action, at, params, numRetries, notes, error) =>
         def msg: String =
@@ -225,7 +234,7 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
                 )
               ))
           ).asJson.noSpaces
-        service.publish(msg).void
+        sns.publish(msg).void
 
       case ActionSucced(action, at, _, params, numRetries, notes) =>
         def msg: String =
@@ -247,7 +256,7 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
                 )
               ))
           ).asJson.noSpaces
-        service.publish(msg).void
+        sns.publish(msg).void
 
       case ActionQuasiSucced(action, at, _, params, runMode, numSucc, succNotes, failNotes, errors) =>
         def msg: SlackNotification =
@@ -294,9 +303,9 @@ final private class SlackSink[F[_]](service: Resource[F, SimpleNotificationServi
                 ))
             )
 
-        service.publish(msg.asJson.noSpaces).void
+        sns.publish(msg.asJson.noSpaces).void
 
-      case ForYourInformation(_, message) => service.publish(message).void
+      case ForYourInformation(_, message) => sns.publish(message).void
 
       // no op
       case _: PassThrough => F.unit

@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import cats.implicits.toShow
 import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.json.MetricsModule
+import com.fasterxml.jackson.databind.ObjectMapper
 import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.auto.*
@@ -12,6 +14,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZonedDateTime
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters.*
 import scala.collection.immutable
 
@@ -30,7 +33,7 @@ final case class NJError private (
   severity: Importance,
   message: String,
   stackTrace: String,
-  throwable: Throwable
+  throwable: Option[Throwable]
 )
 
 object NJError {
@@ -51,21 +54,46 @@ object NJError {
       sv <- c.downField("severity").as[Importance]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-    } yield NJError(id, sv, msg, st, new Throwable("fake Throwable")) // can not recover throwables.
+    } yield NJError(id, sv, msg, st, None) // can not reconstruct throwables.
 
   def apply(ex: Throwable, severity: Importance): NJError =
-    NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
+    NJError(UUID.randomUUID(), severity, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
 }
 
-final case class DailySummaries private (value: String)
+final case class MetricRegistryWrapper(value: Option[MetricRegistry]) extends AnyVal
 
-object DailySummaries {
-  def apply(registry: MetricRegistry): DailySummaries = {
-    val timer   = registry.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
-    val counter = registry.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
-    val all     = (timer ::: counter).sorted.mkString("\n")
-    DailySummaries(all)
-  }
+object MetricRegistryWrapper {
+  implicit val showMetricRegistryWrapper: Show[MetricRegistryWrapper] =
+    _.value.fold("") { mr =>
+      val timer = mr.getTimers.asScala.map { case (s, t) =>
+        s"Timer(name=$s, count=${t.getCount}, mean=${t.getMeanRate}}, median=${t.getSnapshot.getMedian})"
+      }.toList
+      val gauge =
+        mr.getGauges.asScala.mapValues(_.getValue.toString).map { case (s, t) => s"Gauge(name=$s, value=$t)" }.toList
+      val counter =
+        mr.getCounters.asScala.mapValues(_.getCount).map { case (s, t) => s"Counter(name=$s, count=$t)" }.toList
+      val histogram = mr.getHistograms.asScala.map { case (s, t) =>
+        s"Histogram(name=$s, count=${t.getCount}, mean=${t.getSnapshot.getMean})"
+      }.toList
+      val meters = mr.getMeters.asScala.map { case (s, t) =>
+        s"Meter(name=$s, count=${t.getCount}, mean=${t.getMeanRate})"
+      }.toList
+      (timer ::: gauge ::: counter ::: histogram ::: meters).mkString("\n")
+    }
+
+  import io.circe.jackson.parse
+  implicit val encodeMetricRegistryWrapper: Encoder[MetricRegistryWrapper] =
+    _.value.flatMap { mr =>
+      val str =
+        new ObjectMapper()
+          .registerModule(new MetricsModule(TimeUnit.MILLISECONDS, TimeUnit.MILLISECONDS, false))
+          .writerWithDefaultPrettyPrinter()
+          .writeValueAsString(mr)
+      parse(str).toOption
+    }.getOrElse(Json.Null)
+
+  implicit val decodeMetricRegistryWrapper: Decoder[MetricRegistryWrapper] =
+    (c: HCursor) => Right(MetricRegistryWrapper(None))
 }
 
 sealed trait RunMode extends EnumEntry
