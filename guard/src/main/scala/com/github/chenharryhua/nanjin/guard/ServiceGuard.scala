@@ -12,8 +12,8 @@ import cron4s.Cron
 import cron4s.expr.CronExpr
 import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
-import fs2.{INothing, Stream}
 import fs2.concurrent.Channel
+import fs2.{INothing, Stream}
 
 import java.time.Duration
 
@@ -72,6 +72,7 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
             startUp *> Dispatcher[F].use(dispatcher =>
               actionGuard(
                 new ActionGuard[F](
+                  isFireStartEvent = false,
                   importance = Importance.Medium,
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
@@ -142,7 +143,7 @@ final private class NJMetricRegistry(registry: MetricRegistry) {
     case _: ServiceStarted     => F.delay(registry.counter("02.service.start").inc())
     case _: ServiceStopped     => F.delay(registry.counter("03.service.stop").inc())
     case _: ServicePanic       => F.delay(registry.counter("04.service.`panic`").inc())
-    case _: ActionStart        => F.delay(registry.counter("05.action.count").inc())
+    case _: ActionStart        => F.delay(registry.counter(actionStartEventCountName).inc())
     case _: ForYourInformation => F.delay(registry.counter("06.fyi").inc())
     case _: PassThrough        => F.delay(registry.counter("07.pass.through").inc())
 
