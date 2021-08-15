@@ -10,5 +10,5 @@ package object guard {
   private[guard] def realZonedDateTime[F[_]](serviceParams: ServiceParams)(implicit F: Temporal[F]): F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
-  private[guard] val actionStartEventCountName = "05.action.count"
+  private[guard] val actionStartEventCounterName = "05.action.count"
 }

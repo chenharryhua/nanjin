@@ -9,7 +9,7 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.{actionStartEventCountName, event, realZonedDateTime}
+import com.github.chenharryhua.nanjin.guard.{actionStartEventCounterName, event, realZonedDateTime}
 import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -183,7 +183,7 @@ final class ActionRetry[F[_], A, B](
         if (isFireStartEvent)
           channel.send(
             ActionStart(actionInfo = ai, timestamp = ai.launchTime, importance = importance, actionParams = params))
-        else F.delay(metricRegistry.counter(actionStartEventCountName).inc())
+        else F.delay(metricRegistry.counter(actionStartEventCounterName).inc())
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](

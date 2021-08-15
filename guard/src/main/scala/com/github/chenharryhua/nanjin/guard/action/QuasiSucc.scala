@@ -9,7 +9,7 @@ import cats.{Alternative, Parallel, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.{actionStartEventCountName, event, realZonedDateTime}
+import com.github.chenharryhua.nanjin.guard.{actionStartEventCounterName, event, realZonedDateTime}
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -71,7 +71,7 @@ final class QuasiSucc[F[_], T[_], A, B](
         if (isFireStartEvent)
           channel.send(
             ActionStart(timestamp = now, importance = importance, actionInfo = actionInfo, actionParams = params))
-        else F.delay(metricRegistry.counter(actionStartEventCountName).inc())
+        else F.delay(metricRegistry.counter(actionStartEventCounterName).inc())
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
