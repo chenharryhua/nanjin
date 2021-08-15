@@ -103,7 +103,7 @@ final case class ActionFailed(
   notes: Notes, // failure notes
   error: NJError)
     extends ActionEvent {
-  override val importance: Importance = Importance.High
+  override val importance: Importance = Importance.Critical
 }
 
 final case class ActionSucced(
