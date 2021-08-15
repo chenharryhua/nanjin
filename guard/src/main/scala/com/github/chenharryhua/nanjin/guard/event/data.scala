@@ -5,7 +5,6 @@ import cats.implicits.toShow
 import com.codahale.metrics.json.MetricsModule
 import com.codahale.metrics.{ConsoleReporter, MetricRegistry}
 import com.fasterxml.jackson.databind.ObjectMapper
-import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -31,20 +30,17 @@ object Notes {
 
 final case class NJError private (
   id: UUID,
-  importance: Importance,
   message: String,
   stackTrace: String,
   throwable: Option[Throwable]
 )
 
 object NJError {
-  implicit val showNJError: Show[NJError] = ex =>
-    s"NJError(id=${ex.id}, severity=${ex.importance.show}, message=${ex.message})"
+  implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.id}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
       ("id", Json.fromString(a.id.toString)),
-      ("importance", Json.fromString(a.importance.show)),
       ("message", Json.fromString(a.message)),
       ("stackTrace", Json.fromString(a.stackTrace))
     )
@@ -52,13 +48,12 @@ object NJError {
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
     for {
       id <- c.downField("id").as[UUID]
-      sv <- c.downField("importance").as[Importance]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-    } yield NJError(id, sv, msg, st, None) // can not reconstruct throwables.
+    } yield NJError(id, msg, st, None) // can not reconstruct throwables.
 
-  def apply(ex: Throwable, importance: Importance): NJError =
-    NJError(UUID.randomUUID(), importance, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
+  def apply(ex: Throwable): NJError =
+    NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
 }
 
 final case class MetricRegistryWrapper(value: Option[MetricRegistry]) extends AnyVal
@@ -93,15 +88,4 @@ object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMo
   override val values: immutable.IndexedSeq[RunMode] = findValues
   case object Parallel extends RunMode
   case object Sequential extends RunMode
-}
-
-sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercase
-
-object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
-  override def values: immutable.IndexedSeq[Importance] = findValues
-
-  case object SystemEvent extends Importance(0)
-  case object High extends Importance(1)
-  case object Medium extends Importance(2)
-  case object Low extends Importance(3)
 }

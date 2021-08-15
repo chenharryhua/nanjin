@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
 import io.chrisdavenport.cats.time.instances.{localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -92,7 +92,7 @@ final case class ActionRetrying(
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
     extends ActionEvent {
-  override val importance: Importance = Importance.Medium
+  override val importance: Importance = Importance.High
 }
 
 final case class ActionFailed(

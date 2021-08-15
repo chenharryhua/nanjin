@@ -6,7 +6,7 @@ import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, Importance, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.Cron
 import cron4s.expr.CronExpr
@@ -63,7 +63,7 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
                       serviceInfo = si,
                       serviceParams = params,
                       retryDetails = rd,
-                      error = NJError(ex, Importance.High)))
+                      error = NJError(ex)))
                   .void)
           ) {
             val startUp = realZonedDateTime(params).flatMap(ts =>
@@ -72,7 +72,6 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
             startUp *> Dispatcher[F].use(dispatcher =>
               actionGuard(
                 new ActionGuard[F](
-                  importance = Importance.Medium,
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
                   dispatcher = dispatcher,

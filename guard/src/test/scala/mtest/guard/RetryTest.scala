@@ -19,7 +19,7 @@ class RetryTest extends AnyFunSuite {
   test("retry - success low importance") {
     var i = 0
     val Vector(s, c) = serviceGuard.eventStream { gd =>
-      gd("succ-low").notice
+      gd("succ-low").unaware
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry(1)(x => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
@@ -73,7 +73,7 @@ class RetryTest extends AnyFunSuite {
   test("retry - should retry 2 times when operation fail - low") {
     var i = 0
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
-      gd("1-time-succ").notice
+      gd("1-time-succ").unaware
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry(1)(x =>
           IO(if (i < 2) {
@@ -92,7 +92,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("escalate-after-3-time").notice
+        gd("escalate-after-3-time").unaware
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(1)(x => IO.raiseError[Int](new Exception("oops")))
           .run
@@ -114,7 +114,7 @@ class RetryTest extends AnyFunSuite {
     val s :: b :: c :: d :: e :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
-        ag("null exception").notice
+        ag("null exception").unaware
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .run(IO.raiseError(new NullPointerException)))
       .interruptAfter(5.seconds)
@@ -132,7 +132,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("predicate").notice
+        gd("predicate").unaware
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(ex => (ex.isInstanceOf[MyException]))
@@ -155,7 +155,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("predicate").notice
+        gd("predicate").unaware
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception()))
           .withWorthRetry(_.isInstanceOf[MyException])
@@ -174,7 +174,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("postCondition").notice
+        gd("postCondition").unaware
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry(IO(0))
           .withPostCondition(_ > 1)
@@ -195,7 +195,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("postCondition").notice
+        gd("postCondition").unaware
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry(0)(IO(_))
           .withPostCondition(_ > 1)
@@ -285,7 +285,7 @@ class RetryTest extends AnyFunSuite {
   ignore("performance") {
     serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withReportingInterval(3.seconds))
-      .eventStream(ag => ag.nonStop(ag.notice.run(IO(1)).foreverM))
+      .eventStream(ag => ag.nonStop(ag.unaware.run(IO(1)).foreverM))
       .observe(es => showConsole[IO].apply(es.filter(_.isInstanceOf[MetricsReport])))
       .interruptAfter(60.seconds)
       .compile
