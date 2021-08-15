@@ -92,7 +92,7 @@ final case class ActionRetrying(
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
     extends ActionEvent {
-  override val importance: Importance = error.importance
+  override val importance: Importance = Importance.Medium
 }
 
 final case class ActionFailed(

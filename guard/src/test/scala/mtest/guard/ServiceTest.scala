@@ -19,21 +19,21 @@ class ServiceTest extends AnyFunSuite {
     .updateConfig(_.withConstantDelay(1.seconds).withBrief("ok"))
 
   test("should stopped if the operation normally exits") {
-    val Vector(a, c, d) = guard
+    val Vector(a, d) = guard
       .updateConfig(_.withJitterBackoff(3.second))
-      .eventStream(gd => gd("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
+      .eventStream(gd =>
+        gd("normal-exit-action").notice.max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStarted])
-    assert(c.isInstanceOf[ActionSucced])
     assert(d.isInstanceOf[ServiceStopped])
   }
 
   test("escalate to up level if retry failed") {
-    val Vector(s, b, c, d, e, f) = guard
+    val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .eventStream { gd =>
         gd("escalate-after-3-time")
@@ -50,6 +50,7 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
@@ -78,7 +79,7 @@ class ServiceTest extends AnyFunSuite {
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
       .updateConfig(_.withReportingInterval(1.second))
-      .eventStream(_.run(IO.never))
+      .eventStream(_.notice.run(IO.never))
       .interruptAfter(5.second)
       .compile
       .toList
@@ -91,7 +92,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("normal service stop after two operations") {
-    val Vector(s, b, d, e) = guard
+    val Vector(s, a, b, c, d, e) = guard
       .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -100,7 +101,9 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
+    assert(c.isInstanceOf[ActionStart])
     assert(d.isInstanceOf[ActionSucced])
     assert(e.isInstanceOf[ServiceStopped])
   }

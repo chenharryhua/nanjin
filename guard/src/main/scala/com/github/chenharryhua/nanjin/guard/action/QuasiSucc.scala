@@ -9,12 +9,11 @@ import cats.{Alternative, Parallel, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.{actionStartEventCounterName, event, realZonedDateTime}
+import com.github.chenharryhua.nanjin.guard.{actionStart, actionSucc, event, realZonedDateTime}
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class QuasiSucc[F[_], T[_], A, B](
-  isFireStartEvent: Boolean,
   metricRegistry: MetricRegistry,
   importance: Importance,
   serviceInfo: ServiceInfo,
@@ -28,7 +27,6 @@ final class QuasiSucc[F[_], T[_], A, B](
 
   def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -45,7 +43,6 @@ final class QuasiSucc[F[_], T[_], A, B](
 
   def withFailNotesM(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -62,16 +59,17 @@ final class QuasiSucc[F[_], T[_], A, B](
 
   private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
     T: Traverse[T],
-    L: Alternative[T]): F[T[B]] =
+    L: Alternative[T]): F[T[B]] = {
+    val isFireEvent: Boolean = importance.value =!= Importance.Low.value
     for {
       now <- realZonedDateTime(params.serviceParams)
       uuid <- UUIDGen.randomUUID
       actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
       _ <-
-        if (isFireStartEvent)
+        if (isFireEvent)
           channel.send(
             ActionStart(timestamp = now, importance = importance, actionInfo = actionInfo, actionParams = params))
-        else F.delay(metricRegistry.counter(actionStartEventCounterName).inc())
+        else F.delay(actionStart(actionName, metricRegistry))
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
@@ -106,7 +104,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                   error = NJError(error, importance)))
             } yield ()
           case Outcome.Succeeded(fb) =>
-            for {
+            if (isFireEvent) for {
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
               sn <- succ(b._2.toList)
@@ -124,8 +122,11 @@ final class QuasiSucc[F[_], T[_], A, B](
                   errors = b._1.map(_._2)
                 ))
             } yield ()
+            else
+              F.delay(actionSucc(actionName, metricRegistry))
         }
     } yield T.map(res._2)(_._2)
+  }
 
   def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
@@ -139,7 +140,6 @@ final class QuasiSucc[F[_], T[_], A, B](
 }
 
 final class QuasiSuccUnit[F[_], T[_], B](
-  isFireStartEvent: Boolean,
   metricRegistry: MetricRegistry,
   importance: Importance,
   serviceInfo: ServiceInfo,
@@ -152,7 +152,6 @@ final class QuasiSuccUnit[F[_], T[_], B](
 
   def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -168,7 +167,6 @@ final class QuasiSuccUnit[F[_], T[_], B](
 
   def withFailNotesM(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -184,7 +182,6 @@ final class QuasiSuccUnit[F[_], T[_], B](
 
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,

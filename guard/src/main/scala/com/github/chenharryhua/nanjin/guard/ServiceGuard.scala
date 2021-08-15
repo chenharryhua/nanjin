@@ -72,7 +72,6 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
             startUp *> Dispatcher[F].use(dispatcher =>
               actionGuard(
                 new ActionGuard[F](
-                  isFireStartEvent = false,
                   importance = Importance.Medium,
                   metricRegistry = metricRegistry,
                   serviceInfo = si,
@@ -139,26 +138,26 @@ final private class NJMetricRegistry(registry: MetricRegistry) {
 
   def compute[F[_]](event: NJEvent)(implicit F: Sync[F]): F[Unit] = event match {
     // counters
-    case _: MetricsReport      => F.delay(registry.counter("01.health.check").inc())
-    case _: ServiceStarted     => F.delay(registry.counter("02.service.start").inc())
-    case _: ServiceStopped     => F.delay(registry.counter("03.service.stop").inc())
-    case _: ServicePanic       => F.delay(registry.counter("04.service.`panic`").inc())
-    case _: ActionStart        => F.delay(registry.counter(actionStartEventCounterName).inc())
-    case _: ForYourInformation => F.delay(registry.counter("06.fyi").inc())
-    case _: PassThrough        => F.delay(registry.counter("07.pass.through").inc())
+    case _: MetricsReport           => F.delay(registry.counter("01.health.check").inc())
+    case _: ServiceStarted          => F.delay(registry.counter("02.service.start").inc())
+    case _: ServiceStopped          => F.delay(registry.counter("03.service.stop").inc())
+    case _: ServicePanic            => F.delay(registry.counter("04.service.`panic`").inc())
+    case ActionStart(info, _, _, _) => F.delay(actionStart(info.actionName, registry))
+    case _: ForYourInformation      => F.delay(registry.counter("08.fyi").inc())
+    case _: PassThrough             => F.delay(registry.counter("09.pass.through").inc())
 
     // timers
     case ActionFailed(info, at, _, _, _, _) =>
-      F.delay(registry.timer(s"08.`fail`.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"10.`fail`.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     case ActionRetrying(info, at, _, _, _) =>
-      F.delay(registry.timer(s"09.retry.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"11.retry.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     case ActionQuasiSucced(info, at, _, _, _, _, _, _, _) =>
-      F.delay(registry.timer(s"10.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"12.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     case ActionSucced(info, at, _, _, _, _) =>
-      F.delay(registry.timer(s"11.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(s"13.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
 
     // reset
     case _: MetricsReset => F.delay(registry.removeMatching(MetricFilter.ALL))
