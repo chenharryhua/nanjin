@@ -15,9 +15,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class QuasiSucc[F[_], T[_], A, B](
   metricRegistry: MetricRegistry,
-  serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
-  actionName: String,
   params: ActionParams,
   input: T[A],
   kfab: Kleisli[F, A, B],
@@ -27,9 +25,7 @@ final class QuasiSucc[F[_], T[_], A, B](
   def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -42,9 +38,7 @@ final class QuasiSucc[F[_], T[_], A, B](
   def withFailNotesM(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -62,7 +56,7 @@ final class QuasiSucc[F[_], T[_], A, B](
     for {
       now <- realZonedDateTime(params.serviceParams)
       uuid <- UUIDGen.randomUUID
-      actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
+      actionInfo = ActionInfo(id = uuid, launchTime = now)
       _ <-
         if (isFireStartEvent)
           channel.send(
@@ -71,7 +65,7 @@ final class QuasiSucc[F[_], T[_], A, B](
               importance = params.importance,
               actionInfo = actionInfo,
               actionParams = params))
-        else F.delay(metricRegistry.counter(actionStartMRName(actionName)).inc())
+        else F.delay(metricRegistry.counter(actionStartMRName(params.actionName)).inc())
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
@@ -126,7 +120,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ))
             } yield ()
             else
-              F.delay(metricRegistry.counter(actionSuccMRName(actionName)).inc())
+              F.delay(metricRegistry.counter(actionSuccMRName(params.actionName)).inc())
         }
     } yield T.map(res._2)(_._2)
   }
@@ -144,9 +138,7 @@ final class QuasiSucc[F[_], T[_], A, B](
 
 final class QuasiSuccUnit[F[_], T[_], B](
   metricRegistry: MetricRegistry,
-  serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
-  actionName: String,
   params: ActionParams,
   tfb: T[F[B]],
   succ: Kleisli[F, List[B], String],
@@ -155,9 +147,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
   def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       tfb = tfb,
       succ = Kleisli(succ),
@@ -169,9 +159,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
   def withFailNotesM(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       tfb = tfb,
       succ = succ,
@@ -183,9 +171,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = tfb,
       kfab = Kleisli(identity),

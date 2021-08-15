@@ -54,6 +54,7 @@ final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends
 }
 
 @Lenses final case class ActionParams private (
+  actionName: String,
   importance: Importance,
   serviceParams: ServiceParams,
   shouldTerminate: Boolean,
@@ -62,6 +63,7 @@ final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends
 object ActionParams {
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
+    actionName = "anonymous",
     importance = Importance.High,
     serviceParams = serviceParams,
     shouldTerminate = true,
@@ -81,6 +83,8 @@ private object ActionConfigF {
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ActionConfigF[K]
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
 
+  final case class WithActionName[K](value: String, cont: K) extends ActionConfigF[K]
+
   final case class WithTermination[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
@@ -91,6 +95,7 @@ private object ActionConfigF {
       case WithCapDelay(v, c)    => ActionParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
       case WithTermination(v, c) => ActionParams.shouldTerminate.set(v)(c)
       case WithImportance(v, c)  => ActionParams.importance.set(v)(c)
+      case WithActionName(v, c)  => ActionParams.actionName.set(v)(c)
     }
 }
 
@@ -117,6 +122,8 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
 
   def withLowImportance: ActionConfig    = ActionConfig(Fix(WithImportance(Importance.Low, value)))
   def withMediumImportance: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Medium, value)))
+
+  def withActionName(name: String): ActionConfig = ActionConfig(Fix(WithActionName(name, value)))
 
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }

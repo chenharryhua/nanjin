@@ -17,9 +17,7 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
   metricRegistry: MetricRegistry,
-  serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
-  actionName: String,
   params: ActionParams,
   input: A,
   kfab: Kleisli[F, A, B],
@@ -31,9 +29,7 @@ final class ActionRetry[F[_], A, B](
   def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -48,9 +44,7 @@ final class ActionRetry[F[_], A, B](
   def withFailNotesM(fail: (A, Throwable) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -65,9 +59,7 @@ final class ActionRetry[F[_], A, B](
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -79,9 +71,7 @@ final class ActionRetry[F[_], A, B](
   def withPostCondition(postCondition: B => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -93,7 +83,7 @@ final class ActionRetry[F[_], A, B](
   private val actionInfo: F[ActionInfo] = for {
     ts <- realZonedDateTime(params.serviceParams)
     uuid <- UUIDGen.randomUUID
-  } yield ActionInfo(id = uuid, launchTime = ts, actionName = actionName, serviceInfo = serviceInfo)
+  } yield ActionInfo(id = uuid, launchTime = ts)
 
   private def failNotes(error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
   private def succNotes(b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))
@@ -168,7 +158,7 @@ final class ActionRetry[F[_], A, B](
                 numRetries = count,
                 notes = sn))
           } yield ()
-        else F.delay(metricRegistry.counter(actionSuccMRName(actionName)).inc())
+        else F.delay(metricRegistry.counter(actionSuccMRName(params.actionName)).inc())
     }
 
   def run: F[B] =
@@ -183,7 +173,7 @@ final class ActionRetry[F[_], A, B](
               timestamp = ai.launchTime,
               importance = params.importance,
               actionParams = params))
-        else F.delay(metricRegistry.counter(actionStartMRName(actionName)).inc())
+        else F.delay(metricRegistry.counter(actionStartMRName(params.actionName)).inc())
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](
@@ -207,9 +197,7 @@ final class ActionRetry[F[_], A, B](
 
 final class ActionRetryUnit[F[_], B](
   metricRegistry: MetricRegistry,
-  serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
-  actionName: String,
   params: ActionParams,
   fb: F[B],
   succ: Kleisli[F, B, String],
@@ -220,9 +208,7 @@ final class ActionRetryUnit[F[_], B](
   def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       fb = fb,
       succ = Kleisli(succ),
@@ -236,9 +222,7 @@ final class ActionRetryUnit[F[_], B](
   def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       fb = fb,
       succ = succ,
@@ -252,9 +236,7 @@ final class ActionRetryUnit[F[_], B](
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       fb = fb,
       succ = succ,
@@ -265,9 +247,7 @@ final class ActionRetryUnit[F[_], B](
   def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       fb = fb,
       succ = succ,
@@ -278,9 +258,7 @@ final class ActionRetryUnit[F[_], B](
   def run: F[B] =
     new ActionRetry[F, Unit, B](
       metricRegistry = metricRegistry,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = (),
       kfab = Kleisli(_ => fb),

@@ -20,7 +20,7 @@ import scala.collection.immutable
 
 final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime)
 
-final case class ActionInfo(actionName: String, id: UUID, launchTime: ZonedDateTime, serviceInfo: ServiceInfo)
+final case class ActionInfo(id: UUID, launchTime: ZonedDateTime)
 
 final case class Notes private (value: String)
 
@@ -80,7 +80,7 @@ object MetricRegistryWrapper {
     }.getOrElse(Json.Null)
 
   implicit val decodeMetricRegistryWrapper: Decoder[MetricRegistryWrapper] =
-    (c: HCursor) => Right(MetricRegistryWrapper(None))
+    (_: HCursor) => Right(MetricRegistryWrapper(None))
 }
 
 sealed trait RunMode extends EnumEntry

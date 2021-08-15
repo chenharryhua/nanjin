@@ -171,11 +171,11 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case ActionStart(action, at, _, params) =>
+      case ActionStart(params, action, at, _) =>
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            s"Start running action: *${action.actionName}*",
+            s"Start running action: *${params.actionName}*",
             List(
               Attachment(
                 info_color,
@@ -189,7 +189,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ActionRetrying(action, at, params, wdr, error) =>
+      case ActionRetrying(params, action, at, wdr, error) =>
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
@@ -202,7 +202,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", action.actionName, short = true),
+                  SlackField("Action", params.actionName, short = true),
                   SlackField("Severity", params.importance.entryName, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
@@ -213,7 +213,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ActionFailed(action, at, params, numRetries, notes, error) =>
+      case ActionFailed(params, action, at, numRetries, notes, error) =>
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
@@ -225,7 +225,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", action.actionName, short = true),
+                  SlackField("Action", params.actionName, short = true),
                   SlackField("Severity", params.importance.entryName, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retried", numRetries.show, short = true),
@@ -237,7 +237,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ActionSucced(action, at, _, params, numRetries, notes) =>
+      case ActionSucced(params, action, at, _, numRetries, notes) =>
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
@@ -249,7 +249,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", action.actionName, short = true),
+                  SlackField("Action", params.actionName, short = true),
                   SlackField("Status", "Completed", short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retried", s"$numRetries/${params.retry.maxRetries}", short = true),
@@ -259,7 +259,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ActionQuasiSucced(action, at, _, params, runMode, numSucc, succNotes, failNotes, errors) =>
+      case ActionQuasiSucced(params, action, at, _, runMode, numSucc, succNotes, failNotes, errors) =>
         def msg: SlackNotification =
           if (errors.isEmpty)
             SlackNotification(
@@ -272,7 +272,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                   List(
                     SlackField("Service", params.serviceParams.serviceName, short = true),
                     SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                    SlackField("Action", action.actionName, short = true),
+                    SlackField("Action", params.actionName, short = true),
                     SlackField("Status", "Completed", short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),
@@ -293,7 +293,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                   List(
                     SlackField("Service", params.serviceParams.serviceName, short = true),
                     SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                    SlackField("Action", action.actionName, short = true),
+                    SlackField("Action", params.actionName, short = true),
                     SlackField("Status", "Quasi Success", short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),

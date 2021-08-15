@@ -79,16 +79,16 @@ sealed trait ActionEvent extends NJEvent {
 }
 
 final case class ActionStart(
+  actionParams: ActionParams,
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
-  importance: Importance,
-  actionParams: ActionParams)
+  importance: Importance)
     extends NJEvent
 
 final case class ActionRetrying(
+  actionParams: ActionParams,
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
-  actionParams: ActionParams,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
     extends ActionEvent {
@@ -96,9 +96,9 @@ final case class ActionRetrying(
 }
 
 final case class ActionFailed(
+  actionParams: ActionParams,
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
-  actionParams: ActionParams,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
@@ -107,19 +107,19 @@ final case class ActionFailed(
 }
 
 final case class ActionSucced(
+  actionParams: ActionParams,
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   importance: Importance,
-  actionParams: ActionParams,
   numRetries: Int, // number of retries before success
   notes: Notes // success notes
 ) extends ActionEvent
 
 final case class ActionQuasiSucced(
+  actionParams: ActionParams,
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   importance: Importance,
-  actionParams: ActionParams,
   runMode: RunMode,
   numSucc: Long,
   succNotes: Notes,

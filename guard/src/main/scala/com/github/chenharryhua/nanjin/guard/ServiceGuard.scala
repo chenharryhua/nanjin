@@ -6,7 +6,7 @@ import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, Importance, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.Cron
 import cron4s.expr.CronExpr
@@ -73,10 +73,8 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
               actionGuard(
                 new ActionGuard[F](
                   metricRegistry = metricRegistry,
-                  serviceInfo = si,
                   dispatcher = dispatcher,
                   channel = channel,
-                  actionName = "anonymous",
                   actionConfig = ActionConfig(params))))
           }
           .guarantee(realZonedDateTime(params).flatMap(ts =>
@@ -135,25 +133,25 @@ final private class NJMetricRegistry(registry: MetricRegistry) {
 
   def compute[F[_]](event: NJEvent)(implicit F: Sync[F]): F[Unit] = event match {
     // counters
-    case _: MetricsReport           => F.delay(registry.counter("01.health.check").inc())
-    case _: ServiceStarted          => F.delay(registry.counter("02.service.start").inc())
-    case _: ServiceStopped          => F.delay(registry.counter("03.service.stop").inc())
-    case _: ServicePanic            => F.delay(registry.counter("04.service.`panic`").inc())
-    case _: ForYourInformation      => F.delay(registry.counter("05.fyi").inc())
-    case _: PassThrough             => F.delay(registry.counter("06.pass.through").inc())
-    case ActionStart(info, _, _, _) => F.delay(registry.counter(actionStartMRName(info.actionName)).inc())
+    case _: MetricsReport             => F.delay(registry.counter("01.health.check").inc())
+    case _: ServiceStarted            => F.delay(registry.counter("02.service.start").inc())
+    case _: ServiceStopped            => F.delay(registry.counter("03.service.stop").inc())
+    case _: ServicePanic              => F.delay(registry.counter("04.service.`panic`").inc())
+    case _: ForYourInformation        => F.delay(registry.counter("05.fyi").inc())
+    case _: PassThrough               => F.delay(registry.counter("06.pass.through").inc())
+    case ActionStart(params, _, _, _) => F.delay(registry.counter(actionStartMRName(params.actionName)).inc())
     // timers
-    case ActionFailed(info, at, _, _, _, _) =>
-      F.delay(registry.timer(actionFailMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
+    case ActionFailed(params, info, at, _, _, _) =>
+      F.delay(registry.timer(actionFailMRName(params.actionName)).update(Duration.between(info.launchTime, at)))
 
-    case ActionRetrying(info, at, _, _, _) =>
-      F.delay(registry.timer(actionRetryMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
+    case ActionRetrying(params, info, at, _, _) =>
+      F.delay(registry.timer(actionRetryMRName(params.actionName)).update(Duration.between(info.launchTime, at)))
 
-    case ActionQuasiSucced(info, at, _, _, _, _, _, _, _) =>
-      F.delay(registry.timer(actionSuccMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
+    case ActionQuasiSucced(params, info, at, _, _, _, _, _, _) =>
+      F.delay(registry.timer(actionSuccMRName(params.actionName)).update(Duration.between(info.launchTime, at)))
 
-    case ActionSucced(info, at, _, _, _, _) =>
-      F.delay(registry.timer(actionSuccMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
+    case ActionSucced(params, info, at, _, _, _) =>
+      F.delay(registry.timer(actionSuccMRName(params.actionName)).update(Duration.between(info.launchTime, at)))
 
     // reset
     case _: MetricsReset => F.delay(registry.removeMatching(MetricFilter.ALL))
