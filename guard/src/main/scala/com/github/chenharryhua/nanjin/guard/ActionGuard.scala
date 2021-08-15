@@ -18,7 +18,6 @@ import io.circe.syntax.*
 import java.time.ZoneId
 
 final class ActionGuard[F[_]] private[guard] (
-  isFireStartEvent: Boolean,
   importance: Importance,
   metricRegistry: MetricRegistry,
   serviceInfo: ServiceInfo,
@@ -32,7 +31,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   def apply(actionName: String): ActionGuard[F] =
     new ActionGuard[F](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -43,7 +41,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -54,7 +51,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   private def updateImportance(importance: Importance): ActionGuard[F] =
     new ActionGuard[F](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -67,20 +63,8 @@ final class ActionGuard[F[_]] private[guard] (
   def critical: ActionGuard[F] = updateImportance(Importance.High)
   def notice: ActionGuard[F]   = updateImportance(Importance.Low)
 
-  def withStartEvent: ActionGuard[F] =
-    new ActionGuard[F](
-      isFireStartEvent = true,
-      metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
-      dispatcher = dispatcher,
-      channel = channel,
-      actionName = actionName,
-      actionConfig = actionConfig)
-
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -96,7 +80,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -135,7 +118,7 @@ final class ActionGuard[F[_]] private[guard] (
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    apply("nonStop").notice
+    apply("nonStop")
       .updateConfig(_.withNonTermination.withMaxRetries(0))
       .run(fb)
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
@@ -148,7 +131,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,
@@ -162,7 +144,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
-      isFireStartEvent = isFireStartEvent,
       metricRegistry = metricRegistry,
       importance = importance,
       serviceInfo = serviceInfo,

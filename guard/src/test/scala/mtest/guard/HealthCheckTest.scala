@@ -25,7 +25,7 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withMetricsResetAt(1))
       .service("normal")
       .updateConfig(_.withReportingInterval(1.second))
-      .eventStream(gd => gd.withStartEvent.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))
+      .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))
       .observe(metricConsole)
       .interruptAfter(5.second)
       .compile
@@ -39,7 +39,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("success") {
-    val s :: b :: d :: MetricsReport(_, _, _, ds) :: rest = guard
+    val s :: a :: b :: c :: d :: MetricsReport(_, _, _, ds) :: rest = guard
       .service("success-test")
       .updateConfig(_.withReportingInterval(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.run(IO.never))
@@ -49,12 +49,14 @@ class HealthCheckTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucced])
+    assert(c.isInstanceOf[ActionStart])
     assert(d.isInstanceOf[MetricsReport])
   }
 
   test("retry") {
-    val s :: b :: c :: MetricsReport(_, _, _, ds) :: rest = guard
+    val s :: a :: b :: c :: MetricsReport(_, _, _, ds) :: rest = guard
       .service("failure-test")
       .updateConfig(_.withReportingInterval(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
@@ -64,6 +66,7 @@ class HealthCheckTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[MetricsReport])
   }

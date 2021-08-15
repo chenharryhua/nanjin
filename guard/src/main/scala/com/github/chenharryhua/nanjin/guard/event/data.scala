@@ -78,7 +78,7 @@ object MetricRegistryWrapper {
     _.value.flatMap { mr =>
       val str =
         new ObjectMapper()
-          .registerModule(new MetricsModule(TimeUnit.MILLISECONDS, TimeUnit.MILLISECONDS, false))
+          .registerModule(new MetricsModule(TimeUnit.SECONDS, TimeUnit.MILLISECONDS, false))
           .writerWithDefaultPrettyPrinter()
           .writeValueAsString(mr)
       io.circe.jackson.parse(str).toOption
