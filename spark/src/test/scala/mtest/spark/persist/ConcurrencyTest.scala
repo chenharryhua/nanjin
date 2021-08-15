@@ -184,28 +184,28 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("mix single") {
     val root = "./data/test/spark/persist/interlope/mix-single/"
-    val a    = rooster.avro(root + "avro1.gzip2.avro").bzip2.file.stream
-    val b    = rooster.avro(root + "avro2.deflate.avro").deflate(1).file.stream
-    val c    = rooster.avro(root + "avro3.snapp.avro").snappy.file.stream
-    val d    = rooster.avro(root + "avro4.xz.avro").xz(2).file.stream
+    val a    = rooster.avro(root + "avro1.gzip2.avro").bzip2.file.sink
+    val b    = rooster.avro(root + "avro2.deflate.avro").deflate(1).file.sink
+    val c    = rooster.avro(root + "avro3.snapp.avro").snappy.file.sink
+    val d    = rooster.avro(root + "avro4.xz.avro").xz(2).file.sink
 
-    val e = rooster.jackson(root + "jackson1.json.gz").file.gzip.stream
-    val f = rooster.jackson(root + "jackson2.json.deflate").file.deflate(4).stream
+    val e = rooster.jackson(root + "jackson1.json.gz").file.gzip.sink
+    val f = rooster.jackson(root + "jackson2.json.deflate").file.deflate(4).sink
 
-    val g = rooster.binAvro(root + "binAvro.avro").file.stream
+    val g = rooster.binAvro(root + "binAvro.avro").file.sink
 
-    val h = rooster.circe(root + "circe1.json.deflate").file.deflate(5).stream
-    val i = rooster.circe(root + "circe2.json.gz").file.gzip.stream
+    val h = rooster.circe(root + "circe1.json.deflate").file.deflate(5).sink
+    val i = rooster.circe(root + "circe2.json.gz").file.gzip.sink
 
-    val j = rooster.text(root + "text1.txt.deflate").file.deflate(5).stream
-    val k = rooster.text(root + "text2.txt.gz").file.gzip.stream
+    val j = rooster.text(root + "text1.txt.deflate").file.deflate(5).sink
+    val k = rooster.text(root + "text2.txt.gz").file.gzip.sink
 
-    val l = rooster.csv(root + "csv1.csv.deflate").file.deflate(5).stream
-    val m = rooster.csv(root + "csv2.csv.gz").file.gzip.stream
+    val l = rooster.csv(root + "csv1.csv.deflate").file.deflate(5).sink
+    val m = rooster.csv(root + "csv2.csv.gz").file.gzip.sink
 
-    val n = rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.stream
-    val o = rooster.parquet(root + "parquet2.gz.parquet").file.gzip.stream
-    val p = rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.stream
+    val n = rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.sink
+    val o = rooster.parquet(root + "parquet2.gz.parquet").file.gzip.sink
+    val p = rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.sink
     a.concurrently(b)
       .concurrently(c)
       .concurrently(d)

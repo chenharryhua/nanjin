@@ -32,7 +32,7 @@ final private[persist] class SaveModeAware[F[_]](
     }
   }
 
-  def checkAndRun(f: Stream[F, Unit])(implicit F: Sync[F]): Stream[F, Unit] = {
+  def checkAndRun[A](f: Stream[F, A])(implicit F: Sync[F]): Stream[F, A] = {
     val hadoop: NJHadoop[F] = NJHadoop[F](hadoopConfiguration)
 
     saveMode match {
@@ -45,7 +45,7 @@ final private[persist] class SaveModeAware[F[_]](
         }
       case SaveMode.Ignore =>
         Stream.eval(hadoop.isExist(outPath)).flatMap {
-          case true  => Stream(())
+          case true  => Stream.empty
           case false => f
         }
     }

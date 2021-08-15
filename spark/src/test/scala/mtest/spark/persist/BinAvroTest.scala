@@ -25,7 +25,7 @@ class BinAvroTest extends AnyFunSuite {
   test("binary avro - single file") {
     val path = "./data/test/spark/persist/bin_avro/single.bin.avro"
 
-    saver.binAvro(path).file.stream.compile.drain.unsafeRunSync()
+    saver.binAvro(path).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
     assert(RoosterData.expected == r)

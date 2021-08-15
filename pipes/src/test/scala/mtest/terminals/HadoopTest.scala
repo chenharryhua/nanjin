@@ -1,10 +1,9 @@
 package mtest.terminals
 
 import cats.effect.IO
-import cats.syntax.all._
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import fs2.Stream
-import fs2.io.readInputStream
 import org.apache.avro.Schema
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -13,7 +12,6 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-import cats.effect.unsafe.implicits.global
 
 object HadoopTestData {
 
@@ -68,7 +66,7 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("snappy parquet write/read") {
-    import HadoopTestData._
+    import HadoopTestData.*
     val pathStr = "./data/test/devices/panda.snappy.parquet"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
@@ -78,7 +76,7 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("gzip parquet write/read") {
-    import HadoopTestData._
+    import HadoopTestData.*
     val pathStr = "./data/test/devices/panda.gzip.parquet"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
@@ -87,7 +85,7 @@ class HadoopTest extends AnyFunSuite {
     assert(action.unsafeRunSync == pandas)
   }
   test("uncompressed parquet write/read") {
-    import HadoopTestData._
+    import HadoopTestData.*
     val pathStr = "./data/test/devices/panda.uncompressed.parquet"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
@@ -97,7 +95,7 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("snappy avro write/read") {
-    import HadoopTestData._
+    import HadoopTestData.*
     val pathStr = "./data/test/devices/panda.snappy.avro"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
@@ -106,7 +104,7 @@ class HadoopTest extends AnyFunSuite {
     assert(action.unsafeRunSync == pandas)
   }
   test("deflate(6) avro write/read") {
-    import HadoopTestData._
+    import HadoopTestData.*
     val pathStr = "./data/test/devices/panda.deflate.avro"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
@@ -116,7 +114,7 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("uncompressed avro write/read") {
-    import HadoopTestData._
+    import HadoopTestData.*
     val pathStr = "./data/test/devices/panda.uncompressed.avro"
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
