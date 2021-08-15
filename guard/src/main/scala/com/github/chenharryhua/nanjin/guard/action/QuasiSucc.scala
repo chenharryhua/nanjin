@@ -9,7 +9,7 @@ import cats.{Alternative, Parallel, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.{actionStart, actionSucc, event, realZonedDateTime}
+import com.github.chenharryhua.nanjin.guard.{actionStartMRName, actionSuccMRName, realZonedDateTime}
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -69,7 +69,7 @@ final class QuasiSucc[F[_], T[_], A, B](
         if (isFireEvent)
           channel.send(
             ActionStart(timestamp = now, importance = importance, actionInfo = actionInfo, actionParams = params))
-        else F.delay(actionStart(actionName, metricRegistry))
+        else F.delay(metricRegistry.counter(actionStartMRName(actionName)).inc())
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
@@ -95,7 +95,7 @@ final class QuasiSucc[F[_], T[_], A, B](
             for {
               now <- realZonedDateTime(params.serviceParams)
               _ <- channel.send(
-                event.ActionFailed(
+                ActionFailed(
                   actionInfo = actionInfo,
                   timestamp = now,
                   actionParams = params,
@@ -123,7 +123,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ))
             } yield ()
             else
-              F.delay(actionSucc(actionName, metricRegistry))
+              F.delay(metricRegistry.counter(actionSuccMRName(actionName)).inc())
         }
     } yield T.map(res._2)(_._2)
   }

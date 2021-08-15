@@ -171,7 +171,7 @@ final class ActionRetry[F[_], A, B](
                 numRetries = count,
                 notes = sn))
           } yield ()
-        else F.delay(actionSucc(actionName, metricRegistry))
+        else F.delay(metricRegistry.counter(actionSuccMRName(actionName)).inc())
     }
 
   def run: F[B] =
@@ -182,7 +182,7 @@ final class ActionRetry[F[_], A, B](
         if (isFireEvent)
           channel.send(
             ActionStart(actionInfo = ai, timestamp = ai.launchTime, importance = importance, actionParams = params))
-        else F.delay(actionStart(actionName, metricRegistry))
+        else F.delay(metricRegistry.counter(actionStartMRName(actionName)).inc())
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](

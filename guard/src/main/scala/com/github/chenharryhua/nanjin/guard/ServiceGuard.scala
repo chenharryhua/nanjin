@@ -134,30 +134,27 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
 
 final private class NJMetricRegistry(registry: MetricRegistry) {
 
-  private def name(info: ActionInfo) = s"[${info.actionName}]"
-
   def compute[F[_]](event: NJEvent)(implicit F: Sync[F]): F[Unit] = event match {
     // counters
     case _: MetricsReport           => F.delay(registry.counter("01.health.check").inc())
     case _: ServiceStarted          => F.delay(registry.counter("02.service.start").inc())
     case _: ServiceStopped          => F.delay(registry.counter("03.service.stop").inc())
     case _: ServicePanic            => F.delay(registry.counter("04.service.`panic`").inc())
-    case ActionStart(info, _, _, _) => F.delay(actionStart(info.actionName, registry))
-    case _: ForYourInformation      => F.delay(registry.counter("08.fyi").inc())
-    case _: PassThrough             => F.delay(registry.counter("09.pass.through").inc())
-
+    case _: ForYourInformation      => F.delay(registry.counter("05.fyi").inc())
+    case _: PassThrough             => F.delay(registry.counter("06.pass.through").inc())
+    case ActionStart(info, _, _, _) => F.delay(registry.counter(actionStartMRName(info.actionName)).inc())
     // timers
     case ActionFailed(info, at, _, _, _, _) =>
-      F.delay(registry.timer(s"10.`fail`.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(actionFailMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
 
     case ActionRetrying(info, at, _, _, _) =>
-      F.delay(registry.timer(s"11.retry.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(actionRetryMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
 
     case ActionQuasiSucced(info, at, _, _, _, _, _, _, _) =>
-      F.delay(registry.timer(s"12.quasi.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(actionSuccMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
 
     case ActionSucced(info, at, _, _, _, _) =>
-      F.delay(registry.timer(s"13.succ.${name(info)}").update(Duration.between(info.launchTime, at)))
+      F.delay(registry.timer(actionSuccMRName(info.actionName)).update(Duration.between(info.launchTime, at)))
 
     // reset
     case _: MetricsReset => F.delay(registry.removeMatching(MetricFilter.ALL))
