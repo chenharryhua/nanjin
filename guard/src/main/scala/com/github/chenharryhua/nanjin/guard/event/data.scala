@@ -18,9 +18,13 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable
 
-final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime)
+sealed trait NJRuntimeInfo {
+  def id: UUID
+  def launchTime: ZonedDateTime
+}
 
-final case class ActionInfo(id: UUID, launchTime: ZonedDateTime)
+final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ActionInfo(id: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 
 final case class Notes private (value: String)
 
