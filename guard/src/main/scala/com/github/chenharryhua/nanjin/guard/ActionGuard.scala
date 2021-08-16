@@ -18,58 +18,30 @@ import io.circe.syntax.*
 import java.time.ZoneId
 
 final class ActionGuard[F[_]] private[guard] (
-  importance: Importance,
   metricRegistry: MetricRegistry,
-  serviceInfo: ServiceInfo,
   dispatcher: Dispatcher[F],
   channel: Channel[F, NJEvent],
-  actionName: String,
   actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
   val params: ActionParams = actionConfig.evalConfig
 
-  def apply(actionName: String): ActionGuard[F] =
-    new ActionGuard[F](
-      metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
-      dispatcher = dispatcher,
-      channel = channel,
-      actionName = actionName,
-      actionConfig = actionConfig)
-
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       dispatcher = dispatcher,
       channel = channel,
-      actionName = actionName,
       actionConfig = f(actionConfig))
 
-  private def updateImportance(importance: Importance): ActionGuard[F] =
-    new ActionGuard[F](
-      metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
-      dispatcher = dispatcher,
-      channel = channel,
-      actionName = actionName,
-      actionConfig = actionConfig)
+  def apply(actionName: String): ActionGuard[F] = updateConfig(_.withActionName(actionName))
 
-  // medium is the default.
-  def critical: ActionGuard[F] = updateImportance(Importance.High)
-  def notice: ActionGuard[F]   = updateImportance(Importance.Low)
+  def trivial: ActionGuard[F] = updateConfig(_.withLowThroughput)
+  def notice: ActionGuard[F]  = updateConfig(_.withMediumThroughput)
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = Kleisli(f),
@@ -81,10 +53,7 @@ final class ActionGuard[F[_]] private[guard] (
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       fb = fb,
       succ = Kleisli(_ => F.pure("")),
@@ -132,10 +101,7 @@ final class ActionGuard[F[_]] private[guard] (
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = ta,
       kfab = Kleisli(f),
@@ -145,10 +111,7 @@ final class ActionGuard[F[_]] private[guard] (
   def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       tfb = tfb,
       succ = Kleisli(_ => F.pure("")),

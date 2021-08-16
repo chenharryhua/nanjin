@@ -15,7 +15,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig) extends Upda
     new TaskGuard[F](f(taskConfig))
 
   def service(serviceName: String): ServiceGuard[F] =
-    new ServiceGuard[F](new MetricRegistry, ServiceConfig(serviceName, params))
+    new ServiceGuard[F](new MetricRegistry, ServiceConfig(serviceName, params), None)
 
 }
 

@@ -15,10 +15,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class QuasiSucc[F[_], T[_], A, B](
   metricRegistry: MetricRegistry,
-  importance: Importance,
-  serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
-  actionName: String,
   params: ActionParams,
   input: T[A],
   kfab: Kleisli[F, A, B],
@@ -28,10 +25,7 @@ final class QuasiSucc[F[_], T[_], A, B](
   def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -44,10 +38,7 @@ final class QuasiSucc[F[_], T[_], A, B](
   def withFailNotesM(fail: List[(A, NJError)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = input,
       kfab = kfab,
@@ -59,21 +50,19 @@ final class QuasiSucc[F[_], T[_], A, B](
 
   private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
     T: Traverse[T],
-    L: Alternative[T]): F[T[B]] = {
-    val isFireEvent: Boolean = importance.value =!= Importance.Low.value
+    L: Alternative[T]): F[T[B]] =
     for {
       now <- realZonedDateTime(params.serviceParams)
       uuid <- UUIDGen.randomUUID
-      actionInfo = ActionInfo(actionName = actionName, serviceInfo = serviceInfo, id = uuid, launchTime = now)
+      actionInfo = ActionInfo(id = uuid, launchTime = now)
       _ <-
-        if (isFireEvent)
-          channel.send(
-            ActionStart(timestamp = now, importance = importance, actionInfo = actionInfo, actionParams = params))
-        else F.delay(metricRegistry.counter(actionStartMRName(actionName)).inc())
+        if (params.throughputLevel.isFireStartEvent)
+          channel.send(ActionStart(timestamp = now, actionInfo = actionInfo, actionParams = params))
+        else F.delay(metricRegistry.counter(actionStartMRName(params.actionName)).inc())
       res <- F
         .background(eval.map { fte =>
           val (ex, rs)                   = fte.partitionEither(identity)
-          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2, importance)))
+          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))
           (errors, rs) // error on the left, result on the right
         })
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
@@ -88,7 +77,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                   actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(ActionException.ActionCanceledExternally)),
-                  error = NJError(ActionException.ActionCanceledExternally, importance)
+                  error = NJError(ActionException.ActionCanceledExternally)
                 ))
             } yield ()
           case Outcome.Errored(error) =>
@@ -101,10 +90,11 @@ final class QuasiSucc[F[_], T[_], A, B](
                   actionParams = params,
                   numRetries = 0,
                   notes = Notes(ExceptionUtils.getMessage(error)),
-                  error = NJError(error, importance)))
+                  error = NJError(error)
+                ))
             } yield ()
           case Outcome.Succeeded(fb) =>
-            if (isFireEvent) for {
+            if (params.throughputLevel.isFireSuccEvent) for {
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
               sn <- succ(b._2.toList)
@@ -113,7 +103,6 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ActionQuasiSucced(
                   actionInfo = actionInfo,
                   timestamp = now,
-                  importance = importance,
                   actionParams = params,
                   runMode = runMode,
                   numSucc = b._2.size,
@@ -123,10 +112,9 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ))
             } yield ()
             else
-              F.delay(metricRegistry.counter(actionSuccMRName(actionName)).inc())
+              F.delay(metricRegistry.counter(actionSuccMRName(params.actionName)).inc())
         }
     } yield T.map(res._2)(_._2)
-  }
 
   def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
@@ -141,10 +129,7 @@ final class QuasiSucc[F[_], T[_], A, B](
 
 final class QuasiSuccUnit[F[_], T[_], B](
   metricRegistry: MetricRegistry,
-  importance: Importance,
-  serviceInfo: ServiceInfo,
   channel: Channel[F, NJEvent],
-  actionName: String,
   params: ActionParams,
   tfb: T[F[B]],
   succ: Kleisli[F, List[B], String],
@@ -153,10 +138,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
   def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       tfb = tfb,
       succ = Kleisli(succ),
@@ -168,10 +150,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
   def withFailNotesM(fail: List[NJError] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       tfb = tfb,
       succ = succ,
@@ -183,10 +162,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
   private def toQuasiSucc: QuasiSucc[F, T, F[B], B] =
     new QuasiSucc[F, T, F[B], B](
       metricRegistry = metricRegistry,
-      importance = importance,
-      serviceInfo = serviceInfo,
       channel = channel,
-      actionName = actionName,
       params = params,
       input = tfb,
       kfab = Kleisli(identity),

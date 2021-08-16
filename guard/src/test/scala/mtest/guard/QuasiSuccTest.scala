@@ -196,16 +196,16 @@ class QuasiSuccTest extends AnyFunSuite {
       }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
-    assert(a.asInstanceOf[ActionStart].actionInfo.actionName == "quasi")
-    assert(b.asInstanceOf[ActionStart].actionInfo.actionName == "compute1")
-    assert(c.asInstanceOf[ActionSucced].actionInfo.actionName == "compute1")
+    assert(a.asInstanceOf[ActionStart].actionParams.actionName == "quasi")
+    assert(b.asInstanceOf[ActionStart].actionParams.actionName == "compute1")
+    assert(c.asInstanceOf[ActionSucced].actionParams.actionName == "compute1")
     assert(d.isInstanceOf[ActionStart])
     assert(e.isInstanceOf[ActionRetrying])
     assert(f.isInstanceOf[ActionRetrying])
     assert(g.isInstanceOf[ActionRetrying])
     assert(h.isInstanceOf[ActionFailed])
     assert(i.isInstanceOf[ActionStart])
-    assert(j.asInstanceOf[ActionSucced].actionInfo.actionName == "compute2")
+    assert(j.asInstanceOf[ActionSucced].actionParams.actionName == "compute2")
     assert(k.isInstanceOf[ActionQuasiSucced])
     assert(l.isInstanceOf[ServiceStopped])
   }
@@ -213,7 +213,7 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi multi-layers - par") {
     val Vector(s, a, b, c, e, f, g, h, j, k, l) =
       guard.eventStream { action =>
-        val a1 = action("compute1").notice.run(IO.sleep(5.seconds) >> IO(1))
+        val a1 = action("compute1").trivial.run(IO.sleep(5.seconds) >> IO(1))
         val a2 =
           action("exception").max(3).updateConfig(_.withConstantDelay(1.second)).run(IO.raiseError[Int](new Exception))
         val a3 = action("compute2").run(IO.sleep(5.seconds) >> IO(2))

@@ -33,7 +33,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action("never").notice.run(IO.never[Int])
+        val a1 = action("never").trivial.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .compile
@@ -48,7 +48,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action("never").notice.run(IO.never[Int])
+        val a1 = action("never").trivial.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
       }
       .interruptAfter(3.seconds)
@@ -64,7 +64,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, c, d, f, g, h) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1)).notice
+        val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1)).trivial
         val a1     = action("never").run(IO.never[Int])
         action("supervisor").run(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1)))
       }
@@ -73,12 +73,12 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
-    assert(c.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
+    assert(c.asInstanceOf[ActionFailed].actionParams.actionName == "never")
     assert(c.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(d.asInstanceOf[ActionRetrying].actionInfo.actionName == "supervisor")
-    assert(f.asInstanceOf[ActionFailed].actionInfo.actionName == "never")
+    assert(d.asInstanceOf[ActionRetrying].actionParams.actionName == "supervisor")
+    assert(f.asInstanceOf[ActionFailed].actionParams.actionName == "never")
     assert(f.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(g.asInstanceOf[ActionFailed].actionInfo.actionName == "supervisor")
+    assert(g.asInstanceOf[ActionFailed].actionParams.actionName == "supervisor")
     assert(g.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(h.isInstanceOf[ServicePanic])
   }
@@ -97,9 +97,9 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucced].actionInfo.actionName == "a1")
+    assert(b.asInstanceOf[ActionSucced].actionParams.actionName == "a1")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucced].actionInfo.actionName == "a2")
+    assert(d.asInstanceOf[ActionSucced].actionParams.actionName == "a2")
     assert(e.isInstanceOf[ServiceStopped])
   }
 
@@ -121,10 +121,10 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucced].actionInfo.actionName == "a1")
+    assert(b.asInstanceOf[ActionSucced].actionParams.actionName == "a1")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetrying].actionInfo.actionName == "a2")
-    assert(e.asInstanceOf[ActionFailed].actionInfo.actionName == "a2")
+    assert(d.asInstanceOf[ActionRetrying].actionParams.actionName == "a2")
+    assert(e.asInstanceOf[ActionFailed].actionParams.actionName == "a2")
     assert(e.asInstanceOf[ActionFailed].error.message == "Exception: ")
     assert(f.isInstanceOf[ServicePanic])
   }
@@ -200,7 +200,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action("exception").notice
+        val a1 = action("exception").trivial
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .run(IO.raiseError[Int](new Exception))
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
