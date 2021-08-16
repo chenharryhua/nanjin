@@ -8,7 +8,7 @@ import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance}
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails
@@ -88,9 +88,6 @@ final class ActionRetry[F[_], A, B](
   private def failNotes(error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
   private def succNotes(b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))
 
-  private val isFireStartEvent: Boolean = params.importance.value > Importance.Low.value
-  private val isFireSuccEvent: Boolean  = params.importance.value > Importance.Medium.value
-
   private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     error: Throwable,
     details: RetryDetails): F[Unit] =
@@ -143,7 +140,7 @@ final class ActionRetry[F[_], A, B](
               error = NJError(error)))
         } yield ()
       case Outcome.Succeeded(fb) =>
-        if (isFireSuccEvent)
+        if (params.importance.isFireSuccEvent)
           for {
             count <- retryCount.get // number of retries before success
             now <- realZonedDateTime(params.serviceParams)
@@ -166,7 +163,7 @@ final class ActionRetry[F[_], A, B](
       retryCount <- F.ref(0) // hold number of retries
       ai <- actionInfo
       _ <-
-        if (isFireStartEvent)
+        if (params.importance.isFireStartEvent)
           channel.send(
             ActionStart(
               actionInfo = ai,

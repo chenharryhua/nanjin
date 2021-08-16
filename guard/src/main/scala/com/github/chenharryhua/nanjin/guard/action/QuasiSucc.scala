@@ -7,7 +7,7 @@ import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.{Alternative, Parallel, Traverse}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance}
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.{actionStartMRName, actionSuccMRName, realZonedDateTime}
 import fs2.concurrent.Channel
@@ -50,15 +50,13 @@ final class QuasiSucc[F[_], T[_], A, B](
 
   private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
     T: Traverse[T],
-    L: Alternative[T]): F[T[B]] = {
-    val isFireStartEvent: Boolean = params.importance.value > Importance.Low.value
-    val isFireSuccEvent: Boolean  = params.importance.value > Importance.Medium.value
+    L: Alternative[T]): F[T[B]] =
     for {
       now <- realZonedDateTime(params.serviceParams)
       uuid <- UUIDGen.randomUUID
       actionInfo = ActionInfo(id = uuid, launchTime = now)
       _ <-
-        if (isFireStartEvent)
+        if (params.importance.isFireStartEvent)
           channel.send(
             ActionStart(
               timestamp = now,
@@ -101,7 +99,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ))
             } yield ()
           case Outcome.Succeeded(fb) =>
-            if (isFireSuccEvent) for {
+            if (params.importance.isFireSuccEvent) for {
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
               sn <- succ(b._2.toList)
@@ -123,7 +121,6 @@ final class QuasiSucc[F[_], T[_], A, B](
               F.delay(metricRegistry.counter(actionSuccMRName(params.actionName)).inc())
         }
     } yield T.map(res._2)(_._2)
-  }
 
   def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
     internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)

@@ -12,8 +12,8 @@ import scala.concurrent.duration.*
   serviceName: String,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
-  brief: String,
-  reportingInterval: FiniteDuration
+  reportingInterval: FiniteDuration,
+  brief: String
 )
 
 object ServiceParams {
@@ -23,8 +23,8 @@ object ServiceParams {
       serviceName = serviceName,
       taskParams = taskParams,
       retry = ConstantDelay(30.seconds),
-      brief = "The developer is too lazy to provide a brief",
-      reportingInterval = 1.hour
+      reportingInterval = 1.hour,
+      brief = "The developer is too lazy to provide a brief"
     )
 }
 

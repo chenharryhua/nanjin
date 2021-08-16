@@ -35,7 +35,6 @@ final class ActionGuard[F[_]] private[guard] (
 
   def apply(actionName: String): ActionGuard[F] = updateConfig(_.withActionName(actionName))
 
-  // medium is the default.
   def unaware: ActionGuard[F]  = updateConfig(_.withLowImportance)
   def notice: ActionGuard[F]   = updateConfig(_.withMediumImportance)
   def critical: ActionGuard[F] = updateConfig(_.withCriticalImportance)
