@@ -150,26 +150,6 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case MetricsReset(at, si, params, metrics) =>
-        def msg: String =
-          SlackNotification(
-            params.taskParams.appName,
-            s":checklist: *Daily Summaries* \n${translate(metrics)}",
-            List(
-              Attachment(
-                info_color,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.serviceName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
-                  SlackField("Brief", params.brief, short = false)
-                )
-              ))
-          ).asJson.noSpaces
-
-        sns.publish(msg).void
-
       case ActionStart(params, action, at) =>
         def msg: String =
           SlackNotification(

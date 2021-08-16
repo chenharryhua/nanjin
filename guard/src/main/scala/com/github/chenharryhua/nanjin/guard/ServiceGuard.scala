@@ -6,14 +6,10 @@ import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
-import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
+import com.codahale.metrics.{MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
-import cron4s.Cron
-import cron4s.expr.CronExpr
-import eu.timepit.fs2cron.Scheduler
-import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
 
@@ -51,8 +47,6 @@ final class ServiceGuard[F[_]] private[guard] (
   }
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
-    val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
-    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.metricsResetAt} ? * *")
     val serviceInfo: F[ServiceInfo] = for {
       ts <- realZonedDateTime(params)
       uuid <- UUIDGen.randomUUID
@@ -124,27 +118,10 @@ final class ServiceGuard[F[_]] private[guard] (
           }
         }
 
-        // reset metrics
-        val metricsReset: Stream[F, INothing] =
-          scheduler
-            .awakeEvery(cron)
-            .evalMap(_ =>
-              for {
-                ts <- realZonedDateTime(params)
-                _ <- channel.send(
-                  MetricsReset(
-                    timestamp = ts,
-                    serviceInfo = si,
-                    serviceParams = params,
-                    metrics = MetricRegistryWrapper(Some(metricRegistry))
-                  ))
-              } yield ())
-            .drain
-
         // put together
 
         val accessories: Stream[F, INothing] =
-          Stream(reporting, jmxReporting, metricsReset, Stream.eval(theService).drain).parJoinUnbounded
+          Stream(reporting, jmxReporting, Stream.eval(theService).drain).parJoinUnbounded
 
         channel.stream.evalTap(mrService.compute[F]).concurrently(accessories)
       }
@@ -176,7 +153,5 @@ final private class NJMetricRegistry(registry: MetricRegistry) {
     case ActionSucced(params, info, at, _, _) =>
       F.delay(registry.timer(actionSuccMRName(params.actionName)).update(Duration.between(info.launchTime, at)))
 
-    // reset
-    case _: MetricsReset => F.delay(registry.removeMatching(MetricFilter.ALL))
   }
 }

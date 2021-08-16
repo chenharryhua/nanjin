@@ -57,13 +57,6 @@ final case class MetricsReport(
   metrics: MetricRegistryWrapper
 ) extends ServiceEvent
 
-final case class MetricsReset(
-  timestamp: ZonedDateTime,
-  serviceInfo: ServiceInfo,
-  serviceParams: ServiceParams,
-  metrics: MetricRegistryWrapper)
-    extends ServiceEvent
-
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
   def actionParams: ActionParams // action static parameters
