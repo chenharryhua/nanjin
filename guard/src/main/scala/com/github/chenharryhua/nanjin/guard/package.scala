@@ -11,7 +11,7 @@ package object guard {
     F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
   private[guard] def actionFailMRName(name: String): String  = s"07.`fail`.[$name]"
-  private[guard] def actionStartMRName(name: String): String = s"08.count.[$name]"
-  private[guard] def actionRetryMRName(name: String): String = s"08.retry.[$name]"
-  private[guard] def actionSuccMRName(name: String): String  = s"08.succ.[$name]"
+  private[guard] def actionStartMRName(name: String): String = s"08.[$name].count"
+  private[guard] def actionRetryMRName(name: String): String = s"08.[$name].retry"
+  private[guard] def actionSuccMRName(name: String): String  = s"08.[$name].succ"
 }

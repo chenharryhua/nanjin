@@ -24,7 +24,7 @@ final class ActionGuard[F[_]] private[guard] (
   actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
-  val params: ActionParams = actionConfig.evalConfig
+  lazy val params: ActionParams = actionConfig.evalConfig
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](
