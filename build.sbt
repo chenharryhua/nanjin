@@ -325,6 +325,7 @@ val jwtLib = Seq(
 
 val metrics = Seq(
   "io.dropwizard.metrics" % "metrics-core" % "4.2.3",
+  "io.dropwizard.metrics" % "metrics-json" % "4.2.3",
   "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.3",
   "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.3"
 )
