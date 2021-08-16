@@ -6,7 +6,7 @@ import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
+import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -44,6 +44,11 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
     new ServiceGuard[F](metricRegistry, serviceConfig, Some(Reader(builder)))
+
+  def registerMetricSet(ms: MetricSet): ServiceGuard[F] = {
+    metricRegistry.registerAll(ms)
+    this
+  }
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))

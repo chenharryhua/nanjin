@@ -100,8 +100,8 @@ sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercas
 object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
   override def values: immutable.IndexedSeq[Importance] = findValues
 
-  case object SystemEvent extends Importance(3)
-  case object High extends Importance(2)
-  case object Medium extends Importance(1)
+  case object SystemEvent extends Importance(4)
+  case object High extends Importance(3)
+  case object Medium extends Importance(2)
   case object Low extends Importance(1)
 }

@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{
   ActionRetrying,
@@ -24,6 +25,8 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")).withMetricsResetAt(1))
       .service("normal")
+      .withJmxReporter(_.inDomain("abc"))
+      .registerMetricSet(new MemoryUsageGaugeSet)
       .updateConfig(_.withReportingInterval(1.second))
       .eventStream(gd => gd.updateConfig(_.withExponentialBackoff(1.second)).run(IO.never[Int]))
       .observe(metricConsole)
