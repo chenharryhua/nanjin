@@ -21,6 +21,7 @@ class ServiceTest extends AnyFunSuite {
   test("should stopped if the operation normally exits") {
     val Vector(a, d) = guard
       .updateConfig(_.withJitterBackoff(3.second))
+      .withJmxReporter(_.inDomain("abc"))
       .eventStream(gd =>
         gd("normal-exit-action").unaware.max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)

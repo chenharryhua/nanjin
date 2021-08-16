@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
@@ -29,14 +31,19 @@ import java.time.Duration
   */
 // format: on
 
-final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, serviceConfig: ServiceConfig)(implicit
-  F: Async[F])
+final class ServiceGuard[F[_]] private[guard] (
+  metricRegistry: MetricRegistry,
+  serviceConfig: ServiceConfig,
+  jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   val params: ServiceParams = serviceConfig.evalConfig
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, f(serviceConfig))
+    new ServiceGuard[F](metricRegistry, f(serviceConfig), jmxBuilder)
+
+  def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
+    new ServiceGuard[F](metricRegistry, serviceConfig, Some(Reader(builder)))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
@@ -101,6 +108,17 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
                 .void)
             .drain
 
+        val jmxReporting: Stream[F, INothing] = {
+          jmxBuilder match {
+            case None => Stream.empty
+            case Some(builder) =>
+              Stream
+                .bracket(F.delay(builder.run(JmxReporter.forRegistry(metricRegistry)).build()))(r => F.delay(r.close()))
+                .evalMap(jr => F.delay(jr.start()))
+                .flatMap(_ => Stream.never[F])
+          }
+        }
+
         // reset metrics
         val metricsReset: Stream[F, INothing] =
           scheduler
@@ -121,7 +139,7 @@ final class ServiceGuard[F[_]] private[guard] (metricRegistry: MetricRegistry, s
         // put together
 
         val accessories: Stream[F, INothing] =
-          Stream(reporting, metricsReset, Stream.eval(theService).drain).parJoinUnbounded
+          Stream(reporting, jmxReporting, metricsReset, Stream.eval(theService).drain).parJoinUnbounded
 
         channel.stream.evalTap(mrService.compute[F]).concurrently(accessories)
       }

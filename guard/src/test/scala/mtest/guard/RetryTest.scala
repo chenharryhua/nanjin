@@ -285,9 +285,10 @@ class RetryTest extends AnyFunSuite {
   ignore("performance") {
     serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withReportingInterval(3.seconds))
-      .eventStream(ag => ag.nonStop(ag.unaware.run(IO(1)).foreverM))
+      .withJmxReporter(_.inDomain("xyz"))
+      .eventStream(ag => ag.nonStop(ag("performance").unaware.run(IO(1)).foreverM))
       .observe(es => showConsole[IO].apply(es.filter(_.isInstanceOf[MetricsReport])))
-      .interruptAfter(60.seconds)
+      .interruptAfter(160.seconds)
       .compile
       .toList
       .unsafeRunSync()
