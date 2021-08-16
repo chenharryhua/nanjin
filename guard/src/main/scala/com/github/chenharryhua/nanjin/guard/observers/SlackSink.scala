@@ -5,7 +5,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{INothing, Pipe, Stream}
 import io.chrisdavenport.cats.time.instances.zoneid
@@ -131,10 +130,10 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case MetricsReport(at, si, params, dailySummaries) =>
+      case MetricsReport(at, si, params, metrics) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s":gottarun: *Health Check* \n${StringUtils.abbreviate(translate(dailySummaries), maxCauseSize)}",
+          s":gottarun: *Health Check* \n${StringUtils.abbreviate(translate(metrics), maxCauseSize)}",
           List(
             Attachment(
               info_color,
@@ -151,11 +150,11 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case MetricsReset(at, si, params, dailySummaries) =>
+      case MetricsReset(at, si, params, metrics) =>
         def msg: String =
           SlackNotification(
             params.taskParams.appName,
-            s":checklist: *Daily Summaries* \n${translate(dailySummaries)}",
+            s":checklist: *Daily Summaries* \n${translate(metrics)}",
             List(
               Attachment(
                 info_color,
@@ -171,7 +170,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case ActionStart(params, action, at, _) =>
+      case ActionStart(params, action, at) =>
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
@@ -203,7 +202,6 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", params.actionName, short = true),
-                  SlackField("Severity", params.importance.entryName, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.id.show, short = false),
@@ -213,20 +211,20 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ActionFailed(params, action, at, numRetries, notes, error) =>
+      case af @ ActionFailed(params, action, at, numRetries, notes, error) =>
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
             notes.value,
             List(
               Attachment(
-                if (params.importance.value > Importance.Low.value) warn_color else error_color,
+                if (af.importance.value > Importance.Medium.value) error_color else warn_color,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", params.actionName, short = true),
-                  SlackField("Severity", params.importance.entryName, short = true),
+                  SlackField("Importance", af.importance.show, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retried", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
@@ -237,7 +235,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ActionSucced(params, action, at, _, numRetries, notes) =>
+      case ActionSucced(params, action, at, numRetries, notes) =>
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
@@ -259,7 +257,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ActionQuasiSucced(params, action, at, _, runMode, numSucc, succNotes, failNotes, errors) =>
+      case ActionQuasiSucced(params, action, at, runMode, numSucc, succNotes, failNotes, errors) =>
         def msg: SlackNotification =
           if (errors.isEmpty)
             SlackNotification(

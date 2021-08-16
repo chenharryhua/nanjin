@@ -140,7 +140,7 @@ final class ActionRetry[F[_], A, B](
               error = NJError(error)))
         } yield ()
       case Outcome.Succeeded(fb) =>
-        if (params.importance.isFireSuccEvent)
+        if (params.throughputLevel.isFireSuccEvent)
           for {
             count <- retryCount.get // number of retries before success
             now <- realZonedDateTime(params.serviceParams)
@@ -150,7 +150,6 @@ final class ActionRetry[F[_], A, B](
               ActionSucced(
                 actionInfo = actionInfo,
                 timestamp = now,
-                importance = params.importance,
                 actionParams = params,
                 numRetries = count,
                 notes = sn))
@@ -163,13 +162,8 @@ final class ActionRetry[F[_], A, B](
       retryCount <- F.ref(0) // hold number of retries
       ai <- actionInfo
       _ <-
-        if (params.importance.isFireStartEvent)
-          channel.send(
-            ActionStart(
-              actionInfo = ai,
-              timestamp = ai.launchTime,
-              importance = params.importance,
-              actionParams = params))
+        if (params.throughputLevel.isFireStartEvent)
+          channel.send(ActionStart(actionInfo = ai, timestamp = ai.launchTime, actionParams = params))
         else F.delay(metricRegistry.counter(actionStartMRName(params.actionName)).inc())
       res <- F.uncancelable(poll =>
         retry.mtl

@@ -56,13 +56,8 @@ final class QuasiSucc[F[_], T[_], A, B](
       uuid <- UUIDGen.randomUUID
       actionInfo = ActionInfo(id = uuid, launchTime = now)
       _ <-
-        if (params.importance.isFireStartEvent)
-          channel.send(
-            ActionStart(
-              timestamp = now,
-              importance = params.importance,
-              actionInfo = actionInfo,
-              actionParams = params))
+        if (params.throughputLevel.isFireStartEvent)
+          channel.send(ActionStart(timestamp = now, actionInfo = actionInfo, actionParams = params))
         else F.delay(metricRegistry.counter(actionStartMRName(params.actionName)).inc())
       res <- F
         .background(eval.map { fte =>
@@ -99,7 +94,7 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ))
             } yield ()
           case Outcome.Succeeded(fb) =>
-            if (params.importance.isFireSuccEvent) for {
+            if (params.throughputLevel.isFireSuccEvent) for {
               now <- realZonedDateTime(params.serviceParams)
               b <- fb
               sn <- succ(b._2.toList)
@@ -108,7 +103,6 @@ final class QuasiSucc[F[_], T[_], A, B](
                 ActionQuasiSucced(
                   actionInfo = actionInfo,
                   timestamp = now,
-                  importance = params.importance,
                   actionParams = params,
                   runMode = runMode,
                   numSucc = b._2.size,

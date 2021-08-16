@@ -23,7 +23,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(3.second))
       .withJmxReporter(_.inDomain("abc"))
       .eventStream(gd =>
-        gd("normal-exit-action").unaware.max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
+        gd("normal-exit-action").trivial.max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -80,7 +80,7 @@ class ServiceTest extends AnyFunSuite {
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
       .updateConfig(_.withReportingInterval(1.second))
-      .eventStream(_.unaware.run(IO.never))
+      .eventStream(_.trivial.run(IO.never))
       .interruptAfter(5.second)
       .compile
       .toList

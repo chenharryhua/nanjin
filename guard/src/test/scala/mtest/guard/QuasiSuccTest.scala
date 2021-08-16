@@ -213,7 +213,7 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi multi-layers - par") {
     val Vector(s, a, b, c, e, f, g, h, j, k, l) =
       guard.eventStream { action =>
-        val a1 = action("compute1").unaware.run(IO.sleep(5.seconds) >> IO(1))
+        val a1 = action("compute1").trivial.run(IO.sleep(5.seconds) >> IO(1))
         val a2 =
           action("exception").max(3).updateConfig(_.withConstantDelay(1.second)).run(IO.raiseError[Int](new Exception))
         val a3 = action("compute2").run(IO.sleep(5.seconds) >> IO(2))

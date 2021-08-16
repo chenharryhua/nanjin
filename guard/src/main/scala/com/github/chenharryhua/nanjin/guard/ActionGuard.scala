@@ -35,9 +35,8 @@ final class ActionGuard[F[_]] private[guard] (
 
   def apply(actionName: String): ActionGuard[F] = updateConfig(_.withActionName(actionName))
 
-  def unaware: ActionGuard[F]  = updateConfig(_.withLowImportance)
-  def notice: ActionGuard[F]   = updateConfig(_.withMediumImportance)
-  def critical: ActionGuard[F] = updateConfig(_.withCriticalImportance)
+  def trivial: ActionGuard[F] = updateConfig(_.withLowThroughput)
+  def notice: ActionGuard[F]  = updateConfig(_.withMediumThroughput)
 
   def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](

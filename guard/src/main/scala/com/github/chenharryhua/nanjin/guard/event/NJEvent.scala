@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams, ThroughputLevel}
 import io.chrisdavenport.cats.time.instances.{localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -30,12 +30,11 @@ object NJEvent extends zoneddatetime with localtime with zoneid {
 sealed trait ServiceEvent extends NJEvent {
   def serviceInfo: ServiceInfo // service runtime infomation
   def serviceParams: ServiceParams // service static parameters
+  final override val importance: Importance = Importance.SystemEvent
 }
 
 final case class ServiceStarted(timestamp: ZonedDateTime, serviceInfo: ServiceInfo, serviceParams: ServiceParams)
-    extends ServiceEvent {
-  override val importance: Importance = Importance.SystemEvent
-}
+    extends ServiceEvent
 
 final case class ServicePanic(
   timestamp: ZonedDateTime,
@@ -43,47 +42,40 @@ final case class ServicePanic(
   serviceParams: ServiceParams,
   retryDetails: RetryDetails,
   error: NJError
-) extends ServiceEvent {
-  override val importance: Importance = Importance.SystemEvent
-}
+) extends ServiceEvent
 
 final case class ServiceStopped(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams
-) extends ServiceEvent {
-  override val importance: Importance = Importance.SystemEvent
-}
+) extends ServiceEvent
 
 final case class MetricsReport(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
   metrics: MetricRegistryWrapper
-) extends ServiceEvent {
-  override val importance: Importance = Importance.SystemEvent
-}
+) extends ServiceEvent
 
 final case class MetricsReset(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
   metrics: MetricRegistryWrapper)
-    extends ServiceEvent {
-  override val importance: Importance = Importance.SystemEvent
-}
+    extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
   def actionParams: ActionParams // action static parameters
+  final override def importance: Importance = actionParams.throughputLevel match {
+    case ThroughputLevel.High   => Importance.High
+    case ThroughputLevel.Medium => Importance.Medium
+    case ThroughputLevel.Low    => Importance.Low
+  }
 }
 
-final case class ActionStart(
-  actionParams: ActionParams,
-  actionInfo: ActionInfo,
-  timestamp: ZonedDateTime,
-  importance: Importance)
-    extends NJEvent
+final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, timestamp: ZonedDateTime)
+    extends ActionEvent
 
 final case class ActionRetrying(
   actionParams: ActionParams,
@@ -91,9 +83,7 @@ final case class ActionRetrying(
   timestamp: ZonedDateTime,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
-    extends ActionEvent {
-  override val importance: Importance = Importance.High
-}
+    extends ActionEvent
 
 final case class ActionFailed(
   actionParams: ActionParams,
@@ -102,15 +92,12 @@ final case class ActionFailed(
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
-    extends ActionEvent {
-  override val importance: Importance = Importance.Critical
-}
+    extends ActionEvent
 
 final case class ActionSucced(
   actionParams: ActionParams,
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
-  importance: Importance,
   numRetries: Int, // number of retries before success
   notes: Notes // success notes
 ) extends ActionEvent
@@ -119,7 +106,6 @@ final case class ActionQuasiSucced(
   actionParams: ActionParams,
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
-  importance: Importance,
   runMode: RunMode,
   numSucc: Long,
   succNotes: Notes,
