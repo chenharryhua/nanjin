@@ -29,7 +29,7 @@ final case class ActionInfo(id: UUID, launchTime: ZonedDateTime) extends NJRunti
 
 final case class Notes private (value: String)
 
-object Notes {
+private[guard] object Notes {
   def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
 }
 
@@ -40,7 +40,7 @@ final case class NJError private (
   throwable: Option[Throwable]
 )
 
-object NJError {
+private[guard] object NJError {
   implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.id}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
@@ -63,7 +63,7 @@ object NJError {
 
 final case class MetricRegistryWrapper(value: Option[MetricRegistry]) extends AnyVal
 
-object MetricRegistryWrapper {
+private[guard] object MetricRegistryWrapper {
   implicit val showMetricRegistryWrapper: Show[MetricRegistryWrapper] =
     _.value.fold("") { mr =>
       val bao = new ByteArrayOutputStream

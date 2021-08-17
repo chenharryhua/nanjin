@@ -10,7 +10,7 @@ package object guard {
   private[guard] def realZonedDateTime[F[_]](serviceParams: ServiceParams)(implicit F: Temporal[F]): F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
-  private[guard] def actionFailMRName(name: String): String  = s"07.`fail`.[$name]"
+  private[guard] def actionFailMRName(name: String): String  = s"07.[$name].`fail`"
   private[guard] def actionStartMRName(name: String): String = s"08.[$name].count"
   private[guard] def actionRetryMRName(name: String): String = s"08.[$name].retry"
   private[guard] def actionSuccMRName(name: String): String  = s"08.[$name].succ"

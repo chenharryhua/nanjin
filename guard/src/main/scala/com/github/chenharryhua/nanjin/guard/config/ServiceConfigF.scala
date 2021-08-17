@@ -23,7 +23,7 @@ object ServiceParams {
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,
-      retry = ConstantDelay(30.seconds),
+      retry = NJRetryPolicy.ConstantDelay(30.seconds),
       reportingSchedule = Left(1.hour),
       brief = "The developer is too lazy to provide a brief"
     )
@@ -71,11 +71,11 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))
 
   def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
     require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strickly bigger than minDelay($minDelay)")
-    ServiceConfig(Fix(WithRetryPolicy(JitterBackoff(minDelay, maxDelay), value)))
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.JitterBackoff(minDelay, maxDelay), value)))
   }
 
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
