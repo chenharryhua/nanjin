@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.implicits.catsSyntaxEq
 import com.github.chenharryhua.nanjin.guard.event.*
+import fs2.Pipe
 import monocle.macros.Lenses
 
 @Lenses final case class EventFilter private (
@@ -28,7 +29,9 @@ import monocle.macros.Lenses
     EventFilter.everyNMetrics.set(n)(this)
   }
 
-  def apply(event: NJEvent): Boolean = event match {
+  def pipe[F[_]]: Pipe[F, NJEvent, NJEvent] = _.filter(predicate)
+
+  def predicate(event: NJEvent): Boolean = event match {
     case _: ServiceStarted                 => true
     case _: ServicePanic                   => true
     case _: ServiceStopped                 => true
