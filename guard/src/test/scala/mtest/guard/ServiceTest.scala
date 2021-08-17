@@ -78,7 +78,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
-      .updateConfig(_.withReportingInterval(1.second))
+      .updateConfig(_.withReportingSchedule(1.second))
       .eventStream(_.trivial.run(IO.never))
       .interruptAfter(5.second)
       .compile

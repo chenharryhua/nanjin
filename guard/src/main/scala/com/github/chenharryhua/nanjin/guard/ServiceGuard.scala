@@ -102,11 +102,11 @@ final class ServiceGuard[F[_]] private[guard] (
             timestamp = ts,
             serviceInfo = si,
             serviceParams = params,
-            metrics = MetricRegistryWrapper(Some(metricRegistry)),
-            next = dur
+            next = dur,
+            metrics = MetricRegistryWrapper(Some(metricRegistry))
           )
 
-          params.reportingInterval match {
+          params.reportingSchedule match {
             case Left(dur) =>
               Stream
                 .fixedRate[F](dur)
@@ -116,10 +116,11 @@ final class ServiceGuard[F[_]] private[guard] (
               val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
               scheduler
                 .awakeEvery(cron)
-                .evalMap(_ =>
+                .evalMap { _ =>
                   realZonedDateTime(params).map { ts =>
                     report(ts, cron.next(ts).map(zd => Duration.between(ts, zd).toScala))
-                  }.flatMap(channel.send))
+                  }.flatMap(channel.send)
+                }
                 .drain
           }
         }

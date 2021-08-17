@@ -20,8 +20,8 @@ sealed trait NJEvent {
 }
 
 object NJEvent extends zoneddatetime with localtime with zoneid {
-  implicit private val cronEncoder: Encoder[CronExpr]                 = cron4s.circe.cronExprEncoder
-  implicit private val cronDecoder: Decoder[CronExpr]                 = cron4s.circe.cronExprDecoder
+  implicit private val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
+  implicit private val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
   implicit private val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
   implicit private val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
 
@@ -57,8 +57,8 @@ final case class MetricsReport(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  metrics: MetricRegistryWrapper,
-  next: Option[FiniteDuration]
+  next: Option[FiniteDuration],
+  metrics: MetricRegistryWrapper
 ) extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {

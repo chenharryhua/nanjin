@@ -13,7 +13,7 @@ import scala.concurrent.duration.*
   serviceName: String,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
-  reportingInterval: Either[FiniteDuration, CronExpr],
+  reportingSchedule: Either[FiniteDuration, CronExpr],
   brief: String
 )
 
@@ -24,7 +24,7 @@ object ServiceParams {
       serviceName = serviceName,
       taskParams = taskParams,
       retry = ConstantDelay(30.seconds),
-      reportingInterval = Left(1.hour),
+      reportingSchedule = Left(1.hour),
       brief = "The developer is too lazy to provide a brief"
     )
 }
@@ -35,7 +35,7 @@ private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K](serviceName: String, taskParams: TaskParams) extends ServiceConfigF[K]
-  final case class WithReportingInterval[K](value: Either[FiniteDuration, CronExpr], cont: K) extends ServiceConfigF[K]
+  final case class WithReportingSchedule[K](value: Either[FiniteDuration, CronExpr], cont: K) extends ServiceConfigF[K]
 
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
@@ -46,21 +46,21 @@ private object ServiceConfigF {
       case InitParams(s, t)            => ServiceParams(s, t)
       case WithRetryPolicy(v, c)       => ServiceParams.retry.set(v)(c)
       case WithServiceBrief(v, c)      => ServiceParams.brief.set(v)(c)
-      case WithReportingInterval(v, c) => ServiceParams.reportingInterval.set(v)(c)
+      case WithReportingSchedule(v, c) => ServiceParams.reportingSchedule.set(v)(c)
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
-  def withReportingInterval(interval: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithReportingInterval(Left(interval), value)))
+  def withReportingSchedule(interval: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithReportingSchedule(Left(interval), value)))
 
-  def withReportingInterval(interval: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithReportingInterval(Right(interval), value)))
+  def withReportingSchedule(crontab: CronExpr): ServiceConfig =
+    ServiceConfig(Fix(WithReportingSchedule(Right(crontab), value)))
 
-  def withReportingInterval(interval: String): ServiceConfig =
-    withReportingInterval(Cron.unsafeParse(interval))
+  def withReportingSchedule(crontab: String): ServiceConfig =
+    withReportingSchedule(Cron.unsafeParse(crontab))
 
   def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 

@@ -130,7 +130,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case MetricsReport(at, si, params, metrics, next) =>
+      case MetricsReport(at, si, params, next, metrics) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
           s":gottarun: *Health Check* \n${StringUtils.abbreviate(translate(metrics), maxCauseSize)}",
