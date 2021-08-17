@@ -2,28 +2,19 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.HostName
-import eu.timepit.refined.W
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.boolean.And
-import eu.timepit.refined.numeric.{GreaterEqual, LessEqual}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 
 import java.time.ZoneId
 
-@Lenses final case class TaskParams private (
-  appName: String,
-  zoneId: ZoneId,
-  metricsResetAt: Int, // 0 - 23
-  hostName: String)
+@Lenses final case class TaskParams private (appName: String, zoneId: ZoneId, hostName: String)
 
 object TaskParams {
 
   def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
-    metricsResetAt = 0, // midnight
     hostName = hostName.name
   )
 }
@@ -37,15 +28,12 @@ private object TaskConfigF {
 
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
 
-  final case class WithMetricsResetAt[K](value: Int, cont: K) extends TaskConfigF[K]
-
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
 
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName, hostName) => TaskParams(appName, hostName)
       case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
-      case WithMetricsResetAt(v, c)      => TaskParams.metricsResetAt.set(v)(c)
       case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
     }
 }
@@ -54,9 +42,6 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
   import TaskConfigF.*
 
   def withZoneId(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
-
-  def withMetricsResetAt(hour: Refined[Int, And[GreaterEqual[W.`0`.T], LessEqual[W.`23`.T]]]): TaskConfig =
-    TaskConfig(Fix(WithMetricsResetAt(hour.value, value)))
 
   def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
 

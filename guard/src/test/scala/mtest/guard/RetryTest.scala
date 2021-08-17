@@ -284,7 +284,7 @@ class RetryTest extends AnyFunSuite {
 
   ignore("performance") {
     serviceGuard
-      .updateConfig(_.withConstantDelay(1.second).withReportingInterval(3.seconds))
+      .updateConfig(_.withConstantDelay(1.second).withReportingSchedule(3.seconds))
       .withJmxReporter(_.inDomain("xyz"))
       .eventStream(ag => ag.nonStop(ag("performance").trivial.run(IO(1)).foreverM))
       .observe(es => showConsole[IO].apply(es.filter(_.isInstanceOf[MetricsReport])))
