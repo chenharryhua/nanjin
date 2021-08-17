@@ -60,7 +60,6 @@ class HealthCheckTest extends AnyFunSuite {
   test("retry") {
     val s :: a :: b :: c :: MetricsReport(_, _, _, _, _) :: rest = guard
       .service("failure-test")
-      .registerMetricSet(new MemoryUsageGaugeSet)
       .updateConfig(_.withReportingSchedule(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
       .interruptAfter(5.second)

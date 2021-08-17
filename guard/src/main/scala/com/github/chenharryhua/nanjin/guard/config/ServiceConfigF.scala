@@ -41,20 +41,26 @@ private object ServiceConfigF {
 
   final case class WithServiceBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
+  final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(s, t)            => ServiceParams(s, t)
       case WithRetryPolicy(v, c)       => ServiceParams.retry.set(v)(c)
       case WithServiceBrief(v, c)      => ServiceParams.brief.set(v)(c)
       case WithReportingSchedule(v, c) => ServiceParams.reportingSchedule.set(v)(c)
+      case WithServiceName(v, c)       => ServiceParams.serviceName.set(v)(c)
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
-  def withReportingSchedule(interval: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithReportingSchedule(Left(interval), value)))
+  def withServiceName(name: String): ServiceConfig =
+    ServiceConfig(Fix(WithServiceName(name, value)))
+
+  def withReportingSchedule(interval: FiniteDuration): ServiceConfig = ServiceConfig(
+    Fix(WithReportingSchedule(Left(interval), value)))
 
   def withReportingSchedule(crontab: CronExpr): ServiceConfig =
     ServiceConfig(Fix(WithReportingSchedule(Right(crontab), value)))

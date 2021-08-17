@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.data.Reader
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Async
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
-import com.codahale.metrics.{MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -34,7 +34,6 @@ import scala.concurrent.duration.FiniteDuration
 // format: on
 
 final class ServiceGuard[F[_]] private[guard] (
-  metricRegistry: MetricRegistry,
   serviceConfig: ServiceConfig,
   jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
@@ -42,15 +41,12 @@ final class ServiceGuard[F[_]] private[guard] (
   lazy val params: ServiceParams = serviceConfig.evalConfig
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, f(serviceConfig), jmxBuilder)
+    new ServiceGuard[F](f(serviceConfig), jmxBuilder)
+
+  def apply(serviceName: String): ServiceGuard[F] = updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, serviceConfig, Some(Reader(builder)))
-
-  def registerMetricSet(ms: MetricSet): ServiceGuard[F] = {
-    metricRegistry.registerAll(ms)
-    this
-  }
+    new ServiceGuard[F](serviceConfig, Some(Reader(builder)))
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
     val serviceInfo: F[ServiceInfo] = for {
@@ -58,7 +54,7 @@ final class ServiceGuard[F[_]] private[guard] (
       uuid <- UUIDGen.randomUUID
     } yield ServiceInfo(id = uuid, launchTime = ts)
 
-    val mrService: NJMetricRegistry = new NJMetricRegistry(metricRegistry)
+    val metricRegistry: MetricRegistry = new MetricRegistry()
 
     for {
       si <- Stream.eval(serviceInfo)
@@ -141,15 +137,12 @@ final class ServiceGuard[F[_]] private[guard] (
         val accessories: Stream[F, INothing] =
           Stream(reporting, jmxReporting, Stream.eval(theService).drain).parJoinUnbounded
 
-        channel.stream.evalTap(mrService.compute[F]).concurrently(accessories)
+        channel.stream.evalTap(counting(metricRegistry)).concurrently(accessories)
       }
     } yield event
   }
-}
 
-final private class NJMetricRegistry(registry: MetricRegistry) {
-
-  def compute[F[_]](event: NJEvent)(implicit F: Sync[F]): F[Unit] = event match {
+  private def counting(registry: MetricRegistry)(event: NJEvent): F[Unit] = event match {
     // counters
     case _: MetricsReport          => F.delay(registry.counter("01.health.check").inc())
     case _: ServiceStarted         => F.delay(registry.counter("02.service.start").inc())
