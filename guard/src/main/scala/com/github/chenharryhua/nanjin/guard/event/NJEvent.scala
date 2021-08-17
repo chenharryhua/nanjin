@@ -54,6 +54,7 @@ final case class ServiceStopped(
 ) extends ServiceEvent
 
 final case class MetricsReport(
+  index: Long,
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,

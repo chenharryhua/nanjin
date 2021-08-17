@@ -41,7 +41,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("success") {
-    val s :: a :: b :: c :: d :: MetricsReport(_, _, _, _, _) :: rest = guard
+    val s :: a :: b :: c :: d :: rest = guard
       .service("success-test")
       .updateConfig(_.withReportingSchedule(1.second))
       .eventStream(gd => gd.run(IO(1)) >> gd.run(IO.never))
@@ -58,9 +58,8 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("retry") {
-    val s :: a :: b :: c :: MetricsReport(_, _, _, _, _) :: rest = guard
+    val s :: a :: b :: c :: rest = guard
       .service("failure-test")
-      .registerMetricSet(new MemoryUsageGaugeSet)
       .updateConfig(_.withReportingSchedule(1.second).withConstantDelay(1.hour))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
       .interruptAfter(5.second)
