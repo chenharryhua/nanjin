@@ -10,6 +10,7 @@ import io.circe.syntax.*
 import org.log4s.Logger
 
 package object observers {
+  val eventFilter: EventFilter = EventFilter.default
 
   private[this] val logger: Logger = org.log4s.getLogger
 
@@ -34,7 +35,7 @@ package object observers {
 
   def metricConsole[F[_]](builder: ConsoleReporter.Builder => ConsoleReporter.Builder)(implicit
     F: Sync[F]): Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
-    events.collect { case MetricsReport(_, _, _, _, MetricRegistryWrapper(Some(mr))) => mr }.evalMap { mr =>
+    events.collect { case MetricsReport(_, _, _, _, _, MetricRegistryWrapper(Some(mr))) => mr }.evalMap { mr =>
       F.delay(builder(ConsoleReporter.forRegistry(mr)).build().report())
     }.drain
   }

@@ -94,7 +94,8 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // metrics report
         val reporting: Stream[F, INothing] = {
-          def report(ts: ZonedDateTime, dur: Option[FiniteDuration]) = MetricsReport(
+          def report(idx: Long, ts: ZonedDateTime, dur: Option[FiniteDuration]) = MetricsReport(
+            index = idx + 1,
             timestamp = ts,
             serviceInfo = si,
             serviceParams = params,
@@ -106,15 +107,19 @@ final class ServiceGuard[F[_]] private[guard] (
             case Left(dur) =>
               Stream
                 .fixedRate[F](dur)
-                .evalMap(_ => realZonedDateTime(params).map(ts => report(ts, Some(dur))).flatMap(channel.send))
+                .zipWithIndex
+                .evalMap { case (_, idx) =>
+                  realZonedDateTime(params).map(ts => report(idx, ts, Some(dur))).flatMap(channel.send)
+                }
                 .drain
             case Right(cron) =>
               val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
               scheduler
                 .awakeEvery(cron)
-                .evalMap { _ =>
+                .zipWithIndex
+                .evalMap { case (_, idx) =>
                   realZonedDateTime(params).map { ts =>
-                    report(ts, cron.next(ts).map(zd => Duration.between(ts, zd).toScala))
+                    report(idx, ts, cron.next(ts).map(zd => Duration.between(ts, zd).toScala))
                   }.flatMap(channel.send)
                 }
                 .drain
