@@ -4,7 +4,7 @@ import cats.implicits.catsSyntaxEq
 import com.github.chenharryhua.nanjin.guard.event.*
 import monocle.macros.Lenses
 
-@Lenses final case class EventFilter(
+@Lenses final case class EventFilter private (
   private val isShowActionSucc: Boolean,
   private val isShowActionRetry: Boolean,
   private val isShowActionFirstRetry: Boolean,

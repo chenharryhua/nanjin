@@ -19,11 +19,11 @@ sealed trait NJEvent {
   def importance: Importance
 }
 
-object NJEvent extends zoneddatetime with localtime with zoneid {
-  implicit private val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
-  implicit private val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
-  implicit private val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
-  implicit private val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
+private[guard] object NJEvent extends zoneddatetime with localtime with zoneid {
+  implicit val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
+  implicit val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
+  implicit val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
+  implicit val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
 
   implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
   implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]

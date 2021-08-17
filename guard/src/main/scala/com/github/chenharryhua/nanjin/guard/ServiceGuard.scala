@@ -54,10 +54,9 @@ final class ServiceGuard[F[_]] private[guard] (
       uuid <- UUIDGen.randomUUID
     } yield ServiceInfo(id = uuid, launchTime = ts)
 
-    val metricRegistry: MetricRegistry = new MetricRegistry()
-
     for {
       si <- Stream.eval(serviceInfo)
+      metricRegistry <- Stream.eval(F.delay(new MetricRegistry()))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(

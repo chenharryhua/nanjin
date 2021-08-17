@@ -13,6 +13,7 @@ import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration.*
 
 sealed abstract class NJRetryPolicy {
+  import NJRetryPolicy.*
   private def jitterBackoff[F[_]: Applicative](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] =
     RetryPolicy.liftWithShow(
       _ =>
@@ -29,19 +30,16 @@ sealed abstract class NJRetryPolicy {
     // https://cb372.github.io/cats-retry/docs/policies.html#writing-your-own-policy
     case JitterBackoff(min, max) => jitterBackoff[F](min, max)
   }
-  def value: FiniteDuration
 }
 
-object NJRetryPolicy {
+private[guard] object NJRetryPolicy {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
-}
 
-final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
-final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
-final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
-final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
-final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends NJRetryPolicy {
-  override val value: FiniteDuration = max
+  final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
+  final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
+  final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
+  final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
+  final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends NJRetryPolicy
 }
 
 @Lenses final case class ActionRetryParams private (
@@ -67,7 +65,7 @@ object ActionParams {
     throughputLevel = ThroughputLevel.High,
     serviceParams = serviceParams,
     shouldTerminate = true,
-    retry = ActionRetryParams(maxRetries = 0, capDelay = None, njRetryPolicy = ConstantDelay(10.seconds))
+    retry = ActionRetryParams(maxRetries = 0, capDelay = None, njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds))
   )
 }
 
@@ -106,16 +104,16 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withCapDelay(dur: FiniteDuration): ActionConfig = ActionConfig(Fix(WithCapDelay(dur, value)))
 
   def withConstantDelay(delay: FiniteDuration): ActionConfig =
-    ActionConfig(Fix(WithRetryPolicy(ConstantDelay(delay), value)))
+    ActionConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))
 
   def withExponentialBackoff(delay: FiniteDuration): ActionConfig =
-    ActionConfig(Fix(WithRetryPolicy(ExponentialBackoff(delay), value)))
+    ActionConfig(Fix(WithRetryPolicy(NJRetryPolicy.ExponentialBackoff(delay), value)))
 
   def withFibonacciBackoff(delay: FiniteDuration): ActionConfig =
-    ActionConfig(Fix(WithRetryPolicy(FibonacciBackoff(delay), value)))
+    ActionConfig(Fix(WithRetryPolicy(NJRetryPolicy.FibonacciBackoff(delay), value)))
 
   def withFullJitterBackoff(delay: FiniteDuration): ActionConfig =
-    ActionConfig(Fix(WithRetryPolicy(FullJitter(delay), value)))
+    ActionConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(delay), value)))
 
   def withNonTermination: ActionConfig =
     ActionConfig(Fix(WithTermination(value = false, value)))
