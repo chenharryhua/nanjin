@@ -73,15 +73,15 @@ final class ActionGuard[F[_]] private[guard] (
 
   def unsafeFYI(msg: String): Unit = dispatcher.unsafeRunSync(fyi(msg))
 
-  def passThrough[A: Encoder](a: A): F[Unit] =
+  def passThrough[A: Encoder](a: A)(description: String): F[Unit] =
     realZonedDateTime(params.serviceParams)
-      .flatMap(ts => channel.send(PassThrough(timestamp = ts, value = a.asJson)))
+      .flatMap(ts => channel.send(PassThrough(timestamp = ts, description = description, value = a.asJson)))
       .void
 
-  def passThroughM[A: Encoder](fa: F[A]): F[Unit] = F.flatMap(fa)(a => passThrough(a))
+  def passThroughM[A: Encoder](fa: F[A])(description: String): F[Unit] = F.flatMap(fa)(a => passThrough(a)(description))
 
-  def unsafePassThrough[A: Encoder](a: A): Unit =
-    dispatcher.unsafeRunSync(passThrough(a))
+  def unsafePassThrough[A: Encoder](a: A)(description: String): Unit =
+    dispatcher.unsafeRunSync(passThrough(a)(description))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))

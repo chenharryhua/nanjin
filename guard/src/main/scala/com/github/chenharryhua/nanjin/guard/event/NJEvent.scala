@@ -115,6 +115,6 @@ final case class ForYourInformation(timestamp: ZonedDateTime, message: String) e
   override val importance: Importance = Importance.High
 }
 
-final case class PassThrough(timestamp: ZonedDateTime, value: Json) extends NJEvent {
+final case class PassThrough(timestamp: ZonedDateTime, description: String, value: Json) extends NJEvent {
   override val importance: Importance = Importance.High
 }
