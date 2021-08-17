@@ -165,13 +165,13 @@ class QuasiSuccTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-  test("quasi cancallation - external (could be wrong)") {
+  test("quasi cancalation - external cancelation") {
     def f(a: Int): IO[Unit] = IO.sleep(1.second) <* IO(100 / a)
     val Vector(s, a, b, c) =
       guard.eventStream { action =>
-        val a1 = action("external-cancel").quasi(Vector(f(0), f(1))).seqRun
-        val a2 = IO.canceled
-        List(a1.delayBy(3.seconds), a2.delayBy(1.second)).parSequence_
+        val a1 =
+          action("external-cancel").updateConfig(_.withConstantDelay(1.second)).quasi(Vector(f(0), f(1))).parRun(2)
+        List(a1, IO.canceled.delayBy(3.second)).parSequence_
       }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])

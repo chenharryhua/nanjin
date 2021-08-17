@@ -205,6 +205,7 @@ class CancellationTest extends AnyFunSuite {
           .run(IO.raiseError[Int](new Exception))
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
       }
+      .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
@@ -214,6 +215,6 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
     assert(e.isInstanceOf[ActionFailed])
-    assert(f.isInstanceOf[ServiceStopped])
+    assert(f.isInstanceOf[ServicePanic])
   }
 }
