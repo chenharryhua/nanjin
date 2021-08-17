@@ -34,7 +34,7 @@ package object observers {
 
   def metricConsole[F[_]](builder: ConsoleReporter.Builder => ConsoleReporter.Builder)(implicit
     F: Sync[F]): Pipe[F, NJEvent, INothing] = { (events: Stream[F, NJEvent]) =>
-    events.collect { case MetricsReport(_, _, _, MetricRegistryWrapper(Some(mr))) => mr }.evalMap { mr =>
+    events.collect { case MetricsReport(_, _, _, MetricRegistryWrapper(Some(mr)), _) => mr }.evalMap { mr =>
       F.delay(builder(ConsoleReporter.forRegistry(mr)).build().report())
     }.drain
   }

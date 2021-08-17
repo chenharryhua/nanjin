@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams, ThroughputLevel}
+import cron4s.CronExpr
 import io.chrisdavenport.cats.time.instances.{localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -19,6 +20,8 @@ sealed trait NJEvent {
 }
 
 object NJEvent extends zoneddatetime with localtime with zoneid {
+  implicit private val cronEncoder: Encoder[CronExpr]                 = cron4s.circe.cronExprEncoder
+  implicit private val cronDecoder: Decoder[CronExpr]                 = cron4s.circe.cronExprDecoder
   implicit private val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
   implicit private val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
 
@@ -54,7 +57,8 @@ final case class MetricsReport(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  metrics: MetricRegistryWrapper
+  metrics: MetricRegistryWrapper,
+  next: Option[FiniteDuration]
 ) extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {

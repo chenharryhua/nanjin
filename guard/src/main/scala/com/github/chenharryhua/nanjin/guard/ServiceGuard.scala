@@ -10,10 +10,16 @@ import com.codahale.metrics.{MetricRegistry, MetricSet}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
+import cron4s.CronExpr
+import cron4s.lib.javatime.javaTemporalInstance
+import eu.timepit.fs2cron.Scheduler
+import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
 
-import java.time.Duration
+import java.time.{Duration, ZonedDateTime}
+import scala.compat.java8.DurationConverters.DurationOps
+import scala.concurrent.duration.FiniteDuration
 
 // format: off
 /** @example
@@ -90,22 +96,33 @@ final class ServiceGuard[F[_]] private[guard] (
         /** concurrent streams
           */
 
-        // fix-rate metrics report
-        val reporting: Stream[F, INothing] =
-          Stream
-            .fixedRate[F](params.reportingInterval)
-            .evalMap(_ =>
-              realZonedDateTime(params)
-                .flatMap(ts =>
-                  channel.send(
-                    MetricsReport(
-                      timestamp = ts,
-                      serviceInfo = si,
-                      serviceParams = params,
-                      metrics = MetricRegistryWrapper(Some(metricRegistry))
-                    )))
-                .void)
-            .drain
+        // metrics report
+        val reporting: Stream[F, INothing] = {
+          def report(ts: ZonedDateTime, dur: Option[FiniteDuration]) = MetricsReport(
+            timestamp = ts,
+            serviceInfo = si,
+            serviceParams = params,
+            metrics = MetricRegistryWrapper(Some(metricRegistry)),
+            next = dur
+          )
+
+          params.reportingInterval match {
+            case Left(dur) =>
+              Stream
+                .fixedRate[F](dur)
+                .evalMap(_ => realZonedDateTime(params).map(ts => report(ts, Some(dur))).flatMap(channel.send))
+                .drain
+            case Right(cron) =>
+              val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
+              scheduler
+                .awakeEvery(cron)
+                .evalMap(_ =>
+                  realZonedDateTime(params).map { ts =>
+                    report(ts, cron.next(ts).map(zd => Duration.between(ts, zd).toScala))
+                  }.flatMap(channel.send))
+                .drain
+          }
+        }
 
         val jmxReporting: Stream[F, INothing] = {
           jmxBuilder match {

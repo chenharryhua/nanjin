@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Functor
+import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -12,7 +13,7 @@ import scala.concurrent.duration.*
   serviceName: String,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
-  reportingInterval: FiniteDuration,
+  reportingInterval: Either[FiniteDuration, CronExpr],
   brief: String
 )
 
@@ -23,7 +24,7 @@ object ServiceParams {
       serviceName = serviceName,
       taskParams = taskParams,
       retry = ConstantDelay(30.seconds),
-      reportingInterval = 1.hour,
+      reportingInterval = Left(1.hour),
       brief = "The developer is too lazy to provide a brief"
     )
 }
@@ -34,7 +35,7 @@ private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K](serviceName: String, taskParams: TaskParams) extends ServiceConfigF[K]
-  final case class WithReportingInterval[K](value: FiniteDuration, cont: K) extends ServiceConfigF[K]
+  final case class WithReportingInterval[K](value: Either[FiniteDuration, CronExpr], cont: K) extends ServiceConfigF[K]
 
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
@@ -53,7 +54,13 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
   def withReportingInterval(interval: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithReportingInterval(interval, value)))
+    ServiceConfig(Fix(WithReportingInterval(Left(interval), value)))
+
+  def withReportingInterval(interval: CronExpr): ServiceConfig =
+    ServiceConfig(Fix(WithReportingInterval(Right(interval), value)))
+
+  def withReportingInterval(interval: String): ServiceConfig =
+    withReportingInterval(Cron.unsafeParse(interval))
 
   def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 
