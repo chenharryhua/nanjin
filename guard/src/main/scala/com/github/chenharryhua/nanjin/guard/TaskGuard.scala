@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.Async
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
 

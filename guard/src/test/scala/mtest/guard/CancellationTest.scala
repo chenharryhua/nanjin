@@ -36,7 +36,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action("never").trivial.retry(IO.never[Int]).run
+        val a1 = action("never").trivial.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .compile
@@ -51,7 +51,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action("never").trivial.retry(IO.never[Int]).run
+        val a1 = action("never").trivial.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
       }
       .interruptAfter(3.seconds)
@@ -68,7 +68,7 @@ class CancellationTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
         val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1)).trivial
-        val a1     = action("never").retry(IO.never[Int]).run(())
+        val a1     = action("never").run(IO.never[Int])
         action("supervisor").retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))).run
       }
       .interruptAfter(10.second)
@@ -138,16 +138,14 @@ class CancellationTest extends AnyFunSuite {
       serviceGuard
         .updateConfig(_.withConstantDelay(1.hour))
         .eventStream { action =>
-          val a1 = action("succ-1").retry(IO.sleep(1.second) >> IO(1)).run
+          val a1 = action("succ-1").run(IO.sleep(1.second) >> IO(1))
           val a2 = action("fail-2")
             .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
-            .retry(IO.raiseError[Int](new Exception))
-            .run
-          val a3 = action("cancel-3").retry(IO.never[Int]).run
+            .run(IO.raiseError[Int](new Exception))
+          val a3 = action("cancel-3").run(IO.never[Int])
           action("supervisor")
             .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
-            .retry(IO.parSequenceN(5)(List(a1, a2, a3)))
-            .run
+            .run(IO.parSequenceN(5)(List(a1, a2, a3)))
         }
         .interruptAfter(10.second)
         .compile

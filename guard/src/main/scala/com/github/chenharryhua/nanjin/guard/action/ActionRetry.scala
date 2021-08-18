@@ -181,3 +181,76 @@ final class ActionRetry[F[_], A, B](
           .guaranteeCase(handleOutcome(input, ai, retryCount)))
     } yield res
 }
+
+final class ActionRetryUnit[F[_], B](
+  fb: F[B],
+  metricRegistry: MetricRegistry,
+  channel: Channel[F, NJEvent],
+  params: ActionParams,
+  succ: Kleisli[F, B, String],
+  fail: Kleisli[F, Throwable, String],
+  isWorthRetry: Reader[Throwable, Boolean],
+  postCondition: Predicate[B])(implicit F: Async[F]) {
+
+  def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      fb = fb,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      params = params,
+      succ = Kleisli(succ),
+      fail = fail,
+      isWorthRetry = isWorthRetry,
+      postCondition = postCondition)
+
+  def withSuccNotes(f: B => String): ActionRetryUnit[F, B] =
+    withSuccNotesM(Kleisli.fromFunction(f).run)
+
+  def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      fb = fb,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      params = params,
+      succ = succ,
+      fail = Kleisli(fail),
+      isWorthRetry = isWorthRetry,
+      postCondition = postCondition)
+
+  def withFailNotes(f: Throwable => String): ActionRetryUnit[F, B] =
+    withFailNotesM(Kleisli.fromFunction(f).run)
+
+  def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      fb = fb,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      params = params,
+      succ = succ,
+      fail = fail,
+      isWorthRetry = Reader(isWorthRetry),
+      postCondition = postCondition)
+
+  def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      fb = fb,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      params = params,
+      succ = succ,
+      fail = fail,
+      isWorthRetry = isWorthRetry,
+      postCondition = Predicate(postCondition))
+
+  val run: F[B] =
+    new ActionRetry[F, Unit, B](
+      metricRegistry = metricRegistry,
+      channel = channel,
+      params = params,
+      kfab = Kleisli(_ => fb),
+      succ = succ.local(_._2),
+      fail = fail.local(_._2),
+      isWorthRetry = isWorthRetry,
+      postCondition = postCondition
+    ).run(())
+}

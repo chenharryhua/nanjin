@@ -4,11 +4,9 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.showConsole
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import scala.util.Random
 
 final case class MyException() extends Exception("my exception")
 
@@ -117,7 +115,7 @@ class RetryTest extends AnyFunSuite {
         ag("null exception").trivial
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .retry(IO.raiseError(new NullPointerException))
-          .run(()))
+          .run)
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -137,7 +135,7 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(ex => (ex.isInstanceOf[MyException]))
-          .run(())
+          .run
       }
       .interruptAfter(5.seconds)
       .compile
@@ -160,7 +158,7 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception()))
           .withWorthRetry(_.isInstanceOf[MyException])
-          .run(())
+          .run
       }
       .interruptAfter(5.seconds)
       .compile
@@ -179,7 +177,7 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry(IO(0))
           .withPostCondition(_ > 1)
-          .run(())
+          .run
       }
       .interruptAfter(5.seconds)
       .compile

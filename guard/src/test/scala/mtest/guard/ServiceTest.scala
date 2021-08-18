@@ -23,7 +23,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a, d) = guard
       .updateConfig(_.withJitterBackoff(3.second))
       .eventStream(gd =>
-        gd("normal-exit-action").trivial.max(10).retry(IO(1)).withFailNotes((_, _) => null).run(()).delayBy(1.second))
+        gd("normal-exit-action").trivial.max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -39,8 +39,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd("escalate-after-3-time")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
-          .retry(IO.raiseError(new Exception("oops")))
-          .run(())
+          .run(IO.raiseError(new Exception("oops")))
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -64,8 +63,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd("json-codec")
           .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
-          .retry(IO.raiseError(new Exception("oops")))
-          .run(())
+          .run(IO.raiseError(new Exception("oops")))
       }
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -78,7 +76,7 @@ class ServiceTest extends AnyFunSuite {
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
       .updateConfig(_.withReportingSchedule(1.second))
-      .eventStream(_.trivial.retry(IO.never).run(()))
+      .eventStream(_.trivial.retry(IO.never).run)
       .interruptAfter(5.second)
       .compile
       .toList
@@ -92,7 +90,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
-      .eventStream(gd => gd("a").retry(IO(1)).run(()) >> gd("b").retry(IO(2)).run(()))
+      .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -112,8 +110,8 @@ class ServiceTest extends AnyFunSuite {
     val s1    = guard.service("s1")
     val s2    = guard.service("s2")
 
-    val ss1 = s1.eventStream(gd => gd("s1-a1").retry(IO(1)).run(()) >> gd("s1-a2").retry(IO(2)).run(()))
-    val ss2 = s2.eventStream(gd => gd("s2-a1").retry(IO(1)).run(()) >> gd("s2-a2").retry(IO(2)).run(()))
+    val ss1 = s1.eventStream(gd => gd("s1-a1").retry(IO(1)).run >> gd("s1-a2").retry(IO(2)).run)
+    val ss2 = s2.eventStream(gd => gd("s2-a1").retry(IO(1)).run >> gd("s2-a2").retry(IO(2)).run)
 
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)

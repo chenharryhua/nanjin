@@ -38,7 +38,7 @@ final class ServiceGuard[F[_]] private[guard] (
   jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
-  lazy val params: ServiceParams = serviceConfig.evalConfig
+  val params: ServiceParams = serviceConfig.evalConfig
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig), jmxBuilder)
