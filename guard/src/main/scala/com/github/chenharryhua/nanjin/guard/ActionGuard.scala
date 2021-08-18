@@ -51,6 +51,8 @@ final class ActionGuard[F[_]] private[guard] (
 
   def retry[B](fb: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](_ => fb)
 
+  def run[B](fb: F[B]): F[B] = retry(fb).run(())
+
   def unsafeCount(name: String): Unit          = metricRegistry.counter(name).inc()
   def count(name: String): F[Unit]             = F.delay(unsafeCount(name))
   def unsafeCount(name: String, n: Long): Unit = metricRegistry.counter(name).inc(n)

@@ -283,15 +283,4 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ServicePanic])
   }
 
-  ignore("performance") {
-    serviceGuard
-      .updateConfig(_.withConstantDelay(1.second).withReportingSchedule(3.seconds))
-      .withJmxReporter(_.inDomain("xyz"))
-      .eventStream(ag => ag.nonStop(ag("performance").trivial.retry(IO(1)).run(()).foreverM))
-      .observe(es => showConsole[IO].apply(es.filter(_.isInstanceOf[MetricsReport])))
-      .interruptAfter(160.seconds)
-      .compile
-      .toList
-      .unsafeRunSync()
-  }
 }
