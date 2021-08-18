@@ -7,7 +7,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
+import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, QuasiSucc, QuasiSuccUnit}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
@@ -38,28 +38,18 @@ final class ActionGuard[F[_]] private[guard] (
   def trivial: ActionGuard[F] = updateConfig(_.withLowThroughput)
   def notice: ActionGuard[F]  = updateConfig(_.withMediumThroughput)
 
-  def retry[A, B](input: A)(f: A => F[B]): ActionRetry[F, A, B] =
+  def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = input,
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
-  def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      params = params,
-      fb = fb,
-      succ = Kleisli(_ => F.pure("")),
-      fail = Kleisli(_ => F.pure("")),
-      isWorthRetry = Reader(_ => true),
-      postCondition = Predicate(_ => true))
+  def retry[B](fb: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](_ => fb)
 
   def unsafeCount(name: String): Unit          = metricRegistry.counter(name).inc()
   def count(name: String): F[Unit]             = F.delay(unsafeCount(name))
@@ -73,15 +63,15 @@ final class ActionGuard[F[_]] private[guard] (
 
   def unsafeFYI(msg: String): Unit = dispatcher.unsafeRunSync(fyi(msg))
 
-  def passThrough[A: Encoder](a: A): F[Unit] =
+  def passThrough[A: Encoder](a: A, description: String): F[Unit] =
     realZonedDateTime(params.serviceParams)
-      .flatMap(ts => channel.send(PassThrough(timestamp = ts, value = a.asJson)))
+      .flatMap(ts => channel.send(PassThrough(timestamp = ts, description = description, value = a.asJson)))
       .void
 
-  def passThroughM[A: Encoder](fa: F[A]): F[Unit] = F.flatMap(fa)(a => passThrough(a))
+  def passThroughM[A: Encoder](fa: F[A], description: String): F[Unit] = F.flatMap(fa)(a => passThrough(a, description))
 
-  def unsafePassThrough[A: Encoder](a: A): Unit =
-    dispatcher.unsafeRunSync(passThrough(a))
+  def unsafePassThrough[A: Encoder](a: A, description: String): Unit =
+    dispatcher.unsafeRunSync(passThrough(a, description))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
@@ -89,12 +79,11 @@ final class ActionGuard[F[_]] private[guard] (
   def nonStop[B](fb: F[B]): F[Nothing] =
     apply("nonStop")
       .updateConfig(_.withNonTermination.withMaxRetries(0))
-      .run(fb)
+      .retry(fb)
+      .run(())
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 
   def nonStop[B](sb: Stream[F, B]): F[Nothing] = nonStop(sb.compile.drain)
-
-  def run[B](fb: F[B]): F[B] = retry[B](fb).run
 
   def zoneId: ZoneId = params.serviceParams.taskParams.zoneId
 
