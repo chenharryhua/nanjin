@@ -21,11 +21,11 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd("succ-low").trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
-        .retry(1)(x => IO(x + 1))
+        .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
         .withFailNotes((a, e) => "")
         .withWorthRetry(_ => true)
-        .run
+        .run(1)
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
@@ -37,11 +37,11 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c) = serviceGuard.eventStream { gd =>
       gd("succ-medium")
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
-        .retry(1)(x => IO(x + 1))
+        .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
         .withFailNotes((a, e) => "")
         .withWorthRetry(_ => true)
-        .run
+        .run(1)
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
@@ -55,11 +55,11 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = serviceGuard.eventStream { gd =>
       gd("1-time-succ")("2-time-succ") // funny syntax
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
-        .retry(1)(x =>
+        .retry((x: Int) =>
           IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
-        .run
+        .run(1)
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
@@ -75,11 +75,11 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
       gd("1-time-succ").trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
-        .retry(1)(x =>
+        .retry((x: Int) =>
           IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
-        .run
+        .run(1)
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
@@ -94,8 +94,8 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd("escalate-after-3-time").trivial
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
-          .retry(1)(x => IO.raiseError[Int](new Exception("oops")))
-          .run
+          .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
+          .run(1)
       }
       .interruptAfter(5.seconds)
       .compile
@@ -116,7 +116,8 @@ class RetryTest extends AnyFunSuite {
       .eventStream(ag =>
         ag("null exception").trivial
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
-          .run(IO.raiseError(new NullPointerException)))
+          .retry(IO.raiseError(new NullPointerException))
+          .run(()))
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -136,7 +137,7 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(ex => (ex.isInstanceOf[MyException]))
-          .run
+          .run(())
       }
       .interruptAfter(5.seconds)
       .compile
@@ -159,7 +160,7 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception()))
           .withWorthRetry(_.isInstanceOf[MyException])
-          .run
+          .run(())
       }
       .interruptAfter(5.seconds)
       .compile
@@ -178,7 +179,7 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry(IO(0))
           .withPostCondition(_ > 1)
-          .run
+          .run(())
       }
       .interruptAfter(5.seconds)
       .compile
@@ -197,9 +198,9 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd("postCondition").trivial
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
-          .retry(0)(IO(_))
+          .retry((a: Int) => IO(a))
           .withPostCondition(_ > 1)
-          .run
+          .run(0)
       }
       .interruptAfter(5.seconds)
       .compile
@@ -286,7 +287,7 @@ class RetryTest extends AnyFunSuite {
     serviceGuard
       .updateConfig(_.withConstantDelay(1.second).withReportingSchedule(3.seconds))
       .withJmxReporter(_.inDomain("xyz"))
-      .eventStream(ag => ag.nonStop(ag("performance").trivial.run(IO(1)).foreverM))
+      .eventStream(ag => ag.nonStop(ag("performance").trivial.retry(IO(1)).run(()).foreverM))
       .observe(es => showConsole[IO].apply(es.filter(_.isInstanceOf[MetricsReport])))
       .interruptAfter(160.seconds)
       .compile

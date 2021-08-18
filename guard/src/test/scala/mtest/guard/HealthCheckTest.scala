@@ -27,7 +27,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
       .updateConfig(_.withReportingSchedule("* * * ? * *"))
-      .eventStream(gd => gd("cron").run(IO.never[Int]))
+      .eventStream(gd => gd("cron").retry(IO.never[Int]).run(()))
       .observe(showConsole)
       .interruptAfter(5.second)
       .compile
@@ -44,7 +44,7 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: d :: rest = guard
       .service("success-test")
       .updateConfig(_.withReportingSchedule(1.second))
-      .eventStream(gd => gd.run(IO(1)) >> gd.run(IO.never))
+      .eventStream(gd => gd.retry(IO(1)).run(()) >> gd.retry(IO.never).run(()))
       .observe(jsonConsole)
       .interruptAfter(5.second)
       .compile
@@ -61,7 +61,8 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: rest = guard
       .service("failure-test")
       .updateConfig(_.withReportingSchedule(1.second).withConstantDelay(1.hour))
-      .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.run(IO.never))
+      .eventStream(gd =>
+        gd("always-failure").max(1).retry(IO.raiseError(new Exception)).run(()) >> gd.retry(IO.never).run(()))
       .interruptAfter(5.second)
       .observe(showLog)
       .compile

@@ -19,7 +19,6 @@ final class ActionRetry[F[_], A, B](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   params: ActionParams,
-  input: A,
   kfab: Kleisli[F, A, B],
   succ: Kleisli[F, (A, B), String],
   fail: Kleisli[F, (A, Throwable), String],
@@ -31,7 +30,6 @@ final class ActionRetry[F[_], A, B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = input,
       kfab = kfab,
       succ = Kleisli(succ.tupled),
       fail = fail,
@@ -46,7 +44,6 @@ final class ActionRetry[F[_], A, B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = input,
       kfab = kfab,
       succ = succ,
       fail = Kleisli(fail.tupled),
@@ -61,7 +58,6 @@ final class ActionRetry[F[_], A, B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = input,
       kfab = kfab,
       succ = succ,
       fail = fail,
@@ -73,7 +69,6 @@ final class ActionRetry[F[_], A, B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = input,
       kfab = kfab,
       succ = succ,
       fail = fail,
@@ -85,8 +80,8 @@ final class ActionRetry[F[_], A, B](
     uuid <- UUIDGen.randomUUID
   } yield ActionInfo(id = uuid, launchTime = ts)
 
-  private def failNotes(error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
-  private def succNotes(b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))
+  private def failNotes(input: A, error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
+  private def succNotes(input: A, b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))
 
   private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     error: Throwable,
@@ -107,14 +102,14 @@ final class ActionRetry[F[_], A, B](
       case _: GivingUp => F.unit
     }
 
-  private def handleOutcome(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
+  private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     outcome: Outcome[F, Throwable, B]): F[Unit] =
     outcome match {
       case Outcome.Canceled() =>
         for {
           count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
-          fn <- failNotes(ActionException.ActionCanceledExternally)
+          fn <- failNotes(input, ActionException.ActionCanceledExternally)
           _ <- channel.send(
             ActionFailed(
               actionInfo = actionInfo,
@@ -129,7 +124,7 @@ final class ActionRetry[F[_], A, B](
         for {
           count <- retryCount.get // number of retries
           now <- realZonedDateTime(params.serviceParams)
-          fn <- failNotes(error)
+          fn <- failNotes(input, error)
           _ <- channel.send(
             event.ActionFailed(
               actionInfo = actionInfo,
@@ -145,7 +140,7 @@ final class ActionRetry[F[_], A, B](
             count <- retryCount.get // number of retries before success
             now <- realZonedDateTime(params.serviceParams)
             b <- fb
-            sn <- succNotes(b)
+            sn <- succNotes(input, b)
             _ <- channel.send(
               ActionSucced(
                 actionInfo = actionInfo,
@@ -157,7 +152,8 @@ final class ActionRetry[F[_], A, B](
         else F.delay(metricRegistry.counter(actionSuccMRName(params.actionName)).inc())
     }
 
-  def run: F[B] =
+  def run(implicit ev: Unit =:= A): F[B] = run(ev(()))
+  def run(input: A): F[B] =
     for {
       retryCount <- F.ref(0) // hold number of retries
       ai <- actionInfo
@@ -182,80 +178,6 @@ final class ActionRetry[F[_], A, B](
               _ <- F.raiseError(ActionException.PostConditionUnsatisfied).whenA(!postCondition(oc))
             } yield oc
           }
-          .guaranteeCase(handleOutcome(ai, retryCount)))
+          .guaranteeCase(handleOutcome(input, ai, retryCount)))
     } yield res
-}
-
-final class ActionRetryUnit[F[_], B](
-  metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent],
-  params: ActionParams,
-  fb: F[B],
-  succ: Kleisli[F, B, String],
-  fail: Kleisli[F, Throwable, String],
-  isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B])(implicit F: Async[F]) {
-
-  def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      params = params,
-      fb = fb,
-      succ = Kleisli(succ),
-      fail = fail,
-      isWorthRetry = isWorthRetry,
-      postCondition = postCondition)
-
-  def withSuccNotes(f: B => String): ActionRetryUnit[F, B] =
-    withSuccNotesM(Kleisli.fromFunction(f).run)
-
-  def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      params = params,
-      fb = fb,
-      succ = succ,
-      fail = Kleisli(fail),
-      isWorthRetry = isWorthRetry,
-      postCondition = postCondition)
-
-  def withFailNotes(f: Throwable => String): ActionRetryUnit[F, B] =
-    withFailNotesM(Kleisli.fromFunction(f).run)
-
-  def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      params = params,
-      fb = fb,
-      succ = succ,
-      fail = fail,
-      isWorthRetry = Reader(isWorthRetry),
-      postCondition = postCondition)
-
-  def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      params = params,
-      fb = fb,
-      succ = succ,
-      fail = fail,
-      isWorthRetry = isWorthRetry,
-      postCondition = Predicate(postCondition))
-
-  def run: F[B] =
-    new ActionRetry[F, Unit, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      params = params,
-      input = (),
-      kfab = Kleisli(_ => fb),
-      succ = succ.local(_._2),
-      fail = fail.local(_._2),
-      isWorthRetry = isWorthRetry,
-      postCondition = postCondition
-    ).run
 }

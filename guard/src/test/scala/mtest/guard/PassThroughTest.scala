@@ -25,7 +25,7 @@ class PassThroughTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("test").service("pass-throught")
   test("pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
-      action("send-json").passThrough(PassThroughObject(1, "a"))("ps")
+      action("send-json").passThrough(PassThroughObject(1, "a"), "ps")
     }.map {
       case PassThrough(_, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
       case _                    => None
@@ -36,7 +36,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("unsafe pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
-      IO(1).map(_ => action("send-json").unsafePassThrough(PassThroughObject(1, "a"))("ps"))
+      IO(1).map(_ => action("send-json").unsafePassThrough(PassThroughObject(1, "a"), "ps"))
     }.map {
       case PassThrough(_, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
       case _                    => None
