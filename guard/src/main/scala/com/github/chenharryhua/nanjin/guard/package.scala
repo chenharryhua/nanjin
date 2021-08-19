@@ -12,7 +12,7 @@ package object guard {
 
   private[guard] def passThroughMRName(desc: String): String = s"06.[$desc].count"
   private[guard] def actionFailMRName(name: String): String  = s"07.[$name].`fail`"
-  private[guard] def actionStartMRName(name: String): String = s"08.[$name].count"
-  private[guard] def actionRetryMRName(name: String): String = s"08.[$name].retry"
-  private[guard] def actionSuccMRName(name: String): String  = s"08.[$name].succ"
+  private[guard] def actionStartMRName(name: String): String = s"07.[$name].count"
+  private[guard] def actionRetryMRName(name: String): String = s"07.[$name].retry"
+  private[guard] def actionSuccMRName(name: String): String  = s"07.[$name].succ"
 }
