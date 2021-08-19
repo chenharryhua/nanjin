@@ -17,7 +17,7 @@ final class QuasiSucc[F[_], T[_], A, B](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   params: ActionParams,
-  input: T[A],
+  ta: T[A],
   kfab: Kleisli[F, A, B],
   succ: Kleisli[F, List[(A, B)], String],
   fail: Kleisli[F, List[(A, NJError)], String])(implicit F: Async[F]) {
@@ -27,7 +27,7 @@ final class QuasiSucc[F[_], T[_], A, B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = input,
+      ta = ta,
       kfab = kfab,
       succ = Kleisli(succ),
       fail = fail)
@@ -40,7 +40,7 @@ final class QuasiSucc[F[_], T[_], A, B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = input,
+      ta = ta,
       kfab = kfab,
       succ = succ,
       fail = Kleisli(fail))
@@ -117,13 +117,13 @@ final class QuasiSucc[F[_], T[_], A, B](
     } yield T.map(res._2)(_._2)
 
   def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    internal(input.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
+    internal(ta.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
 
   def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    internal(input.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
+    internal(ta.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
   def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    internal(F.parTraverseN(n)(input)(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
+    internal(F.parTraverseN(n)(ta)(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
 
 }
 
@@ -164,7 +164,7 @@ final class QuasiSuccUnit[F[_], T[_], B](
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = tfb,
+      ta = tfb,
       kfab = Kleisli(identity),
       succ = succ.local(_.map(_._2)),
       fail = fail.local(_.map(_._2)))

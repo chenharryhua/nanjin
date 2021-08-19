@@ -152,7 +152,6 @@ final class ActionRetry[F[_], A, B](
         else F.delay(metricRegistry.counter(actionSuccMRName(params.actionName)).inc())
     }
 
-  def run(implicit ev: Unit =:= A): F[B] = run(ev(()))
   def run(input: A): F[B] =
     for {
       retryCount <- F.ref(0) // hold number of retries
