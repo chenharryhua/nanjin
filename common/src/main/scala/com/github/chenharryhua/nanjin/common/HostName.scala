@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.common
 import cats.Semigroup
 
 import java.net.InetAddress
+import scala.util.Try
 
 trait HostName {
   def name: String
@@ -14,6 +15,6 @@ object HostName {
     }
 
   val local_host: HostName = new HostName {
-    override val name: String = InetAddress.getLocalHost.getHostName
+    override val name: String = Try(InetAddress.getLocalHost.getHostName).getOrElse("none")
   }
 }
