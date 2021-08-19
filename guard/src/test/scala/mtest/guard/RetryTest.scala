@@ -12,10 +12,10 @@ final case class MyException() extends Exception("my exception")
 
 class RetryTest extends AnyFunSuite {
 
-  val serviceGuard = TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
+  val serviceGuard: ServiceGuard[IO] =
+    TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
 
   test("retry - success low importance") {
-    var i = 0
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd("succ-low").trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
@@ -31,7 +31,6 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("retry - success - default") {
-    var i = 0
     val Vector(s, a, b, c) = serviceGuard.eventStream { gd =>
       gd("succ-medium")
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
@@ -90,7 +89,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("escalate-after-3-time").trivial
+        gd("escalate-after-3-times").trivial
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
           .run(1)
@@ -151,10 +150,10 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("retry - predicate - should not retry") {
-    val Vector(s, b, c) = serviceGuard
+    val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("predicate").trivial
+        gd("predicate")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception()))
           .withWorthRetry(_.isInstanceOf[MyException])
@@ -165,6 +164,7 @@ class RetryTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
+    assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionFailed].numRetries == 0)
     assert(c.isInstanceOf[ServicePanic])
   }

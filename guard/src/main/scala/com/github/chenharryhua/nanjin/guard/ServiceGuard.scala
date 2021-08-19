@@ -5,8 +5,8 @@ import cats.effect.kernel.Async
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -90,6 +90,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
         /** concurrent streams
           */
+        val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
 
         // metrics report
         val reporting: Stream[F, INothing] = {
@@ -112,8 +113,7 @@ final class ServiceGuard[F[_]] private[guard] (
                 }
                 .drain
             case Right(cron) =>
-              val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
-              scheduler
+              cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
                 .evalMap { case (_, idx) =>
@@ -123,6 +123,10 @@ final class ServiceGuard[F[_]] private[guard] (
                 }
                 .drain
           }
+        }
+
+        val metricsReset: Stream[F, INothing] = params.metricsReset.fold(Stream.empty.covary[F]) { cron =>
+          cronScheduler.awakeEvery(cron).evalMap(_ => F.delay(metricRegistry.removeMatching(MetricFilter.ALL))).drain
         }
 
         val jmxReporting: Stream[F, INothing] = {
@@ -139,7 +143,7 @@ final class ServiceGuard[F[_]] private[guard] (
         // put together
 
         val accessories: Stream[F, INothing] =
-          Stream(reporting, jmxReporting, Stream.eval(theService).drain).parJoinUnbounded
+          Stream(reporting, jmxReporting, metricsReset, Stream.eval(theService).drain).parJoinUnbounded
 
         channel.stream.evalTap(counting(metricRegistry)).concurrently(accessories)
       }
