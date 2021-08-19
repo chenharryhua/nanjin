@@ -7,7 +7,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, QuasiSucc, QuasiSuccUnit}
+import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
@@ -24,7 +24,7 @@ final class ActionGuard[F[_]] private[guard] (
   actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
-  lazy val params: ActionParams = actionConfig.evalConfig
+  val params: ActionParams = actionConfig.evalConfig
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](
@@ -49,7 +49,18 @@ final class ActionGuard[F[_]] private[guard] (
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
-  def retry[B](fb: F[B]): ActionRetry[F, Unit, B] = retry[Unit, B](_ => fb)
+  def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
+    new ActionRetryUnit[F, B](
+      fb = fb,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      params = params,
+      succ = Kleisli(_ => F.pure("")),
+      fail = Kleisli(_ => F.pure("")),
+      isWorthRetry = Reader(_ => true),
+      postCondition = Predicate(_ => true))
+
+  def run[B](fb: F[B]): F[B] = retry(fb).run
 
   def unsafeCount(name: String): Unit          = metricRegistry.counter(name).inc()
   def count(name: String): F[Unit]             = F.delay(unsafeCount(name))
@@ -80,12 +91,12 @@ final class ActionGuard[F[_]] private[guard] (
     apply("nonStop")
       .updateConfig(_.withNonTermination.withMaxRetries(0))
       .retry(fb)
-      .run(())
+      .run
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 
-  def nonStop[B](sb: Stream[F, B]): F[Nothing] = nonStop(sb.compile.drain)
+  def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
 
-  def zoneId: ZoneId = params.serviceParams.taskParams.zoneId
+  val zoneId: ZoneId = params.serviceParams.taskParams.zoneId
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](

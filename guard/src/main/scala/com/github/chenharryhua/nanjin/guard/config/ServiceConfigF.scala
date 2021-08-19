@@ -14,6 +14,7 @@ import scala.concurrent.duration.*
   taskParams: TaskParams,
   retry: NJRetryPolicy,
   reportingSchedule: Either[FiniteDuration, CronExpr],
+  metricsReset: Option[CronExpr],
   brief: String
 )
 
@@ -25,6 +26,7 @@ object ServiceParams {
       taskParams = taskParams,
       retry = NJRetryPolicy.ConstantDelay(30.seconds),
       reportingSchedule = Left(1.hour),
+      metricsReset = None,
       brief = "The developer is too lazy to provide a brief"
     )
 }
@@ -36,6 +38,7 @@ private object ServiceConfigF {
 
   final case class InitParams[K](serviceName: String, taskParams: TaskParams) extends ServiceConfigF[K]
   final case class WithReportingSchedule[K](value: Either[FiniteDuration, CronExpr], cont: K) extends ServiceConfigF[K]
+  final case class WithMetricsReset[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
 
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
@@ -50,6 +53,7 @@ private object ServiceConfigF {
       case WithServiceBrief(v, c)      => ServiceParams.brief.set(v)(c)
       case WithReportingSchedule(v, c) => ServiceParams.reportingSchedule.set(v)(c)
       case WithServiceName(v, c)       => ServiceParams.serviceName.set(v)(c)
+      case WithMetricsReset(v, c)      => ServiceParams.metricsReset.set(v)(c)
     }
 }
 
@@ -67,6 +71,12 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withReportingSchedule(crontab: String): ServiceConfig =
     withReportingSchedule(Cron.unsafeParse(crontab))
+
+  def withMetricsReset(crontab: CronExpr): ServiceConfig =
+    ServiceConfig(Fix(WithMetricsReset(Some(crontab), value)))
+
+  def withMetricsReset(crontab: String): ServiceConfig =
+    withMetricsReset(Cron.unsafeParse(crontab))
 
   def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 

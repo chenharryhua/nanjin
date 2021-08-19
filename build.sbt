@@ -330,6 +330,12 @@ val metrics = Seq(
   "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.3"
 )
 
+val cronLib = Seq(
+  "eu.timepit" %% "fs2-cron-cron4s"                 % "0.7.1",
+  "com.github.alonsodomin.cron4s" %% "cron4s-core"  % "0.6.1",
+  "com.github.alonsodomin.cron4s" %% "cron4s-circe" % "0.6.1"
+)
+
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
   .settings(name := "nj-common")
@@ -372,7 +378,7 @@ lazy val datetime = (project in file("datetime"))
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "fastparse"       % "2.3.2",
       "io.chrisdavenport" %% "cats-time" % catsTime) ++
-      baseLib ++ monocleLib ++ testLib ++ logLib,
+      cronLib ++ baseLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
@@ -383,11 +389,8 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.cb372" %% "cats-retry-mtl"            % "3.0.0",
-      "eu.timepit" %% "fs2-cron-cron4s"                 % "0.7.1",
-      "com.github.alonsodomin.cron4s" %% "cron4s-core"  % "0.6.1",
-      "com.github.alonsodomin.cron4s" %% "cron4s-circe" % "0.6.1"
-    ) ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
+      "com.github.cb372" %% "cats-retry-mtl" % "3.0.0"
+    ) ++ cronLib ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 

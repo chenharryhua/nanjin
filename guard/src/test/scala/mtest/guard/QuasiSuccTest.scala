@@ -183,12 +183,12 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi multi-layers seq") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j, k, l) =
       guard.eventStream { action =>
-        val a1 = action("compute1").retry(IO(1)).run(())
+        val a1 = action("compute1").run(IO(1))
         val a2 = action("exception")
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO.raiseError[Int](new Exception))
-          .run(())
-        val a3 = action("compute2").retry(IO(2)).run(())
+          .run
+        val a3 = action("compute2").run(IO(2))
         action("quasi")
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
@@ -214,14 +214,14 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi multi-layers - par") {
     val Vector(s, a, b, c, e, f, g, h, j, k, l) =
       guard.eventStream { action =>
-        val a1 = action("compute1").trivial.retry(IO.sleep(5.seconds) >> IO(1)).run(())
+        val a1 = action("compute1").trivial.retry(IO.sleep(5.seconds) >> IO(1)).run
         val a2 =
           action("exception")
             .max(3)
             .updateConfig(_.withConstantDelay(1.second))
             .retry(IO.raiseError[Int](new Exception))
-            .run(())
-        val a3 = action("compute2").retry(IO.sleep(5.seconds) >> IO(2)).run(())
+            .run
+        val a3 = action("compute2").retry(IO.sleep(5.seconds) >> IO(2)).run
         action("quasi")
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
