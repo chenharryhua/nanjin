@@ -17,10 +17,7 @@ import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
 
-import java.time.{Duration, ZonedDateTime}
-import scala.compat.java8.DurationConverters.DurationOps
-import scala.concurrent.duration.FiniteDuration
-
+import java.time.{Duration, Instant, ZonedDateTime}
 // format: off
 /** @example
   *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
@@ -94,14 +91,15 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // metrics report
         val reporting: Stream[F, INothing] = {
-          def report(idx: Long, ts: ZonedDateTime, dur: Option[FiniteDuration]) = MetricsReport(
-            index = idx + 1,
-            timestamp = ts,
-            serviceInfo = si,
-            serviceParams = params,
-            next = dur,
-            metrics = MetricRegistryWrapper(Some(metricRegistry))
-          )
+          def report(idx: Long, ts: ZonedDateTime, nextCheck: Option[ZonedDateTime]) =
+            MetricsReport(
+              index = idx + 1,
+              timestamp = ts,
+              serviceInfo = si,
+              serviceParams = params,
+              next = nextCheck,
+              metrics = MetricRegistryWrapper(Some(metricRegistry))
+            )
 
           params.reportingSchedule match {
             case Left(dur) =>
@@ -109,7 +107,16 @@ final class ServiceGuard[F[_]] private[guard] (
                 .fixedRate[F](dur)
                 .zipWithIndex
                 .evalMap { case (_, idx) =>
-                  realZonedDateTime(params).map(ts => report(idx, ts, Some(dur))).flatMap(channel.send)
+                  realZonedDateTime(params)
+                    .map(ts =>
+                      report(
+                        idx,
+                        ts,
+                        Some(
+                          ZonedDateTime.ofInstant( // round to second
+                            Instant.ofEpochSecond(ts.toEpochSecond + dur.toSeconds),
+                            params.taskParams.zoneId))))
+                    .flatMap(channel.send)
                 }
                 .drain
             case Right(cron) =>
@@ -117,9 +124,7 @@ final class ServiceGuard[F[_]] private[guard] (
                 .awakeEvery(cron)
                 .zipWithIndex
                 .evalMap { case (_, idx) =>
-                  realZonedDateTime(params).map { ts =>
-                    report(idx, ts, cron.next(ts).map(zd => Duration.between(ts, zd).toScala))
-                  }.flatMap(channel.send)
+                  realZonedDateTime(params).map(ts => report(idx, ts, cron.next(ts))).flatMap(channel.send)
                 }
                 .drain
           }
