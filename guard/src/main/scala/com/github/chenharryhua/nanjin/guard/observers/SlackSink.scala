@@ -30,7 +30,7 @@ final private case class SlackNotification(username: String, text: String, attac
 final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationService[F]])(implicit F: Sync[F])
     extends zoneid {
 
-  private def toOrdinalWords(n: Int): String = n + {
+  private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"
     else
       n % 10 match {
@@ -130,13 +130,10 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
 
         sns.publish(msg).void
 
-      case MetricsReport(_, at, si, params, next, metrics) =>
+      case MetricsReport(idx, at, si, params, next, metrics) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s""":gottarun: Heath Check is scheduled by ${params.reportingSchedule.fold(
-            d => s"fixed rate: ${fmt.format(d)}",
-            c => s"crontab: ${c.toString}")} 
-             |${StringUtils.abbreviate(translate(metrics), maxCauseSize)}""".stripMargin,
+          StringUtils.abbreviate(translate(metrics), maxCauseSize),
           List(
             Attachment(
               info_color,
@@ -145,7 +142,11 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
-                SlackField("Next Check in", next.fold("No more checking thereafter")(fmt.format), short = true),
+                SlackField(
+                  s"Next(${toOrdinalWords(idx + 1)}) Check at", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
+                  next.fold("no time")(_.toLocalTime.toString),
+                  short = true
+                ),
                 SlackField("Brief", params.brief, short = false)
               )
             ))
@@ -175,8 +176,8 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            s"This is the *${toOrdinalWords(
-              wdr.retriesSoFar + 1)}* failure of the action, retry of which takes place in *${fmt.format(wdr.nextDelay)}*",
+            s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action, retry of which takes place in *${fmt
+              .format(wdr.nextDelay)}*",
             List(
               Attachment(
                 warn_color,

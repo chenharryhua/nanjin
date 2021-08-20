@@ -103,7 +103,7 @@ final class ActionGuard[F[_]] private[guard] (
       metricRegistry = metricRegistry,
       channel = channel,
       params = params,
-      input = ta,
+      ta = ta,
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")))

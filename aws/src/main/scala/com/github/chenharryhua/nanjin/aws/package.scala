@@ -4,16 +4,18 @@ import com.amazonaws.regions.Regions
 import com.amazonaws.util.EC2MetadataUtils
 import com.github.chenharryhua.nanjin.common.HostName
 
+import scala.util.Try
+
 package object aws {
 
   lazy val defaultRegion: Regions = Regions.AP_SOUTHEAST_2
 
   lazy val ec2_instance_id: HostName = new HostName {
-    override val name: String = EC2MetadataUtils.getInstanceId
+    override val name: String = Try(EC2MetadataUtils.getInstanceId).getOrElse("none")
   }
 
   lazy val ec2_private_ip: HostName = new HostName {
-    override val name: String = EC2MetadataUtils.getPrivateIpAddress
+    override val name: String = Try(EC2MetadataUtils.getPrivateIpAddress).getOrElse("none")
   }
 
 }
