@@ -17,7 +17,8 @@ import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
 
-import java.time.{Duration, Instant, ZonedDateTime}
+import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 // format: off
 /** @example
   *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
@@ -107,16 +108,9 @@ final class ServiceGuard[F[_]] private[guard] (
                 .fixedRate[F](dur)
                 .zipWithIndex
                 .evalMap { case (_, idx) =>
-                  realZonedDateTime(params)
-                    .map(ts =>
-                      report(
-                        idx,
-                        ts,
-                        Some(
-                          ZonedDateTime.ofInstant( // round to second
-                            Instant.ofEpochSecond(ts.toEpochSecond + dur.toSeconds),
-                            params.taskParams.zoneId))))
-                    .flatMap(channel.send)
+                  realZonedDateTime(params).map { ts =>
+                    report(idx, ts, Some(ts.plusSeconds(dur.toSeconds).truncatedTo(ChronoUnit.SECONDS)))
+                  }.flatMap(channel.send)
                 }
                 .drain
             case Right(cron) =>
