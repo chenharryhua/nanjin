@@ -78,13 +78,17 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricsReset(crontab: String): ServiceConfig =
     withMetricsReset(Cron.unsafeParse(crontab))
 
+  def withMetricsDailyReset: ServiceConfig   = withMetricsReset(Cron.unsafeParse("47 0 0 ? * *"))
+  def withMetricsWeeklyReset: ServiceConfig  = withMetricsReset(Cron.unsafeParse("53 0 0 ? * 0"))
+  def withMetricsMonthlyReset: ServiceConfig = withMetricsReset(Cron.unsafeParse("59 0 0 1 * ?"))
+
   def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))
 
   def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
-    require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strickly bigger than minDelay($minDelay)")
+    require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strictly bigger than minDelay($minDelay)")
     ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.JitterBackoff(minDelay, maxDelay), value)))
   }
 

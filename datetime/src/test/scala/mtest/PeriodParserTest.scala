@@ -41,6 +41,6 @@ class PeriodParserTest extends AnyFunSuite {
   }
 
   test("crontab") {
-    println(crontabs.midnightEveryday)
+    println(crontabs.hourly)
   }
 }
