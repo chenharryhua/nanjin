@@ -277,7 +277,7 @@ val akkaLib = Seq(
 
 val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "1.0.10" % Provided,
+  "dev.zio" %% "zio"               % "1.0.11" % Provided,
   "dev.zio" %% "zio-interop-cats"  % zioCats  % Provided,
   "io.monix" %% "monix-eval"       % monix    % Provided,
   "io.monix" %% "monix"            % monix    % Provided
