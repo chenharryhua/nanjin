@@ -15,9 +15,9 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.nio.charset.StandardCharsets
-import java.time.ZonedDateTime
-import java.util.UUID
+import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
+import java.util.{TimeZone, UUID}
 import scala.collection.immutable
 
 sealed trait NJRuntimeInfo {
@@ -65,7 +65,8 @@ private[guard] object NJError {
 final case class MetricRegistryWrapper(
   registry: Option[MetricRegistry],
   rateTimeUnit: TimeUnit,
-  durationTimeUnit: TimeUnit)
+  durationTimeUnit: TimeUnit,
+  zoneId: ZoneId)
 
 private[guard] object MetricRegistryWrapper {
 
@@ -77,6 +78,7 @@ private[guard] object MetricRegistryWrapper {
         .forRegistry(mr)
         .convertRatesTo(mrw.rateTimeUnit)
         .convertDurationsTo(mrw.durationTimeUnit)
+        .formattedFor(TimeZone.getTimeZone(mrw.zoneId))
         .outputTo(ps)
         .build()
         .report()
@@ -99,7 +101,8 @@ private[guard] object MetricRegistryWrapper {
     Json.obj(
       "registry" -> registry,
       "rateTimeUnit" -> mrw.rateTimeUnit.asJson,
-      "durationTimeUnit" -> mrw.durationTimeUnit.asJson)
+      "durationTimeUnit" -> mrw.durationTimeUnit.asJson,
+      "zoneId" -> mrw.zoneId.asJson)
   }
 
   implicit val decodeMetricRegistryWrapper: Decoder[MetricRegistryWrapper] =
@@ -107,7 +110,8 @@ private[guard] object MetricRegistryWrapper {
       for {
         rate <- c.downField("rateTimeUnit").as[TimeUnit]
         duration <- c.downField("durationTimeUnit").as[TimeUnit]
-      } yield MetricRegistryWrapper(registry = None, rateTimeUnit = rate, durationTimeUnit = duration)
+        tz <- c.downField("zoneId").as[ZoneId]
+      } yield MetricRegistryWrapper(registry = None, rateTimeUnit = rate, durationTimeUnit = duration, zoneId = tz)
 }
 
 sealed trait RunMode extends EnumEntry

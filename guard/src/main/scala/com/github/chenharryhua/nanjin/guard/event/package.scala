@@ -12,4 +12,5 @@ package object event {
   implicit private[event] val encoderTimeUnit: Encoder[TimeUnit] = Encoder.encodeString.contramap(enumTimeUnit.getName)
   implicit private[event] val decoderTimeUnit: Decoder[TimeUnit] = Decoder.decodeString.map(enumTimeUnit.withName)
   implicit private[event] val showTimeUnit: Show[TimeUnit]       = enumTimeUnit.getName
+
 }
