@@ -102,7 +102,9 @@ final class ServiceGuard[F[_]] private[guard] (
               metrics = MetricRegistryWrapper(
                 registry = Some(metricRegistry),
                 rateTimeUnit = params.metricsRateTimeUnit,
-                durationTimeUnit = params.metricsDurationTimeUnit)
+                durationTimeUnit = params.metricsDurationTimeUnit,
+                zoneId = params.taskParams.zoneId
+              )
             )
 
           params.reportingSchedule match {
