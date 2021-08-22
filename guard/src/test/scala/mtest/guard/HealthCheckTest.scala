@@ -2,21 +2,22 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
-  MetricRegistryWrapper,
   MetricsReport,
+  NJEvent,
   ServiceStarted
 }
-import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, metricConsole, showConsole, showLog}
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, showConsole, showLog}
+import io.circe.parser.decode
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{LocalTime, ZoneId}
+import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 class HealthCheckTest extends AnyFunSuite {
@@ -29,6 +30,8 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withReportingSchedule("* * * ? * *"))
       .eventStream(gd => gd("cron").retry(IO.never[Int]).run)
       .observe(showConsole)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .interruptAfter(5.second)
       .compile
       .toList
@@ -46,6 +49,8 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withReportingSchedule(1.second))
       .eventStream(gd => gd.retry(IO(1)).run >> gd.retry(IO.never).run)
       .observe(jsonConsole)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .interruptAfter(5.second)
       .compile
       .toList
@@ -60,10 +65,16 @@ class HealthCheckTest extends AnyFunSuite {
   test("retry") {
     val s :: a :: b :: c :: rest = guard
       .service("failure-test")
-      .updateConfig(_.withReportingSchedule(1.second).withConstantDelay(1.hour))
+      .updateConfig(
+        _.withReportingSchedule(1.second)
+          .withConstantDelay(1.hour)
+          .withMetricsDurationTimeUnit(TimeUnit.MICROSECONDS)
+          .withMetricsRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.retry(IO.never).run)
       .interruptAfter(5.second)
       .observe(showLog)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .compile
       .toList
       .unsafeRunSync()

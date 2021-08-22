@@ -54,7 +54,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   private def translate(mrw: MetricRegistryWrapper): String =
-    mrw.value.fold("") { mr =>
+    mrw.registry.fold("") { mr =>
       val timer   = mr.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
       val counter = mr.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
       (timer ::: counter).sorted.mkString("\n")
