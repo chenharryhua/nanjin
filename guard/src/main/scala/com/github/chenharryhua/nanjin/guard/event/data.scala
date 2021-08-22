@@ -9,6 +9,7 @@ import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
+import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -61,31 +62,52 @@ private[guard] object NJError {
     NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
 }
 
-final case class MetricRegistryWrapper(value: Option[MetricRegistry]) extends AnyVal
+final case class MetricRegistryWrapper(
+  registry: Option[MetricRegistry],
+  rateTimeUnit: TimeUnit,
+  durationTimeUnit: TimeUnit)
 
 private[guard] object MetricRegistryWrapper {
-  implicit val showMetricRegistryWrapper: Show[MetricRegistryWrapper] =
-    _.value.fold("") { mr =>
+
+  implicit val showMetricRegistryWrapper: Show[MetricRegistryWrapper] = { mrw =>
+    mrw.registry.fold("") { mr =>
       val bao = new ByteArrayOutputStream
       val ps  = new PrintStream(bao)
-      ConsoleReporter.forRegistry(mr).outputTo(ps).build().report()
+      ConsoleReporter
+        .forRegistry(mr)
+        .convertRatesTo(mrw.rateTimeUnit)
+        .convertDurationsTo(mrw.durationTimeUnit)
+        .outputTo(ps)
+        .build()
+        .report()
       ps.flush()
       ps.close()
       bao.toString(StandardCharsets.UTF_8.name())
     }
+  }
 
-  implicit val encodeMetricRegistryWrapper: Encoder[MetricRegistryWrapper] =
-    _.value.flatMap { mr =>
+  implicit val encodeMetricRegistryWrapper: Encoder[MetricRegistryWrapper] = { mrw =>
+    val registry: Json = mrw.registry.flatMap { mr =>
       val str =
         new ObjectMapper()
-          .registerModule(new MetricsModule(TimeUnit.SECONDS, TimeUnit.MILLISECONDS, false))
+          .registerModule(new MetricsModule(mrw.rateTimeUnit, mrw.durationTimeUnit, false))
           .writerWithDefaultPrettyPrinter()
           .writeValueAsString(mr)
       io.circe.jackson.parse(str).toOption
     }.getOrElse(Json.Null)
 
+    Json.obj(
+      "registry" -> registry,
+      "rateTimeUnit" -> mrw.rateTimeUnit.asJson,
+      "durationTimeUnit" -> mrw.durationTimeUnit.asJson)
+  }
+
   implicit val decodeMetricRegistryWrapper: Decoder[MetricRegistryWrapper] =
-    (_: HCursor) => Right(MetricRegistryWrapper(None))
+    (c: HCursor) =>
+      for {
+        rate <- c.downField("rateTimeUnit").as[TimeUnit]
+        duration <- c.downField("durationTimeUnit").as[TimeUnit]
+      } yield MetricRegistryWrapper(registry = None, rateTimeUnit = rate, durationTimeUnit = duration)
 }
 
 sealed trait RunMode extends EnumEntry
