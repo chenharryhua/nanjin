@@ -31,7 +31,7 @@ object adobe {
     client_id: String,
     client_code: String,
     client_secret: String,
-    config: AuthConfig,
+    cfg: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
 
@@ -43,7 +43,7 @@ object adobe {
 
     implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.millisecond
 
-    val params: AuthParams = config.evalConfig
+    val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -88,7 +88,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        config = f(config),
+        cfg = f(cfg),
         middleware = middleware)
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): IMS[F] =
@@ -97,7 +97,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        config = config,
+        cfg = cfg,
         middleware = compose(f, middleware))
   }
 
@@ -108,7 +108,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        config = AuthConfig(2.hours),
+        cfg = AuthConfig(2.hours),
         middleware = Reader(Resource.pure))
   }
 
@@ -121,7 +121,7 @@ object adobe {
     technical_account_key: String,
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
-    config: AuthConfig,
+    cfg: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
 
@@ -133,7 +133,7 @@ object adobe {
 
     implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.millisecond
 
-    val params: AuthParams = config.evalConfig
+    val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
@@ -194,7 +194,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        config = f(config),
+        cfg = f(cfg),
         middleware = middleware)
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): JWT[F] =
@@ -206,7 +206,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        config = config,
+        cfg = cfg,
         middleware = compose(f, middleware))
   }
 
@@ -227,7 +227,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        config = AuthConfig(2.hours),
+        cfg = AuthConfig(2.hours),
         middleware = Reader(Resource.pure))
 
     def apply[F[_]](

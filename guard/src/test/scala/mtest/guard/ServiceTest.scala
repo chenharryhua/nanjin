@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.showConsole
+import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, showConsole}
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -129,14 +129,12 @@ class ServiceTest extends AnyFunSuite {
   ignore("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
-      .updateConfig(_.withConstantDelay(1.second).withReportingSchedule(5.seconds))
+      .updateConfig(_.withConstantDelay(1.minute).withReportingSchedule(30.seconds))
       .withJmxReporter(_.inDomain("xyz"))
-      .eventStream { ag =>
-        val exec = ag("performance").trivial.retry((i: Int) => IO(i)).run(1)
-        ag.nonStop(ag("performance").trivial.run(IO(0)).foreverM)
-      }
-      .observe(es => showConsole[IO].apply(es.filter(_.isInstanceOf[MetricsReport])))
-      .interruptAfter(62.seconds)
+      .eventStream(ag => ag("performance").trivial.run(IO(0).delayBy(5.second)).foreverM)
+      .observe(showConsole)
+      .observe(cloudwatch("test"))
+      .interruptAfter(1.hour)
       .compile
       .toList
       .unsafeRunSync()
