@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
 import com.codahale.metrics.MetricFilter
@@ -97,7 +97,7 @@ final class CloudWatchMetrics private[observers] (
     res.fold((List.empty[MetricDatum], Map.empty[MetricKey, Long]))(identity)
   }
 
-  def sink[F[_]](implicit F: Async[F]): Pipe[F, NJEvent, INothing] = {
+  def sink[F[_]](implicit F: Sync[F]): Pipe[F, NJEvent, INothing] = {
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, INothing, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
