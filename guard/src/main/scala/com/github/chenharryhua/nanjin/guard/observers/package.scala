@@ -38,6 +38,5 @@ package object observers {
   def jsonConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
     _.evalMap(event => Console[F].println(event.asJson)).drain
 
-  def cloudwatch[F[_]: Async](namespace: String): Pipe[F, NJEvent, INothing] =
-    new CloudWatchMetrics[F](namespace).pipe
+  def cloudwatch[F[_]: Async](namespace: String): CloudWatchMetrics[F] = CloudWatchMetrics[F](namespace)
 }
