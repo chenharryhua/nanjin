@@ -16,8 +16,7 @@ final private case class MetricKey(
   metricType: String,
   task: String,
   service: String,
-  metricName: String,
-  storageResolution: Int) {
+  metricName: String) {
   def metricDatum(ts: ZonedDateTime, count: Long): MetricDatum =
     new MetricDatum()
       .withDimensions(
@@ -25,7 +24,6 @@ final private case class MetricKey(
         new Dimension().withName("Task").withValue(task),
         new Dimension().withName("Service").withValue(service)
       )
-      .withStorageResolution(storageResolution)
       .withMetricName(metricName)
       .withUnit(standardUnit)
       .withTimestamp(Date.from(ts.toInstant))
@@ -33,16 +31,16 @@ final private case class MetricKey(
 
 }
 
-final class CloudWatchMetrics[F[_]](namespace: String, storageResolution: Int, metricFilter: MetricFilter) {
-  def withStorageResolution(storageResolution: Int): CloudWatchMetrics[F] = {
+final class CloudWatchMetrics(namespace: String, storageResolution: Int, metricFilter: MetricFilter) {
+  def withStorageResolution(storageResolution: Int): CloudWatchMetrics = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchMetrics[F](namespace, storageResolution, metricFilter)
+    new CloudWatchMetrics(namespace, storageResolution, metricFilter)
   }
 
-  def withMetricFilter(metricFilter: MetricFilter): CloudWatchMetrics[F] =
-    new CloudWatchMetrics[F](namespace, storageResolution, metricFilter)
+  def withMetricFilter(metricFilter: MetricFilter): CloudWatchMetrics =
+    new CloudWatchMetrics(namespace, storageResolution, metricFilter)
 
   private def buildMetricDatum(
     report: MetricsReport,
@@ -55,11 +53,10 @@ final class CloudWatchMetrics[F[_]](namespace: String, storageResolution: Int, m
         .map { case (metricName, counter) =>
           MetricKey(
             StandardUnit.Count,
-            "Count",
+            "CounterCount",
             report.serviceParams.taskParams.appName,
             report.serviceParams.serviceName,
-            metricName,
-            storageResolution) -> counter.getCount
+            metricName) -> counter.getCount
         }
         .toMap
 
@@ -72,8 +69,7 @@ final class CloudWatchMetrics[F[_]](namespace: String, storageResolution: Int, m
             "TimerCount",
             report.serviceParams.taskParams.appName,
             report.serviceParams.serviceName,
-            metricName,
-            storageResolution) -> counter.getCount
+            metricName) -> counter.getCount
         }
         .toMap
 
@@ -88,7 +84,7 @@ final class CloudWatchMetrics[F[_]](namespace: String, storageResolution: Int, m
     res.fold((Map.empty[MetricKey, Long], List.empty[MetricDatum]))(identity)
   }
 
-  def sink(implicit F: Async[F]): Pipe[F, NJEvent, INothing] = {
+  def sink[F[_]](implicit F: Async[F]): Pipe[F, NJEvent, INothing] = {
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, INothing, Unit] =
       ss.pull.uncons1.flatMap {
         case Some((event, tail)) =>
@@ -96,7 +92,10 @@ final class CloudWatchMetrics[F[_]](namespace: String, storageResolution: Int, m
             case mr: MetricsReport =>
               val (next, mds) = buildMetricDatum(mr, last)
               Pull.eval(
-                cw.putMetricData(new PutMetricDataRequest().withNamespace(namespace).withMetricData(mds.asJava))) >>
+                cw.putMetricData(
+                  new PutMetricDataRequest()
+                    .withNamespace(namespace)
+                    .withMetricData(mds.map(_.withStorageResolution(storageResolution)).asJava))) >>
                 go(cw, tail, next)
             case _ => go(cw, tail, last)
           }
@@ -108,5 +107,5 @@ final class CloudWatchMetrics[F[_]](namespace: String, storageResolution: Int, m
 }
 
 object CloudWatchMetrics {
-  def apply[F[_]](namespace: String) = new CloudWatchMetrics[F](namespace, 60, MetricFilter.ALL)
+  def apply(namespace: String) = new CloudWatchMetrics(namespace, 60, MetricFilter.ALL)
 }
