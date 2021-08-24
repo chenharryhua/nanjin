@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.all.*
+import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{INothing, Pipe, Stream}
 import io.circe.syntax.*
@@ -38,5 +39,7 @@ package object observers {
   def jsonConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
     _.evalMap(event => Console[F].println(event.asJson)).drain
 
-  def cloudwatch(namespace: String): CloudWatchMetrics = CloudWatchMetrics(namespace)
+  def cloudwatch(namespace: String): CloudWatchMetrics =
+    new CloudWatchMetrics(namespace, 60, MetricFilter.ALL)
+
 }

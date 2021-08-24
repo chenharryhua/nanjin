@@ -50,7 +50,7 @@ final class ServiceGuard[F[_]] private[guard] (
     val serviceInfo: F[ServiceInfo] = for {
       ts <- realZonedDateTime(params)
       uuid <- UUIDGen.randomUUID
-    } yield ServiceInfo(id = uuid, launchTime = ts)
+    } yield ServiceInfo(uuid = uuid, launchTime = ts)
 
     for {
       si <- Stream.eval(serviceInfo)

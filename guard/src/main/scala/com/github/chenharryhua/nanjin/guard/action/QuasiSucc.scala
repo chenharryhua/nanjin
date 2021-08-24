@@ -54,7 +54,7 @@ final class QuasiSucc[F[_], T[_], A, B](
     for {
       now <- realZonedDateTime(params.serviceParams)
       uuid <- UUIDGen.randomUUID
-      actionInfo = ActionInfo(id = uuid, launchTime = now)
+      actionInfo = ActionInfo(uuid = uuid, launchTime = now)
       _ <-
         if (params.throughputLevel.isFireStartEvent)
           channel.send(ActionStart(timestamp = now, actionInfo = actionInfo, actionParams = params))
