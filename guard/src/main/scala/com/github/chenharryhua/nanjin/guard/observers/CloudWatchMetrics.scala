@@ -90,7 +90,7 @@ final class CloudWatchMetrics private[observers] (
         last.get(key) match {
           case Some(old) if count >= old =>
             (key.metricDatum(report.timestamp, count - old) :: mds, last.updated(key, count))
-          case None => (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
+          case _ => (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
         }
       }
     }
