@@ -79,7 +79,7 @@ class QuasiSuccTest extends AnyFunSuite {
         .eventStream(action =>
           action("partial-good")
             .quasi(Vector(0, 0, 1, 1))(f)
-            .withFailNotes(_.map(n => s"${n._1} --> ${n._2.id}").mkString("\n"))
+            .withFailNotes(_.map(n => s"${n._1} --> ${n._2.uuid}").mkString("\n"))
             .seqRun)
         .compile
         .toVector

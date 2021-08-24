@@ -1,17 +1,20 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.Async
-import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
+import cats.syntax.all.*
+import com.amazonaws.services.cloudwatch.model.*
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, NJEvent}
 import fs2.{INothing, Pipe, Pull, Stream}
 
 import java.time.ZonedDateTime
-import java.util.Date
+import java.util.{Date, UUID}
 import scala.collection.JavaConverters.*
 
 final private case class MetricKey(
+  uuid: UUID,
+  hostName: String,
   standardUnit: StandardUnit,
   metricType: String,
   task: String,
@@ -22,7 +25,8 @@ final private case class MetricKey(
       .withDimensions(
         new Dimension().withName("MetricType").withValue(metricType),
         new Dimension().withName("Task").withValue(task),
-        new Dimension().withName("Service").withValue(service)
+        new Dimension().withName("Service").withValue(service),
+        new Dimension().withName("Host").withValue(hostName)
       )
       .withMetricName(metricName)
       .withUnit(standardUnit)
@@ -31,7 +35,10 @@ final private case class MetricKey(
 
 }
 
-final class CloudWatchMetrics(namespace: String, storageResolution: Int, metricFilter: MetricFilter) {
+final class CloudWatchMetrics private[observers] (
+  namespace: String,
+  storageResolution: Int,
+  metricFilter: MetricFilter) {
   def withStorageResolution(storageResolution: Int): CloudWatchMetrics = {
     require(
       storageResolution > 0 && storageResolution <= 60,
@@ -52,11 +59,14 @@ final class CloudWatchMetrics(namespace: String, storageResolution: Int, metricF
         .asScala
         .map { case (metricName, counter) =>
           MetricKey(
+            report.serviceInfo.uuid,
+            report.serviceParams.taskParams.hostName,
             StandardUnit.Count,
             "CounterCount",
             report.serviceParams.taskParams.appName,
             report.serviceParams.serviceName,
-            metricName) -> counter.getCount
+            metricName
+          ) -> counter.getCount
         }
         .toMap
 
@@ -65,19 +75,22 @@ final class CloudWatchMetrics(namespace: String, storageResolution: Int, metricF
         .asScala
         .map { case (metricName, counter) =>
           MetricKey(
+            report.serviceInfo.uuid,
+            report.serviceParams.taskParams.hostName,
             StandardUnit.Count,
             "TimerCount",
             report.serviceParams.taskParams.appName,
             report.serviceParams.serviceName,
-            metricName) -> counter.getCount
+            metricName
+          ) -> counter.getCount
         }
         .toMap
 
-      (counters ++ timers).foldLeft((last, List.empty[MetricDatum])) { case ((map, mds), (key, count)) =>
-        map.get(key) match {
+      (counters ++ timers).foldLeft((last, List.empty[MetricDatum])) { case ((last, mds), (key, count)) =>
+        last.get(key) match {
           case Some(old) if count >= old =>
-            (map.updated(key, count), key.metricDatum(report.timestamp, count - old) :: mds)
-          case None => (map.updated(key, count), key.metricDatum(report.timestamp, count) :: mds)
+            (last.updated(key, count), key.metricDatum(report.timestamp, count - old) :: mds)
+          case None => (last.updated(key, count), key.metricDatum(report.timestamp, count) :: mds)
         }
       }
     }
@@ -86,26 +99,28 @@ final class CloudWatchMetrics(namespace: String, storageResolution: Int, metricF
 
   def sink[F[_]](implicit F: Async[F]): Pipe[F, NJEvent, INothing] = {
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, INothing, Unit] =
-      ss.pull.uncons1.flatMap {
-        case Some((event, tail)) =>
-          event match {
-            case mr: MetricsReport =>
-              val (next, mds) = buildMetricDatum(mr, last)
-              Pull.eval(
+      ss.pull.uncons.flatMap {
+        case Some((events, tail)) =>
+          val (next, mds) = events.collect { case mr: MetricsReport => mr }
+            .foldLeft((Map.empty[MetricKey, Long], List.empty[MetricDatum])) { case ((mk, md), mr) =>
+              val (m, d) = buildMetricDatum(mr, last)
+              (mk ++ m, md ::: d)
+            }
+
+          val publish: F[List[PutMetricDataResult]] =
+            mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
+              .grouped(20)
+              .toList
+              .traverse(ds =>
                 cw.putMetricData(
                   new PutMetricDataRequest()
                     .withNamespace(namespace)
-                    .withMetricData(mds.map(_.withStorageResolution(storageResolution)).asJava))) >>
-                go(cw, tail, next)
-            case _ => go(cw, tail, last)
-          }
+                    .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava)))
+          Pull.eval(publish) >> go(cw, tail, next)
+
         case None => Pull.done
       }
 
     (ss: Stream[F, NJEvent]) => Stream.resource(CloudWatch[F]).flatMap(cw => go(cw, ss, Map.empty).stream)
   }
-}
-
-object CloudWatchMetrics {
-  def apply(namespace: String) = new CloudWatchMetrics(namespace, 60, MetricFilter.ALL)
 }

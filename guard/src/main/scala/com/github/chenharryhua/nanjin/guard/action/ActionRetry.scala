@@ -78,7 +78,7 @@ final class ActionRetry[F[_], A, B](
   private val actionInfo: F[ActionInfo] = for {
     ts <- realZonedDateTime(params.serviceParams)
     uuid <- UUIDGen.randomUUID
-  } yield ActionInfo(id = uuid, launchTime = ts)
+  } yield ActionInfo(uuid = uuid, launchTime = ts)
 
   private def failNotes(input: A, error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
   private def succNotes(input: A, b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))

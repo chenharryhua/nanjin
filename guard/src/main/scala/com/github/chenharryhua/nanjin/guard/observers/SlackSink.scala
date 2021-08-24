@@ -13,6 +13,7 @@ import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
 import scala.collection.JavaConverters.*
+
 object slack {
   def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): Pipe[F, NJEvent, INothing] =
     new SlackSink[F](snsResource).sink
@@ -91,7 +92,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           SlackNotification(
             params.taskParams.appName,
             s""":x: The service experienced a panic, $upcoming
-               |Search *${error.id}* in log file to find full exception.""".stripMargin,
+               |Search *${error.uuid}* in log file to find full exception.""".stripMargin,
             List(
               Attachment(
                 error_color,
@@ -166,7 +167,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action ID", action.id.show, short = false)
+                  SlackField("Action ID", action.uuid.show, short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -188,7 +189,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                   SlackField("Action", params.actionName, short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Action ID", action.id.show, short = false),
+                  SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, maxCauseSize), short = false)
                 )
               ))
@@ -212,7 +213,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retried", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Action ID", action.id.show, short = false),
+                  SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, maxCauseSize), short = false)
                 )
               ))
@@ -235,7 +236,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                   SlackField("Status", "Completed", short = true),
                   SlackField("Took", fmt.format(action.launchTime, at), short = true),
                   SlackField("Retried", s"$numRetries/${params.retry.maxRetries}", short = true),
-                  SlackField("Action ID", action.id.show, short = false)
+                  SlackField("Action ID", action.uuid.show, short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -260,7 +261,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                     SlackField("Failed", errors.size.show, short = true),
                     SlackField("Took", fmt.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
-                    SlackField("Action ID", action.id.show, short = false)
+                    SlackField("Action ID", action.uuid.show, short = false)
                   )
                 ))
             )
@@ -281,7 +282,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                     SlackField("Failed", errors.size.show, short = true),
                     SlackField("Took", fmt.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
-                    SlackField("Action ID", action.id.show, short = false)
+                    SlackField("Action ID", action.uuid.show, short = false)
                   )
                 ))
             )

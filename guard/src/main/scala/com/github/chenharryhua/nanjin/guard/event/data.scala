@@ -21,12 +21,12 @@ import java.util.{TimeZone, UUID}
 import scala.collection.immutable
 
 sealed trait NJRuntimeInfo {
-  def id: UUID
+  def uuid: UUID
   def launchTime: ZonedDateTime
 }
 
-final case class ServiceInfo(id: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
-final case class ActionInfo(id: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 
 final case class Notes private (value: String)
 
@@ -35,25 +35,25 @@ private[guard] object Notes {
 }
 
 final case class NJError private (
-  id: UUID,
+  uuid: UUID,
   message: String,
   stackTrace: String,
   throwable: Option[Throwable]
 )
 
 private[guard] object NJError {
-  implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.id}, message=${ex.message})"
+  implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.uuid.show}, message=${ex.message})"
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
-      ("id", Json.fromString(a.id.toString)),
-      ("message", Json.fromString(a.message)),
-      ("stackTrace", Json.fromString(a.stackTrace))
+      ("uuid", a.uuid.asJson),
+      ("message", a.message.asJson),
+      ("stackTrace", a.stackTrace.asJson)
     )
 
   implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
     for {
-      id <- c.downField("id").as[UUID]
+      id <- c.downField("uuid").as[UUID]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
     } yield NJError(id, msg, st, None) // can not reconstruct throwables.
