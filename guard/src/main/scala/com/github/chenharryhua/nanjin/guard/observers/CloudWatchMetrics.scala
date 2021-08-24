@@ -51,9 +51,9 @@ final class CloudWatchMetrics private[observers] (
 
   private def buildMetricDatum(
     report: MetricsReport,
-    last: Map[MetricKey, Long]): (Map[MetricKey, Long], List[MetricDatum]) = {
+    last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
-    val res: Option[(Map[MetricKey, Long], List[MetricDatum])] = report.metrics.registry.map { mr =>
+    val res: Option[(List[MetricDatum], Map[MetricKey, Long])] = report.metrics.registry.map { mr =>
       val counters: Map[MetricKey, Long] = mr
         .getCounters(metricFilter)
         .asScala
@@ -86,26 +86,26 @@ final class CloudWatchMetrics private[observers] (
         }
         .toMap
 
-      (counters ++ timers).foldLeft((last, List.empty[MetricDatum])) { case ((last, mds), (key, count)) =>
+      (counters ++ timers).foldLeft((List.empty[MetricDatum], last)) { case ((mds, last), (key, count)) =>
         last.get(key) match {
           case Some(old) if count >= old =>
-            (last.updated(key, count), key.metricDatum(report.timestamp, count - old) :: mds)
-          case None => (last.updated(key, count), key.metricDatum(report.timestamp, count) :: mds)
+            (key.metricDatum(report.timestamp, count - old) :: mds, last.updated(key, count))
+          case None => (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
         }
       }
     }
-    res.fold((Map.empty[MetricKey, Long], List.empty[MetricDatum]))(identity)
+    res.fold((List.empty[MetricDatum], Map.empty[MetricKey, Long]))(identity)
   }
 
   def sink[F[_]](implicit F: Async[F]): Pipe[F, NJEvent, INothing] = {
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, INothing, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
-          val (next, mds) = events.collect { case mr: MetricsReport => mr }
-            .foldLeft((Map.empty[MetricKey, Long], List.empty[MetricDatum])) { case ((mk, md), mr) =>
-              val (m, d) = buildMetricDatum(mr, last)
-              (mk ++ m, md ::: d)
-            }
+          val (mds, next) = events.collect { case mr: MetricsReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
+            case ((lmd, last), mr) =>
+              val (mds, newLast) = buildMetricDatum(mr, last)
+              (mds ::: lmd, newLast)
+          }
 
           val publish: F[List[PutMetricDataResult]] =
             mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
