@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -38,4 +38,6 @@ package object observers {
   def jsonConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
     _.evalMap(event => Console[F].println(event.asJson)).drain
 
+  def cloudwatch[F[_]: Async](namespace: String): Pipe[F, NJEvent, INothing] =
+    new CloudwatchMetrics[F](namespace).pipe
 }
