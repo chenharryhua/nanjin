@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.Async
-import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataRequest, StandardUnit}
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, NJEvent}
@@ -17,19 +16,20 @@ final private case class MetricKey(
   task: String,
   service: String,
   metricName: String) {
-  def metricDatum(ts: ZonedDateTime, count: Long): MetricDatum = new MetricDatum()
-    .withDimensions(
-      new Dimension().withName("MetricType").withValue(metricType),
-      new Dimension().withName("Task").withValue(task),
-      new Dimension().withName("Service").withValue(service)
-    )
-    .withMetricName(metricName)
-    .withUnit(standardUnit)
-    .withTimestamp(Date.from(ts.toInstant))
-    .withValue(count)
+  def metricDatum(ts: ZonedDateTime, count: Long): MetricDatum =
+    new MetricDatum()
+      .withDimensions(
+        new Dimension().withName("MetricType").withValue(metricType),
+        new Dimension().withName("Task").withValue(task),
+        new Dimension().withName("Service").withValue(service)
+      )
+      .withMetricName(metricName)
+      .withUnit(standardUnit)
+      .withTimestamp(Date.from(ts.toInstant))
+      .withValue(count)
 }
 
-final private[observers] class CloudWatchMetrics[F[_]](namespace: String) {
+final class CloudWatchMetrics[F[_]](namespace: String) {
   private def buildMetricDatum(
     report: MetricsReport,
     last: Map[MetricKey, Long]): (Map[MetricKey, Long], List[MetricDatum]) = {
@@ -62,14 +62,8 @@ final private[observers] class CloudWatchMetrics[F[_]](namespace: String) {
 
       (counters ++ timers).foldLeft((last, List.empty[MetricDatum])) { case ((map, mds), (key, count)) =>
         map.get(key) match {
-          case Some(old) =>
-            if (count > old)
-              (map.updated(key, count), key.metricDatum(report.timestamp, count - old) :: mds)
-            else if (count === old)
-              (map, mds)
-            else
-              (map.updated(key, count), key.metricDatum(report.timestamp, count) :: mds)
-
+          case Some(old) if count >= old =>
+            (map.updated(key, count), key.metricDatum(report.timestamp, count - old) :: mds)
           case None => (map.updated(key, count), key.metricDatum(report.timestamp, count) :: mds)
         }
       }
