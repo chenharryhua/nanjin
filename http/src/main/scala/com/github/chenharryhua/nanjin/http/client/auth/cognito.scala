@@ -30,7 +30,7 @@ object cognito {
     code: String,
     redirect_uri: String,
     code_verifier: String,
-    config: AuthConfig,
+    cfg: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
@@ -45,7 +45,7 @@ object cognito {
     )
     implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
-    val params: AuthParams = config.evalConfig
+    val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
@@ -103,7 +103,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        config = config,
+        cfg = cfg,
         middleware = compose(f, middleware))
 
     override def updateConfig(f: AuthConfig => AuthConfig): AuthorizationCode[F] =
@@ -114,7 +114,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        config = f(config),
+        cfg = f(cfg),
         middleware = middleware)
   }
 
@@ -133,7 +133,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        config = AuthConfig(1.day),
+        cfg = AuthConfig(1.day),
         middleware = Reader(Resource.pure))
   }
 
@@ -142,7 +142,7 @@ object cognito {
     client_id: String,
     client_secret: String,
     scopes: NonEmptyList[String],
-    config: AuthConfig,
+    cfg: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
@@ -156,7 +156,7 @@ object cognito {
 
     implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
-    val params: AuthParams = config.evalConfig
+    val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -198,7 +198,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        config = config,
+        cfg = cfg,
         compose(f, middleware)
       )
 
@@ -208,7 +208,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        config = f(config),
+        cfg = f(cfg),
         middleware = middleware
       )
   }
@@ -224,7 +224,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        config = AuthConfig(1.day),
+        cfg = AuthConfig(1.day),
         Reader(Resource.pure))
 
     def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, scope: String): ClientCredentials[F] =

@@ -22,7 +22,7 @@ final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
   client_id: String,
   client_secret: String,
-  config: AuthConfig,
+  cfg: AuthConfig,
   middleware: Reader[Client[F], Resource[F, Client[F]]])
     extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
@@ -34,7 +34,7 @@ final class RefreshableToken[F[_]] private (
     refresh_token: String)
   implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
-  val params: AuthParams = config.evalConfig
+  val params: AuthParams = cfg.evalConfig
 
   override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
@@ -86,7 +86,7 @@ final class RefreshableToken[F[_]] private (
       auth_endpoint = auth_endpoint,
       client_id = client_id,
       client_secret = client_secret,
-      config = f(config),
+      cfg = f(cfg),
       middleware = middleware)
 
   override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): RefreshableToken[F] =
@@ -94,7 +94,7 @@ final class RefreshableToken[F[_]] private (
       auth_endpoint = auth_endpoint,
       client_id = client_id,
       client_secret = client_secret,
-      config = config,
+      cfg = cfg,
       middleware = compose(f, middleware))
 }
 
@@ -104,6 +104,6 @@ object RefreshableToken {
       auth_endpoint = auth_endpoint,
       client_id = client_id,
       client_secret = client_secret,
-      config = AuthConfig(3.hours),
+      cfg = AuthConfig(3.hours),
       middleware = Reader(Resource.pure))
 }

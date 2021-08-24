@@ -31,7 +31,7 @@ object salesforce {
     client_id: String,
     client_secret: String,
     instanceURL: InstanceURL,
-    config: AuthConfig,
+    cfg: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]] with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
@@ -46,7 +46,7 @@ object salesforce {
 
     implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
-    val params: AuthParams = config.evalConfig
+    val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -96,7 +96,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = instanceURL,
-        config = f(config),
+        cfg = f(cfg),
         middleware = middleware)
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): MarketingCloud[F] =
@@ -105,7 +105,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = instanceURL,
-        config = config,
+        cfg = cfg,
         middleware = compose(f, middleware))
   }
 
@@ -116,7 +116,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Rest,
-        config = AuthConfig(2.hour),
+        cfg = AuthConfig(2.hour),
         middleware = Reader(Resource.pure))
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
       new MarketingCloud[F](
@@ -124,7 +124,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Soap,
-        config = AuthConfig(2.hour),
+        cfg = AuthConfig(2.hour),
         middleware = Reader(Resource.pure))
   }
 
@@ -135,7 +135,7 @@ object salesforce {
     client_secret: String,
     username: String,
     password: String,
-    config: AuthConfig,
+    cfg: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
 
@@ -148,7 +148,7 @@ object salesforce {
       issued_at: String,
       signature: String)
 
-    val params: AuthParams = config.evalConfig
+    val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -193,7 +193,7 @@ object salesforce {
         client_secret = client_secret,
         username = username,
         password = password,
-        config = f(config),
+        cfg = f(cfg),
         middleware = middleware)
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): Iot[F] =
@@ -203,7 +203,7 @@ object salesforce {
         client_secret = client_secret,
         username = username,
         password = password,
-        config = config,
+        cfg = cfg,
         middleware = compose(f, middleware))
   }
 
@@ -220,7 +220,7 @@ object salesforce {
         client_secret = client_secret,
         username = username,
         password = password,
-        config = AuthConfig(2.hours),
+        cfg = AuthConfig(2.hours),
         middleware = Reader(Resource.pure))
   }
 }

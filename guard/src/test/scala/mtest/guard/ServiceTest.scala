@@ -126,7 +126,7 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("performance") {
+  ignore("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
       .updateConfig(_.withConstantDelay(1.minute).withReportingSchedule(30.seconds))
