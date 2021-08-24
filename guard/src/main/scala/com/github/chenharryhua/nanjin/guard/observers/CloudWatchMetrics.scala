@@ -29,28 +29,36 @@ final private case class MetricKey(
     .withValue(count)
 }
 
-final private[observers] class CloudwatchMetrics[F[_]](namespace: String) {
+final private[observers] class CloudWatchMetrics[F[_]](namespace: String) {
   private def buildMetricDatum(
     report: MetricsReport,
     last: Map[MetricKey, Long]): (Map[MetricKey, Long], List[MetricDatum]) = {
-    val res = report.metrics.registry.map { mr =>
-      val counters = mr.getCounters.asScala.map { case (metricName, counter) =>
-        MetricKey(
-          StandardUnit.Count,
-          "Count",
-          report.serviceParams.taskParams.appName,
-          report.serviceParams.serviceName,
-          metricName) -> counter.getCount
-      }.toMap
+    val res: Option[(Map[MetricKey, Long], List[MetricDatum])] = report.metrics.registry.map { mr =>
+      val counters: Map[MetricKey, Long] = mr
+        .getCounters()
+        .asScala
+        .map { case (metricName, counter) =>
+          MetricKey(
+            StandardUnit.Count,
+            "Count",
+            report.serviceParams.taskParams.appName,
+            report.serviceParams.serviceName,
+            metricName) -> counter.getCount
+        }
+        .toMap
 
-      val timers = mr.getTimers.asScala.map { case (metricName, counter) =>
-        MetricKey(
-          StandardUnit.Count,
-          "TimerCount",
-          report.serviceParams.taskParams.appName,
-          report.serviceParams.serviceName,
-          metricName) -> counter.getCount
-      }.toMap
+      val timers: Map[MetricKey, Long] = mr
+        .getTimers()
+        .asScala
+        .map { case (metricName, counter) =>
+          MetricKey(
+            StandardUnit.Count,
+            "TimerCount",
+            report.serviceParams.taskParams.appName,
+            report.serviceParams.serviceName,
+            metricName) -> counter.getCount
+        }
+        .toMap
 
       (counters ++ timers).foldLeft((last, List.empty[MetricDatum])) { case ((map, mds), (key, count)) =>
         map.get(key) match {
@@ -72,13 +80,13 @@ final private[observers] class CloudwatchMetrics[F[_]](namespace: String) {
   def pipe(implicit F: Async[F]): Pipe[F, NJEvent, INothing] = {
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, INothing, Unit] =
       ss.pull.uncons1.flatMap {
-        case Some((evt, tail)) =>
-          evt match {
+        case Some((event, tail)) =>
+          event match {
             case mr: MetricsReport =>
-              val (map, mds) = buildMetricDatum(mr, last)
+              val (next, mds) = buildMetricDatum(mr, last)
               Pull.eval(
                 cw.putMetricData(new PutMetricDataRequest().withNamespace(namespace).withMetricData(mds.asJava))) >>
-                go(cw, tail, map)
+                go(cw, tail, next)
             case _ => go(cw, tail, last)
           }
         case None => Pull.done
