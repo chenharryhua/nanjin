@@ -26,7 +26,6 @@ object slack {
         isShowActionStart = false,
         isAllowActionFailure = true,
         isAllowFyi = true,
-        isAllowPassThrough = true,
         sampleEveryNReport = 1L
       ),
       SlackConfig(
@@ -49,7 +48,6 @@ final private case class EventFilter(
   isShowActionStart: Boolean,
   isAllowActionFailure: Boolean,
   isAllowFyi: Boolean,
-  isAllowPassThrough: Boolean,
   sampleEveryNReport: Long
 ) extends Predicate[NJEvent] {
 
@@ -65,7 +63,7 @@ final private case class EventFilter(
     case _: ActionSucced       => isShowActionSucc
     case _: ActionQuasiSucced  => isShowActionSucc
     case _: ForYourInformation => isAllowFyi
-    case _: PassThrough        => isAllowPassThrough
+    case _: PassThrough        => false
   }
 }
 
@@ -98,9 +96,8 @@ final class SlackSink[F[_]] private[observers] (
   def showFirstRetry: SlackSink[F] = updateEventFilter(_.copy(isShowActionFirstRetry = true))
   def showStart: SlackSink[F]      = updateEventFilter(_.copy(isShowActionStart = true))
 
-  def blockFail: SlackSink[F]        = updateEventFilter(_.copy(isAllowActionFailure = false))
-  def blockFyi: SlackSink[F]         = updateEventFilter(_.copy(isAllowFyi = false))
-  def blockPassThrough: SlackSink[F] = updateEventFilter(_.copy(isAllowPassThrough = false))
+  def blockFail: SlackSink[F] = updateEventFilter(_.copy(isAllowActionFailure = false))
+  def blockFyi: SlackSink[F]  = updateEventFilter(_.copy(isAllowFyi = false))
 
   def sampleReport(n: Long): SlackSink[F] = {
     require(n > 0, "n should be bigger than zero")
