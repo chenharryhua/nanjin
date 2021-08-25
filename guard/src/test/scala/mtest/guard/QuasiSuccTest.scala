@@ -6,8 +6,8 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, showLog, slack}
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.observers.{logging, slack}
 import fs2.Chunk
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -58,8 +58,8 @@ class QuasiSuccTest extends AnyFunSuite {
             .seqRun)
         .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
         .unNone
-        .observe(showLog)
-        .observe(jsonConsole)
+        .observe(logging.text)
+        .observe(logging.json)
         .observe(slack(sns))
         .compile
         .toVector

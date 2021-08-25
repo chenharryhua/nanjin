@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.collections.Predicate
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -20,13 +19,18 @@ object slack {
     new SlackSink[F](
       snsResource,
       EventFilter(
-        isShowActionSucc = false,
-        isShowActionRetry = false,
-        isShowActionFirstRetry = false,
-        isShowActionStart = false,
-        isAllowActionFailure = true,
-        isAllowFyi = true,
-        sampleEveryNReport = 1L
+        serviceStart = true,
+        servicePanic = true,
+        serviceStop = true,
+        actionSucc = false,
+        actionRetry = false,
+        actionFirstRetry = false,
+        actionStart = false,
+        actionFailure = true,
+        fyi = true,
+        passThrough = false,
+        mrReport = true,
+        sampling = 1L
       ),
       SlackConfig(
         goodColor = "good",
@@ -39,32 +43,6 @@ object slack {
     )
 
   def apply[F[_]: Sync](snsArn: SnsArn): SlackSink[F] = apply[F](SimpleNotificationService[F](snsArn))
-}
-
-final private case class EventFilter(
-  isShowActionSucc: Boolean,
-  isShowActionRetry: Boolean,
-  isShowActionFirstRetry: Boolean,
-  isShowActionStart: Boolean,
-  isAllowActionFailure: Boolean,
-  isAllowFyi: Boolean,
-  sampleEveryNReport: Long
-) extends Predicate[NJEvent] {
-
-  override def apply(event: NJEvent): Boolean = event match {
-    case _: ServiceStarted                 => true
-    case _: ServicePanic                   => true
-    case _: ServiceStopped                 => true
-    case MetricsReport(idx, _, _, _, _, _) => 0L === (idx % sampleEveryNReport)
-    case _: ActionStart                    => isShowActionStart
-    case ActionRetrying(_, _, _, willDelayAndRetry, _) =>
-      isShowActionRetry || (isShowActionFirstRetry && willDelayAndRetry.retriesSoFar === 0)
-    case _: ActionFailed       => isAllowActionFailure
-    case _: ActionSucced       => isShowActionSucc
-    case _: ActionQuasiSucced  => isShowActionSucc
-    case _: ForYourInformation => isAllowFyi
-    case _: PassThrough        => false
-  }
 }
 
 final private case class SlackConfig(
@@ -91,17 +69,17 @@ final class SlackSink[F[_]] private[observers] (
   private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
     new SlackSink[F](snsResource, f(eventFilter), cfg)
 
-  def showSucc: SlackSink[F]       = updateEventFilter(_.copy(isShowActionSucc = true))
-  def showRetry: SlackSink[F]      = updateEventFilter(_.copy(isShowActionRetry = true))
-  def showFirstRetry: SlackSink[F] = updateEventFilter(_.copy(isShowActionFirstRetry = true))
-  def showStart: SlackSink[F]      = updateEventFilter(_.copy(isShowActionStart = true))
+  def showSucc: SlackSink[F]       = updateEventFilter(_.copy(actionSucc = true))
+  def showRetry: SlackSink[F]      = updateEventFilter(_.copy(actionRetry = true))
+  def showFirstRetry: SlackSink[F] = updateEventFilter(_.copy(actionFirstRetry = true))
+  def showStart: SlackSink[F]      = updateEventFilter(_.copy(actionStart = true))
 
-  def blockFail: SlackSink[F] = updateEventFilter(_.copy(isAllowActionFailure = false))
-  def blockFyi: SlackSink[F]  = updateEventFilter(_.copy(isAllowFyi = false))
+  def blockFail: SlackSink[F] = updateEventFilter(_.copy(actionFailure = false))
+  def blockFyi: SlackSink[F]  = updateEventFilter(_.copy(fyi = false))
 
   def sampleReport(n: Long): SlackSink[F] = {
     require(n > 0, "n should be bigger than zero")
-    updateEventFilter(_.copy(sampleEveryNReport = n))
+    updateEventFilter(_.copy(sampling = n))
   }
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =

@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   NJEvent,
   ServiceStarted
 }
-import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, showConsole, showLog}
+import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -29,7 +29,7 @@ class HealthCheckTest extends AnyFunSuite {
       .withJmxReporter(_.inDomain("abc"))
       .updateConfig(_.withReportingSchedule("* * * ? * *"))
       .eventStream(gd => gd("cron").retry(IO.never[Int]).run)
-      .observe(showConsole)
+      .observe(console.text)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)
@@ -48,7 +48,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .updateConfig(_.withReportingSchedule(1.second))
       .eventStream(gd => gd.retry(IO(1)).run >> gd.retry(IO.never).run)
-      .observe(jsonConsole)
+      .observe(console.json)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)
@@ -72,7 +72,7 @@ class HealthCheckTest extends AnyFunSuite {
           .withMetricsRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.retry(IO.never).run)
       .interruptAfter(5.second)
-      .observe(showLog)
+      .observe(logging.text)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile

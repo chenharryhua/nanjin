@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, showConsole}
+import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, console}
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -132,7 +132,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.minute).withReportingSchedule(30.seconds))
       .withJmxReporter(_.inDomain("xyz"))
       .eventStream(ag => ag("performance").trivial.run(IO(0).delayBy(5.second)).foreverM)
-      .observe(showConsole)
+      .observe(console.text)
       .observe(cloudwatch("test"))
       .interruptAfter(1.hour)
       .compile

@@ -2,10 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.observers.showLog
 import com.github.chenharryhua.nanjin.guard.event.{
   ForYourInformation,
   NJEvent,

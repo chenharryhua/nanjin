@@ -48,6 +48,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
   storageResolution: Int,
   metricFilter: MetricFilter)(implicit F: Sync[F])
     extends Pipe[F, NJEvent, INothing] {
+
   def withStorageResolution(storageResolution: Int): CloudWatchMetrics[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
