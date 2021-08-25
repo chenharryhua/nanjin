@@ -25,6 +25,20 @@ object slack {
         errorColor = "danger",
         maxCauseSize = 500,
         durationFormatter = DurationFormatter.defaultFormatter
+      ),
+      EventFilter(
+        serviceStarted = true,
+        servicePanic = true,
+        serviceStopped = true,
+        actionSucced = false,
+        actionRetrying = false,
+        actionFirstRetry = false,
+        actionStart = false,
+        actionFailed = true,
+        fyi = true,
+        passThrough = true,
+        metricsReport = true,
+        sampling = 1
       )
     )
 
@@ -49,11 +63,12 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final class SlackSink[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
-  cfg: SlackConfig)(implicit F: Sync[F])
+  cfg: SlackConfig,
+  eventFilter: EventFilter)(implicit F: Sync[F])
     extends Pipe[F, NJEvent, INothing] with zoneid {
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =
-    new SlackSink[F](snsResource, f(cfg))
+    new SlackSink[F](snsResource, f(cfg), eventFilter)
 
   def withGoodColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(goodColor = color))
   def withWarnColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(warnColor = color))
@@ -62,8 +77,25 @@ final class SlackSink[F[_]] private[observers] (
   def withMaxCauseSize(size: Int): SlackSink[F]                = updateSlackConfig(_.copy(maxCauseSize = size))
   def withDurationFormat(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
 
+  private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
+    new SlackSink[F](snsResource, cfg, f(eventFilter))
+
+  def showSucc: SlackSink[F]       = updateEventFilter(EventFilter.actionSucced.set(true))
+  def showRetry: SlackSink[F]      = updateEventFilter(EventFilter.actionRetrying.set(true))
+  def showFirstRetry: SlackSink[F] = updateEventFilter(EventFilter.actionFirstRetry.set(true))
+  def showStart: SlackSink[F]      = updateEventFilter(EventFilter.actionStart.set(true))
+
+  def blockFail: SlackSink[F]        = updateEventFilter(EventFilter.actionFailed.set(false))
+  def blockFyi: SlackSink[F]         = updateEventFilter(EventFilter.fyi.set(false))
+  def blockPassThrough: SlackSink[F] = updateEventFilter(EventFilter.passThrough.set(false))
+
+  def sampleReport(n: Long): SlackSink[F] = {
+    require(n > 0, "n should be bigger than zero")
+    updateEventFilter(EventFilter.sampling.set(n))
+  }
+
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s))).drain
+    Stream.resource(snsResource).flatMap(s => es.filter(eventFilter).evalMap(e => send(e, s))).drain
 
   private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"
