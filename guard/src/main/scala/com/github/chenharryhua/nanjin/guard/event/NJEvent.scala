@@ -17,6 +17,8 @@ import scala.concurrent.duration.FiniteDuration
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def importance: Importance
+  final def show: String = NJEvent.showNJEvent.show(this)
+  final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
 }
 
 private[guard] object NJEvent extends zoneddatetime with localtime with zoneid {

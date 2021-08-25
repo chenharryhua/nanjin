@@ -16,32 +16,79 @@ import com.github.chenharryhua.nanjin.guard.event.{
   ServiceStarted,
   ServiceStopped
 }
-final private[observers] case class EventFilter(
-  serviceStart: Boolean,
+import monocle.macros.Lenses
+
+@Lenses final case class EventFilter(
+  serviceStarted: Boolean,
   servicePanic: Boolean,
-  serviceStop: Boolean,
-  actionSucc: Boolean,
-  actionRetry: Boolean,
+  serviceStopped: Boolean,
+  actionSucced: Boolean,
+  actionRetrying: Boolean,
   actionFirstRetry: Boolean,
   actionStart: Boolean,
-  actionFailure: Boolean,
+  actionFailed: Boolean,
   fyi: Boolean,
   passThrough: Boolean,
-  mrReport: Boolean,
+  metricsReport: Boolean,
   sampling: Long
 ) extends Predicate[NJEvent] {
 
   override def apply(event: NJEvent): Boolean = event match {
-    case _: ServiceStarted                 => serviceStart
+    case _: ServiceStarted                 => serviceStarted
     case _: ServicePanic                   => servicePanic
-    case _: ServiceStopped                 => serviceStop
-    case MetricsReport(idx, _, _, _, _, _) => mrReport && (0L === (idx % sampling))
+    case _: ServiceStopped                 => serviceStopped
+    case MetricsReport(idx, _, _, _, _, _) => metricsReport && (0L === (idx % sampling))
     case _: ActionStart                    => actionStart
-    case ActionRetrying(_, _, _, dr, _)    => actionRetry || (actionFirstRetry && dr.retriesSoFar === 0)
-    case _: ActionFailed                   => actionFailure
-    case _: ActionSucced                   => actionSucc
-    case _: ActionQuasiSucced              => actionSucc
+    case ActionRetrying(_, _, _, dr, _)    => actionRetrying || (actionFirstRetry && dr.retriesSoFar === 0)
+    case _: ActionFailed                   => actionFailed
+    case _: ActionSucced                   => actionSucced
+    case _: ActionQuasiSucced              => actionSucced
     case _: ForYourInformation             => fyi
     case _: PassThrough                    => passThrough
   }
+}
+
+object EventFilter {
+  val all: EventFilter = EventFilter(
+    serviceStarted = true,
+    servicePanic = true,
+    serviceStopped = true,
+    actionSucced = true,
+    actionRetrying = true,
+    actionFirstRetry = true,
+    actionStart = true,
+    actionFailed = true,
+    fyi = true,
+    passThrough = true,
+    metricsReport = true,
+    sampling = 1
+  )
+  val none: EventFilter = EventFilter(
+    serviceStarted = false,
+    servicePanic = false,
+    serviceStopped = false,
+    actionSucced = false,
+    actionRetrying = false,
+    actionFirstRetry = false,
+    actionStart = false,
+    actionFailed = false,
+    fyi = false,
+    passThrough = false,
+    metricsReport = false,
+    sampling = 1
+  )
+  val normal: EventFilter = EventFilter(
+    serviceStarted = true,
+    servicePanic = true,
+    serviceStopped = true,
+    actionSucced = false,
+    actionRetrying = false,
+    actionFirstRetry = false,
+    actionStart = false,
+    actionFailed = true,
+    fyi = true,
+    passThrough = true,
+    metricsReport = true,
+    sampling = 1
+  )
 }
