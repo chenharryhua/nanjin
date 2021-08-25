@@ -132,7 +132,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.minute).withReportingSchedule(30.seconds))
       .withJmxReporter(_.inDomain("xyz"))
       .eventStream(ag => ag("performance").trivial.run(IO(0).delayBy(5.second)).foreverM)
-      .observe(console.text)
+      .observe(console(_.show))
       .observe(cloudwatch("test"))
       .interruptAfter(1.hour)
       .compile

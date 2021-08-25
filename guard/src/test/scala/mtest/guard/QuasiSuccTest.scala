@@ -10,7 +10,6 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.observers.{logging, slack}
 import fs2.Chunk
 import io.circe.parser.decode
-import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration as JavaDuration
@@ -62,8 +61,8 @@ class QuasiSuccTest extends AnyFunSuite {
             .seqRun)
         .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
         .unNone
-        .observe(logging.text)
-        .observe(logging.json)
+        .observe(logging(_.show))
+        .observe(logging(_.asJson.noSpaces))
         .observe(slack(sns))
         .compile
         .toVector
