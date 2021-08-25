@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
+import cats.collections.Predicate
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -15,10 +16,48 @@ import org.apache.commons.lang3.StringUtils
 import scala.collection.JavaConverters.*
 
 object slack {
-  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): Pipe[F, NJEvent, INothing] =
-    new SlackSink[F](snsResource).sink
+  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackSink[F] =
+    new SlackSink[F](
+      snsResource,
+      EventFilter(
+        isShowActionSucc = false,
+        isShowActionRetry = false,
+        isShowActionFirstRetry = false,
+        isShowActionStart = false,
+        isAllowActionFailure = true,
+        isAllowFyi = true,
+        isAllowPassThrough = true,
+        everyNMetrics = 1L
+      ))
 
-  def apply[F[_]: Sync](snsArn: SnsArn): Pipe[F, NJEvent, INothing] = apply[F](SimpleNotificationService[F](snsArn))
+  def apply[F[_]: Sync](snsArn: SnsArn): SlackSink[F] = apply[F](SimpleNotificationService[F](snsArn))
+}
+
+final private case class EventFilter(
+  isShowActionSucc: Boolean,
+  isShowActionRetry: Boolean,
+  isShowActionFirstRetry: Boolean,
+  isShowActionStart: Boolean,
+  isAllowActionFailure: Boolean,
+  isAllowFyi: Boolean,
+  isAllowPassThrough: Boolean,
+  everyNMetrics: Long
+) extends Predicate[NJEvent] {
+
+  override def apply(event: NJEvent): Boolean = event match {
+    case _: ServiceStarted                 => true
+    case _: ServicePanic                   => true
+    case _: ServiceStopped                 => true
+    case MetricsReport(idx, _, _, _, _, _) => 0L === (idx % everyNMetrics)
+    case _: ActionStart                    => isShowActionStart
+    case ActionRetrying(_, _, _, willDelayAndRetry, _) =>
+      isShowActionRetry || (isShowActionFirstRetry && willDelayAndRetry.retriesSoFar === 0)
+    case _: ActionFailed       => isAllowActionFailure
+    case _: ActionSucced       => isShowActionSucc
+    case _: ActionQuasiSucced  => isShowActionSucc
+    case _: ForYourInformation => isAllowFyi
+    case _: PassThrough        => isAllowPassThrough
+  }
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -28,8 +67,28 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationService[F]])(implicit F: Sync[F])
-    extends zoneid {
+final class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationService[F]], eventFilter: EventFilter)(implicit
+  F: Sync[F])
+    extends Pipe[F, NJEvent, INothing] with zoneid {
+  private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
+    new SlackSink[F](snsResource, f(eventFilter))
+
+  def showSucc: SlackSink[F]       = updateEventFilter(_.copy(isShowActionSucc = true))
+  def showRetry: SlackSink[F]      = updateEventFilter(_.copy(isShowActionRetry = true))
+  def showFirstRetry: SlackSink[F] = updateEventFilter(_.copy(isShowActionFirstRetry = true))
+  def showStart: SlackSink[F]      = updateEventFilter(_.copy(isShowActionStart = true))
+
+  def blockFail: SlackSink[F]        = updateEventFilter(_.copy(isAllowActionFailure = false))
+  def blockFyi: SlackSink[F]         = updateEventFilter(_.copy(isAllowFyi = false))
+  def blockPassThrough: SlackSink[F] = updateEventFilter(_.copy(isAllowPassThrough = false))
+
+  def sampleNReport(n: Long): SlackSink[F] = {
+    require(n > 0, "n should be bigger than zero")
+    updateEventFilter(_.copy(everyNMetrics = n))
+  }
+
+  override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
+    Stream.resource(snsResource).flatMap(s => es.filter(eventFilter).evalMap(e => send(e, s))).drain
 
   private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"
@@ -48,9 +107,6 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
   private val error_color = "danger"
 
   private val maxCauseSize: Int = 500
-
-  val sink: Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s))).drain
 
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
@@ -294,4 +350,5 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
       // no op
       case _: PassThrough => F.unit
     }
+
 }

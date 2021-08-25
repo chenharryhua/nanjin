@@ -1,16 +1,16 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Resource, Sync}
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.codahale.metrics.MetricFilter
+import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{INothing, Pipe, Stream}
 import io.circe.syntax.*
 import org.log4s.Logger
 
 package object observers {
-  val eventFilter: EventFilter = EventFilter.default
 
   private[this] val logger: Logger = org.log4s.getLogger
 
@@ -39,7 +39,10 @@ package object observers {
   def jsonConsole[F[_]: Console]: Pipe[F, NJEvent, INothing] =
     _.evalMap(event => Console[F].println(event.asJson)).drain
 
-  def cloudwatch(namespace: String): CloudWatchMetrics =
-    new CloudWatchMetrics(namespace, 60, MetricFilter.ALL)
+  def cloudwatch[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchMetrics[F] =
+    new CloudWatchMetrics(client, namespace, 60, MetricFilter.ALL)
+
+  def cloudwatch[F[_]: Sync](namespace: String): CloudWatchMetrics[F] =
+    cloudwatch(CloudWatch[F], namespace)
 
 }
