@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
 import com.codahale.metrics.MetricFilter
@@ -35,19 +35,21 @@ final private case class MetricKey(
 
 }
 
-final class CloudWatchMetrics private[observers] (
+final class CloudWatchMetrics[F[_]] private[observers] (
+  client: Resource[F, CloudWatch[F]],
   namespace: String,
   storageResolution: Int,
-  metricFilter: MetricFilter) {
-  def withStorageResolution(storageResolution: Int): CloudWatchMetrics = {
+  metricFilter: MetricFilter)(implicit F: Sync[F])
+    extends Pipe[F, NJEvent, INothing] {
+  def withStorageResolution(storageResolution: Int): CloudWatchMetrics[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchMetrics(namespace, storageResolution, metricFilter)
+    new CloudWatchMetrics(client, namespace, storageResolution, metricFilter)
   }
 
-  def withMetricFilter(metricFilter: MetricFilter): CloudWatchMetrics =
-    new CloudWatchMetrics(namespace, storageResolution, metricFilter)
+  def withMetricFilter(metricFilter: MetricFilter): CloudWatchMetrics[F] =
+    new CloudWatchMetrics(client, namespace, storageResolution, metricFilter)
 
   private def buildMetricDatum(
     report: MetricsReport,
@@ -90,14 +92,14 @@ final class CloudWatchMetrics private[observers] (
         last.get(key) match {
           case Some(old) if count >= old =>
             (key.metricDatum(report.timestamp, count - old) :: mds, last.updated(key, count))
-          case None => (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
+          case _ => (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
         }
       }
     }
     res.fold((List.empty[MetricDatum], Map.empty[MetricKey, Long]))(identity)
   }
 
-  def sink[F[_]](implicit F: Async[F]): Pipe[F, NJEvent, INothing] = {
+  override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] = {
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, INothing, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
@@ -121,6 +123,6 @@ final class CloudWatchMetrics private[observers] (
         case None => Pull.done
       }
 
-    (ss: Stream[F, NJEvent]) => Stream.resource(CloudWatch[F]).flatMap(cw => go(cw, ss, Map.empty).stream)
+    Stream.resource(client).flatMap(cw => go(cw, es, Map.empty).stream)
   }
 }

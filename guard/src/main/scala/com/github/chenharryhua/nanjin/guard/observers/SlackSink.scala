@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
+import cats.collections.Predicate
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -15,11 +16,67 @@ import org.apache.commons.lang3.StringUtils
 import scala.collection.JavaConverters.*
 
 object slack {
-  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): Pipe[F, NJEvent, INothing] =
-    new SlackSink[F](snsResource).sink
+  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackSink[F] =
+    new SlackSink[F](
+      snsResource,
+      EventFilter(
+        isShowActionSucc = false,
+        isShowActionRetry = false,
+        isShowActionFirstRetry = false,
+        isShowActionStart = false,
+        isAllowActionFailure = true,
+        isAllowFyi = true,
+        isAllowPassThrough = true,
+        everyNMetrics = 1L
+      ),
+      SlackConfig(
+        goodColor = "good",
+        warnColor = "#ffd79a",
+        infoColor = "#b3d1ff",
+        errorColor = "danger",
+        maxCauseSize = 500,
+        durationFormatter = DurationFormatter.defaultFormatter
+      )
+    )
 
-  def apply[F[_]: Sync](snsArn: SnsArn): Pipe[F, NJEvent, INothing] = apply[F](SimpleNotificationService[F](snsArn))
+  def apply[F[_]: Sync](snsArn: SnsArn): SlackSink[F] = apply[F](SimpleNotificationService[F](snsArn))
 }
+
+final private case class EventFilter(
+  isShowActionSucc: Boolean,
+  isShowActionRetry: Boolean,
+  isShowActionFirstRetry: Boolean,
+  isShowActionStart: Boolean,
+  isAllowActionFailure: Boolean,
+  isAllowFyi: Boolean,
+  isAllowPassThrough: Boolean,
+  everyNMetrics: Long
+) extends Predicate[NJEvent] {
+
+  override def apply(event: NJEvent): Boolean = event match {
+    case _: ServiceStarted                 => true
+    case _: ServicePanic                   => true
+    case _: ServiceStopped                 => true
+    case MetricsReport(idx, _, _, _, _, _) => 0L === (idx % everyNMetrics)
+    case _: ActionStart                    => isShowActionStart
+    case ActionRetrying(_, _, _, willDelayAndRetry, _) =>
+      isShowActionRetry || (isShowActionFirstRetry && willDelayAndRetry.retriesSoFar === 0)
+    case _: ActionFailed       => isAllowActionFailure
+    case _: ActionSucced       => isShowActionSucc
+    case _: ActionQuasiSucced  => isShowActionSucc
+    case _: ForYourInformation => isAllowFyi
+    case _: PassThrough        => isAllowPassThrough
+  }
+}
+
+final private case class SlackConfig(
+  goodColor: String,
+  warnColor: String,
+  infoColor: String,
+  errorColor: String,
+  maxCauseSize: Int,
+  durationFormatter: DurationFormatter
+)
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
@@ -28,8 +85,40 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationService[F]])(implicit F: Sync[F])
-    extends zoneid {
+final class SlackSink[F[_]](
+  snsResource: Resource[F, SimpleNotificationService[F]],
+  eventFilter: EventFilter,
+  cfg: SlackConfig)(implicit F: Sync[F])
+    extends Pipe[F, NJEvent, INothing] with zoneid {
+  private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
+    new SlackSink[F](snsResource, f(eventFilter), cfg)
+
+  def showSucc: SlackSink[F]       = updateEventFilter(_.copy(isShowActionSucc = true))
+  def showRetry: SlackSink[F]      = updateEventFilter(_.copy(isShowActionRetry = true))
+  def showFirstRetry: SlackSink[F] = updateEventFilter(_.copy(isShowActionFirstRetry = true))
+  def showStart: SlackSink[F]      = updateEventFilter(_.copy(isShowActionStart = true))
+
+  def blockFail: SlackSink[F]        = updateEventFilter(_.copy(isAllowActionFailure = false))
+  def blockFyi: SlackSink[F]         = updateEventFilter(_.copy(isAllowFyi = false))
+  def blockPassThrough: SlackSink[F] = updateEventFilter(_.copy(isAllowPassThrough = false))
+
+  def sampleNReport(n: Long): SlackSink[F] = {
+    require(n > 0, "n should be bigger than zero")
+    updateEventFilter(_.copy(everyNMetrics = n))
+  }
+
+  private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =
+    new SlackSink[F](snsResource, eventFilter, f(cfg))
+
+  def withGoodColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(goodColor = color))
+  def withWarnColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(warnColor = color))
+  def withInfoColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(infoColor = color))
+  def withErrorColor(color: String): SlackSink[F]              = updateSlackConfig(_.copy(errorColor = color))
+  def withMaxCauseSize(size: Int): SlackSink[F]                = updateSlackConfig(_.copy(maxCauseSize = size))
+  def withDurationFormat(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
+
+  override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
+    Stream.resource(snsResource).flatMap(s => es.filter(eventFilter).evalMap(e => send(e, s))).drain
 
   private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"
@@ -41,18 +130,6 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
         case _ => "th"
       }
   }
-
-  private val good_color  = "good"
-  private val warn_color  = "#ffd79a"
-  private val info_color  = "#b3d1ff"
-  private val error_color = "danger"
-
-  private val maxCauseSize: Int = 500
-
-  val sink: Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s))).drain
-
-  private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   private def translate(mrw: MetricRegistryWrapper): String =
     mrw.registry.fold("") { mr =>
@@ -71,7 +148,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
           s":rocket: ${params.brief}",
           List(
             Attachment(
-              info_color,
+              cfg.infoColor,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
@@ -84,7 +161,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
         sns.publish(msg).void
 
       case ServicePanic(at, si, params, details, error) =>
-        def upcoming: String = details.upcomingDelay.map(fmt.format) match {
+        def upcoming: String = details.upcomingDelay.map(cfg.durationFormatter.format) match {
           case None     => "should never see this" // never happen
           case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is dysfunctional."
         }
@@ -95,17 +172,17 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                |Search *${error.uuid}* in log file to find full exception.""".stripMargin,
             List(
               Attachment(
-                error_color,
+                cfg.errorColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Status", "Restarting", short = true),
-                  SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
+                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField("Restarted so far", details.retriesSoFar.show, short = true),
-                  SlackField("Cumulative Delay", fmt.format(details.cumulativeDelay), short = true),
+                  SlackField("Cumulative Delay", cfg.durationFormatter.format(details.cumulativeDelay), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, maxCauseSize), short = false)
+                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxCauseSize), short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -118,12 +195,12 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
             ":octagonal_sign: The service was stopped.",
             List(
               Attachment(
-                info_color,
+                cfg.infoColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
+                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
                 )
               ))
@@ -134,15 +211,15 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
       case MetricsReport(idx, at, si, params, next, metrics) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          StringUtils.abbreviate(translate(metrics), maxCauseSize),
+          StringUtils.abbreviate(translate(metrics), cfg.maxCauseSize),
           List(
             Attachment(
-              info_color,
+              cfg.infoColor,
               at.toInstant.toEpochMilli,
               List(
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
-                SlackField("Up Time", fmt.format(si.launchTime, at), short = true),
+                SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField(
                   s"Next(${toOrdinalWords(idx + 1)}) Check at", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
                   next.fold("no time")(_.toLocalTime.toString),
@@ -162,7 +239,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
             s"Start running action: *${params.actionName}*",
             List(
               Attachment(
-                info_color,
+                cfg.infoColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -177,20 +254,20 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action, retry of which takes place in *${fmt
+            s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action, retry of which takes place in *${cfg.durationFormatter
               .format(wdr.nextDelay)}*",
             List(
               Attachment(
-                warn_color,
+                cfg.warnColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", params.actionName, short = true),
-                  SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                  SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, maxCauseSize), short = false)
+                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxCauseSize), short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -203,18 +280,18 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
             notes.value,
             List(
               Attachment(
-                if (af.importance.value > Importance.Medium.value) error_color else warn_color,
+                if (af.importance.value > Importance.Medium.value) cfg.errorColor else cfg.warnColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", params.actionName, short = true),
                   SlackField("Importance", af.importance.show, short = true),
-                  SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                  SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retried", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, maxCauseSize), short = false)
+                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxCauseSize), short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -227,14 +304,14 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
             notes.value,
             List(
               Attachment(
-                good_color,
+                cfg.goodColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", params.actionName, short = true),
                   SlackField("Status", "Completed", short = true),
-                  SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                  SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retried", s"$numRetries/${params.retry.maxRetries}", short = true),
                   SlackField("Action ID", action.uuid.show, short = false)
                 )
@@ -250,7 +327,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
               succNotes.value,
               List(
                 Attachment(
-                  good_color,
+                  cfg.goodColor,
                   at.toInstant.toEpochMilli,
                   List(
                     SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -259,7 +336,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                     SlackField("Status", "Completed", short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),
-                    SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                    SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
                     SlackField("Action ID", action.uuid.show, short = false)
                   )
@@ -271,7 +348,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
               failNotes.value,
               List(
                 Attachment(
-                  warn_color,
+                  cfg.warnColor,
                   at.toInstant.toEpochMilli,
                   List(
                     SlackField("Service", params.serviceParams.serviceName, short = true),
@@ -280,7 +357,7 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
                     SlackField("Status", "Quasi Success", short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),
-                    SlackField("Took", fmt.format(action.launchTime, at), short = true),
+                    SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
                     SlackField("Action ID", action.uuid.show, short = false)
                   )
@@ -294,4 +371,5 @@ final private class SlackSink[F[_]](snsResource: Resource[F, SimpleNotificationS
       // no op
       case _: PassThrough => F.unit
     }
+
 }

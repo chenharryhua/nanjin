@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResult}
 import com.amazonaws.services.cloudwatch.{AmazonCloudWatch, AmazonCloudWatchClientBuilder}
+import org.log4s.Logger
 
 sealed trait CloudWatch[F[_]] {
   def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult]
@@ -10,8 +12,9 @@ sealed trait CloudWatch[F[_]] {
 
 object CloudWatch {
   def fake[F[_]](implicit F: Sync[F]): Resource[F, CloudWatch[F]] = Resource.pure[F, CloudWatch[F]](new CloudWatch[F] {
+    private[this] val logger: Logger = org.log4s.getLogger("Fake_CloudWatch")
     override def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult] =
-      F.pure(new PutMetricDataResult())
+      F.delay(logger.info(putMetricDataRequest.toString)) *> F.pure(new PutMetricDataResult())
   })
 
   def apply[F[_]](implicit F: Sync[F]): Resource[F, CloudWatch[F]] =
