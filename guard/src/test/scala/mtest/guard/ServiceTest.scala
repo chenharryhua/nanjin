@@ -37,7 +37,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .eventStream { gd =>
-        gd("escalate-after-3-time")
+        gd("escalate-after-3-time").notice
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .run(IO.raiseError(new Exception("oops")))
       }
@@ -61,7 +61,7 @@ class ServiceTest extends AnyFunSuite {
     val vec = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .eventStream { gd =>
-        gd("json-codec")
+        gd("json-codec").notice
           .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
           .run(IO.raiseError(new Exception("oops")))
       }
@@ -90,7 +90,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
-      .eventStream(gd => gd("a").retry(IO(1)).run >> gd("b").retry(IO(2)).run)
+      .eventStream(gd => gd("a").notice.retry(IO(1)).run >> gd("b").notice.retry(IO(2)).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile

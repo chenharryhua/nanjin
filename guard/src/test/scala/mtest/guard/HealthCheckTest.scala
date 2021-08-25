@@ -28,7 +28,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
       .updateConfig(_.withReportingSchedule("* * * ? * *"))
-      .eventStream(gd => gd("cron").retry(IO.never[Int]).run)
+      .eventStream(gd => gd("cron").notice.retry(IO.never[Int]).run)
       .observe(console.text)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -47,7 +47,7 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: d :: rest = guard
       .service("success-test")
       .updateConfig(_.withReportingSchedule(1.second))
-      .eventStream(gd => gd.retry(IO(1)).run >> gd.retry(IO.never).run)
+      .eventStream(gd => gd.notice.retry(IO(1)).run >> gd.notice.retry(IO.never).run)
       .observe(console.json)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -70,7 +70,7 @@ class HealthCheckTest extends AnyFunSuite {
           .withConstantDelay(1.hour)
           .withMetricsDurationTimeUnit(TimeUnit.MICROSECONDS)
           .withMetricsRateTimeUnit(TimeUnit.MINUTES))
-      .eventStream(gd => gd("always-failure").max(1).run(IO.raiseError(new Exception)) >> gd.retry(IO.never).run)
+      .eventStream(gd => gd("always-failure").notice.max(1).run(IO.raiseError(new Exception)) >> gd.retry(IO.never).run)
       .interruptAfter(5.second)
       .observe(logging.text)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)

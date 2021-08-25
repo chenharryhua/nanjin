@@ -28,7 +28,8 @@ object logging {
   def text[F[_]: Sync]: NJLogging[F] = new NJLogging[F](Reader(_.show), default)
 }
 
-final class NJLogging[F[_]](converter: Reader[NJEvent, String], eventFilter: EventFilter)(implicit F: Sync[F])
+final class NJLogging[F[_]] private[observers] (converter: Reader[NJEvent, String], eventFilter: EventFilter)(implicit
+  F: Sync[F])
     extends Pipe[F, NJEvent, INothing] {
 
   private def updateEventFilter(f: EventFilter => EventFilter): NJLogging[F] =
@@ -36,8 +37,6 @@ final class NJLogging[F[_]](converter: Reader[NJEvent, String], eventFilter: Eve
 
   def blockSucc: NJLogging[F]        = updateEventFilter(_.copy(actionSucc = false))
   def blockStart: NJLogging[F]       = updateEventFilter(_.copy(actionStart = false))
-  def blockRetry: NJLogging[F]       = updateEventFilter(_.copy(actionRetry = false))
-  def blockReport: NJLogging[F]      = updateEventFilter(_.copy(mrReport = false))
   def blockFyi: NJLogging[F]         = updateEventFilter(_.copy(fyi = false))
   def blockPassThrough: NJLogging[F] = updateEventFilter(_.copy(passThrough = false))
 
@@ -47,7 +46,7 @@ final class NJLogging[F[_]](converter: Reader[NJEvent, String], eventFilter: Eve
     events
       .filter(eventFilter)
       .evalMap { event =>
-        val out: String = converter(event)
+        val out: String = converter.run(event)
         event match {
           case ServicePanic(_, _, _, _, error) =>
             F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))

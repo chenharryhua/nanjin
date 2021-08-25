@@ -36,7 +36,7 @@ final class ActionGuard[F[_]] private[guard] (
   def apply(actionName: String): ActionGuard[F] = updateConfig(_.withActionName(actionName))
 
   def trivial: ActionGuard[F] = updateConfig(_.withLowThroughput)
-  def notice: ActionGuard[F]  = updateConfig(_.withMediumThroughput)
+  def notice: ActionGuard[F]  = updateConfig(_.withHighThroughput)
 
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](

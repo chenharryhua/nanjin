@@ -66,6 +66,7 @@ final class SlackSink[F[_]] private[observers] (
   eventFilter: EventFilter,
   cfg: SlackConfig)(implicit F: Sync[F])
     extends Pipe[F, NJEvent, INothing] with zoneid {
+
   private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
     new SlackSink[F](snsResource, f(eventFilter), cfg)
 
@@ -255,7 +256,7 @@ final class SlackSink[F[_]] private[observers] (
             notes.value,
             List(
               Attachment(
-                if (af.importance.value > Importance.Medium.value) cfg.errorColor else cfg.warnColor,
+                if (af.importance.value >= Importance.Medium.value) cfg.errorColor else cfg.warnColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),

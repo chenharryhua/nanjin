@@ -15,7 +15,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(action =>
-        action("canceled")
+        action("canceled").notice
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO(1) >> IO.canceled)
           .run)
@@ -90,10 +90,10 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        action("a1").retry(IO(1)).run >>
-          action("a2").retry(IO(1)).run >>
+        action("a1").notice.retry(IO(1)).run >>
+          action("a2").notice.retry(IO(1)).run >>
           IO.canceled >>
-          action("a3").retry(IO(1)).run
+          action("a3").notice.retry(IO(1)).run
       }
       .compile
       .toVector
@@ -110,13 +110,13 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        action("a1").retry(IO(1)).run >>
-          action("a2")
+        action("a1").notice.retry(IO(1)).run >>
+          action("a2").notice
             .updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
             .retry(IO.raiseError(new Exception))
             .run >>
           IO.canceled >> // no chance to cancel since a2 never success
-          action("a3").retry(IO(1)).run
+          action("a3").notice.retry(IO(1)).run
       }
       .interruptAfter(5.second)
       .compile
@@ -138,12 +138,12 @@ class CancellationTest extends AnyFunSuite {
       serviceGuard
         .updateConfig(_.withConstantDelay(1.hour))
         .eventStream { action =>
-          val a1 = action("succ-1").run(IO.sleep(1.second) >> IO(1))
-          val a2 = action("fail-2")
+          val a1 = action("succ-1").notice.run(IO.sleep(1.second) >> IO(1))
+          val a2 = action("fail-2").notice
             .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
             .run(IO.raiseError[Int](new Exception))
-          val a3 = action("cancel-3").run(IO.never[Int])
-          action("supervisor")
+          val a3 = action("cancel-3").notice.run(IO.never[Int])
+          action("supervisor").notice
             .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
             .run(IO.parSequenceN(5)(List(a1, a2, a3)))
         }
@@ -184,7 +184,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action("exception")
+        val a1 = action("exception").notice
           .updateConfig(_.withConstantDelay(2.second).withMaxRetries(100))
           .retry(IO.raiseError[Int](new Exception))
           .run
