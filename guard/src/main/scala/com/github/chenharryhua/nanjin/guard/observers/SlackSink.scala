@@ -70,12 +70,12 @@ final class SlackSink[F[_]] private[observers] (
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =
     new SlackSink[F](snsResource, f(cfg), eventFilter)
 
-  def withGoodColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(goodColor = color))
-  def withWarnColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(warnColor = color))
-  def withInfoColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(infoColor = color))
-  def withErrorColor(color: String): SlackSink[F]              = updateSlackConfig(_.copy(errorColor = color))
-  def withMaxCauseSize(size: Int): SlackSink[F]                = updateSlackConfig(_.copy(maxCauseSize = size))
-  def withDurationFormat(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
+  def withGoodColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(goodColor = color))
+  def withWarnColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(warnColor = color))
+  def withInfoColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(infoColor = color))
+  def withErrorColor(color: String): SlackSink[F]                 = updateSlackConfig(_.copy(errorColor = color))
+  def withMaxCauseSize(size: Int): SlackSink[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
+  def withDurationFormatter(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
 
   private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
     new SlackSink[F](snsResource, cfg, f(eventFilter))
