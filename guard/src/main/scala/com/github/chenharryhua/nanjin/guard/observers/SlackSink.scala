@@ -27,7 +27,7 @@ object slack {
         isAllowActionFailure = true,
         isAllowFyi = true,
         isAllowPassThrough = true,
-        everyNMetrics = 1L
+        sampleEveryNReport = 1L
       ),
       SlackConfig(
         goodColor = "good",
@@ -50,14 +50,14 @@ final private case class EventFilter(
   isAllowActionFailure: Boolean,
   isAllowFyi: Boolean,
   isAllowPassThrough: Boolean,
-  everyNMetrics: Long
+  sampleEveryNReport: Long
 ) extends Predicate[NJEvent] {
 
   override def apply(event: NJEvent): Boolean = event match {
     case _: ServiceStarted                 => true
     case _: ServicePanic                   => true
     case _: ServiceStopped                 => true
-    case MetricsReport(idx, _, _, _, _, _) => 0L === (idx % everyNMetrics)
+    case MetricsReport(idx, _, _, _, _, _) => 0L === (idx % sampleEveryNReport)
     case _: ActionStart                    => isShowActionStart
     case ActionRetrying(_, _, _, willDelayAndRetry, _) =>
       isShowActionRetry || (isShowActionFirstRetry && willDelayAndRetry.retriesSoFar === 0)
@@ -85,7 +85,7 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final class SlackSink[F[_]](
+final class SlackSink[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   eventFilter: EventFilter,
   cfg: SlackConfig)(implicit F: Sync[F])
@@ -102,9 +102,9 @@ final class SlackSink[F[_]](
   def blockFyi: SlackSink[F]         = updateEventFilter(_.copy(isAllowFyi = false))
   def blockPassThrough: SlackSink[F] = updateEventFilter(_.copy(isAllowPassThrough = false))
 
-  def sampleNReport(n: Long): SlackSink[F] = {
+  def sampleReport(n: Long): SlackSink[F] = {
     require(n > 0, "n should be bigger than zero")
-    updateEventFilter(_.copy(everyNMetrics = n))
+    updateEventFilter(_.copy(sampleEveryNReport = n))
   }
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =

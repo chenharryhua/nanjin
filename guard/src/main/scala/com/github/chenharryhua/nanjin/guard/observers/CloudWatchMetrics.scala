@@ -12,6 +12,14 @@ import java.time.ZonedDateTime
 import java.util.{Date, UUID}
 import scala.collection.JavaConverters.*
 
+object cloudwatch {
+  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchMetrics[F] =
+    new CloudWatchMetrics[F](client, namespace, 60, MetricFilter.ALL)
+
+  def apply[F[_]: Sync](namespace: String): CloudWatchMetrics[F] =
+    apply[F](CloudWatch[F], namespace)
+}
+
 final private case class MetricKey(
   uuid: UUID,
   hostName: String,
@@ -32,7 +40,6 @@ final private case class MetricKey(
       .withUnit(standardUnit)
       .withTimestamp(Date.from(ts.toInstant))
       .withValue(count)
-
 }
 
 final class CloudWatchMetrics[F[_]] private[observers] (
