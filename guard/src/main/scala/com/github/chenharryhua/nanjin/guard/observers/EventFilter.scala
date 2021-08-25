@@ -77,18 +77,4 @@ object EventFilter {
     metricsReport = false,
     sampling = 1
   )
-  val normal: EventFilter = EventFilter(
-    serviceStarted = true,
-    servicePanic = true,
-    serviceStopped = true,
-    actionSucced = false,
-    actionRetrying = false,
-    actionFirstRetry = false,
-    actionStart = false,
-    actionFailed = true,
-    fyi = true,
-    passThrough = true,
-    metricsReport = true,
-    sampling = 1
-  )
 }

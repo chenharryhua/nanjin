@@ -8,26 +8,38 @@ import fs2.{INothing, Pipe, Stream}
 import org.log4s.Logger
 
 object logging {
-  def apply[F[_]: Sync](f: NJEvent => String): NJLogging[F] = new NJLogging[F](Reader(f))
+  def apply[F[_]: Sync](f: NJEvent => String): NJLogging[F] = new NJLogging[F](Reader(f), EventFilter.all)
 }
 
-final class NJLogging[F[_]] private[observers] (converter: Reader[NJEvent, String])(implicit F: Sync[F])
+final class NJLogging[F[_]] private[observers] (converter: Reader[NJEvent, String], eventFilter: EventFilter)(implicit
+  F: Sync[F])
     extends Pipe[F, NJEvent, INothing] {
+
+  private def updateEventFilter(f: EventFilter => EventFilter): NJLogging[F] =
+    new NJLogging[F](converter, f(eventFilter))
+
+  def blockSucc: NJLogging[F]        = updateEventFilter(EventFilter.actionSucced.set(false))
+  def blockStart: NJLogging[F]       = updateEventFilter(EventFilter.actionStart.set(false))
+  def blockFyi: NJLogging[F]         = updateEventFilter(EventFilter.fyi.set(false))
+  def blockPassThrough: NJLogging[F] = updateEventFilter(EventFilter.passThrough.set(false))
 
   private[this] val logger: Logger = org.log4s.getLogger
 
   override def apply(events: Stream[F, NJEvent]): Stream[F, INothing] =
-    events.evalMap { event =>
-      val out: String = converter.run(event)
-      event match {
-        case ServicePanic(_, _, _, _, error) =>
-          F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
-        case ActionRetrying(_, _, _, _, error) =>
-          F.blocking(error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out)))
-        case ActionFailed(_, _, _, _, _, error) =>
-          F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
-        case _ => F.blocking(logger.info(out))
+    events
+      .filter(eventFilter)
+      .evalMap { event =>
+        val out: String = converter.run(event)
+        event match {
+          case ServicePanic(_, _, _, _, error) =>
+            F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
+          case ActionRetrying(_, _, _, _, error) =>
+            F.blocking(error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out)))
+          case ActionFailed(_, _, _, _, _, error) =>
+            F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
+          case _ => F.blocking(logger.info(out))
+        }
       }
-    }.drain
+      .drain
 
 }
