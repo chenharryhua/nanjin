@@ -62,7 +62,7 @@ object ActionParams {
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
     actionName = "anonymous",
-    throughputLevel = ThroughputLevel.High,
+    throughputLevel = ThroughputLevel.Medium,
     serviceParams = serviceParams,
     shouldTerminate = true,
     retry = ActionRetryParams(maxRetries = 0, capDelay = None, njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds))
@@ -118,8 +118,8 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withNonTermination: ActionConfig =
     ActionConfig(Fix(WithTermination(value = false, value)))
 
-  def withLowThroughput: ActionConfig    = ActionConfig(Fix(WithThroughputLevel(ThroughputLevel.Low, value)))
-  def withMediumThroughput: ActionConfig = ActionConfig(Fix(WithThroughputLevel(ThroughputLevel.Medium, value)))
+  def withLowThroughput: ActionConfig  = ActionConfig(Fix(WithThroughputLevel(ThroughputLevel.Low, value)))
+  def withHighThroughput: ActionConfig = ActionConfig(Fix(WithThroughputLevel(ThroughputLevel.High, value)))
 
   def withActionName(name: String): ActionConfig = ActionConfig(Fix(WithActionName(name, value)))
 

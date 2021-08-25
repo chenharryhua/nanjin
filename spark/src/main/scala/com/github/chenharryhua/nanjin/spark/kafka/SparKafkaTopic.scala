@@ -53,6 +53,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def dump(implicit F: Sync[F]): F[Unit] =
     fromKafka.flatMap(_.save.objectFile(params.replayPath).overwrite.run)
 
+  def dumpToday(implicit F: Sync[F]): F[Unit] = withOneDay(LocalDate.now()).dump
+
   def replay(implicit ce: Async[F]): F[Unit] =
     fromDisk.flatMap(_.prRdd.noMeta.uploadByBatch.run.map(_ => print(".")).compile.drain)
 

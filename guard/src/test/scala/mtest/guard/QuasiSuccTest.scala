@@ -6,8 +6,8 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.observers.{jsonConsole, showLog, slack}
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.observers.{logging, slack}
 import fs2.Chunk
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -23,7 +23,11 @@ class QuasiSuccTest extends AnyFunSuite {
 
   test("quasi all succ - list") {
     val Vector(s, a, b, c) =
-      guard.eventStream(action => action("all-good").quasi(List(1, 2, 3))(f).seqRun).compile.toVector.unsafeRunSync()
+      guard
+        .eventStream(action => action("all-good").notice.quasi(List(1, 2, 3))(f).seqRun)
+        .compile
+        .toVector
+        .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
@@ -34,7 +38,7 @@ class QuasiSuccTest extends AnyFunSuite {
 
   test("quasi all fail - chunk") {
     val Vector(s, a, b, c) = guard
-      .eventStream(action => action("all-fail").quasi(Chunk(0, 0, 0))(f).withFailNotes(_ => "failure").seqRun)
+      .eventStream(action => action("all-fail").notice.quasi(Chunk(0, 0, 0))(f).withFailNotes(_ => "failure").seqRun)
       .compile
       .toVector
       .unsafeRunSync()
@@ -51,15 +55,15 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
-          action("partial-good")
+          action("partial-good").notice
             .quasi(Chain(2, 0, 1))(f)
             .withFailNotes(_ => "quasi succ")
             .withSuccNotes(_ => "succ")
             .seqRun)
         .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
         .unNone
-        .observe(showLog)
-        .observe(jsonConsole)
+        .observe(logging.text)
+        .observe(logging.json)
         .observe(slack(sns))
         .compile
         .toVector
@@ -77,7 +81,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
-          action("partial-good")
+          action("partial-good").notice
             .quasi(Vector(0, 0, 1, 1))(f)
             .withFailNotes(_.map(n => s"${n._1} --> ${n._2.uuid}").mkString("\n"))
             .seqRun)
@@ -98,7 +102,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action => action("parallel").quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun)
+        .eventStream(action => action("parallel").notice.quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun)
         .compile
         .toVector
         .unsafeRunSync()
@@ -116,7 +120,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action => action("parallel").quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun(3))
+        .eventStream(action => action("parallel").notice.quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun(3))
         .compile
         .toVector
         .unsafeRunSync()
@@ -134,7 +138,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Unit] = IO.sleep(1.second) <* IO(100 / a)
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action => action("pure actions").quasi(f(0), f(0), f(0), f(1), f(1), f(1)).parRun)
+        .eventStream(action => action("pure actions").notice.quasi(f(0), f(0), f(0), f(1), f(1), f(1)).parRun)
         .compile
         .toVector
         .unsafeRunSync()
@@ -153,7 +157,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
-          action("internal-cancel").quasi(f(0), IO.sleep(1.second) >> IO.canceled, f(1), f(2)).seqRun)
+          action("internal-cancel").notice.quasi(f(0), IO.sleep(1.second) >> IO.canceled, f(1), f(2)).seqRun)
         .interruptAfter(5.seconds)
         .compile
         .toVector
@@ -170,7 +174,10 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard.eventStream { action =>
         val a1 =
-          action("external-cancel").updateConfig(_.withConstantDelay(1.second)).quasi(Vector(f(0), f(1))).parRun(2)
+          action("external-cancel").notice
+            .updateConfig(_.withConstantDelay(1.second))
+            .quasi(Vector(f(0), f(1)))
+            .parRun(2)
         List(a1, IO.canceled.delayBy(3.second)).parSequence_
       }.compile.toVector.unsafeRunSync()
 
@@ -183,13 +190,13 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi multi-layers seq") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j, k, l) =
       guard.eventStream { action =>
-        val a1 = action("compute1").run(IO(1))
-        val a2 = action("exception")
+        val a1 = action("compute1").notice.run(IO(1))
+        val a2 = action("exception").notice
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO.raiseError[Int](new Exception))
           .run
-        val a3 = action("compute2").run(IO(2))
-        action("quasi")
+        val a3 = action("compute2").notice.run(IO(2))
+        action("quasi").notice
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
           .withFailNotes(_.map(_.message).mkString)
@@ -216,13 +223,13 @@ class QuasiSuccTest extends AnyFunSuite {
       guard.eventStream { action =>
         val a1 = action("compute1").trivial.retry(IO.sleep(5.seconds) >> IO(1)).run
         val a2 =
-          action("exception")
+          action("exception").notice
             .max(3)
             .updateConfig(_.withConstantDelay(1.second))
             .retry(IO.raiseError[Int](new Exception))
             .run
-        val a3 = action("compute2").retry(IO.sleep(5.seconds) >> IO(2)).run
-        action("quasi")
+        val a3 = action("compute2").notice.retry(IO.sleep(5.seconds) >> IO(2)).run
+        action("quasi").notice
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
           .withFailNotes(_.map(_.message).mkString)

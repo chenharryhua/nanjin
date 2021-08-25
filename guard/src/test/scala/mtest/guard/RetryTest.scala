@@ -32,7 +32,7 @@ class RetryTest extends AnyFunSuite {
 
   test("retry - success - default") {
     val Vector(s, a, b, c) = serviceGuard.eventStream { gd =>
-      gd("succ-medium")
+      gd("succ-high").notice
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
@@ -50,7 +50,7 @@ class RetryTest extends AnyFunSuite {
   test("retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(s, a, b, c, d, e) = serviceGuard.eventStream { gd =>
-      gd("1-time-succ")("2-time-succ") // funny syntax
+      gd("1-time-succ")("2-time-succ").notice // funny syntax
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) =>
           IO(if (i < 2) {
@@ -153,7 +153,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("predicate")
+        gd("predicate").notice
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception()))
           .withWorthRetry(_.isInstanceOf[MyException])
@@ -215,7 +215,7 @@ class RetryTest extends AnyFunSuite {
   test("retry - nonterminating - should retry") {
     val s :: a :: b :: c :: s1 :: d :: e :: f :: s2 :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
-      .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
+      .eventStream(_.notice.nonStop(fs2.Stream(1))) // suppose run forever but...
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -239,7 +239,7 @@ class RetryTest extends AnyFunSuite {
 
     val s :: a :: b :: c :: s1 :: d :: e :: f :: s2 :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
-      .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
+      .eventStream(_.notice.nonStop(IO.raiseError(new Exception("ex"))))
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -262,7 +262,7 @@ class RetryTest extends AnyFunSuite {
   test("retry - nonterminating - cancelation") {
     val s :: a :: b :: c :: s2 :: d :: e :: f :: s3 :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
-      .eventStream(_.nonStop(IO(1) >> IO.canceled))
+      .eventStream(_.notice.nonStop(IO(1) >> IO.canceled))
       .interruptAfter(5.seconds)
       .compile
       .toList
