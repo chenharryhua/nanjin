@@ -37,8 +37,7 @@ object slack {
         actionFailed = true,
         fyi = true,
         passThrough = true,
-        metricsReport = true,
-        sampling = 1
+        metricsReport = true
       )
     )
 
@@ -85,14 +84,8 @@ final class SlackSink[F[_]] private[observers] (
   def showFirstRetry: SlackSink[F] = updateEventFilter(EventFilter.actionFirstRetry.set(true))
   def showStart: SlackSink[F]      = updateEventFilter(EventFilter.actionStart.set(true))
 
-  def blockFail: SlackSink[F]        = updateEventFilter(EventFilter.actionFailed.set(false))
-  def blockFyi: SlackSink[F]         = updateEventFilter(EventFilter.fyi.set(false))
-  def blockPassThrough: SlackSink[F] = updateEventFilter(EventFilter.passThrough.set(false))
-
-  def sampleReport(n: Long): SlackSink[F] = {
-    require(n > 0, "n should be bigger than zero")
-    updateEventFilter(EventFilter.sampling.set(n))
-  }
+  def blockFail: SlackSink[F] = updateEventFilter(EventFilter.actionFailed.set(false))
+  def blockFyi: SlackSink[F]  = updateEventFilter(EventFilter.fyi.set(false))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
     Stream.resource(snsResource).flatMap(s => es.filter(eventFilter).evalMap(e => send(e, s))).drain
