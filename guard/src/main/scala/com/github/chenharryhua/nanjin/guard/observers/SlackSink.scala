@@ -208,6 +208,7 @@ final class SlackSink[F[_]] private[observers] (
             ))
         ).asJson.noSpaces
 
+        // only show events that cross interval border.
         val isShow: Boolean = (prev, cfg.reportInterval).mapN { case (prev, interval) =>
           if (Duration.between(prev, at).toScala >= interval) true
           else {
