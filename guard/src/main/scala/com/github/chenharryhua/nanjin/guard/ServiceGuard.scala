@@ -92,12 +92,13 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // metrics report
         val reporting: Stream[F, INothing] = {
-          def report(idx: Long, ts: ZonedDateTime, nextCheck: Option[ZonedDateTime]) =
+          def report(idx: Long, ts: ZonedDateTime, prevCheck: Option[ZonedDateTime], nextCheck: Option[ZonedDateTime]) =
             MetricsReport(
               index = idx + 1,
               timestamp = ts,
               serviceInfo = si,
               serviceParams = params,
+              prev = prevCheck,
               next = nextCheck,
               metrics = MetricRegistryWrapper(
                 registry = Some(metricRegistry),
@@ -114,7 +115,9 @@ final class ServiceGuard[F[_]] private[guard] (
                 .zipWithIndex
                 .evalMap { case (_, idx) =>
                   realZonedDateTime(params).map { ts =>
-                    report(idx, ts, Some(ts.plusSeconds(dur.toSeconds).truncatedTo(ChronoUnit.SECONDS)))
+                    val prev = Some(ts.minusSeconds(dur.toSeconds).truncatedTo(ChronoUnit.SECONDS))
+                    val next = Some(ts.plusSeconds(dur.toSeconds).truncatedTo(ChronoUnit.SECONDS))
+                    report(idx, ts, prev, next)
                   }.flatMap(channel.send)
                 }
                 .drain
@@ -123,7 +126,9 @@ final class ServiceGuard[F[_]] private[guard] (
                 .awakeEvery(cron)
                 .zipWithIndex
                 .evalMap { case (_, idx) =>
-                  realZonedDateTime(params).map(ts => report(idx, ts, cron.next(ts))).flatMap(channel.send)
+                  realZonedDateTime(params)
+                    .map(ts => report(idx, ts, cron.prev(ts), cron.next(ts)))
+                    .flatMap(channel.send)
                 }
                 .drain
           }

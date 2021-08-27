@@ -60,6 +60,7 @@ final case class MetricsReport(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
+  prev: Option[ZonedDateTime],
   next: Option[ZonedDateTime],
   metrics: MetricRegistryWrapper
 ) extends ServiceEvent

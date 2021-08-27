@@ -12,7 +12,10 @@ import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
+import java.time.{Duration, ZonedDateTime}
 import scala.collection.JavaConverters.*
+import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
+import scala.concurrent.duration.FiniteDuration
 
 object slack {
   def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackSink[F] =
@@ -24,7 +27,8 @@ object slack {
         infoColor = "#b3d1ff",
         errorColor = "danger",
         maxCauseSize = 500,
-        durationFormatter = DurationFormatter.defaultFormatter
+        durationFormatter = DurationFormatter.defaultFormatter,
+        reportInterval = None
       ),
       EventFilter(
         serviceStarted = true,
@@ -50,7 +54,8 @@ final private case class SlackConfig(
   infoColor: String,
   errorColor: String,
   maxCauseSize: Int,
-  durationFormatter: DurationFormatter
+  durationFormatter: DurationFormatter,
+  reportInterval: Option[FiniteDuration]
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -75,6 +80,9 @@ final class SlackSink[F[_]] private[observers] (
   def withErrorColor(color: String): SlackSink[F]                 = updateSlackConfig(_.copy(errorColor = color))
   def withMaxCauseSize(size: Int): SlackSink[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
   def withDurationFormatter(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
+
+  def withReportInterval(interval: FiniteDuration): SlackSink[F] =
+    updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
   private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
     new SlackSink[F](snsResource, cfg, f(eventFilter))
@@ -178,7 +186,7 @@ final class SlackSink[F[_]] private[observers] (
 
         sns.publish(msg).void
 
-      case MetricsReport(idx, at, si, params, next, metrics) =>
+      case MetricsReport(idx, at, si, params, prev, next, metrics) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
           StringUtils.abbreviate(translate(metrics), cfg.maxCauseSize),
@@ -200,7 +208,16 @@ final class SlackSink[F[_]] private[observers] (
             ))
         ).asJson.noSpaces
 
-        sns.publish(msg).void
+        val isShow: Boolean = (prev, cfg.reportInterval).mapN { case (prev, interval) =>
+          if (Duration.between(prev, at).toScala >= interval) true
+          else {
+            val border: ZonedDateTime =
+              si.launchTime.plus(((Duration.between(si.launchTime, at).toScala / interval).toLong * interval).toJava)
+            if (prev.isBefore(border) && at.isAfter(border)) true else false
+          }
+        }.fold(true)(identity)
+
+        sns.publish(msg).whenA(isShow)
 
       case ActionStart(params, action, at) =>
         def msg: String =
