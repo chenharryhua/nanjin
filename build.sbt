@@ -389,7 +389,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.cb372" %% "cats-retry-mtl" % "3.0.0"
+      "com.github.cb372" %% "cats-retry-mtl" % "3.1.0"
     ) ++ cronLib ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided),
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
