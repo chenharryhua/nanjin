@@ -12,7 +12,10 @@ import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
+import java.time.{Duration, ZonedDateTime}
 import scala.collection.JavaConverters.*
+import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
+import scala.concurrent.duration.FiniteDuration
 
 object slack {
   def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackSink[F] =
@@ -24,7 +27,8 @@ object slack {
         infoColor = "#b3d1ff",
         errorColor = "danger",
         maxCauseSize = 500,
-        durationFormatter = DurationFormatter.defaultFormatter
+        durationFormatter = DurationFormatter.defaultFormatter,
+        reportInterval = None
       ),
       EventFilter(
         serviceStarted = true,
@@ -37,8 +41,7 @@ object slack {
         actionFailed = true,
         fyi = true,
         passThrough = true,
-        metricsReport = true,
-        sampling = 1
+        metricsReport = true
       )
     )
 
@@ -51,7 +54,8 @@ final private case class SlackConfig(
   infoColor: String,
   errorColor: String,
   maxCauseSize: Int,
-  durationFormatter: DurationFormatter
+  durationFormatter: DurationFormatter,
+  reportInterval: Option[FiniteDuration]
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -70,12 +74,15 @@ final class SlackSink[F[_]] private[observers] (
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =
     new SlackSink[F](snsResource, f(cfg), eventFilter)
 
-  def withGoodColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(goodColor = color))
-  def withWarnColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(warnColor = color))
-  def withInfoColor(color: String): SlackSink[F]               = updateSlackConfig(_.copy(infoColor = color))
-  def withErrorColor(color: String): SlackSink[F]              = updateSlackConfig(_.copy(errorColor = color))
-  def withMaxCauseSize(size: Int): SlackSink[F]                = updateSlackConfig(_.copy(maxCauseSize = size))
-  def withDurationFormat(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
+  def withGoodColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(goodColor = color))
+  def withWarnColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(warnColor = color))
+  def withInfoColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(infoColor = color))
+  def withErrorColor(color: String): SlackSink[F]                 = updateSlackConfig(_.copy(errorColor = color))
+  def withMaxCauseSize(size: Int): SlackSink[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
+  def withDurationFormatter(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
+
+  def withReportInterval(interval: FiniteDuration): SlackSink[F] =
+    updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
   private def updateEventFilter(f: EventFilter => EventFilter): SlackSink[F] =
     new SlackSink[F](snsResource, cfg, f(eventFilter))
@@ -85,14 +92,8 @@ final class SlackSink[F[_]] private[observers] (
   def showFirstRetry: SlackSink[F] = updateEventFilter(EventFilter.actionFirstRetry.set(true))
   def showStart: SlackSink[F]      = updateEventFilter(EventFilter.actionStart.set(true))
 
-  def blockFail: SlackSink[F]        = updateEventFilter(EventFilter.actionFailed.set(false))
-  def blockFyi: SlackSink[F]         = updateEventFilter(EventFilter.fyi.set(false))
-  def blockPassThrough: SlackSink[F] = updateEventFilter(EventFilter.passThrough.set(false))
-
-  def sampleReport(n: Long): SlackSink[F] = {
-    require(n > 0, "n should be bigger than zero")
-    updateEventFilter(EventFilter.sampling.set(n))
-  }
+  def blockFail: SlackSink[F] = updateEventFilter(EventFilter.actionFailed.set(false))
+  def blockFyi: SlackSink[F]  = updateEventFilter(EventFilter.fyi.set(false))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
     Stream.resource(snsResource).flatMap(s => es.filter(eventFilter).evalMap(e => send(e, s))).drain
@@ -185,7 +186,7 @@ final class SlackSink[F[_]] private[observers] (
 
         sns.publish(msg).void
 
-      case MetricsReport(idx, at, si, params, next, metrics) =>
+      case MetricsReport(idx, at, si, params, prev, next, metrics) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
           StringUtils.abbreviate(translate(metrics), cfg.maxCauseSize),
@@ -207,7 +208,16 @@ final class SlackSink[F[_]] private[observers] (
             ))
         ).asJson.noSpaces
 
-        sns.publish(msg).void
+        val isShow: Boolean = (prev, cfg.reportInterval).mapN { case (prev, interval) =>
+          if (Duration.between(prev, at).toScala >= interval) true
+          else {
+            val border: ZonedDateTime =
+              si.launchTime.plus(((Duration.between(si.launchTime, at).toScala / interval).toLong * interval).toJava)
+            if (prev.isBefore(border) && at.isAfter(border)) true else false
+          }
+        }.fold(true)(identity)
+
+        sns.publish(msg).whenA(isShow)
 
       case ActionStart(params, action, at) =>
         def msg: String =
