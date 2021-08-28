@@ -37,7 +37,7 @@ final private[guard] class EventPublisher[F[_]](
   /** services
     */
 
-  val serviceReStart: F[Unit] =
+  val serviceReStarted: F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(ServiceStarted(ts, serviceInfo, serviceParams))
@@ -48,7 +48,7 @@ final private[guard] class EventPublisher[F[_]](
       .flatMap(ts => channel.send(ServicePanic(ts, serviceInfo, serviceParams, retryDetails, NJError(ex))))
       .map(_ => metricRegistry.counter(servicePanicMRName).inc())
 
-  val serviceStop: F[Unit] =
+  val serviceStopped: F[Unit] =
     realZonedDateTime
       .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo, serviceParams)))
       .map(_ => metricRegistry.counter(serviceStopMRName).inc())
@@ -116,7 +116,7 @@ final private[guard] class EventPublisher[F[_]](
   private def timing(name: String, actionInfo: ActionInfo, timestamp: ZonedDateTime): F[Unit] =
     F.delay(metricRegistry.timer(name).update(Duration.between(actionInfo.launchTime, timestamp)))
 
-  def actionSucc(actionInfo: ActionInfo, actionParams: ActionParams, numRetries: Int, notes: Notes): F[Unit] =
+  def actionSucced(actionInfo: ActionInfo, actionParams: ActionParams, numRetries: Int, notes: Notes): F[Unit] =
     actionParams.importance match {
       case Importance.High =>
         realZonedDateTime.flatMap(ts =>
@@ -162,7 +162,7 @@ final private[guard] class EventPublisher[F[_]](
       case Importance.Low    => F.unit
     }
 
-  def actionRetry(
+  def actionRetrying(
     actionInfo: ActionInfo,
     actionParams: ActionParams,
     willDelayAndRetry: WillDelayAndRetry,
@@ -182,7 +182,7 @@ final private[guard] class EventPublisher[F[_]](
             case Importance.Low                      => F.unit
           }))
 
-  def actionFail(
+  def actionFailed(
     actionInfo: ActionInfo,
     actionParams: ActionParams,
     numRetries: Int,

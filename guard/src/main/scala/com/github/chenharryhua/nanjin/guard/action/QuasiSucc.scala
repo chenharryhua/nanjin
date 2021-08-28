@@ -55,7 +55,7 @@ final class QuasiSucc[F[_], T[_], A, B](
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
         .guaranteeCase {
           case Outcome.Canceled() =>
-            publisher.actionFail(
+            publisher.actionFailed(
               actionInfo,
               params,
               0,
@@ -63,7 +63,7 @@ final class QuasiSucc[F[_], T[_], A, B](
               ActionException.ActionCanceledExternally)
 
           case Outcome.Errored(error) =>
-            publisher.actionFail(actionInfo, params, 0, Notes(ExceptionUtils.getMessage(error)), error)
+            publisher.actionFailed(actionInfo, params, 0, Notes(ExceptionUtils.getMessage(error)), error)
 
           case Outcome.Succeeded(fb) =>
             for {
