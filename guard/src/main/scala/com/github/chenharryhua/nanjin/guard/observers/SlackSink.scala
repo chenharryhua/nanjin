@@ -8,11 +8,12 @@ import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, 
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{INothing, Pipe, Stream}
-import io.chrisdavenport.cats.time.instances.zoneid
+import io.chrisdavenport.cats.time.instances.{localtime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
+import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.collection.JavaConverters.*
 import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
@@ -56,7 +57,7 @@ final private case class SlackNotification(username: String, text: String, attac
 final class SlackSink[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig)(implicit F: Sync[F])
-    extends Pipe[F, NJEvent, INothing] with zoneid {
+    extends Pipe[F, NJEvent, INothing] with zoneid with localtime {
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =
     new SlackSink[F](snsResource, f(cfg))
@@ -176,7 +177,7 @@ final class SlackSink[F[_]] private[observers] (
                 SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField(
                   s"Next(${toOrdinalWords(idx + 1)}) Check at", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
-                  next.fold("no time")(_.toLocalTime.toString),
+                  next.fold("no time")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                   short = true
                 ),
                 SlackField("Brief", params.brief, short = false)
@@ -329,8 +330,6 @@ final class SlackSink[F[_]] private[observers] (
             )
 
         sns.publish(msg.asJson.noSpaces).void
-
-      case ForYourInformation(_, message) => sns.publish(message).void
 
       // no op
       case _: PassThrough => F.unit

@@ -2,14 +2,11 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Outcome}
-import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.{Alternative, Parallel, Traverse}
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class QuasiSucc[F[_], T[_], A, B](
