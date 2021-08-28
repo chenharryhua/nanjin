@@ -73,8 +73,9 @@ final class ActionRetry[F[_], A, B](
     error: Throwable,
     details: RetryDetails): F[Unit] =
     details match {
-      case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, params, wdr, error) *> retryCount.update(_ + 1)
-      case _: GivingUp            => F.unit
+      case wdr: WillDelayAndRetry =>
+        publisher.actionRetrying(actionInfo, params, wdr, error) *> retryCount.update(_ + 1)
+      case _: GivingUp => F.unit
     }
 
   private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(
@@ -84,20 +85,20 @@ final class ActionRetry[F[_], A, B](
         for {
           count <- retryCount.get // number of retries
           fn <- failNotes(input, ActionException.ActionCanceledExternally)
-          _ <- publisher.actionFail(actionInfo, params, count, fn, ActionException.ActionCanceledExternally)
+          _ <- publisher.actionFailed(actionInfo, params, count, fn, ActionException.ActionCanceledExternally)
         } yield ()
       case Outcome.Errored(error) =>
         for {
           count <- retryCount.get // number of retries
           fn <- failNotes(input, error)
-          _ <- publisher.actionFail(actionInfo, params, count, fn, error)
+          _ <- publisher.actionFailed(actionInfo, params, count, fn, error)
         } yield ()
       case Outcome.Succeeded(fb) =>
         for {
           count <- retryCount.get // number of retries before success
           b <- fb
           sn <- succNotes(input, b)
-          _ <- publisher.actionSucc(actionInfo, params, count, sn)
+          _ <- publisher.actionSucced(actionInfo, params, count, sn)
         } yield ()
     }
 

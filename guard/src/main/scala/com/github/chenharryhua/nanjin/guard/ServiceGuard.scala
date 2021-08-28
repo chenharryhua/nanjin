@@ -55,10 +55,10 @@ final class ServiceGuard[F[_]] private[guard] (
 
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {
-            publisher.serviceReStart *> Dispatcher[F].use(dispatcher =>
+            publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
               actionGuard(new ActionGuard[F](publisher, dispatcher, ActionConfig(params))))
           }
-          .guarantee(publisher.serviceStop *> channel.close.void) // close channel and the stream as well
+          .guarantee(publisher.serviceStopped *> channel.close.void) // close channel and the stream as well
 
         /** concurrent streams
           */
