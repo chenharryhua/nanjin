@@ -24,14 +24,13 @@ final private[guard] class EventPublisher[F[_]](
   serviceParams: ServiceParams)(implicit F: Sync[F]) {
   private val metricsReportMRName: String                           = "01.health.check"
   private val serviceStartMRName: String                            = "02.service.start"
-  private val serviceStopMRName: String                             = "03.service.stop"
-  private val servicePanicMRName: String                            = "04.service.`panic`"
-  private val fyiMRName: String                                     = "05.fyi"
-  private def passThroughMRName(desc: String): String               = s"06.[$desc].count"
-  private def actionFailMRName(actionParams: ActionParams): String  = s"07.[${actionParams.actionName}].`fail`"
-  private def actionStartMRName(actionParams: ActionParams): String = s"07.[${actionParams.actionName}].count"
-  private def actionRetryMRName(actionParams: ActionParams): String = s"07.[${actionParams.actionName}].retry"
-  private def actionSuccMRName(actionParams: ActionParams): String  = s"07.[${actionParams.actionName}].succd"
+  private val serviceStopMRName: String                             = "02.service.stop"
+  private val servicePanicMRName: String                            = "02.service.`panic`"
+  private def passThroughMRName(desc: String): String               = s"03.[$desc].count"
+  private def actionFailMRName(actionParams: ActionParams): String  = s"04.[${actionParams.actionName}].`fail`"
+  private def actionStartMRName(actionParams: ActionParams): String = s"04.[${actionParams.actionName}].count"
+  private def actionRetryMRName(actionParams: ActionParams): String = s"04.[${actionParams.actionName}].retry"
+  private def actionSuccMRName(actionParams: ActionParams): String  = s"04.[${actionParams.actionName}].succd"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
@@ -211,12 +210,6 @@ final private[guard] class EventPublisher[F[_]](
       channel
         .send(PassThrough(timestamp = ts, description = description, value = json))
         .map(_ => metricRegistry.counter(passThroughMRName(description)).inc()))
-
-  def fyi(message: String): F[Unit] =
-    realZonedDateTime.flatMap(ts =>
-      channel
-        .send(ForYourInformation(timestamp = ts, message = message))
-        .map(_ => metricRegistry.counter(fyiMRName).inc()))
 
   def count(name: String, num: Long): F[Unit] = F.delay(metricRegistry.counter(name).inc(num))
 }

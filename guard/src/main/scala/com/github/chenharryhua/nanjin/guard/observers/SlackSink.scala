@@ -331,8 +331,6 @@ final class SlackSink[F[_]] private[observers] (
 
         sns.publish(msg.asJson.noSpaces).void
 
-      case ForYourInformation(_, message) => sns.publish(message).void
-
       // no op
       case _: PassThrough => F.unit
     }

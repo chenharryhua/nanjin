@@ -3,17 +3,9 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{
-  ForYourInformation,
-  NJEvent,
-  PassThrough,
-  ServiceStarted,
-  ServiceStopped
-}
+import com.github.chenharryhua.nanjin.guard.event.PassThrough
 import io.circe.Decoder
 import io.circe.generic.auto.*
-import io.circe.parser.decode
-import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 final case class PassThroughObject(a: Int, b: String)
@@ -40,32 +32,6 @@ class PassThroughTest extends AnyFunSuite {
     }.unNone.compile.toList.unsafeRunSync()
     assert(a == 1)
     assert(b == "a")
-  }
-
-  test("for your information") {
-    val Vector(s, a, b) = guard
-      .eventStream(_.fyi("hello, world"))
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(a.isInstanceOf[ForYourInformation])
-    assert(b.isInstanceOf[ServiceStopped])
-  }
-
-  test("unsafe FYI") {
-    val Vector(s, a, b) = guard
-      .eventStream(ag => IO(1).map(_ => ag.unsafeFYI("hello, world")))
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(a.isInstanceOf[ForYourInformation])
-    assert(b.isInstanceOf[ServiceStopped])
   }
 
 }

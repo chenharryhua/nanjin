@@ -53,12 +53,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def run[B](fb: F[B]): F[B] = retry(fb).run
 
-  def fyi(msg: String): F[Unit] = publisher.fyi(msg)
-
-  def unsafeFYI(msg: String): Unit = dispatcher.unsafeRunSync(fyi(msg))
-
-  def passThrough[A: Encoder](a: A, description: String): F[Unit] = publisher.passThrough(description, a.asJson)
-
+  def passThrough[A: Encoder](a: A, description: String): F[Unit]      = publisher.passThrough(description, a.asJson)
   def passThroughM[A: Encoder](fa: F[A], description: String): F[Unit] = F.flatMap(fa)(a => passThrough(a, description))
 
   def unsafePassThrough[A: Encoder](a: A, description: String): Unit =
