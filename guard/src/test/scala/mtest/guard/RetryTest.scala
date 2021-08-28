@@ -111,7 +111,7 @@ class RetryTest extends AnyFunSuite {
     val s :: b :: c :: d :: e :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
-        ag("null exception").trivial
+        ag("null exception")
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .retry(IO.raiseError(new NullPointerException))
           .run)
@@ -213,70 +213,61 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("retry - nonterminating - should retry") {
-    val s :: a :: b :: c :: s1 :: d :: e :: f :: s2 :: g :: h :: i :: rest = serviceGuard
+    val s :: b :: c :: s1 :: e :: f :: s2 :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
-      .eventStream(_.notice.nonStop(fs2.Stream(1))) // suppose run forever but...
+      .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
       .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
-    assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(c.isInstanceOf[ServicePanic])
     assert(s1.isInstanceOf[ServiceStarted])
-    assert(d.isInstanceOf[ActionStart])
     assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(f.isInstanceOf[ServicePanic])
     assert(s2.isInstanceOf[ServiceStarted])
-    assert(g.isInstanceOf[ActionStart])
     assert(h.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(i.isInstanceOf[ServicePanic])
   }
 
   test("retry - nonterminating - exception") {
 
-    val s :: a :: b :: c :: s1 :: d :: e :: f :: s2 :: g :: h :: i :: rest = serviceGuard
+    val s :: b :: c :: s1 :: e :: f :: s2 :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
-      .eventStream(_.notice.nonStop(IO.raiseError(new Exception("ex"))))
+      .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
       .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
-    assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(c.isInstanceOf[ServicePanic])
     assert(s1.isInstanceOf[ServiceStarted])
-    assert(d.isInstanceOf[ActionStart])
     assert(e.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(f.isInstanceOf[ServicePanic])
     assert(s2.isInstanceOf[ServiceStarted])
-    assert(g.isInstanceOf[ActionStart])
     assert(h.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(i.isInstanceOf[ServicePanic])
   }
 
   test("retry - nonterminating - cancelation") {
-    val s :: a :: b :: c :: s2 :: d :: e :: f :: s3 :: g :: h :: i :: rest = serviceGuard
+    val s :: b :: c :: s2 :: e :: f :: s3 :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
-      .eventStream(_.notice.nonStop(IO(1) >> IO.canceled))
+      .eventStream(_.nonStop(IO(1) >> IO.canceled))
       .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
-    assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(c.isInstanceOf[ServicePanic])
     assert(s2.isInstanceOf[ServiceStarted])
-    assert(d.isInstanceOf[ActionStart])
     assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(f.isInstanceOf[ServicePanic])
     assert(s3.isInstanceOf[ServiceStarted])
-    assert(g.isInstanceOf[ActionStart])
     assert(h.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(i.isInstanceOf[ServicePanic])
   }

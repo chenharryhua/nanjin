@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{INothing, Pipe, Stream}
 import io.chrisdavenport.cats.time.instances.zoneid
@@ -268,13 +269,13 @@ final class SlackSink[F[_]] private[observers] (
             notes.value,
             List(
               Attachment(
-                if (af.importance.value >= Importance.Medium.value) cfg.errorColor else cfg.warnColor,
+                if (params.importance.value > Importance.Low.value) cfg.errorColor else cfg.warnColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action", params.actionName, short = true),
-                  SlackField("Importance", af.importance.show, short = true),
+                  SlackField("Importance", params.importance.show, short = true),
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retried", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
