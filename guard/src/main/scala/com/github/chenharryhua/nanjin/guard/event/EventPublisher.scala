@@ -37,7 +37,7 @@ final private[guard] class EventPublisher[F[_]](
   /** services
     */
 
-  val serviceStart: F[Unit] =
+  val serviceReStart: F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(ServiceStarted(ts, serviceInfo, serviceParams))

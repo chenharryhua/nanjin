@@ -42,20 +42,20 @@ final class ServiceGuard[F[_]] private[guard] (
   def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, Some(Reader(builder)))
 
-  def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
-    val serviceInfo: F[ServiceInfo] = for {
-      ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-      uuid <- UUIDGen.randomUUID
-    } yield ServiceInfo(uuid = uuid, launchTime = ts)
-
+  def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] =
     for {
-      si <- Stream.eval(serviceInfo)
-      metricRegistry <- Stream.eval(F.delay(new MetricRegistry()))
+      serviceInfo <- Stream.eval(for {
+        ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
+        uuid <- UUIDGen.randomUUID
+      } yield ServiceInfo(uuid, ts))
+
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
-        val publisher: EventPublisher[F] = new EventPublisher[F](metricRegistry, channel, si, params)
+        val metricRegistry: MetricRegistry = new MetricRegistry()
+        val publisher: EventPublisher[F]   = new EventPublisher[F](metricRegistry, channel, serviceInfo, params)
+
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {
-            publisher.serviceStart *> Dispatcher[F].use(dispatcher =>
+            publisher.serviceReStart *> Dispatcher[F].use(dispatcher =>
               actionGuard(new ActionGuard[F](publisher, dispatcher, ActionConfig(params))))
           }
           .guarantee(publisher.serviceStop *> channel.close.void) // close channel and the stream as well
@@ -98,5 +98,4 @@ final class ServiceGuard[F[_]] private[guard] (
           .concurrently(reporting)
       }
     } yield event
-  }
 }
