@@ -75,12 +75,12 @@ final private[guard] class EventPublisher[F[_]](
         .map(_ => metricRegistry.counter(metricsReportMRName).inc())
     }
 
-  def metricsReport(idx: Long, cronExpr: CronExpr): F[Unit] =
+  def metricsReport(index: Long, cronExpr: CronExpr): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(
           MetricsReport(
-            index = idx + 1,
+            index = index,
             timestamp = ts,
             serviceInfo = serviceInfo,
             serviceParams = serviceParams,
