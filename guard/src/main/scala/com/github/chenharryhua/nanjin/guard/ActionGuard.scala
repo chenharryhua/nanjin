@@ -5,43 +5,35 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit, QuasiSucc, QuasiSuccUnit}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
-import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax.*
 
 import java.time.ZoneId
 
 final class ActionGuard[F[_]] private[guard] (
-  metricRegistry: MetricRegistry,
+  publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  channel: Channel[F, NJEvent],
   actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
   val params: ActionParams = actionConfig.evalConfig
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
-    new ActionGuard[F](
-      metricRegistry = metricRegistry,
-      dispatcher = dispatcher,
-      channel = channel,
-      actionConfig = f(actionConfig))
+    new ActionGuard[F](publisher, dispatcher, f(actionConfig))
 
   def apply(actionName: String): ActionGuard[F] = updateConfig(_.withActionName(actionName))
 
-  def trivial: ActionGuard[F] = updateConfig(_.withLowThroughput)
-  def notice: ActionGuard[F]  = updateConfig(_.withHighThroughput)
+  def trivial: ActionGuard[F] = updateConfig(_.withTrivial)
+  def notice: ActionGuard[F]  = updateConfig(_.withNotice)
 
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
@@ -52,8 +44,7 @@ final class ActionGuard[F[_]] private[guard] (
   def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       fb = fb,
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -62,33 +53,27 @@ final class ActionGuard[F[_]] private[guard] (
 
   def run[B](fb: F[B]): F[B] = retry(fb).run
 
-  def unsafeCount(name: String): Unit          = metricRegistry.counter(name).inc()
-  def count(name: String): F[Unit]             = F.delay(unsafeCount(name))
-  def unsafeCount(name: String, n: Long): Unit = metricRegistry.counter(name).inc(n)
-  def count(name: String, n: Long): F[Unit]    = F.delay(unsafeCount(name, n))
-
-  def fyi(msg: String): F[Unit] =
-    realZonedDateTime(params.serviceParams)
-      .flatMap(ts => channel.send(ForYourInformation(timestamp = ts, message = msg)))
-      .void
+  def fyi(msg: String): F[Unit] = publisher.fyi(msg)
 
   def unsafeFYI(msg: String): Unit = dispatcher.unsafeRunSync(fyi(msg))
 
-  def passThrough[A: Encoder](a: A, description: String): F[Unit] =
-    realZonedDateTime(params.serviceParams)
-      .flatMap(ts => channel.send(PassThrough(timestamp = ts, description = description, value = a.asJson)))
-      .void
+  def passThrough[A: Encoder](a: A, description: String): F[Unit] = publisher.passThrough(description, a.asJson)
 
   def passThroughM[A: Encoder](fa: F[A], description: String): F[Unit] = F.flatMap(fa)(a => passThrough(a, description))
 
   def unsafePassThrough[A: Encoder](a: A, description: String): Unit =
     dispatcher.unsafeRunSync(passThrough(a, description))
 
+  def count(name: String): F[Unit]             = publisher.count(name, 1)
+  def unsafeCount(name: String): Unit          = dispatcher.unsafeRunSync(count(name))
+  def count(name: String, n: Long): F[Unit]    = publisher.count(name, n)
+  def unsafeCount(name: String, n: Long): Unit = dispatcher.unsafeRunSync(count(name, n))
+
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    apply("nonStop")
+    apply("nonStop").trivial
       .updateConfig(_.withNonTermination.withMaxRetries(0))
       .retry(fb)
       .run
@@ -100,8 +85,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       ta = ta,
       kfab = Kleisli(f),
@@ -110,8 +94,7 @@ final class ActionGuard[F[_]] private[guard] (
 
   def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       tfb = tfb,
       succ = Kleisli(_ => F.pure("")),

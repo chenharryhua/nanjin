@@ -5,7 +5,6 @@ import cats.implicits.toShow
 import com.codahale.metrics.json.MetricsModule
 import com.codahale.metrics.{ConsoleReporter, MetricRegistry}
 import com.fasterxml.jackson.databind.ObjectMapper
-import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -119,15 +118,4 @@ object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMo
   override val values: immutable.IndexedSeq[RunMode] = findValues
   case object Parallel extends RunMode
   case object Sequential extends RunMode
-}
-
-sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercase
-
-object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
-  override def values: immutable.IndexedSeq[Importance] = findValues
-
-  case object SystemEvent extends Importance(4)
-  case object High extends Importance(3)
-  case object Medium extends Importance(2)
-  case object Low extends Importance(1)
 }

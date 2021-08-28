@@ -3,21 +3,16 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.{Async, Outcome, Ref}
-import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import fs2.concurrent.Channel
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class ActionRetry[F[_], A, B](
-  metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent],
+  publisher: EventPublisher[F],
   params: ActionParams,
   kfab: Kleisli[F, A, B],
   succ: Kleisli[F, (A, B), String],
@@ -27,8 +22,7 @@ final class ActionRetry[F[_], A, B](
 
   def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       kfab = kfab,
       succ = Kleisli(succ.tupled),
@@ -41,8 +35,7 @@ final class ActionRetry[F[_], A, B](
 
   def withFailNotesM(fail: (A, Throwable) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       kfab = kfab,
       succ = succ,
@@ -55,8 +48,7 @@ final class ActionRetry[F[_], A, B](
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       kfab = kfab,
       succ = succ,
@@ -66,19 +58,13 @@ final class ActionRetry[F[_], A, B](
 
   def withPostCondition(postCondition: B => Boolean): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       kfab = kfab,
       succ = succ,
       fail = fail,
       isWorthRetry = isWorthRetry,
       postCondition = Predicate(postCondition))
-
-  private val actionInfo: F[ActionInfo] = for {
-    ts <- realZonedDateTime(params.serviceParams)
-    uuid <- UUIDGen.randomUUID
-  } yield ActionInfo(uuid = uuid, launchTime = ts)
 
   private def failNotes(input: A, error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
   private def succNotes(input: A, b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))
@@ -87,19 +73,8 @@ final class ActionRetry[F[_], A, B](
     error: Throwable,
     details: RetryDetails): F[Unit] =
     details match {
-      case wdr: WillDelayAndRetry =>
-        for {
-          now <- realZonedDateTime(params.serviceParams)
-          _ <- retryCount.update(_ + 1)
-          _ <- channel.send(
-            ActionRetrying(
-              actionInfo = actionInfo,
-              timestamp = now,
-              actionParams = params,
-              willDelayAndRetry = wdr,
-              error = NJError(error)))
-        } yield ()
-      case _: GivingUp => F.unit
+      case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, params, wdr, error) *> retryCount.update(_ + 1)
+      case _: GivingUp            => F.unit
     }
 
   private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(
@@ -108,58 +83,28 @@ final class ActionRetry[F[_], A, B](
       case Outcome.Canceled() =>
         for {
           count <- retryCount.get // number of retries
-          now <- realZonedDateTime(params.serviceParams)
           fn <- failNotes(input, ActionException.ActionCanceledExternally)
-          _ <- channel.send(
-            ActionFailed(
-              actionInfo = actionInfo,
-              timestamp = now,
-              actionParams = params,
-              numRetries = count,
-              notes = fn,
-              error = NJError(ActionException.ActionCanceledExternally)
-            ))
+          _ <- publisher.actionFail(actionInfo, params, count, fn, ActionException.ActionCanceledExternally)
         } yield ()
       case Outcome.Errored(error) =>
         for {
           count <- retryCount.get // number of retries
-          now <- realZonedDateTime(params.serviceParams)
           fn <- failNotes(input, error)
-          _ <- channel.send(
-            event.ActionFailed(
-              actionInfo = actionInfo,
-              timestamp = now,
-              actionParams = params,
-              numRetries = count,
-              notes = fn,
-              error = NJError(error)))
+          _ <- publisher.actionFail(actionInfo, params, count, fn, error)
         } yield ()
       case Outcome.Succeeded(fb) =>
-        if (params.throughputLevel.isFireSuccEvent)
-          for {
-            count <- retryCount.get // number of retries before success
-            now <- realZonedDateTime(params.serviceParams)
-            b <- fb
-            sn <- succNotes(input, b)
-            _ <- channel.send(
-              ActionSucced(
-                actionInfo = actionInfo,
-                timestamp = now,
-                actionParams = params,
-                numRetries = count,
-                notes = sn))
-          } yield ()
-        else F.delay(metricRegistry.counter(actionSuccMRName(params.actionName)).inc())
+        for {
+          count <- retryCount.get // number of retries before success
+          b <- fb
+          sn <- succNotes(input, b)
+          _ <- publisher.actionSucc(actionInfo, params, count, sn)
+        } yield ()
     }
 
   def run(input: A): F[B] =
     for {
       retryCount <- F.ref(0) // hold number of retries
-      ai <- actionInfo
-      _ <-
-        if (params.throughputLevel.isFireStartEvent)
-          channel.send(ActionStart(actionInfo = ai, timestamp = ai.launchTime, actionParams = params))
-        else F.delay(metricRegistry.counter(actionStartMRName(params.actionName)).inc())
+      ai <- publisher.actionStart(params)
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](
@@ -183,8 +128,7 @@ final class ActionRetry[F[_], A, B](
 
 final class ActionRetryUnit[F[_], B](
   fb: F[B],
-  metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent],
+  publisher: EventPublisher[F],
   params: ActionParams,
   succ: Kleisli[F, B, String],
   fail: Kleisli[F, Throwable, String],
@@ -194,8 +138,7 @@ final class ActionRetryUnit[F[_], B](
   def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       fb = fb,
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       succ = Kleisli(succ),
       fail = fail,
@@ -208,8 +151,7 @@ final class ActionRetryUnit[F[_], B](
   def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       fb = fb,
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       succ = succ,
       fail = Kleisli(fail),
@@ -222,8 +164,7 @@ final class ActionRetryUnit[F[_], B](
   def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       fb = fb,
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       succ = succ,
       fail = fail,
@@ -233,8 +174,7 @@ final class ActionRetryUnit[F[_], B](
   def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](
       fb = fb,
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       succ = succ,
       fail = fail,
@@ -243,8 +183,7 @@ final class ActionRetryUnit[F[_], B](
 
   val run: F[B] =
     new ActionRetry[F, Unit, B](
-      metricRegistry = metricRegistry,
-      channel = channel,
+      publisher = publisher,
       params = params,
       kfab = Kleisli(_ => fb),
       succ = succ.local(_._2),
