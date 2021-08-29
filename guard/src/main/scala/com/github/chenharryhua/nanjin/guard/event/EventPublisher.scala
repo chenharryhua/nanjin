@@ -30,11 +30,13 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private val servicePanicMRName: String  = "04.service.`panic`"
 
   // action level
-  private def passThroughMRName(desc: String): String               = s"10.[$desc].count"
+  private def passThroughMRName(actionParams: ActionParams): String = s"10.[${actionParams.actionName}].passThrough"
+  private def counterMRName(actionParams: ActionParams): String     = s"11.[${actionParams.actionName}].counter"
+
   private def actionFailMRName(actionParams: ActionParams): String  = s"12.[${actionParams.actionName}].`fail`"
-  private def actionStartMRName(actionParams: ActionParams): String = s"12.[${actionParams.actionName}].count"
+  private def actionStartMRName(actionParams: ActionParams): String = s"12.[${actionParams.actionName}].total"
   private def actionRetryMRName(actionParams: ActionParams): String = s"12.[${actionParams.actionName}].retry"
-  private def actionSuccMRName(actionParams: ActionParams): String  = s"12.[${actionParams.actionName}].succd"
+  private def actionSuccMRName(actionParams: ActionParams): String  = s"12.[${actionParams.actionName}].succ"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
@@ -209,11 +211,12 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             case Importance.Low                      => F.unit
           }))
 
-  def passThrough(description: String, json: Json): F[Unit] =
+  def passThrough(actionParams: ActionParams, json: Json): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
-        .send(PassThrough(timestamp = ts, name = description, value = json))
-        .map(_ => metricRegistry.counter(passThroughMRName(description)).inc()))
+        .send(PassThrough(ts, actionParams, json))
+        .map(_ => metricRegistry.counter(passThroughMRName(actionParams)).inc()))
 
-  def count(name: String, num: Long): F[Unit] = F.pure(metricRegistry.counter(name).inc(num))
+  def count(actionParams: ActionParams, num: Long): F[Unit] =
+    F.pure(metricRegistry.counter(counterMRName(actionParams)).inc(num))
 }
