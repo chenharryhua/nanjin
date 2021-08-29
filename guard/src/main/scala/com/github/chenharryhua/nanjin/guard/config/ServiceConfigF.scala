@@ -17,6 +17,7 @@ import scala.concurrent.duration.*
   metricsReset: Option[CronExpr],
   metricsRateTimeUnit: TimeUnit,
   metricsDurationTimeUnit: TimeUnit,
+  queueCapacity: Int, // synchronous
   brief: String
 )
 
@@ -31,6 +32,7 @@ object ServiceParams {
       metricsReset = None,
       metricsRateTimeUnit = TimeUnit.SECONDS,
       metricsDurationTimeUnit = TimeUnit.MILLISECONDS,
+      queueCapacity = 0,
       brief = "The developer is too lazy to provide a brief"
     )
 }
@@ -53,6 +55,8 @@ private object ServiceConfigF {
 
   final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
 
+  final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(s, t)                  => ServiceParams(s, t)
@@ -63,11 +67,15 @@ private object ServiceConfigF {
       case WithMetricsReset(v, c)            => ServiceParams.metricsReset.set(v)(c)
       case WithMetricsRateTimeUnit(v, c)     => ServiceParams.metricsRateTimeUnit.set(v)(c)
       case WithMetricsDurationTimeUnit(v, c) => ServiceParams.metricsDurationTimeUnit.set(v)(c)
+      case WithQueueCapacity(v, c)           => ServiceParams.queueCapacity.set(v)(c)
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
+
+  def withQueueCapacity(size: Int): ServiceConfig =
+    ServiceConfig(Fix(WithQueueCapacity(size, value)))
 
   def withServiceName(name: String): ServiceConfig =
     ServiceConfig(Fix(WithServiceName(name, value)))

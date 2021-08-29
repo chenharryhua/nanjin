@@ -77,6 +77,7 @@ class ServiceTest extends AnyFunSuite {
     val s :: b :: c :: d :: rest = guard
       .updateConfig(_.withReportingSchedule(1.second))
       .eventStream(_.trivial.retry(IO.never).run)
+      .debug()
       .interruptAfter(5.second)
       .compile
       .toList
@@ -129,12 +130,11 @@ class ServiceTest extends AnyFunSuite {
   ignore("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
-      .updateConfig(_.withConstantDelay(1.minute).withReportingSchedule(30.seconds))
-      .withJmxReporter(_.inDomain("xyz"))
-      .eventStream(ag => ag("performance").trivial.run(IO(0).delayBy(5.second)).foreverM)
-      .observe(console(_.show))
-      .observe(cloudwatch("test"))
-      .interruptAfter(1.hour)
+      .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(3.seconds))
+      .eventStream(ag => ag("performance").run(ag.passThrough(1).foreverM))
+      .filter(_.isInstanceOf[MetricsReport])
+      .through(console(_.show))
+      //.interruptAfter(630.seconds)
       .compile
       .toList
       .unsafeRunSync()
