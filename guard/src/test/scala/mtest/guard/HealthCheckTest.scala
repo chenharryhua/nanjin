@@ -28,7 +28,7 @@ class HealthCheckTest extends AnyFunSuite {
       .withJmxReporter(_.inDomain("abc"))
       .updateConfig(_.withReportingSchedule("* * * ? * *"))
       .eventStream(gd => gd("cron").notice.retry(IO.never[Int]).run)
-      .observe(console(_.show))
+      .evalTap(console[IO](_.show))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)
@@ -47,7 +47,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .updateConfig(_.withReportingSchedule(1.second))
       .eventStream(gd => gd.notice.retry(IO(1)).run >> gd.notice.retry(IO.never).run)
-      .observe(console(_.asJson.noSpaces))
+      .evalTap(console[IO](_.asJson.noSpaces))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)
@@ -76,7 +76,7 @@ class HealthCheckTest extends AnyFunSuite {
           .max(10)
           .run(IO.raiseError(new Exception)))
       .interruptAfter(5.second)
-      .observe(logging(_.show))
+      .evalTap(logging[IO](_.show))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
