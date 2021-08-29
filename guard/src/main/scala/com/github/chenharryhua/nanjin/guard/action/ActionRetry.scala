@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.{Async, Outcome, Ref}
+import cats.effect.Temporal
+import cats.effect.kernel.{Outcome, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
@@ -18,7 +19,7 @@ final class ActionRetry[F[_], A, B](
   succ: Kleisli[F, (A, B), String],
   fail: Kleisli[F, (A, Throwable), String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B])(implicit F: Async[F]) {
+  postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
   def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -134,7 +135,7 @@ final class ActionRetryUnit[F[_], B](
   succ: Kleisli[F, B, String],
   fail: Kleisli[F, Throwable, String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B])(implicit F: Async[F]) {
+  postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
   def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
     new ActionRetryUnit[F, B](

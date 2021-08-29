@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.Async
+import cats.effect.Temporal
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -18,7 +18,7 @@ import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
   publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  actionConfig: ActionConfig)(implicit F: Async[F])
+  actionConfig: ActionConfig)(implicit F: Temporal[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
   val params: ActionParams = actionConfig.evalConfig
@@ -53,16 +53,12 @@ final class ActionGuard[F[_]] private[guard] (
 
   def run[B](fb: F[B]): F[B] = retry(fb).run
 
-  def passThrough[A: Encoder](a: A, description: String): F[Unit]      = publisher.passThrough(description, a.asJson)
-  def passThroughM[A: Encoder](fa: F[A], description: String): F[Unit] = F.flatMap(fa)(a => passThrough(a, description))
+  def passThrough[A: Encoder](a: A): F[Unit]      = publisher.passThrough(params, a.asJson)
+  def passThroughM[A: Encoder](fa: F[A]): F[Unit] = F.flatMap(fa)(passThrough(_))
+  def unsafePassThrough[A: Encoder](a: A): Unit   = dispatcher.unsafeRunSync(passThrough(a))
 
-  def unsafePassThrough[A: Encoder](a: A, description: String): Unit =
-    dispatcher.unsafeRunSync(passThrough(a, description))
-
-  def count(name: String): F[Unit]             = publisher.count(name, 1)
-  def unsafeCount(name: String): Unit          = dispatcher.unsafeRunSync(count(name))
-  def count(name: String, n: Long): F[Unit]    = publisher.count(name, n)
-  def unsafeCount(name: String, n: Long): Unit = dispatcher.unsafeRunSync(count(name, n))
+  def count(n: Long): F[Unit]    = publisher.count(params, n)
+  def unsafeCount(n: Long): Unit = dispatcher.unsafeRunSync(count(n))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))

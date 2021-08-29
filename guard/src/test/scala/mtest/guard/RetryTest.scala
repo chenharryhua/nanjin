@@ -21,7 +21,7 @@ class RetryTest extends AnyFunSuite {
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
-        .withFailNotes((a, e) => "")
+        .withFailNotes((a, e) => s"$a $e")
         .withWorthRetry(_ => true)
         .run(1)
     }.compile.toVector.unsafeRunSync()
