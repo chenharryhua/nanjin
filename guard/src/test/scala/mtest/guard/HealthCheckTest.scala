@@ -42,7 +42,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(c.isInstanceOf[MetricsReport])
   }
 
-  test("success") {
+  test("success-test") {
     val s :: a :: b :: c :: d :: rest = guard
       .service("success-test")
       .updateConfig(_.withReportingSchedule(1.second))
@@ -61,15 +61,20 @@ class HealthCheckTest extends AnyFunSuite {
     assert(d.isInstanceOf[MetricsReport])
   }
 
-  test("retry") {
+  test("always-failure") {
     val s :: a :: b :: c :: rest = guard
-      .service("failure-test")
+      .service("always-failure")
       .updateConfig(
         _.withReportingSchedule(1.second)
           .withConstantDelay(1.hour)
           .withMetricsDurationTimeUnit(TimeUnit.MICROSECONDS)
           .withMetricsRateTimeUnit(TimeUnit.MINUTES))
-      .eventStream(gd => gd("always-failure").notice.max(1).run(IO.raiseError(new Exception)) >> gd.retry(IO.never).run)
+      .eventStream(gd =>
+        gd("always-failure")
+          .updateConfig(_.withConstantDelay(1.second))
+          .notice
+          .max(10)
+          .run(IO.raiseError(new Exception)))
       .interruptAfter(5.second)
       .observe(logging(_.show))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
