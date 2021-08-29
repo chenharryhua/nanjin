@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.Temporal
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
@@ -17,20 +17,24 @@ import java.time.{Duration, ZonedDateTime}
 import scala.compat.java8.DurationConverters.FiniteDurationops
 import scala.concurrent.duration.FiniteDuration
 
-final private[guard] class EventPublisher[F[_]](
+final private[guard] class EventPublisher[F[_]: UUIDGen](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   serviceInfo: ServiceInfo,
-  serviceParams: ServiceParams)(implicit F: Sync[F]) {
-  private val metricsReportMRName: String                           = "01.health.check"
-  private val serviceStartMRName: String                            = "02.service.start"
-  private val serviceStopMRName: String                             = "02.service.stop"
-  private val servicePanicMRName: String                            = "02.service.`panic`"
-  private def passThroughMRName(desc: String): String               = s"03.[$desc].count"
-  private def actionFailMRName(actionParams: ActionParams): String  = s"04.[${actionParams.actionName}].`fail`"
-  private def actionStartMRName(actionParams: ActionParams): String = s"04.[${actionParams.actionName}].count"
-  private def actionRetryMRName(actionParams: ActionParams): String = s"04.[${actionParams.actionName}].retry"
-  private def actionSuccMRName(actionParams: ActionParams): String  = s"04.[${actionParams.actionName}].succd"
+  serviceParams: ServiceParams)(implicit F: Temporal[F]) {
+
+  // service level
+  private val metricsReportMRName: String = "01.health.check"
+  private val serviceStartMRName: String  = "02.service.start"
+  private val serviceStopMRName: String   = "03.service.stop"
+  private val servicePanicMRName: String  = "04.service.`panic`"
+
+  // action level
+  private def passThroughMRName(desc: String): String               = s"10.[$desc].count"
+  private def actionFailMRName(actionParams: ActionParams): String  = s"12.[${actionParams.actionName}].`fail`"
+  private def actionStartMRName(actionParams: ActionParams): String = s"12.[${actionParams.actionName}].count"
+  private def actionRetryMRName(actionParams: ActionParams): String = s"12.[${actionParams.actionName}].retry"
+  private def actionSuccMRName(actionParams: ActionParams): String  = s"12.[${actionParams.actionName}].succd"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
@@ -108,13 +112,13 @@ final private[guard] class EventPublisher[F[_]](
             .send(ActionStart(actionParams, actionInfo, ts))
             .map(_ => metricRegistry.counter(actionStartMRName(actionParams)).inc())
         case Importance.Medium =>
-          F.delay(metricRegistry.counter(actionStartMRName(actionParams)).inc())
+          F.pure(metricRegistry.counter(actionStartMRName(actionParams)).inc())
         case Importance.Low => F.unit
       }
     } yield actionInfo
 
   private def timing(name: String, actionInfo: ActionInfo, timestamp: ZonedDateTime): F[Unit] =
-    F.delay(metricRegistry.timer(name).update(Duration.between(actionInfo.launchTime, timestamp)))
+    F.pure(metricRegistry.timer(name).update(Duration.between(actionInfo.launchTime, timestamp)))
 
   def actionSucced(actionInfo: ActionInfo, actionParams: ActionParams, numRetries: Int, notes: Notes): F[Unit] =
     actionParams.importance match {
@@ -208,8 +212,8 @@ final private[guard] class EventPublisher[F[_]](
   def passThrough(description: String, json: Json): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
-        .send(PassThrough(timestamp = ts, description = description, value = json))
+        .send(PassThrough(timestamp = ts, name = description, value = json))
         .map(_ => metricRegistry.counter(passThroughMRName(description)).inc()))
 
-  def count(name: String, num: Long): F[Unit] = F.delay(metricRegistry.counter(name).inc(num))
+  def count(name: String, num: Long): F[Unit] = F.pure(metricRegistry.counter(name).inc(num))
 }
