@@ -44,10 +44,10 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] =
     for {
-      serviceInfo <- Stream.eval(for {
-        ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-        uuid <- UUIDGen.randomUUID
-      } yield ServiceInfo(uuid, ts))
+      serviceInfo <- Stream.eval(
+        F.realTimeInstant
+          .map(_.atZone(params.taskParams.zoneId))
+          .flatMap(ts => UUIDGen.randomUUID.map(uuid => ServiceInfo(uuid, ts))))
 
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
@@ -58,7 +58,7 @@ final class ServiceGuard[F[_]] private[guard] (
             publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
               actionGuard(new ActionGuard[F](publisher, dispatcher, ActionConfig(params))))
           }
-          .guarantee(publisher.serviceStopped *> channel.close.void) // close channel and the stream as well
+          .guarantee(publisher.serviceStopped <* channel.close) // close channel and the stream as well
 
         /** concurrent streams
           */
@@ -92,7 +92,7 @@ final class ServiceGuard[F[_]] private[guard] (
         // put together
 
         channel.stream
-          .concurrently(Stream.eval(theService).drain)
+          .concurrently(Stream.eval(theService))
           .concurrently(metricsReset)
           .concurrently(jmxReporting)
           .concurrently(reporting)

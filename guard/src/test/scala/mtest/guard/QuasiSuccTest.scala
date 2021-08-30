@@ -61,9 +61,9 @@ class QuasiSuccTest extends AnyFunSuite {
             .seqRun)
         .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
         .unNone
+        .through(slack[IO](sns))
         .evalTap(logging[IO](_.show))
         .evalTap(logging[IO](_.asJson.noSpaces))
-        .observe(slack(sns))
         .compile
         .toVector
         .unsafeRunSync()

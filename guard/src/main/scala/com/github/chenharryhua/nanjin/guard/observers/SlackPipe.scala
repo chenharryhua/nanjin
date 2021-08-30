@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
-import fs2.{INothing, Pipe, Stream}
+import fs2.{Pipe, Stream}
 import io.chrisdavenport.cats.time.instances.{localtime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
@@ -20,8 +20,8 @@ import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
 import scala.concurrent.duration.FiniteDuration
 
 object slack {
-  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackSink[F] =
-    new SlackSink[F](
+  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
+    new SlackPipe[F](
       snsResource,
       SlackConfig(
         goodColor = "good",
@@ -34,7 +34,7 @@ object slack {
       )
     )
 
-  def apply[F[_]: Sync](snsArn: SnsArn): SlackSink[F] = apply[F](SimpleNotificationService[F](snsArn))
+  def apply[F[_]: Sync](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
 }
 
 final private case class SlackConfig(
@@ -54,26 +54,26 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final class SlackSink[F[_]] private[observers] (
+final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig)(implicit F: Sync[F])
-    extends Pipe[F, NJEvent, INothing] with zoneid with localtime {
+    extends Pipe[F, NJEvent, NJEvent] with zoneid with localtime {
 
-  private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackSink[F] =
-    new SlackSink[F](snsResource, f(cfg))
+  private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackPipe[F] =
+    new SlackPipe[F](snsResource, f(cfg))
 
-  def withGoodColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(goodColor = color))
-  def withWarnColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(warnColor = color))
-  def withInfoColor(color: String): SlackSink[F]                  = updateSlackConfig(_.copy(infoColor = color))
-  def withErrorColor(color: String): SlackSink[F]                 = updateSlackConfig(_.copy(errorColor = color))
-  def withMaxCauseSize(size: Int): SlackSink[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
-  def withDurationFormatter(fmt: DurationFormatter): SlackSink[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
+  def withGoodColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(goodColor = color))
+  def withWarnColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(warnColor = color))
+  def withInfoColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(infoColor = color))
+  def withErrorColor(color: String): SlackPipe[F]                 = updateSlackConfig(_.copy(errorColor = color))
+  def withMaxCauseSize(size: Int): SlackPipe[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
+  def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
 
-  def withReportInterval(interval: FiniteDuration): SlackSink[F] =
+  def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
-  override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s))).drain
+  override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
+    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).as(e)))
 
   private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"
