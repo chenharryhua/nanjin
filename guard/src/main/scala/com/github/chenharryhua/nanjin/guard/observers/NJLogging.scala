@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.data.Reader
 import cats.effect.kernel.Sync
-import cats.implicits.toShow
+import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.event.{ActionFailed, ActionRetrying, NJEvent, ServicePanic}
+import fs2.Chunk
 import org.log4s.Logger
 
 object logging {
@@ -27,4 +28,6 @@ final class NJLogging[F[_]] private[observers] (converter: Reader[NJEvent, Strin
       case _ => F.blocking(logger.info(out))
     }
   }
+
+  def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
 }

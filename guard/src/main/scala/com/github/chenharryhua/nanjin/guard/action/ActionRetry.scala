@@ -106,13 +106,13 @@ final class ActionRetry[F[_], A, B](
   def run(input: A): F[B] =
     for {
       retryCount <- F.ref(0) // hold number of retries
-      ai <- publisher.actionStart(params)
+      actionInfo <- publisher.actionStart(params)
       res <- F.uncancelable(poll =>
         retry.mtl
           .retryingOnSomeErrors[B](
             params.retry.policy[F],
             isWorthRetry.map(F.pure).run,
-            onError(ai, retryCount)
+            onError(actionInfo, retryCount)
           ) {
             for {
               gate <- F.deferred[Outcome[F, Throwable, B]]
@@ -124,7 +124,7 @@ final class ActionRetry[F[_], A, B](
               _ <- F.raiseError(ActionException.PostConditionUnsatisfied).whenA(!postCondition(oc))
             } yield oc
           }
-          .guaranteeCase(handleOutcome(input, ai, retryCount)))
+          .guaranteeCase(handleOutcome(input, actionInfo, retryCount)))
     } yield res
 }
 
