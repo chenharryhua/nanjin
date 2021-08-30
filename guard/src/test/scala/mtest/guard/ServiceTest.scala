@@ -2,11 +2,12 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter
+import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, console}
+import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, console, logging, slack}
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -130,13 +131,13 @@ class ServiceTest extends AnyFunSuite {
   ignore("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
-      .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(3.seconds))
-      .eventStream(ag => ag("performance").run(ag.passThrough(1).foreverM))
+      .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(crontabs.every5Seconds).withQueueCapacity(20))
+      .eventStream(ag => ag.run(ag.passThrough(1).foreverM))
       .filter(_.isInstanceOf[MetricsReport])
-      .through(console(_.show))
-      //.interruptAfter(630.seconds)
+      .through(slack[IO](SimpleNotificationService.fake[IO]))
+      .evalTap(logging[IO](_.show))
       .compile
-      .toList
+      .drain
       .unsafeRunSync()
   }
 }
