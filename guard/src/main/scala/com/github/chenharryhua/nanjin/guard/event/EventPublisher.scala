@@ -30,13 +30,12 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private val servicePanicMRName: String  = "04.service.`panic`"
 
   // action level
-  private def passThroughMRName(actionParams: ActionParams): String = s"10.[${actionParams.actionName}].passThrough"
-  private def counterMRName(actionParams: ActionParams): String     = s"11.[${actionParams.actionName}].counter"
-
-  private def actionFailMRName(actionParams: ActionParams): String  = s"12.[${actionParams.actionName}].`fail`"
-  private def actionStartMRName(actionParams: ActionParams): String = s"12.[${actionParams.actionName}].total"
-  private def actionRetryMRName(actionParams: ActionParams): String = s"12.[${actionParams.actionName}].retry"
-  private def actionSuccMRName(actionParams: ActionParams): String  = s"12.[${actionParams.actionName}].succ"
+  private def passThroughMRName(params: ActionParams): String = s"10.pass.through.[${params.actionName}]"
+  private def counterMRName(params: ActionParams): String     = s"11.counter.[${params.actionName}]"
+  private def actionFailMRName(params: ActionParams): String  = s"12.action.[${params.actionName}].`fail`"
+  private def actionStartMRName(params: ActionParams): String = s"12.action.[${params.actionName}].count"
+  private def actionRetryMRName(params: ActionParams): String = s"12.action.[${params.actionName}].retry"
+  private def actionSuccMRName(params: ActionParams): String  = s"12.action.[${params.actionName}].succd"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 

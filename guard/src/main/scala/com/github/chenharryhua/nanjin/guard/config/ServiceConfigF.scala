@@ -32,7 +32,7 @@ object ServiceParams {
       metricsReset = None,
       metricsRateTimeUnit = TimeUnit.SECONDS,
       metricsDurationTimeUnit = TimeUnit.MILLISECONDS,
-      queueCapacity = 0,
+      queueCapacity = Int.MaxValue, // 0,
       brief = "The developer is too lazy to provide a brief"
     )
 }
