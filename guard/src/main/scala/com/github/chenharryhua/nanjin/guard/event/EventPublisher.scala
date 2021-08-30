@@ -112,9 +112,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           channel
             .send(ActionStart(actionParams, actionInfo, ts))
             .map(_ => metricRegistry.counter(actionStartMRName(actionParams)).inc())
-        case Importance.Medium =>
-          F.pure(metricRegistry.counter(actionStartMRName(actionParams)).inc())
-        case Importance.Low => F.unit
+        case Importance.Medium => F.pure(metricRegistry.counter(actionStartMRName(actionParams)).inc())
+        case Importance.Low    => F.unit
       }
     } yield actionInfo
 
