@@ -17,7 +17,7 @@ import scala.concurrent.duration.*
   metricsReset: Option[CronExpr],
   metricsRateTimeUnit: TimeUnit,
   metricsDurationTimeUnit: TimeUnit,
-  queueCapacity: Int, // synchronous
+  queueCapacity: Int,
   brief: String
 )
 
@@ -32,7 +32,7 @@ object ServiceParams {
       metricsReset = None,
       metricsRateTimeUnit = TimeUnit.SECONDS,
       metricsDurationTimeUnit = TimeUnit.MILLISECONDS,
-      queueCapacity = Int.MaxValue, // 0,
+      queueCapacity = 0, // synchronous
       brief = "The developer is too lazy to provide a brief"
     )
 }
