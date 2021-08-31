@@ -23,6 +23,7 @@ class ServiceTest extends AnyFunSuite {
   test("should stopped if the operation normally exits") {
     val Vector(a, d) = guard
       .updateConfig(_.withJitterBackoff(3.second))
+      .updateConfig(_.withQueueCapacity(1))
       .eventStream(gd =>
         gd("normal-exit-action").trivial.max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -37,6 +38,7 @@ class ServiceTest extends AnyFunSuite {
   test("escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
+      .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd("escalate-after-3-time").notice
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
@@ -61,6 +63,7 @@ class ServiceTest extends AnyFunSuite {
   test("json codec") {
     val vec = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
+      .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
         gd("json-codec").notice
           .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
@@ -77,6 +80,7 @@ class ServiceTest extends AnyFunSuite {
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
       .updateConfig(_.withReportingSchedule(1.second))
+      .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.trivial.retry(IO.never).run)
       .debug()
       .interruptAfter(5.second)
@@ -92,6 +96,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
+      .updateConfig(_.withQueueCapacity(10))
       .eventStream(gd => gd("a").notice.retry(IO(1)).run >> gd("b").notice.retry(IO(2)).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -122,6 +127,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("zoneId ") {
     guard
+      .updateConfig(_.withQueueCapacity(100))
       .eventStream(ag => IO(assert(ag.zoneId == ag.params.serviceParams.taskParams.zoneId)))
       .compile
       .drain
