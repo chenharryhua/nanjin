@@ -83,10 +83,11 @@ final class ActionRetry[F[_], A, B] private[guard] (
     outcome: Outcome[F, Throwable, B]): F[Unit] =
     outcome match {
       case Outcome.Canceled() =>
+        val error = ActionException.ActionCanceledExternally
         for {
           count <- retryCount.get // number of retries
-          fn <- failNotes(input, ActionException.ActionCanceledExternally)
-          _ <- publisher.actionFailed(actionInfo, params, count, fn, ActionException.ActionCanceledExternally)
+          fn <- failNotes(input, error)
+          _ <- publisher.actionFailed(actionInfo, params, count, fn, error)
         } yield ()
       case Outcome.Errored(error) =>
         for {
