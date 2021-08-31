@@ -12,7 +12,7 @@ import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
-final class ActionRetry[F[_], A, B](
+final class ActionRetry[F[_], A, B] private[guard] (
   publisher: EventPublisher[F],
   params: ActionParams,
   kfab: Kleisli[F, A, B],
@@ -128,7 +128,7 @@ final class ActionRetry[F[_], A, B](
     } yield res
 }
 
-final class ActionRetryUnit[F[_], B](
+final class ActionRetryUnit[F[_], B] private[guard] (
   fb: F[B],
   publisher: EventPublisher[F],
   params: ActionParams,
