@@ -101,7 +101,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
           case Some(old) =>
             if (count > old) (key.metricDatum(report.timestamp, count - old) :: mds, last.updated(key, count))
             else if (count === old) (mds, last)
-            else (key.metricDatum(report.timestamp, 0) :: mds, last.updated(key, count))
+            else (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
           case None =>
             (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
         }
