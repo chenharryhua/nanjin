@@ -58,7 +58,7 @@ final class ServiceGuard[F[_]] private[guard] (
             publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
               actionGuard(new ActionGuard[F](publisher, dispatcher, ActionConfig(params))))
           }
-          .guarantee(publisher.serviceStopped)
+          .guarantee(publisher.serviceStopped <* channel.close)
 
         /** concurrent streams
           */
@@ -91,7 +91,8 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // put together
 
-        (channel.stream ++ Stream.exec(channel.close.void))
+        (channel.stream
+          .onFinalize(channel.close.void))
           .concurrently(Stream.eval(theService).drain)
           .concurrently(metricsReset)
           .concurrently(jmxReporting)
