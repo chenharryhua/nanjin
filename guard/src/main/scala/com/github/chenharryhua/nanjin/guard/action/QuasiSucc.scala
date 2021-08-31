@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-final class QuasiSucc[F[_], T[_], A, B](
+final class QuasiSucc[F[_], T[_], A, B] private[guard] (
   publisher: EventPublisher[F],
   params: ActionParams,
   ta: T[A],
@@ -87,7 +87,7 @@ final class QuasiSucc[F[_], T[_], A, B](
 
 }
 
-final class QuasiSuccUnit[F[_], T[_], B](
+final class QuasiSuccUnit[F[_], T[_], B] private[guard] (
   publisher: EventPublisher[F],
   params: ActionParams,
   tfb: T[F[B]],

@@ -91,8 +91,8 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // put together
 
-        (channel.stream
-          .onFinalize(channel.close.void))
+        channel.stream
+          .onFinalize(channel.close.void) // drain pending send operation
           .concurrently(Stream.eval(theService).drain)
           .concurrently(metricsReset)
           .concurrently(jmxReporting)
