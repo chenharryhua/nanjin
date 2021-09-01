@@ -10,6 +10,8 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+/** a group of actions which may fail individually but always success as a whole
+  */
 final class QuasiSucc[F[_], T[_], A, B] private[guard] (
   publisher: EventPublisher[F],
   params: ActionParams,
@@ -56,12 +58,8 @@ final class QuasiSucc[F[_], T[_], A, B] private[guard] (
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
         .guaranteeCase {
           case Outcome.Canceled() =>
-            publisher.actionFailed(
-              actionInfo,
-              params,
-              0,
-              Notes(ExceptionUtils.getMessage(ActionException.ActionCanceledExternally)),
-              ActionException.ActionCanceledExternally)
+            val error = ActionException.ActionCanceledExternally
+            publisher.actionFailed(actionInfo, params, 0, Notes(ExceptionUtils.getMessage(error)), error)
 
           case Outcome.Errored(error) =>
             publisher.actionFailed(actionInfo, params, 0, Notes(ExceptionUtils.getMessage(error)), error)

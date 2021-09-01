@@ -101,7 +101,7 @@ final case class ActionQuasiSucced(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   runMode: RunMode,
-  numSucc: Long,
+  numSucc: Long, // succed actions
   succNotes: Notes,
   failNotes: Notes,
   errors: List[NJError])
