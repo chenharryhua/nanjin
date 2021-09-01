@@ -119,6 +119,7 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
     ActionConfig(Fix(WithTermination(value = false, value)))
 
   def withTrivial: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Low, value)))
+  def withNormal: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Medium, value)))
   def withNotice: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.High, value)))
 
   def withActionName(name: String): ActionConfig = ActionConfig(Fix(WithActionName(name, value)))

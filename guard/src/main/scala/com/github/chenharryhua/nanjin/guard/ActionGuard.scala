@@ -29,6 +29,7 @@ final class ActionGuard[F[_]] private[guard] (
   def apply(actionName: String): ActionGuard[F] = updateConfig(_.withActionName(actionName))
 
   def trivial: ActionGuard[F] = updateConfig(_.withTrivial)
+  def normal: ActionGuard[F]  = updateConfig(_.withNormal)
   def notice: ActionGuard[F]  = updateConfig(_.withNotice)
 
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
