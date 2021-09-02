@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.MonadCancel
+import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
@@ -20,7 +21,8 @@ import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
 import scala.concurrent.duration.FiniteDuration
 
 object slack {
-  def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
+  def apply[F[_]](snsResource: Resource[F, SimpleNotificationService[F]])(implicit
+    F: MonadCancel[F, Throwable]): SlackPipe[F] =
     new SlackPipe[F](
       snsResource,
       SlackConfig(
@@ -35,7 +37,7 @@ object slack {
       )
     )
 
-  def apply[F[_]: Async](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
+  def apply[F[_]: Sync](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
 }
 
 final private case class SlackConfig(
@@ -58,7 +60,7 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
-  cfg: SlackConfig)(implicit F: Async[F])
+  cfg: SlackConfig)(implicit F: MonadCancel[F, Throwable])
     extends Pipe[F, NJEvent, NJEvent] with zoneid with localtime {
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackPipe[F] =
