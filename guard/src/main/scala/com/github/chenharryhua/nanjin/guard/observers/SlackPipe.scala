@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
@@ -20,7 +20,7 @@ import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
 import scala.concurrent.duration.FiniteDuration
 
 object slack {
-  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
+  def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
     new SlackPipe[F](
       snsResource,
       SlackConfig(
@@ -31,11 +31,12 @@ object slack {
         maxCauseSize = 500,
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
-        brief = "The developer is too lazy to provide a brief"
+        brief = "The developer is too lazy to provide a brief",
+        debounce = None
       )
     )
 
-  def apply[F[_]: Sync](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
+  def apply[F[_]: Async](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
 }
 
 final private case class SlackConfig(
@@ -46,7 +47,8 @@ final private case class SlackConfig(
   maxCauseSize: Int,
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
-  brief: String
+  brief: String,
+  debounce: Option[FiniteDuration]
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -58,7 +60,7 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
-  cfg: SlackConfig)(implicit F: Sync[F])
+  cfg: SlackConfig)(implicit F: Async[F])
     extends Pipe[F, NJEvent, NJEvent] with zoneid with localtime {
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackPipe[F] =
@@ -71,12 +73,15 @@ final class SlackPipe[F[_]] private[observers] (
   def withMaxCauseSize(size: Int): SlackPipe[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
   def withBrief(brief: String): SlackPipe[F]                      = updateSlackConfig(_.copy(brief = brief))
+  def withDebounce(value: FiniteDuration): SlackPipe[F]           = updateSlackConfig(_.copy(debounce = Some(value)))
 
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
-  override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).as(e)))
+  override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] = {
+    val ss: Stream[F, NJEvent] = Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).as(e)))
+    cfg.debounce.fold(ss)(ss.debounce)
+  }
 
   private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"
@@ -100,7 +105,7 @@ final class SlackPipe[F[_]] private[observers] (
   private def send(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
 
-      case ServiceStarted(at, _, params) =>
+      case ServiceStarted(at, si, params) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
           s":rocket: ${cfg.brief}",
@@ -112,6 +117,7 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Status", "(Re)Started", short = true),
+                SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
               )
             ))
