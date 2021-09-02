@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
+import cats.effect.MonadCancel
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -20,7 +21,8 @@ import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
 import scala.concurrent.duration.FiniteDuration
 
 object slack {
-  def apply[F[_]: Sync](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
+  def apply[F[_]](snsResource: Resource[F, SimpleNotificationService[F]])(implicit
+    F: MonadCancel[F, Throwable]): SlackPipe[F] =
     new SlackPipe[F](
       snsResource,
       SlackConfig(
@@ -58,7 +60,7 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
-  cfg: SlackConfig)(implicit F: Sync[F])
+  cfg: SlackConfig)(implicit F: MonadCancel[F, Throwable])
     extends Pipe[F, NJEvent, NJEvent] with zoneid with localtime {
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackPipe[F] =
@@ -100,7 +102,7 @@ final class SlackPipe[F[_]] private[observers] (
   private def send(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
 
-      case ServiceStarted(at, _, params) =>
+      case ServiceStarted(at, si, params) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
           s":rocket: ${cfg.brief}",
@@ -112,6 +114,7 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Service", params.serviceName, short = true),
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Status", "(Re)Started", short = true),
+                SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
               )
             ))

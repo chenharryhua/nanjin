@@ -137,9 +137,9 @@ class ServiceTest extends AnyFunSuite {
   ignore("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
-      .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(crontabs.every5Seconds).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(crontabs.secondly).withQueueCapacity(20))
       .eventStream(ag => ag.run(ag.passThrough(1).foreverM))
-      .filter(_.isInstanceOf[MetricsReport])
+      .debounce(5.seconds)
       .through(slack[IO](SimpleNotificationService.fake[IO]))
       .evalTap(logging[IO](_.show))
       .compile

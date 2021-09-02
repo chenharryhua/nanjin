@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
+import cats.effect.MonadCancel
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
@@ -13,7 +14,8 @@ import java.util.{Date, UUID}
 import scala.collection.JavaConverters.*
 
 object cloudwatch {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchMetrics[F] =
+  def apply[F[_]](client: Resource[F, CloudWatch[F]], namespace: String)(implicit
+    F: MonadCancel[F, Throwable]): CloudWatchMetrics[F] =
     new CloudWatchMetrics[F](client, namespace, 60, MetricFilter.ALL)
 
   def apply[F[_]: Sync](namespace: String): CloudWatchMetrics[F] =
@@ -46,7 +48,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
   client: Resource[F, CloudWatch[F]],
   namespace: String,
   storageResolution: Int,
-  metricFilter: MetricFilter)(implicit F: Sync[F])
+  metricFilter: MetricFilter)(implicit F: MonadCancel[F, Throwable])
     extends Pipe[F, NJEvent, INothing] {
 
   def withStorageResolution(storageResolution: Int): CloudWatchMetrics[F] = {
@@ -107,7 +109,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
         }
       }
     }
-    res.fold((List.empty[MetricDatum], Map.empty[MetricKey, Long]))(identity)
+    res.fold((List.empty[MetricDatum], last))(identity)
   }
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] = {
