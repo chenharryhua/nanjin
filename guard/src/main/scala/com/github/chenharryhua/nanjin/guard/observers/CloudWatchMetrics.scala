@@ -107,7 +107,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
         }
       }
     }
-    res.fold((List.empty[MetricDatum], Map.empty[MetricKey, Long]))(identity)
+    res.fold((List.empty[MetricDatum], last))(identity)
   }
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] = {
