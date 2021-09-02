@@ -17,8 +17,7 @@ import scala.concurrent.duration.*
   metricsReset: Option[CronExpr],
   metricsRateTimeUnit: TimeUnit,
   metricsDurationTimeUnit: TimeUnit,
-  queueCapacity: Int,
-  brief: String
+  queueCapacity: Int
 )
 
 object ServiceParams {
@@ -32,8 +31,7 @@ object ServiceParams {
       metricsReset = None,
       metricsRateTimeUnit = TimeUnit.SECONDS,
       metricsDurationTimeUnit = TimeUnit.MILLISECONDS,
-      queueCapacity = 0, // synchronous
-      brief = "The developer is too lazy to provide a brief"
+      queueCapacity = 0 // synchronous
     )
 }
 
@@ -51,8 +49,6 @@ private object ServiceConfigF {
 
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
 
-  final case class WithServiceBrief[K](value: String, cont: K) extends ServiceConfigF[K]
-
   final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
 
   final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
@@ -61,7 +57,6 @@ private object ServiceConfigF {
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(s, t)                  => ServiceParams(s, t)
       case WithRetryPolicy(v, c)             => ServiceParams.retry.set(v)(c)
-      case WithServiceBrief(v, c)            => ServiceParams.brief.set(v)(c)
       case WithReportingSchedule(v, c)       => ServiceParams.reportingSchedule.set(v)(c)
       case WithServiceName(v, c)             => ServiceParams.serviceName.set(v)(c)
       case WithMetricsReset(v, c)            => ServiceParams.metricsReset.set(v)(c)
@@ -104,8 +99,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withMetricsDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(
     Fix(WithMetricsDurationTimeUnit(tu, value)))
-
-  def withBrief(notes: String): ServiceConfig = ServiceConfig(Fix(WithServiceBrief(notes, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))

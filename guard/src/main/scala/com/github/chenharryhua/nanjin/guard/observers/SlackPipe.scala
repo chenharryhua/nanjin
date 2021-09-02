@@ -30,7 +30,8 @@ object slack {
         errorColor = "danger",
         maxCauseSize = 500,
         durationFormatter = DurationFormatter.defaultFormatter,
-        reportInterval = None
+        reportInterval = None,
+        brief = "The developer is too lazy to provide a brief"
       )
     )
 
@@ -44,7 +45,8 @@ final private case class SlackConfig(
   errorColor: String,
   maxCauseSize: Int,
   durationFormatter: DurationFormatter,
-  reportInterval: Option[FiniteDuration]
+  reportInterval: Option[FiniteDuration],
+  brief: String
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -68,6 +70,7 @@ final class SlackPipe[F[_]] private[observers] (
   def withErrorColor(color: String): SlackPipe[F]                 = updateSlackConfig(_.copy(errorColor = color))
   def withMaxCauseSize(size: Int): SlackPipe[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
+  def withBrief(brief: String): SlackPipe[F]                      = updateSlackConfig(_.copy(brief = brief))
 
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
@@ -100,7 +103,7 @@ final class SlackPipe[F[_]] private[observers] (
       case ServiceStarted(at, _, params) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s":rocket: ${params.brief}",
+          s":rocket: ${cfg.brief}",
           List(
             Attachment(
               cfg.infoColor,
@@ -180,7 +183,7 @@ final class SlackPipe[F[_]] private[observers] (
                   next.fold("no time")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                   short = true
                 ),
-                SlackField("Brief", params.brief, short = false)
+                SlackField("Brief", cfg.brief, short = false)
               )
             ))
         ).asJson.noSpaces
