@@ -18,7 +18,7 @@ class ServiceTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host))
     .service("service")
-    .updateConfig(_.withConstantDelay(1.seconds).withBrief("ok"))
+    .updateConfig(_.withConstantDelay(1.seconds))
 
   test("should stopped if the operation normally exits") {
     val Vector(a, d) = guard
