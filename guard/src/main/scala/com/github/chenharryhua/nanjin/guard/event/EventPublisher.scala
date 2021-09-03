@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.Async
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
@@ -21,7 +21,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   serviceInfo: ServiceInfo,
-  serviceParams: ServiceParams)(implicit F: Temporal[F]) {
+  serviceParams: ServiceParams)(implicit F: Async[F]) {
 
   // service level
   private val metricsReportMRName: String = "01.health.check"
@@ -59,9 +59,9 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       .map(_ => metricRegistry.counter(serviceStopMRName).inc())
 
   def metricsReport(index: Long, dur: FiniteDuration): F[Unit] =
-    realZonedDateTime.flatMap { ts =>
-      channel
-        .send(
+    realZonedDateTime
+      .flatMap(ts =>
+        channel.send(
           MetricsReport(
             index = index,
             timestamp = ts,
@@ -75,14 +75,13 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               durationTimeUnit = serviceParams.metricsDurationTimeUnit,
               zoneId = serviceParams.taskParams.zoneId
             )
-          ))
-        .map(_ => metricRegistry.counter(metricsReportMRName).inc())
-    }
+          )))
+      .map(_ => metricRegistry.counter(metricsReportMRName).inc())
 
   def metricsReport(index: Long, cronExpr: CronExpr): F[Unit] =
-    realZonedDateTime.flatMap(ts =>
-      channel
-        .send(
+    realZonedDateTime
+      .flatMap(ts =>
+        channel.send(
           MetricsReport(
             index = index,
             timestamp = ts,
@@ -96,8 +95,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               durationTimeUnit = serviceParams.metricsDurationTimeUnit,
               zoneId = serviceParams.taskParams.zoneId
             )
-          ))
-        .map(_ => metricRegistry.counter(metricsReportMRName).inc()))
+          )))
+      .map(_ => metricRegistry.counter(metricsReportMRName).inc())
 
   /** actions
     */
@@ -112,13 +111,13 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           channel
             .send(ActionStart(actionParams, actionInfo, ts))
             .map(_ => metricRegistry.counter(actionStartMRName(actionParams)).inc())
-        case Importance.Medium => F.pure(metricRegistry.counter(actionStartMRName(actionParams)).inc())
+        case Importance.Medium => F.delay(metricRegistry.counter(actionStartMRName(actionParams)).inc())
         case Importance.Low    => F.unit
       }
     } yield actionInfo
 
   private def timing(name: String, actionInfo: ActionInfo, timestamp: ZonedDateTime): F[Unit] =
-    F.pure(metricRegistry.timer(name).update(Duration.between(actionInfo.launchTime, timestamp)))
+    F.delay(metricRegistry.timer(name).update(Duration.between(actionInfo.launchTime, timestamp)))
 
   def actionSucced(actionInfo: ActionInfo, actionParams: ActionParams, numRetries: Int, notes: Notes): F[Unit] =
     actionParams.importance match {
@@ -216,5 +215,5 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         .map(_ => metricRegistry.counter(passThroughMRName(actionParams)).inc()))
 
   def count(actionParams: ActionParams, num: Long): F[Unit] =
-    F.pure(metricRegistry.counter(counterMRName(actionParams)).inc(num))
+    F.delay(metricRegistry.counter(counterMRName(actionParams)).inc(num))
 }
