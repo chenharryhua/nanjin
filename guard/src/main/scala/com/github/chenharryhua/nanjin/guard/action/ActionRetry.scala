@@ -121,7 +121,7 @@ final class ActionRetry[F[_], A, B] private[guard] (
               oc <- F.onCancel(
                 poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
                 fiber.cancel)
-              _ <- F.raiseError(ActionException.UnexpectedlyTerminated).whenA(!params.shouldTerminate)
+              _ <- F.raiseError(ActionException.UnexpectedlyTerminated).whenA(!params.isTerminate)
               _ <- F.raiseError(ActionException.PostConditionUnsatisfied).whenA(!postCondition(oc))
             } yield oc
           }

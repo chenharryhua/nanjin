@@ -55,7 +55,7 @@ private[guard] object NJRetryPolicy {
   actionName: String,
   importance: Importance,
   serviceParams: ServiceParams,
-  shouldTerminate: Boolean,
+  isTerminate: Boolean,
   retry: ActionRetryParams)
 
 object ActionParams {
@@ -64,7 +64,7 @@ object ActionParams {
     actionName = "anonymous",
     importance = Importance.Medium,
     serviceParams = serviceParams,
-    shouldTerminate = true,
+    isTerminate = true,
     retry = ActionRetryParams(maxRetries = 0, capDelay = None, njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds))
   )
 }
@@ -91,7 +91,7 @@ private object ActionConfigF {
       case WithRetryPolicy(v, c) => ActionParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
       case WithMaxRetries(v, c)  => ActionParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
       case WithCapDelay(v, c)    => ActionParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
-      case WithTermination(v, c) => ActionParams.shouldTerminate.set(v)(c)
+      case WithTermination(v, c) => ActionParams.isTerminate.set(v)(c)
       case WithImportance(v, c)  => ActionParams.importance.set(v)(c)
       case WithActionName(v, c)  => ActionParams.actionName.set(v)(c)
     }
