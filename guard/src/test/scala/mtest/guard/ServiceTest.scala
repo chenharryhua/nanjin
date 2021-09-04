@@ -139,8 +139,6 @@ class ServiceTest extends AnyFunSuite {
       .service("performance")
       .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(crontabs.secondly).withQueueCapacity(20))
       .eventStream(ag => ag.run(ag.passThrough(1).foreverM))
-      .debounce(5.seconds)
-      .through(slack[IO](SimpleNotificationService.fake[IO]))
       .evalTap(logging[IO](_.show))
       .compile
       .drain

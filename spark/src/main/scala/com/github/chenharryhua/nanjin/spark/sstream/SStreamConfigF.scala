@@ -8,13 +8,14 @@ import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 @Lenses final private[sstream] case class SStreamParams private (
-  timeRange: NJDateTimeRange,
+  zoneId: ZoneId,
   fileFormat: NJFileFormat,
   checkpointBuilder: NJFileFormat => String,
   dataLoss: NJFailOnDataLoss,
@@ -27,9 +28,9 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 private[sstream] object SStreamParams {
 
-  def apply(tr: NJDateTimeRange): SStreamParams =
+  def apply(zoneId: ZoneId): SStreamParams =
     SStreamParams(
-      timeRange = tr,
+      zoneId = zoneId,
       fileFormat = NJFileFormat.SparkJson,
       checkpointBuilder = (fmt: NJFileFormat) => s"./data/checkpoint/sstream/${fmt.format}",
       dataLoss = NJFailOnDataLoss(true),
@@ -45,7 +46,7 @@ sealed private[sstream] trait SStreamConfigF[A]
 private object SStreamConfigF {
   implicit val functorSStreamConfigF: Functor[SStreamConfigF] = cats.derived.semiauto.functor[SStreamConfigF]
 
-  final case class InitParams[K](tr: NJDateTimeRange) extends SStreamConfigF[K]
+  final case class InitParams[K](zoneId: ZoneId) extends SStreamConfigF[K]
 
   final case class WithCheckpointBuilder[K](f: NJFileFormat => String, cont: K) extends SStreamConfigF[K]
 
@@ -105,6 +106,6 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
 
 private[spark] object SStreamConfig {
 
-  def apply(tr: NJDateTimeRange): SStreamConfig =
-    SStreamConfig(Fix(SStreamConfigF.InitParams[Fix[SStreamConfigF]](tr)))
+  def apply(zoneId: ZoneId): SStreamConfig =
+    SStreamConfig(Fix(SStreamConfigF.InitParams[Fix[SStreamConfigF]](zoneId)))
 }

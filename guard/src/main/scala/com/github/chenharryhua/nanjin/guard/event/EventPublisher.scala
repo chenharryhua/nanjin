@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.effect.kernel.Async
+import cats.Traverse
+import cats.data.Kleisli
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
@@ -10,6 +12,7 @@ import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 import io.circe.Json
+import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
@@ -119,49 +122,62 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private def timing(name: String, actionInfo: ActionInfo, timestamp: ZonedDateTime): F[Unit] =
     F.delay(metricRegistry.timer(name).update(Duration.between(actionInfo.launchTime, timestamp)))
 
-  def actionSucced(actionInfo: ActionInfo, actionParams: ActionParams, numRetries: Int, notes: Notes): F[Unit] =
+  def actionSucced[A, B](
+    actionInfo: ActionInfo,
+    actionParams: ActionParams,
+    retryCount: Ref[F, Int],
+    input: A,
+    output: F[B],
+    buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
     actionParams.importance match {
       case Importance.High =>
-        realZonedDateTime.flatMap(ts =>
-          channel
-            .send(
-              ActionSucced(
-                actionInfo = actionInfo,
-                timestamp = ts,
-                actionParams = actionParams,
-                numRetries = numRetries,
-                notes = notes))
-            .flatMap(_ => timing(actionSuccMRName(actionParams), actionInfo, ts)))
-      case Importance.Medium => realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams), actionInfo, ts))
+        for {
+          ts <- realZonedDateTime
+          result <- output
+          num <- retryCount.get
+          notes <- buildNotes.run((input, result)).map(Notes(_))
+          _ <- channel.send(
+            ActionSucced(
+              actionInfo = actionInfo,
+              timestamp = ts,
+              actionParams = actionParams,
+              numRetries = num,
+              notes = notes))
+          _ <- timing(actionSuccMRName(actionParams), actionInfo, ts)
+        } yield ()
+      case Importance.Medium => realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams), actionInfo, _))
       case Importance.Low    => F.unit
     }
 
-  def quasiSucced(
+  def quasiSucced[T[_]: Traverse, A, B](
     actionInfo: ActionInfo,
     actionParams: ActionParams,
     runMode: RunMode,
-    numSucc: Long,
-    succNotes: Notes,
-    failNotes: Notes,
-    errors: List[NJError]
+    results: F[(List[(A, NJError)], T[(A, B)])],
+    succ: Kleisli[F, List[(A, B)], String],
+    fail: Kleisli[F, List[(A, NJError)], String]
   ): F[Unit] =
     actionParams.importance match {
       case Importance.High =>
-        realZonedDateTime.flatMap(ts =>
-          channel
-            .send(
-              ActionQuasiSucced(
-                actionInfo = actionInfo,
-                timestamp = ts,
-                actionParams = actionParams,
-                runMode = runMode,
-                numSucc = numSucc,
-                succNotes = succNotes,
-                failNotes = failNotes,
-                errors = errors
-              ))
-            .flatMap(_ => timing(actionSuccMRName(actionParams), actionInfo, ts)))
-      case Importance.Medium => realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams), actionInfo, ts))
+        for {
+          ts <- realZonedDateTime
+          res <- results
+          sn <- succ.run(res._2.toList)
+          fn <- fail.run(res._1)
+          _ <- channel.send(
+            ActionQuasiSucced(
+              actionInfo = actionInfo,
+              timestamp = ts,
+              actionParams = actionParams,
+              runMode = runMode,
+              numSucc = res._2.size,
+              succNotes = Notes(sn),
+              failNotes = Notes(fn),
+              errors = res._1.map(_._2)
+            ))
+          _ <- timing(actionSuccMRName(actionParams), actionInfo, ts)
+        } yield ()
+      case Importance.Medium => realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams), actionInfo, _))
       case Importance.Low    => F.unit
     }
 
@@ -185,28 +201,48 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             case Importance.Low                      => F.unit
           }))
 
-  def actionFailed(
+  def actionFailed[A](
     actionInfo: ActionInfo,
     actionParams: ActionParams,
-    numRetries: Int,
-    notes: Notes,
-    ex: Throwable
+    retryCount: Ref[F, Int],
+    input: A,
+    ex: Throwable,
+    buildNotes: Kleisli[F, (A, Throwable), String]
   ): F[Unit] =
-    realZonedDateTime.flatMap(ts =>
-      channel
-        .send(
-          ActionFailed(
-            actionInfo = actionInfo,
-            timestamp = ts,
-            actionParams = actionParams,
-            numRetries = numRetries,
-            notes = notes,
-            error = NJError(ex)))
-        .flatMap(_ =>
-          actionParams.importance match {
-            case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams), actionInfo, ts)
-            case Importance.Low                      => F.unit
-          }))
+    for {
+      ts <- realZonedDateTime
+      numRetries <- retryCount.get
+      notes <- buildNotes.run((input, ex)).map(Notes(_))
+      _ <- channel.send(
+        ActionFailed(
+          actionInfo = actionInfo,
+          timestamp = ts,
+          actionParams = actionParams,
+          numRetries = numRetries,
+          notes = notes,
+          error = NJError(ex)))
+      _ <- actionParams.importance match {
+        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams), actionInfo, ts)
+        case Importance.Low                      => F.unit
+      }
+    } yield ()
+
+  def quasiFailed(actionInfo: ActionInfo, actionParams: ActionParams, ex: Throwable): F[Unit] =
+    for {
+      ts <- realZonedDateTime
+      _ <- channel.send(
+        ActionFailed(
+          actionInfo = actionInfo,
+          timestamp = ts,
+          actionParams = actionParams,
+          numRetries = 0,
+          notes = Notes(ExceptionUtils.getMessage(ex)),
+          error = NJError(ex)))
+      _ <- actionParams.importance match {
+        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams), actionInfo, ts)
+        case Importance.Low                      => F.unit
+      }
+    } yield ()
 
   def passThrough(actionParams: ActionParams, json: Json): F[Unit] =
     realZonedDateTime.flatMap(ts =>
