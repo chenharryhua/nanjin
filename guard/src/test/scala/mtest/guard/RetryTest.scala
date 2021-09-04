@@ -8,6 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.action.ActionRetry
 
 final case class MyException() extends Exception("my exception")
 
@@ -50,6 +51,28 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionStart])
     assert(f.asInstanceOf[ActionSucced].notes.value == "3->4")
     assert(g.isInstanceOf[ServiceStopped])
+  }
+
+  test("retry - all fail") {
+    val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
+      val ag: ActionRetry[IO, Int, Int] = gd("all-fail").notice
+        .updateConfig(_.withMaxRetries(1).withConstantDelay(0.1.second))
+        .retry((x: Int) => IO.raiseError[Int](new Exception))
+        .withFailNotes((a, e) => a.toString)
+      List(1, 2, 3).traverse(i => ag.run(i).attempt)
+    }.compile.toVector.unsafeRunSync()
+
+    assert(s.isInstanceOf[ServiceStarted])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionRetrying])
+    assert(c.asInstanceOf[ActionFailed].notes.value == "1")
+    assert(d.isInstanceOf[ActionStart])
+    assert(e.isInstanceOf[ActionRetrying])
+    assert(f.asInstanceOf[ActionFailed].notes.value == "2")
+    assert(g.isInstanceOf[ActionStart])
+    assert(h.isInstanceOf[ActionRetrying])
+    assert(i.asInstanceOf[ActionFailed].notes.value == "3")
+    assert(j.isInstanceOf[ServiceStopped])
   }
 
   test("retry - should retry 2 times when operation fail") {
