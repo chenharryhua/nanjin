@@ -162,8 +162,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         for {
           ts <- realZonedDateTime
           res <- results
-          sn <- succ(res._2.toList)
-          fn <- fail(res._1)
+          sn <- succ.run(res._2.toList)
+          fn <- fail.run(res._1)
           _ <- channel.send(
             ActionQuasiSucced(
               actionInfo = actionInfo,

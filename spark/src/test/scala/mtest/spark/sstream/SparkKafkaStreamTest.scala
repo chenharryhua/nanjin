@@ -1,11 +1,11 @@
 package mtest.spark.sstream
 
-import better.files._
+import better.files.*
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, _}
+import com.github.chenharryhua.nanjin.spark.kafka.*
 import frameless.TypedEncoder
 import mtest.spark.kafka.{ctx, sparKafka}
 import mtest.spark.persist.{Rooster, RoosterData}
@@ -16,7 +16,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.Random
 
 @DoNotDiscover
@@ -149,7 +149,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     val upload =
       sparKafka.topic(rooster).prRdd(data).withInterval(1.second).uploadByBatch.withBatchSize(6).run.delayBy(3.second)
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
-    import sparkSession.implicits._
+    import sparkSession.implicits.*
     val now = Instant.now().getEpochSecond * 1000 //to millisecond
     val size = sparkSession
       .sql("select timestamp from kafka")

@@ -97,7 +97,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def sstream[A](f: NJConsumerRecord[K, V] => A, ate: AvroTypedEncoder[A]): SparkSStream[F, A] =
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, ss)(f),
-      SStreamConfig(params.timeRange).checkpointBuilder(fmt =>
+      SStreamConfig(params.timeRange.zoneId).checkpointBuilder(fmt =>
         s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
 
   def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] =
