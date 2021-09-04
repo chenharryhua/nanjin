@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import cats.syntax.all.*
 
 final case class MyException() extends Exception("my exception")
 
@@ -15,9 +16,9 @@ class RetryTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
 
-  test("retry - success low importance") {
+  test("retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
-      gd("succ-low").trivial
+      gd("succ-trivial").trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
@@ -30,21 +31,25 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStopped])
   }
 
-  test("retry - success - default") {
-    val Vector(s, a, b, c) = serviceGuard.eventStream { gd =>
-      gd("succ-high").notice
+  test("retry - success notice") {
+    val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
+      val ag = gd("all-succ").notice
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
-        .withSuccNotes((a, b) => s"$a -> $b")
+        .withSuccNotes((a, b) => s"$a->$b")
         .withFailNotes((a, e) => "")
         .withWorthRetry(_ => true)
-        .run(1)
+      List(1, 2, 3).traverse(i => ag.run(i))
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionSucced])
-    assert(c.isInstanceOf[ServiceStopped])
+    assert(b.asInstanceOf[ActionSucced].notes.value == "1->2")
+    assert(c.isInstanceOf[ActionStart])
+    assert(d.asInstanceOf[ActionSucced].notes.value == "2->3")
+    assert(e.isInstanceOf[ActionStart])
+    assert(f.asInstanceOf[ActionSucced].notes.value == "3->4")
+    assert(g.isInstanceOf[ServiceStopped])
   }
 
   test("retry - should retry 2 times when operation fail") {
