@@ -71,7 +71,7 @@ class HealthCheckTest extends AnyFunSuite {
           .withMetricsRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd =>
         gd("always-failure")
-          .updateConfig(_.withConstantDelay(1.second))
+          .updateConfig(_.withConstantDelay(3.second))
           .notice
           .max(10)
           .run(IO.raiseError(new Exception)))

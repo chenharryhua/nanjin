@@ -67,9 +67,6 @@ final class ActionRetry[F[_], A, B] private[guard] (
       isWorthRetry = isWorthRetry,
       postCondition = Predicate(postCondition))
 
-  private def failNotes(input: A, error: Throwable): F[Notes] = fail.run((input, error)).map(Notes(_))
-  private def succNotes(input: A, b: B): F[Notes]             = succ.run((input, b)).map(Notes(_))
-
   private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     error: Throwable,
     details: RetryDetails): F[Unit] =
@@ -84,24 +81,11 @@ final class ActionRetry[F[_], A, B] private[guard] (
     outcome match {
       case Outcome.Canceled() =>
         val error = ActionException.ActionCanceledExternally
-        for {
-          count <- retryCount.get // number of retries
-          fn <- failNotes(input, error)
-          _ <- publisher.actionFailed(actionInfo, params, count, fn, error)
-        } yield ()
+        publisher.actionFailed[A](actionInfo, params, retryCount, input, error, fail)
       case Outcome.Errored(error) =>
-        for {
-          count <- retryCount.get // number of retries
-          fn <- failNotes(input, error)
-          _ <- publisher.actionFailed(actionInfo, params, count, fn, error)
-        } yield ()
-      case Outcome.Succeeded(fb) =>
-        for {
-          count <- retryCount.get // number of retries before success
-          b <- fb
-          sn <- succNotes(input, b)
-          _ <- publisher.actionSucced(actionInfo, params, count, sn)
-        } yield ()
+        publisher.actionFailed[A](actionInfo, params, retryCount, input, error, fail)
+      case Outcome.Succeeded(output) =>
+        publisher.actionSucced[A, B](actionInfo, params, retryCount, input, output, succ)
     }
 
   def run(input: A): F[B] =

@@ -8,7 +8,6 @@ import cats.syntax.all.*
 import cats.{Alternative, Parallel, Traverse}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 /** a group of actions which may fail individually but always success as a whole
   */
@@ -59,18 +58,11 @@ final class QuasiSucc[F[_], T[_], A, B] private[guard] (
         .guaranteeCase {
           case Outcome.Canceled() =>
             val error = ActionException.ActionCanceledExternally
-            publisher.actionFailed(actionInfo, params, 0, Notes(ExceptionUtils.getMessage(error)), error)
-
+            publisher.quasiFailed(actionInfo, params, error)
           case Outcome.Errored(error) =>
-            publisher.actionFailed(actionInfo, params, 0, Notes(ExceptionUtils.getMessage(error)), error)
-
+            publisher.quasiFailed(actionInfo, params, error)
           case Outcome.Succeeded(fb) =>
-            for {
-              b <- fb
-              sn <- succ(b._2.toList)
-              fn <- fail(b._1)
-              _ <- publisher.quasiSucced(actionInfo, params, runMode, b._2.size, Notes(sn), Notes(fn), b._1.map(_._2))
-            } yield ()
+            publisher.quasiSucced(actionInfo, params, runMode, fb, succ, fail)
         }
     } yield T.map(res._2)(_._2)
 
