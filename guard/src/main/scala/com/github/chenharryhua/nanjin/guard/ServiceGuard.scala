@@ -5,8 +5,8 @@ import cats.effect.kernel.Async
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -73,12 +73,8 @@ final class ServiceGuard[F[_]] private[guard] (
           }
         }
 
-        val metricsReset: Stream[F, INothing] = params.metricsReset.fold(Stream.empty.covary[F]) { cron =>
-          cronScheduler
-            .awakeEvery(cron)
-            .evalMap(_ => publisher.metricsReset(cron) >> F.delay(metricRegistry.removeMatching(MetricFilter.ALL)))
-            .drain
-        }
+        val metricsReset: Stream[F, INothing] = params.metricsReset.fold(Stream.empty.covary[F])(cron =>
+          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(cron)).drain)
 
         val jmxReporting: Stream[F, INothing] = {
           jmxBuilder match {

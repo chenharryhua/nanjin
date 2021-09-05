@@ -98,7 +98,8 @@ private[guard] object MetricsSnapshot {
       ps.close()
       bao.toString(StandardCharsets.UTF_8.name())
     }
-    val json = {
+
+    val json: Json = {
       val str =
         new ObjectMapper()
           .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false))
@@ -110,8 +111,7 @@ private[guard] object MetricsSnapshot {
     val timer: Map[String, Long]   = metricRegistry.getTimers.asScala.mapValues(_.getCount).toMap
     val counter: Map[String, Long] = metricRegistry.getCounters.asScala.mapValues(_.getCount).toMap
 
-    val text =
-      (timer ++ counter).map(x => s"${x._1}: *${x._2}").toList.sorted.mkString("\n")
+    val text: String = (timer ++ counter).map(x => s"${x._1}: *${x._2}*").toList.sorted.mkString("\n")
 
     MetricsSnapshot(timer ++ counter, text, json, show)
   }

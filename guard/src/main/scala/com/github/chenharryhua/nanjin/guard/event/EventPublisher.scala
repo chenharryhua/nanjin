@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -118,7 +118,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               zoneId = serviceParams.taskParams.zoneId
             )
           ))
-        .void)
+        .map(_ => metricRegistry.removeMatching(MetricFilter.ALL)))
 
   /** actions
     */
@@ -204,7 +204,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     actionInfo: ActionInfo,
     actionParams: ActionParams,
     willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable): F[Unit] =
+    ex: Throwable,
+    retryCount: Ref[F, Int]): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(
@@ -218,7 +219,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           actionParams.importance match {
             case Importance.High | Importance.Medium => timing(actionRetryMRName(actionParams), actionInfo, ts)
             case Importance.Low                      => F.unit
-          }))
+          })) *> retryCount.update(_ + 1)
 
   def actionFailed[A](
     actionInfo: ActionInfo,
