@@ -142,11 +142,11 @@ final class SlackPipe[F[_]] private[observers] (
           ).asJson.noSpaces
         sns.publish(msg).void
 
-      case ServiceStopped(at, si, params) =>
+      case ServiceStopped(at, si, params, snapshot) =>
         def msg: String =
           SlackNotification(
             params.taskParams.appName,
-            ":octagonal_sign: The service was stopped.",
+            s":octagonal_sign: The service was stopped. performed:\n${snapshot.text}",
             List(
               Attachment(
                 cfg.infoColor,
@@ -162,10 +162,10 @@ final class SlackPipe[F[_]] private[observers] (
 
         sns.publish(msg).void
 
-      case MetricsReport(idx, at, si, params, prev, next, metrics) =>
+      case MetricsReport(idx, at, si, params, prev, next, snapshot) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          StringUtils.abbreviate(metrics.text, cfg.maxCauseSize),
+          StringUtils.abbreviate(snapshot.text, cfg.maxCauseSize),
           List(
             Attachment(
               cfg.infoColor,
@@ -196,14 +196,14 @@ final class SlackPipe[F[_]] private[observers] (
 
         sns.publish(msg).whenA(isShow)
 
-      case MetricsReset(at, si, params, prev, next, metrics) =>
+      case MetricsReset(at, si, params, prev, next, snapshot) =>
         val toNow =
           prev.map(p => cfg.durationFormatter.format(Order.max(p, si.launchTime), at)).fold("")(dur => s" in past $dur")
         val summaries = s"*This is a summary of activities performed by the service$toNow*"
 
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s"$summaries\n${metrics.text}",
+          s"$summaries\n${snapshot.text}",
           List(
             Attachment(
               cfg.infoColor,
