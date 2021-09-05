@@ -211,9 +211,9 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField(
-                  s"Next Reset at",
+                  s"Next Metrics Reset at",
                   next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
-                  short = false
+                  short = true
                 ),
                 SlackField("Brief", cfg.brief, short = false)
               )
