@@ -196,9 +196,12 @@ final class SlackPipe[F[_]] private[observers] (
         sns.publish(msg).whenA(isShow)
 
       case MetricsReset(at, si, params, prev, next, metrics) =>
+        val toNow     = prev.map(p => cfg.durationFormatter.format(p, at)).fold("")(dur => s" in past $dur")
+        val summaries = s"*This is a summary of activities performed by the service$toNow*"
+
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s"${prev.map(p => cfg.durationFormatter.format(p, at)).fold("")(dur => s"in past $dur the service performed:")}\n${metrics.text}",
+          s"$summaries\n${metrics.text}",
           List(
             Attachment(
               cfg.infoColor,

@@ -62,8 +62,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       .map(_ => metricRegistry.counter(serviceStopMRName).inc())
 
   def metricsReport(index: Long, dur: FiniteDuration): F[Unit] =
-    realZonedDateTime
-      .flatMap(ts =>
+    F.delay(metricRegistry.counter(metricsReportMRName).inc()) <*
+      realZonedDateTime.flatMap(ts =>
         channel.send(
           MetricsReport(
             index = index,
@@ -79,11 +79,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               zoneId = serviceParams.taskParams.zoneId
             )
           )))
-      .map(_ => metricRegistry.counter(metricsReportMRName).inc())
 
   def metricsReport(index: Long, cronExpr: CronExpr): F[Unit] =
-    realZonedDateTime
-      .flatMap(ts =>
+    F.delay(metricRegistry.counter(metricsReportMRName).inc()) <*
+      realZonedDateTime.flatMap(ts =>
         channel.send(
           MetricsReport(
             index = index,
@@ -99,7 +98,6 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               zoneId = serviceParams.taskParams.zoneId
             )
           )))
-      .map(_ => metricRegistry.counter(metricsReportMRName).inc())
 
   def metricsReset(cronExpr: CronExpr): F[Unit] =
     realZonedDateTime.flatMap(ts =>
