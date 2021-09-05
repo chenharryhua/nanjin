@@ -29,8 +29,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   // service level
   private val metricsReportMRName: String = "01.health.check"
   private val serviceStartMRName: String  = "02.service.start"
-  private val serviceStopMRName: String   = "03.service.stop"
-  private val servicePanicMRName: String  = "04.service.`panic`"
+  private val servicePanicMRName: String  = "03.service.`panic`"
 
   // action level
   private def passThroughMRName(params: ActionParams): String = s"10.pass.through.[${params.actionName}]"
@@ -48,18 +47,37 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceReStarted: F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
-        .send(ServiceStarted(ts, serviceInfo, serviceParams))
+        .send(ServiceStarted(timestamp = ts, serviceInfo = serviceInfo, serviceParams = serviceParams))
         .map(_ => metricRegistry.counter(serviceStartMRName).inc()))
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     realZonedDateTime
-      .flatMap(ts => channel.send(ServicePanic(ts, serviceInfo, serviceParams, retryDetails, NJError(ex))))
+      .flatMap(ts =>
+        channel.send(
+          ServicePanic(
+            timestamp = ts,
+            serviceInfo = serviceInfo,
+            serviceParams = serviceParams,
+            retryDetails = retryDetails,
+            error = NJError(ex))))
       .map(_ => metricRegistry.counter(servicePanicMRName).inc())
 
   val serviceStopped: F[Unit] =
-    realZonedDateTime
-      .flatMap(ts => channel.send(ServiceStopped(ts, serviceInfo, serviceParams)))
-      .map(_ => metricRegistry.counter(serviceStopMRName).inc())
+    realZonedDateTime.flatMap(ts =>
+      channel
+        .send(
+          ServiceStopped(
+            timestamp = ts,
+            serviceInfo = serviceInfo,
+            serviceParams = serviceParams,
+            snapshot = MetricsSnapshot(
+              metricRegistry = metricRegistry,
+              rateTimeUnit = serviceParams.metricsRateTimeUnit,
+              durationTimeUnit = serviceParams.metricsDurationTimeUnit,
+              zoneId = serviceParams.taskParams.zoneId
+            )
+          ))
+        .void)
 
   def metricsReport(index: Long, dur: FiniteDuration): F[Unit] =
     F.delay(metricRegistry.counter(metricsReportMRName).inc()) <*

@@ -43,7 +43,8 @@ final case class ServicePanic(
 final case class ServiceStopped(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
-  serviceParams: ServiceParams
+  serviceParams: ServiceParams,
+  snapshot: MetricsSnapshot
 ) extends ServiceEvent
 
 final case class MetricsReport(
