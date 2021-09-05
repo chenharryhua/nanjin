@@ -70,12 +70,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             timestamp = ts,
             serviceInfo = serviceInfo,
             serviceParams = serviceParams,
-            snapshot = MetricsSnapshot(
-              metricRegistry = metricRegistry,
-              rateTimeUnit = serviceParams.metricsRateTimeUnit,
-              durationTimeUnit = serviceParams.metricsDurationTimeUnit,
-              zoneId = serviceParams.taskParams.zoneId
-            )
+            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
           ))
         .void)
 
@@ -90,12 +85,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = Some(ts.minus(dur.toJava)),
             next = Some(ts.plus(dur.toJava)),
-            snapshot = MetricsSnapshot(
-              metricRegistry = metricRegistry,
-              rateTimeUnit = serviceParams.metricsRateTimeUnit,
-              durationTimeUnit = serviceParams.metricsDurationTimeUnit,
-              zoneId = serviceParams.taskParams.zoneId
-            )
+            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
           )))
 
   def metricsReport(index: Long, cronExpr: CronExpr): F[Unit] =
@@ -109,12 +99,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = cronExpr.prev(ts),
             next = cronExpr.next(ts),
-            snapshot = MetricsSnapshot(
-              metricRegistry = metricRegistry,
-              rateTimeUnit = serviceParams.metricsRateTimeUnit,
-              durationTimeUnit = serviceParams.metricsDurationTimeUnit,
-              zoneId = serviceParams.taskParams.zoneId
-            )
+            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
           )))
 
   def metricsReset(cronExpr: CronExpr): F[Unit] =
@@ -127,12 +112,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = cronExpr.prev(ts),
             next = cronExpr.next(ts),
-            snapshot = MetricsSnapshot(
-              metricRegistry = metricRegistry,
-              rateTimeUnit = serviceParams.metricsRateTimeUnit,
-              durationTimeUnit = serviceParams.metricsDurationTimeUnit,
-              zoneId = serviceParams.taskParams.zoneId
-            )
+            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
           ))
         .map(_ => metricRegistry.removeMatching(MetricFilter.ALL)))
 

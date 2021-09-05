@@ -5,6 +5,7 @@ import cats.implicits.toShow
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
@@ -78,7 +79,7 @@ final case class MetricsSnapshot private (counters: Map[String, Long], text: Str
 }
 
 private[guard] object MetricsSnapshot {
-  def apply(
+  private def create(
     metricRegistry: MetricRegistry,
     rateTimeUnit: TimeUnit,
     durationTimeUnit: TimeUnit,
@@ -115,6 +116,9 @@ private[guard] object MetricsSnapshot {
 
     MetricsSnapshot(timer ++ counter, text, json, show)
   }
+
+  def apply(metricRegistry: MetricRegistry, params: ServiceParams): MetricsSnapshot =
+    create(metricRegistry, params.metricsRateTimeUnit, params.metricsDurationTimeUnit, params.taskParams.zoneId)
 
   implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
 }
