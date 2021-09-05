@@ -2,31 +2,22 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
-import cron4s.CronExpr
-import io.chrisdavenport.cats.time.instances.{localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
-import java.time.{Duration, ZonedDateTime}
-import scala.compat.java8.DurationConverters.*
-import scala.concurrent.duration.FiniteDuration
-import io.circe.generic.JsonCodec
+import java.time.ZonedDateTime
 
-@JsonCodec
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   final def show: String = NJEvent.showNJEvent.show(this)
   final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
 }
 
-private[guard] object NJEvent extends zoneddatetime with localtime with zoneid {
-  implicit val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
-  implicit val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
-  implicit val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
-  implicit val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
+object NJEvent {
+  import com.github.chenharryhua.nanjin.datetime.*
 
   implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
   implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]

@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.MonadCancel
 import cats.effect.kernel.{Resource, Sync}
+import cats.kernel.Order
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
@@ -9,7 +10,7 @@ import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, 
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
-import io.chrisdavenport.cats.time.instances.{localdatetime, localtime, zoneid}
+import io.chrisdavenport.cats.time.instances.{localdatetime, localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
@@ -60,7 +61,7 @@ final private case class SlackNotification(username: String, text: String, attac
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig)(implicit F: MonadCancel[F, Throwable])
-    extends Pipe[F, NJEvent, NJEvent] with zoneid with localdatetime with localtime {
+    extends Pipe[F, NJEvent, NJEvent] with zoneid with localdatetime with localtime with zoneddatetime {
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackPipe[F] =
     new SlackPipe[F](snsResource, f(cfg))
@@ -196,7 +197,8 @@ final class SlackPipe[F[_]] private[observers] (
         sns.publish(msg).whenA(isShow)
 
       case MetricsReset(at, si, params, prev, next, metrics) =>
-        val toNow     = prev.map(p => cfg.durationFormatter.format(p, at)).fold("")(dur => s" in past $dur")
+        val toNow =
+          prev.map(p => cfg.durationFormatter.format(Order.max(p, si.launchTime), at)).fold("")(dur => s" in past $dur")
         val summaries = s"*This is a summary of activities performed by the service$toNow*"
 
         def msg: String = SlackNotification(
@@ -211,9 +213,9 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField(
-                  s"Next Reset at",
+                  s"Next Metrics Reset at",
                   next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
-                  short = false
+                  short = true
                 ),
                 SlackField("Brief", cfg.brief, short = false)
               )

@@ -2,12 +2,14 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{
   ActionRetrying,
   ActionStart,
   ActionSucced,
   MetricsReport,
+  MetricsReset,
   MetricsSnapshot,
   NJEvent,
   ServiceStarted
@@ -87,5 +89,20 @@ class HealthCheckTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[MetricsReport])
+  }
+
+  test("metrics reset") {
+    val list = guard
+      .service("metrics-reset-test")
+      .updateConfig(_.withReportingSchedule(2.seconds).withMetricsReset(crontabs.trisecondly))
+      .eventStream(_.run(IO.never))
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
+      .debug()
+      .interruptAfter(7.second)
+      .compile
+      .toList
+      .unsafeRunSync()
+
   }
 }

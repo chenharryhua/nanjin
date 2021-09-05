@@ -90,9 +90,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricsReset(crontab: String): ServiceConfig =
     withMetricsReset(Cron.unsafeParse(crontab))
 
-  def withMetricsDailyReset: ServiceConfig   = withMetricsReset(Cron.unsafeParse("3 0 0 ? * *"))
-  def withMetricsWeeklyReset: ServiceConfig  = withMetricsReset(Cron.unsafeParse("5 0 0 ? * 0"))
-  def withMetricsMonthlyReset: ServiceConfig = withMetricsReset(Cron.unsafeParse("7 0 0 1 * ?"))
+  def withMetricsDailyReset: ServiceConfig   = withMetricsReset(Cron.unsafeParse("1 0 0 ? * *"))
+  def withMetricsWeeklyReset: ServiceConfig  = withMetricsReset(Cron.unsafeParse("1 0 0 ? * 0"))
+  def withMetricsMonthlyReset: ServiceConfig = withMetricsReset(Cron.unsafeParse("1 0 0 1 * ?"))
 
   def withMetricsRateTimeUnit(tu: TimeUnit): ServiceConfig =
     ServiceConfig(Fix(WithMetricsRateTimeUnit(tu, value)))
