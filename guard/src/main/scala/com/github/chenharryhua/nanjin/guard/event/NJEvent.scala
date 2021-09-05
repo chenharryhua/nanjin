@@ -13,7 +13,9 @@ import retry.RetryDetails.WillDelayAndRetry
 import java.time.{Duration, ZonedDateTime}
 import scala.compat.java8.DurationConverters.*
 import scala.concurrent.duration.FiniteDuration
+import io.circe.generic.JsonCodec
 
+@JsonCodec
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   final def show: String = NJEvent.showNJEvent.show(this)
@@ -60,7 +62,16 @@ final case class MetricsReport(
   serviceParams: ServiceParams,
   prev: Option[ZonedDateTime],
   next: Option[ZonedDateTime],
-  metrics: MetricRegistryWrapper
+  snapshot: MetricsSnapshot
+) extends ServiceEvent
+
+final case class MetricsReset(
+  timestamp: ZonedDateTime,
+  serviceInfo: ServiceInfo,
+  serviceParams: ServiceParams,
+  prev: Option[ZonedDateTime],
+  next: Option[ZonedDateTime],
+  snapshot: MetricsSnapshot
 ) extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {

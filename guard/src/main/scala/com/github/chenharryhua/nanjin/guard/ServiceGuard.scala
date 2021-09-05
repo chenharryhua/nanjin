@@ -5,8 +5,8 @@ import cats.effect.kernel.Async
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -64,8 +64,7 @@ final class ServiceGuard[F[_]] private[guard] (
           */
         val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
 
-        // metrics report
-        val reporting: Stream[F, INothing] = {
+        val metricsReport: Stream[F, INothing] = {
           params.reportingSchedule match {
             case Left(dur) =>
               Stream.fixedRate[F](dur).zipWithIndex.evalMap(t => publisher.metricsReport(t._2 + 1, dur)).drain
@@ -74,9 +73,8 @@ final class ServiceGuard[F[_]] private[guard] (
           }
         }
 
-        val metricsReset: Stream[F, INothing] = params.metricsReset.fold(Stream.empty.covary[F]) { cron =>
-          cronScheduler.awakeEvery(cron).evalMap(_ => F.delay(metricRegistry.removeMatching(MetricFilter.ALL))).drain
-        }
+        val metricsReset: Stream[F, INothing] = params.metricsReset.fold(Stream.empty.covary[F])(cron =>
+          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(cron)).drain)
 
         val jmxReporting: Stream[F, INothing] = {
           jmxBuilder match {
@@ -94,9 +92,9 @@ final class ServiceGuard[F[_]] private[guard] (
         channel.stream
           .onFinalize(channel.close.void) // drain pending send operation
           .concurrently(Stream.eval(theService).drain)
+          .concurrently(metricsReport)
           .concurrently(metricsReset)
           .concurrently(jmxReporting)
-          .concurrently(reporting)
       }
     } yield event
 }

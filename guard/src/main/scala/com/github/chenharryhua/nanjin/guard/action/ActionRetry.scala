@@ -71,9 +71,8 @@ final class ActionRetry[F[_], A, B] private[guard] (
     error: Throwable,
     details: RetryDetails): F[Unit] =
     details match {
-      case wdr: WillDelayAndRetry =>
-        publisher.actionRetrying(actionInfo, params, wdr, error) *> retryCount.update(_ + 1)
-      case _: GivingUp => F.unit
+      case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, params, wdr, error, retryCount)
+      case _: GivingUp            => F.unit
     }
 
   private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(

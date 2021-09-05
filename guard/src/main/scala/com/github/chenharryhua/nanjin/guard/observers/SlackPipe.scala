@@ -9,14 +9,13 @@ import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, 
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
-import io.chrisdavenport.cats.time.instances.{localtime, zoneid}
+import io.chrisdavenport.cats.time.instances.{localdatetime, localtime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
-import scala.collection.JavaConverters.*
 import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
 import scala.concurrent.duration.FiniteDuration
 
@@ -61,7 +60,7 @@ final private case class SlackNotification(username: String, text: String, attac
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig)(implicit F: MonadCancel[F, Throwable])
-    extends Pipe[F, NJEvent, NJEvent] with zoneid with localtime {
+    extends Pipe[F, NJEvent, NJEvent] with zoneid with localdatetime with localtime {
 
   private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackPipe[F] =
     new SlackPipe[F](snsResource, f(cfg))
@@ -90,13 +89,6 @@ final class SlackPipe[F[_]] private[observers] (
         case _ => "th"
       }
   }
-
-  private def translate(mrw: MetricRegistryWrapper): String =
-    mrw.registry.fold("") { mr =>
-      val timer   = mr.getTimers.asScala.map { case (s, t) => s"$s: *${t.getCount}*" }.toList
-      val counter = mr.getCounters.asScala.map { case (s, c) => s"$s: *${c.getCount}*" }.toList
-      (timer ::: counter).sorted.mkString("\n")
-    }
 
   @SuppressWarnings(Array("ListSize"))
   private def send(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
@@ -172,7 +164,7 @@ final class SlackPipe[F[_]] private[observers] (
       case MetricsReport(idx, at, si, params, prev, next, metrics) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          StringUtils.abbreviate(translate(metrics), cfg.maxCauseSize),
+          StringUtils.abbreviate(metrics.text, cfg.maxCauseSize),
           List(
             Attachment(
               cfg.infoColor,
@@ -202,6 +194,33 @@ final class SlackPipe[F[_]] private[observers] (
         }.fold(true)(identity)
 
         sns.publish(msg).whenA(isShow)
+
+      case MetricsReset(at, si, params, prev, next, metrics) =>
+        val toNow     = prev.map(p => cfg.durationFormatter.format(p, at)).fold("")(dur => s" in past $dur")
+        val summaries = s"*This is a summary of activities performed by the service$toNow*"
+
+        def msg: String = SlackNotification(
+          params.taskParams.appName,
+          s"$summaries\n${metrics.text}",
+          List(
+            Attachment(
+              cfg.infoColor,
+              at.toInstant.toEpochMilli,
+              List(
+                SlackField("Service", params.serviceName, short = true),
+                SlackField("Host", params.taskParams.hostName, short = true),
+                SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
+                SlackField(
+                  s"Next Reset at",
+                  next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
+                  short = false
+                ),
+                SlackField("Brief", cfg.brief, short = false)
+              )
+            ))
+        ).asJson.noSpaces
+
+        sns.publish(msg).void
 
       case ActionStart(params, action, at) =>
         def msg: String =

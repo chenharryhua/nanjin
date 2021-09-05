@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import cats.implicits.toShow
+import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
-import com.codahale.metrics.{ConsoleReporter, MetricRegistry}
 import com.fasterxml.jackson.databind.ObjectMapper
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.syntax.*
@@ -17,8 +18,10 @@ import java.nio.charset.StandardCharsets
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.{TimeZone, UUID}
+import scala.collection.JavaConverters.*
 import scala.collection.immutable
 
+@JsonCodec
 sealed trait NJRuntimeInfo {
   def uuid: UUID
   def launchTime: ZonedDateTime
@@ -27,7 +30,8 @@ sealed trait NJRuntimeInfo {
 final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 
-final case class Notes private (value: String)
+@JsonCodec
+final case class Notes private (value: String) extends AnyVal
 
 private[guard] object Notes {
   def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
@@ -61,23 +65,32 @@ private[guard] object NJError {
     NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
 }
 
-final case class MetricRegistryWrapper(
-  registry: Option[MetricRegistry],
-  rateTimeUnit: TimeUnit,
-  durationTimeUnit: TimeUnit,
-  zoneId: ZoneId)
+sealed trait RunMode extends EnumEntry
+object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMode] {
+  override val values: immutable.IndexedSeq[RunMode] = findValues
+  case object Parallel extends RunMode
+  case object Sequential extends RunMode
+}
 
-private[guard] object MetricRegistryWrapper {
+@JsonCodec
+final case class MetricsSnapshot private (counters: Map[String, Long], text: String, asJson: Json, show: String) {
+  override val toString: String = show
+}
 
-  implicit val showMetricRegistryWrapper: Show[MetricRegistryWrapper] = { mrw =>
-    mrw.registry.fold("") { mr =>
+private[guard] object MetricsSnapshot {
+  def apply(
+    metricRegistry: MetricRegistry,
+    rateTimeUnit: TimeUnit,
+    durationTimeUnit: TimeUnit,
+    zoneId: ZoneId): MetricsSnapshot = {
+    val show: String = {
       val bao = new ByteArrayOutputStream
       val ps  = new PrintStream(bao)
       ConsoleReporter
-        .forRegistry(mr)
-        .convertRatesTo(mrw.rateTimeUnit)
-        .convertDurationsTo(mrw.durationTimeUnit)
-        .formattedFor(TimeZone.getTimeZone(mrw.zoneId))
+        .forRegistry(metricRegistry)
+        .convertRatesTo(rateTimeUnit)
+        .convertDurationsTo(durationTimeUnit)
+        .formattedFor(TimeZone.getTimeZone(zoneId))
         .outputTo(ps)
         .build()
         .report()
@@ -85,37 +98,23 @@ private[guard] object MetricRegistryWrapper {
       ps.close()
       bao.toString(StandardCharsets.UTF_8.name())
     }
-  }
 
-  implicit val encodeMetricRegistryWrapper: Encoder[MetricRegistryWrapper] = { mrw =>
-    val registry: Json = mrw.registry.flatMap { mr =>
+    val json: Json = {
       val str =
         new ObjectMapper()
-          .registerModule(new MetricsModule(mrw.rateTimeUnit, mrw.durationTimeUnit, false))
+          .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false))
           .writerWithDefaultPrettyPrinter()
-          .writeValueAsString(mr)
-      io.circe.jackson.parse(str).toOption
-    }.getOrElse(Json.Null)
+          .writeValueAsString(metricRegistry)
+      io.circe.jackson.parse(str).toOption.getOrElse(Json.Null)
+    }
 
-    Json.obj(
-      "registry" -> registry,
-      "rateTimeUnit" -> mrw.rateTimeUnit.asJson,
-      "durationTimeUnit" -> mrw.durationTimeUnit.asJson,
-      "zoneId" -> mrw.zoneId.asJson)
+    val timer: Map[String, Long]   = metricRegistry.getTimers.asScala.mapValues(_.getCount).toMap
+    val counter: Map[String, Long] = metricRegistry.getCounters.asScala.mapValues(_.getCount).toMap
+
+    val text: String = (timer ++ counter).map(x => s"${x._1}: *${x._2}*").toList.sorted.mkString("\n")
+
+    MetricsSnapshot(timer ++ counter, text, json, show)
   }
 
-  implicit val decodeMetricRegistryWrapper: Decoder[MetricRegistryWrapper] =
-    (c: HCursor) =>
-      for {
-        rate <- c.downField("rateTimeUnit").as[TimeUnit]
-        duration <- c.downField("durationTimeUnit").as[TimeUnit]
-        tz <- c.downField("zoneId").as[ZoneId]
-      } yield MetricRegistryWrapper(registry = None, rateTimeUnit = rate, durationTimeUnit = duration, zoneId = tz)
-}
-
-sealed trait RunMode extends EnumEntry
-object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMode] {
-  override val values: immutable.IndexedSeq[RunMode] = findValues
-  case object Parallel extends RunMode
-  case object Sequential extends RunMode
+  implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
 }

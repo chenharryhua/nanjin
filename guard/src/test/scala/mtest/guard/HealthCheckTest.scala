@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   ActionStart,
   ActionSucced,
   MetricsReport,
+  MetricsSnapshot,
   NJEvent,
   ServiceStarted
 }
@@ -29,8 +30,8 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withReportingSchedule("* * * ? * *"))
       .eventStream(gd => gd("cron").notice.retry(IO.never[Int]).run)
       .evalTap(console[IO](_.show))
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      // .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      // .unNone
       .interruptAfter(5.second)
       .compile
       .toList
