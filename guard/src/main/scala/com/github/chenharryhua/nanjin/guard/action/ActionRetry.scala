@@ -71,7 +71,7 @@ final class ActionRetry[F[_], A, B] private[guard] (
     error: Throwable,
     details: RetryDetails): F[Unit] =
     details match {
-      case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, params, wdr, error, retryCount)
+      case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, params, retryCount, wdr, error)
       case _: GivingUp            => F.unit
     }
 

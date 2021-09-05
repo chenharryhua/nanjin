@@ -201,9 +201,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def actionRetrying(
     actionInfo: ActionInfo,
     actionParams: ActionParams,
+    retryCount: Ref[F, Int],
     willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable,
-    retryCount: Ref[F, Int]): F[Unit] =
+    ex: Throwable
+  ): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(
