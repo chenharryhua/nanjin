@@ -4,7 +4,6 @@ import cats.effect.MonadCancel
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
-import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, NJEvent}
 import fs2.{INothing, Pipe, Pull, Stream}
@@ -16,7 +15,7 @@ import scala.collection.JavaConverters.*
 object cloudwatch {
   def apply[F[_]](client: Resource[F, CloudWatch[F]], namespace: String)(implicit
     F: MonadCancel[F, Throwable]): CloudWatchMetrics[F] =
-    new CloudWatchMetrics[F](client, namespace, 60, MetricFilter.ALL)
+    new CloudWatchMetrics[F](client, namespace, 60)
 
   def apply[F[_]: Sync](namespace: String): CloudWatchMetrics[F] =
     apply[F](CloudWatch[F], namespace)
@@ -26,14 +25,12 @@ final private case class MetricKey(
   uuid: UUID,
   hostName: String,
   standardUnit: StandardUnit,
-  metricType: String,
   task: String,
   service: String,
   metricName: String) {
   def metricDatum(ts: ZonedDateTime, count: Long): MetricDatum =
     new MetricDatum()
       .withDimensions(
-        new Dimension().withName("MetricType").withValue(metricType),
         new Dimension().withName("Task").withValue(task),
         new Dimension().withName("Service").withValue(service),
         new Dimension().withName("Host").withValue(hostName)
@@ -47,69 +44,41 @@ final private case class MetricKey(
 final class CloudWatchMetrics[F[_]] private[observers] (
   client: Resource[F, CloudWatch[F]],
   namespace: String,
-  storageResolution: Int,
-  metricFilter: MetricFilter)(implicit F: MonadCancel[F, Throwable])
+  storageResolution: Int)(implicit F: MonadCancel[F, Throwable])
     extends Pipe[F, NJEvent, INothing] {
 
   def withStorageResolution(storageResolution: Int): CloudWatchMetrics[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchMetrics(client, namespace, storageResolution, metricFilter)
+    new CloudWatchMetrics(client, namespace, storageResolution)
   }
-
-  def withMetricFilter(metricFilter: MetricFilter): CloudWatchMetrics[F] =
-    new CloudWatchMetrics(client, namespace, storageResolution, metricFilter)
 
   private def buildMetricDatum(
     report: MetricsReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
-    val res: Option[(List[MetricDatum], Map[MetricKey, Long])] = report.metrics.registry.map { mr =>
-      val counters: Map[MetricKey, Long] = mr
-        .getCounters(metricFilter)
-        .asScala
-        .map { case (metricName, counter) =>
-          MetricKey(
-            report.serviceInfo.uuid,
-            report.serviceParams.taskParams.hostName,
-            StandardUnit.Count,
-            "CounterCount",
-            report.serviceParams.taskParams.appName,
-            report.serviceParams.serviceName,
-            metricName
-          ) -> counter.getCount
-        }
-        .toMap
+    val counters: Map[MetricKey, Long] = report.snapshot.counters.map { case (metricName, counter) =>
+      MetricKey(
+        report.serviceInfo.uuid,
+        report.serviceParams.taskParams.hostName,
+        StandardUnit.Count,
+        report.serviceParams.taskParams.appName,
+        report.serviceParams.serviceName,
+        metricName
+      ) -> counter
+    }
 
-      val timers: Map[MetricKey, Long] = mr
-        .getTimers(metricFilter)
-        .asScala
-        .map { case (metricName, counter) =>
-          MetricKey(
-            report.serviceInfo.uuid,
-            report.serviceParams.taskParams.hostName,
-            StandardUnit.Count,
-            "TimerCount",
-            report.serviceParams.taskParams.appName,
-            report.serviceParams.serviceName,
-            metricName
-          ) -> counter.getCount
-        }
-        .toMap
-
-      (counters ++ timers).foldLeft((List.empty[MetricDatum], last)) { case ((mds, last), (key, count)) =>
-        last.get(key) match {
-          case Some(old) =>
-            if (count > old) (key.metricDatum(report.timestamp, count - old) :: mds, last.updated(key, count))
-            else if (count === old) (mds, last)
-            else (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
-          case None =>
-            (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
-        }
+    counters.foldLeft((List.empty[MetricDatum], last)) { case ((mds, last), (key, count)) =>
+      last.get(key) match {
+        case Some(old) =>
+          if (count > old) (key.metricDatum(report.timestamp, count - old) :: mds, last.updated(key, count))
+          else if (count === old) (mds, last)
+          else (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
+        case None =>
+          (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
       }
     }
-    res.fold((List.empty[MetricDatum], last))(identity)
   }
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] = {

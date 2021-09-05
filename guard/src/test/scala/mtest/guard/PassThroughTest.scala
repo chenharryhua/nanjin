@@ -43,12 +43,12 @@ class PassThroughTest extends AnyFunSuite {
 
   test("counter") {
     val Some(last) = guard
-      .updateConfig(_.withReportingSchedule(crontabs.trisecondly))
+      .updateConfig(_.withReportingSchedule(crontabs.secondly))
       .eventStream(action => action("counter").count(1).delayBy(1.second).foreverM)
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricsReport].metrics.registry.get.getCounters.get("11.counter.[counter]").getCount > 3)
+    assert(last.asInstanceOf[MetricsReport].snapshot.counters("11.counter.[counter]") > 3)
   }
 }

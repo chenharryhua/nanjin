@@ -72,8 +72,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = Some(ts.minus(dur.toJava)),
             next = Some(ts.plus(dur.toJava)),
-            metrics = MetricRegistryWrapper(
-              registry = Some(metricRegistry),
+            snapshot = MetricsSnapshot(
+              metricRegistry = metricRegistry,
               rateTimeUnit = serviceParams.metricsRateTimeUnit,
               durationTimeUnit = serviceParams.metricsDurationTimeUnit,
               zoneId = serviceParams.taskParams.zoneId
@@ -92,14 +92,33 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = cronExpr.prev(ts),
             next = cronExpr.next(ts),
-            metrics = MetricRegistryWrapper(
-              registry = Some(metricRegistry),
+            snapshot = MetricsSnapshot(
+              metricRegistry = metricRegistry,
               rateTimeUnit = serviceParams.metricsRateTimeUnit,
               durationTimeUnit = serviceParams.metricsDurationTimeUnit,
               zoneId = serviceParams.taskParams.zoneId
             )
           )))
       .map(_ => metricRegistry.counter(metricsReportMRName).inc())
+
+  def metricsReset(cronExpr: CronExpr): F[Unit] =
+    realZonedDateTime.flatMap(ts =>
+      channel
+        .send(
+          MetricsReset(
+            timestamp = ts,
+            serviceInfo = serviceInfo,
+            serviceParams = serviceParams,
+            prev = cronExpr.prev(ts),
+            next = cronExpr.next(ts),
+            snapshot = MetricsSnapshot(
+              metricRegistry = metricRegistry,
+              rateTimeUnit = serviceParams.metricsRateTimeUnit,
+              durationTimeUnit = serviceParams.metricsDurationTimeUnit,
+              zoneId = serviceParams.taskParams.zoneId
+            )
+          ))
+        .void)
 
   /** actions
     */
