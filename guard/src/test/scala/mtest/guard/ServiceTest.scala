@@ -8,10 +8,12 @@ import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, console, logging, slack}
+import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.{Instant, ZonedDateTime}
 import scala.concurrent.duration.*
 class ServiceTest extends AnyFunSuite {
 
@@ -132,6 +134,10 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
+    val monthly = guard.updateConfig(_.withMetricsMonthlyReset).params.metricsReset.get.next(ZonedDateTime.now()).get
+    val weekly  = guard.updateConfig(_.withMetricsWeeklyReset).params.metricsReset.get.next(ZonedDateTime.now()).get
+    println(monthly)
+    println(weekly)
   }
 
   ignore("performance") {
