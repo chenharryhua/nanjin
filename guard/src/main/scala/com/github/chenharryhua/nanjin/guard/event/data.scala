@@ -16,6 +16,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.nio.charset.StandardCharsets
+import java.text.NumberFormat
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.{TimeZone, UUID}
@@ -106,19 +107,25 @@ private[guard] object MetricsSnapshot {
           .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false))
           .writerWithDefaultPrettyPrinter()
           .writeValueAsString(metricRegistry)
-      io.circe.jackson.parse(str).toOption.getOrElse(Json.Null)
+      io.circe.jackson.parse(str).fold(_ => Json.Null, identity)
     }
 
     val timer: Map[String, Long]   = metricRegistry.getTimers.asScala.mapValues(_.getCount).toMap
     val counter: Map[String, Long] = metricRegistry.getCounters.asScala.mapValues(_.getCount).toMap
+    val all: Map[String, Long]     = timer ++ counter
 
-    val text: String = (timer ++ counter).map(x => s"${x._1}: *${x._2}*").toList.sorted.mkString("\n")
+    val fmt: NumberFormat = NumberFormat.getIntegerInstance
+    val text: String      = all.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted.mkString("\n")
 
-    MetricsSnapshot(timer ++ counter, text, json, show)
+    MetricsSnapshot(all, text, json, show)
   }
 
   def apply(metricRegistry: MetricRegistry, params: ServiceParams): MetricsSnapshot =
-    create(metricRegistry, params.metricsRateTimeUnit, params.metricsDurationTimeUnit, params.taskParams.zoneId)
+    create(
+      metricRegistry = metricRegistry,
+      rateTimeUnit = params.metric.rateTimeUnit,
+      durationTimeUnit = params.metric.durationTimeUnit,
+      zoneId = params.taskParams.zoneId)
 
   implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
 }

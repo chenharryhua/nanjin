@@ -52,7 +52,8 @@ final class ActionGuard[F[_]] private[guard] (
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
-  def run[B](fb: F[B]): F[B] = retry(fb).run
+  def run[B](fb: F[B]): F[B]             = retry(fb).run
+  def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
   def passThrough[A: Encoder](a: A): F[Unit]    = publisher.passThrough(params, a.asJson)
   def unsafePassThrough[A: Encoder](a: A): Unit = dispatcher.unsafeRunSync(passThrough(a))

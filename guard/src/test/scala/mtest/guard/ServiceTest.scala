@@ -8,10 +8,12 @@ import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, console, logging, slack}
+import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.{Instant, ZonedDateTime}
 import scala.concurrent.duration.*
 class ServiceTest extends AnyFunSuite {
 
@@ -79,7 +81,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
-      .updateConfig(_.withReportingSchedule(1.second))
+      .updateConfig(_.withMetricSchedule(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.trivial.retry(IO.never).run)
       .debug()
@@ -132,12 +134,18 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
+    val monthly =
+      guard.updateConfig(_.withMetricMonthlyReset).params.metric.resetSchedule.get.next(ZonedDateTime.now()).get
+    val weekly =
+      guard.updateConfig(_.withMetricWeeklyReset).params.metric.resetSchedule.get.next(ZonedDateTime.now()).get
+    println(monthly)
+    println(weekly)
   }
 
   ignore("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
-      .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(crontabs.secondly).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
       .eventStream(ag => ag.run(ag.passThrough(1).foreverM))
       .evalTap(logging[IO](_.show))
       .compile
