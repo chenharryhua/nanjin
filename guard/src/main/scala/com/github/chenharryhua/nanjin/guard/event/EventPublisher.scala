@@ -32,12 +32,12 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private val servicePanicMRName: String  = "03.service.`panic`"
 
   // action level
-  private def passThroughMRName(params: ActionParams): String = s"10.pass.through.[${params.actionName}]"
-  private def counterMRName(params: ActionParams): String     = s"11.counter.[${params.actionName}]"
-  private def actionFailMRName(params: ActionParams): String  = s"12.action.[${params.actionName}].`fail`"
-  private def actionStartMRName(params: ActionParams): String = s"12.action.[${params.actionName}].count"
-  private def actionRetryMRName(params: ActionParams): String = s"12.action.[${params.actionName}].retry"
-  private def actionSuccMRName(params: ActionParams): String  = s"12.action.[${params.actionName}].succd"
+  private def passThroughMRName(name: String): String = s"10.pass.through.[$name]"
+  private def counterMRName(name: String): String     = s"11.counter.[$name]"
+  private def actionFailMRName(name: String): String  = s"12.action.[$name].`fail`"
+  private def actionStartMRName(name: String): String = s"12.action.[$name].count"
+  private def actionRetryMRName(name: String): String = s"12.action.[$name].retry"
+  private def actionSuccMRName(name: String): String  = s"12.action.[$name].succd"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
@@ -128,8 +128,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         case Importance.High =>
           channel
             .send(ActionStart(actionParams, actionInfo, ts))
-            .map(_ => metricRegistry.counter(actionStartMRName(actionParams)).inc())
-        case Importance.Medium => F.delay(metricRegistry.counter(actionStartMRName(actionParams)).inc())
+            .map(_ => metricRegistry.counter(actionStartMRName(actionParams.actionName)).inc())
+        case Importance.Medium => F.delay(metricRegistry.counter(actionStartMRName(actionParams.actionName)).inc())
         case Importance.Low    => F.unit
       }
     } yield actionInfo
@@ -158,10 +158,11 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               actionParams = actionParams,
               numRetries = num,
               notes = notes))
-          _ <- timing(actionSuccMRName(actionParams), actionInfo, ts)
+          _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
         } yield ()
-      case Importance.Medium => realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams), actionInfo, _))
-      case Importance.Low    => F.unit
+      case Importance.Medium =>
+        realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams.actionName), actionInfo, _))
+      case Importance.Low => F.unit
     }
 
   def quasiSucced[T[_]: Traverse, A, B](
@@ -190,10 +191,11 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               failNotes = Notes(fn),
               errors = res._1.map(_._2)
             ))
-          _ <- timing(actionSuccMRName(actionParams), actionInfo, ts)
+          _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
         } yield ()
-      case Importance.Medium => realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams), actionInfo, _))
-      case Importance.Low    => F.unit
+      case Importance.Medium =>
+        realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams.actionName), actionInfo, _))
+      case Importance.Low => F.unit
     }
 
   def actionRetrying(
@@ -214,8 +216,9 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             error = NJError(ex)))
         .flatMap(_ =>
           actionParams.importance match {
-            case Importance.High | Importance.Medium => timing(actionRetryMRName(actionParams), actionInfo, ts)
-            case Importance.Low                      => F.unit
+            case Importance.High | Importance.Medium =>
+              timing(actionRetryMRName(actionParams.actionName), actionInfo, ts)
+            case Importance.Low => F.unit
           })) *> retryCount.update(_ + 1)
 
   def actionFailed[A](
@@ -239,7 +242,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           notes = notes,
           error = NJError(ex)))
       _ <- actionParams.importance match {
-        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams), actionInfo, ts)
+        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
         case Importance.Low                      => F.unit
       }
     } yield ()
@@ -256,17 +259,17 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           notes = Notes(ExceptionUtils.getMessage(ex)),
           error = NJError(ex)))
       _ <- actionParams.importance match {
-        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams), actionInfo, ts)
+        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
         case Importance.Low                      => F.unit
       }
     } yield ()
 
-  def passThrough(actionParams: ActionParams, json: Json): F[Unit] =
+  def passThrough(metricName: String, json: Json): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
-        .send(PassThrough(ts, actionParams, json))
-        .map(_ => metricRegistry.counter(passThroughMRName(actionParams)).inc()))
+        .send(PassThrough(ts, metricName, json))
+        .map(_ => metricRegistry.counter(passThroughMRName(metricName)).inc()))
 
-  def count(actionParams: ActionParams, num: Long): F[Unit] =
-    F.delay(metricRegistry.counter(counterMRName(actionParams)).inc(num))
+  def count(metricName: String, num: Long): F[Unit] =
+    F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
 }
