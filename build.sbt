@@ -376,7 +376,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(
     libraryDependencies ++= Seq(
-      "com.lihaoyi" %% "fastparse"       % "2.3.2",
+      "com.lihaoyi" %% "fastparse"       % "2.3.3",
       "io.chrisdavenport" %% "cats-time" % catsTime) ++
       cronLib ++ baseLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
