@@ -110,4 +110,4 @@ final case class ActionQuasiSucced(
   errors: List[NJError])
     extends ActionEvent
 
-final case class PassThrough(timestamp: ZonedDateTime, actionParams: ActionParams, value: Json) extends NJEvent
+final case class PassThrough(timestamp: ZonedDateTime, metricName: String, value: Json) extends NJEvent

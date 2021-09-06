@@ -55,11 +55,12 @@ final class ActionGuard[F[_]] private[guard] (
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
-  def passThrough[A: Encoder](a: A): F[Unit]    = publisher.passThrough(params, a.asJson)
-  def unsafePassThrough[A: Encoder](a: A): Unit = dispatcher.unsafeRunSync(passThrough(a))
+  def passThrough[A: Encoder](a: A, metricName: String): F[Unit] = publisher.passThrough(metricName, a.asJson)
+  def unsafePassThrough[A: Encoder](a: A, metricName: String): Unit =
+    dispatcher.unsafeRunSync(passThrough(a, metricName))
 
-  def count(n: Long): F[Unit]    = publisher.count(params, n)
-  def unsafeCount(n: Long): Unit = dispatcher.unsafeRunSync(count(n))
+  def count(num: Long, metricName: String): F[Unit]    = publisher.count(metricName, num)
+  def unsafeCount(num: Long, metricName: String): Unit = dispatcher.unsafeRunSync(count(num, metricName))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
