@@ -81,7 +81,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
-      .updateConfig(_.withReportingSchedule(1.second))
+      .updateConfig(_.withMetricSchedule(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.trivial.retry(IO.never).run)
       .debug()
@@ -134,8 +134,10 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    val monthly = guard.updateConfig(_.withMetricsMonthlyReset).params.metricsReset.get.next(ZonedDateTime.now()).get
-    val weekly  = guard.updateConfig(_.withMetricsWeeklyReset).params.metricsReset.get.next(ZonedDateTime.now()).get
+    val monthly =
+      guard.updateConfig(_.withMetricMonthlyReset).params.metric.resetSchedule.get.next(ZonedDateTime.now()).get
+    val weekly =
+      guard.updateConfig(_.withMetricWeeklyReset).params.metric.resetSchedule.get.next(ZonedDateTime.now()).get
     println(monthly)
     println(weekly)
   }
@@ -143,7 +145,7 @@ class ServiceTest extends AnyFunSuite {
   ignore("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
-      .updateConfig(_.withConstantDelay(1.hour).withReportingSchedule(crontabs.secondly).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
       .eventStream(ag => ag.run(ag.passThrough(1).foreverM))
       .evalTap(logging[IO](_.show))
       .compile

@@ -121,7 +121,11 @@ private[guard] object MetricsSnapshot {
   }
 
   def apply(metricRegistry: MetricRegistry, params: ServiceParams): MetricsSnapshot =
-    create(metricRegistry, params.metricsRateTimeUnit, params.metricsDurationTimeUnit, params.taskParams.zoneId)
+    create(
+      metricRegistry = metricRegistry,
+      rateTimeUnit = params.metric.rateTimeUnit,
+      durationTimeUnit = params.metric.durationTimeUnit,
+      zoneId = params.taskParams.zoneId)
 
   implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
 }

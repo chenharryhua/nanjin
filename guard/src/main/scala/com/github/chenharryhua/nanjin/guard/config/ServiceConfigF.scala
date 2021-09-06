@@ -9,15 +9,19 @@ import monocle.macros.Lenses
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
+@Lenses final case class MetricParams private (
+  reportSchedule: Either[FiniteDuration, CronExpr],
+  resetSchedule: Option[CronExpr],
+  rateTimeUnit: TimeUnit,
+  durationTimeUnit: TimeUnit
+)
+
 @Lenses final case class ServiceParams private (
   serviceName: String,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
-  reportingSchedule: Either[FiniteDuration, CronExpr],
-  metricsReset: Option[CronExpr],
-  metricsRateTimeUnit: TimeUnit,
-  metricsDurationTimeUnit: TimeUnit,
-  queueCapacity: Int
+  queueCapacity: Int,
+  metric: MetricParams
 )
 
 object ServiceParams {
@@ -27,11 +31,13 @@ object ServiceParams {
       serviceName = serviceName,
       taskParams = taskParams,
       retry = NJRetryPolicy.ConstantDelay(30.seconds),
-      reportingSchedule = Left(1.hour),
-      metricsReset = None,
-      metricsRateTimeUnit = TimeUnit.SECONDS,
-      metricsDurationTimeUnit = TimeUnit.MILLISECONDS,
-      queueCapacity = 0 // synchronous
+      queueCapacity = 0, // synchronous
+      metric = MetricParams(
+        reportSchedule = Left(1.hour),
+        resetSchedule = None,
+        rateTimeUnit = TimeUnit.SECONDS,
+        durationTimeUnit = TimeUnit.MILLISECONDS
+      )
     )
 }
 
@@ -41,64 +47,52 @@ private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K](serviceName: String, taskParams: TaskParams) extends ServiceConfigF[K]
-  final case class WithReportingSchedule[K](value: Either[FiniteDuration, CronExpr], cont: K) extends ServiceConfigF[K]
-  final case class WithMetricsReset[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
-
-  final case class WithMetricsRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
-  final case class WithMetricsDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
-
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
-
   final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
-
   final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
+
+  final case class WithReportSchedule[K](value: Either[FiniteDuration, CronExpr], cont: K) extends ServiceConfigF[K]
+  final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
+  final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
+  final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(s, t)                  => ServiceParams(s, t)
-      case WithRetryPolicy(v, c)             => ServiceParams.retry.set(v)(c)
-      case WithReportingSchedule(v, c)       => ServiceParams.reportingSchedule.set(v)(c)
-      case WithServiceName(v, c)             => ServiceParams.serviceName.set(v)(c)
-      case WithMetricsReset(v, c)            => ServiceParams.metricsReset.set(v)(c)
-      case WithMetricsRateTimeUnit(v, c)     => ServiceParams.metricsRateTimeUnit.set(v)(c)
-      case WithMetricsDurationTimeUnit(v, c) => ServiceParams.metricsDurationTimeUnit.set(v)(c)
-      case WithQueueCapacity(v, c)           => ServiceParams.queueCapacity.set(v)(c)
+      case InitParams(s, t)        => ServiceParams(s, t)
+      case WithRetryPolicy(v, c)   => ServiceParams.retry.set(v)(c)
+      case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
+      case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
+
+      case WithReportSchedule(v, c)   => ServiceParams.metric.composeLens(MetricParams.reportSchedule).set(v)(c)
+      case WithResetSchedule(v, c)    => ServiceParams.metric.composeLens(MetricParams.resetSchedule).set(v)(c)
+      case WithRateTimeUnit(v, c)     => ServiceParams.metric.composeLens(MetricParams.rateTimeUnit).set(v)(c)
+      case WithDurationTimeUnit(v, c) => ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
-  def withQueueCapacity(size: Int): ServiceConfig =
-    ServiceConfig(Fix(WithQueueCapacity(size, value)))
+  def withQueueCapacity(size: Int): ServiceConfig  = ServiceConfig(Fix(WithQueueCapacity(size, value)))
+  def withServiceName(name: String): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
 
-  def withServiceName(name: String): ServiceConfig =
-    ServiceConfig(Fix(WithServiceName(name, value)))
+  def withMetricSchedule(interval: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithReportSchedule(Left(interval), value)))
 
-  def withReportingSchedule(interval: FiniteDuration): ServiceConfig = ServiceConfig(
-    Fix(WithReportingSchedule(Left(interval), value)))
+  def withMetricSchedule(crontab: CronExpr): ServiceConfig =
+    ServiceConfig(Fix(WithReportSchedule(Right(crontab), value)))
 
-  def withReportingSchedule(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithReportingSchedule(Right(crontab), value)))
+  def withMetricSchedule(crontab: String): ServiceConfig =
+    withMetricSchedule(Cron.unsafeParse(crontab))
 
-  def withReportingSchedule(crontab: String): ServiceConfig =
-    withReportingSchedule(Cron.unsafeParse(crontab))
+  def withMetricReset(crontab: CronExpr): ServiceConfig = ServiceConfig(Fix(WithResetSchedule(Some(crontab), value)))
+  def withMetricReset(crontab: String): ServiceConfig   = withMetricReset(Cron.unsafeParse(crontab))
+  def withMetricDailyReset: ServiceConfig               = withMetricReset(Cron.unsafeParse("1 0 0 ? * *"))
+  def withMetricWeeklyReset: ServiceConfig              = withMetricReset(Cron.unsafeParse("1 0 0 ? * 0"))
+  def withMetricMonthlyReset: ServiceConfig             = withMetricReset(Cron.unsafeParse("1 0 0 1 * ?"))
 
-  def withMetricsReset(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithMetricsReset(Some(crontab), value)))
-
-  def withMetricsReset(crontab: String): ServiceConfig =
-    withMetricsReset(Cron.unsafeParse(crontab))
-
-  def withMetricsDailyReset: ServiceConfig   = withMetricsReset(Cron.unsafeParse("1 0 0 ? * *"))
-  def withMetricsWeeklyReset: ServiceConfig  = withMetricsReset(Cron.unsafeParse("1 0 0 ? * 0"))
-  def withMetricsMonthlyReset: ServiceConfig = withMetricsReset(Cron.unsafeParse("1 0 0 1 * ?"))
-
-  def withMetricsRateTimeUnit(tu: TimeUnit): ServiceConfig =
-    ServiceConfig(Fix(WithMetricsRateTimeUnit(tu, value)))
-
-  def withMetricsDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(
-    Fix(WithMetricsDurationTimeUnit(tu, value)))
+  def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig     = ServiceConfig(Fix(WithRateTimeUnit(tu, value)))
+  def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(Fix(WithDurationTimeUnit(tu, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))

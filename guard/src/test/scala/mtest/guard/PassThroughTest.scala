@@ -43,7 +43,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("counter") {
     val Some(last) = guard
-      .updateConfig(_.withReportingSchedule(crontabs.secondly))
+      .updateConfig(_.withMetricSchedule(crontabs.secondly))
       .eventStream(action => action("counter").count(1).delayBy(1.second).foreverM)
       .interruptAfter(5.seconds)
       .compile

@@ -65,7 +65,7 @@ final class ServiceGuard[F[_]] private[guard] (
         val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
 
         val metricsReport: Stream[F, INothing] = {
-          params.reportingSchedule match {
+          params.metric.reportSchedule match {
             case Left(dur) =>
               Stream.fixedRate[F](dur).zipWithIndex.evalMap(t => publisher.metricsReport(t._2 + 1, dur)).drain
             case Right(cron) =>
@@ -73,7 +73,7 @@ final class ServiceGuard[F[_]] private[guard] (
           }
         }
 
-        val metricsReset: Stream[F, INothing] = params.metricsReset.fold(Stream.empty.covary[F])(cron =>
+        val metricsReset: Stream[F, INothing] = params.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
           cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(cron)).drain)
 
         val jmxReporting: Stream[F, INothing] = {
