@@ -16,7 +16,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.nio.charset.StandardCharsets
-import java.text.NumberFormat
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.{TimeZone, UUID}
@@ -75,7 +74,7 @@ object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMo
 }
 
 @JsonCodec
-final case class MetricsSnapshot private (counters: Map[String, Long], text: String, asJson: Json, show: String) {
+final case class MetricsSnapshot private (counters: Map[String, Long], asJson: Json, show: String) {
   override val toString: String = show
 }
 
@@ -112,12 +111,8 @@ private[guard] object MetricsSnapshot {
 
     val timer: Map[String, Long]   = metricRegistry.getTimers.asScala.mapValues(_.getCount).toMap
     val counter: Map[String, Long] = metricRegistry.getCounters.asScala.mapValues(_.getCount).toMap
-    val all: Map[String, Long]     = timer ++ counter
 
-    val fmt: NumberFormat = NumberFormat.getIntegerInstance
-    val text: String      = all.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted.mkString("\n")
-
-    MetricsSnapshot(all, text, json, show)
+    MetricsSnapshot(timer ++ counter, json, show)
   }
 
   def apply(metricRegistry: MetricRegistry, params: ServiceParams): MetricsSnapshot =

@@ -15,6 +15,7 @@ import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
 
+import java.text.NumberFormat
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
@@ -91,6 +92,11 @@ final class SlackPipe[F[_]] private[observers] (
       }
   }
 
+  private def toText(counters: Map[String, Long]): String = {
+    val fmt: NumberFormat = NumberFormat.getIntegerInstance
+    counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted.mkString("\n")
+  }
+
   @SuppressWarnings(Array("ListSize"))
   private def send(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
@@ -146,7 +152,7 @@ final class SlackPipe[F[_]] private[observers] (
         def msg: String =
           SlackNotification(
             params.taskParams.appName,
-            s":octagonal_sign: The service was stopped. performed:\n${snapshot.text}",
+            s":octagonal_sign: The service was stopped. performed:\n${toText(snapshot.counters)}",
             List(
               Attachment(
                 cfg.infoColor,
@@ -165,7 +171,7 @@ final class SlackPipe[F[_]] private[observers] (
       case MetricsReport(idx, at, si, params, prev, next, snapshot) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          StringUtils.abbreviate(snapshot.text, cfg.maxCauseSize),
+          StringUtils.abbreviate(toText(snapshot.counters), cfg.maxCauseSize),
           List(
             Attachment(
               cfg.infoColor,
@@ -203,7 +209,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          s"$summaries\n${snapshot.text}",
+          s"$summaries\n${toText(snapshot.counters)}",
           List(
             Attachment(
               cfg.infoColor,
