@@ -146,7 +146,7 @@ class ServiceTest extends AnyFunSuite {
     TaskGuard[IO]("performance")
       .service("performance")
       .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
-      .eventStream(ag => ag.run(ag.passThrough(1).foreverM))
+      .eventStream(_.passThrough(1, "pt").foreverM)
       .evalTap(logging[IO](_.show))
       .compile
       .drain
