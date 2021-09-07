@@ -81,6 +81,7 @@ final case class MetricsSnapshot private (counters: Map[String, Long], asJson: J
 private[guard] object MetricsSnapshot {
   private def create(
     metricRegistry: MetricRegistry,
+    metricFilter: MetricFilter,
     rateTimeUnit: TimeUnit,
     durationTimeUnit: TimeUnit,
     zoneId: ZoneId): MetricsSnapshot = {
@@ -92,6 +93,7 @@ private[guard] object MetricsSnapshot {
         .convertRatesTo(rateTimeUnit)
         .convertDurationsTo(durationTimeUnit)
         .formattedFor(TimeZone.getTimeZone(zoneId))
+        .filter(metricFilter)
         .outputTo(ps)
         .build()
         .report()
@@ -103,24 +105,26 @@ private[guard] object MetricsSnapshot {
     val json: Json = {
       val str =
         new ObjectMapper()
-          .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false))
+          .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false, metricFilter))
           .writerWithDefaultPrettyPrinter()
           .writeValueAsString(metricRegistry)
       io.circe.jackson.parse(str).fold(_ => Json.Null, identity)
     }
 
-    val timer: Map[String, Long]   = metricRegistry.getTimers.asScala.mapValues(_.getCount).toMap
-    val counter: Map[String, Long] = metricRegistry.getCounters.asScala.mapValues(_.getCount).toMap
+    val timer: Map[String, Long]   = metricRegistry.getTimers(metricFilter).asScala.mapValues(_.getCount).toMap
+    val counter: Map[String, Long] = metricRegistry.getCounters(metricFilter).asScala.mapValues(_.getCount).toMap
 
     MetricsSnapshot(timer ++ counter, json, show)
   }
 
-  def apply(metricRegistry: MetricRegistry, params: ServiceParams): MetricsSnapshot =
+  def apply(metricRegistry: MetricRegistry, metricFilter: MetricFilter, params: ServiceParams): MetricsSnapshot =
     create(
       metricRegistry = metricRegistry,
+      metricFilter = metricFilter,
       rateTimeUnit = params.metric.rateTimeUnit,
       durationTimeUnit = params.metric.durationTimeUnit,
-      zoneId = params.taskParams.zoneId)
+      zoneId = params.taskParams.zoneId
+    )
 
   implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
 }

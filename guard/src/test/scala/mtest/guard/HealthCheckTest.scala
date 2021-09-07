@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{
@@ -29,6 +30,7 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
+      .withMetricFilter(MetricFilter.startsWith("01"))
       .updateConfig(_.withMetricSchedule("* * * ? * *"))
       .eventStream(gd => gd("cron").notice.retry(IO.never[Int]).run)
       .evalTap(console[IO](_.show))
