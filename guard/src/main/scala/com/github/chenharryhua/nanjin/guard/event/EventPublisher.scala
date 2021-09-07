@@ -35,7 +35,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private def passThroughMRName(name: String): String = s"10.pass.through.[$name]"
   private def counterMRName(name: String): String     = s"11.counter.[$name]"
 
-  private def actionFailMRName(name: String): String  = s"12.action.[$name].`fail`"
+  private def actionFailMRName(name: String): String  = s"12.action.[$name].`failed`"
   private def actionRetryMRName(name: String): String = s"12.action.[$name].retried"
   private def actionStartMRName(name: String): String = s"12.action.[$name].started"
   private def actionSuccMRName(name: String): String  = s"12.action.[$name].succed"
@@ -151,14 +151,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           ts <- realZonedDateTime
           result <- output
           num <- retryCount.get
-          notes <- buildNotes.run((input, result)).map(Notes(_))
+          notes <- buildNotes.run((input, result))
           _ <- channel.send(
             ActionSucced(
               actionInfo = actionInfo,
               timestamp = ts,
               actionParams = actionParams,
               numRetries = num,
-              notes = notes))
+              notes = Notes(notes)))
           _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
         } yield ()
       case Importance.Medium =>
@@ -233,14 +233,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       numRetries <- retryCount.get
-      notes <- buildNotes.run((input, ex)).map(Notes(_))
+      notes <- buildNotes.run((input, ex))
       _ <- channel.send(
         ActionFailed(
           actionInfo = actionInfo,
           timestamp = ts,
           actionParams = actionParams,
           numRetries = numRetries,
-          notes = notes,
+          notes = Notes(notes),
           error = NJError(ex)))
       _ <- actionParams.importance match {
         case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
