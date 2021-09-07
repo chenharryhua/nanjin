@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.Async
+import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
 
@@ -14,7 +15,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig) extends Upda
     new TaskGuard[F](f(taskConfig))
 
   def service(serviceName: String): ServiceGuard[F] =
-    new ServiceGuard[F](ServiceConfig(serviceName, params), None)
+    new ServiceGuard[F](ServiceConfig(serviceName, params), MetricFilter.ALL, None)
 
 }
 

@@ -35,10 +35,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private def passThroughMRName(name: String): String = s"10.pass.through.[$name]"
   private def counterMRName(name: String): String     = s"11.counter.[$name]"
 
-  private def actionFailMRName(name: String): String  = s"12.action.[$name].`fail`"
-  private def actionRetryMRName(name: String): String = s"12.action.[$name].retried"
-  private def actionStartMRName(name: String): String = s"12.action.[$name].started"
-  private def actionSuccMRName(name: String): String  = s"12.action.[$name].succed"
+  private def actionFailMRName(name: String): String  = s"12.action.`failed`.[$name]"
+  private def actionRetryMRName(name: String): String = s"12.action.retried.[$name]"
+  private def actionStartMRName(name: String): String = s"12.action.started.[$name]"
+  private def actionSuccMRName(name: String): String  = s"12.action.succed.[$name]"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
@@ -63,7 +63,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             error = NJError(ex))))
       .map(_ => metricRegistry.counter(servicePanicMRName).inc())
 
-  val serviceStopped: F[Unit] =
+  def serviceStopped(metricFilter: MetricFilter): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(
@@ -71,11 +71,11 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             timestamp = ts,
             serviceInfo = serviceInfo,
             serviceParams = serviceParams,
-            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
+            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
           ))
         .void)
 
-  def metricsReport(index: Long, dur: FiniteDuration): F[Unit] =
+  def metricsReport(metricFilter: MetricFilter, index: Long, dur: FiniteDuration): F[Unit] =
     F.delay(metricRegistry.counter(metricsReportMRName).inc()) <*
       realZonedDateTime.flatMap(ts =>
         channel.send(
@@ -86,10 +86,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = Some(ts.minus(dur.toJava)),
             next = Some(ts.plus(dur.toJava)),
-            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
+            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
           )))
 
-  def metricsReport(index: Long, cronExpr: CronExpr): F[Unit] =
+  def metricsReport(metricFilter: MetricFilter, index: Long, cronExpr: CronExpr): F[Unit] =
     F.delay(metricRegistry.counter(metricsReportMRName).inc()) <*
       realZonedDateTime.flatMap(ts =>
         channel.send(
@@ -100,10 +100,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = cronExpr.prev(ts),
             next = cronExpr.next(ts),
-            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
+            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
           )))
 
-  def metricsReset(cronExpr: CronExpr): F[Unit] =
+  def metricsReset(metricFilter: MetricFilter, cronExpr: CronExpr): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(
@@ -113,7 +113,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceParams = serviceParams,
             prev = cronExpr.prev(ts),
             next = cronExpr.next(ts),
-            snapshot = MetricsSnapshot(metricRegistry, serviceParams)
+            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
           ))
         .map(_ => metricRegistry.removeMatching(MetricFilter.ALL)))
 
@@ -151,14 +151,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           ts <- realZonedDateTime
           result <- output
           num <- retryCount.get
-          notes <- buildNotes.run((input, result)).map(Notes(_))
+          notes <- buildNotes.run((input, result))
           _ <- channel.send(
             ActionSucced(
               actionInfo = actionInfo,
               timestamp = ts,
               actionParams = actionParams,
               numRetries = num,
-              notes = notes))
+              notes = Notes(notes)))
           _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
         } yield ()
       case Importance.Medium =>
@@ -233,14 +233,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       numRetries <- retryCount.get
-      notes <- buildNotes.run((input, ex)).map(Notes(_))
+      notes <- buildNotes.run((input, ex))
       _ <- channel.send(
         ActionFailed(
           actionInfo = actionInfo,
           timestamp = ts,
           actionParams = actionParams,
           numRetries = numRetries,
-          notes = notes,
+          notes = Notes(notes),
           error = NJError(ex)))
       _ <- actionParams.importance match {
         case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams.actionName), actionInfo, ts)

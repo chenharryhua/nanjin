@@ -5,8 +5,8 @@ import cats.effect.kernel.Async
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -29,18 +29,22 @@ import fs2.{INothing, Stream}
 
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
+  metricFilter: MetricFilter,
   jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   val params: ServiceParams = serviceConfig.evalConfig
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), jmxBuilder)
+    new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
 
   def apply(serviceName: String): ServiceGuard[F] = updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, Some(Reader(builder)))
+    new ServiceGuard[F](serviceConfig, metricFilter, Some(Reader(builder)))
+
+  def withMetricFilter(filter: MetricFilter) =
+    new ServiceGuard[F](serviceConfig, filter, jmxBuilder)
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] =
     for {
@@ -58,7 +62,7 @@ final class ServiceGuard[F[_]] private[guard] (
             publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
               actionGuard(new ActionGuard[F](publisher, dispatcher, ActionConfig(params))))
           }
-          .guarantee(publisher.serviceStopped <* channel.close)
+          .guarantee(publisher.serviceStopped(metricFilter) <* channel.close)
 
         /** concurrent streams
           */
@@ -67,21 +71,30 @@ final class ServiceGuard[F[_]] private[guard] (
         val metricsReport: Stream[F, INothing] = {
           params.metric.reportSchedule match {
             case Left(dur) =>
-              Stream.fixedRate[F](dur).zipWithIndex.evalMap(t => publisher.metricsReport(t._2 + 1, dur)).drain
+              Stream
+                .fixedRate[F](dur)
+                .zipWithIndex
+                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, dur))
+                .drain
             case Right(cron) =>
-              cronScheduler.awakeEvery(cron).zipWithIndex.evalMap(t => publisher.metricsReport(t._2 + 1, cron)).drain
+              cronScheduler
+                .awakeEvery(cron)
+                .zipWithIndex
+                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, cron))
+                .drain
           }
         }
 
         val metricsReset: Stream[F, INothing] = params.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
-          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(cron)).drain)
+          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(metricFilter, cron)).drain)
 
         val jmxReporting: Stream[F, INothing] = {
           jmxBuilder match {
             case None => Stream.empty
             case Some(builder) =>
               Stream
-                .bracket(F.delay(builder.run(JmxReporter.forRegistry(metricRegistry)).build()))(r => F.delay(r.close()))
+                .bracket(F.delay(builder.run(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(
+                  r => F.delay(r.close()))
                 .evalMap(jr => F.delay(jr.start()))
                 .flatMap(_ => Stream.never[F])
           }
