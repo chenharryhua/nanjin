@@ -32,10 +32,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private val servicePanicMRName: String  = "03.service.`panic`"
 
   // action level
-  private def passThroughMRName(name: String): String = s"10.pass.through.[$name]"
-  private def counterMRName(name: String): String     = s"11.counter.[$name]"
+  private def counterMRName(name: String): String     = s"10.counter.[$name]"
+  private def passThroughMRName(name: String): String = s"11.pass.through.[$name]"
 
-  private def actionFailMRName(name: String): String  = s"12.action.`failed`.[$name]"
+  private def actionFailMRName(name: String): String  = s"12.action.failed.[`$name`]"
   private def actionRetryMRName(name: String): String = s"12.action.retried.[$name]"
   private def actionStartMRName(name: String): String = s"12.action.started.[$name]"
   private def actionSuccMRName(name: String): String  = s"12.action.succed.[$name]"

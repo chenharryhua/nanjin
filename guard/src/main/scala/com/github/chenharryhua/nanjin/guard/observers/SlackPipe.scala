@@ -31,7 +31,7 @@ object slack {
         warnColor = "#ffd79a",
         infoColor = "#b3d1ff",
         errorColor = "danger",
-        maxCauseSize = 500,
+        maxTextSize = 500,
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
         brief = "The developer is too lazy to provide a brief"
@@ -46,7 +46,7 @@ final private case class SlackConfig(
   warnColor: String,
   infoColor: String,
   errorColor: String,
-  maxCauseSize: Int,
+  maxTextSize: Int,
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
   brief: String
@@ -71,7 +71,7 @@ final class SlackPipe[F[_]] private[observers] (
   def withWarnColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(warnColor = color))
   def withInfoColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(infoColor = color))
   def withErrorColor(color: String): SlackPipe[F]                 = updateSlackConfig(_.copy(errorColor = color))
-  def withMaxCauseSize(size: Int): SlackPipe[F]                   = updateSlackConfig(_.copy(maxCauseSize = size))
+  def withMaxTextSize(size: Int): SlackPipe[F]                    = updateSlackConfig(_.copy(maxTextSize = size))
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
   def withBrief(brief: String): SlackPipe[F]                      = updateSlackConfig(_.copy(brief = brief))
 
@@ -142,7 +142,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Restarted so far", details.retriesSoFar.show, short = true),
                   SlackField("Cumulative Delay", cfg.durationFormatter.format(details.cumulativeDelay), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxCauseSize), short = false)
+                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -171,7 +171,7 @@ final class SlackPipe[F[_]] private[observers] (
       case MetricsReport(idx, at, si, params, prev, next, snapshot) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
-          StringUtils.abbreviate(toText(snapshot.counters), cfg.maxCauseSize),
+          StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize),
           List(
             Attachment(
               cfg.infoColor,
@@ -265,7 +265,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxCauseSize), short = false)
+                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -275,7 +275,7 @@ final class SlackPipe[F[_]] private[observers] (
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            notes.value,
+            StringUtils.abbreviate(notes.value, cfg.maxTextSize),
             List(
               Attachment(
                 if (params.importance.value > Importance.Low.value) cfg.errorColor else cfg.warnColor,
@@ -289,7 +289,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Retried", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxCauseSize), short = false)
+                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
                 )
               ))
           ).asJson.noSpaces
@@ -299,7 +299,7 @@ final class SlackPipe[F[_]] private[observers] (
         def msg: String =
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            notes.value,
+            StringUtils.abbreviate(notes.value, cfg.maxTextSize),
             List(
               Attachment(
                 cfg.goodColor,
@@ -322,7 +322,7 @@ final class SlackPipe[F[_]] private[observers] (
           if (errors.isEmpty)
             SlackNotification(
               params.serviceParams.taskParams.appName,
-              succNotes.value,
+              StringUtils.abbreviate(succNotes.value, cfg.maxTextSize),
               List(
                 Attachment(
                   cfg.goodColor,
@@ -343,7 +343,7 @@ final class SlackPipe[F[_]] private[observers] (
           else
             SlackNotification(
               params.serviceParams.taskParams.appName,
-              failNotes.value,
+              StringUtils.abbreviate(failNotes.value, cfg.maxTextSize),
               List(
                 Attachment(
                   cfg.warnColor,

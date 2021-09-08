@@ -5,16 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{
-  ActionRetrying,
-  ActionStart,
-  ActionSucced,
-  MetricsReport,
-  MetricsReset,
-  MetricsSnapshot,
-  NJEvent,
-  ServiceStarted
-}
+import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
@@ -34,6 +25,7 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withMetricSchedule("* * * ? * *"))
       .eventStream(gd => gd("cron").notice.retry(IO.never[Int]).run)
       .evalTap(console[IO](_.show))
+      .evalTap(console[IO](_.asJson.noSpaces))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)
@@ -45,6 +37,8 @@ class HealthCheckTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[MetricsReport])
     assert(c.isInstanceOf[MetricsReport])
+    assert(c.asInstanceOf[MetricsReport].snapshot.counters.keys.toList.contains("01.health.check"))
+    assert(!c.asInstanceOf[MetricsReport].snapshot.counters.keys.toList.contains("02.service"))
   }
 
   test("success-test") {
