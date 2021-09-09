@@ -161,7 +161,7 @@ class RetryTest extends AnyFunSuite {
         gd("predicate").trivial
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(MyException()))
-          .withWorthRetry(ex => (ex.isInstanceOf[MyException]))
+          .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }
       .interruptAfter(5.seconds)
