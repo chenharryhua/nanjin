@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 class HealthCheckTest extends AnyFunSuite {
-  val guard = TaskGuard[IO]("health-check")
+  val guard: TaskGuard[IO] = TaskGuard[IO]("health-check")
   test("should receive 3 health check event") {
     val s :: a :: b :: c :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
@@ -99,6 +99,6 @@ class HealthCheckTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-
+    assert(list.nonEmpty)
   }
 }
