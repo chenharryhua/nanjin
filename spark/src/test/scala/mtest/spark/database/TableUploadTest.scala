@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark._
+import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.database.{SparkDBTable, TableDef}
 import frameless.{TypedDataset, TypedEncoder}
 import mtest.spark.sparkSession
@@ -63,7 +63,7 @@ object TableUploadTestData {
 }
 
 class TableUploadTest extends AnyFunSuite {
-  import TableUploadTestData._
+  import TableUploadTestData.*
 
   test("upload") {
     tds.dbUpload(table).append.errorIfExists.ignoreIfExists.overwrite.withTableName("upload").run.unsafeRunSync()
