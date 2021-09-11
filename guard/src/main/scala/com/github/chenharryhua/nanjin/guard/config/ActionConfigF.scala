@@ -61,7 +61,7 @@ private[guard] object NJRetryPolicy {
 object ActionParams {
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
-    actionName = "anonymous",
+    actionName = "root",
     importance = Importance.Medium,
     serviceParams = serviceParams,
     isTerminate = true,

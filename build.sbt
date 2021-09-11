@@ -31,11 +31,6 @@ val akka26     = "2.6.16"
 val spark3    = "3.1.2"
 val frameless = "0.10.1"
 
-// database
-val doobie   = "1.0.0-RC1"
-val quill    = "3.10.0"
-val neotypes = "0.17.0"
-
 // format
 val jackson = "2.13.0-rc2"
 val json4s  = "3.7.0-M7" // for spark
@@ -106,11 +101,6 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
 ).map(_ % hadoop) ++ awsLib
-
-val neotypesLib = Seq(
-  "com.dimafeng" %% "neotypes",
-  "com.dimafeng" %% "neotypes-cats-effect"
-).map(_ % neotypes) ++ Seq("org.neo4j.driver" % "neo4j-java-driver" % "4.3.4")
 
 val circeLib = Seq(
   "io.circe" %% "circe-literal"        % "0.14.1",
@@ -208,7 +198,7 @@ val testLib = Seq(
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle         % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0"         % Test,
-  "org.tpolecat" %% "doobie-postgres"                         % doobie          % Test,
+  "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC1"     % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "2.1.1"         % Test,
@@ -283,18 +273,11 @@ val effectLib = Seq(
   "io.monix" %% "monix"            % monix    % Provided
 )
 
-val quillLib = Seq(
-  "io.getquill" %% "quill-core",
-  "io.getquill" %% "quill-codegen",
-  "io.getquill" %% "quill-codegen-jdbc"
-).map(_ % quill)
-
 val doobieLib = Seq(
   "org.tpolecat" %% "doobie-core",
   "org.tpolecat" %% "doobie-hikari",
   "org.tpolecat" %% "doobie-free",
-  "org.tpolecat" %% "doobie-quill"
-).map(_ % doobie) ++ Seq("com.zaxxer" % "HikariCP" % "5.0.0")
+  ).map(_ % "1.0.0-RC1") ++ Seq("com.zaxxer" % "HikariCP" % "5.0.0")
 
 val ftpLib = Seq(
   "commons-net"                                     % "commons-net" % "3.8.0",
@@ -302,7 +285,6 @@ val ftpLib = Seq(
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
 
-val dbLib = doobieLib ++ quillLib ++ neotypesLib
 
 val logLib = Seq(
   "org.log4s" %% "log4s" % "1.10.0",
@@ -419,7 +401,7 @@ lazy val database = (project in file("database"))
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
   .settings(
-    libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ dbLib ++ testLib ++ logLib,
+      libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ doobieLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
@@ -444,16 +426,12 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= Seq(
       "org.locationtech.jts" % "jts-core" % "1.18.2",
-
-      // for spark
-      "io.getquill" %% "quill-spark"               % quill,
-      "com.thesamet.scalapb" %% "sparksql-scalapb" % "0.11.0",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
       "io.netty"                               % "netty-all"  % "4.1.68.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
-      akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ dbLib ++ ftpLib ++ testLib ++ logLib,
+          akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ doobieLib ++ ftpLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(
       ExclusionRule(organization = "io.netty"),
       ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))

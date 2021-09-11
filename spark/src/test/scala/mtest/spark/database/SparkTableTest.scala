@@ -177,12 +177,4 @@ class SparkTableTest extends AnyFunSuite {
     val head = tb.load.json(root + "spark.json").map(_.dataset.collect.head)
     assert(head.unsafeRunSync() == dbData)
   }
-  test("show schemas - spark does not respect not null") {
-    println("--- spark ---")
-    println(sparkDB.genCaseClass("sparktest"))
-    println(sparkDB.genSchema("sparktest"))
-    println(sparkDB.genDatatype("sparktest"))
-    println("--- db ---")
-    println(postgres.genCaseClass[IO].unsafeRunSync())
-  }
 }
