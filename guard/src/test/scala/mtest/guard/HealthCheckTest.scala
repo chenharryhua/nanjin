@@ -23,7 +23,7 @@ class HealthCheckTest extends AnyFunSuite {
       .withJmxReporter(_.inDomain("abc"))
       .withMetricFilter(MetricFilter.startsWith("01"))
       .updateConfig(_.withMetricSchedule("* * * ? * *"))
-      .eventStream(gd => gd("cron").notice.retry(IO.never[Int]).run)
+      .eventStream(gd => gd.span("cron").notice.retry(IO.never[Int]).run)
       .evalTap(console[IO](_.show))
       .evalTap(console[IO](_.asJson.noSpaces))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -69,7 +69,7 @@ class HealthCheckTest extends AnyFunSuite {
           .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
           .withMetricRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd =>
-        gd("always-failure")
+        gd.span("always-failure")
           .updateConfig(_.withConstantDelay(3.second))
           .notice
           .max(10)
