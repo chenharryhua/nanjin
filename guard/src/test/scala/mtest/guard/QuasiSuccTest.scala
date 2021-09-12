@@ -23,7 +23,7 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi all succ - list") {
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action => action("all-good").notice.quasi(List(1, 2, 3))(f).seqRun)
+        .eventStream(action => action.span("all-good").notice.quasi(List(1, 2, 3))(f).seqRun)
         .compile
         .toVector
         .unsafeRunSync()
@@ -37,7 +37,8 @@ class QuasiSuccTest extends AnyFunSuite {
 
   test("quasi all fail - chunk") {
     val Vector(s, a, b, c) = guard
-      .eventStream(action => action("all-fail").notice.quasi(Chunk(0, 0, 0))(f).withFailNotes(_ => "failure").seqRun)
+      .eventStream(action =>
+        action.span("all-fail").notice.quasi(Chunk(0, 0, 0))(f).withFailNotes(_ => "failure").seqRun)
       .compile
       .toVector
       .unsafeRunSync()
@@ -54,7 +55,9 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
-          action("partial-good").notice
+          action
+            .span("partial-good")
+            .notice
             .quasi(Chain(2, 0, 1))(f)
             .withFailNotes(_ => "quasi succ")
             .withSuccNotes(_ => "succ")
@@ -80,7 +83,9 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
-          action("partial-good").notice
+          action
+            .span("partial-good")
+            .notice
             .quasi(Vector(0, 0, 1, 1))(f)
             .withFailNotes(_.map(n => s"${n._1} --> ${n._2.uuid}").mkString("\n"))
             .seqRun)
@@ -101,7 +106,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action => action("parallel").notice.quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun)
+        .eventStream(action => action.span("parallel").notice.quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun)
         .compile
         .toVector
         .unsafeRunSync()
@@ -119,7 +124,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action => action("parallel").notice.quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun(3))
+        .eventStream(action => action.span("parallel").notice.quasi(Vector(0, 0, 0, 1, 1, 1))(f).parRun(3))
         .compile
         .toVector
         .unsafeRunSync()
@@ -137,7 +142,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Unit] = IO.sleep(1.second) <* IO(100 / a)
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action => action("pure actions").notice.quasi(f(0), f(0), f(0), f(1), f(1), f(1)).parRun)
+        .eventStream(action => action.span("pure actions").notice.quasi(f(0), f(0), f(0), f(1), f(1), f(1)).parRun)
         .compile
         .toVector
         .unsafeRunSync()
@@ -156,7 +161,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard
         .eventStream(action =>
-          action("internal-cancel").notice.quasi(f(0), IO.sleep(1.second) >> IO.canceled, f(1), f(2)).seqRun)
+          action.span("internal-cancel").notice.quasi(f(0), IO.sleep(1.second) >> IO.canceled, f(1), f(2)).seqRun)
         .interruptAfter(5.seconds)
         .compile
         .toVector
@@ -173,7 +178,9 @@ class QuasiSuccTest extends AnyFunSuite {
     val Vector(s, a, b, c) =
       guard.eventStream { action =>
         val a1 =
-          action("external-cancel").notice
+          action
+            .span("external-cancel")
+            .notice
             .updateConfig(_.withConstantDelay(1.second))
             .quasi(Vector(f(0), f(1)))
             .parRun(2)
@@ -189,13 +196,17 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi multi-layers seq") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j, k, l) =
       guard.eventStream { action =>
-        val a1 = action("compute1").notice.run(IO(1))
-        val a2 = action("exception").notice
+        val a1 = action.span("compute1").notice.run(IO(1))
+        val a2 = action
+          .span("exception")
+          .notice
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO.raiseError[Int](new Exception))
           .run
-        val a3 = action("compute2").notice.run(IO(2))
-        action("quasi").notice
+        val a3 = action.span("compute2").notice.run(IO(2))
+        action
+          .span("quasi")
+          .notice
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
           .withFailNotes(_.map(_.message).mkString)
@@ -220,15 +231,19 @@ class QuasiSuccTest extends AnyFunSuite {
   test("quasi multi-layers - par") {
     val Vector(s, a, b, c, e, f, g, h, j, k, l) =
       guard.eventStream { action =>
-        val a1 = action("compute1").trivial.retry(IO.sleep(5.seconds) >> IO(1)).run
+        val a1 = action.span("compute1").trivial.retry(IO.sleep(5.seconds) >> IO(1)).run
         val a2 =
-          action("exception").notice
+          action
+            .span("exception")
+            .notice
             .max(3)
             .updateConfig(_.withConstantDelay(1.second))
             .retry(IO.raiseError[Int](new Exception))
             .run
-        val a3 = action("compute2").notice.retry(IO.sleep(5.seconds) >> IO(2)).run
-        action("quasi").notice
+        val a3 = action.span("compute2").notice.retry(IO.sleep(5.seconds) >> IO(2)).run
+        action
+          .span("quasi")
+          .notice
           .quasi(a1, a2, a3)
           .withSuccNotes(_.map(_.toString).mkString)
           .withFailNotes(_.map(_.message).mkString)

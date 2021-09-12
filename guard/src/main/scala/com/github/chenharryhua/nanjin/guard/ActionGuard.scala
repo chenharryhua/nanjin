@@ -26,7 +26,7 @@ final class ActionGuard[F[_]] private[guard] (
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](publisher, dispatcher, f(actionConfig))
 
-  def apply(actionName: String): ActionGuard[F] = updateConfig(_.withActionName(actionName))
+  def span(name: String): ActionGuard[F] = updateConfig(_.withSpan(name))
 
   def trivial: ActionGuard[F] = updateConfig(_.withTrivial)
   def normal: ActionGuard[F]  = updateConfig(_.withNormal)
@@ -66,7 +66,7 @@ final class ActionGuard[F[_]] private[guard] (
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    apply("nonStop").trivial
+    span("nonStop").trivial
       .updateConfig(_.withNonTermination.withMaxRetries(0))
       .retry(fb)
       .run

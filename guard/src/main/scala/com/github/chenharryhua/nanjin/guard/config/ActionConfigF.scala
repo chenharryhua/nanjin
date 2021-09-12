@@ -52,16 +52,18 @@ private[guard] object NJRetryPolicy {
 }
 
 @Lenses final case class ActionParams private (
-  actionName: String,
+  spans: List[String],
   importance: Importance,
   serviceParams: ServiceParams,
   isTerminate: Boolean,
-  retry: ActionRetryParams)
+  retry: ActionRetryParams) {
+  val actionName: String = spans.mkString(".")
+}
 
 object ActionParams {
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
-    actionName = "root",
+    spans = Nil,
     importance = Importance.Medium,
     serviceParams = serviceParams,
     isTerminate = true,
@@ -81,7 +83,7 @@ private object ActionConfigF {
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ActionConfigF[K]
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
 
-  final case class WithActionName[K](value: String, cont: K) extends ActionConfigF[K]
+  final case class WithSpans[K](value: List[String], cont: K) extends ActionConfigF[K]
 
   final case class WithTermination[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
@@ -93,7 +95,7 @@ private object ActionConfigF {
       case WithCapDelay(v, c)    => ActionParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
       case WithTermination(v, c) => ActionParams.isTerminate.set(v)(c)
       case WithImportance(v, c)  => ActionParams.importance.set(v)(c)
-      case WithActionName(v, c)  => ActionParams.actionName.set(v)(c)
+      case WithSpans(v, c)       => ActionParams.spans.modify(_ ::: v)(c)
     }
 }
 
@@ -122,7 +124,7 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withNormal: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Medium, value)))
   def withNotice: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.High, value)))
 
-  def withActionName(name: String): ActionConfig = ActionConfig(Fix(WithActionName(name, value)))
+  def withSpan(name: String): ActionConfig = ActionConfig(Fix(WithSpans(List(name), value)))
 
   def evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }

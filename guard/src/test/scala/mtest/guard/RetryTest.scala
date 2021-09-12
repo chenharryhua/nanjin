@@ -19,7 +19,8 @@ class RetryTest extends AnyFunSuite {
 
   test("retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
-      gd("succ-trivial").trivial
+      gd.span("succ-trivial")
+        .trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
@@ -34,7 +35,9 @@ class RetryTest extends AnyFunSuite {
 
   test("retry - success notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
-      val ag = gd("all-succ").notice
+      val ag = gd
+        .span("all-succ")
+        .notice
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a->$b")
@@ -55,7 +58,9 @@ class RetryTest extends AnyFunSuite {
 
   test("retry - all fail") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
-      val ag: ActionRetry[IO, Int, Int] = gd("all-fail").notice
+      val ag: ActionRetry[IO, Int, Int] = gd
+        .span("all-fail")
+        .notice
         .updateConfig(_.withMaxRetries(1).withConstantDelay(0.1.second))
         .retry((x: Int) => IO.raiseError[Int](new Exception))
         .withFailNotes((a, e) => a.toString)
@@ -78,7 +83,9 @@ class RetryTest extends AnyFunSuite {
   test("retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(s, a, b, c, d, e) = serviceGuard.eventStream { gd =>
-      gd("1-time-succ")("2-time-succ").notice // funny syntax
+      gd.span("1-time-succ")
+        .span("2-time-succ")
+        .notice // funny syntax
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) =>
           IO(if (i < 2) {
@@ -98,7 +105,8 @@ class RetryTest extends AnyFunSuite {
   test("retry - should retry 2 times when operation fail - low") {
     var i = 0
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
-      gd("1-time-succ").trivial
+      gd.span("1-time-succ")
+        .trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) =>
           IO(if (i < 2) {
@@ -117,7 +125,8 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("escalate-after-3-times").trivial
+        gd.span("escalate-after-3-times")
+          .trivial
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
           .run(1)
@@ -139,7 +148,7 @@ class RetryTest extends AnyFunSuite {
     val s :: b :: c :: d :: e :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
-        ag("null exception")
+        ag.span("null exception")
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .retry(IO.raiseError(new NullPointerException))
           .run)
@@ -158,7 +167,8 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("predicate").trivial
+        gd.span("predicate")
+          .trivial
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(_.isInstanceOf[MyException])
@@ -181,7 +191,8 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("predicate").notice
+        gd.span("predicate")
+          .notice
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(new Exception()))
           .withWorthRetry(_.isInstanceOf[MyException])
@@ -201,7 +212,8 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("postCondition").trivial
+        gd.span("postCondition")
+          .trivial
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry(IO(0))
           .withPostCondition(_ > 1)
@@ -222,7 +234,8 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd("postCondition").trivial
+        gd.span("postCondition")
+          .trivial
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry((a: Int) => IO(a))
           .withPostCondition(_ > 1)
@@ -300,4 +313,10 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ServicePanic])
   }
 
+  test("span") {
+    serviceGuard.eventStream { root =>
+      val name = root.span("a").span("b").span("c").params.actionName
+      IO(assert(name == "a.b.c"))
+    }.debug().compile.drain.unsafeRunSync()
+  }
 }
