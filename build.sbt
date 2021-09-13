@@ -271,12 +271,6 @@ val effectLib = Seq(
   "io.monix" %% "monix"            % monix    % Provided
 )
 
-val doobieLib = Seq(
-  "org.tpolecat" %% "doobie-core",
-  "org.tpolecat" %% "doobie-hikari",
-  "org.tpolecat" %% "doobie-free",
-  ).map(_ % "1.0.0-RC1") ++ Seq("com.zaxxer" % "HikariCP" % "5.0.0")
-
 val ftpLib = Seq(
   "commons-net"                                     % "commons-net" % "3.8.0",
   "com.hierynomus"                                  % "sshj"        % "0.31.0",
@@ -399,7 +393,12 @@ lazy val database = (project in file("database"))
   .settings(commonSettings: _*)
   .settings(name := "nj-database")
   .settings(
-      libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ doobieLib ++ testLib ++ logLib,
+    libraryDependencies ++= Seq(
+      "org.tpolecat" %% "doobie-core" % "1.0.0-RC1",
+      "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC1",
+      "org.tpolecat" %% "doobie-free" % "1.0.0-RC1",
+      "com.zaxxer" % "HikariCP" % "5.0.0"
+    ) ++ baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
 
@@ -429,7 +428,7 @@ lazy val spark = (project in file("spark"))
       "io.netty"                               % "netty-all"  % "4.1.68.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
-          akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ doobieLib ++ ftpLib ++ testLib ++ logLib,
+          akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(
       ExclusionRule(organization = "io.netty"),
       ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
