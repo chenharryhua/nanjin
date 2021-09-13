@@ -35,10 +35,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   private def counterMRName(name: String): String     = s"10.counter.[$name]"
   private def passThroughMRName(name: String): String = s"11.pass.through.[$name]"
 
-  private def actionFailMRName(name: String): String  = s"12.action.failed.[`$name`]"
-  private def actionRetryMRName(name: String): String = s"12.action.retried.[$name]"
-  private def actionStartMRName(name: String): String = s"12.action.started.[$name]"
-  private def actionSuccMRName(name: String): String  = s"12.action.succed.[$name]"
+  private def actionFailMRName(name: String): String  = s"12.action.[`$name`].fail"
+  private def actionRetryMRName(name: String): String = s"12.action.[$name].retry"
+  private def actionStartMRName(name: String): String = s"12.action.[$name].num"
+  private def actionSuccMRName(name: String): String  = s"12.action.[$name].succ"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
