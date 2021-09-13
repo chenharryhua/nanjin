@@ -7,7 +7,6 @@ ThisBuild / version := "0.12.22-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"
-val contextual = "1.2.1"
 val kittens    = "2.3.2"
 val catsCore   = "2.6.1"
 val algebra    = "2.2.3"
@@ -253,7 +252,6 @@ val baseLib = Seq(
   "io.scalaland" %% "chimney"                      % chimney,
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.8",
-  "com.propensive" %% "contextual"                 % contextual,
   "com.chuusai" %% "shapeless"                     % shapeless
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib
 
