@@ -277,7 +277,6 @@ val ftpLib = Seq(
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
 
-
 val logLib = Seq(
   "org.log4s" %% "log4s" % "1.10.0",
   "org.slf4j"            % "slf4j-api" % "1.7.32"
@@ -394,10 +393,10 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= Seq(
-      "org.tpolecat" %% "doobie-core" % "1.0.0-RC1",
+      "org.tpolecat" %% "doobie-core"   % "1.0.0-RC1",
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC1",
-      "org.tpolecat" %% "doobie-free" % "1.0.0-RC1",
-      "com.zaxxer" % "HikariCP" % "5.0.0"
+      "org.tpolecat" %% "doobie-free"   % "1.0.0-RC1",
+      "com.zaxxer"                      % "HikariCP" % "5.0.0"
     ) ++ baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
@@ -428,7 +427,7 @@ lazy val spark = (project in file("spark"))
       "io.netty"                               % "netty-all"  % "4.1.68.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
-          akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib,
+      akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(
       ExclusionRule(organization = "io.netty"),
       ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
@@ -458,4 +457,3 @@ lazy val nanjin =
   (project in file("."))
     .settings(name := "nanjin")
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
-
