@@ -16,13 +16,11 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka010.*
-import org.log4s.Logger
 
 import java.util
 import scala.collection.JavaConverters.*
 
 private[kafka] object sk {
-  private[this] val logger: Logger = org.log4s.getLogger("nj.spark.kafka")
 
   implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] = shapeless.cachedImplicit
 
@@ -63,11 +61,7 @@ private[kafka] object sk {
           props(topic.context.settings.consumerSettings.config).asScala)
       KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
         val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
-        ms.map { m =>
-          val (errs, cr) = decoder.decode(m).run
-          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          cr
-        }
+        ms.map(m => decoder.decode(m).run._2)
       }
     }
 
@@ -78,11 +72,7 @@ private[kafka] object sk {
     sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
       val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
-      ms.map { m =>
-        val (errs, cr) = decoder.decode(m).run
-        errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-        cr
-      }
+      ms.map(m => decoder.decode(m).run._2)
     })
 
   /** streaming
@@ -118,9 +108,7 @@ private[kafka] object sk {
       .mapPartitions { ms =>
         val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
         ms.map { cr =>
-          val (errs, msg) = decoder.decode(cr).run
-          errs.toList.foreach(err => logger.warn(err)(s"decode error: ${cr.metaInfo}"))
-          f(NJConsumerRecord.timestamp.modify(_ * SparkDatetimeConversionConstant)(msg))
+          f(NJConsumerRecord.timestamp.modify(_ * SparkDatetimeConversionConstant)(decoder.decode(cr).run._2))
         }
       }(ate.sparkEncoder)
   }

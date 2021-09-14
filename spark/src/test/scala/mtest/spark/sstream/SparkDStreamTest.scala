@@ -25,8 +25,6 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
 //  better.files.File(root).delete(true)
 
-  val logger = org.log4s.getLogger("SparkDStreamTest")
-
   val topic: SparKafkaTopic[IO, Int, String] = sparKafka.topic[Int, String]("dstream.test")
 
   val sender = Stream

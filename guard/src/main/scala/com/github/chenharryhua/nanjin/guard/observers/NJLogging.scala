@@ -5,7 +5,8 @@ import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.event.{ActionFailed, ActionRetrying, NJEvent, ServicePanic}
 import fs2.Chunk
-import org.log4s.Logger
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object logging {
   def apply[F[_]: Sync](f: NJEvent => String): NJLogging[F] = new NJLogging[F](Reader(f))
@@ -13,19 +14,14 @@ object logging {
 
 final class NJLogging[F[_]] private[observers] (converter: Reader[NJEvent, String])(implicit F: Sync[F])
     extends (NJEvent => F[Unit]) {
-
-  private[this] val logger: Logger = org.log4s.getLogger
-
+  private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
   override def apply(event: NJEvent): F[Unit] = {
     val out: String = converter.run(event)
     event match {
-      case ServicePanic(_, _, _, _, error) =>
-        F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
-      case ActionRetrying(_, _, _, _, error) =>
-        F.blocking(error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out)))
-      case ActionFailed(_, _, _, _, _, error) =>
-        F.blocking(error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out)))
-      case _ => F.blocking(logger.info(out))
+      case ServicePanic(_, _, _, _, error)    => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
+      case ActionRetrying(_, _, _, _, error)  => error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out))
+      case ActionFailed(_, _, _, _, _, error) => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
+      case _                                  => logger.info(out)
     }
   }
 
