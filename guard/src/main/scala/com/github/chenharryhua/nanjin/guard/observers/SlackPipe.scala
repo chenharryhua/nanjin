@@ -34,7 +34,8 @@ object slack {
         maxTextSize = 500,
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
-        brief = "The developer is too lazy to provide a brief"
+        brief = "The developer is too lazy to provide a brief",
+        isShowRetry = true
       )
     )
 
@@ -49,7 +50,8 @@ final private case class SlackConfig(
   maxTextSize: Int,
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
-  brief: String
+  brief: String,
+  isShowRetry: Boolean
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -74,6 +76,7 @@ final class SlackPipe[F[_]] private[observers] (
   def withMaxTextSize(size: Int): SlackPipe[F]                    = updateSlackConfig(_.copy(maxTextSize = size))
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
   def withBrief(brief: String): SlackPipe[F]                      = updateSlackConfig(_.copy(brief = brief))
+  def withoutRetry: SlackPipe[F]                                  = updateSlackConfig(_.copy(isShowRetry = false))
 
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
@@ -269,7 +272,7 @@ final class SlackPipe[F[_]] private[observers] (
                 )
               ))
           ).asJson.noSpaces
-        sns.publish(msg).whenA(params.importance.value > Importance.Low.value)
+        sns.publish(msg).whenA(params.importance.value > Importance.Low.value && cfg.isShowRetry)
 
       case ActionFailed(params, action, at, numRetries, notes, error) =>
         def msg: String =
