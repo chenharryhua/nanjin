@@ -1,9 +1,8 @@
-ThisBuild / scalaVersion      := "2.12.14"
-ThisBuild / scapegoatVersion  := "1.4.9"
+ThisBuild / scalaVersion      := "2.12.15"
 ThisBuild / parallelExecution := false
 Global / cancelable           := true
 
-ThisBuild / version := "0.12.22-SNAPSHOT"
+ThisBuild / version := "0.12.23-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"
@@ -84,7 +83,6 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Xsource:3"
   ),
-  scapegoatDisabledInspections       := Seq("VariableShadowing"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / PB.targets                  := Seq(scalapb.gen() -> (Test / sourceManaged).value)
 )
@@ -279,7 +277,7 @@ val ftpLib = Seq(
 
 val logLib = Seq(
   "org.typelevel" %% "log4cats-slf4j" % "2.1.1",
-  "org.slf4j"            % "slf4j-api" % "1.7.32"
+  "org.slf4j"                         % "slf4j-api" % "1.7.32"
 )
 
 val http4sLib = Seq(
