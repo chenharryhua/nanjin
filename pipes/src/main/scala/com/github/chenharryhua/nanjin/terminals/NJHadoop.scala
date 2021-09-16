@@ -4,7 +4,7 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.{readInputStream, writeOutputStream}
-import fs2.{Pipe, Pull, Stream}
+import fs2.{INothing, Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
@@ -23,14 +23,14 @@ sealed trait NJHadoop[F[_]] {
   def delete(pathStr: String): F[Boolean]
   def isExist(pathStr: String): F[Boolean]
 
-  def byteSink(pathStr: String): Pipe[F, Byte, Unit]
+  def byteSink(pathStr: String): Pipe[F, Byte, INothing]
   def byteSource(pathStr: String): Stream[F, Byte]
 
-  def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit]
+  def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, INothing]
 
   def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
 
-  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
+  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, INothing]
   def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
 }
 
@@ -64,33 +64,33 @@ object NJHadoop {
       override def isExist(pathStr: String): F[Boolean] =
         fileSystem(pathStr).use(fs => F.blocking(fs.exists(new Path(pathStr))))
 
-      override def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
-        for {
+      override def byteSink(pathStr: String): Pipe[F, Byte, INothing] = { (ss: Stream[F, Byte]) =>
+        (for {
           fs <- Stream.resource(fsOutput(pathStr))
-          res <- ss.through(writeOutputStream[F](F.blocking(fs)))
-        } yield res
+          res <- ss.through(writeOutputStream[F](F.delay(fs)))
+        } yield res).drain
       }
 
       override def byteSource(pathStr: String): Stream[F, Byte] =
         for {
           is <- Stream.resource(fsInput(pathStr))
-          bt <- readInputStream[F](F.blocking(is), chunkSize)
+          bt <- readInputStream[F](F.delay(is), chunkSize)
         } yield bt
 
       override def parquetSink(
         pathStr: String,
         schema: Schema,
-        ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit] = {
+        ccn: CompressionCodecName): Pipe[F, GenericRecord, INothing] = {
         def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.blocking(writer.write(gr)))) >> go(tl, writer)
+              Pull.eval(hl.traverse(gr => F.delay(writer.write(gr)))) >> go(tl, writer)
             case None =>
               Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
+        val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
         (ss: Stream[F, GenericRecord]) =>
-          val outputFile = HadoopOutputFile.fromPath(new Path(pathStr), config)
-          for {
+          (for {
             writer <- Stream.resource(
               Resource.make(
                 F.blocking(
@@ -103,7 +103,7 @@ object NJHadoop {
                     .withDataModel(GenericData.get())
                     .build()))(r => F.blocking(r.close()).attempt.void))
             _ <- go(ss, writer).stream
-          } yield ()
+          } yield ()).drain
       }
 
       override def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = {
@@ -118,26 +118,26 @@ object NJHadoop {
                   .withDataModel(GenericData.get())
                   .withConf(config)
                   .build()))(r => F.blocking(r.close()).attempt.void))
-          gr <- Stream.repeatEval(F.blocking(Option(reader.read()))).unNoneTerminate
+          gr <- Stream.repeatEval(F.delay(Option(reader.read()))).unNoneTerminate
         } yield gr
       }
 
-      override def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+      override def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, INothing] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.blocking(writer.append(gr)))) >> go(tl, writer)
+              Pull.eval(hl.traverse(gr => F.delay(writer.append(gr)))) >> go(tl, writer)
             case None => Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
         (ss: Stream[F, GenericRecord]) =>
-          for {
+          (for {
             dfw <- Stream.resource(
               Resource.make[F, DataFileWriter[GenericRecord]](
                 F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf)))(r =>
                 F.blocking(r.close()).attempt.void))
             writer <- Stream.resource(fsOutput(pathStr)).map(os => dfw.create(schema, os))
             _ <- go(ss, writer).stream
-          } yield ()
+          } yield ()).drain
       }
 
       override def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = for {

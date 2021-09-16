@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.pipes.serde
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, RaiseThrowable, Stream}
 import io.circe.parser.decode
-import io.circe.{Json, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 
 final class CirceSerialization[F[_], A] extends Serializable {
 

@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.datetime.{sydneyTime, utcTime, NJDateTimeR
 import org.scalatest.funsuite.AnyFunSuite
 
 class SStreamConfigTest extends AnyFunSuite {
-  val cfg = SStreamConfig(NJDateTimeRange(utcTime))
+  val cfg = SStreamConfig(utcTime)
 
   test("checkpoint") {}
 }

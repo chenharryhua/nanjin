@@ -42,14 +42,19 @@ final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
   def serialize: Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     val splitter    = "\n".getBytes()
-    _.chunkN(chunkSize).map { grs =>
-      val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
-      val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
-      grs.foreach(gr => datumWriter.write(gr, encoder))
-      encoder.flush()
-      baos.close()
-      baos.toByteArray
-    }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
+    (sfgr: Stream[F, GenericRecord]) =>
+      sfgr
+        .chunkN(chunkSize)
+        .map { grs =>
+          val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+          val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
+          grs.foreach(gr => datumWriter.write(gr, encoder))
+          encoder.flush()
+          baos.close()
+          baos.toByteArray
+        }
+        .intersperse(splitter)
+        .flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
   def deserialize(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
@@ -58,7 +63,7 @@ final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
       val datumReader = new GenericDatumReader[GenericRecord](schema)
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
-          .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
+          .functionKInstance(F.delay(try Some(datumReader.read(null, jsonDecoder))
           catch { case _: EOFException => None }))
           .flatMap {
             case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))

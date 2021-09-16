@@ -1,21 +1,20 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.{Async, Resource}
+import cats.data.Reader
+import cats.effect.kernel.Async
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.{MetricRegistry, MetricSet}
+import com.codahale.metrics.jmx.JmxReporter
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.metrics.NJMetricReporter
-import com.github.chenharryhua.nanjin.guard.alert.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
-import cron4s.Cron
-import cron4s.expr.CronExpr
+import com.github.chenharryhua.nanjin.guard.event.*
+import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
-import fs2.{INothing, Pipe, Stream}
-
+import fs2.{INothing, Stream}
 // format: off
 /** @example
   *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
@@ -29,122 +28,86 @@ import fs2.{INothing, Pipe, Stream}
 // format: on
 
 final class ServiceGuard[F[_]] private[guard] (
-  metricRegistry: MetricRegistry,
   serviceConfig: ServiceConfig,
-  alertServices: Resource[F, AlertService[F]],
-  reporters: List[NJMetricReporter])(implicit F: Async[F])
-    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] with AddAlertService[F, ServiceGuard[F]]
-    with AddMetricReporter[ServiceGuard[F]] {
+  metricFilter: MetricFilter,
+  jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
+    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   val params: ServiceParams = serviceConfig.evalConfig
 
-  def registerMetricSet(metrics: MetricSet): ServiceGuard[F] = {
-    metricRegistry.registerAll(metrics)
-    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporters)
-  }
-
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, f(serviceConfig), alertServices, reporters)
+    new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
 
-  override def addAlertService(ras: Resource[F, AlertService[F]]): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices.flatMap(ass => ras.map(_ |+| ass)), reporters)
+  def apply(serviceName: String): ServiceGuard[F] = updateConfig(_.withServiceName(serviceName))
 
-  override def addMetricReporter(reporter: NJMetricReporter): ServiceGuard[F] =
-    new ServiceGuard[F](metricRegistry, serviceConfig, alertServices, reporter :: reporters)
+  def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
+    new ServiceGuard[F](serviceConfig, metricFilter, Some(Reader(builder)))
 
-  def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] = {
-    val scheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
-    val cron: CronExpr                    = Cron.unsafeParse(s"0 0 ${params.taskParams.dailySummaryReset.hour} ? * *")
-    val serviceInfo: F[ServiceInfo] = for {
-      ts <- realZonedDateTime(params)
-      uuid <- UUIDGen.randomUUID
-    } yield ServiceInfo(id = uuid, launchTime = ts)
+  def withMetricFilter(filter: MetricFilter) =
+    new ServiceGuard[F](serviceConfig, filter, jmxBuilder)
 
+  def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] =
     for {
-      si <- Stream.eval(serviceInfo)
-      event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
-        val service: F[A] = retry.mtl
-          .retryingOnAllErrors(
-            params.retry.policy[F],
-            (ex: Throwable, rd) =>
-              for {
-                ts <- realZonedDateTime(params)
-                _ <- channel.send(
-                  ServicePanic(
-                    timestamp = ts,
-                    serviceInfo = si,
-                    serviceParams = params,
-                    retryDetails = rd,
-                    error = NJError(ex)))
-              } yield ()
-          ) {
-            val healthReport: F[Unit] = for {
-              ts <- realZonedDateTime(params)
-              _ <- channel.send(
-                ServiceHealthCheck(
-                  timestamp = ts,
-                  serviceInfo = si,
-                  serviceParams = params,
-                  dailySummaries = DailySummaries(metricRegistry)
-                ))
-            } yield ()
+      serviceInfo <- Stream.eval(
+        F.realTimeInstant
+          .map(_.atZone(params.taskParams.zoneId))
+          .flatMap(ts => UUIDGen.randomUUID.map(uuid => ServiceInfo(uuid, ts))))
 
-            val start_health: F[Unit] = for { // fire service startup event and then health-check events
-              ts <- realZonedDateTime(params)
-              _ <- channel
-                .send(ServiceStarted(timestamp = ts, serviceInfo = si, serviceParams = params))
-                .delayBy(params.startUpEventDelay)
-              _ <- healthReport.delayBy(params.healthCheck.interval).foreverM[Unit]
-            } yield ()
+      event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
+        val metricRegistry: MetricRegistry = new MetricRegistry()
+        val publisher: EventPublisher[F]   = new EventPublisher[F](metricRegistry, channel, serviceInfo, params)
 
-            (start_health.background, Dispatcher[F]).tupled.use { case (_, dispatcher) =>
-              actionGuard(
-                new ActionGuard[F](
-                  metricRegistry = metricRegistry,
-                  serviceInfo = si,
-                  dispatcher = dispatcher,
-                  channel = channel,
-                  actionName = "anonymous",
-                  actionConfig = ActionConfig(params)))
-            }
+        val theService: F[A] = retry.mtl
+          .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {
+            publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
+              actionGuard(new ActionGuard[F](publisher, dispatcher, ActionConfig(params))))
           }
-          .guarantee(realZonedDateTime(params).flatMap(ts =>
-            channel.send(ServiceStopped(timestamp = ts, serviceInfo = si, serviceParams = params))) *> // stop event
-            channel.close.void) // close channel and the stream as well
+          .guarantee(publisher.serviceStopped(metricFilter) <* channel.close)
 
-        // notify alert services
-        @SuppressWarnings(Array("ListSize"))
-        val notify: Pipe[F, NJEvent, INothing] = {
-          val alerts: Resource[F, AlertService[F]] = for {
-            mr <- Resource.pure(new NJMetricRegistry[F](metricRegistry))
-            as <- alertServices
-            _ <-
-              F.parTraverseN[List, NJMetricReporter, Nothing](Math.max(1, reporters.size))(reporters)(
-                _.start[F](metricRegistry))
-                .background
-          } yield as |+| mr
+        /** concurrent streams
+          */
+        val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
 
-          (events: Stream[F, NJEvent]) => Stream.resource(alerts).flatMap(as => events.evalMap(as.alert)).drain
+        val metricsReport: Stream[F, INothing] = {
+          params.metric.reportSchedule match {
+            case Left(dur) =>
+              Stream
+                .fixedRate[F](dur)
+                .zipWithIndex
+                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, dur))
+                .drain
+            case Right(cron) =>
+              cronScheduler
+                .awakeEvery(cron)
+                .zipWithIndex
+                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, cron))
+                .drain
+          }
         }
 
+        val metricsReset: Stream[F, INothing] = params.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
+          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(metricFilter, cron)).drain)
+
+        val jmxReporting: Stream[F, INothing] = {
+          jmxBuilder match {
+            case None => Stream.empty
+            case Some(builder) =>
+              Stream
+                .bracket(F.delay(builder.run(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(
+                  r => F.delay(r.close()))
+                .evalMap(jr => F.delay(jr.start()))
+                .flatMap(_ => Stream.never[F])
+          }
+        }
+
+        // put together
+
         channel.stream
-          .observe(notify)
-          .concurrently(Stream.eval(service))
-          .concurrently(
-            scheduler
-              .awakeEvery(cron)
-              .evalMap(_ =>
-                for {
-                  ts <- realZonedDateTime(params)
-                  _ <- channel.send(
-                    ServiceDailySummariesReset(
-                      timestamp = ts,
-                      serviceInfo = si,
-                      serviceParams = params,
-                      dailySummaries = DailySummaries(metricRegistry)
-                    ))
-                } yield ()))
+          .onFinalize(channel.close.void) // drain pending send operation
+          .concurrently(Stream.eval(theService).drain)
+          .concurrently(metricsReport)
+          .concurrently(metricsReset)
+          .concurrently(jmxReporting)
       }
     } yield event
-  }
 }

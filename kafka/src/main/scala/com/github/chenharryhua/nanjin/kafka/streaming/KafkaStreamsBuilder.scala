@@ -78,7 +78,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     ks <- Stream.resource(kickoff(err, stop, bus)).interruptWhen(err).interruptWhen(stop)
   } yield ks
 
-  def stream: Stream[F, State] = for {
+  val stream: Stream[F, State] = for {
     err <- Stream.eval(F.deferred[Either[Throwable, Unit]])
     stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
     bus <- Stream.eval(Channel.unbounded[F, State])
@@ -129,5 +129,5 @@ final class KafkaStreamsBuilder[F[_]] private (
 
 object KafkaStreamsBuilder {
   def apply[F[_]: Async](settings: KafkaStreamSettings, top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings, top, Nil, 3.minutes, StreamErrorHandler.default[F])
+    new KafkaStreamsBuilder[F](settings, top, Nil, 9.minutes, StreamErrorHandler.default[F])
 }

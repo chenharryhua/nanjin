@@ -25,7 +25,7 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.delay {
+      .checkAndRun(F.interruptible(many = true) {
         ds.write
           .mode(params.saveMode)
           .option("compression", params.compression.name)

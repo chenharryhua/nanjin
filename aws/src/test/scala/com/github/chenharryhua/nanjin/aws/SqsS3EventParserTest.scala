@@ -49,7 +49,7 @@ class SqsS3EventParserTest extends AnyFunSuite {
 """
 
   test("should be able to parse sqs S3 event") {
-    val s3 = sqs_s3_parser(event).head
+    val s3 = sqsS3Parser(event).head
     assert(s3.bucket == "mybucket")
     assert(s3.key == "HappyFace2021-05-18T11:10:20.jpg")
   }

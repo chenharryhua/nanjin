@@ -1,11 +1,16 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.all.*
 import com.amazonaws.regions.Regions
 import com.amazonaws.services.simpleemail.model.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
+import io.circe.generic.JsonCodec
+import io.circe.syntax.EncoderOps
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
+@JsonCodec
 final case class EmailContent(from: String, to: List[String], subject: String, body: String)
 
 trait Email[F[_]] {
@@ -18,10 +23,13 @@ object Email {
 
   def apply[F[_]: Sync]: Resource[F, Email[F]] = apply[F](defaultRegion)
 
-  def fake[F[_]](implicit F: Applicative[F]): Resource[F, Email[F]] =
+  def fake[F[_]](implicit F: Sync[F]): Resource[F, Email[F]] = {
+    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     Resource.make(F.pure(new Email[F] {
-      override def send(txt: EmailContent): F[SendEmailResult] = F.pure(new SendEmailResult)
+      override def send(txt: EmailContent): F[SendEmailResult] =
+        logger.info(txt.asJson.noSpaces) *> F.pure(new SendEmailResult)
     }))(_ => F.unit)
+  }
 
   final private class EmailImpl[F[_]](regions: Regions)(implicit F: Sync[F]) extends Email[F] with ShutdownService[F] {
 

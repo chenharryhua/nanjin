@@ -39,7 +39,7 @@ import org.apache.spark.sql.SparkSession
     SparkSettings.conf.modify(f)(this)
 
   def unsafeSession: SparkSession = {
-    val spk = SparkSession.builder().config(conf).getOrCreate()
+    val spk: SparkSession = SparkSession.builder().config(conf).getOrCreate()
     spk.sparkContext.setLogLevel(logLevel.entryName)
     spk
   }

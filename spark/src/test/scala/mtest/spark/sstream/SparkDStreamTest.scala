@@ -23,9 +23,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
   val root: String = "./data/test/spark/dstream/"
 
-  better.files.File(root).delete(true)
-
-  val logger = org.log4s.getLogger("SparkDStreamTest")
+//  better.files.File(root).delete(true)
 
   val topic: SparKafkaTopic[IO, Int, String] = sparKafka.topic[Int, String]("dstream.test")
 
@@ -48,7 +46,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     val runner: DStreamRunner[IO] = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
     sender
       .concurrently(
-        runner
+        runner.withFreshStart
           .signup(topic.dstream)(_.avro(avro))
           .signup(topic.dstream)(_.coalesce.jackson(jackson))
           .signup(topic.dstream)(_.coalesce.circe(circe))

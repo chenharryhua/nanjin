@@ -2,24 +2,18 @@ package com.github.chenharryhua.nanjin.datetime
 
 import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.{Instant, ZonedDateTime, Duration as JavaDuration}
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{Duration, FiniteDuration}
-
+import java.time.{Duration as JavaDuration, Instant, ZonedDateTime}
+import scala.compat.java8.DurationConverters.DurationOps
+import scala.concurrent.duration.Duration
 trait DurationFormatter {
 
   /** Law: format(duration) == format(-duration)
     */
   def format(duration: Duration): String
 
-  final def format(duration: JavaDuration): String =
-    format(FiniteDuration(duration.toNanos, TimeUnit.NANOSECONDS))
-
-  final def format(start: Instant, end: Instant): String =
-    format(JavaDuration.between(start, end))
-
-  final def format(start: ZonedDateTime, end: ZonedDateTime): String =
-    format(start.toInstant, end.toInstant)
+  final def format(duration: JavaDuration): String                   = format(duration.toScala)
+  final def format(start: Instant, end: Instant): String             = format(JavaDuration.between(start, end))
+  final def format(start: ZonedDateTime, end: ZonedDateTime): String = format(JavaDuration.between(start, end))
 }
 
 object DurationFormatter {

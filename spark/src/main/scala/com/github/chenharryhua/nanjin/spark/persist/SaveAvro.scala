@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import frameless.cats.implicits.*
-import fs2.Stream
+import fs2.{INothing, Stream}
 import org.apache.avro.file.CodecFactory
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
@@ -34,7 +34,7 @@ final class SaveSingleAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   def errorIfExists: SaveSingleAvro[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleAvro[F, A] = updateConfig(cfg.ignoreMode)
 
-  def stream(implicit F: Sync[F]): Stream[F, Unit] = {
+  def sink(implicit F: Sync[F]): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val cf: CodecFactory      = params.compression.avro(hc)
@@ -55,5 +55,5 @@ final class SaveMultiAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Ho
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.delay(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
+      .checkAndRun(F.interruptible(many = true)(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
 }

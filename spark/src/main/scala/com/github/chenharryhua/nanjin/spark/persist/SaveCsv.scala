@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.Stream
+import fs2.{INothing, Stream}
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -40,7 +40,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def stream(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
+  def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, INothing] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val csvConf: CsvConfiguration =
@@ -72,7 +72,7 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
 
   def run(implicit F: Async[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.delay {
+      .checkAndRun(F.interruptible(many = true) {
         val quoteAll: Boolean = csvConfiguration.quotePolicy match {
           case QuotePolicy.Always     => true
           case QuotePolicy.WhenNeeded => false

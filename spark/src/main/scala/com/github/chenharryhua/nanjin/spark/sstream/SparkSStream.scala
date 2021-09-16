@@ -44,9 +44,9 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
     new NJMemorySink[F, A](dataset.writeStream, cfg.queryName(queryName))
 
   def datePartitionSink(path: String): NJFileSink[F, Row] = {
-    val year  = udf((ts: Long) => NJTimestamp(ts).yearStr(params.timeRange.zoneId))
-    val month = udf((ts: Long) => NJTimestamp(ts).monthStr(params.timeRange.zoneId))
-    val day   = udf((ts: Long) => NJTimestamp(ts).dayStr(params.timeRange.zoneId))
+    val year  = udf((ts: Long) => NJTimestamp(ts).yearStr(params.zoneId))
+    val month = udf((ts: Long) => NJTimestamp(ts).monthStr(params.zoneId))
+    val day   = udf((ts: Long) => NJTimestamp(ts).dayStr(params.zoneId))
 
     val ws = dataset
       .withColumn("Year", year(dataset("timestamp")))

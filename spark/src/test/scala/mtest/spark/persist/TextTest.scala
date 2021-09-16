@@ -23,13 +23,13 @@ class TextTest extends AnyFunSuite {
   test("tablet - single gzip") {
     val path  = "./data/test/spark/persist/text/tablet/tablet.txt.gz"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
-    saver.text(path).file.gzip.stream.compile.drain.unsafeRunSync()
+    saver.text(path).file.gzip.sink.compile.drain.unsafeRunSync()
   }
 
   test("tablet - single deflate") {
     val path  = "./data/test/spark/persist/text/tablet/tablet.txt.deflate"
     val saver = new RddFileHoarder[IO, Tablet](rdd)
-    saver.text(path).file.deflate(1).stream.compile.drain.unsafeRunSync()
+    saver.text(path).file.deflate(1).sink.compile.drain.unsafeRunSync()
   }
 
   test("tablet - deflate, compress-1") {
