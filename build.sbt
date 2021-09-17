@@ -48,7 +48,7 @@ val log4s       = "1.8.2"
 val betterFiles = "3.9.1"
 
 // test
-val scalatest = "3.2.9"
+val scalatest = "3.2.10"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
