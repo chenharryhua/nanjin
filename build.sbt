@@ -22,7 +22,7 @@ val chimney    = "0.6.1"
 // runtime
 val zioCats    = "3.1.1.0"
 val monix      = "3.4.0"
-val catsEffect = "3.2.8"
+val catsEffect = "3.2.9"
 val akka26     = "2.6.16"
 
 // spark
