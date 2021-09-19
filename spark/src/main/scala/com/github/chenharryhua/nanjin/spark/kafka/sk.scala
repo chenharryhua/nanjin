@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.data.{Chain, Writer}
 import cats.effect.kernel.Sync
-import cats.mtl.Tell
-import cats.syntax.functor.*
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
@@ -21,8 +19,6 @@ import java.util
 import scala.collection.JavaConverters.*
 
 private[kafka] object sk {
-
-  implicit val tell: Tell[Writer[Chain[Throwable], *], Chain[Throwable]] = shapeless.cachedImplicit
 
   // https://spark.apache.org/docs/3.0.1/streaming-kafka-0-10-integration.html
   private def props(config: Map[String, String]): util.Map[String, Object] =
@@ -60,8 +56,7 @@ private[kafka] object sk {
           topicPartitions.value,
           props(topic.context.settings.consumerSettings.config).asScala)
       KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
-        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
-        ms.map(m => decoder.decode(m).run._2)
+        ms.map(m => NJConsumerRecordWithError(topic.codec, m).toNJConsumerRecord)
       }
     }
 
@@ -69,10 +64,9 @@ private[kafka] object sk {
     topic: KafkaTopic[F, K, V],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): F[RDD[NJConsumerRecord[K, V]]] =
+    sparkSession: SparkSession): F[RDD[NJConsumerRecordWithError[K, V]]] =
     kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
-      val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
-      ms.map(m => decoder.decode(m).run._2)
+      ms.map(m => NJConsumerRecordWithError(topic.codec, m))
     })
 
   /** streaming
@@ -106,9 +100,11 @@ private[kafka] object sk {
       .load()
       .as[NJConsumerRecord[Array[Byte], Array[Byte]]]
       .mapPartitions { ms =>
-        val decoder = new NJDecoder[Writer[Chain[Throwable], *], K, V](topic.codec)
         ms.map { cr =>
-          f(NJConsumerRecord.timestamp.modify(_ * SparkDatetimeConversionConstant)(decoder.decode(cr).run._2))
+          val njcr: NJConsumerRecord[K, V] =
+            cr.bimap(topic.codec.keyCodec.tryDecode(_).toOption, topic.codec.valCodec.tryDecode(_).toOption)
+              .flatten[K, V]
+          f(NJConsumerRecord.timestamp.modify(_ * SparkDatetimeConversionConstant)(njcr))
         }
       }(ate.sparkEncoder)
   }
