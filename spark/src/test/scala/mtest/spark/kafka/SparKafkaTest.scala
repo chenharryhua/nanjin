@@ -6,8 +6,8 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.injection._
-import com.github.chenharryhua.nanjin.spark.kafka._
+import com.github.chenharryhua.nanjin.spark.injection.*
+import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import fs2.kafka.{ProducerRecord, ProducerRecords}
@@ -34,7 +34,7 @@ object SparKafkaTestData {
 }
 
 class SparKafkaTest extends AnyFunSuite {
-  import SparKafkaTestData._
+  import SparKafkaTestData.*
   implicit val ss: SparkSession = sparkSession
 
   val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
