@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
 
 object StatisticsTestData {
 
@@ -26,7 +25,7 @@ object StatisticsTestData {
     CRMetaInfo("topic", 1, 2, dt.plus(unit * 3).milliseconds, 0),
     CRMetaInfo("topic", 1, 3, dt.plus(unit * 4).milliseconds, 0)
   )
-  import sparkSession.implicits._
+  import sparkSession.implicits.*
 
   val ds: Dataset[CRMetaInfo] = sparkSession.createDataset(list)
 
@@ -35,7 +34,7 @@ object StatisticsTestData {
 }
 
 class StatisticsTest extends AnyFunSuite {
-  import StatisticsTestData._
+  import StatisticsTestData.*
   val stats = new Statistics[IO](ds, sydneyTime)
 
   val emptyStats = new Statistics[IO](empty, sydneyTime)
