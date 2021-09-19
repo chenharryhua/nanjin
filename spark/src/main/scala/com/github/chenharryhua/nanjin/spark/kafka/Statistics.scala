@@ -10,11 +10,11 @@ import org.apache.spark.sql.Dataset
 import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
-final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
-final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
-final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
-final private[kafka] case class DailyHourAggResult(dateTime: ZonedDateTime, count: Long)
-final private[kafka] case class DailyMinuteAggResult(dateTime: ZonedDateTime, count: Long)
+final private[kafka] case class MinutelyAggResult(minute: Int, count: Int)
+final private[kafka] case class HourlyAggResult(hour: Int, count: Int)
+final private[kafka] case class DailyAggResult(date: LocalDate, count: Int)
+final private[kafka] case class DailyHourAggResult(dateTime: String, count: Int)
+final private[kafka] case class DailyMinuteAggResult(dateTime: String, count: Int)
 
 final case class KafkaSummary(
   partition: Int,
@@ -76,48 +76,53 @@ final class Statistics[F[_]] private[kafka] (
   def typedDataset: TypedDataset[CRMetaInfo] = TypedDataset.create(ds)
 
   def minutely(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val minute: TypedDataset[Int] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(zoneId).getMinute
-    }
-    val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
-    F.delay(res.orderBy(res('minute).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getMinute)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
+        .orderBy("minute")
+        .show(rowNum, isTruncate))
   }
 
   def hourly(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val hour =
-      tds.deserialized.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getHour)
-    val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
-    F.delay(res.orderBy(res('hour).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getHour)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
+        .orderBy("hour")
+        .show(rowNum, isTruncate))
   }
 
   def daily(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val day: TypedDataset[LocalDate] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).dayResolution(zoneId)
-    }
-    val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
-    F.delay(res.orderBy(res('date).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).dayResolution(zoneId))
+        .groupByKey(identity)
+        .mapGroups((m, iter) => DailyAggResult(m, iter.size))
+        .orderBy("date")
+        .show(rowNum, isTruncate))
   }
 
   def dailyHour(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val dayHour: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).hourResolution(zoneId)
-    }
-    val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
-    F.delay(res.orderBy(res('dateTime).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).hourResolution(zoneId).toString)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
+        .orderBy("dateTime")
+        .show(rowNum, isTruncate))
   }
 
   def dailyMinute(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val dayMinute: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).minuteResolution(zoneId)
-    }
-    val res =
-      dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
-    F.delay(res.orderBy(res('dateTime).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).minuteResolution(zoneId).toString)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
+        .orderBy("dateTime")
+        .show(rowNum, isTruncate))
   }
 
   def summaryDS: TypedDataset[KafkaSummary] = {
