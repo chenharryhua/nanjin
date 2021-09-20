@@ -71,9 +71,9 @@ class SortTest extends AnyFunSuite {
     assert(crRdd.stats.missingOffsets.count == 1)
   }
   test("misorder keys") {
-    assert(crDS.misorderedKey.dataset.count == 4)
+    assert(crDS.misorderedKey.count == 4)
   }
   test("misplaced keys") {
-    assert(crDS.misplacedKey.dataset.count == 1)
+    assert(crDS.misplacedKey.count == 1)
   }
 }

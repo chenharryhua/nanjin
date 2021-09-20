@@ -84,56 +84,59 @@ final class CrDS[F[_], K, V] private[kafka] (
   def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
     partitionOf(partition).offsetRange(offset, offset).dataset.collect().headOption
 
-  def diff(
-    other: TypedDataset[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): TypedDataset[DiffResult[K, V]] =
-    inv.diffDataset(typedDataset, other)(eqK, tek, eqV, tev)
+  def diff(other: TypedDataset[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
+    inv.diffDataset(typedDataset, other)(eqK, tek, eqV, tev).dataset
 
-  def diff(other: CrDS[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): TypedDataset[DiffResult[K, V]] =
+  def diff(other: CrDS[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
     diff(other.typedDataset)
 
-  def diffKV(other: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[KvDiffResult[K, V]] =
-    inv.kvDiffDataset(typedDataset, other)(tek, tev)
+  def diffKV(other: TypedDataset[NJConsumerRecord[K, V]]): Dataset[KvDiffResult[K, V]] =
+    inv.kvDiffDataset(typedDataset, other)(tek, tev).dataset
 
-  def diffKV(other: CrDS[F, K, V]): TypedDataset[KvDiffResult[K, V]] = diffKV(other.typedDataset)
+  def diffKV(other: CrDS[F, K, V]): Dataset[KvDiffResult[K, V]] = diffKV(other.typedDataset)
 
   /** Notes: same key should be in same partition.
     */
-  def misplacedKey: TypedDataset[MisplacedKey[K]] = {
+  def misplacedKey: Dataset[MisplacedKey[K]] = {
     import frameless.functions.aggregate.countDistinct
     implicit val enc: TypedEncoder[K]             = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     val res: TypedDataset[MisplacedKey[K]] =
       tds.groupBy(tds('key)).agg(countDistinct(tds('partition))).as[MisplacedKey[K]]
-    res.filter(res('count) > 1).orderBy(res('count).asc)
+    res.filter(res('count) > 1).orderBy(res('count).asc).dataset
   }
 
   /** Notes: timestamp order should follow offset order: the larger the offset is the larger of timestamp should be, of
     * the same key
     */
-  def misorderedKey: TypedDataset[MisorderedKey[K]] = {
+  def misorderedKey: Dataset[MisorderedKey[K]] = {
     implicit val enc: TypedEncoder[K]             = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
-    tds.groupBy(tds('key)).deserialized.flatMapGroups { case (key, iter) =>
-      key.traverse { key =>
-        iter.toList.sortBy(_.offset).sliding(2).toList.flatMap {
-          case List(c, n) =>
-            if (n.timestamp >= c.timestamp) None
-            else
-              Some(
-                MisorderedKey(
-                  key,
-                  c.partition,
-                  c.offset,
-                  c.timestamp,
-                  c.timestamp - n.timestamp,
-                  n.offset - c.offset,
-                  n.partition,
-                  n.offset,
-                  n.timestamp))
-          case _ => None // single item list
-        }
-      }.flatten
-    }
+    tds
+      .groupBy(tds('key))
+      .deserialized
+      .flatMapGroups { case (key, iter) =>
+        key.traverse { key =>
+          iter.toList.sortBy(_.offset).sliding(2).toList.flatMap {
+            case List(c, n) =>
+              if (n.timestamp >= c.timestamp) None
+              else
+                Some(
+                  MisorderedKey(
+                    key,
+                    c.partition,
+                    c.offset,
+                    c.timestamp,
+                    c.timestamp - n.timestamp,
+                    n.offset - c.offset,
+                    n.partition,
+                    n.offset,
+                    n.timestamp))
+            case _ => None // single item list
+          }
+        }.flatten
+      }
+      .dataset
   }
 }
 
