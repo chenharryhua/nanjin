@@ -40,23 +40,23 @@ class StatisticsTest extends AnyFunSuite {
   val emptyStats = new Statistics[IO](empty, sydneyTime)
 
   test("dupRecords") {
-    val res = stats.dupRecords.dataset.collect().toSet
+    val res = stats.dupRecords.collect().toSet
     assert(res == Set(DuplicateRecord(0, 7, 3)))
-    assert(emptyStats.dupRecords.dataset.count() == 0)
+    assert(emptyStats.dupRecords.count() == 0)
   }
 
   test("disorders") {
-    val res = stats.disorders.dataset.collect().toSet
+    val res = stats.disorders.collect().toSet
     assert(
       res == Set(
         Disorder(0, 3, 1351620000000L, "2012-10-31T05:00+11:00[Australia/Sydney]", 1351360800000L, 259200000L, 0)))
 
-    assert(emptyStats.disorders.dataset.count() == 0)
+    assert(emptyStats.disorders.count() == 0)
   }
 
   test("missingOffsets") {
-    val res = stats.missingOffsets.dataset.collect().toSet
+    val res = stats.missingOffsets.collect().toSet
     assert(res == Set(MissingOffset(0, 1)))
-    assert(emptyStats.missingOffsets.dataset.count() == 0)
+    assert(emptyStats.missingOffsets.count() == 0)
   }
 }
