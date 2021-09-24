@@ -1,17 +1,16 @@
 package mtest.spark.persist
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KPB
-import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
-import mtest.spark.pb.test.Whale
+import mtest.pb.spark.Whale
+import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-import mtest.spark._
-import cats.effect.unsafe.implicits.global
-
 object ProtobufTestData {
   val data = List.fill(10)(KPB(Whale("a", Random.nextInt())))
   val rdd  = sparkSession.sparkContext.parallelize(data)
@@ -19,7 +18,7 @@ object ProtobufTestData {
 
 @DoNotDiscover
 class ProtobufTest extends AnyFunSuite {
-  import ProtobufTestData._
+  import ProtobufTestData.*
   val saver = new RddFileHoarder[IO, Whale](rdd.map(_.value).repartition(2))
   test("protobuf - single file") {
     val path = "./data/test/spark/persist/protobuf/single.whale.pb"

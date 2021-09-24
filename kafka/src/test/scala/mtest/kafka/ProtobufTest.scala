@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KPB
-import mtest.kafka.pb.test.*
+import mtest.pb.kafka.PersonKafka
 import org.scalatest.funsuite.AnyFunSuite
 
 class ProtobufTest extends AnyFunSuite {

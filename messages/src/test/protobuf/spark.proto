@@ -1,5 +1,5 @@
 syntax = "proto3";
-package mtest.spark.pb;
+package mtest.pb;
 
 message Whale {
   string name = 1;
