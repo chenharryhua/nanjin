@@ -9,7 +9,7 @@ val shapeless  = "2.3.7"
 val kittens    = "2.3.2"
 val catsCore   = "2.6.1"
 val algebra    = "2.2.3"
-val fs2Version = "3.1.3"
+val fs2Version = "3.1.2"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.4.0"
 val tagless    = "0.14.0"
@@ -83,8 +83,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Xsource:3"
   ),
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / PB.targets                  := Seq(scalapb.gen() -> (Test / sourceManaged).value)
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 )
 
 val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
@@ -375,6 +374,7 @@ lazy val messages = (project in file("messages"))
     ) ++ baseLib ++ effectLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
+  .settings(Test / PB.targets := Seq(scalapb.gen() -> (Test / sourceManaged).value))
 
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
@@ -384,6 +384,7 @@ lazy val pipes = (project in file("pipes"))
       hadoopLib ++ serdeLib ++ testLib ++ logLib,
     excludeDependencies ++= Seq(ExclusionRule(organization = "org.slf4j", name = "slf4j-api"))
   )
+  .settings(Test / PB.targets := Seq(scalapb.gen() -> (Test / sourceManaged).value))
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -400,7 +401,7 @@ lazy val database = (project in file("database"))
   )
 
 lazy val kafka = (project in file("kafka"))
-  .dependsOn(messages)
+  .dependsOn(messages % "compile->compile;test->test")
   .dependsOn(datetime)
   .dependsOn(common)
   .settings(commonSettings: _*)
@@ -412,7 +413,7 @@ lazy val kafka = (project in file("kafka"))
   )
 
 lazy val spark = (project in file("spark"))
-  .dependsOn(kafka)
+  .dependsOn(kafka % "compile->compile;test->test")
   .dependsOn(pipes)
   .dependsOn(database)
   .settings(commonSettings: _*)
@@ -454,5 +455,3 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
-    .settings(name := "nanjin")
-    .settings(commonSettings: _*)
