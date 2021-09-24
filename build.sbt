@@ -9,7 +9,7 @@ val shapeless  = "2.3.7"
 val kittens    = "2.3.2"
 val catsCore   = "2.6.1"
 val algebra    = "2.2.3"
-val fs2Version = "3.1.3"
+val fs2Version = "3.1.2"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.4.0"
 val tagless    = "0.14.0"
@@ -455,5 +455,3 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
-    .settings(name := "nanjin")
-    .settings(commonSettings: _*)
