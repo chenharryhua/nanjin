@@ -1,20 +1,20 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.MonadCancel
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, NJEvent}
 import fs2.{INothing, Pipe, Pull, Stream}
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.time.ZonedDateTime
 import java.util.{Date, UUID}
 import scala.collection.JavaConverters.*
 
 object cloudwatch {
-  def apply[F[_]](client: Resource[F, CloudWatch[F]], namespace: String)(implicit
-    F: MonadCancel[F, Throwable]): CloudWatchMetrics[F] =
+  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchMetrics[F] =
     new CloudWatchMetrics[F](client, namespace, 60)
 
   def apply[F[_]: Sync](namespace: String): CloudWatchMetrics[F] =
@@ -44,7 +44,7 @@ final private case class MetricKey(
 final class CloudWatchMetrics[F[_]] private[observers] (
   client: Resource[F, CloudWatch[F]],
   namespace: String,
-  storageResolution: Int)(implicit F: MonadCancel[F, Throwable])
+  storageResolution: Int)(implicit F: Sync[F])
     extends Pipe[F, NJEvent, INothing] {
 
   def withStorageResolution(storageResolution: Int): CloudWatchMetrics[F] = {
@@ -82,6 +82,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
   }
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] = {
+    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, INothing, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
@@ -99,7 +100,9 @@ final class CloudWatchMetrics[F[_]] private[observers] (
                 cw.putMetricData(
                   new PutMetricDataRequest()
                     .withNamespace(namespace)
-                    .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava)))
+                    .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
+                  .attempt
+                  .flatMap(_.fold(logger.warn(_)("Cloudwatch"), _ => F.unit)))
           Pull.eval(publish) >> go(cw, tail, next)
 
         case None => Pull.done
