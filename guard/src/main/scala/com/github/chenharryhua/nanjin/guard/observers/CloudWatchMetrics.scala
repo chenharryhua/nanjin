@@ -91,7 +91,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
               (mds ::: lmd, newLast)
           }
 
-          val publish: F[List[PutMetricDataResult]] =
+          val publish: F[List[Unit]] =
             mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
               .grouped(20)
               .toList
