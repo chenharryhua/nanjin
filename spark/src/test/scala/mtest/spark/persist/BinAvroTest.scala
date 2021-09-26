@@ -1,11 +1,11 @@
 package mtest.spark.persist
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
+import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import mtest.spark._
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {

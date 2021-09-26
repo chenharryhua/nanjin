@@ -3,10 +3,9 @@ package com.github.chenharryhua.nanjin.spark
 import cats.Order
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import frameless.{Injection, SQLDate, SQLTimestamp}
-import io.circe.Decoder.Result
 import io.circe.parser.{decode, parse}
-import io.circe.syntax._
-import io.circe.{Codec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
+import io.circe.syntax.*
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
 
@@ -51,7 +50,7 @@ private[spark] trait InjectionInstances extends Serializable {
 
   // enums
   implicit def enumToStringInjection[E <: Enumeration](implicit w: Witness.Aux[E]): Injection[E#Value, String] =
-    Injection(_.toString, x => w.value.withName(x))
+    Injection(_.toString, w.value.withName(_))
 
   implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): JsonEncoder[E#Value] =
     JsonEncoder.encodeEnumeration(w.value)
@@ -59,7 +58,7 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): JsonDecoder[E#Value] =
     JsonDecoder.decodeEnumeration(w.value)
 
-  implicit def orderScalaEnum[E <: Enumeration](implicit w: shapeless.Witness.Aux[E]): Order[E#Value] =
+  implicit def orderScalaEnum[E <: Enumeration](implicit w: Witness.Aux[E]): Order[E#Value] =
     (x: E#Value, y: E#Value) => w.value(x.id).compare(w.value(y.id))
 
   // circe/json
@@ -80,21 +79,5 @@ private[spark] trait InjectionInstances extends Serializable {
       case Right(r) => r
       case Left(ex) => throw ex
     }
-  }
-
-  implicit val timestampCirceCodec: Codec[Timestamp] = new Codec[Timestamp] {
-    import io.circe.syntax._
-    override def apply(a: Timestamp): Json = a.toInstant.asJson
-
-    override def apply(c: HCursor): Result[Timestamp] =
-      JsonDecoder[Instant].apply(c).map(Timestamp.from)
-  }
-
-  implicit val dateCirceCodec: Codec[Date] = new Codec[Date] {
-    import io.circe.syntax._
-    override def apply(a: Date): Json = a.toLocalDate.asJson
-
-    override def apply(c: HCursor): Result[Date] =
-      JsonDecoder[LocalDate].apply(c).map(Date.valueOf)
   }
 }

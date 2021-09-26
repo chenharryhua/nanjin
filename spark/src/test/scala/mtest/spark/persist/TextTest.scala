@@ -1,15 +1,15 @@
 package mtest.spark.persist
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
-import mtest.spark._
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
+import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class TextTest extends AnyFunSuite {
-  import TabletData._
+  import TabletData.*
   test("tablet") {
     val path  = "./data/test/spark/persist/text/tablet/show-case-class"
     val saver = new RddFileHoarder[IO, Tablet](rdd)

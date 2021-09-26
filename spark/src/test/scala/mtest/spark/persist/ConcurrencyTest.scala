@@ -1,6 +1,6 @@
 package mtest.spark.persist
 
-import better.files._
+import better.files.*
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
