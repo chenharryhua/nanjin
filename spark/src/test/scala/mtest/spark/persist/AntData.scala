@@ -1,8 +1,8 @@
 package mtest.spark.persist
 
+import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
-import mtest.spark._
 
 object AntData {
 

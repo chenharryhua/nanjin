@@ -4,14 +4,14 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, DatasetFileHoarder}
 import kantan.csv.CsvConfiguration
-import kantan.csv.generic._
-import mtest.spark._
+import kantan.csv.generic.*
+import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class CsvTest extends AnyFunSuite {
-  import TabletData._
+  import TabletData.*
 
   val saver = new DatasetFileHoarder[IO, Tablet](ds)
 

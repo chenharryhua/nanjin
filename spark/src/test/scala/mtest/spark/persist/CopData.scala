@@ -1,10 +1,10 @@
 package mtest.spark.persist
 
 import frameless.TypedDataset
+import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import shapeless.Coproduct
-import mtest.spark._
 
 object CopData {
 
