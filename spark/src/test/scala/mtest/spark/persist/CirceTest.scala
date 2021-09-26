@@ -2,14 +2,15 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
-import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.*
+import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder, RddFileHoarder}
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, RddExt}
 import frameless.TypedDataset
 import io.circe.Json
-import io.circe.generic.auto._
-import mtest.spark._
+import io.circe.generic.auto.*
+import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite

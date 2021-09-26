@@ -1,14 +1,15 @@
 package mtest.spark.persist
 
 import cats.Show
+import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
 import io.circe.Codec
 import kantan.csv.RowEncoder
-import kantan.csv.generic._
-import kantan.csv.java8._
+import kantan.csv.generic.*
+import kantan.csv.java8.*
 import org.apache.avro.Schema
 
 import java.sql.Timestamp

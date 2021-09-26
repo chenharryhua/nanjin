@@ -453,5 +453,4 @@ lazy val example = (project in file("example"))
   .settings(libraryDependencies ++= testLib)
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
+  (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)

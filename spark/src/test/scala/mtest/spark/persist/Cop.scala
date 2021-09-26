@@ -2,15 +2,14 @@ package mtest.spark.persist
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
-import shapeless.{:+:, CNil}
-import com.github.chenharryhua.nanjin.spark.injection._
 import io.circe.Codec
-import kantan.csv.RowEncoder
-import io.circe.shapes._
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import io.circe.generic.semiauto.deriveCodec
-import kantan.csv.generic._
+import io.circe.shapes.*
+import kantan.csv.generic.*
+import shapeless.{:+:, CNil}
 
 sealed trait CaseObjectCop
 
