@@ -134,7 +134,7 @@ val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv-java8",
   "com.nrinaudo" %% "kantan.csv-generic",
   "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.2")
+).map(_ % kantan) ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.3")
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.5",
