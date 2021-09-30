@@ -30,7 +30,7 @@ val spark3    = "3.1.2"
 val frameless = "0.10.1"
 
 // format
-val jackson = "2.13.0-rc2"
+val jackson = "2.13.0"
 val json4s  = "3.7.0-M7" // for spark
 val kantan  = "0.6.2"
 val parquet = "1.12.1"
