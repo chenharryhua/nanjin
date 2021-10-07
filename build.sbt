@@ -2,7 +2,7 @@ ThisBuild / scalaVersion      := "2.12.15"
 ThisBuild / parallelExecution := false
 Global / cancelable           := true
 
-ThisBuild / version := "0.12.25-SNAPSHOT"
+ThisBuild / version := "0.12.26-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"
