@@ -423,7 +423,7 @@ lazy val spark = (project in file("spark"))
       "org.locationtech.jts" % "jts-core" % "1.18.2",
       // override dependency
       "io.netty"                               % "netty"      % "3.10.6.Final",
-      "io.netty"                               % "netty-all"  % "4.1.68.Final",
+      "io.netty"                               % "netty-all"  % "4.1.69.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
       akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib,
