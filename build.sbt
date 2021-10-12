@@ -26,7 +26,7 @@ val catsEffect = "3.2.9"
 val akka26     = "2.6.16"
 
 // spark
-val spark3    = "3.1.2"
+val spark3    = "3.2.0"
 val frameless = "0.10.1"
 
 // format
