@@ -270,7 +270,7 @@ val effectLib = Seq(
 
 val ftpLib = Seq(
   "commons-net"                                     % "commons-net" % "3.8.0",
-  "com.hierynomus"                                  % "sshj"        % "0.31.0",
+  "com.hierynomus"                                  % "sshj"        % "0.32.0",
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % akkaFtp
 )
 
