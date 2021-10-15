@@ -23,7 +23,7 @@ val chimney    = "0.6.1"
 val zioCats    = "3.1.1.0"
 val monix      = "3.4.0"
 val catsEffect = "3.2.9"
-val akka26     = "2.6.16"
+val akka26     = "2.6.17"
 
 // spark
 val spark3    = "3.2.0"
