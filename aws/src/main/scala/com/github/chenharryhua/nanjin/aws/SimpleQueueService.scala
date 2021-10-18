@@ -33,10 +33,13 @@ object SimpleQueueService {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
     }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
-    Resource.make(F.delay(new SQS[F](akkaSystem)))(_.shutdown)
+  def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
+    Resource.make(F.delay(new SQS[F](akkaSystem, bufferSize)))(_.shutdown)
 
-  final private class SQS[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F])
+  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
+    apply[F](akkaSystem, 1024)
+
+  final private class SQS[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F])
       extends SimpleQueueService[F] with ShutdownService[F] {
 
     implicit private val client: SqsAsyncClient =
@@ -52,7 +55,7 @@ object SimpleQueueService {
           .map(MessageAction.Delete(_))
           .via(SqsAckFlow(sqs.value))
           .runWith(Sink.asPublisher(fanout = false))
-          .toStream)
+          .toStreamBuffered(bufferSize))
 
     override def shutdown: F[Unit] = F.blocking(client.close())
   }

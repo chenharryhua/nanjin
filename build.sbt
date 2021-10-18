@@ -177,8 +177,6 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-graphx"
 ).map(_ % spark3) ++ Seq(
   "org.typelevel" %% "frameless-dataset",
-  "org.typelevel" %% "frameless-ml",
-  "org.typelevel" %% "frameless-cats",
   "org.typelevel" %% "frameless-core"
 ).map(_ % frameless) ++ Seq(
   "org.apache.avro" % "avro-compiler",
