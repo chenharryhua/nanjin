@@ -82,7 +82,7 @@ final class SlackPipe[F[_]] private[observers] (
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).as(e)))
+    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).attempt.as(e)))
 
   private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"
@@ -121,7 +121,7 @@ final class SlackPipe[F[_]] private[observers] (
               )
             ))
         ).asJson.noSpaces
-        sns.publish(msg).attempt.void
+        sns.publish(msg).void
 
       case ServicePanic(at, si, params, details, error) =>
         def upcoming: String = details.upcomingDelay.map(cfg.durationFormatter.format) match {
@@ -149,7 +149,7 @@ final class SlackPipe[F[_]] private[observers] (
                 )
               ))
           ).asJson.noSpaces
-        sns.publish(msg).attempt.void
+        sns.publish(msg).void
 
       case ServiceStopped(at, si, params, snapshot) =>
         def msg: String =
@@ -169,7 +169,7 @@ final class SlackPipe[F[_]] private[observers] (
               ))
           ).asJson.noSpaces
 
-        sns.publish(msg).attempt.void
+        sns.publish(msg).void
 
       case MetricsReport(idx, at, si, params, prev, next, snapshot) =>
         def msg: String = SlackNotification(
@@ -203,7 +203,7 @@ final class SlackPipe[F[_]] private[observers] (
           }
         }.fold(true)(identity)
 
-        sns.publish(msg).attempt.whenA(isShow)
+        sns.publish(msg).whenA(isShow)
 
       case MetricsReset(at, si, params, prev, next, snapshot) =>
         val toNow =
@@ -231,7 +231,7 @@ final class SlackPipe[F[_]] private[observers] (
             ))
         ).asJson.noSpaces
 
-        sns.publish(msg).attempt.void
+        sns.publish(msg).void
 
       case ActionStart(params, action, at) =>
         def msg: String =
@@ -249,7 +249,7 @@ final class SlackPipe[F[_]] private[observers] (
                 )
               ))
           ).asJson.noSpaces
-        sns.publish(msg).attempt.void
+        sns.publish(msg).void
 
       case ActionRetrying(params, action, at, wdr, error) =>
         def msg: String =
@@ -272,7 +272,7 @@ final class SlackPipe[F[_]] private[observers] (
                 )
               ))
           ).asJson.noSpaces
-        sns.publish(msg).attempt.whenA(params.importance.value > Importance.Low.value && cfg.isShowRetry)
+        sns.publish(msg).whenA(params.importance.value > Importance.Low.value && cfg.isShowRetry)
 
       case ActionFailed(params, action, at, numRetries, notes, error) =>
         def msg: String =
@@ -296,7 +296,7 @@ final class SlackPipe[F[_]] private[observers] (
                 )
               ))
           ).asJson.noSpaces
-        sns.publish(msg).attempt.whenA(params.importance.value > Importance.Low.value)
+        sns.publish(msg).whenA(params.importance.value > Importance.Low.value)
 
       case ActionSucced(params, action, at, numRetries, notes) =>
         def msg: String =
@@ -318,7 +318,7 @@ final class SlackPipe[F[_]] private[observers] (
                 )
               ))
           ).asJson.noSpaces
-        sns.publish(msg).attempt.void
+        sns.publish(msg).void
 
       case ActionQuasiSucced(params, action, at, runMode, numSucc, succNotes, failNotes, errors) =>
         def msg: SlackNotification =
@@ -365,7 +365,7 @@ final class SlackPipe[F[_]] private[observers] (
                 ))
             )
 
-        sns.publish(msg.asJson.noSpaces).attempt.void
+        sns.publish(msg.asJson.noSpaces).void
 
       // no op
       case _: PassThrough => F.unit
