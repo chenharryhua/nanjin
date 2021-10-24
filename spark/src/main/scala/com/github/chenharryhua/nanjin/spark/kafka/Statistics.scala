@@ -2,19 +2,16 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.datetime.*
-import com.github.chenharryhua.nanjin.spark.injection.*
-import frameless.functions.aggregate.count
-import frameless.{Injection, TypedDataset}
 import org.apache.spark.sql.Dataset
 
-import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.time.{LocalDate, ZoneId}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
-final private[kafka] case class MinutelyAggResult(minute: Int, count: Long)
-final private[kafka] case class HourlyAggResult(hour: Int, count: Long)
-final private[kafka] case class DailyAggResult(date: LocalDate, count: Long)
-final private[kafka] case class DailyHourAggResult(dateTime: ZonedDateTime, count: Long)
-final private[kafka] case class DailyMinuteAggResult(dateTime: ZonedDateTime, count: Long)
+final private[kafka] case class MinutelyAggResult(minute: Int, count: Int)
+final private[kafka] case class HourlyAggResult(hour: Int, count: Int)
+final private[kafka] case class DailyAggResult(date: LocalDate, count: Int)
+final private[kafka] case class DailyHourAggResult(dateTime: String, count: Int)
+final private[kafka] case class DailyMinuteAggResult(dateTime: String, count: Int)
 
 final case class KafkaSummary(
   partition: Int,
@@ -67,94 +64,94 @@ final class Statistics[F[_]] private[kafka] (
   def truncate: Statistics[F]          = new Statistics[F](ds, zoneId, rowNum, true)
   def untruncate: Statistics[F]        = new Statistics[F](ds, zoneId, rowNum, false)
 
-  implicit val zonedDateTimeInjection: Injection[ZonedDateTime, String] =
-    new Injection[ZonedDateTime, String] {
-      override def apply(a: ZonedDateTime): String  = a.toString
-      override def invert(b: String): ZonedDateTime = ZonedDateTime.parse(b)
-    }
-
-  def typedDataset: TypedDataset[CRMetaInfo] = TypedDataset.create(ds)
-
   def minutely(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val minute: TypedDataset[Int] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).atZone(zoneId).getMinute
-    }
-    val res = minute.groupBy(minute.asCol).agg(count(minute.asCol)).as[MinutelyAggResult]
-    F.delay(res.orderBy(res('minute).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getMinute)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
+        .orderBy("minute")
+        .show(rowNum, isTruncate))
   }
 
   def hourly(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val hour =
-      tds.deserialized.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getHour)
-    val res = hour.groupBy(hour.asCol).agg(count(hour.asCol)).as[HourlyAggResult]
-    F.delay(res.orderBy(res('hour).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getHour)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
+        .orderBy("hour")
+        .show(rowNum, isTruncate))
   }
 
   def daily(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val day: TypedDataset[LocalDate] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).dayResolution(zoneId)
-    }
-    val res = day.groupBy(day.asCol).agg(count(day.asCol)).as[DailyAggResult]
-    F.delay(res.orderBy(res('date).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).dayResolution(zoneId))
+        .groupByKey(identity)
+        .mapGroups((m, iter) => DailyAggResult(m, iter.size))
+        .orderBy("date")
+        .show(rowNum, isTruncate))
   }
 
   def dailyHour(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val dayHour: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).hourResolution(zoneId)
-    }
-    val res = dayHour.groupBy(dayHour.asCol).agg(count(dayHour.asCol)).as[DailyHourAggResult]
-    F.delay(res.orderBy(res('dateTime).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).hourResolution(zoneId).toString)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
+        .orderBy("dateTime")
+        .show(rowNum, isTruncate))
   }
 
   def dailyMinute(implicit F: Sync[F]): F[Unit] = {
-    val tds = typedDataset
-    val dayMinute: TypedDataset[ZonedDateTime] = tds.deserialized.map { m =>
-      NJTimestamp(m.timestamp).minuteResolution(zoneId)
-    }
-    val res =
-      dayMinute.groupBy(dayMinute.asCol).agg(count(dayMinute.asCol)).as[DailyMinuteAggResult]
-    F.delay(res.orderBy(res('dateTime).asc).dataset.show(rowNum, isTruncate))
+    import ds.sparkSession.implicits.*
+    F.delay(
+      ds.map(m => NJTimestamp(m.timestamp).minuteResolution(zoneId).toString)
+        .groupByKey(identity)
+        .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
+        .orderBy("dateTime")
+        .show(rowNum, isTruncate))
   }
 
-  def summaryDS: TypedDataset[KafkaSummary] = {
-    import frameless.functions.aggregate.{max, min}
-    val tds = typedDataset.distinct
-    val res = tds
-      .groupBy(tds('partition))
-      .agg(min(tds('offset)), max(tds('offset)), count(tds.asCol), min(tds('timestamp)), max(tds('timestamp)))
+  def summaryDS: Dataset[KafkaSummary] = {
+    import ds.sparkSession.implicits.*
+    import org.apache.spark.sql.functions.*
+    ds.groupBy("partition")
+      .agg(
+        min("offset").as("startOffset"),
+        max("offset").as("endOffset"),
+        count(lit(1)).as("count"),
+        min("timestamp").as("startTs"),
+        max("timestamp").as("endTs"))
       .as[KafkaSummary]
-    res.orderBy(res('partition).asc)
+      .orderBy(asc("partition"))
   }
 
   def summary(implicit F: Sync[F]): F[Unit] =
-    F.delay(summaryDS.dataset.collect().foreach(x => println(x.showData(zoneId))))
+    F.delay(summaryDS.collect().foreach(x => println(x.showData(zoneId))))
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
   @SuppressWarnings(Array("UnnecessaryConversion")) // convert java long to scala long
-  def missingOffsets: TypedDataset[MissingOffset] = {
+  def missingOffsets: Dataset[MissingOffset] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
-    val all: Array[Dataset[MissingOffset]] = summaryDS.dataset.collect().map { kds =>
+    val all: Array[Dataset[MissingOffset]] = summaryDS.collect().map { kds =>
       val expect: Dataset[Long] = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
       val exist: Dataset[Long]  = ds.filter(col("partition") === kds.partition).map(_.offset)
       expect.except(exist).map(os => MissingOffset(partition = kds.partition, offset = os))
     }
-    val sum: Dataset[MissingOffset] = all
+    all
       .foldLeft(ds.sparkSession.emptyDataset[MissingOffset])(_.union(_))
       .orderBy(col("partition").asc, col("offset").asc)
-    TypedDataset.create(sum)
   }
 
   /** Notes:
     *
     * Timestamp is supposed to be ordered along with offset
     */
-  def disorders: TypedDataset[Disorder] = {
+  def disorders: Dataset[Disorder] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
     val all: Array[Dataset[Disorder]] =
@@ -176,19 +173,20 @@ final class Statistics[F[_]] private[kafka] (
             ))
         }
       }
-    val sum: Dataset[Disorder] =
-      all.foldLeft(ds.sparkSession.emptyDataset[Disorder])(_.union(_)).orderBy(col("partition").asc, col("offset").asc)
-    TypedDataset.create(sum)
+    all.foldLeft(ds.sparkSession.emptyDataset[Disorder])(_.union(_)).orderBy(col("partition").asc, col("offset").asc)
   }
 
   /** Notes: partition + offset supposed to be unique, of a topic
     */
-  def dupRecords: TypedDataset[DuplicateRecord] = {
-    val tds = typedDataset
-    val res =
-      tds.groupBy(tds('partition), tds('offset)).agg(count(tds.asCol)).deserialized.flatMap { case (p, o, c) =>
+  def dupRecords: Dataset[DuplicateRecord] = {
+    import ds.sparkSession.implicits.*
+    import org.apache.spark.sql.functions.{asc, col, count, lit}
+    ds.groupBy(col("partition"), col("offset"))
+      .agg(count(lit(1)))
+      .as[(Int, Long, Long)]
+      .flatMap { case (p, o, c) =>
         if (c > 1) Some(DuplicateRecord(p, o, c)) else None
       }
-    res.orderBy(res('partition).asc, res('offset).asc)
+      .orderBy(asc("partition"), asc("offset"))
   }
 }

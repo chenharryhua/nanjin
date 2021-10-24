@@ -1,16 +1,16 @@
 package mtest.spark.persist
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, DatasetAvroFileHoarder}
 import frameless.TypedDataset
-import mtest.spark._
+import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class ParquetTest extends AnyFunSuite {
-  import RoosterData._
+  import RoosterData.*
 
   test("datetime read/write identity multi.uncompressed") {
     val path  = "./data/test/spark/persist/parquet/rooster/multi.uncompressed.parquet"
@@ -47,8 +47,8 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity mulit uncompress") {
-    import BeeData._
-    import cats.implicits._
+    import BeeData.*
+    import cats.implicits.*
     val path  = "./data/test/spark/persist/parquet/bee/multi.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Bee](ds, Bee.avroEncoder)
     saver.parquet(path).folder.uncompress.run.unsafeRunSync()
@@ -57,8 +57,8 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity single gzip") {
-    import BeeData._
-    import cats.implicits._
+    import BeeData.*
+    import cats.implicits.*
     val path  = "./data/test/spark/persist/parquet/bee/single.gz.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Bee](ds, Bee.avroEncoder)
     saver.parquet(path).file.gzip.sink.compile.drain.unsafeRunSync()
@@ -67,7 +67,7 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("collection read/write identity multi uncompress") {
-    import AntData._
+    import AntData.*
     val path  = "./data/test/spark/persist/parquet/ant/multi.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Ant](ds, Ant.avroEncoder)
     saver.parquet(path).folder.uncompress.run.unsafeRunSync()
@@ -76,7 +76,7 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("collection read/write identity single snappy") {
-    import AntData._
+    import AntData.*
     val path  = "./data/test/spark/persist/parquet/ant/single.snappy.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Ant](ds, Ant.avroEncoder)
     saver.parquet(path).file.snappy.sink.compile.drain.unsafeRunSync()
@@ -85,7 +85,7 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("enum read/write identity multi uncompress") {
-    import CopData._
+    import CopData.*
     val path  = "./data/test/spark/persist/parquet/emcop/multi.parquet"
     val saver = new DatasetAvroFileHoarder[IO, EmCop](emDS, EmCop.avroCodec.avroEncoder)
     saver.parquet(path).folder.uncompress.run.unsafeRunSync()
@@ -97,7 +97,7 @@ class ParquetTest extends AnyFunSuite {
     */
 
   test("parquet jacket multi uncompress") {
-    import JacketData._
+    import JacketData.*
     val path  = "./data/test/spark/persist/parquet/jacket/multi/jacket.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).folder.uncompress.run.unsafeRunSync()
@@ -106,7 +106,7 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("parquet jacket single uncompressed") {
-    import JacketData._
+    import JacketData.*
     val path  = "./data/test/spark/persist/parquet/jacket/single/jacket.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).file.uncompress.sink.compile.drain.unsafeRunSync()
@@ -115,7 +115,7 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("parquet jacket single snappy") {
-    import JacketData._
+    import JacketData.*
     val path  = "./data/test/spark/persist/parquet/jacket/single/jacket.snappy.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).file.snappy.sink.compile.drain.unsafeRunSync()
@@ -124,7 +124,7 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("parquet jacket single gzip") {
-    import JacketData._
+    import JacketData.*
     val path  = "./data/test/spark/persist/parquet/jacket/single/jacket.gz.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Jacket](ds, Jacket.avroCodec.avroEncoder)
     saver.parquet(path).file.gzip.sink.compile.drain.unsafeRunSync()

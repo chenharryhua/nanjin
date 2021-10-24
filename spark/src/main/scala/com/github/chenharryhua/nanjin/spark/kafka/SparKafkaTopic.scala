@@ -42,8 +42,11 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   val params: SKParams = cfg.evalConfig
 
+  def rawKafka(implicit F: Sync[F]): F[RDD[NJConsumerRecordWithError[K, V]]] =
+    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss)
+
   def fromKafka(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
-    sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss).map(crRdd)
+    rawKafka.map(rdd => crRdd(rdd.map(_.toNJConsumerRecord)))
 
   def fromDisk(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
     F.blocking(crRdd(loaders.rdd.objectFile[NJConsumerRecord[K, V]](params.replayPath, ss)))

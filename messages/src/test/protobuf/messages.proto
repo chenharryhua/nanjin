@@ -1,7 +1,7 @@
 syntax = "proto3";
-package mtest.kafka.pb;
+package mtest.pb;
 
-message PersonKafka {
+message MessagePerson {
   string name = 1;
   int32 age = 2;
 }

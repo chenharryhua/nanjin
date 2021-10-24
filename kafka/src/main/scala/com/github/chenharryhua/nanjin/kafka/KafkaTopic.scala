@@ -76,7 +76,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       context.settings.consumerSettings,
       akkaUpdater.unitConsumer,
       akkaUpdater.unitProducer[K, V],
-      akkaUpdater.unitCommitter)
+      akkaUpdater.unitCommitter,
+      bufferSize = 1024)
 }
 
 final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {

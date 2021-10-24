@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.syntax.all._
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.injection._
-import frameless.cats.implicits._
 import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless._

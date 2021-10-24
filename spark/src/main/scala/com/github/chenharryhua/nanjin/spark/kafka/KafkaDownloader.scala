@@ -63,7 +63,7 @@ final class KafkaDownloader[F[_], K, V](
           .map(cr => NJConsumerRecord(topic.decoder(cr).optionalKeyValue))
           .idleTimeout(params.loadParams.idleTimeout)
           .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
-          .toStream
+          .toStreamBuffered(params.loadParams.bufferSize)
           .interruptAfter(params.loadParams.timeLimit)
           .take(params.loadParams.recordsLimit)
       }

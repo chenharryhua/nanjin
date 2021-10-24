@@ -1,11 +1,11 @@
 package mtest.spark.persist
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
+import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import mtest.spark._
-import cats.effect.unsafe.implicits.global
 
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
@@ -38,7 +38,7 @@ class JacksonTest extends AnyFunSuite {
 
   val bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd.repartition(3), Bee.avroCodec.avroEncoder)
   test("byte-array read/write identity - single") {
-    import cats.implicits._
+    import cats.implicits.*
     val path = "./data/test/spark/persist/jackson/bee/single.json"
     bee.jackson(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
@@ -46,7 +46,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity - multi") {
-    import cats.implicits._
+    import cats.implicits.*
     val path = "./data/test/spark/persist/jackson/bee/multi.json"
     bee.jackson(path).folder.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
@@ -54,7 +54,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity - multi.gzip") {
-    import cats.implicits._
+    import cats.implicits.*
     val path = "./data/test/spark/persist/jackson/bee/multi.gzip.json"
     bee.jackson(path).folder.gzip.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
@@ -62,7 +62,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity - multi.bzip2") {
-    import cats.implicits._
+    import cats.implicits.*
     val path = "./data/test/spark/persist/jackson/bee/multi.bzip2.json"
     bee.jackson(path).folder.bzip2.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
@@ -70,7 +70,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity - multi.deflate") {
-    import cats.implicits._
+    import cats.implicits.*
     val path = "./data/test/spark/persist/jackson/bee/multi.deflate.json"
     bee.jackson(path).folder.deflate(9).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
@@ -78,7 +78,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity - single.gzip") {
-    import cats.implicits._
+    import cats.implicits.*
     val path = "./data/test/spark/persist/jackson/bee/single.json.gz"
     bee.jackson(path).file.gzip.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
@@ -86,7 +86,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("byte-array read/write identity - single.deflate") {
-    import cats.implicits._
+    import cats.implicits.*
     val path = "./data/test/spark/persist/jackson/bee/single.json.deflate"
     bee.jackson(path).file.deflate(3).sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList

@@ -61,19 +61,19 @@ class SortTest extends AnyFunSuite {
     assert(prRdd.descendOffset.rdd.collect().toList.map(_.key) == crRdd.descendOffset.rdd.collect().toList.map(_.key))
   }
   test("disorders") {
-    assert(crRdd.stats.disorders.dataset.count() == 4)
+    assert(crRdd.stats.disorders.count() == 4)
     crRdd.stats.summary.unsafeRunSync()
   }
   test("dup") {
-    assert(crRdd.stats.dupRecords.dataset.count == 1)
+    assert(crRdd.stats.dupRecords.count == 1)
   }
   test("missing offsets") {
-    assert(crRdd.stats.missingOffsets.dataset.count == 1)
+    assert(crRdd.stats.missingOffsets.count == 1)
   }
   test("misorder keys") {
-    assert(crDS.misorderedKey.dataset.count == 4)
+    assert(crDS.misorderedKey.count == 4)
   }
   test("misplaced keys") {
-    assert(crDS.misplacedKey.dataset.count == 1)
+    assert(crDS.misplacedKey.count == 1)
   }
 }

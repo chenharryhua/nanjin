@@ -30,7 +30,7 @@ class AkkaChannelTest extends AnyFunSuite {
   data.compile.drain.unsafeRunSync()
 
   val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
-    topic.akkaChannel(akkaSystem).updateCommitter(_.withParallelism(10).withParallelism(10))
+    topic.akkaChannel(akkaSystem).updateCommitter(_.withParallelism(10).withParallelism(10)).updateBufferSize(64)
 
   test("akka stream committableSink") {
     import org.apache.kafka.clients.producer.ProducerRecord

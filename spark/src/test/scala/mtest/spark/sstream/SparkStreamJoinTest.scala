@@ -3,7 +3,7 @@ package mtest.spark.sstream
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.kafka._
+import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
@@ -14,7 +14,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.util.Random
 
 object StreamJoinTestData {
@@ -46,14 +46,14 @@ object StreamJoinTestData {
     .fill(50)(Foo(0, "a"))
     .zipWithIndex
     .map { case (foo, idx) => foo.copy(index = rand + idx) }
-    .map(x => NJProducerRecord[Int, Foo](x))
+    .map(x => NJProducerRecord[Int, Foo](x.index, x))
 }
 
 @DoNotDiscover
 class SparkStreamJoinTest extends AnyFunSuite {
 
-  import StreamJoinTestData._
-  import sparkSession.implicits._
+  import StreamJoinTestData.*
+  import sparkSession.implicits.*
   test("spark kafka stream-table join") {
     val path = "./data/test/spark/sstream/stream-table-join"
     val sender =

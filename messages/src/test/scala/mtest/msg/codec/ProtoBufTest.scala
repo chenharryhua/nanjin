@@ -1,7 +1,7 @@
 package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, SerdeOf}
-import mtest.messages.pb.test.MessagePerson
+import mtest.pb.messages.MessagePerson
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.{Arbitrary, Gen, Properties}
 import scalapb.UnknownFieldSet

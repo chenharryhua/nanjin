@@ -41,6 +41,12 @@ private[datetime] trait DateTimeInstances extends all {
   implicit val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
   implicit val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
   implicit val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
+
+  implicit val timestampCirceEncoder: Encoder[Timestamp] = Encoder.encodeInstant.contramap[Timestamp](_.toInstant)
+  implicit val timestampCirceDecoder: Decoder[Timestamp] = Decoder.decodeInstant.map[Timestamp](Timestamp.from)
+
+  implicit val dateCirceEncoder: Encoder[Date] = Encoder.encodeLocalDate.contramap[Date](_.toLocalDate)
+  implicit val dateCirceDecoder: Decoder[Date] = Decoder.decodeLocalDate.map[Date](Date.valueOf)
 }
 
 private[datetime] trait Isos {

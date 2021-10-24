@@ -1,15 +1,16 @@
 package mtest.spark.persist
 
-import java.nio.ByteBuffer
 import cats.Eq
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Avro4sDecodingException, Decoder, Encoder, SchemaFor}
 import frameless.TypedEncoder
-import cats.syntax.all._
 import io.circe.Codec
-import io.scalaland.chimney.dsl._
+import io.scalaland.chimney.dsl.*
 import org.apache.avro.generic.GenericFixed
+
+import java.nio.ByteBuffer
 
 final case class Bee(a: Array[Byte], b: Int) {
 

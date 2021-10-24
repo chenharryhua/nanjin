@@ -1,16 +1,16 @@
 package mtest.spark.persist
 
 import cats.Applicative
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import io.circe.Codec
-import io.circe.shapes._
+import io.circe.shapes.*
 import monocle.Traversal
 import monocle.function.Plated
 import monocle.generic.all.coProductPrism
+import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import shapeless.{:+:, CNil, Coproduct}
-import mtest.spark._
 
 final case class Fractual(value: Option[Fractual.FType])
 
