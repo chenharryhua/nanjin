@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import frameless.cats.implicits.*
 import fs2.{INothing, Stream}
 import org.apache.avro.file.CodecFactory
 import org.apache.hadoop.conf.Configuration

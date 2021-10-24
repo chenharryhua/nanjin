@@ -82,7 +82,7 @@ final class SlackPipe[F[_]] private[observers] (
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).as(e)))
+    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).attempt.as(e)))
 
   private def toOrdinalWords(n: Long): String = n + {
     if (n % 100 / 10 == 1) "th"

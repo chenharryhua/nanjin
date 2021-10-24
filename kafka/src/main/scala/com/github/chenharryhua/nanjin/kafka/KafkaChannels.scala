@@ -115,7 +115,8 @@ object KafkaChannels {
     kcs: KafkaConsumerSettings,
     csUpdater: akkaUpdater.Consumer,
     psUpdater: akkaUpdater.Producer[K, V],
-    ctUpdater: akkaUpdater.Committer) {
+    ctUpdater: akkaUpdater.Committer,
+    bufferSize: Int) {
     import akka.kafka.*
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
@@ -126,13 +127,16 @@ object KafkaChannels {
     // settings
     def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
       : AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater.updateConfig(f), psUpdater, ctUpdater)
+      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater.updateConfig(f), psUpdater, ctUpdater, bufferSize)
 
     def updateProducer(f: ProducerSettings[K, V] => ProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater.updateConfig(f), ctUpdater)
+      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater.updateConfig(f), ctUpdater, bufferSize)
 
     def updateCommitter(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater.updateConfig(f))
+      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater.updateConfig(f), bufferSize)
+
+    def updateBufferSize(bufferSize: Int) =
+      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater, bufferSize)
 
     def producerSettings: ProducerSettings[K, V] =
       psUpdater.updates.run(
@@ -175,7 +179,8 @@ object KafkaChannels {
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
     def stream(implicit F: Async[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
-      Stream.suspend(source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStream[F])
+      Stream.suspend(
+        source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStreamBuffered[F](bufferSize))
 
     val transactionalSource: Source[ConsumerMessage.TransactionalMessage[K, V], Consumer.Control] =
       Transactional.source(consumerSettings, Subscriptions.topics(topicName.value)).map(decoder(_).decode)
