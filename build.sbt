@@ -27,7 +27,7 @@ val akka26     = "2.6.17"
 
 // spark
 val spark3    = "3.2.0"
-val frameless = "0.10.1"
+val frameless = "0.10.1+102-71bd1772-SNAPSHOT"
 
 // format
 val jackson = "2.13.0"

@@ -68,12 +68,6 @@ class SparkExtTest extends AnyFunSuite {
     assert(tds.numOfNulls == 0)
   }
 
-  test("sparKafka typed dataset remove null object") {
-    import SparkExtTestData._
-    val tds = TypedDataset.create[Foo](sparkSession.sparkContext.parallelize(list))
-    assert(tds.dismissNulls.dataset.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
-    assert(tds.numOfNulls == 1)
-  }
   test("save syntax") {
     import SparkExtTestData._
     val ate = AvroTypedEncoder[Foo]
