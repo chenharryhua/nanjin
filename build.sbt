@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion       := "2.12.15"
+ThisBuild / scalaVersion       := "2.13.6"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
