@@ -16,7 +16,7 @@ import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 import java.net.URI
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 
 sealed trait NJHadoop[F[_]] {
 

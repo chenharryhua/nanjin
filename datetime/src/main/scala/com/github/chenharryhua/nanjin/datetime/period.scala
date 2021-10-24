@@ -21,8 +21,8 @@ object period {
 
   private def homebrew(str: String): Validated[NonEmptyList[String], Period] =
     parse(str, ymd(_)) match {
-      case Parsed.Success(v, _)    => Validated.valid(v)
-      case Parsed.Failure(_, _, _) => Validated.invalid(NonEmptyList.one(str))
+      case Parsed.Success(v, _) => Validated.valid(v)
+      case _: Parsed.Failure    => Validated.invalid(NonEmptyList.one(str))
     }
 
   private def standard(str: String): Validated[NonEmptyList[String], Period] =

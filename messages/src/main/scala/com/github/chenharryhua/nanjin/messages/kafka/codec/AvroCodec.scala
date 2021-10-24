@@ -30,7 +30,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
       ns <- refineV[Namespace](namespace)
       json <- parser
         .parse(schema.toString)
-        .map(x => root.namespace.string.set(ns.value)(x))
+        .map(x => root.namespace.string.replace(ns.value)(x))
         .map(_.noSpaces)
         .leftMap(_.getMessage())
       ac <- AvroCodec.build[A](AvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder)

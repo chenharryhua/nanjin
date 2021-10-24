@@ -19,8 +19,8 @@ import java.nio.charset.StandardCharsets
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.{TimeZone, UUID}
-import scala.collection.JavaConverters.*
 import scala.collection.immutable
+import scala.jdk.CollectionConverters.*
 
 @JsonCodec
 sealed trait NJRuntimeInfo {
@@ -111,8 +111,8 @@ private[guard] object MetricsSnapshot {
       io.circe.jackson.parse(str).fold(_ => Json.Null, identity)
     }
 
-    val timer: Map[String, Long]   = metricRegistry.getTimers(metricFilter).asScala.mapValues(_.getCount).toMap
-    val counter: Map[String, Long] = metricRegistry.getCounters(metricFilter).asScala.mapValues(_.getCount).toMap
+    val timer: Map[String, Long]   = metricRegistry.getTimers(metricFilter).asScala.view.mapValues(_.getCount).toMap
+    val counter: Map[String, Long] = metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
     MetricsSnapshot(timer ++ counter, json, show)
   }

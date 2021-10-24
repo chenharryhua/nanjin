@@ -23,7 +23,7 @@ import com.github.chenharryhua.nanjin.messages.kafka._
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerMessage._
 import com.github.chenharryhua.nanjin.messages.kafka.BitraverseMessages._
-
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   implicit val arbChain: Arbitrary[List[Int]] =

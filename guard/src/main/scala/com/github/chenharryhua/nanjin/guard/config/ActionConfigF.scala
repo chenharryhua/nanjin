@@ -3,8 +3,11 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.syntax.show.*
 import cats.{Applicative, Functor, Show}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import io.circe.generic.JsonCodec
+import io.circe.generic.auto.*
 import monocle.macros.Lenses
 import retry.PolicyDecision.DelayAndRetry
 import retry.{RetryPolicies, RetryPolicy}
@@ -42,7 +45,7 @@ private[guard] object NJRetryPolicy {
   final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends NJRetryPolicy
 }
 
-@Lenses final case class ActionRetryParams private (
+@Lenses final case class ActionRetryParams(
   maxRetries: Int,
   capDelay: Option[FiniteDuration],
   njRetryPolicy: NJRetryPolicy) {
@@ -51,7 +54,7 @@ private[guard] object NJRetryPolicy {
       RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(RetryPolicies.limitRetries[F](maxRetries)))
 }
 
-@Lenses final case class ActionParams private (
+@Lenses final case class ActionParams(
   spans: List[String],
   importance: Importance,
   serviceParams: ServiceParams,
@@ -61,6 +64,7 @@ private[guard] object NJRetryPolicy {
 }
 
 object ActionParams {
+  implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
     spans = Nil,
@@ -90,11 +94,11 @@ private object ActionConfigF {
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(v)         => ActionParams(v)
-      case WithRetryPolicy(v, c) => ActionParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
-      case WithMaxRetries(v, c)  => ActionParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
-      case WithCapDelay(v, c)    => ActionParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
-      case WithTermination(v, c) => ActionParams.isTerminate.set(v)(c)
-      case WithImportance(v, c)  => ActionParams.importance.set(v)(c)
+      case WithRetryPolicy(v, c) => ActionParams.retry.andThen(ActionRetryParams.njRetryPolicy).replace(v)(c)
+      case WithMaxRetries(v, c)  => ActionParams.retry.andThen(ActionRetryParams.maxRetries).replace(v)(c)
+      case WithCapDelay(v, c)    => ActionParams.retry.andThen(ActionRetryParams.capDelay).replace(Some(v))(c)
+      case WithTermination(v, c) => ActionParams.isTerminate.replace(v)(c)
+      case WithImportance(v, c)  => ActionParams.importance.replace(v)(c)
       case WithSpans(v, c)       => ActionParams.spans.modify(_ ::: v)(c)
     }
 }

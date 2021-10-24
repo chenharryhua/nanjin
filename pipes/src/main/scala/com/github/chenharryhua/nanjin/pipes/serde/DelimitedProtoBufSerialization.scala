@@ -16,7 +16,7 @@ final class DelimitedProtoBufSerialization[F[_]] extends Serializable {
 
   def deserialize[A <: GeneratedMessage](implicit ce: Async[F], gmc: GeneratedMessageCompanion[A]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap { is =>
-      Stream.fromIterator(gmc.streamFromDelimitedInput(is).toIterator, chunkSize)
+      Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, chunkSize)
     }
 }
 

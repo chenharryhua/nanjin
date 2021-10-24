@@ -4,7 +4,8 @@ import java.sql.{Date, Timestamp}
 
 import cats.kernel.laws.discipline.{HashTests, OrderTests}
 import cats.tests.CatsSuite
-import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.datetime.instances._
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 class HashOrderTests extends CatsSuite with FunSuiteDiscipline {

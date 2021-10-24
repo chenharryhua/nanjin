@@ -23,5 +23,5 @@ final class CsvSerialization[F[_], A](conf: CsvConfiguration) extends Serializab
 
   def deserialize(implicit dec: RowDecoder[A], F: Async[F]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>
-      Stream.fromIterator[F](is.asCsvReader[A](conf).toIterator, chunkSize).rethrow)
+      Stream.fromIterator[F](is.asCsvReader[A](conf).iterator, chunkSize).rethrow)
 }

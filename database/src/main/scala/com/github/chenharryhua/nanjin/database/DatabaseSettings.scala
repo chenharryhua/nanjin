@@ -41,10 +41,10 @@ sealed trait DatabaseSettings extends Serializable {
     extends DatabaseSettings {
 
   override def withPassword(psw: String): Postgres =
-    Postgres.password.set(Password.unsafeFrom(psw))(this)
+    Postgres.password.replace(Password.unsafeFrom(psw))(this)
 
   override def withUsername(un: String): Postgres =
-    Postgres.username.set(Username.unsafeFrom(un))(this)
+    Postgres.username.replace(Username.unsafeFrom(un))(this)
 
   override val hikariConfig: HikariConfig = {
     val cfg = new HikariConfig()
@@ -65,10 +65,10 @@ sealed trait DatabaseSettings extends Serializable {
     extends DatabaseSettings {
 
   override def withPassword(psw: String): Redshift =
-    Redshift.password.set(Password.unsafeFrom(psw))(this)
+    Redshift.password.replace(Password.unsafeFrom(psw))(this)
 
   override def withUsername(un: String): Redshift =
-    Redshift.username.set(Username.unsafeFrom(un))(this)
+    Redshift.username.replace(Username.unsafeFrom(un))(this)
 
   override val hikariConfig: HikariConfig = {
     val cfg = new HikariConfig()
@@ -91,10 +91,10 @@ sealed trait DatabaseSettings extends Serializable {
     extends DatabaseSettings {
 
   override def withPassword(psw: String): SqlServer =
-    SqlServer.password.set(Password.unsafeFrom(psw))(this)
+    SqlServer.password.replace(Password.unsafeFrom(psw))(this)
 
   override def withUsername(un: String): SqlServer =
-    SqlServer.username.set(Username.unsafeFrom(un))(this)
+    SqlServer.username.replace(Username.unsafeFrom(un))(this)
 
   override val hikariConfig: HikariConfig = {
     val cfg = new HikariConfig()

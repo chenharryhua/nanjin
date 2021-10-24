@@ -8,7 +8,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.util
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 import scala.util.{Failure, Try}
 
 /** [[https://github.com/sksamuel/avro4s]]

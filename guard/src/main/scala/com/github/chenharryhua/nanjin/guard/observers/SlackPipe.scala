@@ -84,15 +84,18 @@ final class SlackPipe[F[_]] private[observers] (
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).attempt.as(e)))
 
-  private def toOrdinalWords(n: Long): String = n + {
-    if (n % 100 / 10 == 1) "th"
-    else
-      n % 10 match {
-        case 1 => "st"
-        case 2 => "nd"
-        case 3 => "rd"
-        case _ => "th"
+  private def toOrdinalWords(n: Long): String = {
+    val w =
+      if (n % 100 / 10 == 1) "th"
+      else {
+        n % 10 match {
+          case 1 => "st"
+          case 2 => "nd"
+          case 3 => "rd"
+          case _ => "th"
+        }
       }
+    s"$n$w"
   }
 
   private def toText(counters: Map[String, Long]): String = {

@@ -21,7 +21,7 @@ import org.typelevel.ci.CIString
 import java.lang.Boolean.TRUE
 import java.security.PrivateKey
 import java.util.Date
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 import scala.concurrent.duration.DurationLong
 
 object adobe {

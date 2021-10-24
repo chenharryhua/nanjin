@@ -7,7 +7,7 @@ import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
-
+import com.github.chenharryhua.nanjin.datetime.instances.* 
 import java.time.ZonedDateTime
 
 sealed trait NJEvent {
@@ -17,7 +17,6 @@ sealed trait NJEvent {
 }
 
 object NJEvent {
-  import com.github.chenharryhua.nanjin.datetime.*
 
   implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
   implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]

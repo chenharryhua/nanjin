@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion       := "2.12.15"
+ThisBuild / scalaVersion       := "2.13.6"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
@@ -13,7 +13,7 @@ val fs2Version = "3.2.0"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.4.0"
 val tagless    = "0.14.0"
-val monocle    = "2.1.0"
+val monocle    = "3.1.0"
 val refined    = "0.9.27"
 val droste     = "0.8.0"
 val enumeratum = "1.7.0"
@@ -31,7 +31,7 @@ val frameless = "0.10.1+102-71bd1772-SNAPSHOT"
 
 // format
 val jackson = "2.13.0"
-val json4s  = "3.7.0-M7" // for spark
+val json4s  = "3.7.0-M11" // for spark
 val kantan  = "0.6.2"
 val parquet = "1.12.2"
 val avro    = "1.10.2"
@@ -60,13 +60,12 @@ lazy val commonSettings = Seq(
   ),
   addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.2").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin(("org.scalamacros" %% "paradise" % "2.1.1").cross(CrossVersion.full)),
   libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
   ),
   scalacOptions ++= Seq(
-    "-Ypartial-unification",
+    "-Ymacro-annotations",
     "-deprecation",
     "-encoding",
     "UTF-8",
@@ -77,7 +76,6 @@ lazy val commonSettings = Seq(
     "-Xfatal-warnings",
     //  "-Xlint",
     "-Yrangepos",
-    "-Yno-adapted-args",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
@@ -159,11 +157,11 @@ val fs2Lib = Seq(
 ).map(_ % fs2Version)
 
 val monocleLib = Seq(
-  "com.github.julien-truffaut" %% "monocle-core",
-  "com.github.julien-truffaut" %% "monocle-generic",
-  "com.github.julien-truffaut" %% "monocle-macro",
-  "com.github.julien-truffaut" %% "monocle-state",
-  "com.github.julien-truffaut" %% "monocle-unsafe"
+  "dev.optics" %% "monocle-core",
+  "dev.optics" %% "monocle-generic",
+  "dev.optics" %% "monocle-macro",
+  "dev.optics" %% "monocle-state",
+  "dev.optics" %% "monocle-unsafe"
 ).map(_ % monocle)
 
 val sparkLib = Seq(
@@ -190,7 +188,7 @@ val testLib = Seq(
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"         % Test,
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
-  "com.github.julien-truffaut" %% "monocle-law"               % monocle         % Test,
+  "dev.optics" %% "monocle-law"                               % monocle         % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0"         % Test,
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC1"     % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,

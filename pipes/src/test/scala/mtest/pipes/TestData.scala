@@ -18,7 +18,7 @@ object TestData {
   }
 
   val tiggers: List[Tigger] =
-    (1 to 10).map(x => Tigger(Random.nextInt(), if (Random.nextBoolean) Some("ChengDu Zoo") else None)).toList
+    (1 to 10).map(x => Tigger(Random.nextInt(), if (Random.nextBoolean()) Some("ChengDu Zoo") else None)).toList
 
   val lions: List[Lion] =
     (1 to 10).map(x => Lion("Melbourne Zoo", Random.nextInt())).toList

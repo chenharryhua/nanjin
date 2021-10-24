@@ -28,7 +28,7 @@ import org.scalacheck.Arbitrary.{arbitrary, _}
 import org.scalacheck.Gen
 
 import scala.compat.java8.OptionConverters._
-
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 object genMessage {
 
   trait GenKafkaMessage { self =>
