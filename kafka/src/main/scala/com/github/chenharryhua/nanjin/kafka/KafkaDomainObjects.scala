@@ -10,7 +10,7 @@ import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import java.{lang, util}
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 
 final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
   val value: Long                 = offset.value
@@ -92,7 +92,7 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) {
     value.get(new TopicPartition(topic, partition))
 
   def mapValues[W](f: V => W): KafkaTopicPartition[W] =
-    copy(value = value.mapValues(f))
+    copy(value = value.view.mapValues(f).toMap)
 
   def map[W](f: (TopicPartition, V) => W): KafkaTopicPartition[W] =
     copy(value = value.map { case (k, v) => k -> f(k, v) })
@@ -116,7 +116,7 @@ object KafkaTopicPartition {
   implicit final class KafkaTopicPartitionOps2(private val self: KafkaTopicPartition[Option[OffsetAndTimestamp]])
       extends AnyVal {
     def offsets: KafkaTopicPartition[Option[KafkaOffset]] =
-      self.copy(value = self.value.mapValues(_.map(x => KafkaOffset(x.offset))))
+      self.copy(value = self.value.view.mapValues(_.map(x => KafkaOffset(x.offset))).toMap)
   }
 
   def empty[V]: KafkaTopicPartition[V]              = KafkaTopicPartition(Map.empty[TopicPartition, V])

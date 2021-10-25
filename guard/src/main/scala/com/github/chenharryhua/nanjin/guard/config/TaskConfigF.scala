@@ -24,7 +24,7 @@ object TaskParams {
 
 sealed private[guard] trait TaskConfigF[F]
 
-private object TaskConfigF {
+object TaskConfigF {
   implicit val functorTaskConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
 
   final case class InitParams[K](applicationName: String, hostName: HostName) extends TaskConfigF[K]
@@ -36,8 +36,8 @@ private object TaskConfigF {
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName, hostName) => TaskParams(appName, hostName)
-      case WithZoneId(v, c)              => TaskParams.zoneId.replace(v)(c)
-      case WithHostName(v, c)            => TaskParams.hostName.replace(v.name)(c)
+      case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
+      case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
     }
 }
 

@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.6"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.12.27-SNAPSHOT"
+ThisBuild / version            := "0.13.0-SNAPSHOT"
 
 // generic
 val shapeless  = "2.3.7"
@@ -13,7 +13,7 @@ val fs2Version = "3.2.0"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.4.0"
 val tagless    = "0.14.0"
-val monocle    = "3.1.0"
+val monocle    = "2.1.0"
 val refined    = "0.9.27"
 val droste     = "0.8.0"
 val enumeratum = "1.7.0"
@@ -81,7 +81,8 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard",
     "-Xsource:3"
   ),
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
 val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
@@ -157,11 +158,11 @@ val fs2Lib = Seq(
 ).map(_ % fs2Version)
 
 val monocleLib = Seq(
-  "dev.optics" %% "monocle-core",
-  "dev.optics" %% "monocle-generic",
-  "dev.optics" %% "monocle-macro",
-  "dev.optics" %% "monocle-state",
-  "dev.optics" %% "monocle-unsafe"
+  "com.github.julien-truffaut" %% "monocle-core",
+  "com.github.julien-truffaut" %% "monocle-generic",
+  "com.github.julien-truffaut" %% "monocle-macro",
+  "com.github.julien-truffaut" %% "monocle-state",
+  "com.github.julien-truffaut" %% "monocle-unsafe"
 ).map(_ % monocle)
 
 val sparkLib = Seq(
@@ -188,7 +189,7 @@ val testLib = Seq(
   "org.typelevel" %% "cats-laws"                              % catsCore        % Test,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.14" % "1.2.5"         % Test,
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
-  "dev.optics" %% "monocle-law"                               % monocle         % Test,
+  "com.github.julien-truffaut" %% "monocle-law"               % monocle         % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0"         % Test,
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC1"     % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,

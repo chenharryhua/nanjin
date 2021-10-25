@@ -15,6 +15,7 @@ import retry.{RetryPolicies, RetryPolicy}
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration.*
 
+@JsonCodec
 sealed abstract class NJRetryPolicy {
   import NJRetryPolicy.*
   private def jitterBackoff[F[_]: Applicative](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] =
@@ -35,7 +36,7 @@ sealed abstract class NJRetryPolicy {
   }
 }
 
-private[guard] object NJRetryPolicy {
+object NJRetryPolicy {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
 
   final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
@@ -45,7 +46,7 @@ private[guard] object NJRetryPolicy {
   final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends NJRetryPolicy
 }
 
-@Lenses final case class ActionRetryParams(
+@Lenses @JsonCodec final case class ActionRetryParams(
   maxRetries: Int,
   capDelay: Option[FiniteDuration],
   njRetryPolicy: NJRetryPolicy) {
@@ -53,8 +54,11 @@ private[guard] object NJRetryPolicy {
     capDelay.fold(njRetryPolicy.policy[F].join(RetryPolicies.limitRetries[F](maxRetries)))(cd =>
       RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(RetryPolicies.limitRetries[F](maxRetries)))
 }
+object ActionRetryParams {
+  implicit val showActionRetryParams: Show[ActionRetryParams] = cats.derived.semiauto.show[ActionRetryParams]
+}
 
-@Lenses final case class ActionParams(
+@Lenses @JsonCodec final case class ActionParams(
   spans: List[String],
   importance: Importance,
   serviceParams: ServiceParams,
@@ -94,11 +98,11 @@ private object ActionConfigF {
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(v)         => ActionParams(v)
-      case WithRetryPolicy(v, c) => ActionParams.retry.andThen(ActionRetryParams.njRetryPolicy).replace(v)(c)
-      case WithMaxRetries(v, c)  => ActionParams.retry.andThen(ActionRetryParams.maxRetries).replace(v)(c)
-      case WithCapDelay(v, c)    => ActionParams.retry.andThen(ActionRetryParams.capDelay).replace(Some(v))(c)
-      case WithTermination(v, c) => ActionParams.isTerminate.replace(v)(c)
-      case WithImportance(v, c)  => ActionParams.importance.replace(v)(c)
+      case WithRetryPolicy(v, c) => ActionParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
+      case WithMaxRetries(v, c)  => ActionParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
+      case WithCapDelay(v, c)    => ActionParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
+      case WithTermination(v, c) => ActionParams.isTerminate.set(v)(c)
+      case WithImportance(v, c)  => ActionParams.importance.set(v)(c)
       case WithSpans(v, c)       => ActionParams.spans.modify(_ ::: v)(c)
     }
 }

@@ -85,7 +85,7 @@ object loaders {
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap { case (_, pds) =>
           val dis: DataInputStream = pds.open()
-          val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).toIterator
+          val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).iterator
           new Iterator[A] {
             override def hasNext: Boolean =
               if (itor.hasNext) true else { Try(dis.close()); false }

@@ -20,7 +20,7 @@ sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKa
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(implicit
     G: Applicative[G]): G[F[C, D]] =
-    traversal.modifyA((pr: ProducerRecord[A, B]) => pr.bitraverse(f, g))(fab)
+    traversal.modifyF((pr: ProducerRecord[A, B]) => pr.bitraverse(f, g))(fab)
 
   final override def bifoldLeft[A, B, C](fab: F[A, B], c: C)(f: (C, A) => C, g: (C, B) => C): C =
     traversal.getAll(fab).foldLeft(c) { case (cp, rec) => rec.bifoldLeft(cp)(f, g) }
@@ -48,7 +48,7 @@ object BitraverseMessages {
           Chunk[ProducerRecord[K1, V1]],
           Chunk[ProducerRecord[K2, V2]]](prs => prs.records.map(_.transformInto)) { cpr => s =>
           Fs2ProducerRecords(cpr.map(_.transformInto), s.passthrough)
-        }.andThen(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
+        }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
   implicit def imsbi2[F[_]]: BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] =
@@ -65,7 +65,7 @@ object BitraverseMessages {
           Chunk[ProducerRecord[K1, V1]],
           Chunk[ProducerRecord[K2, V2]]](prs => prs.records.map(_.transformInto)) { cpr => s =>
           Fs2CommittableProducerRecords(cpr.map(_.transformInto), s.offset)
-        }.andThen(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
+        }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
   implicit def imsbi3[F[_], P]: BitraverseMessages[Fs2TransactionalProducerRecords[F, P, *, *]] =
@@ -82,9 +82,9 @@ object BitraverseMessages {
           Chunk[Fs2CommittableProducerRecords[F, K1, V1]],
           Chunk[Fs2CommittableProducerRecords[F, K2, V2]]](_.records)(b =>
           s => Fs2TransactionalProducerRecords(b, s.passthrough))
-          .andThen(PTraversal
+          .composeTraversal(PTraversal
             .fromTraverse[Chunk, Fs2CommittableProducerRecords[F, K1, V1], Fs2CommittableProducerRecords[F, K2, V2]])
-          .andThen(imsbi2.traversal)
+          .composeTraversal(imsbi2.traversal)
     }
 
   implicit def imsbi4[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
@@ -101,6 +101,6 @@ object BitraverseMessages {
           Chunk[ProducerRecord[K1, V1]],
           Chunk[ProducerRecord[K2, V2]]](prs => Chunk.seq(prs.records)) { b => s =>
           s.copy(records = b.toList)
-        }.andThen(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
+        }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 }

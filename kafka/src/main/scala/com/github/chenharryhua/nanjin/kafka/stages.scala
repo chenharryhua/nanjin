@@ -77,7 +77,7 @@ object stages {
         *
         * '''true''' end offset has been reached
         */
-      private var topicStates: Map[TopicPartition, Boolean] = endOffsets.value.mapValues(_ => false)
+      private var topicStates: Map[TopicPartition, Boolean] = endOffsets.value.view.mapValues(_ => false).toMap
 
       /** Notes:
         *

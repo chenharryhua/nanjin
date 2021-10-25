@@ -1,25 +1,30 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.{Functor, Show}
 import cats.derived.auto.show.*
+import cats.{Functor, Show}
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import io.circe.generic.JsonCodec
+import io.circe.generic.auto.*
 import monocle.macros.Lenses
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
-import cats.derived.auto.show.*
-import com.github.chenharryhua.nanjin.datetime.instances.*
 
-@Lenses final case class MetricParams(
+@Lenses @JsonCodec final case class MetricParams(
   reportSchedule: Either[FiniteDuration, CronExpr],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit
 )
 
-@Lenses final case class ServiceParams(
+object MetricParams {
+  implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
+}
+
+@Lenses @JsonCodec final case class ServiceParams(
   serviceName: String,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
@@ -64,14 +69,14 @@ private object ServiceConfigF {
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(s, t)        => ServiceParams(s, t)
-      case WithRetryPolicy(v, c)   => ServiceParams.retry.replace(v)(c)
-      case WithServiceName(v, c)   => ServiceParams.serviceName.replace(v)(c)
-      case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.replace(v)(c)
+      case WithRetryPolicy(v, c)   => ServiceParams.retry.set(v)(c)
+      case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
+      case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
 
-      case WithReportSchedule(v, c)   => ServiceParams.metric.andThen(MetricParams.reportSchedule).replace(v)(c)
-      case WithResetSchedule(v, c)    => ServiceParams.metric.andThen(MetricParams.resetSchedule).replace(v)(c)
-      case WithRateTimeUnit(v, c)     => ServiceParams.metric.andThen(MetricParams.rateTimeUnit).replace(v)(c)
-      case WithDurationTimeUnit(v, c) => ServiceParams.metric.andThen(MetricParams.durationTimeUnit).replace(v)(c)
+      case WithReportSchedule(v, c)   => ServiceParams.metric.composeLens(MetricParams.reportSchedule).set(v)(c)
+      case WithResetSchedule(v, c)    => ServiceParams.metric.composeLens(MetricParams.resetSchedule).set(v)(c)
+      case WithRateTimeUnit(v, c)     => ServiceParams.metric.composeLens(MetricParams.rateTimeUnit).set(v)(c)
+      case WithDurationTimeUnit(v, c) => ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
     }
 }
 

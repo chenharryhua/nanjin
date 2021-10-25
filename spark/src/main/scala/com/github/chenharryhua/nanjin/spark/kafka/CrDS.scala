@@ -61,7 +61,7 @@ final class CrDS[F[_], K, V] private[kafka] (
     new CrDS[F, K2, V2](dataset.map(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
-  def flatMap[K2, V2](f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])(
+  def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
     other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(other.topicDef)
     new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
@@ -102,8 +102,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     implicit val enc: TypedEncoder[K]             = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     val res: TypedDataset[MisplacedKey[K]] =
-      tds.groupBy(tds('key)).agg(countDistinct(tds('partition))).as[MisplacedKey[K]]
-    res.filter(res('count) > 1).orderBy(res('count).asc).dataset
+      tds.groupBy(tds(Symbol("key"))).agg(countDistinct(tds(Symbol("partition")))).as[MisplacedKey[K]]()
+    res.filter(res(Symbol("count")) > 1).orderBy(res(Symbol("count")).asc).dataset
   }
 
   /** Notes: timestamp order should follow offset order: the larger the offset is the larger of timestamp should be, of
@@ -113,7 +113,7 @@ final class CrDS[F[_], K, V] private[kafka] (
     implicit val enc: TypedEncoder[K]             = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     tds
-      .groupBy(tds('key))
+      .groupBy(tds(Symbol("key")))
       .deserialized
       .flatMapGroups { case (key, iter) =>
         key.traverse { key =>

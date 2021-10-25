@@ -34,7 +34,7 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
   def fromDisk(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking(new TableDS[F, A](loaders.objectFile(params.replayPath, ate, ss).dataset, tableDef, dbs, cfg))
 
-  def countDisk(implicit F: Sync[F]): F[Long] = fromDisk.map(_.dataset.count)
+  def countDisk(implicit F: Sync[F]): F[Long] = fromDisk.map(_.dataset.count())
 
   def countDB(implicit F: Sync[F]): F[Long] =
     F.blocking(

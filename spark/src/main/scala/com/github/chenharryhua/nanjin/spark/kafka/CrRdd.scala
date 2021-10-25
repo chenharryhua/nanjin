@@ -55,7 +55,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.map(f), other, cfg, ss).normalize
 
-  def flatMap[K2, V2](f: NJConsumerRecord[K, V] => TraversableOnce[NJConsumerRecord[K2, V2]])(
+  def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
     other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
     new CrRdd[F, K2, V2](rdd.flatMap(f), other, cfg, ss).normalize
 

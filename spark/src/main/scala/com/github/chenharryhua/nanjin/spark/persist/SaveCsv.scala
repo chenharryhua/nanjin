@@ -45,7 +45,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val csvConf: CsvConfiguration =
       if (csvConfiguration.hasHeader)
-        csvConfiguration.withHeader(ds.schema.fieldNames*)
+        csvConfiguration.withHeader(ds.schema.fieldNames.toIndexedSeq*)
       else csvConfiguration
 
     sma.checkAndRun(ds.rdd.stream[F].through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression)))

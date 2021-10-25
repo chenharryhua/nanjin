@@ -14,7 +14,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 import java.time.Duration
 import java.util.Properties
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]
@@ -54,26 +54,26 @@ private[kafka] object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.beginningOffsets(tps.asJava).asScala.toMap.mapValues(v => Option(v).map(x => KafkaOffset(x.toLong)))
+          _.beginningOffsets(tps.asJava).asScala.toMap.view.mapValues(v => Option(v).map(x => KafkaOffset(x.toLong)))
         }
-      } yield KafkaTopicPartition(ret)
+      } yield KafkaTopicPartition(ret.toMap)
 
     @SuppressWarnings(Array("UnnecessaryConversion"))
     val endOffsets: F[KafkaTopicPartition[Option[KafkaOffset]]] =
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.endOffsets(tps.asJava).asScala.toMap.mapValues(v => Option(v).map(x => KafkaOffset(x.toLong)))
+          _.endOffsets(tps.asJava).asScala.toMap.view.mapValues(v => Option(v).map(x => KafkaOffset(x.toLong)))
         }
-      } yield KafkaTopicPartition(ret)
+      } yield KafkaTopicPartition(ret.toMap)
 
     override def offsetsForTimes(ts: NJTimestamp): F[KafkaTopicPartition[Option[KafkaOffset]]] =
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.mapValues(Option(_).map(x => KafkaOffset(x.offset())))
+          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.view.mapValues(Option(_).map(x => KafkaOffset(x.offset())))
         }
-      } yield KafkaTopicPartition(ret)
+      } yield KafkaTopicPartition(ret.toMap)
 
     def retrieveRecord(
       partition: KafkaPartition,
@@ -199,7 +199,7 @@ object ShortLiveConsumer {
       execute(kpc.commitSync(offsets))
 
     private def offsetsOf(offsets: KafkaTopicPartition[Option[KafkaOffset]]): Map[TopicPartition, OffsetAndMetadata] =
-      offsets.flatten.value.mapValues(x => new OffsetAndMetadata(x.value))
+      offsets.flatten.value.view.mapValues(x => new OffsetAndMetadata(x.value)).toMap
 
     override def resetOffsetsToBegin: F[Unit] =
       execute(kpc.beginningOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))
