@@ -2,7 +2,7 @@ package mtest.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.injection.*
@@ -77,26 +77,28 @@ class CirceTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/circe/bee/multi.bzip2.json"
     bee.circe(path).dropNull.folder.bzip2.run.unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path, sparkSession)
-    assert(t.collect.map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
+    assert(t.collect().map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
   }
 
   test("circe bee byte-array rdd read/write identity multi uncompressed") {
     val path = "./data/test/spark/persist/circe/bee/multi.uncompressed.json"
     bee.circe(path).dropNull.folder.run.unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path, sparkSession)
-    assert(t.collect.map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
+    assert(t.collect().map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
   }
 
-  test("circe bee byte-array rdd read/write identity single gz -- happy failure") {
+  test("circe bee byte-array rdd read/write identity single gz") {
     val path = "./data/test/spark/persist/circe/bee/single.json.gz"
     bee.circe(path).file.gzip.sink.compile.drain.unsafeRunSync()
-    assertThrows[Exception](loaders.rdd.circe[Bee](path, sparkSession))
+    val t = loaders.rdd.circe[Bee](path, sparkSession)
+    assert(t.collect().map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
   }
 
-  test("circe bee byte-array rdd read/write identity single uncompressed -- happy failure") {
+  test("circe bee byte-array rdd read/write identity single uncompressed") {
     val path = "./data/test/spark/persist/circe/bee/single.json"
     bee.circe(path).file.sink.compile.drain.unsafeRunSync()
-    assertThrows[Exception](loaders.rdd.circe[Bee](path, sparkSession))
+    val t = loaders.rdd.circe[Bee](path, sparkSession)
+    assert(t.collect().map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
   }
 
   test("circe rooster rdd read/write identity multi.uncompressed - keep null") {
@@ -132,7 +134,7 @@ class CirceTest extends AnyFunSuite {
     saver.circe(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.circe[Jacket](path, sparkSession).collect().toSet
     assert(JacketData.expected.toSet == t)
-    val t2 = loaders.circe[Jacket](path, Jacket.ate, sparkSession).dataset.collect.toSet
+    val t2 = loaders.circe[Jacket](path, Jacket.ate, sparkSession).dataset.collect().toSet
     assert(JacketData.expected.toSet == t2)
   }
 
@@ -202,7 +204,7 @@ class CirceTest extends AnyFunSuite {
     val rdd: RDD[Int] = RoosterData.rdd.map(_.index)
     val expected      = rdd.collect().toSet
     rdd.save[IO].circe(path).file.sink.compile.drain.unsafeRunSync()
-    val t = loaders.circe[Int](path, AvroTypedEncoder[Int](AvroCodec[Int]), sparkSession).dataset.collect.toSet
+    val t = loaders.circe[Int](path, AvroTypedEncoder[Int](AvroCodec[Int]), sparkSession).dataset.collect().toSet
     assert(expected == t)
   }
 }
