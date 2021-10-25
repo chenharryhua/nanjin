@@ -1,16 +1,20 @@
 package mtest.msg.kafka
 
-import akka.kafka.{ConsumerMessage => AkkaConsumerMessage, ProducerMessage => AkkaProducerMessage}
+import akka.kafka.{ConsumerMessage as AkkaConsumerMessage, ProducerMessage as AkkaProducerMessage}
 import cats.Id
 import cats.effect.IO
 import cats.laws.discipline.BitraverseTests
+import com.github.chenharryhua.nanjin.messages.kafka.BitraverseMessages.*
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage.*
+import com.github.chenharryhua.nanjin.messages.kafka.NJProducerMessage.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.kafka.{
-  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
-  CommittableProducerRecords => Fs2CommittableProducerRecords,
-  ConsumerRecord => Fs2ConsumerRecord,
-  ProducerRecord => Fs2ProducerRecord,
-  ProducerRecords => Fs2ProducerRecords,
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords
+  CommittableConsumerRecord as Fs2CommittableConsumerRecord,
+  CommittableProducerRecords as Fs2CommittableProducerRecords,
+  ConsumerRecord as Fs2ConsumerRecord,
+  ProducerRecord as Fs2ProducerRecord,
+  ProducerRecords as Fs2ProducerRecords,
+  TransactionalProducerRecords as Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -19,12 +23,8 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import com.github.chenharryhua.nanjin.messages.kafka._
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage._
-import com.github.chenharryhua.nanjin.messages.kafka.NJProducerMessage._
-import com.github.chenharryhua.nanjin.messages.kafka.BitraverseMessages._
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
+  import ArbitraryData.*
 
   implicit val arbChain: Arbitrary[List[Int]] =
     Arbitrary(Gen.containerOfN[List, Int](3, arbitrary[Int]))

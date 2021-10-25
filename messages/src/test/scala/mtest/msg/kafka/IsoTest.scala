@@ -1,15 +1,15 @@
 package mtest.msg.kafka
 
-import com.github.chenharryhua.nanjin.messages.kafka._
-import fs2.kafka.{ConsumerRecord => Fs2ConsumerRecord, ProducerRecord => Fs2ProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import fs2.kafka.{ConsumerRecord as Fs2ConsumerRecord, ProducerRecord as Fs2ProducerRecord}
 import monocle.law.discipline.IsoTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 class IsoTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
+  import ArbitraryData.*
 
   checkAll(
     "fs2.ProducerRecord",

@@ -1,22 +1,20 @@
 package mtest.msg.kafka
 
-import java.util.Optional
-
 import akka.kafka.ConsumerMessage
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage => AkkaConsumerMessage,
-  TransactionalMessage => AkkaTransactionalMessage
+  CommittableMessage as AkkaConsumerMessage,
+  TransactionalMessage as AkkaTransactionalMessage
 }
-import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
+import akka.kafka.ProducerMessage.{Message as AkkaProducerMessage, MultiMessage as AkkaMultiMessage}
 import akka.kafka.testkit.ConsumerResultFactory
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
 import fs2.kafka.{
-  CommittableProducerRecords => Fs2CommittableProducerRecords,
-  ConsumerRecord => Fs2ConsumerRecord,
-  ProducerRecord => Fs2ProducerRecord,
-  TransactionalProducerRecords => Fs2TransactionalProducerRecords
+  CommittableProducerRecords as Fs2CommittableProducerRecords,
+  ConsumerRecord as Fs2ConsumerRecord,
+  ProducerRecord as Fs2ProducerRecord,
+  TransactionalProducerRecords as Fs2TransactionalProducerRecords
 }
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -27,8 +25,8 @@ import org.apache.kafka.common.record.TimestampType
 import org.scalacheck.Arbitrary.{arbitrary, _}
 import org.scalacheck.Gen
 
-import scala.compat.java8.OptionConverters._
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import java.util.Optional
+import scala.compat.java8.OptionConverters.*
 object genMessage {
 
   trait GenKafkaMessage { self =>

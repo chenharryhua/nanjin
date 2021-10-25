@@ -17,7 +17,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, trip_record] = nyc.in(ctx)
 
   test("compatiable") {
-    val res = topic.schemaRegistry.testCompatibility.unsafeRunSync
+    val res = topic.schemaRegistry.testCompatibility.unsafeRunSync()
     assert(res.isCompatible)
   }
 
@@ -51,6 +51,6 @@ class SchemaRegistryTest extends AnyFunSuite {
     topic.schemaRegistry.register.unsafeRunSync()
   }
   test("retrieve schema") {
-    println(ctx.schema(topic.topicName.value).unsafeRunSync)
+    println(ctx.schema(topic.topicName.value).unsafeRunSync())
   }
 }

@@ -1,19 +1,20 @@
 package mtest.msg.kafka
 
-import java.util.Optional
 import cats.kernel.laws.discipline.EqTests
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeader
 import org.apache.kafka.common.header.{Header, Headers}
 import org.scalacheck.Arbitrary
-import org.scalacheck.Arbitrary._
+import org.scalacheck.Arbitrary.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import com.github.chenharryhua.nanjin.messages.kafka._
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+
+import java.util.Optional
 class MessageEqualityTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
+  import ArbitraryData.*
 
   implicit val arbOptionalInteger: Arbitrary[Optional[Integer]] = Arbitrary(genOptionalInteger)
 

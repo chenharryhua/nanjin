@@ -1,16 +1,17 @@
 package mtest.msg.kafka
 
 import akka.kafka.ConsumerMessage.{
-  CommittableMessage => AkkaConsumerMessage,
-  TransactionalMessage => AkkaTransactionalMessage
+  CommittableMessage as AkkaConsumerMessage,
+  TransactionalMessage as AkkaTransactionalMessage
 }
-import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage}
+import akka.kafka.ProducerMessage.Message as AkkaProducerMessage
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.kafka.{
-  CommittableConsumerRecord => Fs2CommittableConsumerRecord,
-  ConsumerRecord => Fs2ConsumerRecord,
-  ProducerRecord => Fs2ProducerRecord
+  CommittableConsumerRecord as Fs2CommittableConsumerRecord,
+  ConsumerRecord as Fs2ConsumerRecord,
+  ProducerRecord as Fs2ProducerRecord
 }
 import monocle.law.discipline.LensTests
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -18,8 +19,8 @@ import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 class LensTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
+  import ArbitraryData.*
 
   checkAll(
     "fs2.consumer.CommittableConsumerRecord",

@@ -105,7 +105,7 @@ class AkkaChannelTest extends AnyFunSuite {
         .runFold(0L)((sum, _) => sum + 1)
         .map(n => assert(n == distance))
     }
-    IO.fromFuture(ret).unsafeRunSync
+    IO.fromFuture(ret).unsafeRunSync()
   }
 
   test("assignment - empty") {
