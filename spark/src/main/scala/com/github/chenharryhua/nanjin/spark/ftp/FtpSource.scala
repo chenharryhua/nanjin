@@ -18,16 +18,19 @@ import kantan.csv.{CsvConfiguration, RowDecoder}
 
 final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloader[F, C, S]) {
 
-  def csv[A](pathStr: String, csvConfig: CsvConfiguration)(implicit
+  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: Int)(implicit
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] = {
-    val pipe = new CsvSerialization[F, A](csvConfig)
+    val pipe = new CsvSerialization[F, A](csvConfig, chunkSize)
     downloader.download(pathStr).through(pipe.deserialize)
   }
 
-  def csv[A](pathStr: String)(implicit dec: RowDecoder[A], F: Async[F], mat: Materializer): Stream[F, A] =
-    csv[A](pathStr, CsvConfiguration.rfc)
+  def csv[A](pathStr: String, chunkSize: Int)(implicit
+    dec: RowDecoder[A],
+    F: Async[F],
+    mat: Materializer): Stream[F, A] =
+    csv[A](pathStr, CsvConfiguration.rfc, chunkSize)
 
   def json[A: JsonDecoder](pathStr: String)(implicit F: Async[F], mat: Materializer): Stream[F, A] = {
     val pipe = new CirceSerialization[F, A]

@@ -33,11 +33,13 @@ final class SaveSingleAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   def errorIfExists: SaveSingleAvro[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleAvro[F, A] = updateConfig(cfg.ignoreMode)
 
+  def chunkSize(cs: Int): SaveSingleAvro[F, A] = updateConfig(cfg.chunkSize(cs))
+
   def sink(implicit F: Sync[F]): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val cf: CodecFactory      = params.compression.avro(hc)
-    sma.checkAndRun(rdd.stream[F].through(sinks.avro(params.outPath, hc, encoder, cf)))
+    sma.checkAndRun(rdd.stream[F](params.chunkSize).through(sinks.avro(params.outPath, hc, encoder, cf)))
   }
 }
 

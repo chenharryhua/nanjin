@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
 import kantan.csv.{CsvConfiguration, CsvWriter, RowDecoder, RowEncoder}
 
-final class CsvSerialization[F[_], A](conf: CsvConfiguration) extends Serializable {
+final class CsvSerialization[F[_], A](conf: CsvConfiguration, chunkSize: Int) extends Serializable {
   import kantan.csv.ops.*
 
   def serialize(implicit enc: RowEncoder[A], F: Async[F]): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>

@@ -40,6 +40,8 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
+  def chunkSize(cs: Int): SaveSingleCsv[F, A] = updateConfig(cfg.chunkSize(cs))
+
   def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, INothing] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
@@ -48,7 +50,10 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
         csvConfiguration.withHeader(ds.schema.fieldNames.toIndexedSeq*)
       else csvConfiguration
 
-    sma.checkAndRun(ds.rdd.stream[F].through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression)))
+    sma.checkAndRun(
+      ds.rdd
+        .stream[F](params.chunkSize)
+        .through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression, params.chunkSize)))
   }
 
 }

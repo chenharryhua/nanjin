@@ -30,10 +30,13 @@ final class SaveSingleText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Str
   def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
+  def chunkSize(cs: Int): SaveSingleText[F, A] = updateConfig(cfg.chunkSize(cs))
+
   def sink(implicit F: Sync[F], show: Show[A]): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
-    sma.checkAndRun(rdd.stream[F].through(sinks.text(params.outPath, hc, params.compression.fs2Compression)))
+    sma.checkAndRun(
+      rdd.stream[F](params.chunkSize).through(sinks.text(params.outPath, hc, params.compression.fs2Compression)))
   }
 }
 

@@ -12,7 +12,7 @@ class ProtobufPipeTest extends AnyFunSuite {
 
   test("delimited protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
-    val ser                    = new DelimitedProtoBufSerialization[IO]
+    val ser                    = new DelimitedProtoBufSerialization[IO](10)
 
     assert(data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
   }

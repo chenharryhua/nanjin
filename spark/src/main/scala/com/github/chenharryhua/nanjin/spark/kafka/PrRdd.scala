@@ -91,7 +91,7 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
 
   def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
     rdd
-      .stream[F]
+      .stream[F](params.loadParams.bulkSize)
       .interruptAfter(params.loadParams.timeLimit)
       .take(params.loadParams.recordsLimit)
       .chunkN(params.loadParams.uploadBatchSize)
@@ -121,7 +121,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
-      rdd.stream[F].toUnicastPublisher.map { p =>
+      rdd.stream[F](params.loadParams.bulkSize).toUnicastPublisher.map { p =>
         Source
           .fromPublisher(p)
           .take(params.loadParams.recordsLimit)

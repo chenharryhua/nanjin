@@ -77,7 +77,7 @@ final class KafkaDownloader[F[_], K, V](
 
   def jackson(path: String)(implicit F: Async[F]): JacksonDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
-    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
+    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed, params.loadParams.bulkSize)
   }
 
   def circe(path: String)(implicit F: Async[F]): CirceDownloader[F, K, V] =
@@ -114,17 +114,18 @@ final class JacksonDownloader[F[_], K, V](
   encoder: AvroEncoder[NJConsumerRecord[K, V]],
   hadoop: Configuration,
   path: String,
-  compression: Compression) {
+  compression: Compression,
+  chunkSize: Int) {
 
   private def updateCompression(compression: Compression): JacksonDownloader[F, K, V] =
-    new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression)
+    new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression, chunkSize)
 
   def deflate(level: Int): JacksonDownloader[F, K, V] = updateCompression(Compression.Deflate(level))
   def gzip: JacksonDownloader[F, K, V]                = updateCompression(Compression.Gzip)
   def uncompress: JacksonDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
 
   def run(implicit F: Sync[F]): Stream[F, Unit] =
-    stream.through(sinks.jackson(path, hadoop, encoder, compression.fs2Compression))
+    stream.through(sinks.jackson(path, hadoop, encoder, compression.fs2Compression, chunkSize))
 }
 
 final class CirceDownloader[F[_], K, V](

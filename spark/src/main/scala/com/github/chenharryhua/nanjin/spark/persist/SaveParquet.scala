@@ -36,7 +36,7 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
     val hc: Configuration         = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val ccn: CompressionCodecName = params.compression.parquet
-    sma.checkAndRun(ds.rdd.stream[F].through(sinks.parquet(params.outPath, hc, encoder, ccn)))
+    sma.checkAndRun(ds.rdd.stream[F](params.chunkSize).through(sinks.parquet(params.outPath, hc, encoder, ccn)))
   }
 }
 
