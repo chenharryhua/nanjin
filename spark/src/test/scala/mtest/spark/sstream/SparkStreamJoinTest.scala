@@ -60,7 +60,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
       fooTopic
         .prRdd(fooData)
         .withInterval(0.5.seconds)
-        .uploadByBatch
+        .uploadByChunk
         .updateProducer(_.withClientId("spark.kafka.stream.join.test"))
         .run
 

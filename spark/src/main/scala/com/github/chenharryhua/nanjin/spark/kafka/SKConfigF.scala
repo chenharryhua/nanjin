@@ -14,7 +14,7 @@ import scala.concurrent.duration.*
 
 @Lenses final private[kafka] case class NJLoadParams(
   bulkSize: Int,
-  uploadBatchSize: Int,
+  chunkSize: Int,
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
@@ -25,7 +25,7 @@ private[kafka] object NJLoadParams {
 
   val default: NJLoadParams = NJLoadParams(
     bulkSize = defaultLoadParams.BulkSize,
-    uploadBatchSize = defaultLoadParams.BatchSize,
+    chunkSize = defaultLoadParams.ChunkSize,
     interval = defaultLoadParams.Interval,
     recordsLimit = defaultLoadParams.RecordsLimit,
     timeLimit = defaultLoadParams.TimeLimit,
@@ -65,7 +65,7 @@ private object SKConfigF {
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
   final case class WithLoadBulkSize[K](value: Int, cont: K) extends SKConfigF[K]
-  final case class WithUploadLoadBatchSize[K](value: Int, cont: K) extends SKConfigF[K]
+  final case class WithLoadChunkSize[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithLoadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
@@ -95,9 +95,9 @@ private object SKConfigF {
     case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
     case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
     case WithLoadBufferSize(v, c)   => SKParams.loadParams.composeLens(NJLoadParams.bufferSize).set(v)(c)
-    case WithIdleTimeout(v, c)      => SKParams.loadParams.composeLens(NJLoadParams.idleTimeout).set(v)(c)
+    case WithLoadChunkSize(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.chunkSize).set(v)(c)
 
-    case WithUploadLoadBatchSize(v, c) => SKParams.loadParams.composeLens(NJLoadParams.uploadBatchSize).set(v)(c)
+    case WithIdleTimeout(v, c) => SKParams.loadParams.composeLens(NJLoadParams.idleTimeout).set(v)(c)
 
     case WithStartTimeStr(v, c) => SKParams.timeRange.modify(_.withStartTime(v))(c)
     case WithEndTimeStr(v, c)   => SKParams.timeRange.modify(_.withEndTime(v))(c)
@@ -127,8 +127,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
   def loadBufferSize(num: Int): SKConfig            = SKConfig(Fix(WithLoadBufferSize(num, value)))
   def loadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
-
-  def uploadBatchSize(num: Int): SKConfig = SKConfig(Fix(WithUploadLoadBatchSize(num, value)))
+  def loadChunkSize(num: Int): SKConfig             = SKConfig(Fix(WithLoadChunkSize(num, value)))
 
   def startTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def startTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))

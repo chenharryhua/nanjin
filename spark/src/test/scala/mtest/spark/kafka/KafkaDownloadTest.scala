@@ -27,7 +27,7 @@ class KafkaDownloadTest extends AnyFunSuite {
 
   topic
     .prRdd(data)
-    .uploadByBatch
+    .uploadByChunk
     .updateProducer(_.withClientId("kafka.download.test"))
     .run
     .compile

@@ -77,7 +77,7 @@ final class KafkaDownloader[F[_], K, V](
 
   def jackson(path: String)(implicit F: Async[F]): JacksonDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
-    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed, params.loadParams.bulkSize)
+    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed, params.loadParams.chunkSize)
   }
 
   def circe(path: String)(implicit F: Async[F]): CirceDownloader[F, K, V] =
@@ -116,6 +116,9 @@ final class JacksonDownloader[F[_], K, V](
   path: String,
   compression: Compression,
   chunkSize: Int) {
+
+  def withChunkSize(cs: Int): JacksonDownloader[F, K, V] =
+    new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression, cs)
 
   private def updateCompression(compression: Compression): JacksonDownloader[F, K, V] =
     new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression, chunkSize)

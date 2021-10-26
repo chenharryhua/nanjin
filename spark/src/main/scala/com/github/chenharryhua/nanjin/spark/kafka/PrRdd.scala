@@ -64,14 +64,14 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
 
-  def uploadByBatch: UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
+  def uploadByChunk: UploadThrottleByChunkSize[F, K, V] =
+    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
 
   def uploadByBulk: UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.unitProducer[K, V])
 }
 
-final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
+final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
   rdd: RDD[NJProducerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
@@ -80,21 +80,21 @@ final class UploadThrottleByBatchSize[F[_], K, V] private[kafka] (
   val params: SKParams = cfg.evalConfig
 
   def updateProducer(
-    f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
+    f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): UploadThrottleByChunkSize[F, K, V] =
+    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
-  def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg, fs2Producer)
+  def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByChunkSize[F, K, V] =
+    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg, fs2Producer)
 
-  def withBatchSize(num: Int): UploadThrottleByBatchSize[F, K, V] =
-    new UploadThrottleByBatchSize[F, K, V](rdd, topic, cfg.uploadBatchSize(num), fs2Producer)
+  def withChunkSize(num: Int): UploadThrottleByChunkSize[F, K, V] =
+    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg.loadChunkSize(num), fs2Producer)
 
   def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
     rdd
       .stream[F](params.loadParams.bulkSize)
       .interruptAfter(params.loadParams.timeLimit)
       .take(params.loadParams.recordsLimit)
-      .chunkN(params.loadParams.uploadBatchSize)
+      .chunkN(params.loadParams.chunkSize)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
