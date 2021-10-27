@@ -9,7 +9,7 @@ val shapeless  = "2.3.7"
 val kittens    = "2.3.2"
 val catsCore   = "2.6.1"
 val algebra    = "2.2.3"
-val fs2Version = "3.2.1"
+val fs2Version = "3.2.2"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.4.0"
 val tagless    = "0.14.0"
@@ -34,7 +34,7 @@ val jackson = "2.13.0"
 val json4s  = "3.7.0-M11" // for spark
 val kantan  = "0.6.2"
 val parquet = "1.12.2"
-val avro    = "1.10.2"
+val avro    = "1.11.0"
 val avro4s  = "4.0.11"
 
 // connect
