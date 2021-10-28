@@ -40,8 +40,23 @@ class ParquetTest extends AnyFunSuite {
     val path  = "./data/test/spark/persist/parquet/rooster/multi.snappy.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
     saver.parquet(path).folder.snappy.run.unsafeRunSync()
-    val r =
-      loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    assert(expected == r)
+  }
+
+  test("datetime read/write identity multi.lz4") {
+    val path  = "./data/test/spark/persist/parquet/rooster/multi.lz4.parquet"
+    val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
+    saver.parquet(path).folder.lz4.run.unsafeRunSync()
+    val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    assert(expected == r)
+  }
+
+  test("datetime read/write identity multi.zstd") {
+    val path  = "./data/test/spark/persist/parquet/rooster/multi.zstd.parquet"
+    val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
+    saver.parquet(path).folder.zstd(5).run.unsafeRunSync()
+    val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
     assert(expected == r)
   }
 
