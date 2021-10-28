@@ -40,7 +40,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def chunkSize(cs: Int): SaveSingleCsv[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: Int): SaveSingleCsv[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, INothing] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration

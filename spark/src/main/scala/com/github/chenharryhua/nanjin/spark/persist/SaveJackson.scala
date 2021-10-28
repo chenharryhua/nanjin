@@ -26,7 +26,7 @@ final class SaveSingleJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg
   def deflate(level: Int): SaveSingleJackson[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleJackson[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def chunkSize(cs: Int): SaveSingleJackson[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: Int): SaveSingleJackson[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Sync[F]): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration

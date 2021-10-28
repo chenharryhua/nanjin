@@ -23,7 +23,7 @@ final class SaveSingleProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends
   def errorIfExists: SaveSingleProtobuf[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleProtobuf[F, A] = updateConfig(cfg.ignoreMode)
 
-  def chunkSize(cs: Int): SaveSingleProtobuf[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: Int): SaveSingleProtobuf[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Async[F], enc: A <:< GeneratedMessage): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration

@@ -30,7 +30,7 @@ final class SaveSingleText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Str
   def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def chunkSize(cs: Int): SaveSingleText[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: Int): SaveSingleText[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Sync[F], show: Show[A]): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration

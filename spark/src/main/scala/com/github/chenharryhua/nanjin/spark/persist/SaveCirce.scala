@@ -30,7 +30,7 @@ final class SaveSingleCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull
   def deflate(level: Int): SaveSingleCirce[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCirce[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def chunkSize(cs: Int): SaveSingleCirce[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: Int): SaveSingleCirce[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Sync[F], jsonEncoder: JsonEncoder[A]): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration

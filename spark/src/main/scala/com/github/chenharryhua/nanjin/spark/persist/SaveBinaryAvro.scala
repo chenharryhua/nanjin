@@ -23,7 +23,7 @@ final class SaveSingleBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], 
   def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
 
-  def chunkSize(cs: Int): SaveBinaryAvro[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: Int): SaveBinaryAvro[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Sync[F]): Stream[F, INothing] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
