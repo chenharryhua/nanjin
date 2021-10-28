@@ -25,9 +25,7 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
   def errorIfExists: SaveSingleParquet[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleParquet[F, A] = updateConfig(cfg.ignoreMode)
 
-//  def brotli: SaveSingleParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Brotli))
-//  def lzo: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lzo))
-//  def lz4: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lz4))
+  def lz4: SaveSingleParquet[F, A]        = updateConfig(cfg.outputCompression(Compression.Lz4))
   def snappy: SaveSingleParquet[F, A]     = updateConfig(cfg.outputCompression(Compression.Snappy))
   def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.outputCompression(Compression.Gzip))
   def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.outputCompression(Compression.Uncompressed))

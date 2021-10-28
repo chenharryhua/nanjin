@@ -28,6 +28,14 @@ class ParquetTest extends AnyFunSuite {
     // assert(expected == r)
   }
 
+  test("datetime read/write identity single.lz4 - happy failure") {
+    val path  = "./data/test/spark/persist/parquet/rooster/single/lz4.parquet"
+    val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
+    saver.parquet(path).file.lz4.sink.compile.drain.unsafeRunSync()
+    assertThrows[Exception](loaders.parquet[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet)
+    // assert(expected == r)
+  }
+
   test("datetime read/write identity multi.snappy") {
     val path  = "./data/test/spark/persist/parquet/rooster/multi.snappy.parquet"
     val saver = new DatasetAvroFileHoarder[IO, Rooster](ds, Rooster.avroCodec.avroEncoder)
