@@ -174,7 +174,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         sns.publish(msg).void
 
-      case MetricsReport(idx, at, si, params, prev, next, snapshot) =>
+      case MetricsReport(idx, at, si, params, prev, now, next, snapshot) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
           StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize),
@@ -187,10 +187,15 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField(
-                  s"Next(${toOrdinalWords(idx + 1)}) Check at", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
-                  next.fold("no time")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+                  s"Next", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
+                  cfg.reportInterval
+                    .map(fd => now.plusSeconds(fd.toSeconds))
+                    .orElse(next)
+                    .fold("no checks anymore")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                   short = true
                 ),
+                SlackField("Total Checks", idx.toString, short = false),
+                SlackField("Time Zone", params.taskParams.zoneId.show, short = false),
                 SlackField("Brief", cfg.brief, short = false)
               )
             ))

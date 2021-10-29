@@ -85,6 +85,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceInfo = serviceInfo,
             serviceParams = serviceParams,
             prev = Some(ts.minus(dur.toJava)),
+            now = ts,
             next = Some(ts.plus(dur.toJava)),
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
           )))
@@ -99,6 +100,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             serviceInfo = serviceInfo,
             serviceParams = serviceParams,
             prev = cronExpr.prev(ts),
+            now = ts,
             next = cronExpr.next(ts),
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
           )))

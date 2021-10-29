@@ -7,7 +7,7 @@ import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
-import com.github.chenharryhua.nanjin.datetime.instances.* 
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import java.time.ZonedDateTime
 
 sealed trait NJEvent {
@@ -52,6 +52,7 @@ final case class MetricsReport(
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
   prev: Option[ZonedDateTime],
+  now: ZonedDateTime,
   next: Option[ZonedDateTime],
   snapshot: MetricsSnapshot
 ) extends ServiceEvent
