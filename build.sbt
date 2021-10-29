@@ -3,6 +3,7 @@ ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / version            := "0.13.0-SNAPSHOT"
+ThisBuild / versionScheme      := Some("early-semver")
 
 // generic
 val shapeless  = "2.3.7"
@@ -31,7 +32,6 @@ val frameless = "0.10.1+95-107c8703-SNAPSHOT"
 
 // format
 val jackson = "2.13.0"
-val json4s  = "3.7.0-M11" // for spark
 val kantan  = "0.6.2"
 val parquet = "1.12.2"
 val avro    = "1.11.0"
@@ -119,14 +119,6 @@ val jacksonLib = Seq(
   "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jackson)
-
-val json4sLib = Seq(
-  "org.json4s" %% "json4s-ast",
-  "org.json4s" %% "json4s-core",
-  "org.json4s" %% "json4s-jackson",
-  "org.json4s" %% "json4s-native",
-  "org.json4s" %% "json4s-scalap"
-).map(_ % json4s)
 
 val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv",
@@ -241,7 +233,7 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
-  "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.1",
+  "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
   "org.typelevel" %% "case-insensitive"            % "1.2.0",
   "io.scalaland" %% "chimney"                      % chimney,
   "io.scalaland" %% "enumz"                        % "1.0.0",
@@ -411,7 +403,7 @@ lazy val spark = (project in file("spark"))
       "org.locationtech.jts"                   % "jts-core"   % "1.18.2",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
-      akkaLib ++ json4sLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib
+      akkaLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib
   )
 
 lazy val bundle = (project in file("bundle"))
@@ -435,4 +427,6 @@ lazy val example = (project in file("example"))
   .settings(libraryDependencies ++= testLib)
 
 lazy val nanjin =
-  (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
+
