@@ -2,6 +2,7 @@ package mtest
 
 import cats.syntax.eq._
 import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.instances._
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
 

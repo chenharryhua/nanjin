@@ -27,7 +27,7 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   def map[B: TypedEncoder](f: A => B): SparkSStream[F, B] =
     transform(_.map(f)(TypedExpressionEncoder[B]))
 
-  def flatMap[B: TypedEncoder](f: A => TraversableOnce[B]): SparkSStream[F, B] =
+  def flatMap[B: TypedEncoder](f: A => IterableOnce[B]): SparkSStream[F, B] =
     transform(_.flatMap(f)(TypedExpressionEncoder[B]))
 
   def coalesce: SparkSStream[F, A] = transform(_.coalesce(1))

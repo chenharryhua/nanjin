@@ -1,16 +1,19 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Functor
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.HostName
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
 
 import java.time.ZoneId
 
-@Lenses final case class TaskParams private (appName: String, zoneId: ZoneId, hostName: String)
+@Lenses @JsonCodec final case class TaskParams private (appName: String, zoneId: ZoneId, hostName: String)
 
 object TaskParams {
+  implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
 
   def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
@@ -21,7 +24,7 @@ object TaskParams {
 
 sealed private[guard] trait TaskConfigF[F]
 
-private object TaskConfigF {
+object TaskConfigF {
   implicit val functorTaskConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
 
   final case class InitParams[K](applicationName: String, hostName: HostName) extends TaskConfigF[K]

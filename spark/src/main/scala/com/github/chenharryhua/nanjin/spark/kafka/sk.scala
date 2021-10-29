@@ -16,7 +16,7 @@ import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka010.*
 
 import java.util
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 
 private[kafka] object sk {
 
@@ -26,7 +26,7 @@ private[kafka] object sk {
       Map(
         ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
         ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName
-      )).mapValues[Object](identity).asJava
+      )).view.mapValues[Object](identity).toMap.asJava
 
   private def offsetRanges(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
     range.flatten.value.toArray.map { case (tp, r) =>

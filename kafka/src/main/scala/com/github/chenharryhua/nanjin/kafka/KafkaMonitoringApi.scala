@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.messages.kafka.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerRecord

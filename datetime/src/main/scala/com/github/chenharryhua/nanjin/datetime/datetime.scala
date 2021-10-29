@@ -4,7 +4,8 @@ import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-package object datetime extends DateTimeInstances with Isos {
+package object datetime {
+  object instances extends DateTimeInstances with Isos
 
   def toLocalDateTime(ts: LocalTime): LocalDateTime = ts.atDate(LocalDate.now)
   def toLocalDateTime(ts: LocalDate): LocalDateTime = ts.atTime(LocalTime.MIDNIGHT)

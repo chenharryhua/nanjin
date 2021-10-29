@@ -1,8 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
 import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
-import monocle.Prism
-import monocle.generic.coproduct.coProductPrism
 import shapeless.{:+:, CNil}
 
 import scala.collection.immutable
@@ -45,68 +43,13 @@ object NJFileFormat
   type JavaObject = JavaObject.type
   type ProtoBuf   = ProtoBuf.type
 
-  // json family
   type JsonFamily = Jackson :+: Circe :+: SparkJson :+: CNil
 
-  implicit val jsonPrimsJackson: Prism[JsonFamily, Jackson] =
-    coProductPrism[JsonFamily, Jackson]
-
-  implicit val jsonPrimsCirce: Prism[JsonFamily, Circe] =
-    coProductPrism[JsonFamily, Circe]
-
-  implicit val jsonPrimsSparkJson: Prism[JsonFamily, SparkJson] =
-    coProductPrism[JsonFamily, SparkJson]
-
-  // text family
   type TextFamily = Jackson :+: Circe :+: Text :+: Csv :+: SparkJson :+: CNil
 
-  implicit val textPrismJackson: Prism[TextFamily, Jackson] =
-    coProductPrism[TextFamily, Jackson]
-
-  implicit val textPrismJson: Prism[TextFamily, Circe] =
-    coProductPrism[TextFamily, Circe]
-
-  implicit val textPrismText: Prism[TextFamily, Text] =
-    coProductPrism[TextFamily, Text]
-
-  implicit val textPrismCsv: Prism[TextFamily, Csv] =
-    coProductPrism[TextFamily, Csv]
-
-  implicit val textPrismSparkJson: Prism[TextFamily, SparkJson] =
-    coProductPrism[TextFamily, SparkJson]
-
-  // binary family
   type BinaryFamily =
     Parquet :+: Avro :+: BinaryAvro :+: JavaObject :+: ProtoBuf :+: CNil
 
-  implicit val binPrismJavaObject: Prism[BinaryFamily, JavaObject] =
-    coProductPrism[BinaryFamily, JavaObject]
-
-  implicit val binPrismBinaryAvro: Prism[BinaryFamily, BinaryAvro] =
-    coProductPrism[BinaryFamily, BinaryAvro]
-
-  implicit val binPrismParquet: Prism[BinaryFamily, Parquet] =
-    coProductPrism[BinaryFamily, Parquet]
-
-  implicit val binPrismAvro: Prism[BinaryFamily, Avro] =
-    coProductPrism[BinaryFamily, Avro]
-
-  implicit val binPrismProtobuf: Prism[BinaryFamily, ProtoBuf] =
-    coProductPrism[BinaryFamily, ProtoBuf]
-
-  // avro family
   type AvroFamily = Jackson :+: Parquet :+: Avro :+: BinaryAvro :+: CNil
-
-  implicit val avroPrismJackson: Prism[AvroFamily, Jackson] =
-    coProductPrism[AvroFamily, Jackson]
-
-  implicit val avroPrismBinaryAvro: Prism[AvroFamily, BinaryAvro] =
-    coProductPrism[AvroFamily, BinaryAvro]
-
-  implicit val avroPrismParquet: Prism[AvroFamily, Parquet] =
-    coProductPrism[AvroFamily, Parquet]
-
-  implicit val avroPrismAvro: Prism[AvroFamily, Avro] =
-    coProductPrism[AvroFamily, Avro]
 
 }

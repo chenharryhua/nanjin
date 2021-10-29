@@ -22,8 +22,8 @@ class FtpTest extends AnyFunSuite {
   implicit val mat = Materializer(akkaSystem)
 
   test("ftp should overwrite target file") {
-    val action = ts.through(uploader.upload(pathStr)).compile.drain >>
-      downloader.download(pathStr).through(fs2.text.utf8.decode).compile.string
+    val action = ts.through(uploader.withChunkSize(100).upload(pathStr)).compile.drain >>
+      downloader.withBufferSize(100).download(pathStr).through(fs2.text.utf8.decode).compile.string
     val readback = action.unsafeRunSync()
     assert(readback == testString)
   }

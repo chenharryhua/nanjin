@@ -16,7 +16,7 @@ import org.apache.kafka.streams.state.{QueryableStoreTypes, Stores}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.*
 import scala.util.Random

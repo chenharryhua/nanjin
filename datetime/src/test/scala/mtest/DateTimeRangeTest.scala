@@ -6,6 +6,7 @@ import cats.laws.discipline.AlternativeTests
 import cats.syntax.all._
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
 import com.github.chenharryhua.nanjin.datetime._
+import com.github.chenharryhua.nanjin.datetime.instances._
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
@@ -184,8 +185,9 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val dr = NJDateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01T08:00")
     val sr = dr.subranges(12.hours)
     assert(sr.size == 63)
-    sr.sliding(2).toList.map { case List(a, b) =>
-      assert(a.endTimestamp == b.startTimestamp)
+    sr.sliding(2).toList.map {
+      case List(a, b) => assert(a.endTimestamp == b.startTimestamp)
+      case _          => ()
     }
   }
 }

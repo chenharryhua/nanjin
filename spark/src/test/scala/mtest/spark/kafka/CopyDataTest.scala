@@ -4,7 +4,7 @@ import cats.syntax.all._
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.unsafe.implicits.global
-
+import cats.effect.IO
 object CopyData {
   final case class MyTestData(a: Int, b: String)
 }
@@ -21,7 +21,7 @@ class CopyDataTest extends AnyFunSuite {
   val d5 = ProducerRecord(src.topicName.value, 4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
   val loadData =
-    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary.through(src.fs2Channel.producerPipe).compile.drain
+    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary[IO].through(src.fs2Channel.producerPipe).compile.drain
 
   val prepareData =
     src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
@@ -35,9 +35,9 @@ class CopyDataTest extends AnyFunSuite {
   test("sparKafka pipeTo should copy data from source to target") {
     val rst = for {
       _ <- prepareData
-      _ <- sparKafka.topic(src.topicDef).fromKafka.flatMap(_.prRdd.uploadByBatch.toTopic(tgt).run.compile.drain)
-      srcData <- sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect)
-      tgtData <- sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect)
+      _ <- sparKafka.topic(src.topicDef).fromKafka.flatMap(_.prRdd.uploadByChunk.toTopic(tgt).run.compile.drain)
+      srcData <- sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect())
+      tgtData <- sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect())
     } yield {
 
       assert(srcData.size == 5)

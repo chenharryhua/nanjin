@@ -1,7 +1,7 @@
 package mtest.spark.persist
 
 import cats.kernel.Order
-import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*
@@ -38,12 +38,12 @@ object JacketData {
     List
       .fill(10)(
         Jacket(
-          a = Random.nextInt,
+          a = Random.nextInt(),
           p = if (Random.nextBoolean()) Pocket.L else Pocket.R,
           neck = KJson(Neck(
             d = Date.valueOf(LocalDate.now()),
             t = Timestamp.from(Instant.now.truncatedTo(ChronoUnit.MILLIS)),
-            j = parse(s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random.nextInt()}} """).right.get
+            j = parse(s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random.nextInt()}} """).toOption.get
           ))
         ))
       .sortBy(_.p)

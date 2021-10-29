@@ -84,15 +84,18 @@ final class SlackPipe[F[_]] private[observers] (
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).attempt.as(e)))
 
-  private def toOrdinalWords(n: Long): String = n + {
-    if (n % 100 / 10 == 1) "th"
-    else
-      n % 10 match {
-        case 1 => "st"
-        case 2 => "nd"
-        case 3 => "rd"
-        case _ => "th"
+  private def toOrdinalWords(n: Long): String = {
+    val w =
+      if (n % 100 / 10 == 1) "th"
+      else {
+        n % 10 match {
+          case 1 => "st"
+          case 2 => "nd"
+          case 3 => "rd"
+          case _ => "th"
+        }
       }
+    s"$n$w"
   }
 
   private def toText(counters: Map[String, Long]): String = {
@@ -171,7 +174,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         sns.publish(msg).void
 
-      case MetricsReport(idx, at, si, params, prev, next, snapshot) =>
+      case MetricsReport(idx, at, si, params, prev, now, next, snapshot) =>
         def msg: String = SlackNotification(
           params.taskParams.appName,
           StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize),
@@ -184,10 +187,15 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Host", params.taskParams.hostName, short = true),
                 SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField(
-                  s"Next(${toOrdinalWords(idx + 1)}) Check at", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
-                  next.fold("no time")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+                  s"Next", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
+                  cfg.reportInterval
+                    .map(fd => now.plusSeconds(fd.toSeconds))
+                    .orElse(next)
+                    .fold("no checks anymore")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                   short = true
                 ),
+                SlackField("Total Checks", idx.toString, short = true),
+                SlackField("Time Zone", params.taskParams.zoneId.show, short = true),
                 SlackField("Brief", cfg.brief, short = false)
               )
             ))

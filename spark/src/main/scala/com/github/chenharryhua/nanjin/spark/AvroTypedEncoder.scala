@@ -36,7 +36,7 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedE
     val ds: Dataset[A] =
       ss.createDataset(rdd)(sparkEncoder).map(avroCodec.idConversion)(sparkEncoder)
 
-    TypedDataset.createUnsafe[A](ss.createDataFrame(ds.toDF.rdd, avroStructType))(typedEncoder)
+    TypedDataset.createUnsafe[A](ss.createDataFrame(ds.toDF().rdd, avroStructType))(typedEncoder)
   }
 
   def normalize(ds: Dataset[A]): TypedDataset[A] =

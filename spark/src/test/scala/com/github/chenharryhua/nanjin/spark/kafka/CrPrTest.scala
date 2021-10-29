@@ -46,7 +46,7 @@ class CrPrTest extends AnyFunSuite {
 
   val crRdd: CrRdd[IO, Long, Rooster] = sparKafka
     .topic(rooster)
-    .crRdd(RoosterData.rdd.zipWithIndex.map { case (r, i) =>
+    .crRdd(RoosterData.rdd.zipWithIndex().map { case (r, i) =>
       NJConsumerRecord(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0)
     })
     .normalize
@@ -89,10 +89,10 @@ class CrPrTest extends AnyFunSuite {
 
   test("map") {
     val cr =
-      crRdd.map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike.in(ctx)).rdd.collect.flatMap(_.value).toSet
+      crRdd.map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike.in(ctx)).rdd.collect().flatMap(_.value).toSet
 
     val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike.in(ctx)).dataset
-    val d  = ds.collect.flatMap(_.value).toSet
+    val d  = ds.collect().flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
     assert(cr == d)
   }
@@ -104,7 +104,7 @@ class CrPrTest extends AnyFunSuite {
 
     val d = crDS.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
-    }(roosterLike2.in(ctx)).dataset.collect.flatMap(_.value).toSet
+    }(roosterLike2.in(ctx)).dataset.collect().flatMap(_.value).toSet
 
     assert(cr == d)
   }
@@ -123,24 +123,24 @@ class CrPrTest extends AnyFunSuite {
   test("time range") {
     val dr =
       NJDateTimeRange(sydneyTime).withStartTime(Instant.now.minusSeconds(50)).withEndTime(Instant.now().plusSeconds(10))
-    assert(crRdd.timeRange(dr).rdd.collect.size == 4)
-    assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect.size == 4)
-    assert(crRdd.crDS.timeRange(dr).dataset.collect.size == 4)
-    assert(crRdd.timeRange.rdd.collect.size == 4)
-    assert(crRdd.prRdd.timeRange(dr).rdd.collect.size == 4)
-    assert(crRdd.crDS.timeRange.dataset.collect.size == 4)
+    assert(crRdd.timeRange(dr).rdd.collect().size == 4)
+    assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect().size == 4)
+    assert(crRdd.crDS.timeRange(dr).dataset.collect().size == 4)
+    assert(crRdd.timeRange.rdd.collect().size == 4)
+    assert(crRdd.prRdd.timeRange(dr).rdd.collect().size == 4)
+    assert(crRdd.crDS.timeRange.dataset.collect().size == 4)
   }
 
   test("offset range") {
-    assert(crRdd.offsetRange(0, 2).rdd.collect.size == 3)
-    assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect.size == 3)
-    assert(crRdd.crDS.offsetRange(0, 2).dataset.collect.size == 3)
+    assert(crRdd.offsetRange(0, 2).rdd.collect().size == 3)
+    assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect().size == 3)
+    assert(crRdd.crDS.offsetRange(0, 2).dataset.collect().size == 3)
   }
   test("cherry-pick") {
     assert(crRdd.normalize.cherrypick(0, 0).map(_.value) == crDS.normalize.cherrypick(0, 0).map(_.value))
   }
   test("replicate") {
-    assert(crRdd.replicate(3).rdd.count == 12)
+    assert(crRdd.replicate(3).rdd.count() == 12)
     assert(prRdd.replicate(3).rdd.count() == 12)
     assert(crDS.replicate(3).dataset.count() == 12)
   }

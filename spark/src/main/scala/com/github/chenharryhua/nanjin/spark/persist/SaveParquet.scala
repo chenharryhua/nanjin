@@ -25,9 +25,7 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
   def errorIfExists: SaveSingleParquet[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleParquet[F, A] = updateConfig(cfg.ignoreMode)
 
-//  def brotli: SaveSingleParquet[F, A]     = updateConfig(cfg.withCompression(Compression.Brotli))
-//  def lzo: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lzo))
-//  def lz4: SaveSingleParquet[F, A]        = updateConfig(cfg.withCompression(Compression.Lz4))
+  def lz4: SaveSingleParquet[F, A]        = updateConfig(cfg.outputCompression(Compression.Lz4))
   def snappy: SaveSingleParquet[F, A]     = updateConfig(cfg.outputCompression(Compression.Snappy))
   def gzip: SaveSingleParquet[F, A]       = updateConfig(cfg.outputCompression(Compression.Gzip))
   def uncompress: SaveSingleParquet[F, A] = updateConfig(cfg.outputCompression(Compression.Uncompressed))
@@ -36,7 +34,7 @@ final class SaveSingleParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], 
     val hc: Configuration         = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F]     = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val ccn: CompressionCodecName = params.compression.parquet
-    sma.checkAndRun(ds.rdd.stream[F].through(sinks.parquet(params.outPath, hc, encoder, ccn)))
+    sma.checkAndRun(ds.rdd.stream[F](params.chunkSize).through(sinks.parquet(params.outPath, hc, encoder, ccn)))
   }
 }
 
@@ -53,9 +51,11 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], c
   def errorIfExists: SaveMultiParquet[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveMultiParquet[F, A] = updateConfig(cfg.ignoreMode)
 
-  def snappy: SaveMultiParquet[F, A]     = updateConfig(cfg.outputCompression(Compression.Snappy))
-  def gzip: SaveMultiParquet[F, A]       = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def uncompress: SaveMultiParquet[F, A] = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def zstd(level: Int): SaveMultiParquet[F, A] = updateConfig(cfg.outputCompression(Compression.Zstandard(level)))
+  def lz4: SaveMultiParquet[F, A]              = updateConfig(cfg.outputCompression(Compression.Lz4))
+  def snappy: SaveMultiParquet[F, A]           = updateConfig(cfg.outputCompression(Compression.Snappy))
+  def gzip: SaveMultiParquet[F, A]             = updateConfig(cfg.outputCompression(Compression.Gzip))
+  def uncompress: SaveMultiParquet[F, A]       = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)

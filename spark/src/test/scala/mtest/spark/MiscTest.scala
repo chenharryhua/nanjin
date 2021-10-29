@@ -45,7 +45,7 @@ class MiscTest extends AnyFunSuite {
     val db = TypedDataset.create(brothers)
     val ds = TypedDataset.create(sisters)
 
-    val res = db.joinLeft(ds)(db('id) === ds('id))
+    val res = db.joinLeft(ds)(db(Symbol("id")) === ds(Symbol("id")))
     res.dataset.show(truncate = false)
 
   }

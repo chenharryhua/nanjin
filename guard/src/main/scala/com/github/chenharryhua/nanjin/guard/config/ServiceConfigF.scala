@@ -1,22 +1,30 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Functor
+import cats.derived.auto.show.*
+import cats.{Functor, Show}
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import io.circe.generic.JsonCodec
+import io.circe.generic.auto.*
 import monocle.macros.Lenses
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
-@Lenses final case class MetricParams private (
+@Lenses @JsonCodec final case class MetricParams(
   reportSchedule: Either[FiniteDuration, CronExpr],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit
 )
 
-@Lenses final case class ServiceParams private (
+object MetricParams {
+  implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
+}
+
+@Lenses @JsonCodec final case class ServiceParams(
   serviceName: String,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
@@ -25,6 +33,8 @@ import scala.concurrent.duration.*
 )
 
 object ServiceParams {
+
+  implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
   def apply(serviceName: String, taskParams: TaskParams): ServiceParams =
     ServiceParams(

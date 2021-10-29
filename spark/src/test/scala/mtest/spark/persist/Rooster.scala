@@ -1,7 +1,7 @@
 package mtest.spark.persist
 
 import cats.Show
-import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*

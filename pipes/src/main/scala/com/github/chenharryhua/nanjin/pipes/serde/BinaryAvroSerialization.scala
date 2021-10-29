@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
@@ -12,7 +11,7 @@ import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
 final class BinaryAvroSerialization[F[_]](schema: Schema) extends Serializable {
 
-  def serialize: Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
+  def serialize(chunkSize: Int): Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     ss.chunkN(chunkSize).flatMap { grs =>
       val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
@@ -31,7 +30,7 @@ final class BinaryAvroSerialization[F[_]](schema: Schema) extends Serializable {
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
           .functionKInstance(F.delay(try Some(datumReader.read(null, avroDecoder))
-          catch { case ex: EOFException => None }))
+          catch { case _: EOFException => None }))
           .flatMap {
             case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
             case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)

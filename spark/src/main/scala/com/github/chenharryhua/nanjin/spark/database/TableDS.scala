@@ -24,7 +24,7 @@ final class TableDS[F[_], A] private[database] (
   def map[B](f: A => B)(tdb: TableDef[B]): TableDS[F, B] =
     new TableDS[F, B](dataset.map(f)(tdb.avroTypedEncoder.sparkEncoder), tdb, dbSettings, cfg).normalize
 
-  def flatMap[B](f: A => TraversableOnce[B])(tdb: TableDef[B]): TableDS[F, B] =
+  def flatMap[B](f: A => IterableOnce[B])(tdb: TableDef[B]): TableDS[F, B] =
     new TableDS[F, B](dataset.flatMap(f)(tdb.avroTypedEncoder.sparkEncoder), tdb, dbSettings, cfg).normalize
 
   def typedDataset: TypedDataset[A] = TypedDataset.create(dataset)(tableDef.avroTypedEncoder.typedEncoder)

@@ -30,21 +30,21 @@ class SortTest extends AnyFunSuite {
   val prRdd = crRdd.prRdd
 
   test("offset") {
-    val asRDD = crRdd.ascendOffset.rdd.collect.toList
-    val asDS  = crDS.ascendOffset.dataset.collect.toList
+    val asRDD = crRdd.ascendOffset.rdd.collect().toList
+    val asDS  = crDS.ascendOffset.dataset.collect().toList
 
-    val dsRDD = crRdd.descendOffset.rdd.collect.toList
-    val dsDS  = crDS.descendOffset.dataset.collect.toList
+    val dsRDD = crRdd.descendOffset.rdd.collect().toList
+    val dsDS  = crDS.descendOffset.dataset.collect().toList
 
     assert(asRDD == asDS)
     assert(dsRDD == dsDS)
   }
   test("timestamp") {
-    val asRDD = crRdd.ascendTimestamp.rdd.collect.toList
-    val asDS  = crDS.ascendTimestamp.dataset.collect.toList
+    val asRDD = crRdd.ascendTimestamp.rdd.collect().toList
+    val asDS  = crDS.ascendTimestamp.dataset.collect().toList
 
-    val dsRDD = crRdd.descendTimestamp.rdd.collect.toList
-    val dsDS  = crDS.descendTimestamp.dataset.collect.toList
+    val dsRDD = crRdd.descendTimestamp.rdd.collect().toList
+    val dsDS  = crDS.descendTimestamp.dataset.collect().toList
 
     assert(asRDD == asDS)
     assert(dsRDD == dsDS)
@@ -65,15 +65,15 @@ class SortTest extends AnyFunSuite {
     crRdd.stats.summary.unsafeRunSync()
   }
   test("dup") {
-    assert(crRdd.stats.dupRecords.count == 1)
+    assert(crRdd.stats.dupRecords.count() == 1)
   }
   test("missing offsets") {
-    assert(crRdd.stats.missingOffsets.count == 1)
+    assert(crRdd.stats.missingOffsets.count() == 1)
   }
   test("misorder keys") {
-    assert(crDS.misorderedKey.count == 4)
+    assert(crDS.misorderedKey.count() == 4)
   }
   test("misplaced keys") {
-    assert(crDS.misplacedKey.count == 1)
+    assert(crDS.misplacedKey.count() == 1)
   }
 }

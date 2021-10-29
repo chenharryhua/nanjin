@@ -9,7 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class CsvPipeTest extends AnyFunSuite {
   import TestData.*
-  val ser = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc)
+  val ser = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc, 300)
 
   test("csv identity") {
     val data: Stream[IO, Tigger] = Stream.emits(tiggers)

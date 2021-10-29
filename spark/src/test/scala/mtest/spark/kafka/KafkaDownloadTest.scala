@@ -27,7 +27,7 @@ class KafkaDownloadTest extends AnyFunSuite {
 
   topic
     .prRdd(data)
-    .uploadByBatch
+    .uploadByChunk
     .updateProducer(_.withClientId("kafka.download.test"))
     .run
     .compile
@@ -40,7 +40,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     val path = root + "whole_topic/download.avro"
     val dr   = NJDateTimeRange(sydneyTime)
     topic.withTimeRange(dr).download(akkaSystem).avro(path).run.compile.drain.unsafeRunSync()
-    assert(topic.load.avro(path).map(_.dataset.count()).unsafeRunSync >= 5)
+    assert(topic.load.avro(path).map(_.dataset.count()).unsafeRunSync() >= 5)
   }
 
   test("download - from #1 to #5") {

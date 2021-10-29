@@ -11,12 +11,13 @@ import org.apache.spark.sql.SaveMode
   format: NJFileFormat,
   outPath: String,
   saveMode: SaveMode,
-  compression: Compression)
+  compression: Compression,
+  chunkSize: Int)
 
 private[persist] object HoarderParams {
 
   def apply(outPath: String): HoarderParams =
-    HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, Compression.Uncompressed)
+    HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, Compression.Uncompressed, 1024)
 }
 
 sealed private[persist] trait HoarderConfigF[_]
@@ -29,6 +30,7 @@ private object HoarderConfigF {
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
+  final case class WithChunkSize[K](value: Int, cont: K) extends HoarderConfigF[K]
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
@@ -37,6 +39,7 @@ private object HoarderConfigF {
       case WithOutputPath(v, c)  => HoarderParams.outPath.set(v)(c)
       case WithFileFormat(v, c)  => HoarderParams.format.set(v)(c)
       case WithCompression(v, c) => HoarderParams.compression.set(v)(c)
+      case WithChunkSize(v, c)   => HoarderParams.chunkSize.set(v)(c)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
@@ -62,6 +65,9 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
 
   def outputCompression(compression: Compression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
+
+  def chunkSize(cs: Int): HoarderConfig =
+    HoarderConfig(Fix(WithChunkSize(cs, value)))
 }
 
 private[persist] object HoarderConfig {

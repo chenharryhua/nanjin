@@ -1,3 +1,5 @@
 package com.github.chenharryhua.nanjin.spark
 
-package object geo extends GeoFunctions with GeoInjections {}
+package object geo {
+  object instances extends GeoFunctions with GeoInjections
+}

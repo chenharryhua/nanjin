@@ -3,13 +3,7 @@ package com.github.chenharryhua.nanjin.spark.ftp
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import akka.stream.{IOResult, Materializer}
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.pipes.serde.{
-  CirceSerialization,
-  CsvSerialization,
-  GenericRecordCodec,
-  JacksonSerialization,
-  TextSerialization
-}
+import com.github.chenharryhua.nanjin.pipes.serde.*
 import com.github.chenharryhua.nanjin.terminals.FtpUploader
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Pipe
@@ -18,16 +12,19 @@ import kantan.csv.{CsvConfiguration, RowEncoder}
 
 final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C, S]) {
 
-  def csv[A](pathStr: String, csvConfig: CsvConfiguration)(implicit
+  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: Int)(implicit
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe = new CsvSerialization[F, A](csvConfig)
+    val pipe = new CsvSerialization[F, A](csvConfig, chunkSize)
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
-  def csv[A](pathStr: String)(implicit enc: RowEncoder[A], F: Async[F], mat: Materializer): Pipe[F, A, IOResult] =
-    csv[A](pathStr, CsvConfiguration.rfc)
+  def csv[A](pathStr: String, chunkSize: Int)(implicit
+    enc: RowEncoder[A],
+    F: Async[F],
+    mat: Materializer): Pipe[F, A, IOResult] =
+    csv[A](pathStr, CsvConfiguration.rfc, chunkSize)
 
   def json[A: JsonEncoder](pathStr: String, isKeepNull: Boolean = true)(implicit
     F: Async[F],
@@ -36,12 +33,12 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
     _.through(pipe.serialize(isKeepNull)).through(uploader.upload(pathStr))
   }
 
-  def jackson[A](pathStr: String, enc: AvroEncoder[A])(implicit
+  def jackson[A](pathStr: String, enc: AvroEncoder[A], chunkSize: Int)(implicit
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] = {
     val pipe = new JacksonSerialization[F](enc.schema)
     val gr   = new GenericRecordCodec[F, A]
-    _.through(gr.encode(enc)).through(pipe.serialize).through(uploader.upload(pathStr))
+    _.through(gr.encode(enc)).through(pipe.serialize(chunkSize)).through(uploader.upload(pathStr))
   }
 
   def text(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, String, IOResult] = {

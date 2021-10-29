@@ -85,7 +85,7 @@ object loaders {
         .binaryFiles(pathStr)
         .mapPartitions(_.flatMap { case (_, pds) =>
           val dis: DataInputStream = pds.open()
-          val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).toIterator
+          val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).iterator
           new Iterator[A] {
             override def hasNext: Boolean =
               if (itor.hasNext) true else { Try(dis.close()); false }
@@ -138,23 +138,31 @@ object loaders {
 
   object stream {
 
-    def jackson[F[_]: Async, A](pathStr: String, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
+    def jackson[F[_]: Async, A](
+      pathStr: String,
+      decoder: AvroDecoder[A],
+      cfg: Configuration,
+      chunkSize: Int): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val jk     = new JacksonSerialization[F](decoder.schema)
       val gr     = new GenericRecordCodec[F, A]
-      hadoop.byteSource(pathStr).through(jk.deserialize).through(gr.decode(decoder))
+      hadoop.byteSource(pathStr, chunkSize).through(jk.deserialize).through(gr.decode(decoder))
     }
 
-    def avro[F[_]: Sync, A](pathStr: String, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
+    def avro[F[_]: Sync, A](
+      pathStr: String,
+      decoder: AvroDecoder[A],
+      cfg: Configuration,
+      chunkSize: Int): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val gr     = new GenericRecordCodec[F, A]
-      hadoop.avroSource(pathStr, decoder.schema).through(gr.decode(decoder))
+      hadoop.avroSource(pathStr, decoder.schema, chunkSize).through(gr.decode(decoder))
     }
 
-    def circe[F[_]: Sync, A: JsonDecoder](pathStr: String, cfg: Configuration): Stream[F, A] = {
+    def circe[F[_]: Sync, A: JsonDecoder](pathStr: String, cfg: Configuration, chunkSize: Int): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val cs     = new CirceSerialization[F, A]
-      hadoop.byteSource(pathStr).through(cs.deserialize)
+      hadoop.byteSource(pathStr, chunkSize).through(cs.deserialize)
     }
   }
 }

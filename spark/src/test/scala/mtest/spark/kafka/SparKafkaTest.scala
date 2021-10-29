@@ -44,7 +44,7 @@ class SparKafkaTest extends AnyFunSuite {
       .Stream(
         ProducerRecords(
           List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 1, data))))
-      .covary
+      .covary[IO]
       .through(topic.fs2Channel.updateProducer(_.withClientId("spark.kafka.test")).producerPipe)
       .compile
       .drain
@@ -53,7 +53,7 @@ class SparKafkaTest extends AnyFunSuite {
     .unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
-    val rst = sparKafka.topic(topic.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync
+    val rst = sparKafka.topic(topic.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
     assert(rst.toList.flatMap(_.value) === List(data, data))
   }
 
@@ -63,22 +63,22 @@ class SparKafkaTest extends AnyFunSuite {
       .withOneDay(LocalDate.now())
       .fromKafka
       .flatMap(_.stats.rows(100).untruncate.truncate.minutely)
-      .unsafeRunSync
+      .unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyMinute).unsafeRunSync
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyMinute).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.daily).unsafeRunSync
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.daily).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.hourly).unsafeRunSync
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.hourly).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.summary).unsafeRunSync
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.summary).unsafeRunSync()
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
@@ -132,7 +132,7 @@ class SparKafkaTest extends AnyFunSuite {
       .repartition(3)
       .descendTimestamp
       .dismissNulls
-      .transform(_.distinct)
+      .transform(_.distinct())
     val rst = t.rdd.collect().flatMap(_.value)
     assert(rst === Seq(cr1.value.get))
     println(cr1.toString)

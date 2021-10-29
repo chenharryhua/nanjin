@@ -10,7 +10,8 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message => AkkaProducerMessage, MultiMessage => AkkaMultiMessage}
 import akka.kafka.testkit.ConsumerResultFactory
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka._
+import com.github.chenharryhua.nanjin.messages.kafka.*
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
 import fs2.kafka.{
   CommittableProducerRecords => Fs2CommittableProducerRecords,

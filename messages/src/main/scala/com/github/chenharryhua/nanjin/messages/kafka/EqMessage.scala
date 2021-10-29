@@ -72,7 +72,7 @@ private[kafka] trait EqMessage {
     cats.derived.semiauto.eq[AkkaGroupTopicPartition]
 
   implicit val eqPartitionOffsetAkka: Eq[AkkaPartitionOffset] =
-    cats.derived.semiauto.eq[AkkaPartitionOffset]
+    (x: AkkaPartitionOffset, y: AkkaPartitionOffset) => x.equals(y)
 
   implicit val eqCommittableOffsetAkka: Eq[AkkaCommittableOffset] =
     (x: AkkaCommittableOffset, y: AkkaCommittableOffset) => x.partitionOffset === y.partitionOffset

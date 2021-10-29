@@ -11,7 +11,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.time.ZonedDateTime
 import java.util.{Date, UUID}
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 
 object cloudwatch {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchMetrics[F] =

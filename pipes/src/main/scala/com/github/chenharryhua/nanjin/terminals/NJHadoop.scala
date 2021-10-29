@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{INothing, Pipe, Pull, Stream}
 import org.apache.avro.Schema
@@ -16,7 +15,7 @@ import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 import java.net.URI
-import scala.collection.JavaConverters.*
+import scala.jdk.CollectionConverters.*
 
 sealed trait NJHadoop[F[_]] {
 
@@ -24,14 +23,14 @@ sealed trait NJHadoop[F[_]] {
   def isExist(pathStr: String): F[Boolean]
 
   def byteSink(pathStr: String): Pipe[F, Byte, INothing]
-  def byteSource(pathStr: String): Stream[F, Byte]
+  def byteSource(pathStr: String, chunkSize: Int): Stream[F, Byte]
 
   def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, INothing]
 
   def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
 
   def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, INothing]
-  def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
+  def avroSource(pathStr: String, schema: Schema, chunkSize: Int): Stream[F, GenericRecord]
 }
 
 object NJHadoop {
@@ -71,7 +70,7 @@ object NJHadoop {
         } yield res).drain
       }
 
-      override def byteSource(pathStr: String): Stream[F, Byte] =
+      override def byteSource(pathStr: String, chunkSize: Int): Stream[F, Byte] =
         for {
           is <- Stream.resource(fsInput(pathStr))
           bt <- readInputStream[F](F.delay(is), chunkSize)
@@ -140,7 +139,7 @@ object NJHadoop {
           } yield ()).drain
       }
 
-      override def avroSource(pathStr: String, schema: Schema): Stream[F, GenericRecord] = for {
+      override def avroSource(pathStr: String, schema: Schema, chunkSize: Int): Stream[F, GenericRecord] = for {
         is <- Stream.resource(fsInput(pathStr))
         dfs <- Stream.resource(
           Resource.make[F, DataFileStream[GenericRecord]](

@@ -61,8 +61,8 @@ class HadoopTest extends AnyFunSuite {
 
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.byteSink(pathStr)).compile.drain >>
-      hdp.byteSource(pathStr).through(fs2.text.utf8.decode).compile.toList
-    assert(action.unsafeRunSync.head == testString)
+      hdp.byteSource(pathStr, 100).through(fs2.text.utf8.decode).compile.toList
+    assert(action.unsafeRunSync().head == testString)
   }
 
   test("snappy parquet write/read") {
@@ -72,7 +72,7 @@ class HadoopTest extends AnyFunSuite {
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.parquetSink(pathStr, pandaSchema, CompressionCodecName.SNAPPY)).compile.drain >>
       hdp.parquetSource(pathStr, pandaSchema).compile.toList
-    assert(action.unsafeRunSync == pandas)
+    assert(action.unsafeRunSync() == pandas)
   }
 
   test("gzip parquet write/read") {
@@ -82,7 +82,7 @@ class HadoopTest extends AnyFunSuite {
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.parquetSink(pathStr, pandaSchema, CompressionCodecName.GZIP)).compile.drain >>
       hdp.parquetSource(pathStr, pandaSchema).compile.toList
-    assert(action.unsafeRunSync == pandas)
+    assert(action.unsafeRunSync() == pandas)
   }
   test("uncompressed parquet write/read") {
     import HadoopTestData.*
@@ -91,7 +91,7 @@ class HadoopTest extends AnyFunSuite {
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.parquetSink(pathStr, pandaSchema, CompressionCodecName.UNCOMPRESSED)).compile.drain >>
       hdp.parquetSource(pathStr, pandaSchema).compile.toList
-    assert(action.unsafeRunSync == pandas)
+    assert(action.unsafeRunSync() == pandas)
   }
 
   test("snappy avro write/read") {
@@ -100,8 +100,8 @@ class HadoopTest extends AnyFunSuite {
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.snappyCodec)).compile.drain >>
-      hdp.avroSource(pathStr, pandaSchema).compile.toList
-    assert(action.unsafeRunSync == pandas)
+      hdp.avroSource(pathStr, pandaSchema, 100).compile.toList
+    assert(action.unsafeRunSync() == pandas)
   }
   test("deflate(6) avro write/read") {
     import HadoopTestData.*
@@ -109,8 +109,8 @@ class HadoopTest extends AnyFunSuite {
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.deflateCodec(6))).compile.drain >>
-      hdp.avroSource(pathStr, pandaSchema).compile.toList
-    assert(action.unsafeRunSync == pandas)
+      hdp.avroSource(pathStr, pandaSchema, 100).compile.toList
+    assert(action.unsafeRunSync() == pandas)
   }
 
   test("uncompressed avro write/read") {
@@ -119,7 +119,7 @@ class HadoopTest extends AnyFunSuite {
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.nullCodec)).compile.drain >>
-      hdp.avroSource(pathStr, pandaSchema).compile.toList
-    assert(action.unsafeRunSync == pandas)
+      hdp.avroSource(pathStr, pandaSchema, 100).compile.toList
+    assert(action.unsafeRunSync() == pandas)
   }
 }

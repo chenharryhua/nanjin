@@ -86,7 +86,7 @@ class DecimalTopicTest extends AnyFunSuite {
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
   val loadData =
-    stopic.prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data))).uploadByBatch.run.compile.drain
+    stopic.prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data))).uploadByChunk.run.compile.drain
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegistry.register >>
@@ -94,7 +94,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on circe") {
     val path = "./data/test/spark/kafka/decimal.circe.json"
-    stopic.fromKafka.flatMap(_.save.circe(path).file.sink.compile.drain).unsafeRunSync
+    stopic.fromKafka.flatMap(_.save.circe(path).file.sink.compile.drain).unsafeRunSync()
 
     val run = for {
       rdd <- stopic.load.rdd.circe(path)

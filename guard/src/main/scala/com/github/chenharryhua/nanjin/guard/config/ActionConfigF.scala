@@ -3,8 +3,11 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.syntax.show.*
 import cats.{Applicative, Functor, Show}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import io.circe.generic.JsonCodec
+import io.circe.generic.auto.*
 import monocle.macros.Lenses
 import retry.PolicyDecision.DelayAndRetry
 import retry.{RetryPolicies, RetryPolicy}
@@ -12,6 +15,7 @@ import retry.{RetryPolicies, RetryPolicy}
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration.*
 
+@JsonCodec
 sealed abstract class NJRetryPolicy {
   import NJRetryPolicy.*
   private def jitterBackoff[F[_]: Applicative](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] =
@@ -32,7 +36,7 @@ sealed abstract class NJRetryPolicy {
   }
 }
 
-private[guard] object NJRetryPolicy {
+object NJRetryPolicy {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
 
   final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
@@ -42,7 +46,7 @@ private[guard] object NJRetryPolicy {
   final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends NJRetryPolicy
 }
 
-@Lenses final case class ActionRetryParams private (
+@Lenses @JsonCodec final case class ActionRetryParams(
   maxRetries: Int,
   capDelay: Option[FiniteDuration],
   njRetryPolicy: NJRetryPolicy) {
@@ -50,8 +54,11 @@ private[guard] object NJRetryPolicy {
     capDelay.fold(njRetryPolicy.policy[F].join(RetryPolicies.limitRetries[F](maxRetries)))(cd =>
       RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(RetryPolicies.limitRetries[F](maxRetries)))
 }
+object ActionRetryParams {
+  implicit val showActionRetryParams: Show[ActionRetryParams] = cats.derived.semiauto.show[ActionRetryParams]
+}
 
-@Lenses final case class ActionParams private (
+@Lenses @JsonCodec final case class ActionParams(
   spans: List[String],
   importance: Importance,
   serviceParams: ServiceParams,
@@ -61,6 +68,7 @@ private[guard] object NJRetryPolicy {
 }
 
 object ActionParams {
+  implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
   def apply(serviceParams: ServiceParams): ActionParams = ActionParams(
     spans = Nil,

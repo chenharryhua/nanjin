@@ -26,7 +26,7 @@ class JacksonTest extends AnyFunSuite {
     val r = loaders.jackson[Rooster](path, Rooster.ate, sparkSession).dataset
     assert(RoosterData.expected == r.collect().toSet)
     val t3 = loaders.stream
-      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration)
+      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration,100)
       .compile
       .toList
       .unsafeRunSync()

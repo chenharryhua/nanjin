@@ -1,6 +1,6 @@
 package mtest.spark.geo
-
-import com.github.chenharryhua.nanjin.spark.geo._
+import com.github.chenharryhua.nanjin.spark.geo.*
+import com.github.chenharryhua.nanjin.spark.geo.instances.*
 import frameless.TypedDataset
 import mtest.spark.sparkSession
 import org.locationtech.jts.geom.{Coordinate, GeometryFactory, Point, Polygon}
@@ -40,15 +40,15 @@ class GeoTest extends AnyFunSuite {
       TypedDataset.create(List(gf.createPoint(new Coordinate(0.1, 0.1)), gf.createPoint(new Coordinate(1.1, 1.1))))
     val joined: TypedDataset[(Polygon, Point)] = ds1.joinCross(ds2)
 
-    val rst = joined.filter(covers(joined('_1), joined('_2)))
-    assert(rst.dataset.count == 1)
+    val rst = joined.filter(covers(joined(Symbol("_1")), joined(Symbol("_2"))))
+    assert(rst.dataset.count() == 1)
   }
 
   test("intersects") {
     val ds1: TypedDataset[Polygon] = TypedDataset.create(List(polygon1))
     val ds2: TypedDataset[Polygon] = TypedDataset.create(List(polygon2))
     val joined                     = ds1.joinCross(ds2)
-    val rst                        = joined.filter(intersects(joined('_1), joined('_2)))
-    assert(rst.dataset.count == 1)
+    val rst                        = joined.filter(intersects(joined(Symbol("_1")), joined(Symbol("_2"))))
+    assert(rst.dataset.count() == 1)
   }
 }

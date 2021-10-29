@@ -105,15 +105,15 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
   object stream {
     private val hadoopConfiguration: Configuration = ss.sparkContext.hadoopConfiguration
 
-    def circe(pathStr: String)(implicit
+    def circe(pathStr: String, chunkSize: Int)(implicit
       F: Sync[F],
       ev: JsonDecoder[NJConsumerRecord[K, V]]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.circe[F, NJConsumerRecord[K, V]](pathStr, hadoopConfiguration)
+      loaders.stream.circe[F, NJConsumerRecord[K, V]](pathStr, hadoopConfiguration, chunkSize)
 
-    def jackson(pathStr: String)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.jackson[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration)
+    def jackson(pathStr: String, chunkSize: Int)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.jackson[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration, chunkSize)
 
-    def avro(pathStr: String)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.avro[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration)
+    def avro(pathStr: String, chunkSize: Int)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.avro[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration, chunkSize)
   }
 }

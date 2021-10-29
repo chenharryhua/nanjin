@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Printer
@@ -39,7 +38,7 @@ final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
   def prettyJson: Pipe[F, GenericRecord, String]  = toJsonStr(true)
   def compactJson: Pipe[F, GenericRecord, String] = toJsonStr(false)
 
-  def serialize: Pipe[F, GenericRecord, Byte] = {
+  def serialize(chunkSize: Int): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     val splitter    = "\n".getBytes()
     (sfgr: Stream[F, GenericRecord]) =>

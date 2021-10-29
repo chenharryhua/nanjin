@@ -1,14 +1,19 @@
 package com.github.chenharryhua.nanjin.http.client
 
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.{Resource, Sync, Temporal}
 import cats.effect.{Async, Concurrent}
+import cats.syntax.eq.*
+import org.http4s.RequestCookie
 import org.http4s.client.Client
 import org.http4s.client.middleware.*
 import org.http4s.client.middleware.RetryPolicy.{exponentialBackoff, isErrorOrRetriableStatus}
+import org.http4s.headers.`Set-Cookie`
 
+import java.net.{CookieManager, CookieStore, HttpCookie, URI}
 import scala.concurrent.duration.FiniteDuration
+import scala.jdk.CollectionConverters.*
 
-package object middleware extends CookieBox {
+package object middleware {
   def exponentialRetry[F[_]: Temporal](maxWait: FiniteDuration, maxRetries: Int)(client: Client[F]): Client[F] =
     Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(client)
 
@@ -24,4 +29,26 @@ package object middleware extends CookieBox {
 
   def forwardRedirect[F[_]: Concurrent](maxRedirects: Int)(client: Client[F]): Client[F] =
     FollowRedirect[F](maxRedirects)(client)
+
+  def cookieBox[F[_]](cookieManager: CookieManager)(client: Client[F])(implicit F: Sync[F]): Client[F] = {
+    val cookieStore: CookieStore = cookieManager.getCookieStore
+    Client[F] { req =>
+      for {
+        cookies <- Resource.eval(
+          F.delay(
+            cookieStore
+              .get(URI.create(req.uri.renderString))
+              .asScala
+              .toList
+              .map(hc => RequestCookie(hc.getName, hc.getValue))))
+        out <- client.run(cookies.foldLeft(req) { case (r, c) => r.addCookie(c) })
+      } yield {
+        out.headers.headers
+          .filter(_.name === `Set-Cookie`.name)
+          .flatMap(c => HttpCookie.parse(c.value).asScala)
+          .foreach(hc => cookieStore.add(URI.create(req.uri.renderString), hc))
+        out
+      }
+    }
+  }
 }

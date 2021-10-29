@@ -6,7 +6,6 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.pipes.chunkSize
 import fs2.interop.reactivestreams.StreamOps
 import fs2.{Pipe, Stream}
 import net.schmizz.sshj.SSHClient
@@ -14,7 +13,8 @@ import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 
 import scala.concurrent.Future
 
-sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S) {
+sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S, chunkSize: Int) {
+  def withChunkSize(chunkSize: Int): FtpUploader[F, C, S] = new FtpUploader[F, C, S](ftpApi, settings, chunkSize) {}
 
   final def upload(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, Byte, IOResult] = {
     val sink: Sink[ByteString, Future[IOResult]] = ftpApi.toPath(pathStr, settings)
@@ -28,11 +28,11 @@ sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpA
 object FtpUploader {
 
   def apply[F[_]](settings: FtpSettings): FtpUploader[F, FTPClient, FtpSettings] =
-    new FtpUploader[F, FTPClient, FtpSettings](Ftp, settings) {}
+    new FtpUploader[F, FTPClient, FtpSettings](Ftp, settings, 1024) {}
 
   def apply[F[_]](settings: SftpSettings): FtpUploader[F, SSHClient, SftpSettings] =
-    new FtpUploader[F, SSHClient, SftpSettings](Sftp, settings) {}
+    new FtpUploader[F, SSHClient, SftpSettings](Sftp, settings, 1024) {}
 
   def apply[F[_]](settings: FtpsSettings): FtpUploader[F, FTPSClient, FtpsSettings] =
-    new FtpUploader[F, FTPSClient, FtpsSettings](Ftps, settings) {}
+    new FtpUploader[F, FTPSClient, FtpsSettings](Ftps, settings, 1024) {}
 }
