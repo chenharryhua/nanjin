@@ -24,7 +24,7 @@ object DatetimeCase {
     dummy: Int = 0
   )
 
-  //supported date-time in circe
+  // supported date-time in circe
   @JsonCodec final case class JsonDateTime(
     local: LocalDateTime,
     ld: LocalDate,
@@ -36,11 +36,11 @@ object DatetimeCase {
     dummy: Int = 0
   )
 
-  //supported date-time in avro4s
+  // supported date-time in avro4s
   final case class AvroDateTime(
     local: LocalDateTime,
     ld: LocalDate,
-    //zoned: ZonedDateTime,
+    // zoned: ZonedDateTime,
     // offseted: OffsetDateTime ,
     instant: Instant,
     sqlDate: Date,

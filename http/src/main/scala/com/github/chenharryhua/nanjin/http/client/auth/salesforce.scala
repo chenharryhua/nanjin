@@ -20,7 +20,7 @@ import scala.concurrent.duration.DurationLong
 
 object salesforce {
 
-  //https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
+  // https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
 
   sealed private trait InstanceURL
   private case object Rest extends InstanceURL
@@ -128,7 +128,7 @@ object salesforce {
         middleware = Reader(Resource.pure))
   }
 
-  //https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
+  // https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
   final class Iot[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,

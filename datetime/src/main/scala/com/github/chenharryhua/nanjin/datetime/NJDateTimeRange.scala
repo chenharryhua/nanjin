@@ -80,7 +80,7 @@ import scala.concurrent.duration.FiniteDuration
   private def setEnd[A](a: A)(implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
     NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
 
-  //start
+  // start
   def withStartTime(ts: LocalTime): NJDateTimeRange      = setStart(toLocalDateTime(ts))
   def withStartTime(ts: LocalDate): NJDateTimeRange      = setStart(toLocalDateTime(ts))
   def withStartTime(ts: LocalDateTime): NJDateTimeRange  = setStart(ts)
@@ -91,7 +91,7 @@ import scala.concurrent.duration.FiniteDuration
   def withStartTime(ts: Timestamp): NJDateTimeRange      = setStart(NJTimestamp(ts))
   def withStartTime(ts: String): NJDateTimeRange         = setStart(ts)
 
-  //end
+  // end
   def withEndTime(ts: LocalTime): NJDateTimeRange      = setEnd(toLocalDateTime(ts))
   def withEndTime(ts: LocalDate): NJDateTimeRange      = setEnd(toLocalDateTime(ts))
   def withEndTime(ts: LocalDateTime): NJDateTimeRange  = setEnd(ts)

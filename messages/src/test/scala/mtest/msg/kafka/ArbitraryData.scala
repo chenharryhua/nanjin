@@ -30,7 +30,7 @@ final case class PrimitiveTypeCombined(
 
 trait ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMessage {
 
-  //kafka
+  // kafka
   implicit val abKafkaConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] =
     Arbitrary(genConsumerRecord)
 
@@ -49,7 +49,7 @@ trait ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMess
   implicit val cogenKafkaProducerRecords: Cogen[Chunk[ProducerRecord[Int, Int]]] =
     Cogen(_.size.toLong)
 
-  //fs2
+  // fs2
   implicit val abFs2ConsumerRecord: Arbitrary[Fs2ConsumerRecord[Int, Int]] =
     Arbitrary(genFs2ConsumerRecord)
 
@@ -77,7 +77,7 @@ trait ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMess
   implicit val abFs2TransactionalProducerRecords: Arbitrary[Fs2TransactionalProducerRecords[IO, String, Int, Int]] =
     Arbitrary(genFs2TransactionalProducerRecords)
 
-  //akka
+  // akka
   implicit val abAkkaConsumerRecord: Arbitrary[AkkaConsumerMessage[Int, Int]] =
     Arbitrary(genAkkaConsumerMessage)
 

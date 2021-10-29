@@ -32,7 +32,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val cogenInstant = Cogen((i: Instant) => i.getEpochSecond)
 
   implicit val eqInstant = new Eq[DateTimeParser[Instant]] {
-    //TODO: how to compare two parsers?
+    // TODO: how to compare two parsers?
     override def eqv(x: DateTimeParser[Instant], y: DateTimeParser[Instant]): Boolean = true
   }
 

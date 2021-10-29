@@ -11,7 +11,7 @@ sealed private[spark] trait NJDataTypeF[A]
 
 private[spark] object NJDataTypeF {
 
-  //numeric types
+  // numeric types
   final case class NJByteType[K]() extends NJDataTypeF[K]
   final case class NJShortType[K]() extends NJDataTypeF[K]
   final case class NJIntegerType[K]() extends NJDataTypeF[K]
