@@ -194,8 +194,8 @@ final class SlackPipe[F[_]] private[observers] (
                     .fold("no checks anymore")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                   short = true
                 ),
-                SlackField("Total Checks", idx.toString, short = false),
-                SlackField("Time Zone", params.taskParams.zoneId.show, short = false),
+                SlackField("Total Checks", idx.toString, short = true),
+                SlackField("Time Zone", params.taskParams.zoneId.show, short = true),
                 SlackField("Brief", cfg.brief, short = false)
               )
             ))
