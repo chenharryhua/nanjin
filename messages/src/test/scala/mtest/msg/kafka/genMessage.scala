@@ -36,11 +36,11 @@ object genMessage {
     val genHeader: Gen[Header] = for {
       key <- Gen.asciiPrintableStr
       value <-
-        Gen.containerOfN[Array, Byte](2, arbitrary[Byte]) //avoid GC overhead limit exceeded issue
+        Gen.containerOfN[Array, Byte](2, arbitrary[Byte]) // avoid GC overhead limit exceeded issue
     } yield new RecordHeader(key, value)
 
     val genHeaders: Gen[RecordHeaders] = for {
-      rcs <- Gen.containerOfN[Array, Header](2, genHeader) //avoid GC overhead limit exceeded issue
+      rcs <- Gen.containerOfN[Array, Header](2, genHeader) // avoid GC overhead limit exceeded issue
     } yield new RecordHeaders(rcs)
 
     val genOptionalInteger: Gen[Optional[Integer]] =

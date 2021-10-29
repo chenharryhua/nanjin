@@ -13,7 +13,7 @@ object NJDataTypeCompoundTypeTestData {
   val dogfish: TypedEncoder[DogFish] = shapeless.cachedImplicit
 
   // map key must be string.
-  //https://docs.oracle.com/database/nosql-12.1.3.0/GettingStartedGuide/avroschemas.html#avro-complexdatatypes
+  // https://docs.oracle.com/database/nosql-12.1.3.0/GettingStartedGuide/avroschemas.html#avro-complexdatatypes
   final case class Squalidae(a: Int, b: Map[String, Int], c: Map[String, List[FishFood]])
   val squalidae: TypedEncoder[Squalidae] = shapeless.cachedImplicit
 

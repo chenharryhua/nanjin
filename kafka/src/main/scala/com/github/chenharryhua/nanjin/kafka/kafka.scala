@@ -5,7 +5,7 @@ import scala.concurrent.duration.FiniteDuration
 package object kafka {
 
   object defaultLoadParams {
-    //akka.actor.LightArrayRevolverScheduler.checkMaxDelay
+    // akka.actor.LightArrayRevolverScheduler.checkMaxDelay
     final val TimeLimit: FiniteDuration   = FiniteDuration(21474835, TimeUnit.SECONDS)
     final val RecordsLimit: Long          = Long.MaxValue
     final val IdleTimeout: FiniteDuration = FiniteDuration(120, TimeUnit.SECONDS)

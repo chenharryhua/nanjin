@@ -19,5 +19,5 @@ class HashOrderTests extends CatsSuite with FunSuiteDiscipline {
   checkAll("NJTimestamp", HashTests[NJTimestamp].hash)
   checkAll("NJTimestamp", OrderTests[NJTimestamp].order)
 
-  //checkAll("parsing", AlternativeTests[DateTimeParser].alternative)
+  // checkAll("parsing", AlternativeTests[DateTimeParser].alternative)
 }

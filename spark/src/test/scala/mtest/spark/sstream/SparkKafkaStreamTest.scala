@@ -150,7 +150,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       sparKafka.topic(rooster).prRdd(data).withInterval(1.second).uploadByBatch.withBatchSize(6).run.delayBy(3.second)
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     import sparkSession.implicits.*
-    val now = Instant.now().getEpochSecond * 1000 //to millisecond
+    val now = Instant.now().getEpochSecond * 1000 // to millisecond
     val size = sparkSession
       .sql("select timestamp from kafka")
       .as[Long]

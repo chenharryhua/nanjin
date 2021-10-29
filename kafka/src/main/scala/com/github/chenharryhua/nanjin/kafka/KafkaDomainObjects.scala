@@ -15,7 +15,7 @@ import scala.collection.JavaConverters.*
 final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
   val value: Long                 = offset.value
   val javaLong: java.lang.Long    = value
-  def asLast: KafkaOffset         = KafkaOffset(value - 1) //represent last message
+  def asLast: KafkaOffset         = KafkaOffset(value - 1) // represent last message
   def -(other: KafkaOffset): Long = value - other.value
 }
 
@@ -45,7 +45,7 @@ object KafkaPartition {
 }
 
 sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
-  //require(from < until, s"from should be strictly less than until. from = $from, until=$until")
+  // require(from < until, s"from should be strictly less than until. from = $from, until=$until")
 
   val distance: Long = until - from
 

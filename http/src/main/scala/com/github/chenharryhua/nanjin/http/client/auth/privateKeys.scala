@@ -12,7 +12,7 @@ import java.security.{KeyFactory, PrivateKey}
 import scala.util.Try
 
 object privateKeys {
-  //openssl pkcs8 -topk8 -inform PEM -outform DER -nocrypt -in key.pem -out pkcs8.key
+  // openssl pkcs8 -topk8 -inform PEM -outform DER -nocrypt -in key.pem -out pkcs8.key
   def pkcs8(bytes: Array[Byte]): Try[PrivateKey] = Try(
     KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(bytes)))
 

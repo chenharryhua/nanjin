@@ -16,7 +16,7 @@ private[spark] object sd {
       "driver" -> cfg.getDriverClassName,
       "user" -> cfg.getUsername,
       "password" -> cfg.getPassword)
-    //https://spark.apache.org/docs/latest/sql-data-sources-jdbc.html
+    // https://spark.apache.org/docs/latest/sql-data-sources-jdbc.html
     val sparkOptions: Map[String, String] =
       mandatory + query.fold("dbtable" -> tableName.value)(q => "query" -> q)
     sparkSession.read.format("jdbc").options(sparkOptions).load()
