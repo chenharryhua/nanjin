@@ -35,7 +35,7 @@ class PrivateKeyTest extends AnyFunSuite {
     } yield ret
 
     run.use(_ => IO.sleep(10.seconds)).unsafeRunSync()
-    //problemOperation.unsafeRunSync()
+    // problemOperation.unsafeRunSync()
     // assert(2 == run.guarantee(IO.println("accomplished")).unsafeRunSync)
   }
 }

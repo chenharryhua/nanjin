@@ -22,7 +22,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def withTopicName(tn: String): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
-  //need to reconstruct codec when working in spark
+  // need to reconstruct codec when working in spark
   @transient lazy val codec: KeyValueCodecPair[K, V] =
     topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName.value)
 

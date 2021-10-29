@@ -17,14 +17,14 @@ object NJFileFormat
 
   case object Unknown extends NJFileFormat(-1, "unknown", "unknown")
 
-  //text
+  // text
   case object Jackson extends NJFileFormat(1, "json", "jackson")
   case object Circe extends NJFileFormat(2, "json", "circe")
   case object Text extends NJFileFormat(3, "txt", "plain")
   case object Csv extends NJFileFormat(4, "csv", "kantan")
   case object SparkJson extends NJFileFormat(5, "json", "spark")
 
-  //binary
+  // binary
   case object Parquet extends NJFileFormat(11, "parquet", "apache")
   case object Avro extends NJFileFormat(12, "avro", "data")
   case object BinaryAvro extends NJFileFormat(13, "avro", "binary")
