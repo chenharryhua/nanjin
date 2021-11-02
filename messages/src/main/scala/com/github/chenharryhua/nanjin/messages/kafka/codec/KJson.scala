@@ -13,12 +13,12 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 
 final class KJson[A] private (val value: A) extends Serializable {
   @SuppressWarnings(Array("IsInstanceOf"))
-  def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[A]]
+  def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[?]]
 
   override def equals(that: Any): Boolean =
     that match {
       // equality is symmetric
-      case that: KJson[A] => that.canEqual(this) && this.value == that.value
+      case that: KJson[?] => that.canEqual(this) && this.value == that.value
       case _              => false
     }
   override def hashCode: Int = value.hashCode()

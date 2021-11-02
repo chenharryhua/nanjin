@@ -6,15 +6,15 @@ import java.time.Period
 import scala.util.Try
 
 object period {
-  import fastparse.NoWhitespace._
-  import fastparse._
+  import fastparse.NoWhitespace.*
+  import fastparse.*
 
-  private def number[_: P]: P[Int] = P(CharIn("0-9").rep(1).!.map(_.toInt))
-  private def year[_: P]: P[Int]   = P(number ~ " ".rep ~ P("years" | "year"))
-  private def month[_: P]: P[Int]  = P(number ~ " ".rep ~ P("months" | "month"))
-  private def day[_: P]: P[Int]    = P(number ~ " ".rep ~ P("days" | "day"))
+  private def number[X: P]: P[Int] = P(CharIn("0-9").rep(1).!.map(_.toInt))
+  private def year[X: P]: P[Int]   = P(number ~ " ".rep ~ P("years" | "year"))
+  private def month[X: P]: P[Int]  = P(number ~ " ".rep ~ P("months" | "month"))
+  private def day[X: P]: P[Int]    = P(number ~ " ".rep ~ P("days" | "day"))
 
-  private def ymd[_: P]: P[Period] =
+  private def ymd[X: P]: P[Period] =
     P(year.? ~ " ".rep ~ month.? ~ " ".rep ~ day.? ~ End).map { case (y, m, d) =>
       Period.of(y.getOrElse(0), m.getOrElse(0), d.getOrElse(0))
     }
