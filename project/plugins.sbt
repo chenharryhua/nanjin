@@ -1,7 +1,7 @@
   
 resolvers += Resolver.sonatypeRepo("releases")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.9.1")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.9.2")
 
 addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.16")
 
