@@ -20,7 +20,7 @@ private[persist] object HoarderParams {
     HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, Compression.Uncompressed, 1024)
 }
 
-sealed private[persist] trait HoarderConfigF[_]
+sealed private[persist] trait HoarderConfigF[X]
 
 private object HoarderConfigF {
   implicit val functorHoarderConfigF: Functor[HoarderConfigF] = cats.derived.semiauto.functor[HoarderConfigF]

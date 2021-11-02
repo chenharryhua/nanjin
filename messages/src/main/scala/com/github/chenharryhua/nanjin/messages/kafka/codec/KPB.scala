@@ -15,11 +15,11 @@ import java.util
 final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedMessage with Serializable {
   // equality
   @SuppressWarnings(Array("IsInstanceOf"))
-  def canEqual(a: Any): Boolean = a.isInstanceOf[KPB[A]]
+  def canEqual(a: Any): Boolean = a.isInstanceOf[KPB[?]]
 
   override def equals(that: Any): Boolean =
     that match {
-      case that: KPB[A] => that.canEqual(this) && this.value == that.value
+      case that: KPB[?] => that.canEqual(this) && this.value == that.value
       case _            => false
     }
   override def hashCode: Int = value.hashCode()
