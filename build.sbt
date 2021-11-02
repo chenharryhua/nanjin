@@ -30,6 +30,11 @@ val akka26     = "2.6.17"
 val spark3    = "3.2.0"
 val frameless = "0.10.1+95-107c8703-SNAPSHOT"
 
+// kafka 
+
+val kafkaVersion = "6.2.1-ce"
+val confluent = "6.2.1"
+
 // format
 val jackson = "2.13.0"
 val kantan  = "0.6.2"
@@ -131,7 +136,7 @@ val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.6",
   "com.google.protobuf"                       % "protobuf-java"             % "3.19.1",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.19.1",
-  "io.confluent"                              % "kafka-protobuf-serializer" % "7.0.0"
+  "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
 val serdeLib = Seq(
@@ -140,7 +145,7 @@ val serdeLib = Seq(
   "org.apache.parquet"                   % "parquet-hadoop"           % parquet,
   "org.apache.parquet"                   % "parquet-avro"             % parquet,
   "org.apache.avro"                      % "avro"                     % avro,
-  "io.confluent"                         % "kafka-streams-avro-serde" % "7.0.0"
+  "io.confluent"                         % "kafka-streams-avro-serde" % confluent
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = Seq(
@@ -192,11 +197,11 @@ val testLib = Seq(
 )
 
 val kafkaLib = Seq(
-  "io.confluent"                              % "kafka-schema-registry-client" % "7.0.0",
-  "io.confluent"                              % "kafka-schema-serializer"      % "7.0.0",
-  "org.apache.kafka"                          % "kafka-clients"                % "7.0.0-ce",
-  "org.apache.kafka"                          % "kafka-streams"                % "7.0.0-ce",
-  "org.apache.kafka" %% "kafka-streams-scala" % "7.0.0-ce",
+  "io.confluent"                              % "kafka-schema-registry-client" % confluent,
+  "io.confluent"                              % "kafka-schema-serializer"      % confluent,
+  "org.apache.kafka"                          % "kafka-clients"                % kafkaVersion,
+  "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
+  "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   "com.typesafe.akka" %% "akka-stream-kafka"  % "2.1.1",
   "com.github.fd4s" %% "fs2-kafka"            % "2.2.0"
 )
