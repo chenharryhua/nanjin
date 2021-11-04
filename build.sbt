@@ -242,7 +242,7 @@ val baseLib = Seq(
   "org.typelevel" %% "case-insensitive"            % "1.2.0",
   "io.scalaland" %% "chimney"                      % chimney,
   "io.scalaland" %% "enumz"                        % "1.0.0",
-  "com.twitter" %% "algebird-core"                 % "0.13.8",
+  "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % shapeless
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib
 
