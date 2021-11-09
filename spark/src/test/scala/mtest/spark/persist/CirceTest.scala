@@ -46,7 +46,7 @@ class CirceTest extends AnyFunSuite {
     val t2: TypedDataset[Rooster] = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == t2.dataset.collect().toSet)
     val t3 = loaders.stream
-      .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration,100)
+      .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration, 100)
       .compile
       .toList
       .unsafeRunSync()

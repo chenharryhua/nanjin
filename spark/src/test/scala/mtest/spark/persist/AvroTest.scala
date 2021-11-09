@@ -16,7 +16,7 @@ class AvroTest extends AnyFunSuite {
   val gr: GenericRecordCodec[IO, Rooster] = new GenericRecordCodec[IO, Rooster]()
 
   def singleAvro(path: String): Set[Rooster] = hadoop
-    .avroSource(path, Rooster.avroCodec.schema,100)
+    .avroSource(path, Rooster.avroCodec.schema, 100)
     .through(gr.decode(Rooster.avroCodec.avroDecoder))
     .compile
     .toList
@@ -81,7 +81,7 @@ class AvroTest extends AnyFunSuite {
     assert(RoosterData.expected == singleAvro(path))
 
     val t3 = loaders.stream
-      .avro[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration,100)
+      .avro[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 100)
       .compile
       .toList
       .unsafeRunSync()

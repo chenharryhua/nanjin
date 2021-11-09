@@ -23,7 +23,9 @@ object inv {
     left: TypedDataset[NJConsumerRecord[K, V]],
     right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[DiffResult[K, V]] =
     left
-      .joinLeft(right)((left(Symbol("partition")) === right(Symbol("partition"))) && (left(Symbol("offset")) === right(Symbol("offset"))))
+      .joinLeft(right)(
+        (left(Symbol("partition")) === right(Symbol("partition"))) && (left(Symbol("offset")) === right(
+          Symbol("offset"))))
       .deserialized
       .flatMap { case (m, om) =>
         if (om.exists(o => (o.key === m.key) && (o.value === m.value)))

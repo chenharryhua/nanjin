@@ -173,7 +173,9 @@ object KafkaChannels {
       if (tps.isEmpty)
         Source.empty.mapMaterializedValue(_ => Consumer.NoopControl)
       else
-        Consumer.plainSource(consumerSettings, Subscriptions.assignmentWithOffset(tps.value.view.mapValues(_.offset.value).toMap))
+        Consumer.plainSource(
+          consumerSettings,
+          Subscriptions.assignmentWithOffset(tps.value.view.mapValues(_.offset.value).toMap))
 
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
