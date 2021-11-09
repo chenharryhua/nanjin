@@ -1,7 +1,7 @@
 package mtest.spark.kafka
 
 import cats.derived.auto.eq.kittensMkEq
-import com.github.chenharryhua.nanjin.spark.kafka._
+import com.github.chenharryhua.nanjin.spark.kafka.*
 import frameless.TypedDataset
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
@@ -64,7 +64,7 @@ object InvestigationTestData {
 }
 
 class InvestigationTest extends AnyFunSuite {
-  import InvestigationTestData._
+  import InvestigationTestData.*
   implicit val ss: SparkSession = sparkSession
 
   test("sparKafka identical") {
