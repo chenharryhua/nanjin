@@ -24,8 +24,8 @@ object inv {
     right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[DiffResult[K, V]] =
     left
       .joinLeft(right)(
-        (left(Symbol("partition")) === right(Symbol("partition"))) && (left(Symbol("offset")) === right(
-          Symbol("offset"))))
+        (left.col(Symbol("partition")) === right.col(Symbol("partition"))) &&
+          (left.col(Symbol("offset")) === right.col(Symbol("offset"))))
       .deserialized
       .flatMap { case (m, om) =>
         if (om.exists(o => (o.key === m.key) && (o.value === m.value)))
@@ -57,9 +57,9 @@ object inv {
     left: TypedDataset[NJConsumerRecord[K, V]],
     right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[KvDiffResult[K, V]] = {
     val mine: TypedDataset[KvDiffResult[K, V]] =
-      left.select(left(Symbol("key")), left(Symbol("value"))).distinct.as[KvDiffResult[K, V]]()
+      left.select(left.col(_.key), left.col(_.value)).distinct.as[KvDiffResult[K, V]]()
     val yours: TypedDataset[KvDiffResult[K, V]] =
-      right.select(right(Symbol("key")), right(Symbol("value"))).distinct.as[KvDiffResult[K, V]]()
+      right.select(right.col(_.key), right.col(_.value)).distinct.as[KvDiffResult[K, V]]()
     mine.except(yours)
   }
 

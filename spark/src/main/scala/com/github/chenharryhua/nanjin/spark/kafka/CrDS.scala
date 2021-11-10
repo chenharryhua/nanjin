@@ -102,8 +102,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     implicit val enc: TypedEncoder[K]             = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     val res: TypedDataset[MisplacedKey[K]] =
-      tds.groupBy(tds(Symbol("key"))).agg(countDistinct(tds(Symbol("partition")))).as[MisplacedKey[K]]()
-    res.filter(res(Symbol("count")) > 1).orderBy(res(Symbol("count")).asc).dataset
+      tds.groupBy(tds.col(_.key)).agg(countDistinct(tds.col(_.partition))).as[MisplacedKey[K]]()
+    res.filter(res.col(_.count) > 1).orderBy(res.col(_.count).asc).dataset
   }
 
   /** Notes: timestamp order should follow offset order: the larger the offset is the larger of timestamp should be, of
@@ -113,7 +113,7 @@ final class CrDS[F[_], K, V] private[kafka] (
     implicit val enc: TypedEncoder[K]             = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     tds
-      .groupBy(tds(Symbol("key")))
+      .groupBy(tds.col(_.key))
       .deserialized
       .flatMapGroups { case (key, iter) =>
         key.traverse { key =>
