@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.7"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.13.0-SNAPSHOT"
+ThisBuild / version            := "0.13.1-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 // generic
@@ -28,7 +28,7 @@ val akka26     = "2.6.17"
 
 // spark
 val spark3    = "3.2.0"
-val frameless = "0.11.0"
+val frameless = "0.11.1"
 
 // kafka 
 
@@ -328,7 +328,7 @@ lazy val aws = (project in file("aws"))
       Seq(
         "com.typesafe.akka" %% "akka-http"                % "10.2.7",
         "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.3"
-      ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided)
+      ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib
   )
 
 lazy val datetime = (project in file("datetime"))
@@ -350,7 +350,7 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry-mtl" % "3.1.0"
-    ) ++ cronLib ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib.map(_ % Provided)
+    ) ++ cronLib ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib
   )
 
 lazy val messages = (project in file("messages"))
@@ -411,7 +411,7 @@ lazy val spark = (project in file("spark"))
       akkaLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib
   )
 
-lazy val bundle = (project in file("bundle"))
+lazy val example = (project in file("example"))
   .dependsOn(common)
   .dependsOn(datetime)
   .dependsOn(http)
@@ -423,15 +423,17 @@ lazy val bundle = (project in file("bundle"))
   .dependsOn(database)
   .dependsOn(spark)
   .settings(commonSettings: _*)
-  .settings(name := "nj-bundle")
-
-lazy val example = (project in file("example"))
-  .dependsOn(bundle)
-  .settings(commonSettings: _*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= testLib)
 
 lazy val nanjin =
   (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark, bundle)
-
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+    .settings(
+      publish / skip := true,
+      ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
+      ThisBuild / publishTo := Some(
+        "tabcorp-maven".at("https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven")),
+      ThisBuild / publishConfiguration      := publishConfiguration.value.withOverwrite(true),
+      ThisBuild / publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+    )
