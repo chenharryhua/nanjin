@@ -105,7 +105,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
                   .flatMap(_.fold(logger.warn(_)("Cloudwatch"), _ => F.unit)))
           Pull.eval(publish) >> go(cw, tail, next)
 
-        case None => Pull.done
+        case None => Pull.eval(logger.info("Cloudwatch was stopped")) >> Pull.done
       }
 
     Stream.resource(client).flatMap(cw => go(cw, es, Map.empty).stream)
