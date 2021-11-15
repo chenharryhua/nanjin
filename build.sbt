@@ -12,7 +12,7 @@ val catsCore   = "2.6.1"
 val algebra    = "2.2.3"
 val fs2Version = "3.2.2"
 val catsMtl    = "1.2.1"
-val catsTime   = "0.4.0"
+val catsTime   = "0.5.0"
 val tagless    = "0.14.0"
 val monocle    = "2.1.0"
 val refined    = "0.9.27"
@@ -338,7 +338,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "fastparse"       % "2.3.3",
-      "io.chrisdavenport" %% "cats-time" % catsTime) ++
+      "org.typelevel" %% "cats-time" % catsTime) ++
       cronLib ++ baseLib ++ monocleLib ++ testLib ++ logLib
   )
 
