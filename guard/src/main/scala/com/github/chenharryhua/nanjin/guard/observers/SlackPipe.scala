@@ -10,10 +10,10 @@ import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, 
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
-import io.chrisdavenport.cats.time.instances.{localdatetime, localtime, zoneddatetime, zoneid}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
 import org.apache.commons.lang3.StringUtils
+import org.typelevel.cats.time.instances.{localdatetime, localtime, zoneddatetime, zoneid}
 
 import java.text.NumberFormat
 import java.time.temporal.ChronoUnit

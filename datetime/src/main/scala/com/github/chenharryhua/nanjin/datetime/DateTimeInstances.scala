@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.{Hash, Order, Show}
 import cron4s.CronExpr
-import io.chrisdavenport.cats.time.instances.all
 import io.circe.{Decoder, Encoder}
 import io.scalaland.enumz.Enum
 import monocle.Iso
+import org.typelevel.cats.time.instances.all
 
 import java.sql.{Date, Timestamp}
 import java.time.*
