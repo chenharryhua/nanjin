@@ -35,7 +35,8 @@ object slack {
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
         brief = "The developer is too lazy to provide a brief",
-        isShowRetry = true
+        isShowRetry = true,
+        extraSlackFields = Nil
       )
     )
 
@@ -51,7 +52,8 @@ final private case class SlackConfig(
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
   brief: String,
-  isShowRetry: Boolean
+  isShowRetry: Boolean,
+  extraSlackFields: List[SlackField]
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -77,6 +79,8 @@ final class SlackPipe[F[_]] private[observers] (
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
   def withBrief(brief: String): SlackPipe[F]                      = updateSlackConfig(_.copy(brief = brief))
   def withoutRetry: SlackPipe[F]                                  = updateSlackConfig(_.copy(isShowRetry = false))
+  def withSlackField(title: String, value: String, isShort: Boolean): SlackPipe[F] = updateSlackConfig(
+    _.copy(extraSlackFields = cfg.extraSlackFields :+ SlackField(title, value, isShort)))
 
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
@@ -121,7 +125,7 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Status", "(Re)Started", short = true),
                 SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                 SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
-              )
+              ) ::: cfg.extraSlackFields
             ))
         ).asJson.noSpaces
         sns.publish(msg).void
@@ -149,7 +153,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Cumulative Delay", cfg.durationFormatter.format(details.cumulativeDelay), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                )
+                ) ::: cfg.extraSlackFields
               ))
           ).asJson.noSpaces
         sns.publish(msg).void
@@ -168,7 +172,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
-                )
+                ) ::: cfg.extraSlackFields
               ))
           ).asJson.noSpaces
 
@@ -197,7 +201,7 @@ final class SlackPipe[F[_]] private[observers] (
                 SlackField("Total Checks", idx.toString, short = true),
                 SlackField("Time Zone", params.taskParams.zoneId.show, short = true),
                 SlackField("Brief", cfg.brief, short = false)
-              )
+              ) ::: cfg.extraSlackFields
             ))
         ).asJson.noSpaces
 
@@ -235,7 +239,7 @@ final class SlackPipe[F[_]] private[observers] (
                   short = true
                 ),
                 SlackField("Brief", cfg.brief, short = false)
-              )
+              ) ::: cfg.extraSlackFields
             ))
         ).asJson.noSpaces
 
@@ -254,7 +258,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action ID", action.uuid.show, short = false)
-                )
+                ) ::: cfg.extraSlackFields
               ))
           ).asJson.noSpaces
         sns.publish(msg).void
@@ -277,7 +281,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                )
+                ) ::: cfg.extraSlackFields
               ))
           ).asJson.noSpaces
         sns.publish(msg).whenA(params.importance.value > Importance.Low.value && cfg.isShowRetry)
@@ -301,7 +305,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                )
+                ) ::: cfg.extraSlackFields
               ))
           ).asJson.noSpaces
         sns.publish(msg).whenA(params.importance.value > Importance.Low.value)
@@ -323,7 +327,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retried", s"$numRetries/${params.retry.maxRetries}", short = true),
                   SlackField("Action ID", action.uuid.show, short = false)
-                )
+                ) ::: cfg.extraSlackFields
               ))
           ).asJson.noSpaces
         sns.publish(msg).void
@@ -348,7 +352,7 @@ final class SlackPipe[F[_]] private[observers] (
                     SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
                     SlackField("Action ID", action.uuid.show, short = false)
-                  )
+                  ) ::: cfg.extraSlackFields
                 ))
             )
           else
@@ -369,7 +373,7 @@ final class SlackPipe[F[_]] private[observers] (
                     SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
                     SlackField("Action ID", action.uuid.show, short = false)
-                  )
+                  ) ::: cfg.extraSlackFields
                 ))
             )
 
@@ -378,5 +382,4 @@ final class SlackPipe[F[_]] private[observers] (
       // no op
       case _: PassThrough => F.unit
     }
-
 }
