@@ -26,7 +26,7 @@ object slack {
     F: MonadCancel[F, Throwable]): SlackPipe[F] =
     new SlackPipe[F](
       snsResource,
-      SlackConfig(
+      SlackConfig[F](
         goodColor = "good",
         warnColor = "#ffd79a",
         infoColor = "#b3d1ff",
@@ -36,14 +36,14 @@ object slack {
         reportInterval = None,
         brief = "The developer is too lazy to provide a brief",
         isShowRetry = true,
-        extraSlackFields = Nil
+        extraSlackFields = F.pure(Nil)
       )
     )
 
   def apply[F[_]: Sync](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
 }
 
-final private case class SlackConfig(
+final private case class SlackConfig[F[_]](
   goodColor: String,
   warnColor: String,
   infoColor: String,
@@ -53,7 +53,7 @@ final private case class SlackConfig(
   reportInterval: Option[FiniteDuration],
   brief: String,
   isShowRetry: Boolean,
-  extraSlackFields: List[SlackField]
+  extraSlackFields: F[List[SlackField]]
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -65,10 +65,10 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
-  cfg: SlackConfig)(implicit F: MonadCancel[F, Throwable])
+  cfg: SlackConfig[F])(implicit F: MonadCancel[F, Throwable])
     extends Pipe[F, NJEvent, NJEvent] with zoneid with localdatetime with localtime with zoneddatetime {
 
-  private def updateSlackConfig(f: SlackConfig => SlackConfig): SlackPipe[F] =
+  private def updateSlackConfig(f: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] =
     new SlackPipe[F](snsResource, f(cfg))
 
   def withGoodColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(goodColor = color))
@@ -79,8 +79,15 @@ final class SlackPipe[F[_]] private[observers] (
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
   def withBrief(brief: String): SlackPipe[F]                      = updateSlackConfig(_.copy(brief = brief))
   def withoutRetry: SlackPipe[F]                                  = updateSlackConfig(_.copy(isShowRetry = false))
-  def withSlackField(title: String, value: String, isShort: Boolean): SlackPipe[F] = updateSlackConfig(
-    _.copy(extraSlackFields = cfg.extraSlackFields :+ SlackField(title, value, isShort)))
+
+  def withSlackField(title: String, value: F[String], isShort: Boolean): SlackPipe[F] =
+    updateSlackConfig(_.copy(extraSlackFields = for {
+      esf <- cfg.extraSlackFields
+      v <- value
+    } yield esf :+ SlackField(title, v, isShort)))
+
+  def withSlackField(title: String, value: String, isShort: Boolean): SlackPipe[F] =
+    withSlackField(title, F.pure(value), isShort)
 
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
@@ -112,30 +119,31 @@ final class SlackPipe[F[_]] private[observers] (
     event match {
 
       case ServiceStarted(at, si, params) =>
-        def msg: String = SlackNotification(
-          params.taskParams.appName,
-          s":rocket: ${cfg.brief}",
-          List(
-            Attachment(
-              cfg.infoColor,
-              at.toInstant.toEpochMilli,
-              List(
-                SlackField("Service", params.serviceName, short = true),
-                SlackField("Host", params.taskParams.hostName, short = true),
-                SlackField("Status", "(Re)Started", short = true),
-                SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
-              ) ::: cfg.extraSlackFields
-            ))
-        ).asJson.noSpaces
-        sns.publish(msg).void
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
+          SlackNotification(
+            params.taskParams.appName,
+            s":rocket: ${cfg.brief}",
+            List(
+              Attachment(
+                cfg.infoColor,
+                at.toInstant.toEpochMilli,
+                List(
+                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Host", params.taskParams.hostName, short = true),
+                  SlackField("Status", "(Re)Started", short = true),
+                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
+                  SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
+                ) ::: extra
+              ))
+          ))
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ServicePanic(at, si, params, details, error) =>
         def upcoming: String = details.upcomingDelay.map(cfg.durationFormatter.format) match {
           case None     => "should never see this" // never happen
           case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is dysfunctional."
         }
-        def msg: String =
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
             s""":x: The service experienced a panic, $upcoming
@@ -153,13 +161,13 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Cumulative Delay", cfg.durationFormatter.format(details.cumulativeDelay), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                ) ::: cfg.extraSlackFields
+                ) ::: extra
               ))
-          ).asJson.noSpaces
-        sns.publish(msg).void
+          ))
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ServiceStopped(at, si, params, snapshot) =>
-        def msg: String =
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
             s":octagonal_sign: The service was stopped. performed:\n${toText(snapshot.counters)}",
@@ -172,38 +180,36 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
-                ) ::: cfg.extraSlackFields
+                ) ::: extra
               ))
-          ).asJson.noSpaces
+          ))
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
-        sns.publish(msg).void
-
-      case MetricsReport(idx, at, si, params, prev, now, next, snapshot) =>
-        def msg: String = SlackNotification(
-          params.taskParams.appName,
-          StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize),
-          List(
-            Attachment(
-              cfg.infoColor,
-              at.toInstant.toEpochMilli,
-              List(
-                SlackField("Service", params.serviceName, short = true),
-                SlackField("Host", params.taskParams.hostName, short = true),
-                SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                SlackField(
-                  s"Next", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
-                  cfg.reportInterval
-                    .map(fd => now.plusSeconds(fd.toSeconds))
-                    .orElse(next)
-                    .fold("no checks anymore")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
-                  short = true
-                ),
-                SlackField("Total Checks", idx.toString, short = true),
-                SlackField("Time Zone", params.taskParams.zoneId.show, short = true),
-                SlackField("Brief", cfg.brief, short = false)
-              ) ::: cfg.extraSlackFields
-            ))
-        ).asJson.noSpaces
+      case MetricsReport(_, at, si, params, prev, now, next, snapshot) =>
+        val msg = cfg.extraSlackFields.map(extra =>
+          SlackNotification(
+            params.taskParams.appName,
+            StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize),
+            List(
+              Attachment(
+                cfg.infoColor,
+                at.toInstant.toEpochMilli,
+                List(
+                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Host", params.taskParams.hostName, short = true),
+                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
+                  SlackField(
+                    s"Next", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
+                    cfg.reportInterval
+                      .map(fd => now.plusSeconds(fd.toSeconds))
+                      .orElse(next)
+                      .fold("no checks anymore")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+                    short = true
+                  ),
+                  SlackField("Brief", cfg.brief, short = false)
+                ) ::: extra
+              ))
+          ))
 
         // only show events that cross interval border.
         val isShow: Boolean = (prev, cfg.reportInterval).mapN { case (prev, interval) =>
@@ -211,42 +217,42 @@ final class SlackPipe[F[_]] private[observers] (
           else {
             val border: ZonedDateTime =
               si.launchTime.plus(((Duration.between(si.launchTime, at).toScala / interval).toLong * interval).toJava)
-            if (prev.isBefore(border) && at.isAfter(border)) true else false
+            prev.isBefore(border) && at.isAfter(border)
           }
         }.fold(true)(identity)
 
-        sns.publish(msg).whenA(isShow)
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(isShow)
 
       case MetricsReset(at, si, params, prev, next, snapshot) =>
         val toNow =
           prev.map(p => cfg.durationFormatter.format(Order.max(p, si.launchTime), at)).fold("")(dur => s" in past $dur")
         val summaries = s"*This is a summary of activities performed by the service$toNow*"
 
-        def msg: String = SlackNotification(
-          params.taskParams.appName,
-          s"$summaries\n${toText(snapshot.counters)}",
-          List(
-            Attachment(
-              cfg.infoColor,
-              at.toInstant.toEpochMilli,
-              List(
-                SlackField("Service", params.serviceName, short = true),
-                SlackField("Host", params.taskParams.hostName, short = true),
-                SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                SlackField(
-                  s"Next Metrics Reset at",
-                  next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
-                  short = true
-                ),
-                SlackField("Brief", cfg.brief, short = false)
-              ) ::: cfg.extraSlackFields
-            ))
-        ).asJson.noSpaces
-
-        sns.publish(msg).void
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
+          SlackNotification(
+            params.taskParams.appName,
+            s"$summaries\n${toText(snapshot.counters)}",
+            List(
+              Attachment(
+                cfg.infoColor,
+                at.toInstant.toEpochMilli,
+                List(
+                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Host", params.taskParams.hostName, short = true),
+                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
+                  SlackField(
+                    s"Next Metrics Reset at",
+                    next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
+                    short = true
+                  ),
+                  SlackField("Brief", cfg.brief, short = false)
+                ) ::: extra
+              ))
+          ))
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ActionStart(params, action, at) =>
-        def msg: String =
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.serviceParams.taskParams.appName,
             s"Start running action: *${params.actionName}*",
@@ -258,13 +264,13 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Service", params.serviceParams.serviceName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action ID", action.uuid.show, short = false)
-                ) ::: cfg.extraSlackFields
+                ) ::: extra
               ))
-          ).asJson.noSpaces
-        sns.publish(msg).void
+          ))
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ActionRetrying(params, action, at, wdr, error) =>
-        def msg: String =
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.serviceParams.taskParams.appName,
             s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action, retry of which takes place in *${cfg.durationFormatter
@@ -281,13 +287,16 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                ) ::: cfg.extraSlackFields
+                ) ::: extra
               ))
-          ).asJson.noSpaces
-        sns.publish(msg).whenA(params.importance.value > Importance.Low.value && cfg.isShowRetry)
+          ))
+
+        msg
+          .flatMap(m => sns.publish(m.asJson.noSpaces))
+          .whenA(params.importance.value > Importance.Low.value && cfg.isShowRetry)
 
       case ActionFailed(params, action, at, numRetries, notes, error) =>
-        def msg: String =
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.serviceParams.taskParams.appName,
             StringUtils.abbreviate(notes.value, cfg.maxTextSize),
@@ -305,13 +314,13 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                ) ::: cfg.extraSlackFields
+                ) ::: extra
               ))
-          ).asJson.noSpaces
-        sns.publish(msg).whenA(params.importance.value > Importance.Low.value)
+          ))
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance.value > Importance.Low.value)
 
       case ActionSucced(params, action, at, numRetries, notes) =>
-        def msg: String =
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.serviceParams.taskParams.appName,
             StringUtils.abbreviate(notes.value, cfg.maxTextSize),
@@ -327,13 +336,13 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retried", s"$numRetries/${params.retry.maxRetries}", short = true),
                   SlackField("Action ID", action.uuid.show, short = false)
-                ) ::: cfg.extraSlackFields
+                ) ::: extra
               ))
-          ).asJson.noSpaces
-        sns.publish(msg).void
+          ))
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ActionQuasiSucced(params, action, at, runMode, numSucc, succNotes, failNotes, errors) =>
-        def msg: SlackNotification =
+        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           if (errors.isEmpty)
             SlackNotification(
               params.serviceParams.taskParams.appName,
@@ -352,7 +361,7 @@ final class SlackPipe[F[_]] private[observers] (
                     SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
                     SlackField("Action ID", action.uuid.show, short = false)
-                  ) ::: cfg.extraSlackFields
+                  ) ::: extra
                 ))
             )
           else
@@ -373,11 +382,11 @@ final class SlackPipe[F[_]] private[observers] (
                     SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Run Mode", runMode.show, short = true),
                     SlackField("Action ID", action.uuid.show, short = false)
-                  ) ::: cfg.extraSlackFields
+                  ) ::: extra
                 ))
-            )
+            ))
 
-        sns.publish(msg.asJson.noSpaces).void
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       // no op
       case _: PassThrough => F.unit
