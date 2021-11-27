@@ -29,8 +29,8 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedE
 
   val classTag: ClassTag[A] = typedEncoder.classTag
 
-  val sparkSchema: StructType  = TypedExpressionEncoder(typedEncoder).schema
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder[A](typedEncoder)
+  val sparkSchema: StructType  = sparkEncoder.schema
 
   def normalize(rdd: RDD[A], ss: SparkSession): TypedDataset[A] = {
     val ds: Dataset[A] =

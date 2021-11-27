@@ -81,7 +81,7 @@ final class KafkaDownloader[F[_], K, V](
   }
 
   def circe(path: String)(implicit F: Async[F]): CirceDownloader[F, K, V] =
-    new CirceDownloader[F, K, V](stream, hadoop, path, true, Compression.Uncompressed)
+    new CirceDownloader[F, K, V](stream, hadoop, path, isKeepNull = true, Compression.Uncompressed)
 
   def parquet(path: String)(implicit F: Async[F]): ParquetDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
@@ -105,7 +105,7 @@ final class AvroDownloader[F[_], K, V](
   def bzip2: AvroDownloader[F, K, V]               = updateCompression(Compression.Bzip2)
   def uncompress: AvroDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
 
-  def run(implicit F: Sync[F]): Stream[F, Unit] =
+  def sink(implicit F: Sync[F]): Stream[F, Unit] =
     stream.through(sinks.avro(path, hadoop, encoder, compression.avro(hadoop)))
 }
 
@@ -127,7 +127,7 @@ final class JacksonDownloader[F[_], K, V](
   def gzip: JacksonDownloader[F, K, V]                = updateCompression(Compression.Gzip)
   def uncompress: JacksonDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
 
-  def run(implicit F: Sync[F]): Stream[F, Unit] =
+  def sink(implicit F: Sync[F]): Stream[F, Unit] =
     stream.through(sinks.jackson(path, hadoop, encoder, compression.fs2Compression, chunkSize))
 }
 
@@ -148,7 +148,7 @@ final class CirceDownloader[F[_], K, V](
   def keepNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, path, true, compression)
   def dropNull: CirceDownloader[F, K, V] = new CirceDownloader[F, K, V](stream, hadoop, path, false, compression)
 
-  def run(implicit F: Sync[F], enc: JsonEncoder[NJConsumerRecord[K, V]]): Stream[F, Unit] =
+  def sink(implicit F: Sync[F], enc: JsonEncoder[NJConsumerRecord[K, V]]): Stream[F, Unit] =
     stream.through(sinks.circe(path, hadoop, isKeepNull, compression.fs2Compression))
 }
 
@@ -166,6 +166,6 @@ final class ParquetDownloader[F[_], K, V](
   def gzip: ParquetDownloader[F, K, V]       = updateCompression(Compression.Gzip)
   def uncompress: ParquetDownloader[F, K, V] = updateCompression(Compression.Uncompressed)
 
-  def run(implicit F: Sync[F]): Stream[F, Unit] =
+  def sink(implicit F: Sync[F]): Stream[F, Unit] =
     stream.through(sinks.parquet(path, hadoop, encoder, compression.parquet))
 }
