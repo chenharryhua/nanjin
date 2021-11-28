@@ -8,8 +8,8 @@ ThisBuild / versionScheme      := Some("early-semver")
 // generic
 val shapeless  = "2.3.7"
 val kittens    = "2.3.2"
-val catsCore   = "2.6.1"
 val algebra    = "2.7.0"
+val catsCore   = "2.7.0"
 val fs2Version = "3.2.2"
 val catsMtl    = "1.2.1"
 val catsTime   = "0.5.0"
