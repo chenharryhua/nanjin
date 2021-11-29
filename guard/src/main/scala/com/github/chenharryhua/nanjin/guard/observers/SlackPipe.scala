@@ -34,7 +34,6 @@ object slack {
         maxTextSize = 500,
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
-        brief = "The developer is too lazy to provide a brief",
         isShowRetry = true,
         extraSlackFields = F.pure(Nil)
       )
@@ -51,7 +50,6 @@ final private case class SlackConfig[F[_]](
   maxTextSize: Int,
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
-  brief: String,
   isShowRetry: Boolean,
   extraSlackFields: F[List[SlackField]]
 )
@@ -77,7 +75,6 @@ final class SlackPipe[F[_]] private[observers] (
   def withErrorColor(color: String): SlackPipe[F]                 = updateSlackConfig(_.copy(errorColor = color))
   def withMaxTextSize(size: Int): SlackPipe[F]                    = updateSlackConfig(_.copy(maxTextSize = size))
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
-  def withBrief(brief: String): SlackPipe[F]                      = updateSlackConfig(_.copy(brief = brief))
   def withoutRetry: SlackPipe[F]                                  = updateSlackConfig(_.copy(isShowRetry = false))
 
   def withSlackField(title: String, value: F[String], isShort: Boolean): SlackPipe[F] =
@@ -122,7 +119,7 @@ final class SlackPipe[F[_]] private[observers] (
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
-            s":rocket: ${cfg.brief}",
+            s":rocket:",
             List(
               Attachment(
                 cfg.infoColor,
@@ -199,14 +196,13 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField(
-                    s"Next", // https://english.stackexchange.com/questions/182660/on-vs-at-with-date-and-time
+                    s"Next",
                     cfg.reportInterval
                       .map(fd => now.plusSeconds(fd.toSeconds))
                       .orElse(next)
                       .fold("no checks anymore")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                     short = true
-                  ),
-                  SlackField("Brief", cfg.brief, short = false)
+                  )
                 ) ::: extra
               ))
           ))
@@ -241,11 +237,10 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField(
-                    s"Next Metrics Reset at",
+                    s"Next Metrics Reset",
                     next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
                     short = true
-                  ),
-                  SlackField("Brief", cfg.brief, short = false)
+                  )
                 ) ::: extra
               ))
           ))
