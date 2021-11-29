@@ -59,7 +59,7 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], c
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(many = true) {
+      .checkAndRun(F.interruptibleMany {
         ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)
       })
 }

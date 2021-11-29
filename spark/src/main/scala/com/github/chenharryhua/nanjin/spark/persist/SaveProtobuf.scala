@@ -46,5 +46,5 @@ final class SaveMultiProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends 
 
   def run(implicit F: Async[F], enc: A <:< GeneratedMessage): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(many = true)(saveRDD.protobuf(rdd, params.outPath)))
+      .checkAndRun(F.interruptibleMany(saveRDD.protobuf(rdd, params.outPath)))
 }

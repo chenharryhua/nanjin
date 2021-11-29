@@ -56,5 +56,5 @@ final class SaveMultiAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Ho
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(many = true)(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
+      .checkAndRun(F.interruptibleMany(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
 }
