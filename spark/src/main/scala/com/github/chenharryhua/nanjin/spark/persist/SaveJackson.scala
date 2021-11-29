@@ -57,5 +57,5 @@ final class SaveMultiJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg:
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(many = true)(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
+      .checkAndRun(F.interruptibleMany(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
 }
