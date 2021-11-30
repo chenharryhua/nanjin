@@ -143,7 +143,7 @@ final class SlackPipe[F[_]] private[observers] (
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
-            s""":x: The service experienced a panic, $upcoming
+            s""":warning: The service experienced a panic, $upcoming
                |Search *${error.uuid}* in log file to find full exception.""".stripMargin,
             List(
               Attachment(
@@ -215,7 +215,7 @@ final class SlackPipe[F[_]] private[observers] (
               si.launchTime.plus(((Duration.between(si.launchTime, at).toScala / interval).toLong * interval).toJava)
             prev.isBefore(border) && at.isAfter(border)
           }
-        }.fold(true)(identity)
+        }.fold(false)(identity)
 
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(isShow)
 

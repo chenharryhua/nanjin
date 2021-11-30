@@ -12,12 +12,11 @@ import com.github.chenharryhua.nanjin.spark.persist.{
   RddFileHoarder
 }
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import frameless.TypedDataset
 import fs2.Stream
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 import scala.reflect.ClassTag
 
@@ -44,19 +43,19 @@ package object spark {
 
   }
 
-  implicit final class TypedDatasetExt[A](tds: TypedDataset[A]) extends Serializable {
+  implicit final class DatasetExt[A](ds: Dataset[A]) extends Serializable {
 
-    def stream[F[_]: Sync](chunkSize: Int): Stream[F, A] = tds.rdd.stream[F](chunkSize)
+    def stream[F[_]: Sync](chunkSize: Int): Stream[F, A] = ds.rdd.stream[F](chunkSize)
 
-    def dismissNulls: TypedDataset[A] = tds.deserialized.flatMap(Option(_))(tds.encoder)
-    def numOfNulls: Long              = tds.except(dismissNulls).dataset.count()
+    def dismissNulls: Dataset[A] = ds.flatMap(Option(_))(ds.encoder)
+    def numOfNulls: Long         = ds.except(dismissNulls).count()
 
-    def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(tds).upload
+    def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(ds).upload
 
-    def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](tds.dataset)
+    def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](ds)
 
     def save[F[_]](encoder: AvroEncoder[A]): DatasetAvroFileHoarder[F, A] =
-      new DatasetAvroFileHoarder[F, A](tds.dataset, encoder)
+      new DatasetAvroFileHoarder[F, A](ds, encoder)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {

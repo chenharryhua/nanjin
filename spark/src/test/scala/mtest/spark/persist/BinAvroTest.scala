@@ -17,7 +17,7 @@ class BinAvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/bin_avro/multi.bin.avro"
     saver.binAvro(path).folder.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }
@@ -27,7 +27,7 @@ class BinAvroTest extends AnyFunSuite {
 
     saver.binAvro(path).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }

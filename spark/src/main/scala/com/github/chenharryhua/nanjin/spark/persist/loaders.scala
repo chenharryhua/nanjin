@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerialization, GenericRe
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
-import frameless.TypedDataset
 import fs2.Stream
 import io.circe.Decoder as JsonDecoder
 import io.circe.parser.decode
@@ -18,7 +17,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.io.DataInputStream
@@ -27,17 +26,17 @@ import scala.util.Try
 
 object loaders {
 
-  def avro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def avro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.format("avro").load(pathStr))
 
-  def parquet[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def parquet[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.parquet(pathStr))
 
   def csv[A](
     pathStr: String,
     ate: AvroTypedEncoder[A],
     csvConfiguration: CsvConfiguration,
-    ss: SparkSession): TypedDataset[A] =
+    ss: SparkSession): Dataset[A] =
     ate.normalizeDF(
       ss.read
         .schema(ate.sparkSchema)
@@ -47,23 +46,22 @@ object loaders {
         .option("charset", "UTF8")
         .csv(pathStr))
 
-  def csv[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def csv[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     csv[A](pathStr, ate, CsvConfiguration.rfc, ss)
 
-  def json[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def json[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
 
-  def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalize(rdd.objectFile[A](pathStr, ss)(ate.classTag), ss)
 
-  def circe[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession)(implicit
-    dec: JsonDecoder[A]): TypedDataset[A] =
+  def circe[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession)(implicit dec: JsonDecoder[A]): Dataset[A] =
     ate.normalize(rdd.circe[A](pathStr, ss)(ate.classTag, dec), ss)
 
-  def jackson[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def jackson[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalize(rdd.jackson[A](pathStr, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
-  def binAvro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): TypedDataset[A] =
+  def binAvro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalize(rdd.binAvro[A](pathStr, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
   object rdd {

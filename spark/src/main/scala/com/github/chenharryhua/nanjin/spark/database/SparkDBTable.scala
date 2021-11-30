@@ -15,7 +15,7 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
 
   val tableName: TableName = tableDef.tableName
 
-  private val ate: AvroTypedEncoder[A] = tableDef.avroTypedEncoder
+  private val ate: AvroTypedEncoder[A] = tableDef.ate
 
   val params: STParams = cfg.evalConfig
 
@@ -28,11 +28,11 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
   def fromDB(implicit F: Sync[F]): F[TableDS[F, A]] = F.blocking {
     val df: DataFrame =
       sd.unloadDF(dbs.hikariConfig, tableDef.tableName, params.query.orElse(tableDef.unloadQuery), ss)
-    new TableDS[F, A](ate.normalizeDF(df).dataset, tableDef, dbs, cfg)
+    new TableDS[F, A](ate.normalizeDF(df), tableDef, dbs, cfg)
   }
 
   def fromDisk(implicit F: Sync[F]): F[TableDS[F, A]] =
-    F.blocking(new TableDS[F, A](loaders.objectFile(params.replayPath, ate, ss).dataset, tableDef, dbs, cfg))
+    F.blocking(new TableDS[F, A](loaders.objectFile(params.replayPath, ate, ss), tableDef, dbs, cfg))
 
   def countDisk(implicit F: Sync[F]): F[Long] = fromDisk.map(_.dataset.count())
 
@@ -46,13 +46,13 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
     fromDB.flatMap(_.save.objectFile(params.replayPath).overwrite.run)
 
   def tableset(ds: Dataset[A]): TableDS[F, A] =
-    new TableDS[F, A](ate.normalize(ds).dataset, tableDef, dbs, cfg)
+    new TableDS[F, A](ate.normalize(ds), tableDef, dbs, cfg)
 
   def tableset(tds: TypedDataset[A]): TableDS[F, A] =
-    new TableDS[F, A](ate.normalize(tds).dataset, tableDef, dbs, cfg)
+    new TableDS[F, A](ate.normalize(tds.dataset), tableDef, dbs, cfg)
 
   def tableset(rdd: RDD[A]): TableDS[F, A] =
-    new TableDS[F, A](ate.normalize(rdd, ss).dataset, tableDef, dbs, cfg)
+    new TableDS[F, A](ate.normalize(rdd, ss), tableDef, dbs, cfg)
 
   def load: LoadTableFile[F, A] = new LoadTableFile[F, A](tableDef, dbs, cfg, ss)
 

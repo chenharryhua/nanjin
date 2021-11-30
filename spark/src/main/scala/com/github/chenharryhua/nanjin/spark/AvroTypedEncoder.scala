@@ -6,6 +6,7 @@ import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.*
 import org.apache.spark.sql.avro.SchemaConverters
+import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.types.*
 
 import scala.reflect.ClassTag
@@ -32,24 +33,14 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedE
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder[A](typedEncoder)
   val sparkSchema: StructType  = sparkEncoder.schema
 
-  def normalize(rdd: RDD[A], ss: SparkSession): TypedDataset[A] = {
-    val ds: Dataset[A] =
-      ss.createDataset(rdd)(sparkEncoder).map(avroCodec.idConversion)(sparkEncoder)
-
-    TypedDataset.createUnsafe[A](ss.createDataFrame(ds.toDF().rdd, avroStructType))(typedEncoder)
+  def normalize(rdd: RDD[A], ss: SparkSession): Dataset[A] = {
+    val ds: Dataset[A] = ss.createDataset(rdd)(sparkEncoder).map(avroCodec.idConversion)(sparkEncoder)
+    ss.createDataFrame(ds.toDF().rdd, avroStructType).as[A](sparkEncoder)
   }
 
-  def normalize(ds: Dataset[A]): TypedDataset[A] =
-    normalize(ds.rdd, ds.sparkSession)
-
-  def normalize(tds: TypedDataset[A]): TypedDataset[A] =
-    normalize(tds.dataset)
-
-  def normalizeDF(ds: DataFrame): TypedDataset[A] =
-    normalize(TypedDataset.createUnsafe(ds)(typedEncoder))
-
-  def emptyDataset(ss: SparkSession): TypedDataset[A] =
-    normalize(ss.sparkContext.emptyRDD[A](typedEncoder.classTag), ss)
+  def normalize(ds: Dataset[A]): Dataset[A]      = normalize(ds.rdd, ds.sparkSession)
+  def normalizeDF(df: DataFrame): Dataset[A]     = normalize(df.as[A](sparkEncoder))
+  def emptyDataset(ss: SparkSession): Dataset[A] = normalize(ss.emptyDataset[A](sparkEncoder))
 }
 
 object AvroTypedEncoder {

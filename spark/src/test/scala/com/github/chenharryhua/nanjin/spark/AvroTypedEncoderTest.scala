@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.injection._
+import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import frameless.TypedEncoder
 import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.*
 import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -81,7 +81,7 @@ object AvroTypedEncoderTestData {
       StructField("b", DecimalType(7, 3), nullable = false)))
 
   val rdd: RDD[Lion] = sparkSession.sparkContext.parallelize(lions)
-  import sparkSession.implicits._
+  import sparkSession.implicits.*
 
   val ds: Dataset[Lion] = sparkSession.createDataset(lions)
   val df: DataFrame     = ds.toDF()
@@ -89,20 +89,20 @@ object AvroTypedEncoderTestData {
 }
 
 class AvroTypedEncoderTest extends AnyFunSuite {
-  import AvroTypedEncoderTestData._
+  import AvroTypedEncoderTestData.*
 
   test("normalize rdd") {
-    val n = ate.normalize(rdd, sparkSession).dataset
+    val n = ate.normalize(rdd, sparkSession)
     assert(n.collect().toSet == expected.toSet)
     assert(n.schema == expectedSchema)
   }
   test("normalize dataset") {
-    val n = ate.normalize(ds).dataset
+    val n = ate.normalize(ds)
     assert(n.collect().toSet == expected.toSet)
     assert(n.schema == expectedSchema)
   }
   test("normalize dataframe") {
-    val n = ate.normalizeDF(df).dataset
+    val n = ate.normalizeDF(df)
     assert(n.collect().toSet == expected.toSet)
     assert(n.schema == expectedSchema)
   }
@@ -114,34 +114,34 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded json should be normalized") {
     val path = "./data/test/spark/ate/json"
     ds.write.mode(SaveMode.Overwrite).json(path)
-    val r = loaders.json[Lion](path, ate, sparkSession).dataset
+    val r = loaders.json[Lion](path, ate, sparkSession)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded csv should be normalized") {
     val path = "./data/test/spark/ate/csv"
     ds.write.mode(SaveMode.Overwrite).csv(path)
-    val r = loaders.csv[Lion](path, ate, sparkSession).dataset
+    val r = loaders.csv[Lion](path, ate, sparkSession)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded avro should be normalized") {
     val path = "./data/test/spark/ate/avro"
     ds.write.format("avro").mode(SaveMode.Overwrite).save(path)
-    val r = loaders.avro[Lion](path, ate, sparkSession).dataset
+    val r = loaders.avro[Lion](path, ate, sparkSession)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded parquet should be normalized") {
     val path = "./data/test/spark/ate/parquet"
     ds.write.mode(SaveMode.Overwrite).parquet(path)
-    val r = loaders.parquet[Lion](path, ate, sparkSession).dataset
+    val r = loaders.parquet[Lion](path, ate, sparkSession)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
 
   test("empty set") {
-    val eds = ate.emptyDataset(sparkSession).dataset
+    val eds = ate.emptyDataset(sparkSession)
     assert(eds.count() == 0)
     assert(eds.schema == expectedSchema)
   }
@@ -150,21 +150,21 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     val ate  = AvroTypedEncoder[String]
     val data = List("a", "b", "c", "d")
     val rdd  = sparkSession.sparkContext.parallelize(data)
-    assert(ate.normalize(rdd, sparkSession).dataset.collect().toList == data)
+    assert(ate.normalize(rdd, sparkSession).collect().toList == data)
   }
 
   test("primitive type int") {
     val ate           = AvroTypedEncoder[Int]
     val data          = List(1, 2, 3, 4)
     val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(data)
-    assert(ate.normalize(rdd, sparkSession).dataset.collect().toList == data)
+    assert(ate.normalize(rdd, sparkSession).collect().toList == data)
   }
 
   test("primitive type array byte") {
     val ate                     = AvroTypedEncoder[Array[Byte]]
     val data: List[Array[Byte]] = List(Array(1), Array(2, 3), Array(4, 5, 6), Array(7, 8, 9, 10))
     val rdd                     = sparkSession.sparkContext.parallelize(data)
-    assert(ate.normalize(rdd, sparkSession).dataset.collect().toList.flatten == data.flatten)
+    assert(ate.normalize(rdd, sparkSession).collect().toList.flatten == data.flatten)
   }
 
   test("not support") {
@@ -177,5 +177,6 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     val ate3 = AvroTypedEncoder[Float]
     val ate4 = AvroTypedEncoder[Double]
     val ate5 = AvroTypedEncoder[Long]
+    val ate6 = AvroTypedEncoder[Boolean]
   }
 }

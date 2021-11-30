@@ -1,13 +1,11 @@
 package mtest.spark.persist
 
-import frameless.TypedDataset
+import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 
 import java.sql.Timestamp
 import java.time.Instant
-import mtest.spark.*
-
 import java.time.temporal.ChronoUnit
 
 object RoosterData {
@@ -35,9 +33,9 @@ object RoosterData {
 
   val rdd: RDD[Rooster] = sparkSession.sparkContext.parallelize(data)
 
-  val ds: Dataset[Rooster] = Rooster.ate.normalize(rdd, sparkSession).dataset
+  val ds: Dataset[Rooster] = Rooster.ate.normalize(rdd, sparkSession)
 
-  val bigset: TypedDataset[Rooster] =
+  val bigset: Dataset[Rooster] =
     Rooster.ate.normalize(
       sparkSession.sparkContext.parallelize(
         List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))),

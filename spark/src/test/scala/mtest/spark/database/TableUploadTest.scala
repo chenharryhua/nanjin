@@ -59,7 +59,7 @@ object TableUploadTestData {
       Beaver(BigDecimal("12.3456"), Random.nextFloat(), Random.nextDouble()),
       Beaver(BigDecimal("123456"), Random.nextFloat(), Random.nextDouble()))
   )
-  val tds: TypedDataset[Beaver] = table.tableDef.avroTypedEncoder.normalize(data, sparkSession)
+  val tds = table.tableDef.ate.normalize(data, sparkSession)
 }
 
 class TableUploadTest extends AnyFunSuite {
@@ -79,9 +79,6 @@ class TableUploadTest extends AnyFunSuite {
   }
 
   test("dump and reload") {
-    table.dump
-      .flatMap(_ => table.fromDisk.map(_.typedDataset.except(tds).dataset.count()))
-      .map(x => assert(x === 0))
-      .unsafeRunSync()
+    table.dump.flatMap(_ => table.fromDisk.map(_.dataset.except(tds).count())).map(x => assert(x === 0)).unsafeRunSync()
   }
 }
