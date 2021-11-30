@@ -327,7 +327,7 @@ lazy val aws = (project in file("aws"))
     libraryDependencies ++=
       Seq(
         "com.typesafe.akka" %% "akka-http"                % "10.2.7",
-        "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.3"
+        "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.4"
       ) ++ akkaLib ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib ++ awsLib
   )
 
