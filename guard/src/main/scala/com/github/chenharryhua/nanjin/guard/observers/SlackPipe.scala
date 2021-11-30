@@ -215,7 +215,7 @@ final class SlackPipe[F[_]] private[observers] (
               si.launchTime.plus(((Duration.between(si.launchTime, at).toScala / interval).toLong * interval).toJava)
             prev.isBefore(border) && at.isAfter(border)
           }
-        }.fold(true)(identity)
+        }.fold(false)(identity)
 
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(isShow)
 

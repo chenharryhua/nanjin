@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.7"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.13.3-SNAPSHOT"
+ThisBuild / version            := "0.13.5-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 // generic
