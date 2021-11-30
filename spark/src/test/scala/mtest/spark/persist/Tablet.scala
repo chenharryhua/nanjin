@@ -38,6 +38,6 @@ object TabletData {
         Instant.now.truncatedTo(ChronoUnit.MILLIS)))
 
   val rdd: RDD[Tablet]    = sparkSession.sparkContext.parallelize(data)
-  val ds: Dataset[Tablet] = Tablet.ate.normalize(rdd, sparkSession).dataset
+  val ds: Dataset[Tablet] = Tablet.ate.normalize(rdd, sparkSession)
 
 }

@@ -30,7 +30,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.uncompressed.avro"
     rooster.avro(path).uncompress.folder.run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }
@@ -39,7 +39,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.snappy.avro"
     rooster.avro(path).snappy.folder.run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }
@@ -48,7 +48,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.deflate.avro"
     rooster.avro(path).deflate(3).folder.run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }
@@ -57,7 +57,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.xz.avro"
     rooster.avro(path).xz(3).folder.run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }
@@ -66,7 +66,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/multi.bzip2.avro"
     rooster.avro(path).bzip2.folder.run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }
@@ -75,7 +75,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/single.uncompressed.avro"
     rooster.avro(path).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
     assert(RoosterData.expected == singleAvro(path))
@@ -94,7 +94,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/single.snappy.avro"
     rooster.avro(path).snappy.file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
     assert(RoosterData.expected == singleAvro(path))
@@ -104,7 +104,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/single.bzip2.avro"
     rooster.avro(path).bzip2.file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
     assert(RoosterData.expected == singleAvro(path))
@@ -114,7 +114,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/single.deflate.avro"
     rooster.avro(path).deflate(5).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
     assert(RoosterData.expected == singleAvro(path))
@@ -124,7 +124,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/single.xz.avro"
     rooster.avro(path).xz(5).file.sink.compile.drain.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
     assert(RoosterData.expected == singleAvro(path))
@@ -141,7 +141,7 @@ class AvroTest extends AnyFunSuite {
       .format("avro")
       .save(path)
     val r = loaders.rdd.avro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
   }
@@ -150,7 +150,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/rooster/spark-write-no-schema.avro"
     val tds  = Rooster.ate.normalize(RoosterData.rdd, sparkSession)
     tds.repartition(1).write.mode(SaveMode.Overwrite).format("avro").save(path)
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == t)
   }
 
@@ -160,7 +160,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/bee/multi.raw"
     bee.avro(path).folder.run.unsafeRunSync()
     val t = loaders.rdd.avro[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
-    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).dataset.collect().toList
+    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
     assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -169,7 +169,7 @@ class AvroTest extends AnyFunSuite {
     import cats.implicits.*
     val path = "./data/test/spark/persist/avro/bee/single.raw.avro"
     bee.avro(path).file.sink.compile.drain.unsafeRunSync()
-    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).dataset.collect().toList
+    val r = loaders.avro[Bee](path, Bee.ate, sparkSession).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -194,7 +194,7 @@ class AvroTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/avro/ant/single.raw.avro"
     ant.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.avro[Ant](path, Ant.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val r = loaders.avro[Ant](path, Ant.ate, sparkSession).dataset.collect().toSet
+    val r = loaders.avro[Ant](path, Ant.ate, sparkSession).collect().toSet
     assert(ants.toSet == t)
     assert(ants.toSet == r)
   }
@@ -203,7 +203,7 @@ class AvroTest extends AnyFunSuite {
     import AntData.*
     val path = "./data/test/spark/persist/avro/ant/multi.avro"
     ant.avro(path).folder.run.unsafeRunSync()
-    val t = loaders.avro[Ant](path, Ant.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[Ant](path, Ant.ate, sparkSession).collect().toSet
     val r = loaders.rdd.avro[Ant](path, Ant.avroCodec.avroDecoder, sparkSession).collect().toSet
 
     assert(ants.toSet == t)
@@ -215,7 +215,7 @@ class AvroTest extends AnyFunSuite {
     val path  = "./data/test/spark/persist/avro/emcop/single.avro"
     val saver = new RddAvroFileHoarder[IO, EmCop](emRDD, EmCop.avroCodec.avroEncoder)
     saver.avro(path).file.sink.compile.drain.unsafeRunSync()
-    val t = loaders.avro[EmCop](path, EmCop.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[EmCop](path, EmCop.ate, sparkSession).collect().toSet
     val r = loaders.rdd.avro[EmCop](path, EmCop.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(emCops.toSet == t)
     assert(emCops.toSet == r)
@@ -226,7 +226,7 @@ class AvroTest extends AnyFunSuite {
     val path  = "./data/test/spark/persist/avro/emcop/raw"
     val saver = new RddAvroFileHoarder[IO, EmCop](emRDD, EmCop.avroCodec.avroEncoder)
     saver.avro(path).folder.run.unsafeRunSync()
-    val t = loaders.avro[EmCop](path, EmCop.ate, sparkSession).dataset.collect().toSet
+    val t = loaders.avro[EmCop](path, EmCop.ate, sparkSession).collect().toSet
     val r = loaders.rdd.avro[EmCop](path, EmCop.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(emCops.toSet == t)
     assert(emCops.toSet == r)
@@ -275,7 +275,7 @@ class AvroTest extends AnyFunSuite {
     saver.avro(path).file.sink.compile.drain.unsafeRunSync()
     val t = loaders.rdd.avro[Jacket](path, Jacket.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(expected.toSet == t)
-    val t2 = loaders.avro[Jacket](path, Jacket.ate, sparkSession).dataset.collect().toSet
+    val t2 = loaders.avro[Jacket](path, Jacket.ate, sparkSession).collect().toSet
     assert(expected.toSet == t2)
   }
 

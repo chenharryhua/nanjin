@@ -6,10 +6,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import frameless.TypedEncoder
 
-final case class TableDef[A] private (
-  tableName: TableName,
-  avroTypedEncoder: AvroTypedEncoder[A],
-  unloadQuery: Option[String])
+final case class TableDef[A] private (tableName: TableName, ate: AvroTypedEncoder[A], unloadQuery: Option[String])
 
 object TableDef {
 

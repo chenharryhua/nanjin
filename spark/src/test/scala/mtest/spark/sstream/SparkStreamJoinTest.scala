@@ -74,7 +74,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
     ss.concurrently(sender.delayBy(3.seconds)).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
 
     val ate = AvroTypedEncoder[FooBar]
-    val res = loaders.json(path, ate, sparkSession).dataset.map(_.index).distinct().collect().toSet
+    val res = loaders.json(path, ate, sparkSession).map(_.index).distinct().collect().toSet
     assert(res.contains(rand + 1))
     assert(res.contains(rand + 2))
     assert(res.contains(rand + 3))

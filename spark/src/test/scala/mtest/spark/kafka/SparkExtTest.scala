@@ -3,15 +3,16 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark._
-import com.github.chenharryhua.nanjin.spark.kafka._
+import com.github.chenharryhua.nanjin.spark.*
+import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import frameless.{TypedDataset, TypedEncoder}
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
+import org.apache.spark.sql.*
 
 object SparkExtTestData {
   final case class Foo(a: Int, b: String)
@@ -31,7 +32,7 @@ class SparkExtTest extends AnyFunSuite {
   val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = NJConsumerRecord.ate(topic.topicDef)
 
   test("stream") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.crDS.typedDataset.stream[IO](100).compile.drain).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.crDS.dataset.stream[IO](100).compile.drain).unsafeRunSync()
   }
   /*
   test("source") {
@@ -57,24 +58,26 @@ class SparkExtTest extends AnyFunSuite {
   }
 
   test("sparKafka rdd remove null object") {
-    import SparkExtTestData._
+    import SparkExtTestData.*
     val rdd: RDD[Foo] = sparkSession.sparkContext.parallelize(list)
     assert(rdd.dismissNulls.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
     assert(rdd.numOfNulls == 1)
   }
   test("sparKafka typed dataset deal with primitive null ") {
-    val tds = TypedDataset.create[Int](List(1, null.asInstanceOf[Int], 3))
-    assert(tds.dismissNulls.dataset.collect().toList == List(1, 0, 3))
+    import sparkSession.implicits.*
+    val tds = sparkSession.createDataset[Int](List(1, null.asInstanceOf[Int], 3))
+    assert(tds.dismissNulls.collect().toList == List(1, 0, 3))
     assert(tds.numOfNulls == 0)
   }
 
   test("save syntax") {
-    import SparkExtTestData._
+    import SparkExtTestData.*
+    import sparkSession.implicits.*
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
     rdd.save[IO](ate.avroCodec.avroEncoder).avro("./data/test/spark/sytax/rdd/avro").folder.run.unsafeRunSync()
     rdd.save[IO].circe("./data/test/spark/sytax/rdd/circe").folder.run.unsafeRunSync()
-    val ds = TypedDataset.create(rdd)
+    val ds = sparkSession.createDataset(rdd)
     ds.save[IO](ate.avroCodec.avroEncoder).parquet("./data/test/spark/sytax/ds/parquet").folder.run.unsafeRunSync()
     ds.save[IO].json("./data/test/spark/sytax/ds/json").run.unsafeRunSync()
   }

@@ -11,9 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class ConcurrencyTest extends AnyFunSuite {
 
   val rooster =
-    new DatasetAvroFileHoarder[IO, Rooster](
-      RoosterData.bigset.dataset.repartition(2).persist(),
-      Rooster.avroCodec.avroEncoder)
+    new DatasetAvroFileHoarder[IO, Rooster](RoosterData.bigset.repartition(2).persist(), Rooster.avroCodec.avroEncoder)
   test("avro") {
     val root = "./data/test/spark/persist/interlope/avro/rooster/"
     val run = for {

@@ -75,7 +75,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     new CrRdd[F, K, V](rdd, topic, cfg, ss)
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
-    new CrDS(ate.normalizeDF(df).dataset, topic, cfg, tek, tev)
+    new CrDS(ate.normalizeDF(df), topic, cfg, tek, tev)
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, topic, cfg)
