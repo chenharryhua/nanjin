@@ -281,7 +281,7 @@ val http4sLib = Seq(
 ).map(_ % http4s)
 
 val jwtLib = Seq(
-  "org.bouncycastle" % "bcpkix-jdk15on" % "1.69",
+  "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.2",
   "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.2",
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.2"
