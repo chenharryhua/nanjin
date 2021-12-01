@@ -62,13 +62,13 @@ class SortTest extends AnyFunSuite {
   }
   test("disorders") {
     assert(crRdd.stats.disorders.count() == 4)
-    crRdd.stats.summary.unsafeRunSync()
   }
   test("dup") {
     assert(crRdd.stats.dupRecords.count() == 1)
   }
   test("missing offsets") {
     assert(crRdd.stats.missingOffsets.count() == 1)
+    crRdd.stats.showSummary.unsafeRunSync()
   }
   test("misorder keys") {
     assert(crDS.misorderedKey.count() == 4)
