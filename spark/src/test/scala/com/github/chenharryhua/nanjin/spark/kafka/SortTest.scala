@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import mtest.spark.kafka.sparKafka
@@ -68,7 +70,7 @@ class SortTest extends AnyFunSuite {
   }
   test("missing offsets") {
     assert(crRdd.stats.missingOffsets.count() == 1)
-    crRdd.stats.showSummary.unsafeRunSync()
+    IO.println(crRdd.stats.summary.show).unsafeRunSync()
   }
   test("misorder keys") {
     assert(crDS.misorderedKey.count() == 4)
