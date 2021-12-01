@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import better.files._
+import better.files.*
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.SaveMode
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
 
 class SaveModeAwareTest extends AnyFunSuite {
-  import mtest.spark._
+  import mtest.spark.*
   val hadoopConfig: Configuration = sparkSession.sparkContext.hadoopConfiguration
 
   test("error if exists") {

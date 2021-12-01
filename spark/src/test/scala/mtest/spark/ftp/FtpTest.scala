@@ -5,10 +5,10 @@ import akka.stream.alpakka.ftp.{FtpCredentials, FtpSettings, FtpsSettings, SftpS
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.ftp.{ftpSink, ftpSource}
-import com.github.chenharryhua.nanjin.spark.injection._
-import io.circe.generic.auto._
-import kantan.csv.generic._
-import kantan.csv.java8._
+import com.github.chenharryhua.nanjin.spark.injection.*
+import io.circe.generic.auto.*
+import kantan.csv.generic.*
+import kantan.csv.java8.*
 import mtest.spark.akkaSystem
 import mtest.spark.persist.{Tablet, TabletData}
 import org.apache.commons.net.PrintCommandListener
