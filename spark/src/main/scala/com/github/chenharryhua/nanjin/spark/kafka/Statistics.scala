@@ -1,6 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.Applicative
 import cats.effect.kernel.Sync
+import cats.effect.std.Console
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.*
 import org.apache.spark.sql.Dataset
 
@@ -114,7 +117,7 @@ final class Statistics[F[_]] private[kafka] (
         .show(rowNum, isTruncate))
   }
 
-  def summaryDS: Dataset[KafkaSummary] = {
+  def summary: List[KafkaSummary] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.*
     ds.groupBy("partition")
@@ -126,10 +129,12 @@ final class Statistics[F[_]] private[kafka] (
         max("timestamp").as("endTs"))
       .as[KafkaSummary]
       .orderBy(asc("partition"))
+      .collect()
+      .toList
   }
 
-  def summary(implicit F: Sync[F]): F[Unit] =
-    F.delay(summaryDS.collect().foreach(x => println(x.showData(zoneId))))
+  def showSummary(implicit F: Console[F], Ap: Applicative[F]): F[Unit] =
+    summary.map(_.showData(zoneId)).traverse(F.println).void
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
@@ -137,7 +142,7 @@ final class Statistics[F[_]] private[kafka] (
   def missingOffsets: Dataset[MissingOffset] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
-    val all: Array[Dataset[MissingOffset]] = summaryDS.collect().map { kds =>
+    val all: List[Dataset[MissingOffset]] = summary.map { kds =>
       val expect: Dataset[Long] = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
       val exist: Dataset[Long]  = ds.filter(col("partition") === kds.partition).map(_.offset)
       expect.except(exist).map(os => MissingOffset(partition = kds.partition, offset = os))
