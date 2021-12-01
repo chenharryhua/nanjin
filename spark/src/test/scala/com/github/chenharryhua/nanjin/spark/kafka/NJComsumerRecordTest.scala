@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.derived.auto.eq._
+import cats.derived.auto.eq.*
 import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.{BifunctorTests, BitraverseTests}
 import cats.tests.CatsSuite

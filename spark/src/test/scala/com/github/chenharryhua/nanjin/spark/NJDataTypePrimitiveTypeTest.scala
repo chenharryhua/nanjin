@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark
 import avrohugger.Generator
 import avrohugger.format.Standard
 import org.apache.spark.sql.avro.SchemaConverters
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.*
 import org.scalatest.funsuite.AnyFunSuite
 
 object NJDataTypeFTestData {
@@ -27,7 +27,7 @@ object NJDataTypeFTestData {
 }
 
 class NJDataTypePrimitiveTypeTest extends AnyFunSuite {
-  import NJDataTypeFTestData._
+  import NJDataTypeFTestData.*
   val generator: Generator = Generator(Standard)
   test("primitive types") {
     val rst = NJDataType(st).toSchema
