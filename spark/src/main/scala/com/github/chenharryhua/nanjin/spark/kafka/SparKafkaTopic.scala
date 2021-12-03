@@ -25,6 +25,7 @@ import java.time.LocalDate
 
 final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends UpdateConfig[SKConfig, SparKafkaTopic[F, K, V]] with Serializable {
+  override val toString: String = topic.topicName.value
 
   val topicName: TopicName = topic.topicDef.topicName
 

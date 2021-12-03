@@ -37,13 +37,18 @@ import scala.concurrent.duration.FiniteDuration
   val zonedEndTime: Option[ZonedDateTime]   = endTimestamp.map(_.atZone(zoneId))
 
   /** @return
-    *   list of local-date from start date(inclusive) to end date(exclusive) empty if start date === end date empty if
-    *   infinite
+    *   list of local-date from start date(inclusive) to end date(exclusive)
+    *
+    * empty if start date === end date
+    *
+    * empty if infinite
     */
   def days: List[LocalDate] =
     (zonedStartTime, zonedEndTime).traverseN { (s, e) =>
       s.toLocalDate.toEpochDay.until(e.toLocalDate.toEpochDay).map(LocalDate.ofEpochDay).toList
     }.flatten
+
+  def dayStrings: List[String] = days.map(d => NJTimestamp(d, zoneId).`Year=yyyy/Month=mm/Day=dd`(zoneId))
 
   def subranges(interval: FiniteDuration): List[NJDateTimeRange] =
     (startTimestamp, endTimestamp).traverseN { (s, e) =>

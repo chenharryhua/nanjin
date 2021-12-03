@@ -227,7 +227,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action post condition unsatisfied")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "")
     assert(f.isInstanceOf[ServicePanic])
   }
   test("retry - should fail the action if post condition is unsatisfied - 2") {
@@ -238,6 +238,7 @@ class RetryTest extends AnyFunSuite {
           .trivial
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry((a: Int) => IO(a))
+          .withSuccNotes((i, j) => s"$i $j")
           .withPostCondition(_ > 1)
           .run(0)
       }
@@ -249,7 +250,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetrying])
     assert(c.isInstanceOf[ActionRetrying])
     assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action post condition unsatisfied")
+    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "0 0")
     assert(f.isInstanceOf[ServicePanic])
   }
 

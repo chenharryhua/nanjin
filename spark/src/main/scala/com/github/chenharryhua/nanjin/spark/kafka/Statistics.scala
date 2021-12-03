@@ -1,13 +1,16 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.Show
 import cats.Applicative
 import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
+import io.circe.generic.JsonCodec
 import org.apache.spark.sql.Dataset
 
-import java.time.{LocalDate, ZoneId}
+import java.time.{LocalDate, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Int)
@@ -16,7 +19,7 @@ final private[kafka] case class DailyAggResult(date: LocalDate, count: Int)
 final private[kafka] case class DailyHourAggResult(dateTime: String, count: Int)
 final private[kafka] case class DailyMinuteAggResult(dateTime: String, count: Int)
 
-final case class KafkaSummary(
+final private case class KafkaSummaryInternal(
   partition: Int,
   startOffset: Long,
   endOffset: Long,
@@ -27,19 +30,45 @@ final case class KafkaSummary(
   val gap: Long                    = count - distance
   val timeDistance: FiniteDuration = FiniteDuration(endTs - startTs, MILLISECONDS)
 
-  def showData(zoneId: ZoneId): String =
+  def toKafkaSummary(zoneId: ZoneId): KafkaSummary = KafkaSummary(
+    partition,
+    startOffset,
+    endOffset,
+    count,
+    NJTimestamp(startTs).atZone(zoneId),
+    NJTimestamp(endTs).atZone(zoneId),
+    endOffset - startOffset + 1L,
+    count - distance,
+    FiniteDuration(endTs - startTs, MILLISECONDS)
+  )
+}
+
+@JsonCodec
+final case class KafkaSummary(
+  partition: Int,
+  startOffset: Long,
+  endOffset: Long,
+  count: Long,
+  startTs: ZonedDateTime,
+  endTs: ZonedDateTime,
+  distance: Long,
+  gap: Long,
+  duration: FiniteDuration) {}
+
+object KafkaSummary {
+  implicit val showKafkaSummary: Show[KafkaSummary] = ks =>
     s"""
-       |partition:     $partition
-       |first offset:  $startOffset
-       |last offset:   $endOffset
-       |distance:      $distance
-       |count:         $count
-       |gap:           $gap (${if (gap == 0) "perfect"
-    else if (gap < 0) "probably lost data or its a compact topic"
+       |partition:     ${ks.partition}
+       |first offset:  ${ks.startOffset}
+       |last offset:   ${ks.endOffset}
+       |distance:      ${ks.distance}
+       |count:         ${ks.count}
+       |gap:           ${ks.gap} (${if (ks.gap == 0) "perfect"
+    else if (ks.gap < 0) "probably lost data or its a compact topic"
     else "oops how is it possible"})
-       |first TS:      $startTs(${NJTimestamp(startTs).atZone(zoneId)} not necessarily of the first offset)
-       |last TS:       $endTs(${NJTimestamp(endTs).atZone(zoneId)} not necessarily of the last offset)
-       |time distance: ${timeDistance.toHours} Hours roughly
+       |first TS:      ${ks.startTs} not necessarily of the first offset)
+       |last TS:       ${ks.endTs} not necessarily of the last offset)
+       |time distance: ${ks.duration.toHours} Hours roughly
        |""".stripMargin
 }
 
@@ -117,7 +146,7 @@ final class Statistics[F[_]] private[kafka] (
         .show(rowNum, isTruncate))
   }
 
-  def summary: List[KafkaSummary] = {
+  private def internalSummary: List[KafkaSummaryInternal] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.*
     ds.groupBy("partition")
@@ -127,14 +156,13 @@ final class Statistics[F[_]] private[kafka] (
         count(lit(1)).as("count"),
         min("timestamp").as("startTs"),
         max("timestamp").as("endTs"))
-      .as[KafkaSummary]
+      .as[KafkaSummaryInternal]
       .orderBy(asc("partition"))
       .collect()
       .toList
   }
 
-  def showSummary(implicit F: Console[F], Ap: Applicative[F]): F[Unit] =
-    summary.map(_.showData(zoneId)).traverse(F.println).void
+  def summary: List[KafkaSummary] = internalSummary.map(_.toKafkaSummary(zoneId))
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
@@ -142,7 +170,7 @@ final class Statistics[F[_]] private[kafka] (
   def missingOffsets: Dataset[MissingOffset] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
-    val all: List[Dataset[MissingOffset]] = summary.map { kds =>
+    val all: List[Dataset[MissingOffset]] = internalSummary.map { kds =>
       val expect: Dataset[Long] = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
       val exist: Dataset[Long]  = ds.filter(col("partition") === kds.partition).map(_.offset)
       expect.except(exist).map(os => MissingOffset(partition = kds.partition, offset = os))
