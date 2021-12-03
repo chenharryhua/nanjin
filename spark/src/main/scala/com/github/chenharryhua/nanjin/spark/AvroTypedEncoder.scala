@@ -2,11 +2,10 @@ package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
-import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
+import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.*
 import org.apache.spark.sql.avro.SchemaConverters
-import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.types.*
 
 import scala.reflect.ClassTag
