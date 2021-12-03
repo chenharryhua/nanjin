@@ -105,7 +105,9 @@ final class ActionRetry[F[_], A, B] private[guard] (
                 poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
                 fiber.cancel)
               _ <- F.raiseError(ActionException.UnexpectedlyTerminated).whenA(!params.isTerminate)
-              _ <- F.raiseError(ActionException.PostConditionUnsatisfied).whenA(!postCondition(oc))
+              _ <- succ(input, oc)
+                .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
+                .whenA(!postCondition(oc))
             } yield oc
           }
           .guaranteeCase(handleOutcome(input, actionInfo, retryCount)))
