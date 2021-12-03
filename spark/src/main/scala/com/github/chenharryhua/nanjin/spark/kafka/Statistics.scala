@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
+import cats.Applicative
 import cats.effect.kernel.Sync
+import cats.effect.std.Console
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import io.circe.generic.JsonCodec

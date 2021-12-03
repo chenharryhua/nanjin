@@ -70,7 +70,6 @@ class SortTest extends AnyFunSuite {
   }
   test("missing offsets") {
     assert(crRdd.stats.missingOffsets.count() == 1)
-    IO.println(crRdd.stats.summary.show).unsafeRunSync()
   }
   test("misorder keys") {
     assert(crDS.misorderedKey.count() == 4)
