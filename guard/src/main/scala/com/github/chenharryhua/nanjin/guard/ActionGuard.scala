@@ -21,7 +21,9 @@ final class ActionGuard[F[_]] private[guard] (
   actionConfig: ActionConfig)(implicit F: Temporal[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
-  val params: ActionParams = actionConfig.evalConfig
+  val params: ActionParams     = actionConfig.evalConfig
+  val serviceInfo: ServiceInfo = publisher.serviceInfo
+  val zoneId: ZoneId           = params.serviceParams.taskParams.zoneId
 
   override def updateConfig(f: ActionConfig => ActionConfig): ActionGuard[F] =
     new ActionGuard[F](publisher, dispatcher, f(actionConfig))
@@ -73,8 +75,6 @@ final class ActionGuard[F[_]] private[guard] (
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 
   def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
-
-  val zoneId: ZoneId = params.serviceParams.taskParams.zoneId
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
