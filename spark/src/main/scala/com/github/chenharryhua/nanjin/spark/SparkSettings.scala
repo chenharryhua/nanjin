@@ -7,14 +7,17 @@ import monocle.macros.Lenses
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
+import java.time.ZoneId
+
 /** [[http://spark.apache.org/]]
   */
 
 @Lenses final case class SparkSettings(conf: SparkConf, logLevel: NJLogLevel)
     extends UpdateConfig[SparkConf, SparkSettings] {
 
-  def withAppName(appName: String): SparkSettings =
-    updateConfig(_.set("spark.app.name", appName))
+  def withAppName(appName: String): SparkSettings = updateConfig(_.setAppName(appName))
+  def withMaster(master: String): SparkSettings   = updateConfig(_.setMaster(master))
+  def withHome(home: String): SparkSettings       = updateConfig(_.setSparkHome(home))
 
   def withKms(kmsKey: String): SparkSettings = {
     val kms = if (kmsKey.startsWith("alias/")) kmsKey else s"alias/$kmsKey"
@@ -23,17 +26,13 @@ import org.apache.spark.sql.SparkSession
         .set("spark.hadoop.fs.s3a.server-side-encryption.key", kms))
   }
 
-  def withMaster(master: String): SparkSettings =
-    updateConfig(_.set("spark.master", master))
-
   def withLogLevel(logLevel: NJLogLevel): SparkSettings =
     SparkSettings.logLevel.set(logLevel)(this)
 
-  def withUI: SparkSettings =
-    updateConfig(_.set("spark.ui.enabled", "true"))
+  def withUI: SparkSettings    = updateConfig(_.set("spark.ui.enabled", "true"))
+  def withoutUI: SparkSettings = updateConfig(_.set("spark.ui.enabled", "false"))
 
-  def withoutUI: SparkSettings =
-    updateConfig(_.set("spark.ui.enabled", "false"))
+  def withZoneId(zoneId: ZoneId): SparkSettings = updateConfig(_.set("spark.sql.session.timeZone", zoneId.getId))
 
   def updateConfig(f: SparkConf => SparkConf): SparkSettings =
     SparkSettings.conf.modify(f)(this)

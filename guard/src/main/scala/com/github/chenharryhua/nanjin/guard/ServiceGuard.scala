@@ -55,7 +55,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-        val publisher: EventPublisher[F]   = new EventPublisher[F](metricRegistry, channel, serviceInfo, params)
+        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel, params)
 
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {

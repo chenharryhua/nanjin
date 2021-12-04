@@ -21,9 +21,9 @@ import scala.compat.java8.DurationConverters.FiniteDurationops
 import scala.concurrent.duration.FiniteDuration
 
 final private[guard] class EventPublisher[F[_]: UUIDGen](
+  val serviceInfo: ServiceInfo,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  serviceInfo: ServiceInfo,
   serviceParams: ServiceParams)(implicit F: Async[F]) {
 
   // service level
