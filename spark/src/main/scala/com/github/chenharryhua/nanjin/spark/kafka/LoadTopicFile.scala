@@ -52,7 +52,8 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
   def circe(pathStr: String)(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V],
-    ev: JsonDecoder[NJConsumerRecord[K, V]],
+    jdk: JsonDecoder[K],
+    jdv: JsonDecoder[V],
     F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
@@ -107,7 +108,8 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
 
     def circe(pathStr: String, chunkSize: Int)(implicit
       F: Sync[F],
-      ev: JsonDecoder[NJConsumerRecord[K, V]]): Stream[F, NJConsumerRecord[K, V]] =
+      jdk: JsonDecoder[K],
+      jdv: JsonDecoder[V]): Stream[F, NJConsumerRecord[K, V]] =
       loaders.stream.circe[F, NJConsumerRecord[K, V]](pathStr, hadoopConfiguration, chunkSize)
 
     def jackson(pathStr: String, chunkSize: Int)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =

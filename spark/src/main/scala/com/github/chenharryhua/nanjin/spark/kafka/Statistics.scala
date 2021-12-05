@@ -1,10 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
-import cats.Applicative
 import cats.effect.kernel.Sync
-import cats.effect.std.Console
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import io.circe.generic.JsonCodec
@@ -27,7 +24,6 @@ final private case class KafkaSummaryInternal(
   startTs: Long,
   endTs: Long) {
   val distance: Long               = endOffset - startOffset + 1L
-  val gap: Long                    = count - distance
   val timeDistance: FiniteDuration = FiniteDuration(endTs - startTs, MILLISECONDS)
 
   def toKafkaSummary(zoneId: ZoneId): KafkaSummary = KafkaSummary(
@@ -37,38 +33,38 @@ final private case class KafkaSummaryInternal(
     count,
     NJTimestamp(startTs).atZone(zoneId),
     NJTimestamp(endTs).atZone(zoneId),
-    endOffset - startOffset + 1L,
+    distance,
     count - distance,
-    FiniteDuration(endTs - startTs, MILLISECONDS)
+    DurationFormatter.defaultFormatter.format(timeDistance)
   )
 }
 
 @JsonCodec
 final case class KafkaSummary(
   partition: Int,
-  startOffset: Long,
-  endOffset: Long,
+  start_offset: Long,
+  end_offset: Long,
   count: Long,
-  startTs: ZonedDateTime,
-  endTs: ZonedDateTime,
+  start_ts: ZonedDateTime,
+  end_ts: ZonedDateTime,
   distance: Long,
   gap: Long,
-  duration: FiniteDuration) {}
+  period: String) {}
 
 object KafkaSummary {
   implicit val showKafkaSummary: Show[KafkaSummary] = ks =>
     s"""
        |partition:     ${ks.partition}
-       |first offset:  ${ks.startOffset}
-       |last offset:   ${ks.endOffset}
+       |first offset:  ${ks.start_offset}
+       |last offset:   ${ks.end_offset}
        |distance:      ${ks.distance}
        |count:         ${ks.count}
        |gap:           ${ks.gap} (${if (ks.gap == 0) "perfect"
     else if (ks.gap < 0) "probably lost data or its a compact topic"
     else "oops how is it possible"})
-       |first TS:      ${ks.startTs} not necessarily of the first offset)
-       |last TS:       ${ks.endTs} not necessarily of the last offset)
-       |time distance: ${ks.duration.toHours} Hours roughly
+       |first TS:      ${ks.start_ts} not necessarily of the first offset)
+       |last TS:       ${ks.end_ts} not necessarily of the last offset)
+       |period:        ${ks.period}
        |""".stripMargin
 }
 
