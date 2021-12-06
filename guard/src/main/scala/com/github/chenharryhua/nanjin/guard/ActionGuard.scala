@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Show
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.Temporal
@@ -65,14 +66,14 @@ final class ActionGuard[F[_]] private[guard] (
   def count(num: Long, metricName: String): F[Unit]    = publisher.count(metricName, num)
   def unsafeCount(num: Long, metricName: String): Unit = dispatcher.unsafeRunSync(count(num, metricName))
 
-  def alert(msg: String, metricName: String): F[Unit]         = publisher.alert(metricName, msg)
-  def alert(msg: Option[String], metricName: String): F[Unit] = msg.traverse(alert(_, metricName)).void
-  def alert[C](msg: Either[Throwable, C], metricName: String): F[Unit] =
+  def alert[S: Show](msg: S, metricName: String): F[Unit]         = publisher.alert(metricName, msg.show)
+  def alert[S: Show](msg: Option[S], metricName: String): F[Unit] = msg.traverse(alert(_, metricName)).void
+  def alert(msg: Either[Throwable, ?], metricName: String): F[Unit] =
     alert(msg.leftMap(ex => ExceptionUtils.getStackTrace(ex)).swap.toOption, metricName)
-  def unsafeAlert(msg: String, metricName: String): Unit         = dispatcher.unsafeRunSync(alert(msg, metricName))
-  def unsafeAlert(msg: Option[String], metricName: String): Unit = dispatcher.unsafeRunSync(alert(msg, metricName))
-  def unsafeAlert[C](msg: Either[Throwable, C], metricName: String): Unit =
-    dispatcher.unsafeRunSync(alert[C](msg, metricName))
+  def unsafeAlert[S: Show](msg: S, metricName: String): Unit         = dispatcher.unsafeRunSync(alert(msg, metricName))
+  def unsafeAlert[S: Show](msg: Option[S], metricName: String): Unit = dispatcher.unsafeRunSync(alert(msg, metricName))
+  def unsafeAlert(msg: Either[Throwable, ?], metricName: String): Unit =
+    dispatcher.unsafeRunSync(alert(msg, metricName))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
