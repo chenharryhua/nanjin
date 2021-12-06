@@ -44,7 +44,7 @@ final case class ServiceAlert(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  metricName: String,
+  alertName: String,
   message: String
 ) extends ServiceEvent
 

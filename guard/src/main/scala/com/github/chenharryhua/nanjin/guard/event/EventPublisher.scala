@@ -277,7 +277,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def count(metricName: String, num: Long): F[Unit] =
     F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
 
-  def alert(metricName: String, msg: String): F[Unit] =
+  def alert(alertName: String, msg: String): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
         .send(
@@ -285,7 +285,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             timestamp = ts,
             serviceInfo = serviceInfo,
             serviceParams = serviceParams,
-            metricName = metricName,
+            alertName = alertName,
             message = msg))
-        .map(_ => metricRegistry.counter(alertMRName(metricName)).inc()))
+        .map(_ => metricRegistry.counter(alertMRName(alertName)).inc()))
 }

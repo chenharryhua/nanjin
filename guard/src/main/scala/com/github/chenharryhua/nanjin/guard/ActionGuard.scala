@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.Show
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.Temporal
@@ -62,17 +63,17 @@ final class ActionGuard[F[_]] private[guard] (
   def unsafePassThrough[A: Encoder](a: A, metricName: String): Unit =
     dispatcher.unsafeRunSync(passThrough(a, metricName))
 
-  def count(num: Long, metricName: String): F[Unit]    = publisher.count(metricName, num)
-  def unsafeCount(num: Long, metricName: String): Unit = dispatcher.unsafeRunSync(count(num, metricName))
+  def count(num: Long, alertName: String): F[Unit]    = publisher.count(alertName, num)
+  def unsafeCount(num: Long, alertName: String): Unit = dispatcher.unsafeRunSync(count(num, alertName))
 
-  def alert(msg: String, metricName: String): F[Unit]         = publisher.alert(metricName, msg)
-  def alert(msg: Option[String], metricName: String): F[Unit] = msg.traverse(alert(_, metricName)).void
-  def alert[C](msg: Either[Throwable, C], metricName: String): F[Unit] =
-    alert(msg.leftMap(ex => ExceptionUtils.getStackTrace(ex)).swap.toOption, metricName)
-  def unsafeAlert(msg: String, metricName: String): Unit         = dispatcher.unsafeRunSync(alert(msg, metricName))
-  def unsafeAlert(msg: Option[String], metricName: String): Unit = dispatcher.unsafeRunSync(alert(msg, metricName))
-  def unsafeAlert[C](msg: Either[Throwable, C], metricName: String): Unit =
-    dispatcher.unsafeRunSync(alert[C](msg, metricName))
+  def alert[S: Show](msg: S, alertName: String): F[Unit]         = publisher.alert(alertName, msg.show)
+  def alert[S: Show](msg: Option[S], alertName: String): F[Unit] = msg.traverse(alert(_, alertName)).void
+  def alert(msg: Either[Throwable, ?], alertName: String): F[Unit] =
+    alert(msg.leftMap(ex => ExceptionUtils.getStackTrace(ex)).swap.toOption, alertName)
+  def unsafeAlert[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(alert(msg, alertName))
+  def unsafeAlert[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(alert(msg, alertName))
+  def unsafeAlert(msg: Either[Throwable, ?], alertName: String): Unit =
+    dispatcher.unsafeRunSync(alert(msg, alertName))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
