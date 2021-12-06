@@ -27,9 +27,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   serviceParams: ServiceParams)(implicit F: Async[F]) {
 
   // service level
-  private val metricsReportMRName: String = "01.health.check"
-  private val serviceStartMRName: String  = "02.service.start"
-  private val servicePanicMRName: String  = "03.service.`panic`"
+  private val metricsReportMRName: String       = "01.health.check"
+  private val serviceStartMRName: String        = "02.service.start"
+  private val servicePanicMRName: String        = "03.service.`panic`"
+  private def alertMRName(name: String): String = s"04.`alert`.[$name]"
 
   // action level
   private def counterMRName(name: String): String     = s"10.counter.[$name]"
@@ -270,9 +271,21 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def passThrough(metricName: String, json: Json): F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
-        .send(PassThrough(ts, metricName, json))
+        .send(PassThrough(timestamp = ts, metricName = metricName, value = json))
         .map(_ => metricRegistry.counter(passThroughMRName(metricName)).inc()))
 
   def count(metricName: String, num: Long): F[Unit] =
     F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
+
+  def alert(metricName: String, msg: String): F[Unit] =
+    realZonedDateTime.flatMap(ts =>
+      channel
+        .send(
+          ServiceAlert(
+            timestamp = ts,
+            serviceInfo = serviceInfo,
+            serviceParams = serviceParams,
+            metricName = metricName,
+            message = msg))
+        .map(_ => metricRegistry.counter(alertMRName(metricName)).inc()))
 }

@@ -50,4 +50,15 @@ class PassThroughTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(last.asInstanceOf[MetricsReport].snapshot.counters("10.counter.[counter]") > 3)
   }
+
+  test("warn") {
+    val Some(last) = guard
+      .updateConfig(_.withMetricSchedule(crontabs.secondly))
+      .eventStream(_.alert(Left(new Exception), "oops").delayBy(1.second).foreverM)
+      .interruptAfter(5.seconds)
+      .compile
+      .last
+      .unsafeRunSync()
+    assert(last.asInstanceOf[MetricsReport].snapshot.counters("04.`alert`.[oops]") > 3)
+  }
 }

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.data.Reader
 import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toShow}
-import com.github.chenharryhua.nanjin.guard.event.{ActionFailed, ActionRetrying, NJEvent, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Chunk
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -19,6 +19,7 @@ final class NJLogging[F[_]] private[observers] (converter: Reader[NJEvent, Strin
     val out: String = converter.run(event)
     event match {
       case ServicePanic(_, _, _, _, error)    => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
+      case ServiceAlert(_, _, _, _, _)        => logger.warn(out)
       case ActionRetrying(_, _, _, _, error)  => error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out))
       case ActionFailed(_, _, _, _, _, error) => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
       case _                                  => logger.info(out)
