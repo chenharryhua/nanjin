@@ -1,13 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
-import com.github.chenharryhua.nanjin.datetime.instances.*
+
 import java.time.ZonedDateTime
 
 sealed trait NJEvent {
@@ -37,6 +38,14 @@ final case class ServicePanic(
   serviceParams: ServiceParams,
   retryDetails: RetryDetails,
   error: NJError
+) extends ServiceEvent
+
+final case class ServiceAlert(
+  timestamp: ZonedDateTime,
+  serviceInfo: ServiceInfo,
+  serviceParams: ServiceParams,
+  metricName: String,
+  message: String
 ) extends ServiceEvent
 
 final case class ServiceStopped(

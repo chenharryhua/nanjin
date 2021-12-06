@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import io.circe.Encoder
 import io.circe.syntax.*
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZoneId
 
@@ -63,6 +64,15 @@ final class ActionGuard[F[_]] private[guard] (
 
   def count(num: Long, metricName: String): F[Unit]    = publisher.count(metricName, num)
   def unsafeCount(num: Long, metricName: String): Unit = dispatcher.unsafeRunSync(count(num, metricName))
+
+  def alert(msg: String, metricName: String): F[Unit]         = publisher.alert(metricName, msg)
+  def alert(msg: Option[String], metricName: String): F[Unit] = msg.traverse(alert(_, metricName)).void
+  def alert[C](msg: Either[Throwable, C], metricName: String): F[Unit] =
+    alert(msg.leftMap(ex => ExceptionUtils.getStackTrace(ex)).swap.toOption, metricName)
+  def unsafeAlert(msg: String, metricName: String): Unit         = dispatcher.unsafeRunSync(alert(msg, metricName))
+  def unsafeAlert(msg: Option[String], metricName: String): Unit = dispatcher.unsafeRunSync(alert(msg, metricName))
+  def unsafeAlert[C](msg: Either[Throwable, C], metricName: String): Unit =
+    dispatcher.unsafeRunSync(alert[C](msg, metricName))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))
