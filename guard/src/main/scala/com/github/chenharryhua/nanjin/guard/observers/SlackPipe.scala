@@ -163,11 +163,11 @@ final class SlackPipe[F[_]] private[observers] (
           ))
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
-      case ServiceAlert(at, si, params, metricName, message) =>
+      case ServiceAlert(at, si, params, alertName, message) =>
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
-            s":warning: ${StringUtils.abbreviate(message, cfg.maxTextSize)}",
+            StringUtils.abbreviate(message, cfg.maxTextSize),
             List(
               Attachment(
                 cfg.warnColor,
@@ -175,8 +175,7 @@ final class SlackPipe[F[_]] private[observers] (
                 List(
                   SlackField("Service", params.serviceName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Metric Name", metricName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true)
+                  SlackField("Alert", alertName, short = true)
                 ) ::: extra
               ))
           ))
