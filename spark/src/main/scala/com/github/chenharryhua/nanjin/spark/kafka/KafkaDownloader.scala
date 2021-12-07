@@ -30,7 +30,6 @@ final class KafkaDownloader[F[_], K, V](
   hadoop: Configuration,
   cfg: SKConfig,
   akkaConsumer: akkaUpdater.Consumer) {
-  val params: SKParams = cfg.evalConfig
 
   def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
     : KafkaDownloader[F, K, V] =
@@ -49,6 +48,7 @@ final class KafkaDownloader[F[_], K, V](
   def withIdleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadIdleTimeout(fd))
 
   private def stream(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
       topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten)).map { kor =>
         topic
@@ -77,7 +77,7 @@ final class KafkaDownloader[F[_], K, V](
 
   def jackson(path: String)(implicit F: Async[F]): JacksonDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
-    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed, params.loadParams.chunkSize)
+    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed, cfg.evalConfig.loadParams.chunkSize)
   }
 
   def circe(path: String)(implicit F: Async[F]): CirceDownloader[F, K, V] =

@@ -20,8 +20,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   protected val codec: AvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
 
-  def params: SKParams = cfg.evalConfig
-
   // transforms
   def transform(f: RDD[NJConsumerRecord[K, V]] => RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](f(rdd), topic, cfg, ss)
@@ -30,7 +28,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def offsetRange(start: Long, end: Long): CrRdd[F, K, V] = transform(range.cr.offset(start, end))
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V]      = transform(range.cr.timestamp(dr))
-  def timeRange: CrRdd[F, K, V]                           = timeRange(params.timeRange)
+  def timeRange: CrRdd[F, K, V]                           = timeRange(cfg.evalConfig.timeRange)
 
   def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascend.cr.timestamp)
   def descendTimestamp: CrRdd[F, K, V] = transform(sort.descend.cr.timestamp)
@@ -74,7 +72,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def stats: Statistics[F] =
     new Statistics[F](
       TypedDataset.create(rdd.map(CRMetaInfo(_)))(TypedEncoder[CRMetaInfo], ss).dataset,
-      params.timeRange.zoneId)
+      cfg.evalConfig.timeRange.zoneId)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
