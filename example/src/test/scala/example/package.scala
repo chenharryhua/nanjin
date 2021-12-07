@@ -1,6 +1,7 @@
 import akka.actor.ActorSystem
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.NJLogLevel
+import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.*
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -10,7 +11,7 @@ package object example {
   implicit val akkaSystem: ActorSystem = ActorSystem("nj-example")
 
   lazy val sparkSession: SparkSession =
-    SparkSettings.default.withLogLevel(NJLogLevel.ERROR).unsafeSession
+    SparkSettings(sydneyTime).withLogLevel(NJLogLevel.ERROR).unsafeSession
 
   val ctx: KafkaContext[IO] =
     KafkaSettings.local
