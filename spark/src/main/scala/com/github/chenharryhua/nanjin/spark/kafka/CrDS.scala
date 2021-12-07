@@ -21,8 +21,6 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.ate(topic.topicDef)(tek, tev)
 
-  val params: SKParams = cfg.evalConfig
-
   def typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
   // transforms
@@ -33,7 +31,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def offsetRange(start: Long, end: Long): CrDS[F, K, V] = transform(range.offset(start, end))
   def timeRange(dr: NJDateTimeRange): CrDS[F, K, V]      = transform(range.timestamp(dr))
-  def timeRange: CrDS[F, K, V]                           = timeRange(params.timeRange)
+  def timeRange: CrDS[F, K, V]                           = timeRange(cfg.evalConfig.timeRange)
 
   def ascendOffset: CrDS[F, K, V]     = transform(sort.ascend.offset)
   def descendOffset: CrDS[F, K, V]    = transform(sort.descend.offset)
@@ -77,7 +75,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   // statistics
   def stats: Statistics[F] =
-    new Statistics[F](dataset.map(CRMetaInfo(_))(TypedExpressionEncoder[CRMetaInfo]), params.timeRange.zoneId)
+    new Statistics[F](dataset.map(CRMetaInfo(_))(TypedExpressionEncoder[CRMetaInfo]), cfg.evalConfig.timeRange.zoneId)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 

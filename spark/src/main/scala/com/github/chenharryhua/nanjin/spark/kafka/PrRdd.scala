@@ -77,7 +77,6 @@ final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
   cfg: SKConfig,
   fs2Producer: fs2Updater.Producer[F, K, V]
 ) extends Serializable {
-  val params: SKParams = cfg.evalConfig
 
   def updateProducer(
     f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): UploadThrottleByChunkSize[F, K, V] =
@@ -89,7 +88,8 @@ final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
   def withChunkSize(num: Int): UploadThrottleByChunkSize[F, K, V] =
     new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg.loadChunkSize(num), fs2Producer)
 
-  def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
+  def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
+    val params: SKParams = cfg.evalConfig
     rdd
       .stream[F](params.loadParams.bulkSize)
       .interruptAfter(params.loadParams.timeLimit)
@@ -99,6 +99,7 @@ final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
       .through(topic.fs2Channel.updateProducer(fs2Producer.updates.run).producerPipe)
+  }
 }
 
 final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
@@ -107,7 +108,6 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   cfg: SKConfig,
   akkaProducer: akkaUpdater.Producer[K, V]
 ) extends Serializable {
-  val params: SKParams = cfg.evalConfig
 
   def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer.updateConfig(f))
@@ -121,6 +121,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
+      val params: SKParams           = cfg.evalConfig
       rdd.stream[F](params.loadParams.bulkSize).toUnicastPublisher.map { p =>
         Source
           .fromPublisher(p)
