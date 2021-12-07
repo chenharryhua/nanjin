@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.MonadCancel
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.{Async, Resource}
 import cats.kernel.Order
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
@@ -22,8 +21,7 @@ import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
 import scala.concurrent.duration.FiniteDuration
 
 object slack {
-  def apply[F[_]](snsResource: Resource[F, SimpleNotificationService[F]])(implicit
-    F: MonadCancel[F, Throwable]): SlackPipe[F] =
+  def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
     new SlackPipe[F](
       snsResource,
       SlackConfig[F](
@@ -35,11 +33,11 @@ object slack {
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
         isShowRetry = true,
-        extraSlackFields = F.pure(Nil)
+        extraSlackFields = Async[F].pure(Nil)
       )
     )
 
-  def apply[F[_]: Sync](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
+  def apply[F[_]: Async](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
 }
 
 final private case class SlackConfig[F[_]](
@@ -63,7 +61,7 @@ final private case class SlackNotification(username: String, text: String, attac
 
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
-  cfg: SlackConfig[F])(implicit F: MonadCancel[F, Throwable])
+  cfg: SlackConfig[F])(implicit F: Async[F])
     extends Pipe[F, NJEvent, NJEvent] with zoneid with localdatetime with localtime with zoneddatetime {
 
   private def updateSlackConfig(f: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] =
@@ -90,7 +88,41 @@ final class SlackPipe[F[_]] private[observers] (
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
-    Stream.resource(snsResource).flatMap(s => es.evalMap(e => send(e, s).attempt.as(e)))
+    for {
+      sns <- Stream.resource(snsResource)
+      ref <- Stream.eval(F.ref[Set[ServiceStarted]](Set.empty))
+      event <- es.evalMap { e =>
+        val updateRef: F[Unit] = e match {
+          case ss: ServiceStarted => ref.update(_ + ss)
+          case _                  => F.unit
+        }
+        updateRef >> publish(e, sns).attempt.as(e)
+      }.onFinalize {
+        F.realTimeInstant.flatMap { ts =>
+          ref.get.flatMap { sps =>
+            val msg = SlackNotification(
+              "Application Terminated",
+              ":octagonal_sign: *Following service(s) has been terminated*",
+              sps.toList.map(ss =>
+                Attachment(
+                  cfg.warnColor,
+                  ts.toEpochMilli,
+                  List(
+                    SlackField("Task", ss.serviceParams.taskParams.appName, short = true),
+                    SlackField("Service", ss.serviceParams.serviceName, short = true),
+                    SlackField("Host", ss.serviceParams.taskParams.hostName, short = true),
+                    SlackField(
+                      "Up Time",
+                      cfg.durationFormatter.format(ss.serviceInfo.launchTime.toInstant, ts),
+                      short = true)
+                  )
+                ))
+            )
+            sns.publish(msg.asJson.noSpaces).void
+          }
+        }
+      }
+    } yield event
 
   private def toOrdinalWords(n: Long): String = {
     val w =
@@ -112,7 +144,7 @@ final class SlackPipe[F[_]] private[observers] (
   }
 
   @SuppressWarnings(Array("ListSize"))
-  private def send(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
+  private def publish(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
 
       case ServiceStarted(at, si, params) =>
@@ -163,7 +195,7 @@ final class SlackPipe[F[_]] private[observers] (
           ))
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
-      case ServiceAlert(at, si, params, alertName, message) =>
+      case ServiceAlert(at, _, params, alertName, message) =>
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
