@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import fs2.{INothing, Stream}
+import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 
@@ -28,7 +28,7 @@ final class SaveSingleJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg
 
   def withChunkSize(cs: Int): SaveSingleJackson[F, A] = updateConfig(cfg.chunkSize(cs))
 
-  def sink(implicit F: Sync[F]): Stream[F, INothing] = {
+  def sink(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
 

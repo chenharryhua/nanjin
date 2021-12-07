@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import fs2.io.{readInputStream, writeOutputStream}
-import fs2.{INothing, Pipe, Pull, Stream}
+import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
@@ -22,14 +22,13 @@ sealed trait NJHadoop[F[_]] {
   def delete(pathStr: String): F[Boolean]
   def isExist(pathStr: String): F[Boolean]
 
-  def byteSink(pathStr: String): Pipe[F, Byte, INothing]
+  def byteSink(pathStr: String): Pipe[F, Byte, Unit]
   def byteSource(pathStr: String, chunkSize: Int): Stream[F, Byte]
 
-  def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, INothing]
-
+  def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit]
   def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
 
-  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, INothing]
+  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
   def avroSource(pathStr: String, schema: Schema, chunkSize: Int): Stream[F, GenericRecord]
 }
 
@@ -63,7 +62,7 @@ object NJHadoop {
       override def isExist(pathStr: String): F[Boolean] =
         fileSystem(pathStr).use(fs => F.blocking(fs.exists(new Path(pathStr))))
 
-      override def byteSink(pathStr: String): Pipe[F, Byte, INothing] = { (ss: Stream[F, Byte]) =>
+      override def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
         (for {
           fs <- Stream.resource(fsOutput(pathStr))
           res <- ss.through(writeOutputStream[F](F.delay(fs)))
@@ -79,7 +78,7 @@ object NJHadoop {
       override def parquetSink(
         pathStr: String,
         schema: Schema,
-        ccn: CompressionCodecName): Pipe[F, GenericRecord, INothing] = {
+        ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
@@ -121,7 +120,7 @@ object NJHadoop {
         } yield gr
       }
 
-      override def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, INothing] = {
+      override def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>

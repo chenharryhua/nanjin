@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.{INothing, Stream}
+import fs2.Stream
 import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
@@ -42,7 +42,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
 
   def withChunkSize(cs: Int): SaveSingleCsv[F, A] = updateConfig(cfg.chunkSize(cs))
 
-  def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, INothing] = {
+  def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val csvConf: CsvConfiguration =

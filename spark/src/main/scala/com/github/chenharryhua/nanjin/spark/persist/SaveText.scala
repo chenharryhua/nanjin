@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Show
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.{INothing, Stream}
+import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 
@@ -32,7 +32,7 @@ final class SaveSingleText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Str
 
   def withChunkSize(cs: Int): SaveSingleText[F, A] = updateConfig(cfg.chunkSize(cs))
 
-  def sink(implicit F: Sync[F], show: Show[A]): Stream[F, INothing] = {
+  def sink(implicit F: Sync[F], show: Show[A]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     sma.checkAndRun(
