@@ -118,7 +118,7 @@ final class SlackPipe[F[_]] private[observers] (
                   )
                 ))
             )
-            sns.publish(msg.asJson.noSpaces).void
+            sns.publish(msg.asJson.noSpaces).attempt.void
           }
         }
       }
