@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.data.Reader
 import cats.effect.kernel.Async
-import cats.effect.std.{Dispatcher, UUIDGen}
+import cats.effect.std.Dispatcher
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
@@ -48,11 +48,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] =
     for {
-      serviceInfo <- Stream.eval(
-        F.realTimeInstant
-          .map(_.atZone(params.taskParams.zoneId))
-          .flatMap(ts => UUIDGen.randomUUID.map(uuid => ServiceInfo(uuid, ts))))
-
+      serviceInfo <- Stream.eval(F.realTimeInstant.map(_.atZone(params.taskParams.zoneId)).map(ServiceInfo))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel, params)

@@ -19,7 +19,7 @@ final class NJLogging[F[_]] private[observers] (converter: Reader[NJEvent, Strin
     val out: String = converter.run(event)
     event match {
       case ServicePanic(_, _, _, _, error)    => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
-      case ServiceAlert(_, _, _, _, _)        => logger.warn(out)
+      case _: ServiceAlert                    => logger.warn(out)
       case ActionRetrying(_, _, _, _, error)  => error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out))
       case ActionFailed(_, _, _, _, _, error) => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
       case _                                  => logger.info(out)

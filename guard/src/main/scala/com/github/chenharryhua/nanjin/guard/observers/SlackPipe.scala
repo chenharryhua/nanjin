@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
@@ -59,8 +59,6 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
-final private case class TaskService(host: String, taskName: String, serviceName: String)
-
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig[F])(implicit F: Async[F])
@@ -92,25 +90,13 @@ final class SlackPipe[F[_]] private[observers] (
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
       sns <- Stream.resource(snsResource)
-      ref <- Stream.eval(F.ref[Map[TaskService, ZonedDateTime]](Map.empty))
+      ref <- Stream.eval(F.ref[Map[ServiceParams, ZonedDateTime]](Map.empty))
       event <- es.evalMap { e =>
         val updateRef: F[Unit] = e match {
           case ServiceStarted(_, serviceInfo, serviceParams) =>
-            ref.update(
-              _.updated(
-                TaskService(
-                  serviceParams.taskParams.hostName,
-                  serviceParams.taskParams.appName,
-                  serviceParams.serviceName),
-                serviceInfo.launchTime))
-          case ServiceStopped(_, _, serviceParams, _) =>
-            ref.update(
-              _.removed(
-                TaskService(
-                  serviceParams.taskParams.hostName,
-                  serviceParams.taskParams.appName,
-                  serviceParams.serviceName)))
-          case _ => F.unit
+            ref.update(_.updated(serviceParams, serviceInfo.launchTime))
+          case ServiceStopped(_, _, serviceParams, _) => ref.update(_.removed(serviceParams))
+          case _                                      => F.unit
         }
         updateRef >> publish(e, sns).attempt.as(e)
       }.onFinalize { // publish good bye message to slack
@@ -126,9 +112,9 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.warnColor,
                 ss._2.toInstant.toEpochMilli,
                 List(
-                  SlackField("Task", ss._1.taskName, short = true),
-                  SlackField("Service", ss._1.serviceName, short = true),
-                  SlackField("Host", ss._1.host, short = true),
+                  SlackField("Task", ss._1.taskParams.appName, short = true),
+                  SlackField("Service", ss._1.uniqueName, short = true),
+                  SlackField("Host", ss._1.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts), short = true)
                 )
               )) ::: (if (extra.isEmpty) Nil
@@ -178,7 +164,7 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.infoColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Status", "(Re)Started", short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
@@ -203,7 +189,7 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.errorColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Status", "Restarting", short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
@@ -226,7 +212,7 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.warnColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Alert", alertName, short = true)
                 ) ::: extra
@@ -244,7 +230,7 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.infoColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Total Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
@@ -263,7 +249,7 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.infoColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField(
@@ -304,7 +290,7 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.infoColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceName, short = true),
+                  SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField(
@@ -321,13 +307,13 @@ final class SlackPipe[F[_]] private[observers] (
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            s"Start running action: *${params.actionName}*",
+            s"Start running action: *${params.uniqueName}*",
             List(
               Attachment(
                 cfg.infoColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceParams.serviceName, short = true),
+                  SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
                   SlackField("Action ID", action.uuid.show, short = false)
                 ) ::: extra
@@ -346,9 +332,9 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.warnColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceParams.serviceName, short = true),
+                  SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.actionName, short = true),
+                  SlackField("Action", params.uniqueName, short = true),
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Action ID", action.uuid.show, short = false),
@@ -371,9 +357,9 @@ final class SlackPipe[F[_]] private[observers] (
                 if (params.importance.value > Importance.Low.value) cfg.errorColor else cfg.warnColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceParams.serviceName, short = true),
+                  SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.actionName, short = true),
+                  SlackField("Action", params.uniqueName, short = true),
                   SlackField("Importance", params.importance.show, short = true),
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retried", numRetries.show, short = true),
@@ -395,9 +381,9 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.goodColor,
                 at.toInstant.toEpochMilli,
                 List(
-                  SlackField("Service", params.serviceParams.serviceName, short = true),
+                  SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.actionName, short = true),
+                  SlackField("Action", params.uniqueName, short = true),
                   SlackField("Status", "Completed", short = true),
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retried", s"$numRetries/${params.retry.maxRetries}", short = true),
@@ -418,9 +404,9 @@ final class SlackPipe[F[_]] private[observers] (
                   cfg.goodColor,
                   at.toInstant.toEpochMilli,
                   List(
-                    SlackField("Service", params.serviceParams.serviceName, short = true),
+                    SlackField("Service", params.serviceParams.uniqueName, short = true),
                     SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                    SlackField("Action", params.actionName, short = true),
+                    SlackField("Action", params.uniqueName, short = true),
                     SlackField("Status", "Completed", short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),
@@ -439,9 +425,9 @@ final class SlackPipe[F[_]] private[observers] (
                   cfg.warnColor,
                   at.toInstant.toEpochMilli,
                   List(
-                    SlackField("Service", params.serviceParams.serviceName, short = true),
+                    SlackField("Service", params.serviceParams.uniqueName, short = true),
                     SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                    SlackField("Action", params.actionName, short = true),
+                    SlackField("Action", params.uniqueName, short = true),
                     SlackField("Status", "Quasi Success", short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),
