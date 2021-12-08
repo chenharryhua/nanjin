@@ -112,10 +112,10 @@ final class SlackPipe[F[_]] private[observers] (
                 cfg.warnColor,
                 ss._2.toInstant.toEpochMilli,
                 List(
-                  SlackField("Task", ss._1.taskParams.appName, short = true),
                   SlackField("Service", ss._1.uniqueName, short = true),
                   SlackField("Host", ss._1.taskParams.hostName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts), short = true)
+                  SlackField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts), short = true),
+                  SlackField("Task", ss._1.taskParams.appName, short = true)
                 )
               )) ::: (if (extra.isEmpty) Nil
                       else
@@ -166,8 +166,8 @@ final class SlackPipe[F[_]] private[observers] (
                 List(
                   SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Status", "(Re)Started", short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
+                  SlackField("Status", "(Re)Started", short = true),
                   SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
                 ) ::: extra
               ))
@@ -191,8 +191,8 @@ final class SlackPipe[F[_]] private[observers] (
                 List(
                   SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Status", "Restarting", short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
+                  SlackField("Status", "Restarting", short = true),
                   SlackField("Restarted so far", details.retriesSoFar.show, short = true),
                   SlackField("Cumulative Delay", cfg.durationFormatter.format(details.cumulativeDelay), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
