@@ -24,11 +24,10 @@ import scala.jdk.CollectionConverters.*
 
 @JsonCodec
 sealed trait NJRuntimeInfo {
-  def uuid: UUID
   def launchTime: ZonedDateTime
 }
 
-final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ServiceInfo(launchTime: ZonedDateTime) extends NJRuntimeInfo
 final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 
 @JsonCodec

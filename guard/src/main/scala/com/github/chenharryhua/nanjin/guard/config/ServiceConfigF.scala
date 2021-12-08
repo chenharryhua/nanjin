@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.derived.auto.show.*
 import cats.{Functor, Show}
+import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
@@ -30,7 +31,10 @@ object MetricParams {
   retry: NJRetryPolicy,
   queueCapacity: Int,
   metric: MetricParams
-)
+) {
+  val sha1Hex: String    = DigestUtils.sha1Hex(s"${taskParams.appName}/${serviceName}").take(8)
+  val uniqueName: String = s"$serviceName/$sha1Hex"
+}
 
 object ServiceParams {
 
