@@ -288,10 +288,10 @@ val jwtLib = Seq(
 )
 
 val metrics = Seq(
-  "io.dropwizard.metrics" % "metrics-core" % "4.2.4",
-  "io.dropwizard.metrics" % "metrics-json" % "4.2.4",
-  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.4",
-  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.4"
+  "io.dropwizard.metrics" % "metrics-core" % "4.2.5",
+  "io.dropwizard.metrics" % "metrics-json" % "4.2.5",
+  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.5",
+  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.5"
 )
 
 val cronLib = Seq(
@@ -306,7 +306,7 @@ lazy val common = (project in file("common"))
   .settings(
     libraryDependencies ++= Seq(
       "org.apache.commons"    % "commons-lang3" % "3.12.0",
-      "io.dropwizard.metrics" % "metrics-core"  % "4.2.4" % Provided) ++
+      "io.dropwizard.metrics" % "metrics-core"  % "4.2.5" % Provided) ++
       baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib
   )
 
