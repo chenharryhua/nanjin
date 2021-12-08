@@ -59,6 +59,8 @@ final private case class SlackField(title: String, value: String, short: Boolean
 final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
 final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
 
+final private case class TaskService(host: String, taskName: String, serviceName: String)
+
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig[F])(implicit F: Async[F])
@@ -90,37 +92,56 @@ final class SlackPipe[F[_]] private[observers] (
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
       sns <- Stream.resource(snsResource)
-      ref <- Stream.eval(F.ref[Set[ServiceStarted]](Set.empty))
+      ref <- Stream.eval(F.ref[Map[TaskService, ZonedDateTime]](Map.empty))
       event <- es.evalMap { e =>
         val updateRef: F[Unit] = e match {
-          case ss: ServiceStarted => ref.update(_ + ss)
-          case _                  => F.unit
+          case ServiceStarted(_, serviceInfo, serviceParams) =>
+            ref.update(
+              _.updated(
+                TaskService(
+                  serviceParams.taskParams.hostName,
+                  serviceParams.taskParams.appName,
+                  serviceParams.serviceName),
+                serviceInfo.launchTime))
+          case ServiceStopped(_, _, serviceParams, _) =>
+            ref.update(
+              _.removed(
+                TaskService(
+                  serviceParams.taskParams.hostName,
+                  serviceParams.taskParams.appName,
+                  serviceParams.serviceName)))
+          case _ => F.unit
         }
         updateRef >> publish(e, sns).attempt.as(e)
-      }.onFinalize {
-        F.realTimeInstant.flatMap { ts =>
-          ref.get.flatMap { sps =>
-            val msg = SlackNotification(
-              "Application Terminated",
-              ":octagonal_sign: *Following service(s) has been terminated*",
-              sps.toList.map(ss =>
-                Attachment(
-                  cfg.warnColor,
-                  ts.toEpochMilli,
-                  List(
-                    SlackField("Task", ss.serviceParams.taskParams.appName, short = true),
-                    SlackField("Service", ss.serviceParams.serviceName, short = true),
-                    SlackField("Host", ss.serviceParams.taskParams.hostName, short = true),
-                    SlackField(
-                      "Up Time",
-                      cfg.durationFormatter.format(ss.serviceInfo.launchTime.toInstant, ts),
-                      short = true)
-                  )
-                ))
-            )
-            sns.publish(msg.asJson.noSpaces).attempt.void
-          }
-        }
+      }.onFinalize { // publish good bye message to slack
+        for {
+          ts <- F.realTimeInstant
+          extra <- cfg.extraSlackFields
+          services <- ref.get
+          msg = SlackNotification(
+            "Service Termination Notice",
+            ":octagonal_sign: *Following service(s) was terminated*",
+            services.toList.map(ss =>
+              Attachment(
+                cfg.warnColor,
+                ss._2.toInstant.toEpochMilli,
+                List(
+                  SlackField("Task", ss._1.taskName, short = true),
+                  SlackField("Service", ss._1.serviceName, short = true),
+                  SlackField("Host", ss._1.host, short = true),
+                  SlackField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts), short = true)
+                )
+              )) ::: (if (extra.isEmpty) Nil
+                      else
+                        List(
+                          Attachment(
+                            cfg.infoColor,
+                            ts.toEpochMilli,
+                            extra
+                          )))
+          )
+          _ <- sns.publish(msg.asJson.noSpaces).attempt.void
+        } yield ()
       }
     } yield event
 

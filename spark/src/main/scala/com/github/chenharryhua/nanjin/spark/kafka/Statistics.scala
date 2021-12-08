@@ -30,11 +30,11 @@ final private case class KafkaSummaryInternal(
     partition,
     startOffset,
     endOffset,
+    distance,
     count,
+    count - distance,
     NJTimestamp(startTs).atZone(zoneId),
     NJTimestamp(endTs).atZone(zoneId),
-    distance,
-    count - distance,
     DurationFormatter.defaultFormatter.format(timeDistance)
   )
 }
@@ -44,11 +44,11 @@ final case class KafkaSummary(
   partition: Int,
   start_offset: Long,
   end_offset: Long,
-  count: Long,
+  offset_distance: Long,
+  records_count: Long,
+  count_distance_gap: Long,
   start_ts: ZonedDateTime,
   end_ts: ZonedDateTime,
-  distance: Long,
-  gap: Long,
   period: String) {}
 
 object KafkaSummary {
@@ -57,11 +57,11 @@ object KafkaSummary {
        |partition:     ${ks.partition}
        |first offset:  ${ks.start_offset}
        |last offset:   ${ks.end_offset}
-       |distance:      ${ks.distance}
-       |count:         ${ks.count}
-       |gap:           ${ks.gap} (${if (ks.gap == 0) "perfect"
-    else if (ks.gap < 0) "probably lost data or its a compact topic"
-    else "oops how is it possible"})
+       |distance:      ${ks.offset_distance}
+       |count:         ${ks.records_count}
+       |gap:           ${ks.count_distance_gap} (${if (ks.count_distance_gap == 0) "perfect"
+    else if (ks.count_distance_gap < 0) "probably lost data or its a compact topic"
+    else "duplicates in the dataset"})
        |first TS:      ${ks.start_ts} not necessarily of the first offset)
        |last TS:       ${ks.end_ts} not necessarily of the last offset)
        |period:        ${ks.period}
