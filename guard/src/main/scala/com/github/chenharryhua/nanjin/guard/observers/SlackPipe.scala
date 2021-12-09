@@ -115,6 +115,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Service", ss._1.uniqueName, short = true),
                   SlackField("Host", ss._1.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts), short = true),
+                  SlackField("Status", "Terminated", short = true),
                   SlackField("Task", ss._1.taskParams.appName, short = true)
                 )
               )) ::: (if (extra.isEmpty) Nil
@@ -193,7 +194,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Host", params.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField("Status", "Restarting", short = true),
-                  SlackField("Restarted so far", details.retriesSoFar.show, short = true),
+                  SlackField("Restart Count", details.retriesSoFar.show, short = true),
                   SlackField("Cumulative Delay", cfg.durationFormatter.format(details.cumulativeDelay), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
@@ -232,7 +233,7 @@ final class SlackPipe[F[_]] private[observers] (
                 List(
                   SlackField("Service", params.uniqueName, short = true),
                   SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Total Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
+                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField("Status", "Stopped", short = true)
                 ) ::: extra
               ))
@@ -307,7 +308,7 @@ final class SlackPipe[F[_]] private[observers] (
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            s"Start running action: *${params.uniqueName}*",
+            s"Start running action: *${params.actionName}*",
             List(
               Attachment(
                 cfg.infoColor,
@@ -315,7 +316,8 @@ final class SlackPipe[F[_]] private[observers] (
                 List(
                   SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action ID", action.uuid.show, short = false)
+                  SlackField("Action ID", action.display, short = true),
+                  SlackField("Status", "Started", short = true)
                 ) ::: extra
               ))
           ))
@@ -334,10 +336,11 @@ final class SlackPipe[F[_]] private[observers] (
                 List(
                   SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.uniqueName, short = true),
-                  SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
+                  SlackField("Action", params.actionName, short = true),
+                  SlackField("Action ID", action.display, short = true),
+                  SlackField("Status", "Retrying", short = true),
+                  SlackField("Hitherto", cfg.durationFormatter.format(action.launchTime, at), short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
                 ) ::: extra
               ))
@@ -354,17 +357,18 @@ final class SlackPipe[F[_]] private[observers] (
             StringUtils.abbreviate(notes.value, cfg.maxTextSize),
             List(
               Attachment(
-                if (params.importance.value > Importance.Low.value) cfg.errorColor else cfg.warnColor,
+                cfg.errorColor,
                 at.toInstant.toEpochMilli,
                 List(
                   SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.uniqueName, short = true),
-                  SlackField("Importance", params.importance.show, short = true),
+                  SlackField("Action", params.actionName, short = true),
+                  SlackField("Action ID", action.display, short = true),
+                  SlackField("Status", "Failed", short = true),
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                  SlackField("Retried", numRetries.show, short = true),
+                  SlackField("Importance", params.importance.show, short = true),
+                  SlackField("Retries", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Action ID", action.uuid.show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
                 ) ::: extra
               ))
@@ -383,11 +387,11 @@ final class SlackPipe[F[_]] private[observers] (
                 List(
                   SlackField("Service", params.serviceParams.uniqueName, short = true),
                   SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.uniqueName, short = true),
+                  SlackField("Action", params.actionName, short = true),
+                  SlackField("Action ID", action.display, short = true),
                   SlackField("Status", "Completed", short = true),
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                  SlackField("Retried", s"$numRetries/${params.retry.maxRetries}", short = true),
-                  SlackField("Action ID", action.uuid.show, short = false)
+                  SlackField("Retries", s"$numRetries/${params.retry.maxRetries}", short = true)
                 ) ::: extra
               ))
           ))
@@ -406,13 +410,13 @@ final class SlackPipe[F[_]] private[observers] (
                   List(
                     SlackField("Service", params.serviceParams.uniqueName, short = true),
                     SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                    SlackField("Action", params.uniqueName, short = true),
+                    SlackField("Action", params.actionName, short = true),
+                    SlackField("Action ID", action.display, short = true),
                     SlackField("Status", "Completed", short = true),
+                    SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),
-                    SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                    SlackField("Run Mode", runMode.show, short = true),
-                    SlackField("Action ID", action.uuid.show, short = false)
+                    SlackField("Run Mode", runMode.show, short = true)
                   ) ::: extra
                 ))
             )
@@ -427,13 +431,13 @@ final class SlackPipe[F[_]] private[observers] (
                   List(
                     SlackField("Service", params.serviceParams.uniqueName, short = true),
                     SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                    SlackField("Action", params.uniqueName, short = true),
+                    SlackField("Action", params.actionName, short = true),
+                    SlackField("Action ID", action.display, short = true),
                     SlackField("Status", "Quasi Success", short = true),
+                    SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
                     SlackField("Succed", numSucc.show, short = true),
                     SlackField("Failed", errors.size.show, short = true),
-                    SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                    SlackField("Run Mode", runMode.show, short = true),
-                    SlackField("Action ID", action.uuid.show, short = false)
+                    SlackField("Run Mode", runMode.show, short = true)
                   ) ::: extra
                 ))
             ))

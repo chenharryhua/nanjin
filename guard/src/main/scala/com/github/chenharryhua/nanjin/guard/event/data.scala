@@ -24,11 +24,14 @@ import scala.jdk.CollectionConverters.*
 
 @JsonCodec
 sealed trait NJRuntimeInfo {
+  def uuid: UUID
   def launchTime: ZonedDateTime
 }
 
-final case class ServiceInfo(launchTime: ZonedDateTime) extends NJRuntimeInfo
-final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo {
+  def display: String = uuid.toString.take(8)
+}
 
 @JsonCodec
 final case class Notes private (value: String) extends AnyVal
@@ -84,7 +87,7 @@ private[guard] object MetricsSnapshot {
     rateTimeUnit: TimeUnit,
     durationTimeUnit: TimeUnit,
     zoneId: ZoneId): MetricsSnapshot = {
-    val show: String = {
+    val text: String = {
       val bao = new ByteArrayOutputStream
       val ps  = new PrintStream(bao)
       ConsoleReporter
@@ -113,7 +116,7 @@ private[guard] object MetricsSnapshot {
     val timer: Map[String, Long]   = metricRegistry.getTimers(metricFilter).asScala.view.mapValues(_.getCount).toMap
     val counter: Map[String, Long] = metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-    MetricsSnapshot(timer ++ counter, json, show)
+    MetricsSnapshot(timer ++ counter, json, text)
   }
 
   def apply(metricRegistry: MetricRegistry, metricFilter: MetricFilter, params: ServiceParams): MetricsSnapshot =
