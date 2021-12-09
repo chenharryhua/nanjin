@@ -125,7 +125,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
 
   def actionStart(actionParams: ActionParams): F[ActionInfo] =
     for {
-      uuid <- UUIDGen.randomUUID
+      uuid <- UUIDGen.randomUUID[F]
       ts <- realZonedDateTime
       actionInfo = ActionInfo(uuid, ts)
       _ <- actionParams.importance match {

@@ -10,7 +10,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.time.ZonedDateTime
-import java.util.Date
+import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
 object cloudwatch {
@@ -22,7 +22,7 @@ object cloudwatch {
 }
 
 final private case class MetricKey(
-  id: String,
+  uuid: UUID,
   hostName: String,
   standardUnit: StandardUnit,
   task: String,
@@ -60,7 +60,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
 
     val counters: Map[MetricKey, Long] = report.snapshot.counters.map { case (metricName, counter) =>
       MetricKey(
-        report.serviceParams.sha1Hex,
+        report.serviceInfo.uuid,
         report.serviceParams.taskParams.hostName,
         StandardUnit.Count,
         report.serviceParams.taskParams.appName,
