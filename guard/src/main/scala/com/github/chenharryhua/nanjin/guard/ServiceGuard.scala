@@ -69,18 +69,19 @@ final class ServiceGuard[F[_]] private[guard] (
 
         val metricsReport: Stream[F, INothing] = {
           params.metric.reportSchedule match {
-            case Left(dur) =>
+            case Some(Left(dur)) =>
               Stream
                 .fixedRate[F](dur)
                 .zipWithIndex
                 .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, dur))
                 .drain
-            case Right(cron) =>
+            case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
                 .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, cron))
                 .drain
+            case None => Stream.empty
           }
         }
 

@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 @Lenses @JsonCodec final case class MetricParams(
-  reportSchedule: Either[FiniteDuration, CronExpr],
+  reportSchedule: Option[Either[FiniteDuration, CronExpr]],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit
@@ -32,7 +32,7 @@ object MetricParams {
   queueCapacity: Int,
   metric: MetricParams
 ) {
-  val sha1Hex: String    = DigestUtils.sha1Hex(s"${taskParams.appName}/${serviceName}").take(8)
+  val sha1Hex: String    = DigestUtils.sha1Hex(s"${taskParams.appName}/$serviceName").take(8)
   val uniqueName: String = s"$serviceName/$sha1Hex"
 }
 
@@ -47,7 +47,7 @@ object ServiceParams {
       retry = NJRetryPolicy.ConstantDelay(30.seconds),
       queueCapacity = 0, // synchronous
       metric = MetricParams(
-        reportSchedule = Left(1.hour),
+        reportSchedule = None,
         resetSchedule = None,
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
@@ -65,7 +65,8 @@ private object ServiceConfigF {
   final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
   final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
-  final case class WithReportSchedule[K](value: Either[FiniteDuration, CronExpr], cont: K) extends ServiceConfigF[K]
+  final case class WithReportSchedule[K](value: Option[Either[FiniteDuration, CronExpr]], cont: K)
+      extends ServiceConfigF[K]
   final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
@@ -91,10 +92,10 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withServiceName(name: String): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
 
   def withMetricSchedule(interval: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithReportSchedule(Left(interval), value)))
+    ServiceConfig(Fix(WithReportSchedule(Some(Left(interval)), value)))
 
   def withMetricSchedule(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithReportSchedule(Right(crontab), value)))
+    ServiceConfig(Fix(WithReportSchedule(Some(Right(crontab)), value)))
 
   def withMetricSchedule(crontab: String): ServiceConfig =
     withMetricSchedule(Cron.unsafeParse(crontab))
