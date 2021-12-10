@@ -16,7 +16,8 @@ import monocle.macros.Lenses
 import java.time.{Duration, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import scala.jdk.DurationConverters.JavaDurationOps
+
 @Lenses @JsonCodec final case class MetricParams(
   reportSchedule: Option[Either[FiniteDuration, CronExpr]],
   resetSchedule: Option[CronExpr],
@@ -25,7 +26,8 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 ) {
   def next(now: ZonedDateTime, interval: Option[FiniteDuration], launchTime: ZonedDateTime): Option[ZonedDateTime] = {
     val border =
-      interval.map(iv => launchTime.plus((((Duration.between(launchTime, now).toScala / iv).toLong + 1) * iv).toJava))
+      interval.map(iv =>
+        launchTime.plusSeconds((((Duration.between(launchTime, now).toScala / iv).toLong + 1) * iv).toSeconds))
     border match {
       case None =>
         reportSchedule.flatMap {
@@ -46,7 +48,7 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
     interval match {
       case None => true
       case Some(iv) =>
-        val border = launchTime.plus(((Duration.between(launchTime, now).toScala / iv).toLong * iv).toJava)
+        val border = launchTime.plusSeconds(((Duration.between(launchTime, now).toScala / iv).toLong * iv).toSeconds)
         if (now === border) true
         else
           reportSchedule match {

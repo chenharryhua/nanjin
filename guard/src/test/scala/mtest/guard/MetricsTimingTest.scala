@@ -84,4 +84,12 @@ class MetricsTimingTest extends AnyFunSuite {
     assert(m.next(now2, interval, launchTime).get == now.plusMinutes(1))
     assert(!m.isShow(now2, interval, launchTime))
   }
+
+  test("performance") {
+    val interval = Some(240.hours)
+    val m        = service.updateConfig(_.withMetricSchedule("* * * ? * *")).params.metric
+    assert(
+      m.next(ZonedDateTime.parse("2020-12-23T18:00:01+08:00[Asia/Shanghai]"), interval, launchTime).get == ZonedDateTime
+        .parse("2021-01-02T18:00+08:00[Asia/Shanghai]"))
+  }
 }
