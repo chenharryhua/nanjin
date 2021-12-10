@@ -256,8 +256,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField(
                     s"Next",
-                    params.metric
-                      .next(at, cfg.reportInterval, si.launchTime)
+                    nextTime(params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
                       .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                     short = true
                   )
@@ -267,7 +266,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         msg
           .flatMap(m => sns.publish(m.asJson.noSpaces))
-          .whenA(params.metric.isShow(at, cfg.reportInterval, si.launchTime) || index === 1L)
+          .whenA(isShowMetrics(params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime) || index === 1L)
 
       case MetricsReset(at, si, params, prev, next, snapshot) =>
         val toNow =
