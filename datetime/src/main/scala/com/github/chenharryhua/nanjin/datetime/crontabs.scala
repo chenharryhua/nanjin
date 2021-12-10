@@ -26,4 +26,8 @@ object crontabs {
   val every5Seconds: CronExpr  = Cron.unsafeParse("*/5 * * ? * *")
   val every10Seconds: CronExpr = Cron.unsafeParse("*/10 * * ? * *")
   val every15Seconds: CronExpr = Cron.unsafeParse("*/15 * * ? * *")
+
+  val z9w5: CronExpr = Cron.unsafeParse("0 0 9,17 ? * 1,2,3,4,5")
+  val c996: CronExpr = Cron.unsafeParse("0 0 9,21 ? * 1,2,3,4,5,6")
+  val c997: CronExpr = Cron.unsafeParse("0 0 9,21 ? * *")
 }

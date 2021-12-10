@@ -69,18 +69,16 @@ final class ServiceGuard[F[_]] private[guard] (
 
         val metricsReport: Stream[F, INothing] = {
           params.metric.reportSchedule match {
-            case Left(dur) =>
-              Stream
-                .fixedRate[F](dur)
-                .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, dur))
-                .drain
-            case Right(cron) =>
+            case Some(Left(dur)) =>
+              // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
+              Stream.fixedRate[F](dur).zipWithIndex.evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1)).drain
+            case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1, cron))
+                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1))
                 .drain
+            case None => Stream.empty
           }
         }
 

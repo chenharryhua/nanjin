@@ -60,9 +60,6 @@ final case class MetricsReport(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
-  prev: Option[ZonedDateTime],
-  now: ZonedDateTime,
-  next: Option[ZonedDateTime],
   snapshot: MetricsSnapshot
 ) extends ServiceEvent
 
