@@ -241,11 +241,11 @@ final class SlackPipe[F[_]] private[observers] (
           ))
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
-      case MetricsReport(_, at, si, params, snapshot) =>
+      case MetricsReport(index, at, si, params, snapshot) =>
         val msg = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
-            s":gottarun: \n${StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize)}",
+            s":gottarun: ${StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize)}",
             List(
               Attachment(
                 cfg.infoColor,
@@ -267,7 +267,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         msg
           .flatMap(m => sns.publish(m.asJson.noSpaces))
-          .whenA(params.metric.isShow(at, cfg.reportInterval, si.launchTime))
+          .whenA(params.metric.isShow(at, cfg.reportInterval, si.launchTime) || index === 1L)
 
       case MetricsReset(at, si, params, prev, next, snapshot) =>
         val toNow =
