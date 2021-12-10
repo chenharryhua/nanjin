@@ -32,8 +32,8 @@ val frameless = "0.11.1"
 
 // kafka 
 
+val confluent = "6.2.2"
 val kafkaVersion = "6.2.2-ce"
-val confluent = "6.2.1"
 
 // format
 val jackson = "2.13.0"
