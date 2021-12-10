@@ -76,7 +76,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           ))
         .void)
 
-  def metricsReport(metricFilter: MetricFilter, index: Long, dur: FiniteDuration): F[Unit] =
+  def metricsReport(metricFilter: MetricFilter, index: Long): F[Unit] =
     F.delay(metricRegistry.counter(metricsReportMRName).inc()) <*
       realZonedDateTime.flatMap(ts =>
         channel.send(
@@ -85,24 +85,6 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             timestamp = ts,
             serviceInfo = serviceInfo,
             serviceParams = serviceParams,
-            prev = Some(ts.minus(dur.toJava)),
-            now = ts,
-            next = Some(ts.plus(dur.toJava)),
-            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
-          )))
-
-  def metricsReport(metricFilter: MetricFilter, index: Long, cronExpr: CronExpr): F[Unit] =
-    F.delay(metricRegistry.counter(metricsReportMRName).inc()) <*
-      realZonedDateTime.flatMap(ts =>
-        channel.send(
-          MetricsReport(
-            index = index,
-            timestamp = ts,
-            serviceInfo = serviceInfo,
-            serviceParams = serviceParams,
-            prev = cronExpr.prev(ts),
-            now = ts,
-            next = cronExpr.next(ts),
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
           )))
 
