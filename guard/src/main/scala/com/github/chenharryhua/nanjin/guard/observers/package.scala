@@ -1,11 +1,9 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.derived.auto.show.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
-import io.circe.generic.auto.*
 
 import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
