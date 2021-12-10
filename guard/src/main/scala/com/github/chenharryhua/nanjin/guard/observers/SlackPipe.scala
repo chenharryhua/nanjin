@@ -15,9 +15,8 @@ import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.{localdatetime, localtime, zoneddatetime, zoneid}
 
 import java.text.NumberFormat
+import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, ZonedDateTime}
-import scala.compat.java8.DurationConverters.{DurationOps, FiniteDurationops}
 import scala.concurrent.duration.FiniteDuration
 
 object slack {
@@ -84,6 +83,8 @@ final class SlackPipe[F[_]] private[observers] (
   def withSlackField(title: String, value: String, isShort: Boolean): SlackPipe[F] =
     withSlackField(title, F.pure(value), isShort)
 
+  /** one metrics report allowed to show in the interval
+    */
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
@@ -240,11 +241,11 @@ final class SlackPipe[F[_]] private[observers] (
           ))
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
-      case MetricsReport(_, at, si, params, prev, now, next, snapshot) =>
+      case MetricsReport(_, at, si, params, snapshot) =>
         val msg = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.taskParams.appName,
-            StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize),
+            s":gottarun: \n${StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize)}",
             List(
               Attachment(
                 cfg.infoColor,
@@ -255,27 +256,18 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
                   SlackField(
                     s"Next",
-                    cfg.reportInterval
-                      .map(fd => now.plusSeconds(fd.toSeconds))
-                      .orElse(next)
-                      .fold("no checks anymore")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+                    params.metric
+                      .next(at, cfg.reportInterval, si.launchTime)
+                      .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
                     short = true
                   )
                 ) ::: extra
               ))
           ))
 
-        // only show events that cross interval border.
-        val isShow: Boolean = (prev, cfg.reportInterval).mapN { case (prev, interval) =>
-          if (Duration.between(prev, at).toScala >= interval) true
-          else {
-            val border: ZonedDateTime =
-              si.launchTime.plus(((Duration.between(si.launchTime, at).toScala / interval).toLong * interval).toJava)
-            prev.isBefore(border) && at.isAfter(border)
-          }
-        }.fold(true)(identity)
-
-        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(isShow)
+        msg
+          .flatMap(m => sns.publish(m.asJson.noSpaces))
+          .whenA(params.metric.isShow(at, cfg.reportInterval, si.launchTime))
 
       case MetricsReset(at, si, params, prev, next, snapshot) =>
         val toNow =
@@ -308,7 +300,7 @@ final class SlackPipe[F[_]] private[observers] (
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
           SlackNotification(
             params.serviceParams.taskParams.appName,
-            s"Start running action: *${params.actionName}*",
+            s"Kick off action: *${params.actionName}*",
             List(
               Attachment(
                 cfg.infoColor,

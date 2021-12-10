@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.derived.auto.show.*
+import cats.syntax.all.*
 import cats.{Functor, Show}
 import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
 import com.github.chenharryhua.nanjin.datetime.instances.*
+import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -11,15 +13,50 @@ import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import monocle.macros.Lenses
 
+import java.time.{Duration, ZonedDateTime}
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.*
-
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 @Lenses @JsonCodec final case class MetricParams(
   reportSchedule: Option[Either[FiniteDuration, CronExpr]],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit
-)
+) {
+  def next(now: ZonedDateTime, interval: Option[FiniteDuration], launchTime: ZonedDateTime): Option[ZonedDateTime] = {
+    val border =
+      interval.map(iv => launchTime.plus((((Duration.between(launchTime, now).toScala / iv).toLong + 1) * iv).toJava))
+    border match {
+      case None =>
+        reportSchedule.flatMap {
+          case Left(fd)  => Some(now.plusSeconds(fd.toSeconds))
+          case Right(ce) => ce.next(now)
+        }
+      case Some(b) =>
+        reportSchedule.flatMap {
+          case Left(fd) =>
+            LazyList.iterate(now)(_.plusSeconds(fd.toSeconds)).dropWhile(_.isBefore(b)).headOption
+          case Right(ce) =>
+            LazyList.unfold(now)(dt => ce.next(dt).map(t => Tuple2(t, t))).dropWhile(_.isBefore(b)).headOption
+        }
+    }
+  }
+
+  def isShow(now: ZonedDateTime, interval: Option[FiniteDuration], launchTime: ZonedDateTime): Boolean =
+    interval match {
+      case None => true
+      case Some(iv) =>
+        val border = launchTime.plus(((Duration.between(launchTime, now).toScala / iv).toLong * iv).toJava)
+        if (now === border) true
+        else
+          reportSchedule match {
+            case None => true
+            // true when now cross the border
+            case Some(Left(fd))  => now.minusSeconds(fd.toSeconds).isBefore(border) && now.isAfter(border)
+            case Some(Right(ce)) => ce.prev(now).forall(_.isBefore(border) && now.isAfter(border))
+          }
+    }
+}
 
 object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
