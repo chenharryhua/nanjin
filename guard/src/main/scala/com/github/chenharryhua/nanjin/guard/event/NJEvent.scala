@@ -105,13 +105,4 @@ final case class ActionSucced(
   notes: Notes // success notes
 ) extends ActionEvent
 
-final case class ActionQuasiSucced(
-  actionParams: ActionParams,
-  actionInfo: ActionInfo,
-  timestamp: ZonedDateTime,
-  runMode: RunMode,
-  numSucc: Long, // succed actions
-  errors: List[NJError])
-    extends ActionEvent
-
 final case class PassThrough(timestamp: ZonedDateTime, metricName: String, value: Json) extends NJEvent

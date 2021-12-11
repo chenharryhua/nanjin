@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.Traverse
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.UUIDGen
@@ -12,7 +11,6 @@ import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 import io.circe.Json
-import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
@@ -152,33 +150,6 @@ final private[guard] class EventPublisher[F[_]](
       case Importance.Low => F.unit
     }
 
-  def quasiSucced[T[_]: Traverse, A, B](
-    actionInfo: ActionInfo,
-    actionParams: ActionParams,
-    runMode: RunMode,
-    results: F[(List[Throwable], T[B])]
-  ): F[Unit] =
-    actionParams.importance match {
-      case Importance.High =>
-        for {
-          ts <- realZonedDateTime
-          uuid <- UUIDGen.randomUUID[F]
-          res <- results
-          _ <- channel.send(
-            ActionQuasiSucced(
-              actionInfo = actionInfo,
-              timestamp = ts,
-              actionParams = actionParams,
-              runMode = runMode,
-              numSucc = res._2.size,
-              errors = res._1.map(e => NJError(uuid, e))))
-          _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
-        } yield ()
-      case Importance.Medium =>
-        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams.actionName), actionInfo, ts))
-      case Importance.Low => F.unit
-    }
-
   def actionRetrying(
     actionInfo: ActionInfo,
     actionParams: ActionParams,
@@ -224,24 +195,6 @@ final private[guard] class EventPublisher[F[_]](
           actionParams = actionParams,
           numRetries = numRetries,
           notes = Notes(notes),
-          error = NJError(uuid, ex)))
-      _ <- actionParams.importance match {
-        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
-        case Importance.Low                      => F.unit
-      }
-    } yield ()
-
-  def quasiFailed(actionInfo: ActionInfo, actionParams: ActionParams, ex: Throwable): F[Unit] =
-    for {
-      ts <- realZonedDateTime
-      uuid <- UUIDGen.randomUUID[F]
-      _ <- channel.send(
-        ActionFailed(
-          actionInfo = actionInfo,
-          timestamp = ts,
-          actionParams = actionParams,
-          numRetries = 0,
-          notes = Notes(ExceptionUtils.getMessage(ex)),
           error = NJError(uuid, ex)))
       _ <- actionParams.importance match {
         case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
