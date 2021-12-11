@@ -110,8 +110,6 @@ final case class ActionQuasiSucced(
   timestamp: ZonedDateTime,
   runMode: RunMode,
   numSucc: Long, // succed actions
-  succNotes: Notes,
-  failNotes: Notes,
   errors: List[NJError])
     extends ActionEvent
 

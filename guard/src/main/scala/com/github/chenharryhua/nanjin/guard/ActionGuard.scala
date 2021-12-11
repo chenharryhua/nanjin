@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.Show
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.Async
+import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -20,7 +20,7 @@ import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
   publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  actionConfig: ActionConfig)(implicit F: Async[F])
+  actionConfig: ActionConfig)(implicit F: Temporal[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
   val params: ActionParams     = actionConfig.evalConfig
@@ -88,21 +88,8 @@ final class ActionGuard[F[_]] private[guard] (
   def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
 
   def quasi[T[_], A, B](ta: T[A])(f: A => F[B]): QuasiSucc[F, T, A, B] =
-    new QuasiSucc[F, T, A, B](
-      publisher = publisher,
-      params = params,
-      ta = ta,
-      kfab = Kleisli(f),
-      succ = Kleisli(_ => F.pure("")),
-      fail = Kleisli(_ => F.pure("")))
+    new QuasiSucc[F, T, A, B](publisher, params, ta, Kleisli(f))
 
-  def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] =
-    new QuasiSuccUnit[F, T, B](
-      publisher = publisher,
-      params = params,
-      tfb = tfb,
-      succ = Kleisli(_ => F.pure("")),
-      fail = Kleisli(_ => F.pure("")))
-
-  def quasi[B](bs: F[B]*): QuasiSuccUnit[F, List, B] = quasi[List, B](bs.toList)
+  def quasi[T[_], B](tfb: T[F[B]]): QuasiSuccUnit[F, T, B] = new QuasiSuccUnit[F, T, B](publisher, params, tfb)
+  def quasi[B](bs: F[B]*): QuasiSuccUnit[F, List, B]       = quasi[List, B](bs.toList)
 }

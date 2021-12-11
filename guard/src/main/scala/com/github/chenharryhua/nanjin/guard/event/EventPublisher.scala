@@ -148,7 +148,7 @@ final private[guard] class EventPublisher[F[_]](
           _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
         } yield ()
       case Importance.Medium =>
-        realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams.actionName), actionInfo, _))
+        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams.actionName), actionInfo, ts))
       case Importance.Low => F.unit
     }
 
@@ -156,17 +156,14 @@ final private[guard] class EventPublisher[F[_]](
     actionInfo: ActionInfo,
     actionParams: ActionParams,
     runMode: RunMode,
-    results: F[(List[(A, NJError)], T[(A, B)])],
-    succ: Kleisli[F, List[(A, B)], String],
-    fail: Kleisli[F, List[(A, NJError)], String]
+    results: F[(T[(A, Throwable)], T[(A, B)])]
   ): F[Unit] =
     actionParams.importance match {
       case Importance.High =>
         for {
           ts <- realZonedDateTime
+          uuid <- UUIDGen.randomUUID[F]
           res <- results
-          sn <- succ.run(res._2.toList)
-          fn <- fail.run(res._1)
           _ <- channel.send(
             ActionQuasiSucced(
               actionInfo = actionInfo,
@@ -174,14 +171,11 @@ final private[guard] class EventPublisher[F[_]](
               actionParams = actionParams,
               runMode = runMode,
               numSucc = res._2.size,
-              succNotes = Notes(sn),
-              failNotes = Notes(fn),
-              errors = res._1.map(_._2)
-            ))
+              errors = res._1.map(e => NJError(uuid, e._2)).toList))
           _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
         } yield ()
       case Importance.Medium =>
-        realZonedDateTime.flatMap(timing(actionSuccMRName(actionParams.actionName), actionInfo, _))
+        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams.actionName), actionInfo, ts))
       case Importance.Low => F.unit
     }
 
