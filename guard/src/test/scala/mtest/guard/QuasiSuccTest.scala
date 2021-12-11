@@ -37,8 +37,7 @@ class QuasiSuccTest extends AnyFunSuite {
 
   test("quasi all fail - chunk") {
     val Vector(s, a, b, c) = guard
-      .eventStream(action =>
-        action.span("all-fail").notice.quasi(Chunk(0, 0, 0))(f).withFailNotes(_ => "failure").seqRun)
+      .eventStream(action => action.span("all-fail").notice.quasi(Chunk(0, 0, 0))(f).seqRun)
       .compile
       .toVector
       .unsafeRunSync()
@@ -54,14 +53,7 @@ class QuasiSuccTest extends AnyFunSuite {
     val sns = SimpleNotificationService.fake[IO]
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action =>
-          action
-            .span("partial-good")
-            .notice
-            .quasi(Chain(2, 0, 1))(f)
-            .withFailNotes(_ => "quasi succ")
-            .withSuccNotes(_ => "succ")
-            .seqRun)
+        .eventStream(action => action.span("partial-good").notice.quasi(Chain(2, 0, 1))(f).seqRun)
         .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
         .unNone
         .through(slack[IO](sns))
@@ -82,13 +74,7 @@ class QuasiSuccTest extends AnyFunSuite {
     def f(a: Int): IO[Int] = IO.sleep(1.second) >> IO(100 / a)
     val Vector(s, a, b, c) =
       guard
-        .eventStream(action =>
-          action
-            .span("partial-good")
-            .notice
-            .quasi(Vector(0, 0, 1, 1))(f)
-            .withFailNotes(_.map(n => s"${n._1} --> ${n._2.uuid}").mkString("\n"))
-            .seqRun)
+        .eventStream(action => action.span("partial-good").notice.quasi(Vector(0, 0, 1, 1))(f).seqRun)
         .compile
         .toVector
         .unsafeRunSync()
@@ -204,13 +190,7 @@ class QuasiSuccTest extends AnyFunSuite {
           .retry(IO.raiseError[Int](new Exception))
           .run
         val a3 = action.span("compute2").notice.run(IO(2))
-        action
-          .span("quasi")
-          .notice
-          .quasi(a1, a2, a3)
-          .withSuccNotes(_.map(_.toString).mkString)
-          .withFailNotes(_.map(_.message).mkString)
-          .seqRun
+        action.span("quasi").notice.quasi(a1, a2, a3).seqRun
       }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])
@@ -241,13 +221,7 @@ class QuasiSuccTest extends AnyFunSuite {
             .retry(IO.raiseError[Int](new Exception))
             .run
         val a3 = action.span("compute2").notice.retry(IO.sleep(5.seconds) >> IO(2)).run
-        action
-          .span("quasi")
-          .notice
-          .quasi(a1, a2, a3)
-          .withSuccNotes(_.map(_.toString).mkString)
-          .withFailNotes(_.map(_.message).mkString)
-          .parRun(3)
+        action.span("quasi").notice.quasi(a1, a2, a3).parRun(3)
       }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStarted])

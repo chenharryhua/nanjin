@@ -18,10 +18,9 @@ sealed trait NJEvent {
 }
 
 object NJEvent {
-
-  implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
-  implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
-  implicit val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
+  implicit final val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
+  implicit final val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
+  implicit final val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
 }
 
 sealed trait ServiceEvent extends NJEvent {
@@ -77,8 +76,9 @@ sealed trait ActionEvent extends NJEvent {
   def actionParams: ActionParams // action static parameters
 }
 
-final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, timestamp: ZonedDateTime)
-    extends ActionEvent
+final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo) extends ActionEvent {
+  override val timestamp: ZonedDateTime = actionInfo.launchTime
+}
 
 final case class ActionRetrying(
   actionParams: ActionParams,
@@ -111,8 +111,6 @@ final case class ActionQuasiSucced(
   timestamp: ZonedDateTime,
   runMode: RunMode,
   numSucc: Long, // succed actions
-  succNotes: Notes,
-  failNotes: Notes,
   errors: List[NJError])
     extends ActionEvent
 

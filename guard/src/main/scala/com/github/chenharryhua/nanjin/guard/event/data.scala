@@ -30,7 +30,7 @@ sealed trait NJRuntimeInfo {
 
 final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo {
-  def display: String = uuid.toString.take(8)
+  def showId: String = uuid.toString.take(8)
 }
 
 @JsonCodec
@@ -64,8 +64,8 @@ private[guard] object NJError {
       st <- c.downField("stackTrace").as[String]
     } yield NJError(id, msg, st, None) // can not reconstruct throwables.
 
-  def apply(ex: Throwable): NJError =
-    NJError(UUID.randomUUID(), ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
+  def apply(uuid: UUID, ex: Throwable): NJError =
+    NJError(uuid, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
 }
 
 sealed trait RunMode extends EnumEntry
