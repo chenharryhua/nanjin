@@ -16,13 +16,11 @@ final class QuasiSucc[F[_], T[_], A, B] private[guard] (
   ta: T[A],
   kfab: Kleisli[F, A, B])(implicit F: Concurrent[F]) {
 
-  private def internal(eval: F[T[Either[(A, Throwable), (A, B)]]], runMode: RunMode)(implicit
-    T: Traverse[T],
-    L: Alternative[T]): F[T[B]] =
+  private def internal(eval: F[(List[Throwable], T[B])], runMode: RunMode)(implicit T: Traverse[T]): F[T[B]] =
     for {
       actionInfo <- publisher.actionStart(params)
       res <- F
-        .background(eval.map(_.partitionEither(identity)))
+        .background(eval)
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
         .guaranteeCase {
           case Outcome.Canceled() =>
@@ -33,16 +31,22 @@ final class QuasiSucc[F[_], T[_], A, B] private[guard] (
           case Outcome.Succeeded(fb) =>
             publisher.quasiSucced(actionInfo, params, runMode, fb)
         }
-    } yield T.map(res._2)(_._2)
+    } yield res._2
 
   def seqRun(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    internal(ta.traverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Sequential)
+    internal(
+      ta.traverse(a => kfab.run(a).attempt).map(_.partitionEither(identity)).map(r => (r._1.toList, r._2)),
+      RunMode.Sequential)
 
   def parRun(implicit T: Traverse[T], L: Alternative[T], P: Parallel[F]): F[T[B]] =
-    internal(ta.parTraverse(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
+    internal(
+      ta.parTraverse(a => kfab.run(a).attempt).map(_.partitionEither(identity)).map(r => (r._1.toList, r._2)),
+      RunMode.Parallel)
 
   def parRun(n: Int)(implicit T: Traverse[T], L: Alternative[T]): F[T[B]] =
-    internal(F.parTraverseN(n)(ta)(a => kfab.run(a).attempt.map(_.bimap((a, _), (a, _)))), RunMode.Parallel)
+    internal(
+      F.parTraverseN(n)(ta)(a => kfab.run(a).attempt).map(_.partitionEither(identity)).map(r => (r._1.toList, r._2)),
+      RunMode.Parallel)
 
 }
 

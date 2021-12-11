@@ -30,7 +30,7 @@ sealed trait NJRuntimeInfo {
 
 final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo {
-  def display: String = uuid.toString.take(8)
+  def showId: String = uuid.toString.take(8)
 }
 
 @JsonCodec

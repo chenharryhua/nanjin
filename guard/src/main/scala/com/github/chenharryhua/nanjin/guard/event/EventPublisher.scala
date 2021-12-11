@@ -114,7 +114,7 @@ final private[guard] class EventPublisher[F[_]](
       _ <- actionParams.importance match {
         case Importance.High =>
           channel
-            .send(ActionStart(actionParams, actionInfo, ts))
+            .send(ActionStart(actionParams, actionInfo))
             .map(_ => metricRegistry.counter(actionStartMRName(actionParams.actionName)).inc())
         case Importance.Medium => F.delay(metricRegistry.counter(actionStartMRName(actionParams.actionName)).inc())
         case Importance.Low    => F.unit
@@ -156,7 +156,7 @@ final private[guard] class EventPublisher[F[_]](
     actionInfo: ActionInfo,
     actionParams: ActionParams,
     runMode: RunMode,
-    results: F[(T[(A, Throwable)], T[(A, B)])]
+    results: F[(List[Throwable], T[B])]
   ): F[Unit] =
     actionParams.importance match {
       case Importance.High =>
@@ -171,7 +171,7 @@ final private[guard] class EventPublisher[F[_]](
               actionParams = actionParams,
               runMode = runMode,
               numSucc = res._2.size,
-              errors = res._1.map(e => NJError(uuid, e._2)).toList))
+              errors = res._1.map(e => NJError(uuid, e))))
           _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
         } yield ()
       case Importance.Medium =>

@@ -76,8 +76,9 @@ sealed trait ActionEvent extends NJEvent {
   def actionParams: ActionParams // action static parameters
 }
 
-final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, timestamp: ZonedDateTime)
-    extends ActionEvent
+final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo) extends ActionEvent {
+  override val timestamp: ZonedDateTime = actionInfo.launchTime
+}
 
 final case class ActionRetrying(
   actionParams: ActionParams,
