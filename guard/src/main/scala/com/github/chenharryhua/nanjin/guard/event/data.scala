@@ -6,7 +6,6 @@ import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -19,7 +18,6 @@ import java.nio.charset.StandardCharsets
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.{TimeZone, UUID}
-import scala.collection.immutable
 import scala.jdk.CollectionConverters.*
 
 @JsonCodec
@@ -66,13 +64,6 @@ private[guard] object NJError {
 
   def apply(uuid: UUID, ex: Throwable): NJError =
     NJError(uuid, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
-}
-
-sealed trait RunMode extends EnumEntry
-object RunMode extends Enum[RunMode] with CatsEnum[RunMode] with CirceEnum[RunMode] {
-  override val values: immutable.IndexedSeq[RunMode] = findValues
-  case object Parallel extends RunMode
-  case object Sequential extends RunMode
 }
 
 @JsonCodec

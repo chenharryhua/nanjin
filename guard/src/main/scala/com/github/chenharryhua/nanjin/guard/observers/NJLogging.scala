@@ -21,9 +21,7 @@ final class NJLogging[F[_]: Sync] private[observers] (converter: Reader[NJEvent,
       case _: ServiceAlert                    => logger.warn(out)
       case ActionRetrying(_, _, _, _, error)  => error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out))
       case ActionFailed(_, _, _, _, _, error) => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
-      case ActionQuasiSucced(_, _, _, _, _, errors) =>
-        errors.flatMap(_.throwable).traverse(ex => logger.warn(ex)(out)).void
-      case _ => logger.info(out)
+      case _                                  => logger.info(out)
     }
   }
 
