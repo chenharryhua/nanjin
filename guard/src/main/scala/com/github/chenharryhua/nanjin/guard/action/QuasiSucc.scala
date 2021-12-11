@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
-import cats.effect.Temporal
-import cats.effect.kernel.Outcome
+import cats.effect.kernel.{Async, Outcome}
+import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.{Alternative, Parallel, Traverse}
@@ -17,7 +17,7 @@ final class QuasiSucc[F[_], T[_], A, B] private[guard] (
   ta: T[A],
   kfab: Kleisli[F, A, B],
   succ: Kleisli[F, List[(A, B)], String],
-  fail: Kleisli[F, List[(A, NJError)], String])(implicit F: Temporal[F]) {
+  fail: Kleisli[F, List[(A, NJError)], String])(implicit F: Async[F]) {
 
   def withSuccNotesM(succ: List[(A, B)] => F[String]): QuasiSucc[F, T, A, B] =
     new QuasiSucc[F, T, A, B](
@@ -49,10 +49,9 @@ final class QuasiSucc[F[_], T[_], A, B] private[guard] (
     for {
       actionInfo <- publisher.actionStart(params)
       res <- F
-        .background(eval.map { fte =>
-          val (ex, rs)                   = fte.partitionEither(identity)
-          val errors: List[(A, NJError)] = ex.toList.map(e => (e._1, NJError(e._2)))
-          (errors, rs) // error on the left, result on the right
+        .background(eval.flatMap { fte =>
+          val (exs, rs) = fte.partitionEither(identity)
+          exs.toList.traverse(e => UUIDGen.randomUUID[F].map(uuid => (e._1, NJError(uuid, e._2)))).map((_, rs))
         })
         .use(_.flatMap(_.embed(F.raiseError(ActionException.ActionCanceledInternally))))
         .guaranteeCase {
@@ -82,7 +81,7 @@ final class QuasiSuccUnit[F[_], T[_], B] private[guard] (
   params: ActionParams,
   tfb: T[F[B]],
   succ: Kleisli[F, List[B], String],
-  fail: Kleisli[F, List[NJError], String])(implicit F: Temporal[F]) {
+  fail: Kleisli[F, List[NJError], String])(implicit F: Async[F]) {
 
   def withSuccNotesM(succ: List[B] => F[String]): QuasiSuccUnit[F, T, B] =
     new QuasiSuccUnit[F, T, B](publisher = publisher, params = params, tfb = tfb, succ = Kleisli(succ), fail = fail)

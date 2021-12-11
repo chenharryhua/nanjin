@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.Show
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.Temporal
+import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -20,7 +20,7 @@ import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
   publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  actionConfig: ActionConfig)(implicit F: Temporal[F])
+  actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
   val params: ActionParams     = actionConfig.evalConfig

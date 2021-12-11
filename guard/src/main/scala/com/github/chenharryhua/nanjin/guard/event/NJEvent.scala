@@ -18,10 +18,9 @@ sealed trait NJEvent {
 }
 
 object NJEvent {
-
-  implicit val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
-  implicit val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
-  implicit val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
+  implicit final val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
+  implicit final val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
+  implicit final val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
 }
 
 sealed trait ServiceEvent extends NJEvent {
