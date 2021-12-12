@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.Show
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
+import cats.{Alternative, Show, Traverse}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit}
 import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
@@ -20,7 +20,7 @@ import java.time.ZoneId
 final class ActionGuard[F[_]] private[guard] (
   publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  actionConfig: ActionConfig)(implicit F: Temporal[F])
+  actionConfig: ActionConfig)(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, ActionGuard[F]] {
 
   val params: ActionParams     = actionConfig.evalConfig
@@ -32,9 +32,10 @@ final class ActionGuard[F[_]] private[guard] (
 
   def span(name: String): ActionGuard[F] = updateConfig(_.withSpan(name))
 
-  def trivial: ActionGuard[F] = updateConfig(_.withTrivial)
-  def normal: ActionGuard[F]  = updateConfig(_.withNormal)
-  def notice: ActionGuard[F]  = updateConfig(_.withNotice)
+  def trivial: ActionGuard[F]  = updateConfig(_.withLow)
+  def normal: ActionGuard[F]   = updateConfig(_.withMedium)
+  def notice: ActionGuard[F]   = updateConfig(_.withHigh)
+  def critical: ActionGuard[F] = updateConfig(_.withCritical)
 
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -86,4 +87,14 @@ final class ActionGuard[F[_]] private[guard] (
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
 
   def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
+
+  def quasi[T[_]: Traverse: Alternative, B](tfb: T[F[B]]): F[T[B]] =
+    run(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map(_._2))
+
+  def quasi[B](fbs: F[B]*): F[List[B]] = quasi[List, B](fbs.toList)
+
+  def quasi[T[_]: Traverse: Alternative, B](parallism: Int, tfb: T[F[B]]): F[T[B]] =
+    run(F.parTraverseN(parallism)(tfb)(_.attempt).map(_.partitionEither(identity)).map(_._2))
+
+  def quasi[B](parallism: Int)(tfb: F[B]*): F[List[B]] = quasi[List, B](parallism, tfb.toList)
 }

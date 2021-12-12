@@ -320,4 +320,15 @@ class RetryTest extends AnyFunSuite {
       IO(assert(name == "a.b.c"))
     }.debug().compile.drain.unsafeRunSync()
   }
+
+  test("quasi syntax") {
+    serviceGuard.eventStream { ag =>
+      ag.quasi(3)(IO("a"), IO("b")) >>
+        ag.quasi(3, List(IO("a"), IO("b"))) >>
+        ag.quasi(List(IO("a"), IO("b"))) >>
+        ag.quasi(IO("a"), IO("b")) >>
+        ag.quasi(IO.print("a"), IO.print("b")) >>
+        ag.quasi(3)(IO.print("a"), IO.print("b"))
+    }
+  }
 }
