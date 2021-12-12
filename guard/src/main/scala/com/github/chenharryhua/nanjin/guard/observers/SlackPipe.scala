@@ -311,7 +311,7 @@ final class SlackPipe[F[_]] private[observers] (
                 ) ::: extra
               ))
           ))
-        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance === Importance.Critical)
 
       case ActionRetrying(params, action, at, wdr, error) =>
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
@@ -336,9 +336,7 @@ final class SlackPipe[F[_]] private[observers] (
               ))
           ))
 
-        msg
-          .flatMap(m => sns.publish(m.asJson.noSpaces))
-          .whenA(params.importance.value > Importance.Low.value && cfg.isShowRetry)
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance =!= Importance.Low && cfg.isShowRetry)
 
       case ActionFailed(params, action, at, numRetries, notes, error) =>
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
@@ -356,14 +354,13 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Action ID", action.showId, short = true),
                   SlackField("Status", "Failed", short = true),
                   SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                  SlackField("Importance", params.importance.show, short = true),
                   SlackField("Retries", numRetries.show, short = true),
                   SlackField("Retry Policy", params.retry.policy[F].show, short = false),
                   SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
                 ) ::: extra
               ))
           ))
-        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance.value > Importance.Low.value)
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance =!= Importance.Low)
 
       case ActionSucced(params, action, at, numRetries, notes) =>
         val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
@@ -385,7 +382,7 @@ final class SlackPipe[F[_]] private[observers] (
                 ) ::: extra
               ))
           ))
-        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
+        msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance === Importance.Critical)
 
       // no op
       case _: PassThrough => F.unit

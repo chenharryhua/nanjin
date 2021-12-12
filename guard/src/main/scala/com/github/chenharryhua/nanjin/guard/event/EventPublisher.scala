@@ -110,7 +110,7 @@ final private[guard] class EventPublisher[F[_]](
       ts <- realZonedDateTime
       actionInfo = ActionInfo(uuid, ts)
       _ <- actionParams.importance match {
-        case Importance.High =>
+        case Importance.Critical | Importance.High =>
           channel
             .send(ActionStart(actionParams, actionInfo))
             .map(_ => metricRegistry.counter(actionStartMRName(actionParams.actionName)).inc())
@@ -130,7 +130,7 @@ final private[guard] class EventPublisher[F[_]](
     output: F[B],
     buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
     actionParams.importance match {
-      case Importance.High =>
+      case Importance.Critical | Importance.High =>
         for {
           ts <- realZonedDateTime
           result <- output
@@ -168,7 +168,7 @@ final private[guard] class EventPublisher[F[_]](
           willDelayAndRetry = willDelayAndRetry,
           error = NJError(uuid, ex)))
       _ <- actionParams.importance match {
-        case Importance.High | Importance.Medium =>
+        case Importance.Critical | Importance.High | Importance.Medium =>
           timing(actionRetryMRName(actionParams.actionName), actionInfo, ts)
         case Importance.Low => F.unit
       }
@@ -197,8 +197,9 @@ final private[guard] class EventPublisher[F[_]](
           notes = Notes(notes),
           error = NJError(uuid, ex)))
       _ <- actionParams.importance match {
-        case Importance.High | Importance.Medium => timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
-        case Importance.Low                      => F.unit
+        case Importance.Critical | Importance.High | Importance.Medium =>
+          timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
+        case Importance.Low => F.unit
       }
     } yield ()
 

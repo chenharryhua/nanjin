@@ -128,9 +128,10 @@ final case class ActionConfig private (value: Fix[ActionConfigF]) {
   def withNonTermination: ActionConfig =
     ActionConfig(Fix(WithTermination(value = false, value)))
 
-  def withTrivial: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Low, value)))
-  def withNormal: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Medium, value)))
-  def withNotice: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.High, value)))
+  def withLow: ActionConfig      = ActionConfig(Fix(WithImportance(Importance.Low, value)))
+  def withMedium: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Medium, value)))
+  def withHigh: ActionConfig     = ActionConfig(Fix(WithImportance(Importance.High, value)))
+  def withCritical: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Critical, value)))
 
   def withSpan(name: String): ActionConfig = ActionConfig(Fix(WithSpans(List(name), value)))
 
