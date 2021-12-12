@@ -116,7 +116,7 @@ final class SlackPipe[F[_]] private[observers] (
                   SlackField("Host", ss._1.taskParams.hostName, short = true),
                   SlackField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts), short = true),
                   SlackField("Status", "Terminated", short = true),
-                  SlackField("Task", ss._1.taskParams.appName, short = true)
+                  SlackField("AppName", ss._1.taskParams.appName, short = true)
                 )
               )) ::: (if (extra.isEmpty) Nil
                       else
