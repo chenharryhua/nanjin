@@ -94,7 +94,8 @@ final class SlackPipe[F[_]] private[observers] (
       ref <- Stream.eval(F.ref[Map[ServiceParams, ZonedDateTime]](Map.empty))
       event <- es.evalMap { e =>
         val updateRef: F[Unit] = e match {
-          case ServiceStarted(at, _, serviceParams)   => ref.update(_.updated(serviceParams, at)) // latest restart
+          case ServiceStarted(_, serviceInfo, serviceParams) =>
+            ref.update(_.updated(serviceParams, serviceInfo.launchTime))
           case ServiceStopped(_, _, serviceParams, _) => ref.update(_.removed(serviceParams))
           case _                                      => F.unit
         }
