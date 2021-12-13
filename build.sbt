@@ -30,9 +30,9 @@ val akka26     = "2.6.17"
 val spark3    = "3.2.0"
 val frameless = "0.11.1"
 
-// kafka 
+// kafka
 
-val confluent = "6.2.2"
+val confluent    = "6.2.2"
 val kafkaVersion = "6.2.2-ce"
 
 // format
@@ -111,7 +111,8 @@ val circeLib = Seq(
   "io.circe" %% "circe-jawn"           % "0.14.1",
   "io.circe" %% "circe-optics"         % "0.14.1",
   "io.circe" %% "circe-jackson210"     % "0.14.0",
-  "io.circe" %% "circe-generic-extras" % "0.14.1"
+  "io.circe" %% "circe-generic-extras" % "0.14.1",
+  "org.gnieh" %% "diffson-circe"       % "4.1.1"
 )
 
 val jacksonLib = Seq(
@@ -336,9 +337,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= Seq(
-      "com.lihaoyi" %% "fastparse"       % "2.3.3",
-      "org.typelevel" %% "cats-time" % catsTime) ++
+    libraryDependencies ++= Seq("com.lihaoyi" %% "fastparse" % "2.3.3", "org.typelevel" %% "cats-time" % catsTime) ++
       cronLib ++ baseLib ++ monocleLib ++ testLib ++ logLib
   )
 
@@ -405,7 +404,6 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "org.locationtech.jts"                   % "jts-core"   % "1.18.2",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC24" % Test
     ) ++ baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++ effectLib ++
       akkaLib ++ fs2Lib ++ monocleLib ++ ftpLib ++ testLib ++ logLib
