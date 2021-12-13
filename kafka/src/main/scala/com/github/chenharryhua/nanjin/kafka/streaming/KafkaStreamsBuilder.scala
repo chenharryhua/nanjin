@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.Reader
-import cats.derived.auto.show.*
 import cats.effect.kernel.{Async, Deferred, Resource}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
@@ -24,7 +23,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   top: Reader[StreamsBuilder, Unit],
   localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]],
   startUpTimeout: FiniteDuration,
-  errorHandler: StreamErrorHandler[F])(implicit F: Async[F]) {
+  errorHandler: UncaughtErrorHandler[F])(implicit F: Async[F]) {
 
   def showSettings: String = settings.show
 
@@ -102,7 +101,7 @@ final class KafkaStreamsBuilder[F[_]] private (
       startUpTimeout = startUpTimeout,
       errorHandler = errorHandler)
 
-  def withErrorHandler(errorHandler: StreamErrorHandler[F]): KafkaStreamsBuilder[F] =
+  def withUncaughtErrorHandler(errorHandler: UncaughtErrorHandler[F]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings = settings,
       top = top,
@@ -129,5 +128,5 @@ final class KafkaStreamsBuilder[F[_]] private (
 
 object KafkaStreamsBuilder {
   def apply[F[_]: Async](settings: KafkaStreamSettings, top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings, top, Nil, 90.minutes, StreamErrorHandler.default[F])
+    new KafkaStreamsBuilder[F](settings, top, Nil, 90.minutes, UncaughtErrorHandler.default[F])
 }

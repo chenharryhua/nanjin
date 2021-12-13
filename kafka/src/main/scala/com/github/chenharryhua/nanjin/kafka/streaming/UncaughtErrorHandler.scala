@@ -4,7 +4,7 @@ import cats.effect.kernel.Deferred
 import cats.effect.std.Dispatcher
 import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler
 
-trait StreamErrorHandler[F[_]] {
+trait UncaughtErrorHandler[F[_]] {
 
   /** @param dispatcher
     *   - run side-effect
@@ -14,8 +14,8 @@ trait StreamErrorHandler[F[_]] {
   def apply(dispatcher: Dispatcher[F], notifier: Deferred[F, Either[Throwable, Unit]]): StreamsUncaughtExceptionHandler
 }
 
-object StreamErrorHandler {
-  def default[F[_]]: StreamErrorHandler[F] = new StreamErrorHandler[F] {
+object UncaughtErrorHandler {
+  def default[F[_]]: UncaughtErrorHandler[F] = new UncaughtErrorHandler[F] {
     override def apply(
       dispatcher: Dispatcher[F],
       notifier: Deferred[F, Either[Throwable, Unit]]): StreamsUncaughtExceptionHandler =

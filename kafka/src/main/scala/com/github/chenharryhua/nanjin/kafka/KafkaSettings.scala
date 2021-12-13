@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Show
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.utils
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
@@ -28,6 +29,9 @@ final case class KafkaAppId(value: String) extends AnyVal
 
 @Lenses final case class KafkaStreamSettings(config: Map[String, String]) {
   def javaProperties: Properties = utils.toProperties(config)
+}
+object KafkaStreamSettings {
+  implicit val showKafkaStreamSettings: Show[KafkaStreamSettings] = cats.derived.semiauto.show[KafkaStreamSettings]
 }
 
 @Lenses final case class KafkaAdminSettings(config: Map[String, String])
@@ -92,6 +96,7 @@ final case class KafkaAppId(value: String) extends AnyVal
 }
 
 object KafkaSettings {
+  implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semiauto.show[KafkaSettings]
 
   val empty: KafkaSettings = KafkaSettings(
     KafkaConsumerSettings(Map.empty),
