@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
+import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.{localdatetime, localtime, zoneddatetime, zoneid}
 
@@ -24,15 +25,14 @@ object slack {
     new SlackPipe[F](
       snsResource,
       SlackConfig[F](
-        goodColor = "good",
+        goodColor = "#36a64f",
         warnColor = "#ffd79a",
         infoColor = "#b3d1ff",
-        errorColor = "danger",
-        maxTextSize = 500,
+        errorColor = "#935252",
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
         isShowRetry = true,
-        extraSlackFields = Async[F].pure(Nil)
+        extraSlackSections = Async[F].pure(Nil)
       )
     )
 
@@ -44,19 +44,24 @@ final private case class SlackConfig[F[_]](
   warnColor: String,
   infoColor: String,
   errorColor: String,
-  maxTextSize: Int,
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
   isShowRetry: Boolean,
-  extraSlackFields: F[List[SlackField]]
+  extraSlackSections: F[List[Section]]
 )
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
-final private case class SlackField(title: String, value: String, short: Boolean)
-
-final private case class Attachment(color: String, ts: Long, fields: List[SlackField])
-final private case class SlackNotification(username: String, text: String, attachments: List[Attachment])
+final private case class Section(text: String)
+private object Section {
+  implicit val SectionEncoder: Encoder[Section] = (section: Section) =>
+    Json.obj(
+      ("type", "section".asJson),
+      ("text", Json.obj(("type", "mrkdwn".asJson), ("text", section.text.asJson)))
+    )
+}
+final private case class Attachments(color: String, blocks: List[Section])
+final private case class SlackApp(username: String, attachments: List[Attachments])
 
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
@@ -70,18 +75,16 @@ final class SlackPipe[F[_]] private[observers] (
   def withWarnColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(warnColor = color))
   def withInfoColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(infoColor = color))
   def withErrorColor(color: String): SlackPipe[F]                 = updateSlackConfig(_.copy(errorColor = color))
-  def withMaxTextSize(size: Int): SlackPipe[F]                    = updateSlackConfig(_.copy(maxTextSize = size))
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
   def withoutRetry: SlackPipe[F]                                  = updateSlackConfig(_.copy(isShowRetry = false))
 
-  def withSlackField(title: String, value: F[String], isShort: Boolean): SlackPipe[F] =
-    updateSlackConfig(_.copy(extraSlackFields = for {
-      esf <- cfg.extraSlackFields
+  def withSection(value: F[String]): SlackPipe[F] =
+    updateSlackConfig(_.copy(extraSlackSections = for {
+      esf <- cfg.extraSlackSections
       v <- value
-    } yield esf :+ SlackField(title, v, isShort)))
+    } yield esf :+ Section(v)))
 
-  def withSlackField(title: String, value: String, isShort: Boolean): SlackPipe[F] =
-    withSlackField(title, F.pure(value), isShort)
+  def withSection(value: String): SlackPipe[F] = withSection(F.pure(value))
 
   /** one metrics report allowed to show in the interval
     */
@@ -103,30 +106,18 @@ final class SlackPipe[F[_]] private[observers] (
       }.onFinalize { // publish good bye message to slack
         for {
           ts <- F.realTimeInstant
-          extra <- cfg.extraSlackFields
+          extra <- cfg.extraSlackSections
           services <- ref.get
-          msg = SlackNotification(
-            "Service Termination Notice",
-            ":octagonal_sign: *Following service(s) was terminated*",
-            services.toList.map(ss =>
-              Attachment(
-                cfg.warnColor,
-                ss._2.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", ss._1.uniqueName, short = true),
-                  SlackField("Host", ss._1.taskParams.hostName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts), short = true),
-                  SlackField("Status", "Terminated", short = true),
-                  SlackField("AppName", ss._1.taskParams.appName, short = true)
-                )
-              )) ::: (if (extra.isEmpty) Nil
-                      else
-                        List(
-                          Attachment(
-                            cfg.infoColor,
-                            ts.toEpochMilli,
-                            extra
-                          )))
+          msg = SlackApp(
+            username = "Service Termination Notice",
+            attachments = List(
+              Attachments(
+                color = cfg.warnColor,
+                blocks = services.toList.map(ss => Section(s"""|:octagonal_sign: Terminated Service 
+                                                               |*Service:* ${ss._1.uniqueName}
+                                                               |*App:* ${ss._1.taskParams.appName}
+                                                               |*Up Time:* ${cfg.durationFormatter.format(ss._2.toInstant, ts)}""".stripMargin))
+              ))
           )
           _ <- sns.publish(msg.asJson.noSpaces).attempt.void
         } yield ()
@@ -149,120 +140,119 @@ final class SlackPipe[F[_]] private[observers] (
 
   private def toText(counters: Map[String, Long]): String = {
     val fmt: NumberFormat = NumberFormat.getIntegerInstance
-    counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted.mkString("\n")
+    abbreviate(counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted.mkString("\n"))
   }
+  // slack not allow message larger than 3000 chars
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, 3000)
 
-  @SuppressWarnings(Array("ListSize"))
   private def publish(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
-
       case ServiceStarted(at, si, params) =>
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.taskParams.appName,
-            s":rocket:",
-            List(
-              Attachment(
-                cfg.infoColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.uniqueName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                  SlackField("Status", "(Re)Started", short = true),
-                  SlackField("Time Zone", params.taskParams.zoneId.show, short = true)
-                ) ::: extra
+        val msg = cfg.extraSlackSections.map(extra =>
+          SlackApp(
+            username = params.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.infoColor,
+                blocks = List(Section(s"""|:rocket: (Re)Started Service
+                                          |*Service:* ${params.uniqueName}
+                                          |*Host:* ${params.taskParams.hostName}
+                                          |*Up Time:* ${cfg.durationFormatter.format(si.launchTime, at)}
+                                          |*Time Zone:* ${params.taskParams.zoneId.show}
+                                          |""".stripMargin))
               ))
           ))
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ServicePanic(at, si, params, details, error) =>
-        def upcoming: String = details.upcomingDelay.map(cfg.durationFormatter.format) match {
-          case None     => "should never see this" // never happen
+        val upcoming: String = details.upcomingDelay.map(cfg.durationFormatter.format) match {
+          case None     => "report to developer once you see this message" // never happen
           case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is dysfunctional."
         }
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.taskParams.appName,
-            s""":alarm: The service experienced a panic, $upcoming
-               |Search *${error.uuid}* in log file to find full exception.""".stripMargin,
-            List(
-              Attachment(
-                cfg.errorColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.uniqueName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                  SlackField("Status", "Restarting", short = true),
-                  SlackField("Restart Count", details.retriesSoFar.show, short = true),
-                  SlackField("Cumulative Delay", cfg.durationFormatter.format(details.cumulativeDelay), short = true),
-                  SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                ) ::: extra
-              ))
+        val msg = cfg.extraSlackSections.map(extra =>
+          SlackApp(
+            username = params.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.errorColor,
+                blocks = Section(s"""|:alarm: Service Panic 
+                                     |The service *${params.uniqueName}* experienced a panic, $upcoming
+                                     |*Up Time:* ${cfg.durationFormatter.format(si.launchTime, at)} 
+                                     |*Host:* ${params.taskParams.hostName}
+                                     |*Retris:* ${details.retriesSoFar.show}
+                                     |*Cumulative Delay:* ${cfg.durationFormatter.format(details.cumulativeDelay)} 
+                                     |*Retry Policy:* ${params.retry.policy[F].show}""".stripMargin)
+                  :: extra
+              ),
+              Attachments(
+                color = cfg.errorColor,
+                blocks = List(Section(s"*Cause*:\n```${abbreviate(error.stackTrace)}```"))
+              )
+            )
           ))
+
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
-      case ServiceAlert(at, _, params, alertName, message) =>
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.taskParams.appName,
-            StringUtils.abbreviate(message, cfg.maxTextSize),
-            List(
-              Attachment(
-                cfg.warnColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.uniqueName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Alert", alertName, short = true)
-                ) ::: extra
-              ))
+      case ServiceAlert(at, si, params, alertName, message) =>
+        val msg = cfg.extraSlackSections.map(extra =>
+          SlackApp(
+            username = params.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.warnColor,
+                blocks = List(Section(s"""|*Alert:* ${alertName}
+                                          |*Service:* ${params.uniqueName}
+                                          |*Host:* ${params.taskParams.hostName}
+                                          |*Up Time:* ${cfg.durationFormatter.format(si.launchTime, at)}
+                                          |""".stripMargin)) ::: extra
+              ),
+              Attachments(
+                color = cfg.warnColor,
+                blocks = List(Section(s"*Message:* \n${abbreviate(message)}")) ::: extra
+              )
+            )
           ))
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ServiceStopped(at, si, params, snapshot) =>
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.taskParams.appName,
-            s":octagonal_sign: The service was stopped. performed:\n${toText(snapshot.counters)}",
-            List(
-              Attachment(
-                cfg.infoColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.uniqueName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                  SlackField("Status", "Stopped", short = true)
-                ) ::: extra
+        val msg = cfg.extraSlackSections.map(extra =>
+          SlackApp(
+            username = params.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.warnColor,
+                blocks = List(Section(s"""|:octagonal_sign: Service Stopped.
+                                          |*Service:* ${params.uniqueName}
+                                          |*Host:* ${params.taskParams.hostName}
+                                          |*Up Time:* ${cfg.durationFormatter.format(si.launchTime, at)}
+                                          |""".stripMargin)) ::: extra
               ))
           ))
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case MetricsReport(index, at, si, params, snapshot) =>
-        val msg = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.taskParams.appName,
-            s":gottarun: ${StringUtils.abbreviate(toText(snapshot.counters), cfg.maxTextSize)}",
-            List(
-              Attachment(
-                cfg.infoColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.uniqueName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                  SlackField(
-                    s"Next",
-                    nextTime(params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
-                      .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
-                    short = true
-                  )
-                ) ::: extra
-              ))
-          ))
+        val msg = cfg.extraSlackSections.map { extra =>
+          val next = nextTime(params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
+            .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+
+          SlackApp(
+            username = params.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.infoColor,
+                blocks = List(Section(s"""|:gottarun: Health Check 
+                                          |*Service:* ${params.uniqueName}
+                                          |*Host:* ${params.taskParams.hostName}
+                                          |*Next:* $next
+                                          |*Up Time:* ${cfg.durationFormatter.format(si.launchTime, at)}
+                                          |""".stripMargin)) ::: extra
+              ),
+              Attachments(
+                color = cfg.infoColor,
+                blocks = List(Section(s"*Metrics:* \n```${toText(snapshot.counters)}```")))
+            )
+          )
+        }
 
         msg
           .flatMap(m => sns.publish(m.asJson.noSpaces))
@@ -273,116 +263,107 @@ final class SlackPipe[F[_]] private[observers] (
           prev.map(p => cfg.durationFormatter.format(Order.max(p, si.launchTime), at)).fold("")(dur => s" in past $dur")
         val summaries = s"*This is a summary of activities performed by the service$toNow*"
 
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.taskParams.appName,
-            s"$summaries\n${toText(snapshot.counters)}",
-            List(
-              Attachment(
-                cfg.infoColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.uniqueName, short = true),
-                  SlackField("Host", params.taskParams.hostName, short = true),
-                  SlackField("Up Time", cfg.durationFormatter.format(si.launchTime, at), short = true),
-                  SlackField(
-                    s"Next Metrics Reset",
-                    next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
-                    short = true
-                  )
-                ) ::: extra
-              ))
-          ))
+        val msg = cfg.extraSlackSections.map { extra =>
+          SlackApp(
+            username = params.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.infoColor,
+                blocks = List(Section(s"""|$summaries
+                                          |*Service:* ${params.uniqueName}
+                                          |*Host:* ${params.taskParams.hostName}
+                                          |*Next Reset:* ${next.fold("no time")(
+                  _.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)}
+                                          |*Up Time:* ${cfg.durationFormatter.format(si.launchTime, at)}
+                                          |""".stripMargin)) ::: extra
+              ),
+              Attachments(
+                color = cfg.infoColor,
+                blocks = List(Section(s"*Metrics:* \n```${toText(snapshot.counters)}```")))
+            )
+          )
+        }
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).void
 
       case ActionStart(params, action) =>
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.serviceParams.taskParams.appName,
-            s"Kick off action: *${params.actionName}*",
-            List(
-              Attachment(
-                cfg.infoColor,
-                action.launchTime.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.serviceParams.uniqueName, short = true),
-                  SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action ID", action.showId, short = true),
-                  SlackField("Status", "Started", short = true)
-                ) ::: extra
+        val msg = cfg.extraSlackSections.map { extra =>
+          SlackApp(
+            username = params.serviceParams.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.infoColor,
+                blocks = List(Section(s"""|Kick off action: *${params.actionName}*
+                                          |*Service:* ${params.serviceParams.uniqueName}
+                                          |*Host:* ${params.serviceParams.taskParams.hostName}
+                                          |""".stripMargin))
               ))
-          ))
+          )
+        }
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance === Importance.Critical)
 
       case ActionRetrying(params, action, at, wdr, error) =>
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.serviceParams.taskParams.appName,
-            s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action, retry of which takes place in *${cfg.durationFormatter
-              .format(wdr.nextDelay)}*",
-            List(
-              Attachment(
-                cfg.warnColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.serviceParams.uniqueName, short = true),
-                  SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.actionName, short = true),
-                  SlackField("Action ID", action.showId, short = true),
-                  SlackField("Status", "Retrying", short = true),
-                  SlackField("Hitherto", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                  SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                ) ::: extra
+        val msg = cfg.extraSlackSections.map { extra =>
+          SlackApp(
+            username = params.serviceParams.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.warnColor,
+                blocks = List(
+                  Section(s"""|This is the *${toOrdinalWords(
+                    wdr.retriesSoFar + 1L)}* failure of the action *${params.actionName}*, retry of which takes place in *${cfg.durationFormatter
+                    .format(wdr.nextDelay)}*
+                              |*Service:* ${params.serviceParams.uniqueName}
+                              |*Host:* ${params.serviceParams.taskParams.hostName}
+                              |*Took:* ${cfg.durationFormatter.format(action.launchTime, at)}
+                              |""".stripMargin),
+                  Section(s"*Cause:* \n```${abbreviate(error.stackTrace)}```")
+                )
               ))
-          ))
-
+          )
+        }
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance =!= Importance.Low && cfg.isShowRetry)
 
       case ActionFailed(params, action, at, numRetries, notes, error) =>
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.serviceParams.taskParams.appName,
-            StringUtils.abbreviate(notes.value, cfg.maxTextSize),
-            List(
-              Attachment(
-                cfg.errorColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.serviceParams.uniqueName, short = true),
-                  SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.actionName, short = true),
-                  SlackField("Action ID", action.showId, short = true),
-                  SlackField("Status", "Failed", short = true),
-                  SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                  SlackField("Retries", numRetries.show, short = true),
-                  SlackField("Retry Policy", params.retry.policy[F].show, short = false),
-                  SlackField("Cause", StringUtils.abbreviate(error.message, cfg.maxTextSize), short = false)
-                ) ::: extra
-              ))
-          ))
+        val msg = cfg.extraSlackSections.map { extra =>
+          SlackApp(
+            username = params.serviceParams.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.errorColor,
+                blocks = List(
+                  Section(s"""|The action *${params.actionName}* was failed, after *${numRetries.show}* retries
+                              |*Service:* ${params.serviceParams.uniqueName}
+                              |*Host:* ${params.serviceParams.taskParams.hostName}
+                              |*Took:* ${cfg.durationFormatter.format(action.launchTime, at)}
+                              |*Retry Policy:* ${params.retry.policy[F].show}
+                              |""".stripMargin),
+                  Section(s"*Cause:* \n```${abbreviate(error.stackTrace)}```")
+                ) ::: (if (notes.value.isEmpty) Nil else List(Section(s"*Notes:* \n```${abbreviate(notes.value)}```")))
+              )
+            )
+          )
+        }
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance =!= Importance.Low)
 
       case ActionSucced(params, action, at, numRetries, notes) =>
-        val msg: F[SlackNotification] = cfg.extraSlackFields.map(extra =>
-          SlackNotification(
-            params.serviceParams.taskParams.appName,
-            StringUtils.abbreviate(notes.value, cfg.maxTextSize),
-            List(
-              Attachment(
-                cfg.goodColor,
-                at.toInstant.toEpochMilli,
-                List(
-                  SlackField("Service", params.serviceParams.uniqueName, short = true),
-                  SlackField("Host", params.serviceParams.taskParams.hostName, short = true),
-                  SlackField("Action", params.actionName, short = true),
-                  SlackField("Action ID", action.showId, short = true),
-                  SlackField("Status", "Completed", short = true),
-                  SlackField("Took", cfg.durationFormatter.format(action.launchTime, at), short = true),
-                  SlackField("Retries", s"$numRetries/${params.retry.maxRetries}", short = true)
-                ) ::: extra
-              ))
-          ))
+        val msg = cfg.extraSlackSections.map { extra =>
+          SlackApp(
+            username = params.serviceParams.taskParams.appName,
+            attachments = List(
+              Attachments(
+                color = cfg.goodColor,
+                blocks = List(
+                  Section(
+                    s"""|The action *${params.actionName}* was successfully completed after *${numRetries.show}* retries
+                        |*Service:* ${params.serviceParams.uniqueName}
+                        |*Host:* ${params.serviceParams.taskParams.hostName}
+                        |*Took:* ${cfg.durationFormatter.format(action.launchTime, at)}
+                        |""".stripMargin)
+                ) ::: (if (notes.value.isEmpty) Nil else List(Section(s"*Notes:* \n```${abbreviate(notes.value)}```")))
+              )
+            )
+          )
+        }
         msg.flatMap(m => sns.publish(m.asJson.noSpaces)).whenA(params.importance === Importance.Critical)
 
       // no op
