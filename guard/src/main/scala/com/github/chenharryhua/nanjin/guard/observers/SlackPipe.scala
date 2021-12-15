@@ -133,14 +133,13 @@ final class SlackPipe[F[_]] private[observers] (
               Attachments(
                 color = cfg.warnColor,
                 blocks = services.toList.map(ss =>
-                  Section(
-                    s"""|:octagonal_sign: Terminated Service
-                        |*App:* ${ss._1.taskParams.appName}
-                        |*Service:* ${ss._1.uniqueName}
-                        |*Host:* ${ss._1.taskParams.hostName}
-                        |*Up Time:* ${cfg.durationFormatter.format(
-                      ss._2.toInstant,
-                      ts)}""".stripMargin)) ::: extra
+                  Section(s"""|:octagonal_sign: Terminated Service
+                              |*App:* ${ss._1.taskParams.appName}
+                              |*Service:* ${ss._1.uniqueName}
+                              |*Host:* ${ss._1.taskParams.hostName}
+                              |*Up Time:* ${cfg.durationFormatter.format(
+                    ss._2.toInstant,
+                    ts)}""".stripMargin)) ::: extra
               ))
           ).asJson.spaces2
           _ <- sns.publish(msg).attempt.void
@@ -218,24 +217,30 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case ServiceAlert(_, _, params, alertName, message) =>
-        val msg = cfg.extraSlackSections.map(extra =>
+      case ServiceAlert(_, _, params, importance, alertName, message) =>
+        val msg = cfg.extraSlackSections.map { _ =>
           SlackApp(
             username = params.taskParams.appName,
             attachments = List(
               Attachments(
-                color = cfg.warnColor,
+                color = importance match {
+                  case Importance.Critical => cfg.errorColor
+                  case Importance.High     => cfg.warnColor
+                  case Importance.Medium   => cfg.infoColor
+                  case Importance.Low      => cfg.infoColor
+                },
                 blocks = List(
                   Section(alertName),
                   hostServiceSection(params),
                   Section(abbreviate(message))
-                ) ::: extra
+                )
               )
             )
-          ))
+          )
+        }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m)
+          _ <- sns.publish(m).whenA(importance =!= Importance.Low)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -272,7 +277,7 @@ final class SlackPipe[F[_]] private[observers] (
                 color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
                 blocks = List(
                   Section(
-                    s":gottarun: The service has been running for *${took(si.launchTime, at)}* in time zone *${params.taskParams.zoneId}*, next check at *$next*"),
+                    s":gottarun: The service has been running for *${took(si.launchTime, at)}* in time zone *${params.taskParams.zoneId}*, next show at *$next*"),
                   hostServiceSection(params)
                 ) ::: extra ::: List(Section(abbreviate(toText(snapshot.counters))))
               )

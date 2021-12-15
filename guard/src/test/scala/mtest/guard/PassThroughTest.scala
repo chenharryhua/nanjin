@@ -54,7 +54,7 @@ class PassThroughTest extends AnyFunSuite {
   test("warn") {
     val Some(last) = guard
       .updateConfig(_.withMetricSchedule(crontabs.secondly))
-      .eventStream(_.alert(Left(new Exception), "oops").delayBy(1.second).foreverM)
+      .eventStream(_.error("message", "oops").delayBy(1.second).foreverM)
       .interruptAfter(5.seconds)
       .compile
       .last

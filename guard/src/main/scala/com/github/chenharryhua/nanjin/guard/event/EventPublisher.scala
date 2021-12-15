@@ -23,10 +23,15 @@ final private[guard] class EventPublisher[F[_]](
   serviceParams: ServiceParams)(implicit F: Async[F]) {
 
   // service level
-  private val metricsReportMRName: String       = "01.health.check"
-  private val serviceStartMRName: String        = "02.service.start"
-  private val servicePanicMRName: String        = "03.service.`panic`"
-  private def alertMRName(name: String): String = s"04.`alert`.[$name]"
+  private val metricsReportMRName: String = "01.health.check"
+  private val serviceStartMRName: String  = "02.service.start"
+  private val servicePanicMRName: String  = "03.service.`panic`"
+  private def alertMRName(name: String, importance: Importance): String = importance match {
+    case Importance.Critical => s"04.alert.`error`.[$name]"
+    case Importance.High     => s"04.alert.`warn`.[$name]"
+    case Importance.Medium   => s"20.alert.info.[$name]"
+    case Importance.Low      => s"20.alert.debug.[$name]"
+  }
 
   // action level
   private def counterMRName(name: String): String     = s"10.counter.[$name]"
@@ -212,7 +217,7 @@ final private[guard] class EventPublisher[F[_]](
   def count(metricName: String, num: Long): F[Unit] =
     F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
 
-  def alert(alertName: String, msg: String): F[Unit] =
+  def alert(alertName: String, msg: String, importance: Importance): F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
@@ -220,7 +225,8 @@ final private[guard] class EventPublisher[F[_]](
           timestamp = ts,
           serviceInfo = serviceInfo,
           serviceParams = serviceParams,
+          importance = importance,
           alertName = alertName,
           message = msg))
-    } yield metricRegistry.counter(alertMRName(alertName)).inc()
+    } yield metricRegistry.counter(alertMRName(alertName, importance)).inc()
 }
