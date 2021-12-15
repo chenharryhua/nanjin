@@ -59,6 +59,6 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricsReport].snapshot.counters("04.`alert`.[oops]") > 3)
+    assert(last.asInstanceOf[MetricsReport].snapshot.counters("04.alert.`error`.[oops]") > 3)
   }
 }

@@ -132,14 +132,11 @@ final class SlackPipe[F[_]] private[observers] (
             attachments = List(
               Attachments(
                 color = cfg.warnColor,
-                blocks = services.toList.map(ss =>
-                  Section(s"""|:octagonal_sign: Terminated Service
-                              |*App:* ${ss._1.taskParams.appName}
-                              |*Service:* ${ss._1.uniqueName}
-                              |*Host:* ${ss._1.taskParams.hostName}
-                              |*Up Time:* ${cfg.durationFormatter.format(
-                    ss._2.toInstant,
-                    ts)}""".stripMargin)) ::: extra
+                blocks =
+                  services.toList.map(ss => Section(s"""|:octagonal_sign: Terminated Service *${ss._1.uniqueName}*
+                                                        |*App:* ${ss._1.taskParams.appName}
+                                                        |*Host:* ${ss._1.taskParams.hostName}
+                                                        |*Up Time:* ${cfg.durationFormatter.format(ss._2.toInstant, ts)}""".stripMargin)) ::: extra
               ))
           ).asJson.spaces2
           _ <- sns.publish(msg).attempt.void
