@@ -90,16 +90,20 @@ final class SlackPipe[F[_]] private[observers] (
 
   def withSection(value: String): SlackPipe[F] = withSection(F.pure(value))
 
-  /** one metrics report allowed to show in the interval
+  /** show one message in every interval
     */
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
   def withLogging: SlackPipe[F] = updateSlackConfig(_.copy(isLoggging = true))
 
+  // slack not allow message larger than 3000 chars
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, 2950)
+
   private def toText(counters: Map[String, Long]): String = {
     val fmt: NumberFormat = NumberFormat.getIntegerInstance
-    counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted.mkString("\n")
+    val msg: List[String] = counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted
+    if (msg.isEmpty) "No metrics" else msg.mkString("\n")
   }
 
   private def hostServiceSection(sp: ServiceParams): Section = Section(
@@ -133,11 +137,13 @@ final class SlackPipe[F[_]] private[observers] (
               Attachments(
                 color = cfg.warnColor,
                 blocks =
-                  services.toList.map(ss => Section(s"""|:octagonal_sign: Terminated Service *${ss._1.uniqueName}*
+                  services.toList.map(ss => Section(s"""|:octagonal_sign: Terminated Service: *${ss._1.uniqueName}*
                                                         |*App:* ${ss._1.taskParams.appName}
                                                         |*Host:* ${ss._1.taskParams.hostName}
-                                                        |*Up Time:* ${cfg.durationFormatter.format(ss._2.toInstant, ts)}""".stripMargin)) ::: extra
-              ))
+                                                        |*Up Time:* ${cfg.durationFormatter.format(ss._2.toInstant, ts)}""".stripMargin))
+              ),
+              Attachments(color = cfg.infoColor, blocks = extra)
+            )
           ).asJson.spaces2
           _ <- sns.publish(msg).attempt.void
           _ <- logger.info(msg).whenA(cfg.isLoggging)
@@ -159,9 +165,6 @@ final class SlackPipe[F[_]] private[observers] (
     s"$n$w"
   }
 
-  // slack not allow message larger than 3000 chars
-  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, 2950)
-
   private def publish(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
       case ServiceStarted(at, si, params) =>
@@ -174,9 +177,12 @@ final class SlackPipe[F[_]] private[observers] (
                 blocks = List(
                   Section(s"""|:rocket: (Re)Started Service in time zone *${params.taskParams.zoneId.show}*
                               |*Up Time:* ${took(si.launchTime, at)}""".stripMargin),
-                  hostServiceSection(params)
-                ) ::: extra
-              ))
+                  hostServiceSection(params),
+                  Section("*Status:* Running")
+                )
+              ),
+              Attachments(color = cfg.infoColor, blocks = extra)
+            )
           ))
 
         for {
@@ -197,15 +203,17 @@ final class SlackPipe[F[_]] private[observers] (
               Attachments(
                 color = cfg.errorColor,
                 blocks = List(
-                  Section(s"""|:alarm: Service Panic 
-                              |The service experienced a panic, the *${toOrdinalWords(
-                    details.retriesSoFar + 1L)}* time, $upcoming""".stripMargin),
+                  Section(
+                    s":alarm: The service experienced a panic, the *${toOrdinalWords(details.retriesSoFar + 1L)}* time, $upcoming"),
                   Section(s"""|*Cumulative Delay:* ${cfg.durationFormatter.format(details.cumulativeDelay)} 
                               |*Retry Policy:* ${params.retry.policy[F].show}
                               |*Up Time:* ${took(si.launchTime, at)}""".stripMargin),
-                  hostServiceSection(params)
-                ) ::: extra ::: List(Section(s"*Cause*:\n```${abbreviate(error.stackTrace)}```"))
-              )
+                  hostServiceSection(params),
+                  Section("*Status:* Suspended"),
+                  Section(s"*Cause*:\n```${abbreviate(error.stackTrace)}```")
+                )
+              ),
+              Attachments(color = cfg.infoColor, blocks = extra)
             )
           ))
         for {
@@ -216,21 +224,19 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ServiceAlert(_, _, params, importance, alertName, message) =>
         val msg = cfg.extraSlackSections.map { _ =>
+          val (title, color) = importance match {
+            case Importance.Critical => ("Error", cfg.errorColor)
+            case Importance.High     => ("Warning", cfg.warnColor)
+            case Importance.Medium   => ("Info", cfg.infoColor)
+            case Importance.Low      => ("Not/Applicable/Yet", cfg.infoColor)
+          }
           SlackApp(
             username = params.taskParams.appName,
             attachments = List(
               Attachments(
-                color = importance match {
-                  case Importance.Critical => cfg.errorColor
-                  case Importance.High     => cfg.warnColor
-                  case Importance.Medium   => cfg.infoColor
-                  case Importance.Low      => cfg.infoColor
-                },
-                blocks = List(
-                  Section(alertName),
-                  hostServiceSection(params),
-                  Section(abbreviate(message))
-                )
+                color = color,
+                blocks = List(Section(s"*$title:* $alertName"), hostServiceSection(params)) :::
+                  (if (message.isEmpty) Nil else List(Section(abbreviate(message))))
               )
             )
           )
@@ -250,10 +256,12 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.warnColor,
                 blocks = List(
                   Section(s":octagonal_sign: Service Stopped after *${took(si.launchTime, at)}*."),
-                  hostServiceSection(params)
-                ) ::: extra
+                  hostServiceSection(params),
+                  Section("*Status:* Stopped"),
+                  Section(abbreviate(toText(snapshot.counters)))
+                )
               ),
-              Attachments(color = cfg.warnColor, blocks = List(Section(abbreviate(toText(snapshot.counters)))))
+              Attachments(color = cfg.infoColor, blocks = extra)
             )
           ))
         for {
@@ -275,9 +283,11 @@ final class SlackPipe[F[_]] private[observers] (
                 blocks = List(
                   Section(
                     s":gottarun: The service has been running for *${took(si.launchTime, at)}* in time zone *${params.taskParams.zoneId}*, next show at *$next*"),
-                  hostServiceSection(params)
-                ) ::: extra ::: List(Section(abbreviate(toText(snapshot.counters))))
-              )
+                  hostServiceSection(params),
+                  Section(abbreviate(toText(snapshot.counters)))
+                )
+              ),
+              Attachments(color = cfg.infoColor, blocks = extra)
             )
           )
         }
@@ -303,9 +313,11 @@ final class SlackPipe[F[_]] private[observers] (
                   Section(
                     s"""|*Next Reset:* ${next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)}
                         |*Up Time:* ${took(si.launchTime, at)}""".stripMargin),
-                  hostServiceSection(params)
-                ) ::: extra ::: List(Section(abbreviate(toText(snapshot.counters))))
-              )
+                  hostServiceSection(params),
+                  Section(abbreviate(toText(snapshot.counters)))
+                )
+              ),
+              Attachments(color = cfg.infoColor, blocks = extra)
             )
           )
         }
@@ -399,7 +411,7 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.goodColor,
                 blocks = List(
                   Section(
-                    s"The action *${params.uniqueName}* was successfully completed in *${took(action.launchTime, at)}*, after *${numRetries.show}* retries"),
+                    s"The action *${params.uniqueName}* was accomplished in *${took(action.launchTime, at)}*, after *${numRetries.show}* retries"),
                   Section(s"""|*ActionID:* ${action.uuid.show}""".stripMargin),
                   hostServiceSection(params.serviceParams)
                 ) ::: (if (notes.value.isEmpty) Nil else List(Section(abbreviate(notes.value))))
@@ -413,6 +425,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case msg: PassThrough => logger.info(msg.asJson.spaces2).whenA(cfg.isLoggging)
+      // not sent to slack
+      case _: PassThrough => F.unit
     }
 }
