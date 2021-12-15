@@ -136,11 +136,13 @@ final class SlackPipe[F[_]] private[observers] (
             attachments = List(
               Attachments(
                 color = cfg.warnColor,
-                blocks =
-                  services.toList.map(ss => Section(s"""|:octagonal_sign: Terminated Service: *${ss._1.uniqueName}*
-                                                        |*App:* ${ss._1.taskParams.appName}
-                                                        |*Host:* ${ss._1.taskParams.hostName}
-                                                        |*Up Time:* ${cfg.durationFormatter.format(ss._2.toInstant, ts)}""".stripMargin))
+                blocks = services.toList.map(ss =>
+                  Section(s"""|:octagonal_sign: Terminated Service: *${ss._1.uniqueName}*
+                              |*App:* ${ss._1.taskParams.appName}
+                              |*Host:* ${ss._1.taskParams.hostName}
+                              |*Up Time:* ${cfg.durationFormatter.format(
+                    ss._2.toInstant,
+                    ts)}""".stripMargin))
               ),
               Attachments(color = cfg.infoColor, blocks = extra)
             )
@@ -376,7 +378,7 @@ final class SlackPipe[F[_]] private[observers] (
         } yield ()
 
       case ActionFailed(params, action, at, numRetries, notes, error) =>
-        val msg = cfg.extraSlackSections.map { _ =>
+        val msg = cfg.extraSlackSections.map { extra =>
           SlackApp(
             username = params.serviceParams.taskParams.appName,
             attachments = List(
@@ -392,7 +394,8 @@ final class SlackPipe[F[_]] private[observers] (
                   hostServiceSection(params.serviceParams),
                   Section(s"*Cause:* \n```${abbreviate(error.stackTrace)}```")
                 ) ::: (if (notes.value.isEmpty) Nil else List(Section(abbreviate(notes.value))))
-              )
+              ),
+              Attachments(color = cfg.infoColor, blocks = extra)
             )
           )
         }
