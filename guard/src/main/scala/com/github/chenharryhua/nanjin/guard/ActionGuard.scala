@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import cats.{Alternative, Show, Traverse}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit}
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ActionParams, Importance}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import io.circe.Encoder
@@ -64,17 +64,23 @@ final class ActionGuard[F[_]] private[guard] (
   def unsafePassThrough[A: Encoder](a: A, metricName: String): Unit =
     dispatcher.unsafeRunSync(passThrough(a, metricName))
 
-  def count(num: Long, alertName: String): F[Unit]    = publisher.count(alertName, num)
-  def unsafeCount(num: Long, alertName: String): Unit = dispatcher.unsafeRunSync(count(num, alertName))
+  def count(num: Long, counterName: String): F[Unit]    = publisher.count(counterName, num)
+  def unsafeCount(num: Long, counterName: String): Unit = dispatcher.unsafeRunSync(count(num, counterName))
 
-  def alert[S: Show](msg: S, alertName: String): F[Unit]         = publisher.alert(alertName, msg.show)
-  def alert[S: Show](msg: Option[S], alertName: String): F[Unit] = msg.traverse(alert(_, alertName)).void
-  def alert(msg: Either[Throwable, ?], alertName: String): F[Unit] =
-    alert(msg.leftMap(ex => ExceptionUtils.getStackTrace(ex)).swap.toOption, alertName)
-  def unsafeAlert[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(alert(msg, alertName))
-  def unsafeAlert[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(alert(msg, alertName))
-  def unsafeAlert(msg: Either[Throwable, ?], alertName: String): Unit =
-    dispatcher.unsafeRunSync(alert(msg, alertName))
+  def error[S: Show](msg: S, alertName: String): F[Unit] = publisher.alert(alertName, msg.show, Importance.Critical)
+  def error[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(error(_, alertName)).void
+  def unsafeError[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(error(msg, alertName))
+  def unsafeError[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(error(msg, alertName))
+
+  def warn[S: Show](msg: S, alertName: String): F[Unit]         = publisher.alert(alertName, msg.show, Importance.High)
+  def warn[S: Show](msg: Option[S], alertName: String): F[Unit] = msg.traverse(warn(_, alertName)).void
+  def unsafeWarn[S: Show](msg: S, alertName: String): Unit      = dispatcher.unsafeRunSync(warn(msg, alertName))
+  def unsafeWarn[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(warn(msg, alertName))
+
+  def info[S: Show](msg: S, alertName: String): F[Unit] = publisher.alert(alertName, msg.show, Importance.Medium)
+  def info[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(info(_, alertName)).void
+  def unsafeInfo[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(info(msg, alertName))
+  def unsafeInfo[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(info(msg, alertName))
 
   // maximum retries
   def max(retries: Int): ActionGuard[F] = updateConfig(_.withMaxRetries(retries))

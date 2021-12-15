@@ -7,14 +7,14 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.{cloudwatch, console, logging, slack}
+import com.github.chenharryhua.nanjin.guard.observers.{logging, slack}
 import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.parser.decode
-import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{Instant, ZonedDateTime}
+import java.time.ZonedDateTime
 import scala.concurrent.duration.*
+
 class ServiceTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("service-level-guard")
@@ -144,12 +144,13 @@ class ServiceTest extends AnyFunSuite {
     println(weekly)
   }
 
-  ignore("performance") {
+  test("performance") {
     TaskGuard[IO]("performance")
       .service("performance")
       .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
-      .eventStream(_.passThrough(1, "pt").foreverM)
+      .eventStream(_.passThrough(1, "pt"))
       .evalTap(logging[IO](_.show))
+      .through(slack[IO](SimpleNotificationService.fake[IO]))
       .compile
       .drain
       .unsafeRunSync()

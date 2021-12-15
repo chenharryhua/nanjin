@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
@@ -43,6 +43,7 @@ final case class ServiceAlert(
   timestamp: ZonedDateTime,
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
+  importance: Importance,
   alertName: String,
   message: String
 ) extends ServiceEvent
