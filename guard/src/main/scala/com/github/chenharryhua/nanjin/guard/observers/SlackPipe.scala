@@ -9,9 +9,10 @@ import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, 
 import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
+import io.circe.Encoder
 import io.circe.generic.auto.*
+import io.circe.literal.JsonStringContext
 import io.circe.syntax.*
-import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.{localdatetime, localtime, zoneddatetime, zoneid}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -68,22 +69,44 @@ final private case class SlackConfig[F[_]](
 
 final private case class TextField(tag: String, value: String)
 private object TextField {
-  implicit val encodeTextField: Encoder[TextField] = tf =>
-    Json.obj(("type", Json.fromString("mrkdwn")), ("text", Json.fromString(s"*${tf.tag}:*\n${tf.value}")))
+  implicit val encodeTextField: Encoder[TextField] = tf => {
+    val str = s"*${tf.tag}:*\n${tf.value}"
+    json"""
+        {
+           "type": "mrkdwn",
+           "text": $str
+        }
+        """
+  }
 }
 
 sealed private trait Section
 private object Section {
   implicit val encodeSection: Encoder[Section] = Encoder.instance {
     case JuxtaposeSection(first, second) =>
-      Json.obj(("type", Json.fromString("section")), ("fields", List(first, second).asJson))
+      json"""
+            {
+               "type": "section",
+               "fields": ${List(first, second)}
+            }
+            """
     case MarkdownSection(text) =>
-      Json.obj(
-        ("type", Json.fromString("section")),
-        ("text", Json.obj(("type", Json.fromString("mrkdwn")), ("text", Json.fromString(text))))
-      )
+      json"""
+            {
+               "type": "section",
+               "text": {
+                          "type": "mrkdwn",
+                          "text": $text
+                       }
+            }
+            """
     case KeyValueSection(key, value) =>
-      Json.obj(("type", Json.fromString("section")), ("text", TextField(key, value).asJson))
+      json"""
+            {
+               "type": "section",
+               "text": ${TextField(key, value)}
+            }
+            """
   }
 }
 
@@ -207,7 +230,7 @@ final class SlackPipe[F[_]] private[observers] (
               Attachments(
                 color = cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(":rocket: (Re)Started Service"),
+                  MarkdownSection(":rocket: *(Re)Started Service*"),
                   hostServiceSection(params),
                   JuxtaposeSection(
                     first = TextField("Up Time", took(si.launchTime, at)),
