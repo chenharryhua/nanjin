@@ -55,7 +55,7 @@ final private case class SlackConfig[F[_]](
   isLoggging: Boolean,
   supporters: List[String]
 ) {
-  val users: String =
+  val atSupporters: String =
     supporters
       .filter(_.nonEmpty)
       .map(_.trim)
@@ -165,16 +165,17 @@ final class SlackPipe[F[_]] private[observers] (
             attachments = List(
               Attachments(
                 color = cfg.warnColor,
-                blocks = List(MarkdownSection(s"*Terminated Service(s)* ${cfg.users}")))) ::: services.toList.map(ss =>
-              Attachments(
-                color = cfg.warnColor,
-                blocks = List(
-                  hostServiceSection(ss._1),
-                  JuxtaposeSection(
-                    TextField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts)),
-                    TextField("App", ss._1.taskParams.appName))
-                )
-              )) ::: List(Attachments(color = cfg.infoColor, blocks = extra))
+                blocks = List(MarkdownSection(s"*Terminated Service(s)* ${cfg.atSupporters}")))) ::: services.toList
+              .map(ss =>
+                Attachments(
+                  color = cfg.warnColor,
+                  blocks = List(
+                    hostServiceSection(ss._1),
+                    JuxtaposeSection(
+                      TextField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts)),
+                      TextField("App", ss._1.taskParams.appName))
+                  )
+                )) ::: List(Attachments(color = cfg.infoColor, blocks = extra))
           ).asJson.spaces2
           _ <- sns.publish(msg).attempt.void
           _ <- logger.info(msg).whenA(cfg.isLoggging)
@@ -225,8 +226,9 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ServicePanic(at, si, params, details, error) =>
         val upcoming: String = details.upcomingDelay.map(cfg.durationFormatter.format) match {
-          case None     => "report to developer once you see this message" // never happen
-          case Some(ts) => s"restart of which takes place in *$ts* meanwhile the service is dysfunctional. ${cfg.users}"
+          case None => "report to developer once you see this message" // never happen
+          case Some(ts) =>
+            s"restart of which takes place in *$ts* meanwhile the service is dysfunctional. ${cfg.atSupporters}"
         }
         val msg = cfg.extraSlackSections.map(extra =>
           SlackApp(
@@ -257,7 +259,7 @@ final class SlackPipe[F[_]] private[observers] (
       case ServiceAlert(_, _, params, importance, alertName, message) =>
         val msg = cfg.extraSlackSections.map { _ =>
           val (users, title, color) = importance match {
-            case Importance.Critical => (cfg.users, "Error", cfg.errorColor)
+            case Importance.Critical => (cfg.atSupporters, "Error", cfg.errorColor)
             case Importance.High     => ("", "Warning", cfg.warnColor)
             case Importance.Medium   => ("", "Info", cfg.infoColor)
             case Importance.Low      => ("", "Not/Applicable/Yet", cfg.infoColor)
@@ -422,7 +424,7 @@ final class SlackPipe[F[_]] private[observers] (
                   MarkdownSection(
                     s"The action *${params.uniqueName}* was failed after *${numRetries.show}* retries, took *${took(
                       action.launchTime,
-                      at)}* ${cfg.users}"),
+                      at)}* ${cfg.atSupporters}"),
                   MarkdownSection(s"""|*Action ID:* ${action.uuid.show}
                                       |*Error ID:* ${error.uuid.show}
                                       |*Retry Policy:* ${params.retry.policy[F].show}
