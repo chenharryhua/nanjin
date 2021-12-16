@@ -65,7 +65,7 @@ object ActionRetryParams {
   serviceParams: ServiceParams,
   isTerminate: Boolean,
   retry: ActionRetryParams) {
-  val actionName: String = spans.mkString(".")
+  val actionName: String = spans.mkString("-")
   val sha1Hex: String =
     DigestUtils.sha1Hex(s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}/$actionName").take(8)
   val uniqueName: String = s"$actionName/$sha1Hex"
