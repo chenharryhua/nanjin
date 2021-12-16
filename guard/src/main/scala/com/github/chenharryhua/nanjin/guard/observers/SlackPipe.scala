@@ -55,7 +55,7 @@ final private case class SlackConfig[F[_]](
   isLoggging: Boolean,
   supporters: List[String]
 ) {
-  def users: String =
+  val users: String =
     supporters
       .filter(_.nonEmpty)
       .map(_.trim)
@@ -162,7 +162,10 @@ final class SlackPipe[F[_]] private[observers] (
           services <- ref.get
           msg = SlackApp(
             username = "Service Termination Notice",
-            attachments = services.toList.map(ss =>
+            attachments = List(
+              Attachments(
+                color = cfg.warnColor,
+                blocks = List(MarkdownSection(s"*Terminated Service(s)* ${cfg.users}")))) ::: services.toList.map(ss =>
               Attachments(
                 color = cfg.warnColor,
                 blocks = List(
@@ -312,7 +315,7 @@ final class SlackPipe[F[_]] private[observers] (
               Attachments(
                 color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(s"*Health Check*"),
+                  MarkdownSection(s":health_worker: *Health Check*"),
                   hostServiceSection(params),
                   JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Next", next)),
                   KeyValueSection("Metrics", abbreviate(toText(snapshot.counters)))
