@@ -317,7 +317,7 @@ class RetryTest extends AnyFunSuite {
   test("span") {
     serviceGuard.eventStream { root =>
       val name = root.span("a").span("b").span("c").params.guardId.value
-      IO(assert(name == "a-b-c"))
+      IO(assert(name == "a/b/c"))
     }.debug().compile.drain.unsafeRunSync()
   }
 

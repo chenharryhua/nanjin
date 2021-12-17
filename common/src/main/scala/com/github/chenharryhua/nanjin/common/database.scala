@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.common
 
-import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.boolean.And
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
@@ -15,10 +14,10 @@ object database {
   type Password = String Refined And[NonEmpty, Trimmed]
   object Password extends RefinedTypeOps[Password, String] with CatsRefinedTypeOpsSyntax
 
-  type DatabaseName = String Refined And[NonEmpty, MaxSize[W.`128`.T]]
+  type DatabaseName = String Refined And[NonEmpty, MaxSize[128]]
   object DatabaseName extends RefinedTypeOps[DatabaseName, String] with CatsRefinedTypeOpsSyntax
 
-  type TableName = String Refined And[NonEmpty, MaxSize[W.`128`.T]]
+  type TableName = String Refined And[NonEmpty, MaxSize[128]]
   object TableName extends RefinedTypeOps[TableName, String] with CatsRefinedTypeOpsSyntax
 
   type Host = String Refined Uri

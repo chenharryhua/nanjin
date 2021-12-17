@@ -4,6 +4,14 @@ import cats.Show
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import diffson.*
+import diffson.circe.*
+import diffson.jsonpatch.Operation
+import diffson.jsonpatch.lcsdiff.*
+import diffson.lcs.*
+import io.circe.*
+import io.circe.generic.auto.*
+import io.circe.parser.parse
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
@@ -84,8 +92,22 @@ final case class CompatibilityTestReport(
 
   override val toString: String = show
 
-  val isCompatible: Boolean =
-    key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
+  val isCompatible: Boolean = key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
+
+  implicit val lcs: Patience[Json] = new Patience[Json]
+
+  val diffKey: Option[List[Operation[Json]]] = for {
+    kafkaKeySchema <- meta.key.flatMap(skm => parse(skm.getSchema).toOption)
+    localKeySchema <- parse(keySchema.canonicalString()).toOption
+  } yield diff(kafkaKeySchema, localKeySchema).ops
+
+  val diffVal: Option[List[Operation[Json]]] = for {
+    kafkaValSchema <- meta.value.flatMap(skm => parse(skm.getSchema).toOption)
+    localValSchema <- parse(valueSchema.canonicalString()).toOption
+  } yield (diff(kafkaValSchema, localValSchema)).ops
+
+  val isIdentical: Boolean = (diffKey, diffVal).mapN(_ ::: _).exists(_.isEmpty)
+
 }
 
 final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Sync[F]) extends Serializable {

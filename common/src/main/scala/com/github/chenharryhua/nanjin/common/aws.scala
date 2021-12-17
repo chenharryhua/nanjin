@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Show
-import eu.timepit.refined.W
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.{MatchesRegex, Url}
@@ -11,15 +10,15 @@ object aws {
   object SqsUrl extends RefinedTypeOps[SqsUrl, String] with CatsRefinedTypeOpsSyntax
 
   type IamArn =
-    String Refined MatchesRegex[W.`"^arn:(aws[a-zA-Z-]*)?:iam::\\\\d{12}:role/[A-Za-z0-9-]+$"`.T]
+    String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
   object IamArn extends RefinedTypeOps[IamArn, String] with CatsRefinedTypeOpsSyntax
 
   type SnsArn =
-    String Refined MatchesRegex[W.`"^arn:(aws[a-zA-Z-]*)?:sns:[A-Za-z0-9_-]+:\\\\d{12}:[A-Za-z0-9-]+$"`.T]
+    String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:sns:[A-Za-z0-9_-]+:\\d{12}:[A-Za-z0-9-]+$"]
   object SnsArn extends RefinedTypeOps[SnsArn, String] with CatsRefinedTypeOpsSyntax
 
   type KmsArn =
-    String Refined MatchesRegex[W.`"^arn:(aws[a-zA-Z-]*)?:kms:[A-Za-z0-9-]+:\\\\d{12}:key/[A-Za-z0-9-]+$"`.T]
+    String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:kms:[A-Za-z0-9-]+:\\d{12}:key/[A-Za-z0-9-]+$"]
   object KmsArn extends RefinedTypeOps[KmsArn, String] with CatsRefinedTypeOpsSyntax
 
   final case class S3Path(bucket: String, key: String) {

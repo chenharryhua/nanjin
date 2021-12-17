@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough}
+import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStopped}
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -42,23 +42,23 @@ class PassThroughTest extends AnyFunSuite {
 
   test("counter") {
     val Some(last) = guard
-      .updateConfig(_.withMetricSchedule(crontabs.secondly))
-      .eventStream(_.count(1, "counter").delayBy(1.second).foreverM)
+      .updateConfig(_.withMetricSchedule(crontabs.bihourly))
+      .eventStream(_.count(1, "counter").delayBy(1.second))
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricsReport].snapshot.counters("10.counter.[counter]") > 3)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.counter.[counter/0135a608]") == 1)
   }
 
   test("warn") {
     val Some(last) = guard
-      .updateConfig(_.withMetricSchedule(crontabs.secondly))
-      .eventStream(_.error("message", "oops").delayBy(1.second).foreverM)
+      .updateConfig(_.withMetricSchedule(crontabs.c997))
+      .eventStream(_.error("message", "oops").delayBy(1.second))
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricsReport].snapshot.counters("04.alert.`error`.[oops]") > 3)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("04.alert.`error`.[oops/a32b945e]") == 1)
   }
 }

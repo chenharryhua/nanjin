@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import cats.data.Ior
 import cats.syntax.all.*
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, DecoderHelpers, Encoder as AvroEncoder, EncoderHelpers, SchemaFor}
+import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
-import eu.timepit.refined.{refineV, W}
 import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath.*
 import io.circe.{parser, Json}
@@ -25,7 +25,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
     */
   @throws[Exception]
   def withNamespace(namespace: String): AvroCodec[A] = {
-    type Namespace = MatchesRegex[W.`"^[a-zA-Z0-9_.]+$"`.T]
+    type Namespace = MatchesRegex["^[a-zA-Z0-9_.]+$"]
     val res = for {
       ns <- refineV[Namespace](namespace)
       json <- parser
