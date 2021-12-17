@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, GuardId, Importance, ServiceParams}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
@@ -44,7 +44,7 @@ final case class ServiceAlert(
   serviceInfo: ServiceInfo,
   serviceParams: ServiceParams,
   importance: Importance,
-  alertName: String,
+  guardId: GuardId,
   message: String
 ) extends ServiceEvent
 
@@ -106,4 +106,4 @@ final case class ActionSucced(
   notes: Notes // success notes
 ) extends ActionEvent
 
-final case class PassThrough(timestamp: ZonedDateTime, metricName: String, value: Json) extends NJEvent
+final case class PassThrough(timestamp: ZonedDateTime, guardId: GuardId, value: Json) extends NJEvent

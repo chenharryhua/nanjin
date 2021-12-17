@@ -6,7 +6,7 @@ import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, GuardId, Importance, ServiceParams}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -26,21 +26,22 @@ final private[guard] class EventPublisher[F[_]](
   private val metricsReportMRName: String = "01.health.check"
   private val serviceStartMRName: String  = "02.service.start"
   private val servicePanicMRName: String  = "03.service.`panic`"
-  private def alertMRName(name: String, importance: Importance): String = importance match {
-    case Importance.Critical => s"04.alert.`error`.[$name]"
-    case Importance.High     => s"04.alert.`warn`.[$name]"
-    case Importance.Medium   => s"20.alert.info.[$name]"
-    case Importance.Low      => s"20.alert.debug.[$name]"
-  }
+  private def alertMRName(id: GuardId, importance: Importance): String =
+    importance match {
+      case Importance.Critical => s"04.alert.`error`.[${id.displayName}]"
+      case Importance.High     => s"04.alert.`warn`.[${id.displayName}]"
+      case Importance.Medium   => s"20.alert.info.[${id.displayName}]"
+      case Importance.Low      => s"20.alert.debug.[${id.displayName}]"
+    }
 
   // action level
-  private def counterMRName(name: String): String     = s"10.counter.[$name]"
-  private def passThroughMRName(name: String): String = s"11.pass.through.[$name]"
+  private def counterMRName(id: GuardId): String     = s"10.counter.[${id.displayName}]"
+  private def passThroughMRName(id: GuardId): String = s"11.pass.through.[${id.displayName}]"
 
-  private def actionFailMRName(name: String): String  = s"12.action.[$name].`fail`"
-  private def actionRetryMRName(name: String): String = s"12.action.[$name].retry"
-  private def actionStartMRName(name: String): String = s"12.action.[$name].num"
-  private def actionSuccMRName(name: String): String  = s"12.action.[$name].succ"
+  private def actionFailMRName(id: GuardId): String  = s"12.action.[${id.displayName}].`fail`"
+  private def actionRetryMRName(id: GuardId): String = s"12.action.[${id.displayName}].retry"
+  private def actionStartMRName(id: GuardId): String = s"12.action.[${id.displayName}].num"
+  private def actionSuccMRName(id: GuardId): String  = s"12.action.[${id.displayName}].succ"
 
   private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
 
@@ -118,8 +119,8 @@ final private[guard] class EventPublisher[F[_]](
         case Importance.Critical | Importance.High =>
           channel
             .send(ActionStart(actionParams, actionInfo))
-            .map(_ => metricRegistry.counter(actionStartMRName(actionParams.actionName)).inc())
-        case Importance.Medium => F.delay(metricRegistry.counter(actionStartMRName(actionParams.actionName)).inc())
+            .map(_ => metricRegistry.counter(actionStartMRName(actionParams.guardId)).inc())
+        case Importance.Medium => F.delay(metricRegistry.counter(actionStartMRName(actionParams.guardId)).inc())
         case Importance.Low    => F.unit
       }
     } yield actionInfo
@@ -148,10 +149,10 @@ final private[guard] class EventPublisher[F[_]](
               actionParams = actionParams,
               numRetries = num,
               notes = Notes(notes)))
-          _ <- timing(actionSuccMRName(actionParams.actionName), actionInfo, ts)
+          _ <- timing(actionSuccMRName(actionParams.guardId), actionInfo, ts)
         } yield ()
       case Importance.Medium =>
-        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams.actionName), actionInfo, ts))
+        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams.guardId), actionInfo, ts))
       case Importance.Low => F.unit
     }
 
@@ -174,7 +175,7 @@ final private[guard] class EventPublisher[F[_]](
           error = NJError(uuid, ex)))
       _ <- actionParams.importance match {
         case Importance.Critical | Importance.High | Importance.Medium =>
-          timing(actionRetryMRName(actionParams.actionName), actionInfo, ts)
+          timing(actionRetryMRName(actionParams.guardId), actionInfo, ts)
         case Importance.Low => F.unit
       }
       _ <- retryCount.update(_ + 1)
@@ -203,21 +204,21 @@ final private[guard] class EventPublisher[F[_]](
           error = NJError(uuid, ex)))
       _ <- actionParams.importance match {
         case Importance.Critical | Importance.High | Importance.Medium =>
-          timing(actionFailMRName(actionParams.actionName), actionInfo, ts)
+          timing(actionFailMRName(actionParams.guardId), actionInfo, ts)
         case Importance.Low => F.unit
       }
     } yield ()
 
-  def passThrough(metricName: String, json: Json): F[Unit] =
+  def passThrough(id: GuardId, json: Json): F[Unit] =
     for {
       ts <- realZonedDateTime
-      _ <- channel.send(PassThrough(timestamp = ts, metricName = metricName, value = json))
-    } yield metricRegistry.counter(passThroughMRName(metricName)).inc()
+      _ <- channel.send(PassThrough(timestamp = ts, guardId = id, value = json))
+    } yield metricRegistry.counter(passThroughMRName(id)).inc()
 
-  def count(metricName: String, num: Long): F[Unit] =
-    F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
+  def count(id: GuardId, num: Long): F[Unit] =
+    F.delay(metricRegistry.counter(counterMRName(id)).inc(num))
 
-  def alert(alertName: String, msg: String, importance: Importance): F[Unit] =
+  def alert(id: GuardId, msg: String, importance: Importance): F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
@@ -226,7 +227,7 @@ final private[guard] class EventPublisher[F[_]](
           serviceInfo = serviceInfo,
           serviceParams = serviceParams,
           importance = importance,
-          alertName = alertName,
+          guardId = id,
           message = msg))
-    } yield metricRegistry.counter(alertMRName(alertName, importance)).inc()
+    } yield metricRegistry.counter(alertMRName(id, importance)).inc()
 }

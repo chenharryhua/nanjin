@@ -144,13 +144,16 @@ class ServiceTest extends AnyFunSuite {
     println(weekly)
   }
 
-  test("performance") {
-    TaskGuard[IO]("performance")
-      .service("performance")
+  test("slack") {
+    TaskGuard[IO]("slack")
+      .service("slack")
       .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
-      .eventStream(_.passThrough(1, "pt"))
+      .eventStream { root =>
+        val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
+        ag.run(IO(1)) >> ag.error("error.msg", "notify") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+      }
       .evalTap(logging[IO](_.show))
-      .through(slack[IO](SimpleNotificationService.fake[IO]))
+      .through(slack[IO](SimpleNotificationService.fake[IO]).at("@chenh"))
       .compile
       .drain
       .unsafeRunSync()
