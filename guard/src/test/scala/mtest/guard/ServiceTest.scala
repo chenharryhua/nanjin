@@ -150,10 +150,10 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+        ag.run(IO(1)) >> ag.error("error.msg", "notify") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
       .evalTap(logging[IO](_.show))
-      .through(slack[IO](SimpleNotificationService.fake[IO]))
+      .through(slack[IO](SimpleNotificationService.fake[IO]).at("@chenh"))
       .compile
       .drain
       .unsafeRunSync()

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.syntax.show.*
 import cats.{Applicative, Functor, Show}
-import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import higherkindness.droste.data.Fix
@@ -65,10 +64,8 @@ object ActionRetryParams {
   serviceParams: ServiceParams,
   isTerminate: Boolean,
   retry: ActionRetryParams) {
-  val actionName: String = spans.mkString("-")
-  val sha1Hex: String =
-    DigestUtils.sha1Hex(s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}/$actionName").take(8)
-  val uniqueName: String = s"$actionName/$sha1Hex"
+  val guardId: GuardId =
+    GuardId(s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}", spans.mkString("/"))
 }
 
 object ActionParams {

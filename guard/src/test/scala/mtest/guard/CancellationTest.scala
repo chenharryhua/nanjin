@@ -78,12 +78,12 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
-    assert(c.asInstanceOf[ActionFailed].actionParams.actionName == "never")
+    assert(c.asInstanceOf[ActionFailed].actionParams.guardId.value == "never")
     assert(c.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(d.asInstanceOf[ActionRetrying].actionParams.actionName == "supervisor")
-    assert(f.asInstanceOf[ActionFailed].actionParams.actionName == "never")
+    assert(d.asInstanceOf[ActionRetrying].actionParams.guardId.value == "supervisor")
+    assert(f.asInstanceOf[ActionFailed].actionParams.guardId.value == "never")
     assert(f.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(g.asInstanceOf[ActionFailed].actionParams.actionName == "supervisor")
+    assert(g.asInstanceOf[ActionFailed].actionParams.guardId.value == "supervisor")
     assert(g.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
     assert(h.isInstanceOf[ServicePanic])
   }
@@ -102,9 +102,9 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucced].actionParams.actionName == "a1")
+    assert(b.asInstanceOf[ActionSucced].actionParams.guardId.value == "a1")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucced].actionParams.actionName == "a2")
+    assert(d.asInstanceOf[ActionSucced].actionParams.guardId.value == "a2")
     assert(e.isInstanceOf[ServiceStopped])
   }
 
@@ -129,10 +129,10 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStarted])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucced].actionParams.actionName == "a1")
+    assert(b.asInstanceOf[ActionSucced].actionParams.guardId.value == "a1")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetrying].actionParams.actionName == "a2")
-    assert(e.asInstanceOf[ActionFailed].actionParams.actionName == "a2")
+    assert(d.asInstanceOf[ActionRetrying].actionParams.guardId.value == "a2")
+    assert(e.asInstanceOf[ActionFailed].actionParams.guardId.value == "a2")
     assert(e.asInstanceOf[ActionFailed].error.message == "Exception: ")
     assert(f.isInstanceOf[ServicePanic])
   }
