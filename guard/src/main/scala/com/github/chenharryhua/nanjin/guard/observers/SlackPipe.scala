@@ -71,7 +71,7 @@ final private case class SlackConfig[F[_]](
 final private case class TextField(tag: String, value: String)
 private object TextField {
   implicit val encodeTextField: Encoder[TextField] = tf => {
-    val str = s"*${tf.tag}:*\n${tf.value}"
+    val str = s"*${tf.tag}*\n${tf.value}"
     json"""
         {
            "type": "mrkdwn",
