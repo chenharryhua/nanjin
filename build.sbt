@@ -40,7 +40,7 @@ val jackson = "2.13.0"
 val kantan  = "0.6.2"
 val parquet = "1.12.2"
 val avro    = "1.11.0"
-val avro4s  = "4.0.11"
+val avro4s  = "4.0.12"
 
 // connect
 val hadoop  = "3.3.1"
