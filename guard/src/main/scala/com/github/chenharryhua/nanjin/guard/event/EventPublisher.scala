@@ -18,7 +18,7 @@ import java.time.{Duration, ZonedDateTime}
 
 final private[guard] class EventPublisher[F[_]](
   val serviceInfo: ServiceInfo,
-  metricRegistry: MetricRegistry,
+  val metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams)(implicit F: Async[F]) {
 

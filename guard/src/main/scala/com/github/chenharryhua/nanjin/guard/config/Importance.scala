@@ -32,10 +32,8 @@ object GuardId {
   def apply(serviceParams: ServiceParams): GuardId =
     GuardId(serviceParams.taskParams.appName, serviceParams.serviceName)
 
-  def apply(serviceParams: ServiceParams, name: String): GuardId = {
-    val prefix: String = s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}"
-    GuardId(prefix, name)
-  }
+  def apply(name: String, serviceParams: ServiceParams): GuardId =
+    GuardId(s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}", name)
 
   def apply(agentParams: AgentParams): GuardId =
     GuardId(

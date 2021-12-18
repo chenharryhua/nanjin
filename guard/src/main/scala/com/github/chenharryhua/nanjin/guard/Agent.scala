@@ -60,27 +60,27 @@ final class Agent[F[_]] private[guard] (
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
   def passThrough[A: Encoder](a: A, metricName: String): F[Unit] =
-    publisher.passThrough(GuardId(params.serviceParams, metricName), a.asJson)
+    publisher.passThrough(GuardId(metricName, params.serviceParams), a.asJson)
   def unsafePassThrough[A: Encoder](a: A, metricName: String): Unit =
     dispatcher.unsafeRunSync(passThrough(a, metricName))
 
-  def count(num: Long, counterName: String): F[Unit] = publisher.count(GuardId(params.serviceParams, counterName), num)
+  def count(num: Long, counterName: String): F[Unit] = publisher.count(GuardId(counterName, params.serviceParams), num)
   def unsafeCount(num: Long, counterName: String): Unit = dispatcher.unsafeRunSync(count(num, counterName))
 
   def error[S: Show](msg: S, alertName: String): F[Unit] =
-    publisher.alert(GuardId(params.serviceParams, alertName), msg.show, Importance.Critical)
+    publisher.alert(GuardId(alertName, params.serviceParams), msg.show, Importance.Critical)
   def error[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(error(_, alertName)).void
   def unsafeError[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(error(msg, alertName))
   def unsafeError[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(error(msg, alertName))
 
   def warn[S: Show](msg: S, alertName: String): F[Unit] =
-    publisher.alert(GuardId(params.serviceParams, alertName), msg.show, Importance.High)
+    publisher.alert(GuardId(alertName, params.serviceParams), msg.show, Importance.High)
   def warn[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(warn(_, alertName)).void
   def unsafeWarn[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(warn(msg, alertName))
   def unsafeWarn[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(warn(msg, alertName))
 
   def info[S: Show](msg: S, alertName: String): F[Unit] =
-    publisher.alert(GuardId(params.serviceParams, alertName), msg.show, Importance.Medium)
+    publisher.alert(GuardId(alertName, params.serviceParams), msg.show, Importance.Medium)
   def info[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(info(_, alertName)).void
   def unsafeInfo[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(info(msg, alertName))
   def unsafeInfo[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(info(msg, alertName))
