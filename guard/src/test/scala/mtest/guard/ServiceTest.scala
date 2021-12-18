@@ -129,21 +129,6 @@ class ServiceTest extends AnyFunSuite {
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
   }
 
-  test("zoneId ") {
-    guard
-      .updateConfig(_.withQueueCapacity(100))
-      .eventStream(ag => IO(assert(ag.zoneId == ag.params.serviceParams.taskParams.zoneId)))
-      .compile
-      .drain
-      .unsafeRunSync()
-    val monthly =
-      guard.updateConfig(_.withMetricMonthlyReset).params.metric.resetSchedule.get.next(ZonedDateTime.now()).get
-    val weekly =
-      guard.updateConfig(_.withMetricWeeklyReset).params.metric.resetSchedule.get.next(ZonedDateTime.now()).get
-    println(monthly)
-    println(weekly)
-  }
-
   test("slack") {
     TaskGuard[IO]("slack")
       .service("slack")

@@ -314,13 +314,6 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ServicePanic])
   }
 
-  test("span") {
-    serviceGuard.eventStream { root =>
-      val name = root.span("a").span("b").span("c").params.guardId.value
-      IO(assert(name == "a/b/c"))
-    }.debug().compile.drain.unsafeRunSync()
-  }
-
   test("quasi syntax") {
     serviceGuard.eventStream { ag =>
       ag.quasi(3)(IO("a"), IO("b")) >>

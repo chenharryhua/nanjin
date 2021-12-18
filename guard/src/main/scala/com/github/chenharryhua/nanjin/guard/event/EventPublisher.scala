@@ -6,7 +6,7 @@ import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, GuardId, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, GuardId, Importance}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -18,9 +18,8 @@ import java.time.{Duration, ZonedDateTime}
 
 final private[guard] class EventPublisher[F[_]](
   val serviceInfo: ServiceInfo,
-  metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent],
-  serviceParams: ServiceParams)(implicit F: Async[F]) {
+  val metricRegistry: MetricRegistry,
+  channel: Channel[F, NJEvent])(implicit F: Async[F]) {
 
   // service level
   private val metricsReportMRName: String = "01.health.check"
@@ -43,7 +42,8 @@ final private[guard] class EventPublisher[F[_]](
   private def actionStartMRName(id: GuardId): String = s"12.action.[${id.displayName}].num"
   private def actionSuccMRName(id: GuardId): String  = s"12.action.[${id.displayName}].succ"
 
-  private val realZonedDateTime: F[ZonedDateTime] = F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
+  private val realZonedDateTime: F[ZonedDateTime] =
+    F.realTimeInstant.map(_.atZone(serviceInfo.params.taskParams.zoneId))
 
   /** services
     */
@@ -51,7 +51,7 @@ final private[guard] class EventPublisher[F[_]](
   val serviceReStarted: F[Unit] =
     realZonedDateTime.flatMap(ts =>
       channel
-        .send(ServiceStarted(timestamp = ts, serviceInfo = serviceInfo, serviceParams = serviceParams))
+        .send(ServiceStarted(timestamp = ts, serviceInfo = serviceInfo))
         .map(_ => metricRegistry.counter(serviceStartMRName).inc()))
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
@@ -59,12 +59,7 @@ final private[guard] class EventPublisher[F[_]](
       ts <- realZonedDateTime
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(
-        ServicePanic(
-          timestamp = ts,
-          serviceInfo = serviceInfo,
-          serviceParams = serviceParams,
-          retryDetails = retryDetails,
-          error = NJError(uuid, ex)))
+        ServicePanic(timestamp = ts, serviceInfo = serviceInfo, retryDetails = retryDetails, error = NJError(uuid, ex)))
     } yield metricRegistry.counter(servicePanicMRName).inc()
 
   def serviceStopped(metricFilter: MetricFilter): F[Unit] =
@@ -74,8 +69,7 @@ final private[guard] class EventPublisher[F[_]](
         ServiceStopped(
           timestamp = ts,
           serviceInfo = serviceInfo,
-          serviceParams = serviceParams,
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
+          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
         ))
     } yield ()
 
@@ -88,8 +82,7 @@ final private[guard] class EventPublisher[F[_]](
           index = index,
           timestamp = ts,
           serviceInfo = serviceInfo,
-          serviceParams = serviceParams,
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
+          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
         ))
     } yield ()
 
@@ -100,10 +93,9 @@ final private[guard] class EventPublisher[F[_]](
         MetricsReset(
           timestamp = ts,
           serviceInfo = serviceInfo,
-          serviceParams = serviceParams,
           prev = cronExpr.prev(ts),
           next = cronExpr.next(ts),
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceParams)
+          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
         ))
     } yield metricRegistry.removeMatching(MetricFilter.ALL)
 
@@ -114,11 +106,11 @@ final private[guard] class EventPublisher[F[_]](
     for {
       uuid <- UUIDGen.randomUUID[F]
       ts <- realZonedDateTime
-      actionInfo = ActionInfo(uuid, ts)
+      actionInfo = ActionInfo(uuid, ts, actionParams, serviceInfo)
       _ <- actionParams.importance match {
         case Importance.Critical | Importance.High =>
           channel
-            .send(ActionStart(actionParams, actionInfo))
+            .send(ActionStart(actionInfo))
             .map(_ => metricRegistry.counter(actionStartMRName(actionParams.guardId)).inc())
         case Importance.Medium => F.delay(metricRegistry.counter(actionStartMRName(actionParams.guardId)).inc())
         case Importance.Low    => F.unit
@@ -130,12 +122,11 @@ final private[guard] class EventPublisher[F[_]](
 
   def actionSucced[A, B](
     actionInfo: ActionInfo,
-    actionParams: ActionParams,
     retryCount: Ref[F, Int],
     input: A,
     output: F[B],
     buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
-    actionParams.importance match {
+    actionInfo.params.importance match {
       case Importance.Critical | Importance.High =>
         for {
           ts <- realZonedDateTime
@@ -143,22 +134,16 @@ final private[guard] class EventPublisher[F[_]](
           num <- retryCount.get
           notes <- buildNotes.run((input, result))
           _ <- channel.send(
-            ActionSucced(
-              actionInfo = actionInfo,
-              timestamp = ts,
-              actionParams = actionParams,
-              numRetries = num,
-              notes = Notes(notes)))
-          _ <- timing(actionSuccMRName(actionParams.guardId), actionInfo, ts)
+            ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
+          _ <- timing(actionSuccMRName(actionInfo.params.guardId), actionInfo, ts)
         } yield ()
       case Importance.Medium =>
-        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionParams.guardId), actionInfo, ts))
+        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionInfo.params.guardId), actionInfo, ts))
       case Importance.Low => F.unit
     }
 
   def actionRetrying(
     actionInfo: ActionInfo,
-    actionParams: ActionParams,
     retryCount: Ref[F, Int],
     willDelayAndRetry: WillDelayAndRetry,
     ex: Throwable
@@ -170,12 +155,11 @@ final private[guard] class EventPublisher[F[_]](
         ActionRetrying(
           actionInfo = actionInfo,
           timestamp = ts,
-          actionParams = actionParams,
           willDelayAndRetry = willDelayAndRetry,
           error = NJError(uuid, ex)))
-      _ <- actionParams.importance match {
+      _ <- actionInfo.params.importance match {
         case Importance.Critical | Importance.High | Importance.Medium =>
-          timing(actionRetryMRName(actionParams.guardId), actionInfo, ts)
+          timing(actionRetryMRName(actionInfo.params.guardId), actionInfo, ts)
         case Importance.Low => F.unit
       }
       _ <- retryCount.update(_ + 1)
@@ -183,7 +167,6 @@ final private[guard] class EventPublisher[F[_]](
 
   def actionFailed[A](
     actionInfo: ActionInfo,
-    actionParams: ActionParams,
     retryCount: Ref[F, Int],
     input: A,
     ex: Throwable,
@@ -198,36 +181,31 @@ final private[guard] class EventPublisher[F[_]](
         ActionFailed(
           actionInfo = actionInfo,
           timestamp = ts,
-          actionParams = actionParams,
           numRetries = numRetries,
           notes = Notes(notes),
           error = NJError(uuid, ex)))
-      _ <- actionParams.importance match {
+      _ <- actionInfo.params.importance match {
         case Importance.Critical | Importance.High | Importance.Medium =>
-          timing(actionFailMRName(actionParams.guardId), actionInfo, ts)
+          timing(actionFailMRName(actionInfo.params.guardId), actionInfo, ts)
         case Importance.Low => F.unit
       }
     } yield ()
 
-  def passThrough(id: GuardId, json: Json): F[Unit] =
+  def passThrough(name: String, json: Json): F[Unit] =
     for {
       ts <- realZonedDateTime
-      _ <- channel.send(PassThrough(timestamp = ts, guardId = id, value = json))
+      id = GuardId(name, serviceInfo.params)
+      _ <- channel.send(PassThrough(guardId = id, timestamp = ts, serviceInfo, value = json))
     } yield metricRegistry.counter(passThroughMRName(id)).inc()
 
-  def count(id: GuardId, num: Long): F[Unit] =
-    F.delay(metricRegistry.counter(counterMRName(id)).inc(num))
-
-  def alert(id: GuardId, msg: String, importance: Importance): F[Unit] =
+  def alert(alertName: String, msg: String, importance: Importance): F[Unit] =
     for {
       ts <- realZonedDateTime
+      id = GuardId(alertName, serviceInfo.params)
       _ <- channel.send(
-        ServiceAlert(
-          timestamp = ts,
-          serviceInfo = serviceInfo,
-          serviceParams = serviceParams,
-          importance = importance,
-          guardId = id,
-          message = msg))
+        ServiceAlert(guardId = id, timestamp = ts, serviceInfo = serviceInfo, importance = importance, message = msg))
     } yield metricRegistry.counter(alertMRName(id, importance)).inc()
+
+  def count(name: String, num: Long): F[Unit] =
+    F.delay(metricRegistry.counter(counterMRName(GuardId(name, serviceInfo.params))).inc(num))
 }

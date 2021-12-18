@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
@@ -46,20 +46,20 @@ final class ServiceGuard[F[_]] private[guard] (
   def withMetricFilter(filter: MetricFilter) =
     new ServiceGuard[F](serviceConfig, filter, jmxBuilder)
 
-  def eventStream[A](actionGuard: ActionGuard[F] => F[A]): Stream[F, NJEvent] =
+  def eventStream[A](agent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceInfo <- Stream.eval(for {
         uuid <- UUIDGen.randomUUID
         ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-      } yield ServiceInfo(uuid, ts))
+      } yield ServiceInfo(uuid, ts, params))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel, params)
+        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel)
 
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {
             publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
-              actionGuard(new ActionGuard[F](publisher, dispatcher, ActionConfig(params))))
+              agent(new Agent[F](publisher, dispatcher, AgentConfig())))
           }
           .guarantee(publisher.serviceStopped(metricFilter) <* channel.close)
 
