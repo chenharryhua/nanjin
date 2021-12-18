@@ -5,14 +5,12 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
-import cats.{Alternative, Show, Traverse}
+import cats.{Alternative, Traverse}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, Importance}
+import com.github.chenharryhua.nanjin.guard.action.*
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, MetricName}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
-import io.circe.Encoder
-import io.circe.syntax.*
 
 import java.time.ZoneId
 
@@ -39,7 +37,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(params),
+      params = ActionParams(params, publisher.serviceInfo.params),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -50,7 +48,7 @@ final class Agent[F[_]] private[guard] (
     new ActionRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(params),
+      params = ActionParams(params, publisher.serviceInfo.params),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -59,28 +57,23 @@ final class Agent[F[_]] private[guard] (
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
-  def passThrough[A: Encoder](a: A, metricName: String): F[Unit] =
-    publisher.passThrough(metricName, a.asJson)
-  def unsafePassThrough[A: Encoder](a: A, metricName: String): Unit =
-    dispatcher.unsafeRunSync(passThrough(a, metricName))
+  def broker(metricName: String): Broker[F] =
+    new Broker[F](
+      MetricName(params.spans :+ metricName, publisher.serviceInfo.params),
+      dispatcher: Dispatcher[F],
+      publisher: EventPublisher[F])
 
-  def count(num: Long, counterName: String): F[Unit]    = publisher.count(counterName, num)
-  def unsafeCount(num: Long, counterName: String): Unit = dispatcher.unsafeRunSync(count(num, counterName))
+  def counter(counterName: String): Counter[F] =
+    new Counter(
+      MetricName(params.spans :+ counterName, publisher.serviceInfo.params),
+      dispatcher: Dispatcher[F],
+      publisher: EventPublisher[F])
 
-  def error[S: Show](msg: S, alertName: String): F[Unit] = publisher.alert(alertName, msg.show, Importance.Critical)
-  def error[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(error(_, alertName)).void
-  def unsafeError[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(error(msg, alertName))
-  def unsafeError[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(error(msg, alertName))
-
-  def warn[S: Show](msg: S, alertName: String): F[Unit]         = publisher.alert(alertName, msg.show, Importance.High)
-  def warn[S: Show](msg: Option[S], alertName: String): F[Unit] = msg.traverse(warn(_, alertName)).void
-  def unsafeWarn[S: Show](msg: S, alertName: String): Unit      = dispatcher.unsafeRunSync(warn(msg, alertName))
-  def unsafeWarn[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(warn(msg, alertName))
-
-  def info[S: Show](msg: S, alertName: String): F[Unit] = publisher.alert(alertName, msg.show, Importance.Medium)
-  def info[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(info(_, alertName)).void
-  def unsafeInfo[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(info(msg, alertName))
-  def unsafeInfo[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(info(msg, alertName))
+  def alert(alertName: String): Alert[F] =
+    new Alert(
+      MetricName(params.spans :+ alertName, publisher.serviceInfo.params),
+      dispatcher: Dispatcher[F],
+      publisher: EventPublisher[F])
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))

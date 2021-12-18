@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricName}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
@@ -58,14 +58,14 @@ final case class MetricsReset(
 ) extends ServiceEvent
 
 final case class ServiceAlert(
-  name: String,
+  metricName: MetricName,
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   importance: Importance,
   message: String
 ) extends ServiceEvent
 
-final case class PassThrough(name: String, serviceInfo: ServiceInfo, timestamp: ZonedDateTime, value: Json)
+final case class PassThrough(metricName: MetricName, serviceInfo: ServiceInfo, timestamp: ZonedDateTime, value: Json)
     extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {

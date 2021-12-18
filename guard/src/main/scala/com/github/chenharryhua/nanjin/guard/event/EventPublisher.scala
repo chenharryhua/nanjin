@@ -6,7 +6,7 @@ import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -25,22 +25,22 @@ final private[guard] class EventPublisher[F[_]](
   private val metricsReportMRName: String = "01.health.check"
   private val serviceStartMRName: String  = "02.service.start"
   private val servicePanicMRName: String  = "03.service.`panic`"
-  private def alertMRName(name: String, importance: Importance): String =
+  private def alertMRName(name: MetricName, importance: Importance): String =
     importance match {
-      case Importance.Critical => s"04.alert.`error`.[$name]"
-      case Importance.High     => s"04.alert.`warn`.[$name]"
-      case Importance.Medium   => s"20.alert.info.[$name]"
-      case Importance.Low      => s"20.alert.debug.[$name]"
+      case Importance.Critical => s"04.alert.`error`.[${name.value}]"
+      case Importance.High     => s"04.alert.`warn`.[${name.value}]"
+      case Importance.Medium   => s"20.alert.info.[${name.value}]"
+      case Importance.Low      => s"20.alert.debug.[${name.value}]"
     }
 
   // action level
-  private def counterMRName(name: String): String     = s"10.counter.[$name]"
-  private def passThroughMRName(name: String): String = s"11.pass.through.[$name]"
+  private def counterMRName(name: MetricName): String     = s"10.counter.[${name.value}]"
+  private def passThroughMRName(name: MetricName): String = s"11.pass.through.[${name.value}]"
 
-  private def actionFailMRName(params: ActionParams): String  = s"12.action.[${params.actioName}].`fail`"
-  private def actionRetryMRName(params: ActionParams): String = s"12.action.[${params.actioName}].retry"
-  private def actionStartMRName(params: ActionParams): String = s"12.action.[${params.actioName}].num"
-  private def actionSuccMRName(params: ActionParams): String  = s"12.action.[${params.actioName}].succ"
+  private def actionFailMRName(params: ActionParams): String  = s"12.action.[${params.metricName.value}].`fail`"
+  private def actionRetryMRName(params: ActionParams): String = s"12.action.[${params.metricName.value}].retry"
+  private def actionStartMRName(params: ActionParams): String = s"12.action.[${params.metricName.value}].num"
+  private def actionSuccMRName(params: ActionParams): String  = s"12.action.[${params.metricName.value}].succ"
 
   private val realZonedDateTime: F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(serviceInfo.params.taskParams.zoneId))
@@ -189,24 +189,24 @@ final private[guard] class EventPublisher[F[_]](
       }
     } yield ()
 
-  def passThrough(name: String, json: Json): F[Unit] =
+  def passThrough(metricName: MetricName, json: Json): F[Unit] =
     for {
       ts <- realZonedDateTime
-      _ <- channel.send(PassThrough(name = name, serviceInfo = serviceInfo, timestamp = ts, value = json))
-    } yield metricRegistry.counter(passThroughMRName(name)).inc()
+      _ <- channel.send(PassThrough(metricName = metricName, serviceInfo = serviceInfo, timestamp = ts, value = json))
+    } yield metricRegistry.counter(passThroughMRName(metricName)).inc()
 
-  def alert(alertName: String, msg: String, importance: Importance): F[Unit] =
+  def alert(metricName: MetricName, msg: String, importance: Importance): F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
         ServiceAlert(
-          name = alertName,
+          metricName = metricName,
           serviceInfo = serviceInfo,
           timestamp = ts,
           importance = importance,
           message = msg))
-    } yield metricRegistry.counter(alertMRName(alertName, importance)).inc()
+    } yield metricRegistry.counter(alertMRName(metricName, importance)).inc()
 
-  def count(counterName: String, num: Long): F[Unit] =
-    F.delay(metricRegistry.counter(counterMRName(counterName)).inc(num))
+  def count(metricName: MetricName, num: Long): F[Unit] =
+    F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
 }

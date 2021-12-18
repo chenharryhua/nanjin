@@ -54,14 +54,4 @@ package object observers {
             case Some(Right(ce)) => ce.prev(now).forall(_.isBefore(border) && now.isAfter(border))
           }
     }
-
-  def digest(name: String, serviceParams: ServiceParams): String = {
-    val sha1Hex: String = DigestUtils.sha1Hex(s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}/$name")
-    s"$name/${sha1Hex.take(8)}"
-  }
-
-  def digest(serviceParams: ServiceParams): String = {
-    val sha1Hex: String = DigestUtils.sha1Hex(s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}")
-    s"${serviceParams.serviceName}/${sha1Hex.take(8)}"
-  }
 }

@@ -18,7 +18,7 @@ class PassThroughTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("test").service("pass-throught")
   test("pass-through") {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
-      List.range(0, 9).traverse(n => action.passThrough(PassThroughObject(n, "a"), "pt"))
+      List.range(0, 9).traverse(n => action.broker("pt").passThrough(PassThroughObject(n, "a")))
     }.map {
       case PassThrough(_, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
       case _                       => None
@@ -31,11 +31,16 @@ class PassThroughTest extends AnyFunSuite {
 
   test("unsafe pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
-      IO(1).map(_ => action.notice.unsafePassThrough(PassThroughObject(1, "a"), "pt"))
-    }.map {
-      case PassThrough(_, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
-      case _                       => None
-    }.unNone.compile.toList.unsafeRunSync()
+      IO(1).map(_ => action.broker("pt").unsafePassThrough(PassThroughObject(1, "a")))
+    }.debug()
+      .map {
+        case PassThrough(_, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
+        case _                       => None
+      }
+      .unNone
+      .compile
+      .toList
+      .unsafeRunSync()
     assert(a == 1)
     assert(b == "a")
   }
@@ -43,22 +48,22 @@ class PassThroughTest extends AnyFunSuite {
   test("counter") {
     val Some(last) = guard
       .updateConfig(_.withMetricSchedule(crontabs.bihourly))
-      .eventStream(_.count(1, "counter").delayBy(1.second))
+      .eventStream(_.counter("counter").count(1).delayBy(1.second))
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.counter.[counter]") == 1)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.counter.[counter/0135a608]") == 1)
   }
 
   test("warn") {
     val Some(last) = guard
       .updateConfig(_.withMetricSchedule(crontabs.c997))
-      .eventStream(_.error("message", "oops").delayBy(1.second))
+      .eventStream(_.alert("oops").error("message").delayBy(1.second))
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("04.alert.`error`.[oops]") == 1)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("04.alert.`error`.[oops/a32b945e]") == 1)
   }
 }
