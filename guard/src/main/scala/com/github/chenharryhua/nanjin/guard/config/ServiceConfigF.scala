@@ -31,7 +31,7 @@ object MetricParams {
   queueCapacity: Int,
   metric: MetricParams
 ) {
-  val guardId: GuardId = GuardId(taskParams.appName, serviceName)
+  val guardId: GuardId = GuardId(this)
 }
 
 object ServiceParams {

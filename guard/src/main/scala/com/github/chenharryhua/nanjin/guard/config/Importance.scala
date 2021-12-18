@@ -20,11 +20,25 @@ object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceE
 }
 
 @JsonCodec
-final case class GuardId(prefix: String, value: String) {
+final case class GuardId private (prefix: String, value: String) {
   val sha1Hex: String           = DigestUtils.sha1Hex(s"$prefix/$value")
   val displayName: String       = s"$value/${sha1Hex.take(8)}"
   override val toString: String = displayName
 }
+
 object GuardId {
   implicit val showGuardId: Show[GuardId] = _.displayName
+
+  def apply(serviceParams: ServiceParams): GuardId =
+    GuardId(serviceParams.taskParams.appName, serviceParams.serviceName)
+
+  def apply(serviceParams: ServiceParams, name: String): GuardId = {
+    val prefix: String = s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}"
+    GuardId(prefix, name)
+  }
+
+  def apply(agentParams: AgentParams): GuardId =
+    GuardId(
+      s"${agentParams.serviceParams.taskParams.appName}/${agentParams.serviceParams.serviceName}",
+      agentParams.spans.mkString("/"))
 }
