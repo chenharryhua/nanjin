@@ -5,7 +5,7 @@ import cats.implicits.toShow
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -26,10 +26,9 @@ sealed trait NJRuntimeInfo {
   def launchTime: ZonedDateTime
 }
 
-final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
-final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo {
-  def showId: String = uuid.toString.take(8)
-}
+final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime, params: ServiceParams) extends NJRuntimeInfo
+final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime, params: ActionParams, serviceInfo: ServiceInfo)
+    extends NJRuntimeInfo
 
 @JsonCodec
 final case class Notes private (value: String) extends AnyVal

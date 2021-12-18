@@ -61,10 +61,10 @@ final class CloudWatchMetrics[F[_]] private[observers] (
     val counters: Map[MetricKey, Long] = report.snapshot.counters.map { case (metricName, counter) =>
       MetricKey(
         report.serviceInfo.uuid,
-        report.serviceParams.taskParams.hostName,
+        report.serviceInfo.params.taskParams.hostName,
         StandardUnit.Count,
-        report.serviceParams.taskParams.appName,
-        report.serviceParams.serviceName,
+        report.serviceInfo.params.taskParams.appName,
+        report.serviceInfo.params.serviceName,
         metricName
       ) -> counter
     }

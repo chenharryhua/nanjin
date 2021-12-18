@@ -51,15 +51,15 @@ final class ServiceGuard[F[_]] private[guard] (
       serviceInfo <- Stream.eval(for {
         uuid <- UUIDGen.randomUUID
         ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-      } yield ServiceInfo(uuid, ts))
+      } yield ServiceInfo(uuid, ts, params))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel, params)
+        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel)
 
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {
             publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
-              agent(new Agent[F](publisher, dispatcher, AgentConfig(params))))
+              agent(new Agent[F](publisher, dispatcher, AgentConfig())))
           }
           .guarantee(publisher.serviceStopped(metricFilter) <* channel.close)
 

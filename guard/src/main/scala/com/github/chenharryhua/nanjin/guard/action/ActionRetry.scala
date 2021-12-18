@@ -71,7 +71,7 @@ final class ActionRetry[F[_], A, B] private[guard] (
     error: Throwable,
     details: RetryDetails): F[Unit] =
     details match {
-      case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, params, retryCount, wdr, error)
+      case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, retryCount, wdr, error)
       case _: GivingUp            => F.unit
     }
 
@@ -80,11 +80,11 @@ final class ActionRetry[F[_], A, B] private[guard] (
     outcome match {
       case Outcome.Canceled() =>
         val error = ActionException.ActionCanceledExternally
-        publisher.actionFailed[A](actionInfo, params, retryCount, input, error, fail)
+        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail)
       case Outcome.Errored(error) =>
-        publisher.actionFailed[A](actionInfo, params, retryCount, input, error, fail)
+        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail)
       case Outcome.Succeeded(output) =>
-        publisher.actionSucced[A, B](actionInfo, params, retryCount, input, output, succ)
+        publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ)
     }
 
   def run(input: A): F[B] =

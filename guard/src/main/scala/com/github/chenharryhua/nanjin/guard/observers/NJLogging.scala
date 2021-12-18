@@ -17,11 +17,11 @@ final class NJLogging[F[_]: Sync] private[observers] (converter: Reader[NJEvent,
   override def apply(event: NJEvent): F[Unit] = {
     val out: String = converter.run(event)
     event match {
-      case ServicePanic(_, _, _, _, error)    => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
-      case _: ServiceAlert                    => logger.warn(out)
-      case ActionRetrying(_, _, _, _, error)  => error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out))
-      case ActionFailed(_, _, _, _, _, error) => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
-      case _                                  => logger.info(out)
+      case ServicePanic(_, _, _, error)    => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
+      case _: ServiceAlert                 => logger.warn(out)
+      case ActionRetrying(_, _, _, error)  => error.throwable.fold(logger.warn(out))(ex => logger.warn(ex)(out))
+      case ActionFailed(_, _, _, _, error) => error.throwable.fold(logger.error(out))(ex => logger.error(ex)(out))
+      case _                               => logger.info(out)
     }
   }
 

@@ -24,7 +24,7 @@ final class Agent[F[_]] private[guard] (
 
   val params: AgentParams      = agentConfig.evalConfig
   val serviceInfo: ServiceInfo = publisher.serviceInfo
-  val zoneId: ZoneId           = params.serviceParams.taskParams.zoneId
+  val zoneId: ZoneId           = publisher.serviceInfo.params.taskParams.zoneId
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](publisher, dispatcher, f(agentConfig))
@@ -39,7 +39,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(params),
+      params = ActionParams(params, publisher.serviceInfo.params),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -50,7 +50,7 @@ final class Agent[F[_]] private[guard] (
     new ActionRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(params),
+      params = ActionParams(params, publisher.serviceInfo.params),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -60,27 +60,24 @@ final class Agent[F[_]] private[guard] (
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
   def passThrough[A: Encoder](a: A, metricName: String): F[Unit] =
-    publisher.passThrough(GuardId(metricName, params.serviceParams), a.asJson)
+    publisher.passThrough(metricName, a.asJson)
   def unsafePassThrough[A: Encoder](a: A, metricName: String): Unit =
     dispatcher.unsafeRunSync(passThrough(a, metricName))
 
-  def count(num: Long, counterName: String): F[Unit] = publisher.count(GuardId(counterName, params.serviceParams), num)
+  def count(num: Long, counterName: String): F[Unit]    = publisher.count(counterName, num)
   def unsafeCount(num: Long, counterName: String): Unit = dispatcher.unsafeRunSync(count(num, counterName))
 
-  def error[S: Show](msg: S, alertName: String): F[Unit] =
-    publisher.alert(GuardId(alertName, params.serviceParams), msg.show, Importance.Critical)
+  def error[S: Show](msg: S, alertName: String): F[Unit] = publisher.alert(alertName, msg.show, Importance.Critical)
   def error[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(error(_, alertName)).void
   def unsafeError[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(error(msg, alertName))
   def unsafeError[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(error(msg, alertName))
 
-  def warn[S: Show](msg: S, alertName: String): F[Unit] =
-    publisher.alert(GuardId(alertName, params.serviceParams), msg.show, Importance.High)
-  def warn[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(warn(_, alertName)).void
-  def unsafeWarn[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(warn(msg, alertName))
+  def warn[S: Show](msg: S, alertName: String): F[Unit]         = publisher.alert(alertName, msg.show, Importance.High)
+  def warn[S: Show](msg: Option[S], alertName: String): F[Unit] = msg.traverse(warn(_, alertName)).void
+  def unsafeWarn[S: Show](msg: S, alertName: String): Unit      = dispatcher.unsafeRunSync(warn(msg, alertName))
   def unsafeWarn[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(warn(msg, alertName))
 
-  def info[S: Show](msg: S, alertName: String): F[Unit] =
-    publisher.alert(GuardId(alertName, params.serviceParams), msg.show, Importance.Medium)
+  def info[S: Show](msg: S, alertName: String): F[Unit] = publisher.alert(alertName, msg.show, Importance.Medium)
   def info[S: Show](msg: Option[S], alertName: String): F[Unit]    = msg.traverse(info(_, alertName)).void
   def unsafeInfo[S: Show](msg: S, alertName: String): Unit         = dispatcher.unsafeRunSync(info(msg, alertName))
   def unsafeInfo[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(info(msg, alertName))
