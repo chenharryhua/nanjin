@@ -34,4 +34,7 @@ object GuardId {
 
   def apply(name: String, serviceParams: ServiceParams): GuardId =
     GuardId(s"${serviceParams.taskParams.appName}/${serviceParams.serviceName}", name)
+
+  def apply(spans: List[String], serviceParams: ServiceParams): GuardId =
+    apply(spans.mkString("/"), serviceParams)
 }

@@ -63,9 +63,5 @@ final case class ActionParams(guardId: GuardId, importance: Importance, isTermin
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
   def apply(params: AgentParams, serviceParams: ServiceParams): ActionParams =
-    ActionParams(
-      GuardId(params.spans.mkString("/"), serviceParams),
-      params.importance,
-      params.isTerminate,
-      params.retry)
+    ActionParams(GuardId(params.spans, serviceParams), params.importance, params.isTerminate, params.retry)
 }
