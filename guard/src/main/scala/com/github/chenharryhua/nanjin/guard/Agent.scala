@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import cats.{Alternative, Show, Traverse}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.{ActionRetry, ActionRetryUnit}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, GuardId, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, Importance}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import io.circe.Encoder
@@ -39,7 +39,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.params),
+      params = ActionParams(params),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -50,7 +50,7 @@ final class Agent[F[_]] private[guard] (
     new ActionRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.params),
+      params = ActionParams(params),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),

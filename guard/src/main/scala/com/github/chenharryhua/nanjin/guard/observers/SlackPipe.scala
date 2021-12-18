@@ -162,7 +162,7 @@ final class SlackPipe[F[_]] private[observers] (
   }
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
-    JuxtaposeSection(TextField("Service", sp.guardId.displayName), TextField("Host", sp.taskParams.hostName))
+    JuxtaposeSection(TextField("Service", digest(sp)), TextField("Host", sp.taskParams.hostName))
 
   private def took(from: ZonedDateTime, to: ZonedDateTime): String =
     cfg.durationFormatter.format(from, to)
@@ -175,9 +175,9 @@ final class SlackPipe[F[_]] private[observers] (
       ref <- Stream.eval(F.ref[Map[ServiceInfo, ZonedDateTime]](Map.empty))
       event <- es.evalMap { e =>
         val updateRef: F[Unit] = e match {
-          case ServiceStarted(ts, serviceInfo) => ref.update(_.updated(serviceInfo, ts))
-          case ServiceStopped(_, info, _)      => ref.update(_.removed(info))
-          case _                               => F.unit
+          case ServiceStarted(info, ts)   => ref.update(_.updated(info, ts))
+          case ServiceStopped(info, _, _) => ref.update(_.removed(info))
+          case _                          => F.unit
         }
         updateRef >> publish(e, sns).attempt.as(e)
       }.onFinalize { // publish good bye message to slack
@@ -224,7 +224,7 @@ final class SlackPipe[F[_]] private[observers] (
 
   private def publish(event: NJEvent, sns: SimpleNotificationService[F]): F[Unit] =
     event match {
-      case ServiceStarted(at, si) =>
+      case ServiceStarted(si, at) =>
         val msg = cfg.extraSlackSections.map(extra =>
           SlackApp(
             username = si.params.taskParams.appName,
@@ -249,7 +249,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case ServicePanic(at, si, details, error) =>
+      case ServicePanic(si, at, details, error) =>
         val upcoming: String = details.upcomingDelay.map(cfg.durationFormatter.format) match {
           case None => "report to developer once you see this message" // never happen
           case Some(ts) =>
@@ -281,7 +281,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case ServiceAlert(alertId, _, si, importance, message) =>
+      case ServiceAlert(alertId, si, _, importance, message) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val (users, title, color) = importance match {
             case Importance.Critical => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
@@ -289,14 +289,14 @@ final class SlackPipe[F[_]] private[observers] (
             case Importance.Medium   => ("", ":information_source: Info", cfg.infoColor)
             case Importance.Low      => ("", "Not/Applicable/Yet", cfg.infoColor)
           }
+          val name = digest(alertId, si.params)
           SlackApp(
             username = si.params.taskParams.appName,
             attachments = List(
               Attachment(
                 color = color,
-                blocks =
-                  List(MarkdownSection(s"*$title:* ${alertId.displayName} $users"), hostServiceSection(si.params)) :::
-                    (if (message.isEmpty) Nil else List(MarkdownSection(abbreviate(message))))
+                blocks = List(MarkdownSection(s"*$title:* $name $users"), hostServiceSection(si.params)) :::
+                  (if (message.isEmpty) Nil else List(MarkdownSection(abbreviate(message))))
               )
             ) :+ Attachment(color = cfg.infoColor, blocks = extra)
           )
@@ -307,7 +307,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case ServiceStopped(at, si, snapshot) =>
+      case ServiceStopped(si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map(extra =>
           SlackApp(
             username = si.params.taskParams.appName,
@@ -332,7 +332,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case MetricsReport(index, at, si, snapshot) =>
+      case MetricsReport(si, index, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val next = nextTime(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
             .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
@@ -361,7 +361,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case MetricsReset(at, si, prev, next, snapshot) =>
+      case MetricsReset(si, at, prev, next, snapshot) =>
         val toNow =
           prev.map(p => cfg.durationFormatter.format(Order.max(p, si.launchTime), at)).fold("")(dur => s" in past $dur")
         val summaries = s"*This is a summary of activities performed by the service$toNow*"
@@ -394,13 +394,14 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionStart(action) =>
         val msg = cfg.extraSlackSections.map { _ =>
+          val name = digest(action.params.actioName, action.serviceInfo.params)
           SlackApp(
             username = action.serviceInfo.params.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(s"""|Kick off action: *${action.params.guardId.displayName}*""".stripMargin),
+                  MarkdownSection(s"""|Kick off action: *$name*""".stripMargin),
                   MarkdownSection(s"""|*Action ID:* ${action.uuid.show}""".stripMargin),
                   hostServiceSection(action.serviceInfo.params)
                 )
@@ -415,6 +416,7 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionRetrying(action, at, wdr, error) =>
         val msg = cfg.extraSlackSections.map { _ =>
+          val name = digest(action.params.actioName, action.serviceInfo.params)
           SlackApp(
             username = action.serviceInfo.params.taskParams.appName,
             attachments = List(
@@ -422,7 +424,7 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.warnColor,
                 blocks = List(
                   MarkdownSection(
-                    s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action *${action.params.guardId.displayName}*, so far took *${took(
+                    s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action *$name*, so far took *${took(
                       action.launchTime,
                       at)}*, retry of which takes place in *${cfg.durationFormatter.format(wdr.nextDelay)}*"),
                   MarkdownSection(s"""|*Action ID:* ${action.uuid.show}
@@ -442,6 +444,7 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionFailed(action, at, numRetries, notes, error) =>
         val msg = cfg.extraSlackSections.map { extra =>
+          val name = digest(action.params.actioName, action.serviceInfo.params)
           SlackApp(
             username = action.serviceInfo.params.taskParams.appName,
             attachments = List(
@@ -449,9 +452,7 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.errorColor,
                 blocks = List(
                   MarkdownSection(
-                    s"The action *${action.params.guardId.displayName}* was failed after *${numRetries.show}* retries, took *${took(
-                      action.launchTime,
-                      at)}* ${cfg.atSupporters}"),
+                    s"The action *$name* was failed after *${numRetries.show}* retries, took *${took(action.launchTime, at)}* ${cfg.atSupporters}"),
                   MarkdownSection(s"""|*Action ID:* ${action.uuid.show}
                                       |*Error ID:* ${error.uuid.show}
                                       |*Retry Policy:* ${action.params.retry.policy[F].show}
@@ -472,6 +473,7 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionSucced(action, at, numRetries, notes) =>
         val msg = cfg.extraSlackSections.map { _ =>
+          val name = digest(action.params.actioName, action.serviceInfo.params)
           SlackApp(
             username = action.serviceInfo.params.taskParams.appName,
             attachments = List(
@@ -479,7 +481,7 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.goodColor,
                 blocks = List(
                   MarkdownSection(
-                    s"The action *${action.params.guardId.displayName}* was accomplished in *${took(action.launchTime, at)}*, after *${numRetries.show}* retries"),
+                    s"The action *$name* was accomplished in *${took(action.launchTime, at)}*, after *${numRetries.show}* retries"),
                   MarkdownSection(s"*Action ID:* ${action.uuid.show}"),
                   hostServiceSection(action.serviceInfo.params)
                 ) ::: (if (notes.value.isEmpty) Nil else List(MarkdownSection(abbreviate(notes.value))))

@@ -17,8 +17,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
   reportSchedule: Option[Either[FiniteDuration, CronExpr]],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
-  durationTimeUnit: TimeUnit
-)
+  durationTimeUnit: TimeUnit)
 
 object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
@@ -30,9 +29,7 @@ object MetricParams {
   retry: NJRetryPolicy,
   queueCapacity: Int,
   metric: MetricParams
-) {
-  val guardId: GuardId = GuardId(this)
-}
+)
 
 object ServiceParams {
 

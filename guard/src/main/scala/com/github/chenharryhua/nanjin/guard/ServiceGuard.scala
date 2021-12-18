@@ -51,7 +51,7 @@ final class ServiceGuard[F[_]] private[guard] (
       serviceInfo <- Stream.eval(for {
         uuid <- UUIDGen.randomUUID
         ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-      } yield ServiceInfo(uuid, ts, params))
+      } yield ServiceInfo(params, uuid, ts))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel)

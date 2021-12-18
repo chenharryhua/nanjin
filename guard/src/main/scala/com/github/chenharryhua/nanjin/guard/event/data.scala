@@ -26,8 +26,8 @@ sealed trait NJRuntimeInfo {
   def launchTime: ZonedDateTime
 }
 
-final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime, params: ServiceParams) extends NJRuntimeInfo
-final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime, params: ActionParams, serviceInfo: ServiceInfo)
+final case class ServiceInfo(params: ServiceParams, uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ActionInfo(params: ActionParams, serviceInfo: ServiceInfo, uuid: UUID, launchTime: ZonedDateTime)
     extends NJRuntimeInfo
 
 @JsonCodec
