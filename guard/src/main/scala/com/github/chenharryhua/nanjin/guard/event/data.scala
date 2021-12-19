@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.implicits.toShow
+import cats.implicits.{catsSyntaxEq, toShow}
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
@@ -26,8 +27,8 @@ sealed trait NJRuntimeInfo {
   def launchTime: ZonedDateTime
 }
 
-final case class ServiceInfo(uuid: UUID, launchTime: ZonedDateTime, params: ServiceParams) extends NJRuntimeInfo
-final case class ActionInfo(uuid: UUID, launchTime: ZonedDateTime, params: ActionParams, serviceInfo: ServiceInfo)
+final case class ServiceInfo(params: ServiceParams, uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
+final case class ActionInfo(params: ActionParams, serviceInfo: ServiceInfo, uuid: UUID, launchTime: ZonedDateTime)
     extends NJRuntimeInfo
 
 @JsonCodec
@@ -119,4 +120,26 @@ private[guard] object MetricsSnapshot {
     )
 
   implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
+}
+
+@JsonCodec
+sealed trait MetricResetType
+object MetricResetType {
+  implicit val showMetricResetType: Show[MetricResetType] = cats.derived.semiauto.show[MetricResetType]
+  case object AdventiveReset extends MetricResetType
+  final case class ScheduledReset(prev: ZonedDateTime, next: ZonedDateTime) extends MetricResetType
+}
+
+@JsonCodec
+sealed trait MetricReportType {
+  def isShow: Boolean
+}
+object MetricReportType {
+  implicit val showMetricReportType: Show[MetricReportType] = cats.derived.semiauto.show[MetricReportType]
+  case object AdventiveReport extends MetricReportType {
+    override val isShow: Boolean = true
+  }
+  final case class ScheduledReport(index: Long) extends MetricReportType {
+    override val isShow: Boolean = index === 1
+  }
 }

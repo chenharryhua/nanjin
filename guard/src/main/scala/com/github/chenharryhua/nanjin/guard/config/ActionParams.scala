@@ -57,11 +57,20 @@ object ActionRetryParams {
   implicit val showActionRetryParams: Show[ActionRetryParams] = cats.derived.semiauto.show[ActionRetryParams]
 }
 
-@Lenses @JsonCodec
-final case class ActionParams(guardId: GuardId, importance: Importance, isTerminate: Boolean, retry: ActionRetryParams)
+@JsonCodec
+final case class ActionParams(
+  metricName: MetricName,
+  importance: Importance,
+  isTerminate: Boolean,
+  retry: ActionRetryParams)
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
-  def apply(params: AgentParams, serviceParams: ServiceParams): ActionParams =
-    ActionParams(GuardId(params.spans, serviceParams), params.importance, params.isTerminate, params.retry)
+
+  def apply(agentParams: AgentParams, serviceParams: ServiceParams): ActionParams =
+    ActionParams(
+      MetricName(agentParams.spans, serviceParams),
+      agentParams.importance,
+      agentParams.isTerminate,
+      agentParams.retry)
 }

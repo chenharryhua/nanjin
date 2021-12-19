@@ -98,6 +98,20 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[MetricsReport])
   }
 
+  test("force reset") {
+    val s :: b :: c :: rest = guard
+      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withQueueCapacity(4))
+      .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(s.isInstanceOf[ServiceStarted])
+    assert(b.isInstanceOf[MetricsReset])
+    assert(c.isInstanceOf[MetricsReset])
+  }
+
   test("normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
       .updateConfig(_.withQueueCapacity(10))
@@ -135,7 +149,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.error("error.msg", "notify") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
       .evalTap(logging[IO](_.show))
       .through(slack[IO](SimpleNotificationService.fake[IO]).at("@chenh"))

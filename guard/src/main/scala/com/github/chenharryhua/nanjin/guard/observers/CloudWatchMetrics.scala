@@ -102,7 +102,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
                     .withNamespace(namespace)
                     .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
                   .attempt
-                  .flatMap(_.fold(logger.warn(_)("Cloudwatch"), _ => F.unit)))
+                  .flatMap(_.fold(logger.warn(_)("Cloudwatch.Metrics"), _ => F.unit)))
           Pull.eval(publish) >> go(cw, tail, next)
 
         case None => Pull.eval(logger.info("Cloudwatch was stopped")) >> Pull.done

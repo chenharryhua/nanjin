@@ -51,7 +51,7 @@ final class ServiceGuard[F[_]] private[guard] (
       serviceInfo <- Stream.eval(for {
         uuid <- UUIDGen.randomUUID
         ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-      } yield ServiceInfo(uuid, ts, params))
+      } yield ServiceInfo(params, uuid, ts))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel)
@@ -71,19 +71,23 @@ final class ServiceGuard[F[_]] private[guard] (
           params.metric.reportSchedule match {
             case Some(Left(dur)) =>
               // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
-              Stream.fixedRate[F](dur).zipWithIndex.evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1)).drain
+              Stream
+                .fixedRate[F](dur)
+                .zipWithIndex
+                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2 + 1)))
+                .drain
             case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, t._2 + 1))
+                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2 + 1)))
                 .drain
             case None => Stream.empty
           }
         }
 
         val metricsReset: Stream[F, INothing] = params.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
-          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(metricFilter, cron)).drain)
+          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(metricFilter, Some(cron))).drain)
 
         val jmxReporting: Stream[F, INothing] = {
           jmxBuilder match {
