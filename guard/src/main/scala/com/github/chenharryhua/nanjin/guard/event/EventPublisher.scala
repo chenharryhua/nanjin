@@ -219,8 +219,9 @@ final private[guard] class EventPublisher[F[_]](
     F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
 
   def replace(metricName: MetricName, num: Long): F[Unit] = F.delay {
-    val exist = metricRegistry.counter(counterMRName(metricName)).getCount
-    metricRegistry.counter(counterMRName(metricName)).inc(num)
-    metricRegistry.counter(counterMRName(metricName)).dec(exist)
+    val name = counterMRName(metricName)
+    val old  = metricRegistry.counter(name).getCount
+    metricRegistry.counter(name).inc(num)
+    metricRegistry.counter(name).dec(old)
   }
 }
