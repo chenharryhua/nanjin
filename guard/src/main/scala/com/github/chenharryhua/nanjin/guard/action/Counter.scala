@@ -9,6 +9,9 @@ final class Counter[F[_]](
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F]
 ) {
-  def count(num: Long): F[Unit]    = eventPublisher.count(metricName, num)
-  def unsafeCount(num: Long): Unit = dispatcher.unsafeRunSync(count(num))
+  def increase(num: Long): F[Unit]    = eventPublisher.increase(metricName, num)
+  def unsafeIncrease(num: Long): Unit = dispatcher.unsafeRunSync(increase(num))
+
+  def replace(num: Long): F[Unit]    = eventPublisher.replace(metricName, num)
+  def unsafeReplace(num: Long): Unit = dispatcher.unsafeRunSync(replace(num))
 }

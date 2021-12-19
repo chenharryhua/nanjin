@@ -48,12 +48,21 @@ class PassThroughTest extends AnyFunSuite {
   test("counter") {
     val Some(last) = guard
       .updateConfig(_.withMetricSchedule(crontabs.bihourly))
-      .eventStream(_.counter("counter").count(1).delayBy(1.second))
-      .interruptAfter(5.seconds)
+      .eventStream(_.counter("counter").increase(1).delayBy(1.second).replicateA(3))
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.counter.[counter/0135a608]") == 1)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.counter.[counter/0135a608]") == 3)
+  }
+
+  test("counter - replace") {
+    val Some(last) = guard
+      .updateConfig(_.withMetricSchedule(crontabs.bihourly))
+      .eventStream(_.counter("counter").replace(5).delayBy(1.second).replicateA(3))
+      .compile
+      .last
+      .unsafeRunSync()
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.counter.[counter/0135a608]") == 5)
   }
 
   test("warn") {

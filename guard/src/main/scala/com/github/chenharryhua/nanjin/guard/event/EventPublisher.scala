@@ -221,6 +221,12 @@ final private[guard] class EventPublisher[F[_]](
           message = msg))
     } yield metricRegistry.counter(alertMRName(metricName, importance)).inc()
 
-  def count(metricName: MetricName, num: Long): F[Unit] =
+  def increase(metricName: MetricName, num: Long): F[Unit] =
     F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
+
+  def replace(metricName: MetricName, num: Long): F[Unit] = F.delay {
+    val exist = metricRegistry.counter(counterMRName(metricName)).getCount
+    metricRegistry.counter(counterMRName(metricName)).inc(num)
+    metricRegistry.counter(counterMRName(metricName)).dec(exist)
+  }
 }
