@@ -92,8 +92,9 @@ final private[guard] class EventPublisher[F[_]](
         ts <- realZonedDateTime
         _ <- channel.send(
           MetricsReset(
-            timestamp = ts,
             serviceInfo = serviceInfo,
+            resetType = MetricResetType.ScheduledReset,
+            timestamp = ts,
             prev = cron.prev(ts),
             next = cron.next(ts),
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
@@ -104,8 +105,9 @@ final private[guard] class EventPublisher[F[_]](
         ts <- realZonedDateTime
         _ <- channel.send(
           MetricsReset(
-            timestamp = ts,
             serviceInfo = serviceInfo,
+            resetType = MetricResetType.AdventiveReset,
+            timestamp = ts,
             prev = None,
             next = None,
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)

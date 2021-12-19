@@ -51,6 +51,7 @@ final case class MetricsReport(
 
 final case class MetricsReset(
   serviceInfo: ServiceInfo,
+  resetType: MetricResetType,
   timestamp: ZonedDateTime,
   prev: Option[ZonedDateTime],
   next: Option[ZonedDateTime],

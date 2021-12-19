@@ -364,7 +364,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case MetricsReset(si, at, prev, next, snapshot) =>
+      case MetricsReset(si, _, at, prev, next, snapshot) =>
         val summaries = prev.map { p =>
           val dur = cfg.durationFormatter.format(Order.max(p, si.launchTime), at)
           s"*This is a summary of activities performed by the service in past $dur*"

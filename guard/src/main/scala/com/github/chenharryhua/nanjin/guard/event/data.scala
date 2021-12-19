@@ -5,7 +5,8 @@ import cats.implicits.toShow
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -18,6 +19,7 @@ import java.nio.charset.StandardCharsets
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.{TimeZone, UUID}
+import scala.collection.immutable
 import scala.jdk.CollectionConverters.*
 
 @JsonCodec
@@ -119,4 +121,11 @@ private[guard] object MetricsSnapshot {
     )
 
   implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
+}
+
+sealed trait MetricResetType extends EnumEntry
+object MetricResetType extends CatsEnum[MetricResetType] with Enum[MetricResetType] with CirceEnum[MetricResetType] {
+  override def values: immutable.IndexedSeq[MetricResetType] = findValues
+  case object AdventiveReset extends MetricResetType
+  case object ScheduledReset extends MetricResetType
 }
