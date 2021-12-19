@@ -36,7 +36,7 @@ val confluent    = "6.2.2"
 val kafkaVersion = "6.2.2-ce"
 
 // format
-val jackson = "2.13.0"
+val jackson = "2.13.1"
 val kantan  = "0.6.2"
 val parquet = "1.12.2"
 val avro    = "1.11.0"
