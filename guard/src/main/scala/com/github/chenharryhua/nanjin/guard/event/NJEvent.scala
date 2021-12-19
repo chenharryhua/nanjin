@@ -43,18 +43,16 @@ final case class ServiceStopped(
 ) extends ServiceEvent
 
 final case class MetricsReport(
+  reportType: MetricReportType,
   serviceInfo: ServiceInfo,
-  index: Long,
   timestamp: ZonedDateTime,
   snapshot: MetricsSnapshot
 ) extends ServiceEvent
 
 final case class MetricsReset(
-  serviceInfo: ServiceInfo,
   resetType: MetricResetType,
+  serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
-  prev: Option[ZonedDateTime],
-  next: Option[ZonedDateTime],
   snapshot: MetricsSnapshot
 ) extends ServiceEvent
 

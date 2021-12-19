@@ -29,18 +29,18 @@ final private[guard] class EventPublisher[F[_]](
     importance match {
       case Importance.Critical => s"04.alert.`error`.[${name.value}]"
       case Importance.High     => s"04.alert.`warn`.[${name.value}]"
-      case Importance.Medium   => s"20.alert.info.[${name.value}]"
-      case Importance.Low      => s"20.alert.debug.[${name.value}]"
+      case Importance.Medium   => s"30.alert.info.[${name.value}]"
+      case Importance.Low      => s"30.alert.debug.[${name.value}]"
     }
 
   // action level
   private def counterMRName(name: MetricName): String     = s"10.counter.[${name.value}]"
   private def passThroughMRName(name: MetricName): String = s"11.pass.through.[${name.value}]"
 
-  private def actionFailMRName(params: ActionParams): String  = s"12.action.[${params.metricName.value}].`fail`"
-  private def actionRetryMRName(params: ActionParams): String = s"12.action.[${params.metricName.value}].retry"
-  private def actionStartMRName(params: ActionParams): String = s"12.action.[${params.metricName.value}].num"
-  private def actionSuccMRName(params: ActionParams): String  = s"12.action.[${params.metricName.value}].succ"
+  private def actionFailMRName(params: ActionParams): String  = s"20.action.[${params.metricName.value}].`fail`"
+  private def actionRetryMRName(params: ActionParams): String = s"21.action.[${params.metricName.value}].retry"
+  private def actionStartMRName(params: ActionParams): String = s"21.action.[${params.metricName.value}].num"
+  private def actionSuccMRName(params: ActionParams): String  = s"21.action.[${params.metricName.value}].succ"
 
   private val realZonedDateTime: F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(serviceInfo.params.taskParams.zoneId))
@@ -73,47 +73,39 @@ final private[guard] class EventPublisher[F[_]](
         ))
     } yield ()
 
-  def metricsReport(metricFilter: MetricFilter, index: Long): F[Unit] =
+  def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
       _ <- F.delay(metricRegistry.counter(metricsReportMRName).inc())
       ts <- realZonedDateTime
       _ <- channel.send(
         MetricsReport(
-          index = index,
-          timestamp = ts,
           serviceInfo = serviceInfo,
+          reportType = metricReportType,
+          timestamp = ts,
           snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
         ))
     } yield ()
 
-  def metricsReset(metricFilter: MetricFilter, cronExpr: Option[CronExpr]): F[Unit] = cronExpr match {
-    case Some(cron) =>
-      for {
-        ts <- realZonedDateTime
-        _ <- channel.send(
+  def metricsReset(metricFilter: MetricFilter, cronExpr: Option[CronExpr]): F[Unit] =
+    for {
+      ts <- realZonedDateTime
+      msg = cronExpr.flatMap { ce =>
+        (ce.prev(ts), ce.next(ts)).mapN { case (prev, next) =>
           MetricsReset(
+            resetType = MetricResetType.ScheduledReset(prev, next),
             serviceInfo = serviceInfo,
-            resetType = MetricResetType.ScheduledReset,
             timestamp = ts,
-            prev = cron.prev(ts),
-            next = cron.next(ts),
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
-          ))
-      } yield metricRegistry.removeMatching(MetricFilter.ALL)
-    case None =>
-      for {
-        ts <- realZonedDateTime
-        _ <- channel.send(
-          MetricsReset(
-            serviceInfo = serviceInfo,
-            resetType = MetricResetType.AdventiveReset,
-            timestamp = ts,
-            prev = None,
-            next = None,
-            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
-          ))
-      } yield metricRegistry.removeMatching(MetricFilter.ALL)
-  }
+          )
+        }
+      }.getOrElse(MetricsReset(
+        resetType = MetricResetType.AdventiveReset,
+        serviceInfo = serviceInfo,
+        timestamp = ts,
+        snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
+      ))
+      _ <- channel.send(msg)
+    } yield metricRegistry.removeMatching(MetricFilter.ALL)
 
   /** actions
     */

@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.implicits.toShow
+import cats.implicits.{catsSyntaxEq, toShow}
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, ServiceParams}
-import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import com.github.chenharryhua.nanjin.datetime.instances.*
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -19,7 +19,6 @@ import java.nio.charset.StandardCharsets
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import java.util.{TimeZone, UUID}
-import scala.collection.immutable
 import scala.jdk.CollectionConverters.*
 
 @JsonCodec
@@ -123,9 +122,24 @@ private[guard] object MetricsSnapshot {
   implicit val showMetricsSnapshot: Show[MetricsSnapshot] = _.show
 }
 
-sealed trait MetricResetType extends EnumEntry
-object MetricResetType extends CatsEnum[MetricResetType] with Enum[MetricResetType] with CirceEnum[MetricResetType] {
-  override def values: immutable.IndexedSeq[MetricResetType] = findValues
+@JsonCodec
+sealed trait MetricResetType
+object MetricResetType {
+  implicit val showMetricResetType: Show[MetricResetType] = cats.derived.semiauto.show[MetricResetType]
   case object AdventiveReset extends MetricResetType
-  case object ScheduledReset extends MetricResetType
+  final case class ScheduledReset(prev: ZonedDateTime, next: ZonedDateTime) extends MetricResetType
+}
+
+@JsonCodec
+sealed trait MetricReportType {
+  def isShow: Boolean
+}
+object MetricReportType {
+  implicit val showMetricReportType: Show[MetricReportType] = cats.derived.semiauto.show[MetricReportType]
+  case object AdventiveReport extends MetricReportType {
+    override val isShow: Boolean = true
+  }
+  final case class ScheduledReport(index: Long) extends MetricReportType {
+    override val isShow: Boolean = index === 1
+  }
 }

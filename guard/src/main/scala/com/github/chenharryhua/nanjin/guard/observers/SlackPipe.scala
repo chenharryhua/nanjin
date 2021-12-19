@@ -172,11 +172,11 @@ final class SlackPipe[F[_]] private[observers] (
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
       sns <- Stream.resource(snsResource)
-      ref <- Stream.eval(F.ref[Map[ServiceInfo, ZonedDateTime]](Map.empty))
+      ref <- Stream.eval(F.ref[Set[ServiceInfo]](Set.empty))
       event <- es.evalMap { e =>
         val updateRef: F[Unit] = e match {
-          case ServiceStarted(info, ts)   => ref.update(_.updated(info, ts))
-          case ServiceStopped(info, _, _) => ref.update(_.removed(info))
+          case ServiceStarted(info, _)    => ref.update(_.incl(info))
+          case ServiceStopped(info, _, _) => ref.update(_.excl(info))
           case _                          => F.unit
         }
         updateRef >> publish(e, sns).attempt.as(e)
@@ -195,10 +195,10 @@ final class SlackPipe[F[_]] private[observers] (
                 Attachment(
                   color = cfg.warnColor,
                   blocks = List(
-                    hostServiceSection(ss._1.params),
+                    hostServiceSection(ss.params),
                     JuxtaposeSection(
-                      TextField("Up Time", cfg.durationFormatter.format(ss._2.toInstant, ts)),
-                      TextField("App", ss._1.params.taskParams.appName))
+                      TextField("Up Time", cfg.durationFormatter.format(ss.launchTime.toInstant, ts)),
+                      TextField("App", ss.params.taskParams.appName))
                   )
                 )) ::: List(Attachment(color = cfg.infoColor, blocks = extra))
           ).asJson.spaces2
@@ -334,7 +334,7 @@ final class SlackPipe[F[_]] private[observers] (
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case MetricsReport(si, index, at, snapshot) =>
+      case MetricsReport(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val next = nextTime(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
             .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
@@ -357,42 +357,57 @@ final class SlackPipe[F[_]] private[observers] (
           )
         }
         val isShow =
-          isShowMetrics(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime) || index === 1L
+          isShowMetrics(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime) || rt.isShow
         for {
           m <- msg.map(_.asJson.spaces2)
           _ <- sns.publish(m).whenA(isShow)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
-      case MetricsReset(si, _, at, prev, next, snapshot) =>
-        val summaries = prev.map { p =>
-          val dur = cfg.durationFormatter.format(Order.max(p, si.launchTime), at)
-          s"*This is a summary of activities performed by the service in past $dur*"
-        }.getOrElse("*This is an adventive reset*")
-
+      case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val text = metricsText(snapshot.counters)
-
-          SlackApp(
-            username = si.params.taskParams.appName,
-            attachments = List(
-              Attachment(
-                color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
-                blocks = List(
-                  MarkdownSection(summaries),
-                  hostServiceSection(si.params),
-                  JuxtaposeSection(
-                    TextField("Up Time", took(si.launchTime, at)),
-                    TextField(
-                      "Next Reset",
-                      next.fold("Unknown")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show))),
-                  KeyValueSection("Metrics", text)
+          rt match {
+            case MetricResetType.AdventiveReset =>
+              SlackApp(
+                username = si.params.taskParams.appName,
+                attachments = List(
+                  Attachment(
+                    color = cfg.warnColor,
+                    blocks = List(
+                      MarkdownSection("*This is an adventive reset*"),
+                      hostServiceSection(si.params),
+                      JuxtaposeSection(
+                        TextField("Up Time", took(si.launchTime, at)),
+                        TextField("Next Reset", "Unknown")),
+                      KeyValueSection("Metrics", text)
+                    )
+                  ),
+                  Attachment(color = cfg.infoColor, blocks = extra)
                 )
-              ),
-              Attachment(color = cfg.infoColor, blocks = extra)
-            )
-          )
+              )
+            case MetricResetType.ScheduledReset(prev, next) =>
+              val dur = cfg.durationFormatter.format(Order.max(prev, si.launchTime), at)
+              SlackApp(
+                username = si.params.taskParams.appName,
+                attachments = List(
+                  Attachment(
+                    color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
+                    blocks = List(
+                      MarkdownSection(s"*This is a summary of activities performed by the service in past $dur*"),
+                      hostServiceSection(si.params),
+                      JuxtaposeSection(
+                        TextField("Up Time", took(si.launchTime, at)),
+                        TextField("Next Reset", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)),
+                      KeyValueSection("Metrics", text)
+                    )
+                  ),
+                  Attachment(color = cfg.infoColor, blocks = extra)
+                )
+              )
+          }
         }
+
         for {
           m <- msg.map(_.asJson.spaces2)
           _ <- sns.publish(m)
