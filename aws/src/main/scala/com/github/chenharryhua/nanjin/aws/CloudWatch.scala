@@ -25,9 +25,9 @@ object CloudWatch {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     Resource.makeCase(F.delay(new CloudWathImpl)) { case (cw, quitCase) =>
       val logging = quitCase match {
-        case ExitCase.Succeeded  => logger.info("CloudWatch was closed noramally")
-        case ExitCase.Errored(e) => logger.warn(e)("CloudWatch was closed abnoramlly")
-        case ExitCase.Canceled   => logger.info("CloudWatch was canceled")
+        case ExitCase.Succeeded  => logger.info("NJ.CloudWatch was closed normally")
+        case ExitCase.Errored(e) => logger.warn(e)("NJ.CloudWatch was closed abnormally")
+        case ExitCase.Canceled   => logger.info("NJ.CloudWatch was canceled")
       }
       logging *> cw.shutdown
     }

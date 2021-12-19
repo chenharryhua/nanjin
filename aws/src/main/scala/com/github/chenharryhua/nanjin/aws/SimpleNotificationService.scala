@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.regions.Regions
@@ -23,8 +24,17 @@ object SimpleNotificationService {
     }))(_ => F.unit)
   }
 
-  def apply[F[_]](topic: SnsArn, region: Regions)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] =
-    Resource.make(F.delay(new SNS[F](topic, region)))(_.shutdown)
+  def apply[F[_]](topic: SnsArn, region: Regions)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
+    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+    Resource.makeCase(F.delay(new SNS[F](topic, region))) { case (cw, quitCase) =>
+      val logging = quitCase match {
+        case ExitCase.Succeeded  => logger.info("NJ.SNS was closed normally")
+        case ExitCase.Errored(e) => logger.warn(e)("NJ.SNS was closed abnormally")
+        case ExitCase.Canceled   => logger.info("NJ.SNS was canceled")
+      }
+      logging *> cw.shutdown
+    }
+  }
 
   def apply[F[_]: Sync](topic: SnsArn): Resource[F, SimpleNotificationService[F]] = apply[F](topic, defaultRegion)
 

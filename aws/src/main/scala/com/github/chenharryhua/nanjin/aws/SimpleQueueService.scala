@@ -6,6 +6,7 @@ import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
 import cats.Applicative
+import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
@@ -14,6 +15,8 @@ import fs2.Stream
 import fs2.interop.reactivestreams.*
 import io.circe.optics.JsonPath.*
 import io.circe.parser.*
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
 import java.net.URLDecoder
@@ -33,8 +36,18 @@ object SimpleQueueService {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
     }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
-    Resource.make(F.delay(new SQS[F](akkaSystem, bufferSize)))(_.shutdown)
+  def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit
+    F: Async[F]): Resource[F, SimpleQueueService[F]] = {
+    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+    Resource.makeCase(F.delay(new SQS[F](akkaSystem, bufferSize))) { case (cw, quitCase) =>
+      val logging = quitCase match {
+        case ExitCase.Succeeded  => logger.info("NJ.SQS was closed normally")
+        case ExitCase.Errored(e) => logger.warn(e)("NJ.SQS was closed abnormally")
+        case ExitCase.Canceled   => logger.info("NJ.SQS was canceled")
+      }
+      logging *> cw.shutdown
+    }
+  }
 
   def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
     apply[F](akkaSystem, 1024)
