@@ -83,7 +83,7 @@ final class ServiceGuard[F[_]] private[guard] (
         }
 
         val metricsReset: Stream[F, INothing] = params.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
-          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(metricFilter, cron)).drain)
+          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(metricFilter, Some(cron))).drain)
 
         val jmxReporting: Stream[F, INothing] = {
           jmxBuilder match {

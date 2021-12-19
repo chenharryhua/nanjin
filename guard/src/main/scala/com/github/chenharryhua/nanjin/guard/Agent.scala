@@ -75,6 +75,8 @@ final class Agent[F[_]] private[guard] (
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
+  def metrics: Metrics[F] = new Metrics[F](dispatcher, publisher)
+
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))
 

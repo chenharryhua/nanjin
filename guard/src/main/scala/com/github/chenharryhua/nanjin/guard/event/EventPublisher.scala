@@ -86,18 +86,32 @@ final private[guard] class EventPublisher[F[_]](
         ))
     } yield ()
 
-  def metricsReset(metricFilter: MetricFilter, cronExpr: CronExpr): F[Unit] =
-    for {
-      ts <- realZonedDateTime
-      _ <- channel.send(
-        MetricsReset(
-          timestamp = ts,
-          serviceInfo = serviceInfo,
-          prev = cronExpr.prev(ts),
-          next = cronExpr.next(ts),
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
-        ))
-    } yield metricRegistry.removeMatching(MetricFilter.ALL)
+  def metricsReset(metricFilter: MetricFilter, cronExpr: Option[CronExpr]): F[Unit] = cronExpr match {
+    case Some(cron) =>
+      for {
+        ts <- realZonedDateTime
+        _ <- channel.send(
+          MetricsReset(
+            timestamp = ts,
+            serviceInfo = serviceInfo,
+            prev = cron.prev(ts),
+            next = cron.next(ts),
+            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
+          ))
+      } yield metricRegistry.removeMatching(MetricFilter.ALL)
+    case None =>
+      for {
+        ts <- realZonedDateTime
+        _ <- channel.send(
+          MetricsReset(
+            timestamp = ts,
+            serviceInfo = serviceInfo,
+            prev = None,
+            next = None,
+            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
+          ))
+      } yield metricRegistry.removeMatching(MetricFilter.ALL)
+  }
 
   /** actions
     */

@@ -365,9 +365,11 @@ final class SlackPipe[F[_]] private[observers] (
         } yield ()
 
       case MetricsReset(si, at, prev, next, snapshot) =>
-        val toNow =
-          prev.map(p => cfg.durationFormatter.format(Order.max(p, si.launchTime), at)).fold("")(dur => s" in past $dur")
-        val summaries = s"*This is a summary of activities performed by the service$toNow*"
+        val summaries = prev.map { p =>
+          val dur = cfg.durationFormatter.format(Order.max(p, si.launchTime), at)
+          s"*This is a summary of activities performed by the service in past $dur*"
+        }.getOrElse("*This is an adventive reset*")
+
         val msg = cfg.extraSlackSections.map { extra =>
           val text = metricsText(snapshot.counters)
 
@@ -383,7 +385,7 @@ final class SlackPipe[F[_]] private[observers] (
                     TextField("Up Time", took(si.launchTime, at)),
                     TextField(
                       "Next Reset",
-                      next.fold("no time")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show))),
+                      next.fold("Unknown")(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show))),
                   KeyValueSection("Metrics", text)
                 )
               ),
