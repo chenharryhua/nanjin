@@ -346,7 +346,7 @@ final class SlackPipe[F[_]] private[observers] (
               Attachment(
                 color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(s":health_worker: *Health Check*"),
+                  MarkdownSection(s":health_worker: *${rt.show} Health Check"),
                   hostServiceSection(si.params),
                   JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Next", next)),
                   KeyValueSection("Metrics", text)

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResult}
@@ -20,10 +21,20 @@ object CloudWatch {
     })
   }
 
-  def apply[F[_]](implicit F: Sync[F]): Resource[F, CloudWatch[F]] =
-    Resource.make(F.delay(new CloudWathImpl))(_.shutdown)
+  def apply[F[_]](implicit F: Sync[F]): Resource[F, CloudWatch[F]] = {
+    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+    Resource.makeCase(F.delay(new CloudWathImpl)) { case (cw, quitCase) =>
+      val logging = quitCase match {
+        case ExitCase.Succeeded  => logger.info("CloudWatch was closed noramally")
+        case ExitCase.Errored(e) => logger.warn(e)("CloudWatch was closed abnoramlly")
+        case ExitCase.Canceled   => logger.info("CloudWatch was canceled")
+      }
+      logging *> cw.shutdown
+    }
+  }
 
   final private class CloudWathImpl[F[_]](implicit F: Sync[F]) extends CloudWatch[F] with ShutdownService[F] {
+
     private val client: AmazonCloudWatch = AmazonCloudWatchClientBuilder.standard().build()
 
     override def shutdown: F[Unit] = F.blocking(client.shutdown())
