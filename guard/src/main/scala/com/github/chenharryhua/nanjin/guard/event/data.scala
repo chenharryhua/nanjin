@@ -135,10 +135,7 @@ sealed trait MetricReportType {
   def isShow: Boolean
 }
 object MetricReportType {
-  implicit val showMetricReportType: Show[MetricReportType] = {
-    case AdventiveReport        => "Adventive"
-    case ScheduledReport(index) => "Scheduled"
-  }
+  implicit val showMetricReportType: Show[MetricReportType] = cats.derived.semiauto.show[MetricReportType]
   case object AdventiveReport extends MetricReportType {
     override val isShow: Boolean = true
   }

@@ -339,6 +339,10 @@ final class SlackPipe[F[_]] private[observers] (
           val next = nextTime(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
             .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
           val text = metricsText(snapshot.counters)
+          val name = rt match {
+            case MetricReportType.AdventiveReport    => "Adventive Health Check"
+            case MetricReportType.ScheduledReport(_) => "Scheduled Health Check"
+          }
 
           SlackApp(
             username = si.params.taskParams.appName,
@@ -346,7 +350,7 @@ final class SlackPipe[F[_]] private[observers] (
               Attachment(
                 color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(s":health_worker: *${rt.show} Health Check"),
+                  MarkdownSection(s":health_worker: *$name*"),
                   hostServiceSection(si.params),
                   JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Next", next)),
                   KeyValueSection("Metrics", text)
