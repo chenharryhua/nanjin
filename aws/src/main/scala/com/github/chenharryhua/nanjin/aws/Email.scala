@@ -19,13 +19,15 @@ trait Email[F[_]] {
 }
 
 object Email {
+  private val name: String = "aws.Email"
   def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, Email[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(F.delay(new EmailImpl[F](regions))) { case (cw, quitCase) =>
+
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new EmailImpl[F](regions))) { case (cw, quitCase) =>
       val logging = quitCase match {
-        case ExitCase.Succeeded  => logger.info("NJ.Email was closed normally")
-        case ExitCase.Errored(e) => logger.warn(e)("NJ.EMail was closed abnormally")
-        case ExitCase.Canceled   => logger.info("NJ.Email was canceled")
+        case ExitCase.Succeeded  => logger.info(s"${name} was closed normally")
+        case ExitCase.Errored(e) => logger.warn(e)(s"${name} was closed abnormally")
+        case ExitCase.Canceled   => logger.info(s"${name} was canceled")
       }
       logging *> cw.shutdown
     }

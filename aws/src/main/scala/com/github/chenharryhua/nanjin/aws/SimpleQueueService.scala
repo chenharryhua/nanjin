@@ -30,6 +30,7 @@ sealed trait SimpleQueueService[F[_]] {
 }
 
 object SimpleQueueService {
+  private val name: String = "aws.SQS"
 
   def fake[F[_]](stream: Stream[F, SqsAckResult])(implicit F: Applicative[F]): Resource[F, SimpleQueueService[F]] =
     Resource.make(F.pure(new SimpleQueueService[F] {
@@ -39,13 +40,14 @@ object SimpleQueueService {
   def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit
     F: Async[F]): Resource[F, SimpleQueueService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(F.delay(new SQS[F](akkaSystem, bufferSize))) { case (cw, quitCase) =>
-      val logging = quitCase match {
-        case ExitCase.Succeeded  => logger.info("NJ.SQS was closed normally")
-        case ExitCase.Errored(e) => logger.warn(e)("NJ.SQS was closed abnormally")
-        case ExitCase.Canceled   => logger.info("NJ.SQS was canceled")
-      }
-      logging *> cw.shutdown
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new SQS[F](akkaSystem, bufferSize))) {
+      case (cw, quitCase) =>
+        val logging = quitCase match {
+          case ExitCase.Succeeded  => logger.info(s"$name  was closed normally")
+          case ExitCase.Errored(e) => logger.warn(e)(s"$name  was closed abnormally")
+          case ExitCase.Canceled   => logger.info(s"$name  was canceled")
+        }
+        logging *> cw.shutdown
     }
   }
 

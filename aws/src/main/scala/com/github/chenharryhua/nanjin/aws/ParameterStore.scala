@@ -24,6 +24,7 @@ sealed trait ParameterStore[F[_]] {
 }
 
 object ParameterStore {
+  private val name: String = "aws.ParameterStore"
 
   def fake[F[_]](content: String)(implicit F: Applicative[F]): Resource[F, ParameterStore[F]] =
     Resource.make(F.pure(new ParameterStore[F] {
@@ -35,11 +36,11 @@ object ParameterStore {
 
   def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, ParameterStore[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(F.delay(new PS(regions))) { case (cw, quitCase) =>
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new PS(regions))) { case (cw, quitCase) =>
       val logging = quitCase match {
-        case ExitCase.Succeeded  => logger.info("NJ.ParameterStore was closed normally")
-        case ExitCase.Errored(e) => logger.warn(e)("NJ.ParameterStore was closed abnormally")
-        case ExitCase.Canceled   => logger.info("NJ.ParameterStore was canceled")
+        case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
+        case ExitCase.Errored(e) => logger.warn(e)(s"$name  was closed abnormally")
+        case ExitCase.Canceled   => logger.info(s"$name  was canceled")
       }
       logging *> cw.shutdown
     }

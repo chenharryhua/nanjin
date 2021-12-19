@@ -15,6 +15,7 @@ sealed trait SimpleNotificationService[F[_]] {
 }
 
 object SimpleNotificationService {
+  private val name: String = "aws.SNS"
 
   def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
@@ -26,11 +27,11 @@ object SimpleNotificationService {
 
   def apply[F[_]](topic: SnsArn, region: Regions)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(F.delay(new SNS[F](topic, region))) { case (cw, quitCase) =>
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new SNS[F](topic, region))) { case (cw, quitCase) =>
       val logging = quitCase match {
-        case ExitCase.Succeeded  => logger.info("NJ.SNS was closed normally")
-        case ExitCase.Errored(e) => logger.warn(e)("NJ.SNS was closed abnormally")
-        case ExitCase.Canceled   => logger.info("NJ.SNS was canceled")
+        case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
+        case ExitCase.Errored(e) => logger.warn(e)(s"$name  was closed abnormally")
+        case ExitCase.Canceled   => logger.info(s"$name  was canceled")
       }
       logging *> cw.shutdown
     }
