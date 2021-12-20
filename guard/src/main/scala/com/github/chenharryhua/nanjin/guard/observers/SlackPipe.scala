@@ -171,14 +171,14 @@ final class SlackPipe[F[_]] private[observers] (
   // slack not allow message larger than 3000 chars
   private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, 2950)
 
-  private def metricText(snapshot: MetricsSnapshot): String =
+  private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
     cfg.showMetricsSnapshot match {
       case ShowMetricsSnapshot.ShowTimers =>
-        abbreviate(snapshot.show)
+        KeyValueSection("Timers", abbreviate(snapshot.show))
       case ShowMetricsSnapshot.ShowCounters =>
         val fmt: NumberFormat = NumberFormat.getIntegerInstance
         val msg: List[String] = snapshot.counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted
-        if (msg.isEmpty) "No Counters Yet" else abbreviate(msg.mkString("\n"))
+        KeyValueSection("Counters", if (msg.isEmpty) "No Counters Yet" else abbreviate(msg.mkString("\n")))
     }
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
@@ -329,7 +329,6 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ServiceStopped(si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val text = metricText(snapshot)
           SlackApp(
             username = si.params.taskParams.appName,
             attachments = List(
@@ -341,7 +340,7 @@ final class SlackPipe[F[_]] private[observers] (
                   JuxtaposeSection(
                     TextField("Up Time", took(si.launchTime, at)),
                     TextField("Time Zone", si.params.taskParams.zoneId.show)),
-                  KeyValueSection("Metrics", text)
+                  metricsSection(snapshot)
                 )
               ),
               Attachment(color = cfg.infoColor, blocks = extra)
@@ -373,7 +372,7 @@ final class SlackPipe[F[_]] private[observers] (
                   MarkdownSection(s":health_worker: *$name*"),
                   hostServiceSection(si.params),
                   JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Next", next)),
-                  KeyValueSection("Metrics", metricText(snapshot))
+                  metricsSection(snapshot)
                 )
               ),
               Attachment(color = cfg.infoColor, blocks = extra)
@@ -390,7 +389,6 @@ final class SlackPipe[F[_]] private[observers] (
 
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val text = metricText(snapshot)
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(
@@ -404,7 +402,7 @@ final class SlackPipe[F[_]] private[observers] (
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
                         TextField("Next Reset", "Unknown")),
-                      KeyValueSection("Metrics", text)
+                      metricsSection(snapshot)
                     )
                   ),
                   Attachment(color = cfg.infoColor, blocks = extra)
@@ -423,7 +421,7 @@ final class SlackPipe[F[_]] private[observers] (
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
                         TextField("Next Reset", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)),
-                      KeyValueSection("Metrics", text)
+                      metricsSection(snapshot)
                     )
                   ),
                   Attachment(color = cfg.infoColor, blocks = extra)
