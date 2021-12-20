@@ -157,7 +157,7 @@ final class SlackPipe[F[_]] private[observers] (
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
-  private val MessageSizeLimits: Int          = 2999
+  private val MessageSizeLimits: Int          = 2960
   private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =

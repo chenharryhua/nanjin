@@ -41,7 +41,7 @@ final private[guard] class EventPublisher[F[_]](
 
   // action level
   private def counterMRName(name: MetricName, isError: Boolean): String =
-    if (isError) s"$ATTENTION.counter.[${name.value}" else s"20.counter.[${name.value}]"
+    if (isError) s"$ATTENTION.counter.[${name.value}]" else s"20.counter.[${name.value}]"
 
   private def passThroughMRName(name: MetricName, isError: Boolean): String =
     if (isError) s"$ATTENTION.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
@@ -209,7 +209,13 @@ final private[guard] class EventPublisher[F[_]](
   def passThrough(metricName: MetricName, json: Json, isError: Boolean): F[Unit] =
     for {
       ts <- realZonedDateTime
-      _ <- channel.send(PassThrough(metricName = metricName, serviceInfo = serviceInfo, timestamp = ts, value = json))
+      _ <- channel.send(
+        PassThrough(
+          metricName = metricName,
+          isError = isError,
+          serviceInfo = serviceInfo,
+          timestamp = ts,
+          value = json))
     } yield metricRegistry.counter(passThroughMRName(metricName, isError)).inc()
 
   def alert(metricName: MetricName, msg: String, importance: Importance): F[Unit] =
