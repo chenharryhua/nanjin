@@ -23,6 +23,12 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.FiniteDuration
 
+sealed private trait ShowMetricsSnapshot
+private object ShowMetricsSnapshot {
+  case object ShowTimers extends ShowMetricsSnapshot
+  case object ShowCounters extends ShowMetricsSnapshot
+}
+
 object slack {
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
     new SlackPipe[F](
@@ -37,7 +43,8 @@ object slack {
         isShowRetry = true,
         extraSlackSections = Async[F].pure(Nil),
         isLoggging = false,
-        supporters = Nil
+        supporters = Nil,
+        showMetricsSnapshot = ShowMetricsSnapshot.ShowCounters
       )
     )
 
@@ -54,7 +61,8 @@ final private case class SlackConfig[F[_]](
   isShowRetry: Boolean,
   extraSlackSections: F[List[Section]],
   isLoggging: Boolean,
-  supporters: List[String]
+  supporters: List[String],
+  showMetricsSnapshot: ShowMetricsSnapshot
 ) {
   val atSupporters: String =
     supporters
@@ -80,7 +88,7 @@ private object TextField {
         """
   }
 }
-
+// slack format
 sealed private trait Section
 private object Section {
   implicit val encodeSection: Encoder[Section] = Encoder.instance {
@@ -146,7 +154,15 @@ final class SlackPipe[F[_]] private[observers] (
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
+  def withoutReportInterval: SlackPipe[F] =
+    updateSlackConfig(_.copy(reportInterval = None))
+
   def withLogging: SlackPipe[F] = updateSlackConfig(_.copy(isLoggging = true))
+
+  def showMetricTimers: SlackPipe[F] =
+    updateSlackConfig(_.copy(showMetricsSnapshot = ShowMetricsSnapshot.ShowTimers))
+  def showMetricCounters: SlackPipe[F] =
+    updateSlackConfig(_.copy(showMetricsSnapshot = ShowMetricsSnapshot.ShowCounters))
 
   def at(supporter: String): SlackPipe[F] = updateSlackConfig(c => c.copy(supporters = supporter :: c.supporters))
   def at(supporters: List[String]): SlackPipe[F] =
@@ -155,11 +171,15 @@ final class SlackPipe[F[_]] private[observers] (
   // slack not allow message larger than 3000 chars
   private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, 2950)
 
-  private def metricsText(counters: Map[String, Long]): String = {
-    val fmt: NumberFormat = NumberFormat.getIntegerInstance
-    val msg: List[String] = counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted
-    if (msg.isEmpty) "Not Yet" else abbreviate(msg.mkString("\n"))
-  }
+  private def metricText(snapshot: MetricsSnapshot): String =
+    cfg.showMetricsSnapshot match {
+      case ShowMetricsSnapshot.ShowTimers =>
+        abbreviate(snapshot.show)
+      case ShowMetricsSnapshot.ShowCounters =>
+        val fmt: NumberFormat = NumberFormat.getIntegerInstance
+        val msg: List[String] = snapshot.counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted
+        if (msg.isEmpty) "No Counters Yet" else abbreviate(msg.mkString("\n"))
+    }
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
     JuxtaposeSection(TextField("Service", MetricName(sp).value), TextField("Host", sp.taskParams.hostName))
@@ -309,7 +329,7 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ServiceStopped(si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val text = metricsText(snapshot.counters)
+          val text = metricText(snapshot)
           SlackApp(
             username = si.params.taskParams.appName,
             attachments = List(
@@ -338,7 +358,7 @@ final class SlackPipe[F[_]] private[observers] (
         val msg = cfg.extraSlackSections.map { extra =>
           val next = nextTime(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
             .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
-          val text = metricsText(snapshot.counters)
+
           val name = rt match {
             case MetricReportType.AdventiveReport    => "Adventive Health Check"
             case MetricReportType.ScheduledReport(_) => "Scheduled Health Check"
@@ -353,7 +373,7 @@ final class SlackPipe[F[_]] private[observers] (
                   MarkdownSection(s":health_worker: *$name*"),
                   hostServiceSection(si.params),
                   JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Next", next)),
-                  KeyValueSection("Metrics", text)
+                  KeyValueSection("Metrics", metricText(snapshot))
                 )
               ),
               Attachment(color = cfg.infoColor, blocks = extra)
@@ -370,7 +390,7 @@ final class SlackPipe[F[_]] private[observers] (
 
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val text = metricsText(snapshot.counters)
+          val text = metricText(snapshot)
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(
