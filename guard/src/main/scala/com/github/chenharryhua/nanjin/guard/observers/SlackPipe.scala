@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
+import cron4s.lib.javatime.javaTemporalInstance
 import fs2.{Pipe, Stream}
 import io.circe.Encoder
 import io.circe.generic.auto.*
@@ -348,11 +349,11 @@ final class SlackPipe[F[_]] private[observers] (
       case MetricsReport(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val next = nextTime(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
-            .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+            .fold("None")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
 
           val name = rt match {
             case MetricReportType.AdventiveReport    => "Adventive Health Check"
-            case MetricReportType.ScheduledReport(_) => "Scheduled Health Check"
+            case MetricReportType.ScheduledReport(_) => "Health Check"
           }
           val color =
             if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
@@ -365,7 +366,7 @@ final class SlackPipe[F[_]] private[observers] (
                 blocks = List(
                   MarkdownSection(s":health_worker: *$name*"),
                   hostServiceSection(si.params),
-                  JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Next", next)),
+                  JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Scheduled Next", next)),
                   metricsSection(snapshot)
                 )
               ),
@@ -397,7 +398,14 @@ final class SlackPipe[F[_]] private[observers] (
                       hostServiceSection(si.params),
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
-                        TextField("Next Reset", "Unknown")),
+                        TextField(
+                          "Scheduled Next",
+                          si.params.metric.resetSchedule
+                            .flatMap(_.next(at.toInstant))
+                            .map(_.atZone(si.params.taskParams.zoneId).toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+                            .getOrElse("None")
+                        )
+                      ),
                       metricsSection(snapshot)
                     )
                   ),
@@ -412,11 +420,12 @@ final class SlackPipe[F[_]] private[observers] (
                   Attachment(
                     color = color,
                     blocks = List(
-                      MarkdownSection(s"*This is a summary of activities performed by the service in past $dur*"),
+                      MarkdownSection(
+                        s"*This is schedued summary of activities performed by the service in past $dur*"),
                       hostServiceSection(si.params),
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
-                        TextField("Next Reset", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)),
+                        TextField("Scheduled Next", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)),
                       metricsSection(snapshot)
                     )
                   ),
