@@ -44,8 +44,8 @@ object SimpleQueueService {
       case (cw, quitCase) =>
         val logging = quitCase match {
           case ExitCase.Succeeded  => logger.info(s"$name  was closed normally")
-          case ExitCase.Errored(e) => logger.warn(e)(s"$name  was closed abnormally")
-          case ExitCase.Canceled   => logger.info(s"$name  was canceled")
+          case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
+          case ExitCase.Canceled   => logger.info(s"$name was canceled")
         }
         logging *> cw.shutdown
     }
