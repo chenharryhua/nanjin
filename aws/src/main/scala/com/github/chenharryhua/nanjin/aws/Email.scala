@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.regions.Regions
@@ -18,8 +19,19 @@ trait Email[F[_]] {
 }
 
 object Email {
-  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, Email[F]] =
-    Resource.make(F.delay(new EmailImpl[F](regions)))(_.shutdown)
+  private val name: String = "aws.Email"
+  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, Email[F]] = {
+    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new EmailImpl[F](regions))) { case (cw, quitCase) =>
+      val logging = quitCase match {
+        case ExitCase.Succeeded  => logger.info(s"${name} was closed normally")
+        case ExitCase.Errored(e) => logger.warn(e)(s"${name} was closed abnormally")
+        case ExitCase.Canceled   => logger.info(s"${name} was canceled")
+      }
+      logging *> cw.shutdown
+    }
+  }
 
   def apply[F[_]: Sync]: Resource[F, Email[F]] = apply[F](defaultRegion)
 

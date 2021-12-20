@@ -37,7 +37,8 @@ object slack {
         isShowRetry = true,
         extraSlackSections = Async[F].pure(Nil),
         isLoggging = false,
-        supporters = Nil
+        supporters = Nil,
+        isShowMetrics = false
       )
     )
 
@@ -54,7 +55,8 @@ final private case class SlackConfig[F[_]](
   isShowRetry: Boolean,
   extraSlackSections: F[List[Section]],
   isLoggging: Boolean,
-  supporters: List[String]
+  supporters: List[String],
+  isShowMetrics: Boolean
 ) {
   val atSupporters: String =
     supporters
@@ -80,7 +82,7 @@ private object TextField {
         """
   }
 }
-
+// slack format
 sealed private trait Section
 private object Section {
   implicit val encodeSection: Encoder[Section] = Encoder.instance {
@@ -146,20 +148,30 @@ final class SlackPipe[F[_]] private[observers] (
   def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
     updateSlackConfig(_.copy(reportInterval = Some(interval)))
 
+  def withoutReportInterval: SlackPipe[F] =
+    updateSlackConfig(_.copy(reportInterval = None))
+
   def withLogging: SlackPipe[F] = updateSlackConfig(_.copy(isLoggging = true))
+
+  def showMetricsWhenApplicable: SlackPipe[F] = updateSlackConfig(_.copy(isShowMetrics = true))
 
   def at(supporter: String): SlackPipe[F] = updateSlackConfig(c => c.copy(supporters = supporter :: c.supporters))
   def at(supporters: List[String]): SlackPipe[F] =
     updateSlackConfig(c => c.copy(supporters = supporters ::: c.supporters))
 
   // slack not allow message larger than 3000 chars
-  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, 2950)
+  // https://api.slack.com/reference/surfaces/formatting
+  private val MessageSizeLimits: Int          = 2960
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
-  private def metricsText(counters: Map[String, Long]): String = {
-    val fmt: NumberFormat = NumberFormat.getIntegerInstance
-    val msg: List[String] = counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted
-    if (msg.isEmpty) "Not Yet" else abbreviate(msg.mkString("\n"))
-  }
+  private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
+    if (cfg.isShowMetrics && snapshot.show.length <= MessageSizeLimits) {
+      KeyValueSection("Metrics", s"```${snapshot.show}```")
+    } else {
+      val fmt: NumberFormat = NumberFormat.getIntegerInstance
+      val msg: List[String] = snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted
+      KeyValueSection("Counters", s"```${abbreviate(msg.mkString("\n"))}```")
+    }
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
     JuxtaposeSection(TextField("Service", MetricName(sp).value), TextField("Host", sp.taskParams.hostName))
@@ -309,7 +321,6 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ServiceStopped(si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val text = metricsText(snapshot.counters)
           SlackApp(
             username = si.params.taskParams.appName,
             attachments = List(
@@ -321,7 +332,7 @@ final class SlackPipe[F[_]] private[observers] (
                   JuxtaposeSection(
                     TextField("Up Time", took(si.launchTime, at)),
                     TextField("Time Zone", si.params.taskParams.zoneId.show)),
-                  KeyValueSection("Metrics", text)
+                  metricsSection(snapshot)
                 )
               ),
               Attachment(color = cfg.infoColor, blocks = extra)
@@ -338,18 +349,24 @@ final class SlackPipe[F[_]] private[observers] (
         val msg = cfg.extraSlackSections.map { extra =>
           val next = nextTime(si.params.metric.reportSchedule, at, cfg.reportInterval, si.launchTime)
             .fold("no report thereafter")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
-          val text = metricsText(snapshot.counters)
+
+          val name = rt match {
+            case MetricReportType.AdventiveReport    => "Adventive Health Check"
+            case MetricReportType.ScheduledReport(_) => "Scheduled Health Check"
+          }
+          val color =
+            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
 
           SlackApp(
             username = si.params.taskParams.appName,
             attachments = List(
               Attachment(
-                color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
+                color = color,
                 blocks = List(
-                  MarkdownSection(s":health_worker: *Health Check*"),
+                  MarkdownSection(s":health_worker: *$name*"),
                   hostServiceSection(si.params),
                   JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Next", next)),
-                  KeyValueSection("Metrics", text)
+                  metricsSection(snapshot)
                 )
               ),
               Attachment(color = cfg.infoColor, blocks = extra)
@@ -366,21 +383,22 @@ final class SlackPipe[F[_]] private[observers] (
 
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val text = metricsText(snapshot.counters)
+          val color =
+            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(
                 username = si.params.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = cfg.warnColor,
+                    color = color,
                     blocks = List(
-                      MarkdownSection("*This is an adventive reset*"),
+                      MarkdownSection("*Adventive Metrics Reset*"),
                       hostServiceSection(si.params),
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
                         TextField("Next Reset", "Unknown")),
-                      KeyValueSection("Metrics", text)
+                      metricsSection(snapshot)
                     )
                   ),
                   Attachment(color = cfg.infoColor, blocks = extra)
@@ -392,14 +410,14 @@ final class SlackPipe[F[_]] private[observers] (
                 username = si.params.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
+                    color = color,
                     blocks = List(
                       MarkdownSection(s"*This is a summary of activities performed by the service in past $dur*"),
                       hostServiceSection(si.params),
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
                         TextField("Next Reset", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)),
-                      KeyValueSection("Metrics", text)
+                      metricsSection(snapshot)
                     )
                   ),
                   Attachment(color = cfg.infoColor, blocks = extra)

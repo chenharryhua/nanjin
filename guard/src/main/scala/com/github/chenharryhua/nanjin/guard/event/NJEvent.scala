@@ -64,8 +64,13 @@ final case class ServiceAlert(
   message: String
 ) extends ServiceEvent
 
-final case class PassThrough(metricName: MetricName, serviceInfo: ServiceInfo, timestamp: ZonedDateTime, value: Json)
-    extends ServiceEvent
+final case class PassThrough(
+  metricName: MetricName,
+  isError: Boolean, // the payload json represent an error
+  serviceInfo: ServiceInfo,
+  timestamp: ZonedDateTime,
+  value: Json
+) extends ServiceEvent
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
