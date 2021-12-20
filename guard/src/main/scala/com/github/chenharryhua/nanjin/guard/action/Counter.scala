@@ -9,9 +9,15 @@ final class Counter[F[_]](
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F]
 ) {
-  def increase(num: Long): F[Unit]    = eventPublisher.increase(metricName, num)
+  def increase(num: Long): F[Unit]    = eventPublisher.increase(metricName, num, isError = false)
   def unsafeIncrease(num: Long): Unit = dispatcher.unsafeRunSync(increase(num))
 
-  def replace(num: Long): F[Unit]    = eventPublisher.replace(metricName, num)
+  def increaseError(num: Long): F[Unit]    = eventPublisher.increase(metricName, num, isError = true)
+  def unsafeIncreaseError(num: Long): Unit = dispatcher.unsafeRunSync(increaseError(num))
+
+  def replace(num: Long): F[Unit]    = eventPublisher.replace(metricName, num, isError = false)
   def unsafeReplace(num: Long): Unit = dispatcher.unsafeRunSync(replace(num))
+
+  def replaceError(num: Long): F[Unit]    = eventPublisher.replace(metricName, num, isError = true)
+  def unsafeReplaceError(num: Long): Unit = dispatcher.unsafeRunSync(replaceError(num))
 }

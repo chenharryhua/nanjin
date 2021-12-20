@@ -23,12 +23,6 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.FiniteDuration
 
-sealed private trait ShowMetricsSnapshot
-private object ShowMetricsSnapshot {
-  case object ShowTimers extends ShowMetricsSnapshot
-  case object ShowCounters extends ShowMetricsSnapshot
-}
-
 object slack {
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
     new SlackPipe[F](
@@ -43,8 +37,7 @@ object slack {
         isShowRetry = true,
         extraSlackSections = Async[F].pure(Nil),
         isLoggging = false,
-        supporters = Nil,
-        showMetricsSnapshot = ShowMetricsSnapshot.ShowCounters
+        supporters = Nil
       )
     )
 
@@ -61,8 +54,7 @@ final private case class SlackConfig[F[_]](
   isShowRetry: Boolean,
   extraSlackSections: F[List[Section]],
   isLoggging: Boolean,
-  supporters: List[String],
-  showMetricsSnapshot: ShowMetricsSnapshot
+  supporters: List[String]
 ) {
   val atSupporters: String =
     supporters
@@ -159,26 +151,22 @@ final class SlackPipe[F[_]] private[observers] (
 
   def withLogging: SlackPipe[F] = updateSlackConfig(_.copy(isLoggging = true))
 
-  def showMetricTimers: SlackPipe[F] =
-    updateSlackConfig(_.copy(showMetricsSnapshot = ShowMetricsSnapshot.ShowTimers))
-  def showMetricCounters: SlackPipe[F] =
-    updateSlackConfig(_.copy(showMetricsSnapshot = ShowMetricsSnapshot.ShowCounters))
-
   def at(supporter: String): SlackPipe[F] = updateSlackConfig(c => c.copy(supporters = supporter :: c.supporters))
   def at(supporters: List[String]): SlackPipe[F] =
     updateSlackConfig(c => c.copy(supporters = supporters ::: c.supporters))
 
   // slack not allow message larger than 3000 chars
-  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, 2950)
+  // https://api.slack.com/reference/surfaces/formatting
+  private val MessageSizeLimits: Int          = 2999
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
-    cfg.showMetricsSnapshot match {
-      case ShowMetricsSnapshot.ShowTimers =>
-        KeyValueSection("Timers", abbreviate(snapshot.show))
-      case ShowMetricsSnapshot.ShowCounters =>
-        val fmt: NumberFormat = NumberFormat.getIntegerInstance
-        val msg: List[String] = snapshot.counters.map(x => s"${x._1}: *${fmt.format(x._2)}*").toList.sorted
-        KeyValueSection("Counters", if (msg.isEmpty) "No Counters Yet" else abbreviate(msg.mkString("\n")))
+    if (snapshot.show.length < MessageSizeLimits) {
+      KeyValueSection("Metrics", s"```${snapshot.show}```")
+    } else {
+      val fmt: NumberFormat = NumberFormat.getIntegerInstance
+      val msg: List[String] = snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted
+      KeyValueSection("Counters", s"```${abbreviate(msg.mkString("\n"))}```")
     }
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
@@ -362,12 +350,13 @@ final class SlackPipe[F[_]] private[observers] (
             case MetricReportType.AdventiveReport    => "Adventive Health Check"
             case MetricReportType.ScheduledReport(_) => "Scheduled Health Check"
           }
+          val color = if (snapshot.counters.keys.exists(_.contains("02.attention."))) cfg.warnColor else cfg.infoColor
 
           SlackApp(
             username = si.params.taskParams.appName,
             attachments = List(
               Attachment(
-                color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
+                color = color,
                 blocks = List(
                   MarkdownSection(s":health_worker: *$name*"),
                   hostServiceSection(si.params),
@@ -389,13 +378,14 @@ final class SlackPipe[F[_]] private[observers] (
 
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
+          val color = if (snapshot.counters.keys.exists(_.contains("02.attention."))) cfg.warnColor else cfg.infoColor
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(
                 username = si.params.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = cfg.warnColor,
+                    color = color,
                     blocks = List(
                       MarkdownSection("*Adventive Metrics Reset*"),
                       hostServiceSection(si.params),
@@ -414,7 +404,7 @@ final class SlackPipe[F[_]] private[observers] (
                 username = si.params.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = if (snapshot.counters.keys.exists(_.contains('`'))) cfg.warnColor else cfg.infoColor,
+                    color = color,
                     blocks = List(
                       MarkdownSection(s"*This is a summary of activities performed by the service in past $dur*"),
                       hostServiceSection(si.params),

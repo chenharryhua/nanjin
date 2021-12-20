@@ -21,26 +21,31 @@ final private[guard] class EventPublisher[F[_]](
   val metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent])(implicit F: Async[F]) {
 
+  private val attention: String = "02.attention"
   // service level
   private val metricsReportMRName: String = "01.health.check"
-  private val serviceStartMRName: String  = "02.service.start"
-  private val servicePanicMRName: String  = "03.service.`panic`"
+  private val servicePanicMRName: String  = s"$attention.service.panic"
+  private val serviceStartMRName: String  = "03.service.start"
+
   private def alertMRName(name: MetricName, importance: Importance): String =
     importance match {
-      case Importance.Critical => s"04.alert.`error`.[${name.value}]"
-      case Importance.High     => s"04.alert.`warn`.[${name.value}]"
-      case Importance.Medium   => s"30.alert.info.[${name.value}]"
-      case Importance.Low      => s"30.alert.debug.[${name.value}]"
+      case Importance.Critical => s"$attention.alert.error.[${name.value}]"
+      case Importance.High     => s"10.alert.warn.[${name.value}]"
+      case Importance.Medium   => s"10.alert.info.[${name.value}]"
+      case Importance.Low      => s"10.alert.debug.[${name.value}]"
     }
 
   // action level
-  private def counterMRName(name: MetricName): String     = s"10.counter.[${name.value}]"
-  private def passThroughMRName(name: MetricName): String = s"11.pass.through.[${name.value}]"
+  private def counterMRName(name: MetricName, isError: Boolean): String =
+    if (isError) s"$attention.counter.[${name.value}" else s"20.counter.[${name.value}]"
 
-  private def actionFailMRName(params: ActionParams): String  = s"20.action.[${params.metricName.value}].`fail`"
-  private def actionRetryMRName(params: ActionParams): String = s"21.action.[${params.metricName.value}].retry"
-  private def actionStartMRName(params: ActionParams): String = s"21.action.[${params.metricName.value}].num"
-  private def actionSuccMRName(params: ActionParams): String  = s"21.action.[${params.metricName.value}].succ"
+  private def passThroughMRName(name: MetricName, isError: Boolean): String =
+    if (isError) s"$attention.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
+
+  private def actionFailMRName(params: ActionParams): String = s"$attention.action.[${params.metricName.value}].failure"
+  private def actionRetryMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}].retries"
+  private def actionStartMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}].started"
+  private def actionSuccMRName(params: ActionParams): String  = s"30.action.[${params.metricName.value}].success"
 
   private val realZonedDateTime: F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(serviceInfo.params.taskParams.zoneId))
@@ -197,11 +202,11 @@ final private[guard] class EventPublisher[F[_]](
       }
     } yield ()
 
-  def passThrough(metricName: MetricName, json: Json): F[Unit] =
+  def passThrough(metricName: MetricName, json: Json, isError: Boolean): F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(PassThrough(metricName = metricName, serviceInfo = serviceInfo, timestamp = ts, value = json))
-    } yield metricRegistry.counter(passThroughMRName(metricName)).inc()
+    } yield metricRegistry.counter(passThroughMRName(metricName, isError)).inc()
 
   def alert(metricName: MetricName, msg: String, importance: Importance): F[Unit] =
     for {
@@ -215,11 +220,11 @@ final private[guard] class EventPublisher[F[_]](
           message = msg))
     } yield metricRegistry.counter(alertMRName(metricName, importance)).inc()
 
-  def increase(metricName: MetricName, num: Long): F[Unit] =
-    F.delay(metricRegistry.counter(counterMRName(metricName)).inc(num))
+  def increase(metricName: MetricName, num: Long, isError: Boolean): F[Unit] =
+    F.delay(metricRegistry.counter(counterMRName(metricName, isError)).inc(num))
 
-  def replace(metricName: MetricName, num: Long): F[Unit] = F.delay {
-    val name = counterMRName(metricName)
+  def replace(metricName: MetricName, num: Long, isError: Boolean): F[Unit] = F.delay {
+    val name = counterMRName(metricName, isError)
     val old  = metricRegistry.counter(name).getCount
     metricRegistry.counter(name).inc(num)
     metricRegistry.counter(name).dec(old)
