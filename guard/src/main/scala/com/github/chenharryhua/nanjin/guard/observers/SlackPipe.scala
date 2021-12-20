@@ -37,7 +37,8 @@ object slack {
         isShowRetry = true,
         extraSlackSections = Async[F].pure(Nil),
         isLoggging = false,
-        supporters = Nil
+        supporters = Nil,
+        isShowMetrics = false
       )
     )
 
@@ -54,7 +55,8 @@ final private case class SlackConfig[F[_]](
   isShowRetry: Boolean,
   extraSlackSections: F[List[Section]],
   isLoggging: Boolean,
-  supporters: List[String]
+  supporters: List[String],
+  isShowMetrics: Boolean
 ) {
   val atSupporters: String =
     supporters
@@ -151,6 +153,8 @@ final class SlackPipe[F[_]] private[observers] (
 
   def withLogging: SlackPipe[F] = updateSlackConfig(_.copy(isLoggging = true))
 
+  def showMetricsWhenApplicable: SlackPipe[F] = updateSlackConfig(_.copy(isShowMetrics = true))
+
   def at(supporter: String): SlackPipe[F] = updateSlackConfig(c => c.copy(supporters = supporter :: c.supporters))
   def at(supporters: List[String]): SlackPipe[F] =
     updateSlackConfig(c => c.copy(supporters = supporters ::: c.supporters))
@@ -161,7 +165,7 @@ final class SlackPipe[F[_]] private[observers] (
   private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
-    if (snapshot.show.length < MessageSizeLimits) {
+    if (cfg.isShowMetrics && snapshot.show.length <= MessageSizeLimits) {
       KeyValueSection("Metrics", s"```${snapshot.show}```")
     } else {
       val fmt: NumberFormat = NumberFormat.getIntegerInstance
