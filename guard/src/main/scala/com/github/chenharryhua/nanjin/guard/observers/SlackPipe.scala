@@ -399,7 +399,7 @@ final class SlackPipe[F[_]] private[observers] (
                   Attachment(
                     color = cfg.warnColor,
                     blocks = List(
-                      MarkdownSection("*This is an adventive reset*"),
+                      MarkdownSection("*Adventive Metrics Reset*"),
                       hostServiceSection(si.params),
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
