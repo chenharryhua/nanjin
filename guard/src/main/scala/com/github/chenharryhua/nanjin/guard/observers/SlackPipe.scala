@@ -350,7 +350,8 @@ final class SlackPipe[F[_]] private[observers] (
             case MetricReportType.AdventiveReport    => "Adventive Health Check"
             case MetricReportType.ScheduledReport(_) => "Scheduled Health Check"
           }
-          val color = if (snapshot.counters.keys.exists(_.contains("02.attention."))) cfg.warnColor else cfg.infoColor
+          val color =
+            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
 
           SlackApp(
             username = si.params.taskParams.appName,
@@ -378,7 +379,8 @@ final class SlackPipe[F[_]] private[observers] (
 
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val color = if (snapshot.counters.keys.exists(_.contains("02.attention."))) cfg.warnColor else cfg.infoColor
+          val color =
+            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(

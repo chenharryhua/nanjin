@@ -16,20 +16,24 @@ import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.{Duration, ZonedDateTime}
 
+private[guard] object EventPublisher {
+  final val ATTENTION = "02.attention"
+}
+
 final private[guard] class EventPublisher[F[_]](
   val serviceInfo: ServiceInfo,
   val metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent])(implicit F: Async[F]) {
+  import EventPublisher.ATTENTION
 
-  private val attention: String = "02.attention"
   // service level
   private val metricsReportMRName: String = "01.health.check"
-  private val servicePanicMRName: String  = s"$attention.service.panic"
+  private val servicePanicMRName: String  = s"$ATTENTION.service.panic"
   private val serviceStartMRName: String  = "03.service.start"
 
   private def alertMRName(name: MetricName, importance: Importance): String =
     importance match {
-      case Importance.Critical => s"$attention.alert.error.[${name.value}]"
+      case Importance.Critical => s"$ATTENTION.alert.error.[${name.value}]"
       case Importance.High     => s"10.alert.warn.[${name.value}]"
       case Importance.Medium   => s"10.alert.info.[${name.value}]"
       case Importance.Low      => s"10.alert.debug.[${name.value}]"
@@ -37,12 +41,12 @@ final private[guard] class EventPublisher[F[_]](
 
   // action level
   private def counterMRName(name: MetricName, isError: Boolean): String =
-    if (isError) s"$attention.counter.[${name.value}" else s"20.counter.[${name.value}]"
+    if (isError) s"$ATTENTION.counter.[${name.value}" else s"20.counter.[${name.value}]"
 
   private def passThroughMRName(name: MetricName, isError: Boolean): String =
-    if (isError) s"$attention.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
+    if (isError) s"$ATTENTION.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
 
-  private def actionFailMRName(params: ActionParams): String = s"$attention.action.[${params.metricName.value}].failure"
+  private def actionFailMRName(params: ActionParams): String = s"$ATTENTION.action.[${params.metricName.value}].failure"
   private def actionRetryMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}].retries"
   private def actionStartMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}].started"
   private def actionSuccMRName(params: ActionParams): String  = s"30.action.[${params.metricName.value}].success"
