@@ -6,6 +6,7 @@ import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import cats.{Alternative, Traverse}
+import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, MetricName}
@@ -17,15 +18,16 @@ import java.time.ZoneId
 final class Agent[F[_]] private[guard] (
   publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  agentConfig: AgentConfig)(implicit F: Async[F])
+  agentConfig: AgentConfig,
+  metricFilter: MetricFilter)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
   val params: AgentParams      = agentConfig.evalConfig
   val serviceInfo: ServiceInfo = publisher.serviceInfo
-  val zoneId: ZoneId           = publisher.serviceInfo.params.taskParams.zoneId
+  val zoneId: ZoneId           = publisher.serviceInfo.serviceParams.taskParams.zoneId
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
-    new Agent[F](publisher, dispatcher, f(agentConfig))
+    new Agent[F](publisher, dispatcher, f(agentConfig), metricFilter)
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
@@ -37,7 +39,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.params),
+      params = ActionParams(params, publisher.serviceInfo.serviceParams),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -48,7 +50,7 @@ final class Agent[F[_]] private[guard] (
     new ActionRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.params),
+      params = ActionParams(params, publisher.serviceInfo.serviceParams),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -59,23 +61,23 @@ final class Agent[F[_]] private[guard] (
 
   def broker(metricName: String): Broker[F] =
     new Broker[F](
-      MetricName(params.spans :+ metricName, publisher.serviceInfo.params),
+      MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def counter(counterName: String): Counter[F] =
     new Counter(
-      MetricName(params.spans :+ counterName, publisher.serviceInfo.params),
+      MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def alert(alertName: String): Alert[F] =
     new Alert(
-      MetricName(params.spans :+ alertName, publisher.serviceInfo.params),
+      MetricName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
-  val metrics: Metrics[F] = new Metrics[F](dispatcher, publisher)
+  val metrics: Metrics[F] = new Metrics[F](dispatcher, publisher, metricFilter)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))
@@ -94,8 +96,8 @@ final class Agent[F[_]] private[guard] (
 
   def quasi[B](fbs: F[B]*): F[List[B]] = quasi[List, B](fbs.toList)
 
-  def quasi[T[_]: Traverse: Alternative, B](parallism: Int, tfb: T[F[B]]): F[T[B]] =
-    run(F.parTraverseN(parallism)(tfb)(_.attempt).map(_.partitionEither(identity)).map(_._2))
+  def quasi[T[_]: Traverse: Alternative, B](parallelism: Int, tfb: T[F[B]]): F[T[B]] =
+    run(F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map(_._2))
 
-  def quasi[B](parallism: Int)(tfb: F[B]*): F[List[B]] = quasi[List, B](parallism, tfb.toList)
+  def quasi[B](parallelism: Int)(tfb: F[B]*): F[List[B]] = quasi[List, B](parallelism, tfb.toList)
 }

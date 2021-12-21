@@ -59,7 +59,7 @@ final class ServiceGuard[F[_]] private[guard] (
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {
             publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
-              agent(new Agent[F](publisher, dispatcher, AgentConfig())))
+              agent(new Agent[F](publisher, dispatcher, AgentConfig(), metricFilter)))
           }
           .guarantee(publisher.serviceStopped(metricFilter) <* channel.close)
 

@@ -13,10 +13,10 @@ final class Alert[F[_]: Applicative](
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F]) {
 
-  def error[S: Show](msg: S): F[Unit]         = eventPublisher.alert(metricName, msg.show, Importance.Critical)
-  def error[S: Show](msg: Option[S]): F[Unit] = msg.traverse(error(_)).void
-  def unsafeError[S: Show](msg: S): Unit      = dispatcher.unsafeRunSync(error(msg))
-  def unsafeError[S: Show](msg: Option[S], alertName: String): Unit = dispatcher.unsafeRunSync(error(msg))
+  def error[S: Show](msg: S): F[Unit]            = eventPublisher.alert(metricName, msg.show, Importance.Critical)
+  def error[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(error(_)).void
+  def unsafeError[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(error(msg))
+  def unsafeError[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(error(msg))
 
   def warn[S: Show](msg: S): F[Unit]            = eventPublisher.alert(metricName, msg.show, Importance.High)
   def warn[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(warn(_)).void

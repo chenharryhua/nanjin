@@ -10,13 +10,13 @@ import monocle.macros.Lenses
 
 import scala.concurrent.duration.*
 
-@Lenses @JsonCodec final case class AgentParams(
+@Lenses @JsonCodec final case class AgentParams private (
   spans: List[String],
   importance: Importance,
   isTerminate: Boolean,
   retry: ActionRetryParams)
 
-object AgentParams {
+private[guard] object AgentParams {
   implicit val showAgentParams: Show[AgentParams] = cats.derived.semiauto.show[AgentParams]
 
   def apply(): AgentParams = AgentParams(

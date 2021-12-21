@@ -58,7 +58,7 @@ object ActionRetryParams {
 }
 
 @JsonCodec
-final case class ActionParams(
+final case class ActionParams private (
   metricName: MetricName,
   importance: Importance,
   isTerminate: Boolean,
