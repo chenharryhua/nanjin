@@ -12,7 +12,7 @@ import java.time.ZoneId
 
 @Lenses @JsonCodec final case class TaskParams private (appName: String, zoneId: ZoneId, hostName: String)
 
-object TaskParams {
+private[guard] object TaskParams {
   implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
 
   def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
@@ -24,7 +24,7 @@ object TaskParams {
 
 sealed private[guard] trait TaskConfigF[F]
 
-object TaskConfigF {
+private object TaskConfigF {
   implicit val functorTaskConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
 
   final case class InitParams[K](applicationName: String, hostName: HostName) extends TaskConfigF[K]

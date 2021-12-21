@@ -13,25 +13,27 @@ import monocle.macros.Lenses
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-@Lenses @JsonCodec final case class MetricParams(
+@Lenses @JsonCodec final case class MetricParams private[guard] (
   reportSchedule: Option[Either[FiniteDuration, CronExpr]],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit)
 
-object MetricParams {
+private[guard] object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
-@Lenses @JsonCodec final case class ServiceParams(
+@Lenses @JsonCodec final case class ServiceParams private (
   serviceName: String,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
   queueCapacity: Int,
   metric: MetricParams
-)
+) {
+  val metricName: MetricName = MetricName(serviceName, taskParams)
+}
 
-object ServiceParams {
+private[guard] object ServiceParams {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
