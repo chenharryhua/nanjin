@@ -31,7 +31,7 @@ sealed trait NJRuntimeInfo {
 final case class ServiceInfo(serviceParams: ServiceParams, uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
 final case class ActionInfo(actionParams: ActionParams, serviceInfo: ServiceInfo, uuid: UUID, launchTime: ZonedDateTime)
     extends NJRuntimeInfo {
-  val serviceParams: ServiceParams = serviceInfo.serviceParams
+  override val serviceParams: ServiceParams = serviceInfo.serviceParams
 }
 
 @JsonCodec

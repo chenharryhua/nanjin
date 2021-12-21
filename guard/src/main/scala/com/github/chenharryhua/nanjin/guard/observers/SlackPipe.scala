@@ -423,8 +423,7 @@ final class SlackPipe[F[_]] private[observers] (
                   Attachment(
                     color = color,
                     blocks = List(
-                      MarkdownSection(
-                        s"*This is schedued summary of activities performed by the service in past $dur*"),
+                      MarkdownSection(s"*This is summary of activities performed by the service in past $dur*"),
                       hostServiceSection(si.serviceParams),
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),

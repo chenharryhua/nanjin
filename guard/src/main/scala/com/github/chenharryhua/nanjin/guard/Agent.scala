@@ -6,6 +6,7 @@ import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import cats.{Alternative, Traverse}
+import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, MetricName}
@@ -17,7 +18,8 @@ import java.time.ZoneId
 final class Agent[F[_]] private[guard] (
   publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  agentConfig: AgentConfig)(implicit F: Async[F])
+  agentConfig: AgentConfig,
+  metricFilter: MetricFilter)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
   val params: AgentParams      = agentConfig.evalConfig
@@ -25,7 +27,7 @@ final class Agent[F[_]] private[guard] (
   val zoneId: ZoneId           = publisher.serviceInfo.serviceParams.taskParams.zoneId
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
-    new Agent[F](publisher, dispatcher, f(agentConfig))
+    new Agent[F](publisher, dispatcher, f(agentConfig), metricFilter)
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
@@ -75,7 +77,7 @@ final class Agent[F[_]] private[guard] (
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
-  val metrics: Metrics[F] = new Metrics[F](dispatcher, publisher)
+  val metrics: Metrics[F] = new Metrics[F](dispatcher, publisher, metricFilter)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))
