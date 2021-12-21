@@ -22,7 +22,7 @@ final class Agent[F[_]] private[guard] (
 
   val params: AgentParams      = agentConfig.evalConfig
   val serviceInfo: ServiceInfo = publisher.serviceInfo
-  val zoneId: ZoneId           = publisher.serviceInfo.params.taskParams.zoneId
+  val zoneId: ZoneId           = publisher.serviceInfo.serviceParams.taskParams.zoneId
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](publisher, dispatcher, f(agentConfig))
@@ -37,7 +37,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.params),
+      params = ActionParams(params, publisher.serviceInfo.serviceParams),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -48,7 +48,7 @@ final class Agent[F[_]] private[guard] (
     new ActionRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.params),
+      params = ActionParams(params, publisher.serviceInfo.serviceParams),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -59,19 +59,19 @@ final class Agent[F[_]] private[guard] (
 
   def broker(metricName: String): Broker[F] =
     new Broker[F](
-      MetricName(params.spans :+ metricName, publisher.serviceInfo.params),
+      MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def counter(counterName: String): Counter[F] =
     new Counter(
-      MetricName(params.spans :+ counterName, publisher.serviceInfo.params),
+      MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def alert(alertName: String): Alert[F] =
     new Alert(
-      MetricName(params.spans :+ alertName, publisher.serviceInfo.params),
+      MetricName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 

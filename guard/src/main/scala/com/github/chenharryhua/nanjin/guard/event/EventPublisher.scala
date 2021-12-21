@@ -52,7 +52,7 @@ final private[guard] class EventPublisher[F[_]](
   private def actionSuccMRName(params: ActionParams): String  = s"30.action.[${params.metricName.value}].success"
 
   private val realZonedDateTime: F[ZonedDateTime] =
-    F.realTimeInstant.map(_.atZone(serviceInfo.params.taskParams.zoneId))
+    F.realTimeInstant.map(_.atZone(serviceInfo.serviceParams.taskParams.zoneId))
 
   /** services
     */
@@ -78,7 +78,7 @@ final private[guard] class EventPublisher[F[_]](
         ServiceStopped(
           timestamp = ts,
           serviceInfo = serviceInfo,
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
+          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
         ))
     } yield ()
 
@@ -91,7 +91,7 @@ final private[guard] class EventPublisher[F[_]](
           serviceInfo = serviceInfo,
           reportType = metricReportType,
           timestamp = ts,
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
+          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
         ))
     } yield ()
 
@@ -104,14 +104,14 @@ final private[guard] class EventPublisher[F[_]](
             resetType = MetricResetType.ScheduledReset(prev, next),
             serviceInfo = serviceInfo,
             timestamp = ts,
-            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
+            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
           )
         }
       }.getOrElse(MetricsReset(
         resetType = MetricResetType.AdventiveReset,
         serviceInfo = serviceInfo,
         timestamp = ts,
-        snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.params)
+        snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
       ))
       _ <- channel.send(msg)
     } yield metricRegistry.removeMatching(MetricFilter.ALL)
@@ -141,7 +141,7 @@ final private[guard] class EventPublisher[F[_]](
     input: A,
     output: F[B],
     buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
-    actionInfo.params.importance match {
+    actionInfo.actionParams.importance match {
       case Importance.Critical | Importance.High =>
         for {
           ts <- realZonedDateTime
@@ -150,10 +150,10 @@ final private[guard] class EventPublisher[F[_]](
           notes <- buildNotes.run((input, result))
           _ <- channel.send(
             ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
-          _ <- timing(actionSuccMRName(actionInfo.params), actionInfo, ts)
+          _ <- timing(actionSuccMRName(actionInfo.actionParams), actionInfo, ts)
         } yield ()
       case Importance.Medium =>
-        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionInfo.params), actionInfo, ts))
+        realZonedDateTime.flatMap(ts => timing(actionSuccMRName(actionInfo.actionParams), actionInfo, ts))
       case Importance.Low => F.unit
     }
 
@@ -172,9 +172,9 @@ final private[guard] class EventPublisher[F[_]](
           timestamp = ts,
           willDelayAndRetry = willDelayAndRetry,
           error = NJError(uuid, ex)))
-      _ <- actionInfo.params.importance match {
+      _ <- actionInfo.actionParams.importance match {
         case Importance.Critical | Importance.High | Importance.Medium =>
-          timing(actionRetryMRName(actionInfo.params), actionInfo, ts)
+          timing(actionRetryMRName(actionInfo.actionParams), actionInfo, ts)
         case Importance.Low => F.unit
       }
       _ <- retryCount.update(_ + 1)
@@ -199,9 +199,9 @@ final private[guard] class EventPublisher[F[_]](
           numRetries = numRetries,
           notes = Notes(notes),
           error = NJError(uuid, ex)))
-      _ <- actionInfo.params.importance match {
+      _ <- actionInfo.actionParams.importance match {
         case Importance.Critical | Importance.High | Importance.Medium =>
-          timing(actionFailMRName(actionInfo.params), actionInfo, ts)
+          timing(actionFailMRName(actionInfo.actionParams), actionInfo, ts)
         case Importance.Low => F.unit
       }
     } yield ()
