@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.{Pipe, Stream}
@@ -35,7 +35,7 @@ object slack {
         errorColor = "#935252",
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
-        isShowRetry = true,
+        isShowRetry = false,
         extraSlackSections = Async[F].pure(Nil),
         isLoggging = false,
         supporters = Nil,
@@ -126,18 +126,18 @@ final class SlackPipe[F[_]] private[observers] (
   cfg: SlackConfig[F])(implicit F: Async[F])
     extends Pipe[F, NJEvent, NJEvent] with zoneid with localdatetime with localtime with zoneddatetime {
 
-  private def updateSlackConfig(f: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] =
+  def update(f: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] =
     new SlackPipe[F](snsResource, f(cfg))
 
-  def withGoodColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(goodColor = color))
-  def withWarnColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(warnColor = color))
-  def withInfoColor(color: String): SlackPipe[F]                  = updateSlackConfig(_.copy(infoColor = color))
-  def withErrorColor(color: String): SlackPipe[F]                 = updateSlackConfig(_.copy(errorColor = color))
-  def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = updateSlackConfig(_.copy(durationFormatter = fmt))
-  def withoutRetry: SlackPipe[F]                                  = updateSlackConfig(_.copy(isShowRetry = false))
+  def withGoodColor(color: String): SlackPipe[F]  = update(_.copy(goodColor = color))
+  def withWarnColor(color: String): SlackPipe[F]  = update(_.copy(warnColor = color))
+  def withInfoColor(color: String): SlackPipe[F]  = update(_.copy(infoColor = color))
+  def withErrorColor(color: String): SlackPipe[F] = update(_.copy(errorColor = color))
+
+  def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = update(_.copy(durationFormatter = fmt))
 
   def withSection(value: F[String]): SlackPipe[F] =
-    updateSlackConfig(_.copy(extraSlackSections = for {
+    update(_.copy(extraSlackSections = for {
       esf <- cfg.extraSlackSections
       v <- value
     } yield esf :+ MarkdownSection(abbreviate(v))))
@@ -146,19 +146,16 @@ final class SlackPipe[F[_]] private[observers] (
 
   /** show one message in every interval
     */
-  def withReportInterval(interval: FiniteDuration): SlackPipe[F] =
-    updateSlackConfig(_.copy(reportInterval = Some(interval)))
+  def withReportInterval(fd: FiniteDuration): SlackPipe[F] = update(_.copy(reportInterval = Some(fd)))
+  def withoutReportInterval: SlackPipe[F]                  = update(_.copy(reportInterval = None))
 
-  def withoutReportInterval: SlackPipe[F] =
-    updateSlackConfig(_.copy(reportInterval = None))
+  def withLogging: SlackPipe[F] = update(_.copy(isLoggging = true))
 
-  def withLogging: SlackPipe[F] = updateSlackConfig(_.copy(isLoggging = true))
+  def showMetricsWhenApplicable: SlackPipe[F] = update(_.copy(isShowMetrics = true))
+  def showRetry: SlackPipe[F]                 = update(_.copy(isShowRetry = true))
 
-  def showMetricsWhenApplicable: SlackPipe[F] = updateSlackConfig(_.copy(isShowMetrics = true))
-
-  def at(supporter: String): SlackPipe[F] = updateSlackConfig(c => c.copy(supporters = supporter :: c.supporters))
-  def at(supporters: List[String]): SlackPipe[F] =
-    updateSlackConfig(c => c.copy(supporters = supporters ::: c.supporters))
+  def at(supporter: String): SlackPipe[F]        = update(c => c.copy(supporters = supporter :: c.supporters))
+  def at(supporters: List[String]): SlackPipe[F] = update(c => c.copy(supporters = supporters ::: c.supporters))
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
@@ -547,4 +544,5 @@ final class SlackPipe[F[_]] private[observers] (
       // not sent to slack
       case _: PassThrough => F.unit
     }
+
 }

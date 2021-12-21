@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.event.{EventPublisher, MetricReportT
 class Metrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[F], metricFilter: MetricFilter) {
   def reset: F[Unit]      = eventPublisher.metricsReset(metricFilter, None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)
+
   def snapshot: Eval[MetricsSnapshot] =
     Eval.always(MetricsSnapshot(eventPublisher.metricRegistry, metricFilter, eventPublisher.serviceInfo.serviceParams))
 

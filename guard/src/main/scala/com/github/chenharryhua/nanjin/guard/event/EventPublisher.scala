@@ -172,13 +172,12 @@ final private[guard] class EventPublisher[F[_]](
           timestamp = ts,
           willDelayAndRetry = willDelayAndRetry,
           error = NJError(uuid, ex)))
-      _ <- actionInfo.actionParams.importance match {
-        case Importance.Critical | Importance.High | Importance.Medium =>
-          timing(actionRetryMRName(actionInfo.actionParams), actionInfo, ts)
-        case Importance.Low => F.unit
-      }
       _ <- retryCount.update(_ + 1)
-    } yield ()
+    } yield actionInfo.actionParams.importance match {
+      case Importance.Critical | Importance.High | Importance.Medium =>
+        metricRegistry.counter(actionRetryMRName(actionInfo.actionParams)).inc()
+      case Importance.Low => ()
+    }
 
   def actionFailed[A](
     actionInfo: ActionInfo,

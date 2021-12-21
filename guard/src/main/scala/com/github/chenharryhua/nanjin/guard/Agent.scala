@@ -96,8 +96,8 @@ final class Agent[F[_]] private[guard] (
 
   def quasi[B](fbs: F[B]*): F[List[B]] = quasi[List, B](fbs.toList)
 
-  def quasi[T[_]: Traverse: Alternative, B](parallism: Int, tfb: T[F[B]]): F[T[B]] =
-    run(F.parTraverseN(parallism)(tfb)(_.attempt).map(_.partitionEither(identity)).map(_._2))
+  def quasi[T[_]: Traverse: Alternative, B](parallelism: Int, tfb: T[F[B]]): F[T[B]] =
+    run(F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map(_._2))
 
-  def quasi[B](parallism: Int)(tfb: F[B]*): F[List[B]] = quasi[List, B](parallism, tfb.toList)
+  def quasi[B](parallelism: Int)(tfb: F[B]*): F[List[B]] = quasi[List, B](parallelism, tfb.toList)
 }
