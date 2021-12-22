@@ -167,8 +167,11 @@ final class SlackPipe[F[_]] private[observers] (
       KeyValueSection("Metrics", s"```${snapshot.show}```")
     } else {
       val fmt: NumberFormat = NumberFormat.getIntegerInstance
-      val msg: List[String] = snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted
-      KeyValueSection("Counters", s"```${abbreviate(msg.mkString("\n"))}```")
+      val msg: String       = snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
+      if (msg.isEmpty)
+        KeyValueSection("Counters", "```No Counters Yet```")
+      else
+        KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection =

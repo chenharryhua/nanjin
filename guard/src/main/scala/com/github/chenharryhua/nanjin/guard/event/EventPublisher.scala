@@ -26,11 +26,6 @@ final private[guard] class EventPublisher[F[_]](
   channel: Channel[F, NJEvent])(implicit F: Async[F]) {
   import EventPublisher.ATTENTION
 
-  // service level
-  // private val metricsReportMRName: String = "01.health.check"
-  // private val servicePanicMRName: String = s"$ATTENTION.service.panic"
-  // private val serviceStartMRName: String = "02.service.start"
-
   private def alertMRName(name: MetricName, importance: Importance): String =
     importance match {
       case Importance.Critical => s"$ATTENTION.alert.[${name.value}]"
@@ -46,7 +41,6 @@ final private[guard] class EventPublisher[F[_]](
   private def passThroughMRName(name: MetricName, asError: Boolean): String =
     if (asError) s"$ATTENTION.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
 
-  // private def actionStartMRName(params: ActionParams): String = s"30.start.action.[${params.metricName.value}]"
   private def actionFailMRName(params: ActionParams): String  = s"$ATTENTION.action.[${params.metricName.value}]"
   private def actionRetryMRName(params: ActionParams): String = s"30.retry.action.[${params.metricName.value}]"
   private def actionSuccMRName(params: ActionParams): String  = s"30.action.[${params.metricName.value}]"
