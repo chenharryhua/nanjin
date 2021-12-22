@@ -40,11 +40,11 @@ final private[guard] class EventPublisher[F[_]](
     }
 
   // action level
-  private def counterMRName(name: MetricName, isError: Boolean): String =
-    if (isError) s"$ATTENTION.counter.[${name.value}]" else s"20.counter.[${name.value}]"
+  private def counterMRName(name: MetricName, asError: Boolean): String =
+    if (asError) s"$ATTENTION.counter.[${name.value}]" else s"20.counter.[${name.value}]"
 
-  private def passThroughMRName(name: MetricName, isError: Boolean): String =
-    if (isError) s"$ATTENTION.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
+  private def passThroughMRName(name: MetricName, asError: Boolean): String =
+    if (asError) s"$ATTENTION.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
 
   private def actionFailMRName(params: ActionParams): String = s"$ATTENTION.action.[${params.metricName.value}].failure"
   private def actionRetryMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}].retries"
@@ -205,17 +205,17 @@ final private[guard] class EventPublisher[F[_]](
       }
     } yield ()
 
-  def passThrough(metricName: MetricName, json: Json, isError: Boolean): F[Unit] =
+  def passThrough(metricName: MetricName, json: Json, asError: Boolean): F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
         PassThrough(
           metricName = metricName,
-          isError = isError,
+          asError = asError,
           serviceInfo = serviceInfo,
           timestamp = ts,
           value = json))
-    } yield metricRegistry.counter(passThroughMRName(metricName, isError)).inc()
+    } yield metricRegistry.counter(passThroughMRName(metricName, asError)).inc()
 
   def alert(metricName: MetricName, msg: String, importance: Importance): F[Unit] =
     for {
@@ -229,11 +229,11 @@ final private[guard] class EventPublisher[F[_]](
           message = msg))
     } yield metricRegistry.counter(alertMRName(metricName, importance)).inc()
 
-  def increase(metricName: MetricName, num: Long, isError: Boolean): F[Unit] =
-    F.delay(metricRegistry.counter(counterMRName(metricName, isError)).inc(num))
+  def increase(metricName: MetricName, num: Long, asError: Boolean): F[Unit] =
+    F.delay(metricRegistry.counter(counterMRName(metricName, asError)).inc(num))
 
-  def replace(metricName: MetricName, num: Long, isError: Boolean): F[Unit] = F.delay {
-    val name = counterMRName(metricName, isError)
+  def replace(metricName: MetricName, num: Long, asError: Boolean): F[Unit] = F.delay {
+    val name = counterMRName(metricName, asError)
     val old  = metricRegistry.counter(name).getCount
     metricRegistry.counter(name).inc(num)
     metricRegistry.counter(name).dec(old)

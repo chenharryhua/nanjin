@@ -9,7 +9,7 @@ class Metrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[F]
   def reset: F[Unit]      = eventPublisher.metricsReset(metricFilter, None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)
 
-  def snapshot: Eval[MetricsSnapshot] =
+  val snapshot: Eval[MetricsSnapshot] =
     Eval.always(MetricsSnapshot(eventPublisher.metricRegistry, metricFilter, eventPublisher.serviceInfo.serviceParams))
 
   def report: F[Unit]      = eventPublisher.metricsReport(metricFilter, MetricReportType.AdventiveReport)

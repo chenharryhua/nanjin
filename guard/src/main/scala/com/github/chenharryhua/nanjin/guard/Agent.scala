@@ -63,13 +63,15 @@ final class Agent[F[_]] private[guard] (
     new Broker[F](
       MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F])
+      publisher: EventPublisher[F],
+      isCountAsError = false)
 
   def counter(counterName: String): Counter[F] =
     new Counter(
       MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F])
+      publisher: EventPublisher[F],
+      isCountAsError = false)
 
   def alert(alertName: String): Alert[F] =
     new Alert(
