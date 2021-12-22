@@ -60,17 +60,17 @@ class HealthCheckTest extends AnyFunSuite {
     assert(d.isInstanceOf[MetricsReport])
   }
 
-  test("always-failure") {
+  test("never success") {
     val s :: a :: b :: c :: rest = guard
-      .service("always-failure")
+      .service("always")
       .updateConfig(
         _.withMetricSchedule(1.second)
           .withConstantDelay(1.hour)
           .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
           .withMetricRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd =>
-        gd.span("always-failure")
-          .updateConfig(_.withConstantDelay(3.second))
+        gd.span("failed")
+          .updateConfig(_.withConstantDelay(300.second).withCapDelay(2.seconds))
           .notice
           .max(10)
           .run(IO.raiseError(new Exception)))
