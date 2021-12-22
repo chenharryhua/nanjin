@@ -33,6 +33,11 @@ object slack {
         warnColor = "#ffd79a",
         infoColor = "#b3d1ff",
         errorColor = "#935252",
+        metricsReportEmoji = ":eyes:",
+        startActionEmoji = "",
+        succActionEmoji = "",
+        failActionEmoji = "",
+        retryActionEmoji = "",
         durationFormatter = DurationFormatter.defaultFormatter,
         reportInterval = None,
         isShowRetry = false,
@@ -51,6 +56,11 @@ final private case class SlackConfig[F[_]](
   warnColor: String,
   infoColor: String,
   errorColor: String,
+  metricsReportEmoji: String,
+  startActionEmoji: String,
+  succActionEmoji: String,
+  failActionEmoji: String,
+  retryActionEmoji: String,
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
   isShowRetry: Boolean,
@@ -129,10 +139,17 @@ final class SlackPipe[F[_]] private[observers] (
   def update(f: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] =
     new SlackPipe[F](snsResource, f(cfg))
 
-  def withGoodColor(color: String): SlackPipe[F]  = update(_.copy(goodColor = color))
-  def withWarnColor(color: String): SlackPipe[F]  = update(_.copy(warnColor = color))
-  def withInfoColor(color: String): SlackPipe[F]  = update(_.copy(infoColor = color))
-  def withErrorColor(color: String): SlackPipe[F] = update(_.copy(errorColor = color))
+  def withColorGood(color: String): SlackPipe[F]  = update(_.copy(goodColor = color))
+  def withColorWarn(color: String): SlackPipe[F]  = update(_.copy(warnColor = color))
+  def withColorInfo(color: String): SlackPipe[F]  = update(_.copy(infoColor = color))
+  def withColorError(color: String): SlackPipe[F] = update(_.copy(errorColor = color))
+
+  def withEmojiMetricsReport(emoji: String): SlackPipe[F] = update(_.copy(metricsReportEmoji = emoji))
+
+  def withEmojiStartAction(emoji: String): SlackPipe[F] = update(_.copy(startActionEmoji = emoji))
+  def withEmojiSuccAction(emoji: String): SlackPipe[F]  = update(_.copy(succActionEmoji = emoji))
+  def withEmojiFailAction(emoji: String): SlackPipe[F]  = update(_.copy(failActionEmoji = emoji))
+  def withEmojiRetryAction(emoji: String): SlackPipe[F] = update(_.copy(retryActionEmoji = emoji))
 
   def withDurationFormatter(fmt: DurationFormatter): SlackPipe[F] = update(_.copy(durationFormatter = fmt))
 
@@ -353,8 +370,8 @@ final class SlackPipe[F[_]] private[observers] (
             .fold("None")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
 
           val name = rt match {
-            case MetricReportType.AdventiveReport    => "Adventive Health Check"
-            case MetricReportType.ScheduledReport(_) => "Health Check"
+            case MetricReportType.AdventiveReport    => "Adventive Metrics Report"
+            case MetricReportType.ScheduledReport(_) => "Metrics Report"
           }
           val color =
             if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
@@ -365,7 +382,7 @@ final class SlackPipe[F[_]] private[observers] (
               Attachment(
                 color = color,
                 blocks = List(
-                  MarkdownSection(s":health_worker: *$name*"),
+                  MarkdownSection(s"${cfg.metricsReportEmoji} *$name*"),
                   hostServiceSection(si.serviceParams),
                   JuxtaposeSection(TextField("Up Time", took(si.launchTime, at)), TextField("Scheduled Next", next)),
                   metricsSection(snapshot)
@@ -451,7 +468,8 @@ final class SlackPipe[F[_]] private[observers] (
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(s"""|Kick off action: *${action.actionParams.metricName.value}*""".stripMargin),
+                  MarkdownSection(
+                    s"${cfg.startActionEmoji} Kick off action: *${action.actionParams.metricName.value}*".stripMargin),
                   MarkdownSection(s"""|*Action ID:* ${action.uuid.show}""".stripMargin),
                   hostServiceSection(action.serviceInfo.serviceParams)
                 )
@@ -466,16 +484,19 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionRetrying(action, at, wdr, error) =>
         val msg = cfg.extraSlackSections.map { _ =>
+          val header: String =
+            s"${cfg.retryActionEmoji} This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* " +
+              s"failure of the action *${action.actionParams.metricName.value}*, " +
+              s"took *${took(action.launchTime, at)}* so far, " +
+              s"retry of which takes place in *${cfg.durationFormatter.format(wdr.nextDelay)}*."
+
           SlackApp(
             username = action.serviceInfo.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.warnColor,
                 blocks = List(
-                  MarkdownSection(
-                    s"This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* failure of the action *${action.actionParams.metricName.value}*, so far took *${took(
-                      action.launchTime,
-                      at)}*, retry of which takes place in *${cfg.durationFormatter.format(wdr.nextDelay)}*"),
+                  MarkdownSection(header),
                   MarkdownSection(s"""|*Action ID:* ${action.uuid.show}
                                       |*Retry Policy:* ${action.actionParams.retry.policy[F].show}""".stripMargin),
                   hostServiceSection(action.serviceInfo.serviceParams),
@@ -493,20 +514,20 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionFailed(action, at, numRetries, notes, error) =>
         val msg = cfg.extraSlackSections.map { extra =>
+          val header = s"${cfg.failActionEmoji} The action *${action.actionParams.metricName.value}* " +
+            s"was failed after *${numRetries.show}* retries, " +
+            s"took *${took(action.launchTime, at)}*. ${cfg.atSupporters}"
+
           SlackApp(
             username = action.serviceInfo.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.errorColor,
                 blocks = List(
-                  MarkdownSection(
-                    s"The action *${action.actionParams.metricName.value}* was failed after *${numRetries.show}* retries, took *${took(
-                      action.launchTime,
-                      at)}* ${cfg.atSupporters}"),
+                  MarkdownSection(header),
                   MarkdownSection(s"""|*Action ID:* ${action.uuid.show}
                                       |*Error ID:* ${error.uuid.show}
-                                      |*Retry Policy:* ${action.actionParams.retry.policy[F].show}
-                                      |""".stripMargin),
+                                      |*Retry Policy:* ${action.actionParams.retry.policy[F].show}""".stripMargin),
                   hostServiceSection(action.serviceInfo.serviceParams),
                   KeyValueSection("Cause", s"```${abbreviate(error.stackTrace)}```")
                 ) ::: (if (notes.value.isEmpty) Nil else List(MarkdownSection(abbreviate(notes.value))))
@@ -523,14 +544,16 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionSucced(action, at, numRetries, notes) =>
         val msg = cfg.extraSlackSections.map { _ =>
+          val header = s"${cfg.succActionEmoji} The action *${action.actionParams.metricName.value}* " +
+            s"was accomplished in *${took(action.launchTime, at)}*, after *${numRetries.show}* retries"
+
           SlackApp(
             username = action.serviceInfo.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.goodColor,
                 blocks = List(
-                  MarkdownSection(
-                    s"The action *${action.actionParams.metricName.value}* was accomplished in *${took(action.launchTime, at)}*, after *${numRetries.show}* retries"),
+                  MarkdownSection(header),
                   MarkdownSection(s"*Action ID:* ${action.uuid.show}"),
                   hostServiceSection(action.serviceInfo.serviceParams)
                 ) ::: (if (notes.value.isEmpty) Nil else List(MarkdownSection(abbreviate(notes.value))))
