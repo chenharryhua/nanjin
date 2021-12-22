@@ -278,7 +278,7 @@ final class SlackPipe[F[_]] private[observers] (
                   JuxtaposeSection(
                     TextField("Up Time", took(si.launchTime, at)),
                     TextField("Cummulative Delay", cfg.durationFormatter.format(details.cumulativeDelay))),
-                  MarkdownSection(s"*Retry Policy:* ${si.serviceParams.retry.policy[F].show}"),
+                  MarkdownSection(s"*Restart Policy:* ${si.serviceParams.retry.policy[F].show}"),
                   KeyValueSection("Cause", s"```${abbreviate(error.stackTrace)}```")
                 )
               ),

@@ -53,7 +53,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("02.attention.counter.[counter/0135a608]") == 3)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("01.error.counter.[counter/0135a608]") == 3)
   }
 
   test("counter - replace") {
@@ -74,6 +74,6 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("02.attention.alert.error.[oops/a32b945e]") == 1)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("01.error.alert.[oops/a32b945e]") == 1)
   }
 }
