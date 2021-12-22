@@ -17,7 +17,7 @@ import retry.RetryDetails.WillDelayAndRetry
 import java.time.{Duration, ZonedDateTime}
 
 private[guard] object EventPublisher {
-  final val ATTENTION = "02.attention"
+  final val ATTENTION = "02.error"
 }
 
 final private[guard] class EventPublisher[F[_]](
@@ -33,7 +33,7 @@ final private[guard] class EventPublisher[F[_]](
 
   private def alertMRName(name: MetricName, importance: Importance): String =
     importance match {
-      case Importance.Critical => s"$ATTENTION.alert.error.[${name.value}]"
+      case Importance.Critical => s"$ATTENTION.alert.[${name.value}]"
       case Importance.High     => s"10.alert.warn.[${name.value}]"
       case Importance.Medium   => s"10.alert.info.[${name.value}]"
       case Importance.Low      => s"10.alert.debug.[${name.value}]"
@@ -46,7 +46,7 @@ final private[guard] class EventPublisher[F[_]](
   private def passThroughMRName(name: MetricName, asError: Boolean): String =
     if (asError) s"$ATTENTION.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
 
-  private def actionFailMRName(params: ActionParams): String = s"$ATTENTION.action.[${params.metricName.value}].failure"
+  private def actionFailMRName(params: ActionParams): String  = s"$ATTENTION.action.[${params.metricName.value}]"
   private def actionRetryMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}].retries"
   private def actionStartMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}].started"
   private def actionSuccMRName(params: ActionParams): String  = s"30.action.[${params.metricName.value}].success"
