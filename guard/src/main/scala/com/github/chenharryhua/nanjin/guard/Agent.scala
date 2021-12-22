@@ -32,7 +32,7 @@ final class Agent[F[_]] private[guard] (
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
   def trivial: Agent[F]  = updateConfig(_.withLow)
-  def normal: Agent[F]   = updateConfig(_.withMedium)
+  def timing: Agent[F]   = updateConfig(_.withMedium)
   def notice: Agent[F]   = updateConfig(_.withHigh)
   def critical: Agent[F] = updateConfig(_.withCritical)
 
@@ -63,13 +63,15 @@ final class Agent[F[_]] private[guard] (
     new Broker[F](
       MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F])
+      publisher: EventPublisher[F],
+      isCountAsError = false)
 
   def counter(counterName: String): Counter[F] =
     new Counter(
       MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F])
+      publisher: EventPublisher[F],
+      isCountAsError = false)
 
   def alert(alertName: String): Alert[F] =
     new Alert(

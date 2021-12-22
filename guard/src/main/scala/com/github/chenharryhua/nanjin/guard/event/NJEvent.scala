@@ -66,7 +66,7 @@ final case class ServiceAlert(
 
 final case class PassThrough(
   metricName: MetricName,
-  isError: Boolean, // the payload json represent an error
+  asError: Boolean, // the payload json represent an error
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   value: Json

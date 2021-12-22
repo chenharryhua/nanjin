@@ -16,7 +16,7 @@ import scala.concurrent.duration.*
 
 class HealthCheckTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("health-check")
-  test("should receive 3 health check event") {
+  test("should receive 3 MetricsReport event") {
     val s :: a :: b :: c :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
       .service("normal")
@@ -37,8 +37,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[MetricsReport])
     assert(c.isInstanceOf[MetricsReport])
-    assert(c.asInstanceOf[MetricsReport].snapshot.counters.keys.toList.contains("01.health.check"))
-    assert(!c.asInstanceOf[MetricsReport].snapshot.counters.keys.toList.contains("02.service"))
+    assert(c.isInstanceOf[MetricsReport])
   }
 
   test("success-test") {
@@ -60,17 +59,19 @@ class HealthCheckTest extends AnyFunSuite {
     assert(d.isInstanceOf[MetricsReport])
   }
 
-  test("always-failure") {
+  test("never success") {
     val s :: a :: b :: c :: rest = guard
-      .service("always-failure")
+      .service("metrics-report")
       .updateConfig(
         _.withMetricSchedule(1.second)
           .withConstantDelay(1.hour)
           .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
           .withMetricRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd =>
-        gd.span("always-failure")
-          .updateConfig(_.withConstantDelay(3.second))
+        gd.span("not")
+          .span("fail")
+          .span("yet")
+          .updateConfig(_.withConstantDelay(300.second).withCapDelay(2.seconds))
           .notice
           .max(10)
           .run(IO.raiseError(new Exception)))

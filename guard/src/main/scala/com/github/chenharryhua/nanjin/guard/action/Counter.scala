@@ -7,17 +7,16 @@ import com.github.chenharryhua.nanjin.guard.event.EventPublisher
 final class Counter[F[_]](
   metricName: MetricName,
   dispatcher: Dispatcher[F],
-  eventPublisher: EventPublisher[F]
+  eventPublisher: EventPublisher[F],
+  isCountAsError: Boolean
 ) {
-  def increase(num: Long): F[Unit]    = eventPublisher.increase(metricName, num, isError = false)
+  def asError: Counter[F] =
+    new Counter[F](metricName, dispatcher, eventPublisher, isCountAsError = true)
+
+  def increase(num: Long): F[Unit]    = eventPublisher.increase(metricName, num, asError = isCountAsError)
   def unsafeIncrease(num: Long): Unit = dispatcher.unsafeRunSync(increase(num))
 
-  def increaseError(num: Long): F[Unit]    = eventPublisher.increase(metricName, num, isError = true)
-  def unsafeIncreaseError(num: Long): Unit = dispatcher.unsafeRunSync(increaseError(num))
-
-  def replace(num: Long): F[Unit]    = eventPublisher.replace(metricName, num, isError = false)
+  def replace(num: Long): F[Unit]    = eventPublisher.replace(metricName, num, asError = isCountAsError)
   def unsafeReplace(num: Long): Unit = dispatcher.unsafeRunSync(replace(num))
 
-  def replaceError(num: Long): F[Unit]    = eventPublisher.replace(metricName, num, isError = true)
-  def unsafeReplaceError(num: Long): Unit = dispatcher.unsafeRunSync(replaceError(num))
 }
