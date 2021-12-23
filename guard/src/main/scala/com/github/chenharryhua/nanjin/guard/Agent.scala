@@ -59,27 +59,40 @@ final class Agent[F[_]] private[guard] (
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
-  def broker(metricName: String): Broker[F] =
-    new Broker[F](
+  def broker(metricName: String): NJBroker[F] =
+    new NJBroker[F](
       MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
-      isCountAsError = false)
+      isCountAsError = false,
+      countOrMeter = false)
 
-  def counter(counterName: String): Counter[F] =
-    new Counter(
-      MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
-      dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F],
-      isCountAsError = false)
-
-  def alert(alertName: String): Alert[F] =
-    new Alert(
+  def alert(alertName: String): NJAlert[F] =
+    new NJAlert(
       MetricName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
-  val metrics: Metrics[F] = new Metrics[F](dispatcher, publisher, metricFilter)
+  def counter(counterName: String): NJCounter[F] =
+    new NJCounter(
+      MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
+      publisher.metricRegistry,
+      isCountAsError = false)
+
+  def meter(meterName: String): NJMeter[F] =
+    new NJMeter[F](
+      MetricName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
+      publisher.metricRegistry,
+      isCountAsError = false
+    )
+
+  def histo(metricName: String): NJHistogram[F] =
+    new NJHistogram[F](
+      MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
+      publisher.metricRegistry
+    )
+
+  val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher, metricFilter)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))

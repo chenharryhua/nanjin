@@ -203,13 +203,15 @@ final class SlackPipe[F[_]] private[observers] (
     for {
       sns <- Stream.resource(snsResource)
       ref <- Stream.eval(F.ref[Set[ServiceInfo]](Set.empty))
-      event <- es.evalMap { e =>
-        val updateRef: F[Unit] = e match {
+      event <- es.evalMap { evt =>
+        val updateRef: F[Unit] = evt match {
           case ServiceStarted(info, _)    => ref.update(_.incl(info))
           case ServiceStopped(info, _, _) => ref.update(_.excl(info))
           case _                          => F.unit
         }
-        updateRef >> publish(e, sns).attempt.as(e)
+        updateRef >> publish(evt, sns).attempt
+          .flatMap(_.swap.traverse(ex => logger.warn(ex)("Slack Publish Failure")))
+          .as(evt)
       }.onFinalize { // publish good bye message to slack
         for {
           ts <- F.realTimeInstant
@@ -232,7 +234,7 @@ final class SlackPipe[F[_]] private[observers] (
                   )
                 )) ::: List(Attachment(color = cfg.infoColor, blocks = extra))
           ).asJson.spaces2
-          _ <- sns.publish(msg).attempt.void
+          _ <- sns.publish(msg).attempt.whenA(services.nonEmpty)
           _ <- logger.info(msg).whenA(cfg.isLoggging)
         } yield ()
       }
@@ -346,7 +348,7 @@ final class SlackPipe[F[_]] private[observers] (
               Attachment(
                 color = cfg.warnColor,
                 blocks = List(
-                  MarkdownSection(s":octagonal_sign: *Service Stopped*."),
+                  MarkdownSection(s":octagonal_sign: *Service Stopped*. ${cfg.atSupporters}"),
                   hostServiceSection(si.serviceParams),
                   JuxtaposeSection(
                     TextField("Up Time", took(si.launchTime, at)),

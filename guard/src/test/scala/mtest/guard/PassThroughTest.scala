@@ -6,11 +6,13 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStopped}
+import com.github.chenharryhua.nanjin.guard.observers.logging
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
+import scala.util.Random
 
 final case class PassThroughObject(a: Int, b: String)
 
@@ -75,5 +77,31 @@ class PassThroughTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
     assert(last.asInstanceOf[ServiceStopped].snapshot.counters("01.error.alert.[oops/a32b945e]") == 1)
+  }
+
+  test("meter") {
+    guard
+      .updateConfig(_.withMetricSchedule(1.second))
+      .eventStream { agent =>
+        val meter = agent.meter("nj.test.meter")
+        (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(15)
+      }
+      .evalTap(logging[IO](_.show))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("histogram") {
+    guard
+      .updateConfig(_.withMetricSchedule(1.second))
+      .eventStream { agent =>
+        val meter = agent.histo("nj.test.histogram")
+        (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(15)
+      }
+      .evalTap(logging[IO](_.show))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }
