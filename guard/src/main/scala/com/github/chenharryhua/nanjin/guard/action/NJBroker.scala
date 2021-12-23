@@ -6,13 +6,13 @@ import com.github.chenharryhua.nanjin.guard.event.EventPublisher
 import io.circe.Encoder
 import io.circe.syntax.*
 
-final class Broker[F[_]](
+final class NJBroker[F[_]](
   metricName: MetricName,
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F],
   isCountAsError: Boolean) {
 
-  def asError: Broker[F] = new Broker[F](metricName, dispatcher, eventPublisher, isCountAsError = true)
+  def asError: NJBroker[F] = new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError = true)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
     eventPublisher.passThrough(metricName, a.asJson, asError = isCountAsError)

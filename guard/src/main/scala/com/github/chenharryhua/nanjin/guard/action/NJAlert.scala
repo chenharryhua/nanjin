@@ -8,7 +8,7 @@ import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricName}
 import com.github.chenharryhua.nanjin.guard.event.EventPublisher
 
-final class Alert[F[_]: Applicative](
+final class NJAlert[F[_]: Applicative](
   metricName: MetricName,
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F]) {

@@ -12,6 +12,7 @@ import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
+import scala.util.Random
 
 final case class PassThroughObject(a: Int, b: String)
 
@@ -83,7 +84,7 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricSchedule(1.second))
       .eventStream { agent =>
         val meter = agent.meter("nj.test")
-        meter.mark(1000).delayBy(1.second).replicateA(5)
+        (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextBoolean())).delayBy(1.second).replicateA(15)
       }
       .evalTap(logging[IO](_.show))
       .compile

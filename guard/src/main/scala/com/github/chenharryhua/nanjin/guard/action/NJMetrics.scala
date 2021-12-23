@@ -5,9 +5,9 @@ import cats.effect.std.Dispatcher
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.guard.event.{EventPublisher, MetricReportType, MetricsSnapshot}
 
-class Metrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[F], metricFilter: MetricFilter) {
-  def withMetricFilter(metricFilter: MetricFilter): Metrics[F] =
-    new Metrics[F](dispatcher, eventPublisher, metricFilter)
+class NJMetrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[F], metricFilter: MetricFilter) {
+  def withMetricFilter(metricFilter: MetricFilter): NJMetrics[F] =
+    new NJMetrics[F](dispatcher, eventPublisher, metricFilter)
 
   def reset: F[Unit]      = eventPublisher.metricsReset(metricFilter, None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)
