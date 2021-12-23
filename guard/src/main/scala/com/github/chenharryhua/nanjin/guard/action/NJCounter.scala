@@ -4,23 +4,19 @@ import cats.effect.kernel.Sync
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricName
 
-final class NJCounter[F[_]: Sync](
+final class NJCounter[F[_]](
   metricName: MetricName,
   metricRegistry: MetricRegistry,
   isCountAsError: Boolean
-) {
-  def asError: NJCounter[F] = new NJCounter[F](metricName, metricRegistry, isCountAsError = true)
-
+)(implicit F: Sync[F]) {
   private val name: String = counterMRName(metricName, isCountAsError)
 
-  def unsafeIncrease(num: Long): Unit = metricRegistry.counter(name).inc(num)
-  def increase(num: Long): F[Unit]    = Sync[F].delay(unsafeIncrease(num))
+  def asError: NJCounter[F] = new NJCounter[F](metricName, metricRegistry, isCountAsError = true)
 
-  def unsafeReplace(num: Long): Unit = {
-    val old = metricRegistry.counter(name).getCount
-    metricRegistry.counter(name).inc(num)
-    metricRegistry.counter(name).dec(old)
-  }
-  def replace(num: Long): F[Unit] = Sync[F].delay(unsafeReplace(num))
+  def unsafeInc(num: Long): Unit = metricRegistry.counter(name).inc(num)
+  def inc(num: Long): F[Unit]    = F.delay(unsafeInc(num))
+
+  def unsafeDec(num: Long): Unit = metricRegistry.counter(name).dec(num)
+  def dec(num: Long): F[Unit]    = F.delay(unsafeDec(num))
 
 }

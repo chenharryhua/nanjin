@@ -50,7 +50,7 @@ class PassThroughTest extends AnyFunSuite {
   test("counter") {
     val Some(last) = guard
       .updateConfig(_.withMetricSchedule(crontabs.bihourly))
-      .eventStream(_.counter("counter").asError.increase(1).delayBy(1.second).replicateA(3))
+      .eventStream(_.counter("counter").asError.inc(1).delayBy(1.second).replicateA(3))
       .debug()
       .compile
       .last
@@ -58,14 +58,14 @@ class PassThroughTest extends AnyFunSuite {
     assert(last.asInstanceOf[ServiceStopped].snapshot.counters("01.error.counter.[counter/0135a608]") == 3)
   }
 
-  test("counter - replace") {
+  test("counter - dec") {
     val Some(last) = guard
       .updateConfig(_.withMetricSchedule(crontabs.bihourly))
-      .eventStream(_.counter("counter").replace(5).delayBy(1.second).replicateA(3))
+      .eventStream(_.counter("counter").dec(1).delayBy(1.second).replicateA(3))
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("20.counter.[counter/0135a608]") == 5)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("20.counter.[counter/0135a608]") == -3)
   }
 
   test("warn") {
@@ -96,7 +96,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricSchedule(1.second))
       .eventStream { agent =>
-        val meter = agent.histo("nj.test.histogram")
+        val meter = agent.histogram("nj.test.histogram")
         (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(15)
       }
       .evalTap(logging[IO](_.show))
