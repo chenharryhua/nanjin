@@ -13,7 +13,7 @@ final class NJCounter[F[_]: Sync](
 
   private val name: String = counterMRName(metricName, isCountAsError)
 
-  def unsafeIncrease(num: Long): Unit = metricRegistry.counter(name).inc()
+  def unsafeIncrease(num: Long): Unit = metricRegistry.counter(name).inc(num)
   def increase(num: Long): F[Unit]    = Sync[F].delay(unsafeIncrease(num))
 
   def unsafeReplace(num: Long): Unit = {

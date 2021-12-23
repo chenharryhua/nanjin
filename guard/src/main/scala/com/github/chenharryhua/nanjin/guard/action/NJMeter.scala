@@ -10,6 +10,6 @@ final class NJMeter[F[_]: Sync](metricName: MetricName, metricRegistry: MetricRe
 
   def asError: NJMeter[F] = new NJMeter[F](metricName, metricRegistry, isCountAsError = true)
 
-  def unsafeMark(n: Long): Unit = metricRegistry.meter(name).mark(n)
-  def mark(n: Long): F[Unit]    = Sync[F].delay(unsafeMark(n))
+  def unsafeMark(num: Long): Unit = metricRegistry.meter(name).mark(num)
+  def mark(num: Long): F[Unit]    = Sync[F].delay(unsafeMark(num))
 }
