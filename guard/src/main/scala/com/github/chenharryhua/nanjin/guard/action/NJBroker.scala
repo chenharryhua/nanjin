@@ -25,6 +25,9 @@ final class NJBroker[F[_]: Functor](
   def withCount: NJBroker[F] =
     new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, countOrMeter = true)
 
+  def withMeter: NJBroker[F] =
+    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, countOrMeter = false)
+
   def passThrough[A: Encoder](a: A): F[Unit] =
     eventPublisher.passThrough(metricName, a.asJson, asError = isCountAsError).map { _ =>
       if (countOrMeter)
