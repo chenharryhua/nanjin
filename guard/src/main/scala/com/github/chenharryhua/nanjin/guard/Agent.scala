@@ -86,7 +86,7 @@ final class Agent[F[_]] private[guard] (
       isCountAsError = false
     )
 
-  def histo(metricName: String): NJHistogram[F] =
+  def histogram(metricName: String): NJHistogram[F] =
     new NJHistogram[F](
       MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       publisher.metricRegistry
