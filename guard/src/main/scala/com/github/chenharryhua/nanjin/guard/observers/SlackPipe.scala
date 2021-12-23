@@ -232,7 +232,7 @@ final class SlackPipe[F[_]] private[observers] (
                   )
                 )) ::: List(Attachment(color = cfg.infoColor, blocks = extra))
           ).asJson.spaces2
-          _ <- sns.publish(msg).attempt.void
+          _ <- sns.publish(msg).whenA(services.nonEmpty).attempt
           _ <- logger.info(msg).whenA(cfg.isLoggging)
         } yield ()
       }
