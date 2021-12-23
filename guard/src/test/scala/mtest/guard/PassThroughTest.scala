@@ -83,8 +83,21 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricSchedule(1.second))
       .eventStream { agent =>
-        val meter = agent.meter("nj.test")
-        (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextBoolean())).delayBy(1.second).replicateA(15)
+        val meter = agent.meter("nj.test.meter")
+        (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(15)
+      }
+      .evalTap(logging[IO](_.show))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("histogram") {
+    guard
+      .updateConfig(_.withMetricSchedule(1.second))
+      .eventStream { agent =>
+        val meter = agent.histo("nj.test.histogram")
+        (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(15)
       }
       .evalTap(logging[IO](_.show))
       .compile

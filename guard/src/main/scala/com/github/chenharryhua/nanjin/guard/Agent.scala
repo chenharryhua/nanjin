@@ -64,28 +64,33 @@ final class Agent[F[_]] private[guard] (
       MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
-      isCountAsError = false)
-
-  def counter(counterName: String): NJCounter[F] =
-    new NJCounter(
-      MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
-      dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F],
-      isCountAsError = false)
-
-  def meter(meterName: String): NJMeter[F] =
-    new NJMeter[F](
-      MetricName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
-      dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F],
-      isCountAsError = false
-    )
+      isCountAsError = false,
+      countOrMeter = false)
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
       MetricName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
+
+  def counter(counterName: String): NJCounter[F] =
+    new NJCounter(
+      MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
+      publisher.metricRegistry,
+      isCountAsError = false)
+
+  def meter(meterName: String): NJMeter[F] =
+    new NJMeter[F](
+      MetricName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
+      publisher.metricRegistry,
+      isCountAsError = false
+    )
+
+  def histo(metricName: String): NJHistogram[F] =
+    new NJHistogram[F](
+      MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
+      publisher.metricRegistry
+    )
 
   val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher, metricFilter)
 

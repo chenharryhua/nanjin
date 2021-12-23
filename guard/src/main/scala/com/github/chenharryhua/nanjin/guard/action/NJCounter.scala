@@ -1,22 +1,26 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.std.Dispatcher
+import cats.effect.kernel.Sync
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricName
-import com.github.chenharryhua.nanjin.guard.event.EventPublisher
 
-final class NJCounter[F[_]](
+final class NJCounter[F[_]: Sync](
   metricName: MetricName,
-  dispatcher: Dispatcher[F],
-  eventPublisher: EventPublisher[F],
+  metricRegistry: MetricRegistry,
   isCountAsError: Boolean
 ) {
-  def asError: NJCounter[F] =
-    new NJCounter[F](metricName, dispatcher, eventPublisher, isCountAsError = true)
+  def asError: NJCounter[F] = new NJCounter[F](metricName, metricRegistry, isCountAsError = true)
 
-  def increase(num: Long): F[Unit]    = eventPublisher.increase(metricName, num, asError = isCountAsError)
-  def unsafeIncrease(num: Long): Unit = dispatcher.unsafeRunSync(increase(num))
+  private val name: String = counterMRName(metricName, isCountAsError)
 
-  def replace(num: Long): F[Unit]    = eventPublisher.replace(metricName, num, asError = isCountAsError)
-  def unsafeReplace(num: Long): Unit = dispatcher.unsafeRunSync(replace(num))
+  def unsafeIncrease(num: Long): Unit = metricRegistry.counter(name).inc()
+  def increase(num: Long): F[Unit]    = Sync[F].delay(unsafeIncrease(num))
+
+  def unsafeReplace(num: Long): Unit = {
+    val old = metricRegistry.counter(name).getCount
+    metricRegistry.counter(name).inc(num)
+    metricRegistry.counter(name).dec(old)
+  }
+  def replace(num: Long): F[Unit] = Sync[F].delay(unsafeReplace(num))
 
 }
