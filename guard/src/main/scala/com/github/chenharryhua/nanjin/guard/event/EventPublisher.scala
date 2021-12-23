@@ -41,6 +41,9 @@ final private[guard] class EventPublisher[F[_]](
   private def passThroughMRName(name: MetricName, asError: Boolean): String =
     if (asError) s"$ATTENTION.pass.through.[${name.value}]" else s"21.pass.through.[${name.value}]"
 
+  private def meterMRName(name: MetricName, asError: Boolean): String =
+    if (asError) s"$ATTENTION.meter.[${name.value}]" else s"22.meter.[${name.value}]"
+
   private def actionFailMRName(params: ActionParams): String  = s"$ATTENTION.action.[${params.metricName.value}]"
   private def actionRetryMRName(params: ActionParams): String = s"30.retry.action.[${params.metricName.value}]"
   private def actionSuccMRName(params: ActionParams): String  = s"30.action.[${params.metricName.value}]"
@@ -222,5 +225,9 @@ final private[guard] class EventPublisher[F[_]](
     val old  = metricRegistry.counter(name).getCount
     metricRegistry.counter(name).inc(num)
     metricRegistry.counter(name).dec(old)
+  }
+
+  def meterMark(metricName: MetricName, n: Long, asError: Boolean): F[Unit] = F.delay {
+    metricRegistry.meter(meterMRName(metricName, asError)).mark(n)
   }
 }

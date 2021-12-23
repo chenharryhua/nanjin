@@ -346,7 +346,7 @@ final class SlackPipe[F[_]] private[observers] (
               Attachment(
                 color = cfg.warnColor,
                 blocks = List(
-                  MarkdownSection(s":octagonal_sign: *Service Stopped*."),
+                  MarkdownSection(s":octagonal_sign: *Service Stopped*. ${cfg.atSupporters}"),
                   hostServiceSection(si.serviceParams),
                   JuxtaposeSection(
                     TextField("Up Time", took(si.launchTime, at)),

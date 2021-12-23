@@ -73,6 +73,14 @@ final class Agent[F[_]] private[guard] (
       publisher: EventPublisher[F],
       isCountAsError = false)
 
+  def meter(meterName: String): Meter[F] =
+    new Meter[F](
+      MetricName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
+      dispatcher: Dispatcher[F],
+      publisher: EventPublisher[F],
+      isCountAsError = false
+    )
+
   def alert(alertName: String): Alert[F] =
     new Alert(
       MetricName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),

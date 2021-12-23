@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStopped}
+import com.github.chenharryhua.nanjin.guard.observers.logging
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -75,5 +76,18 @@ class PassThroughTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
     assert(last.asInstanceOf[ServiceStopped].snapshot.counters("01.error.alert.[oops/a32b945e]") == 1)
+  }
+
+  test("meter") {
+    guard
+      .updateConfig(_.withMetricSchedule(1.second))
+      .eventStream { agent =>
+        val meter = agent.meter("nj.test")
+        meter.mark(1000).delayBy(1.second).replicateA(5)
+      }
+      .evalTap(logging[IO](_.show))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }
