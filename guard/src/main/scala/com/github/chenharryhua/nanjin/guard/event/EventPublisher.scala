@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
@@ -16,10 +16,10 @@ import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
 
-final private[guard] class EventPublisher[F[_]](
+final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceInfo: ServiceInfo,
   val metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent])(implicit F: Async[F]) {
+  channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(serviceInfo.serviceParams.taskParams.zoneId))
