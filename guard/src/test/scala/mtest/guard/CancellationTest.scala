@@ -38,7 +38,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action.span("never").trivial.run(IO.never[Int])
+        val a1 = action.span("never").normal.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .compile
@@ -53,7 +53,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action.span("never").trivial.run(IO.never[Int])
+        val a1 = action.span("never").normal.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
       }
       .interruptAfter(3.seconds)
@@ -69,7 +69,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, c, d, f, g, h) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1)).trivial
+        val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
         val a1     = action.span("never").run(IO.never[Int])
         action.span("supervisor").retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))).run
       }
@@ -217,7 +217,6 @@ class CancellationTest extends AnyFunSuite {
       .eventStream { action =>
         val a1 = action
           .span("exception")
-          .trivial
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO.raiseError[Int](new Exception))
           .run

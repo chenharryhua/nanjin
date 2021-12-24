@@ -7,7 +7,7 @@ import cats.effect.kernel.{Outcome, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, Timer}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ActionTermination, CountAction, TimeAction}
 import com.github.chenharryhua.nanjin.guard.event.*
 import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -28,11 +28,10 @@ final class ActionRetry[F[_], A, B] private[guard] (
   private lazy val succCounter: Counter = publisher.metricRegistry.counter(actionSuccMRName(params))
   private lazy val timer: Timer         = publisher.metricRegistry.timer(actionTimerMRName(params))
 
-  private def timingAndCount(counter: Counter, actionInfo: ActionInfo, now: ZonedDateTime): Unit = {
-    timer.update(Duration.between(actionInfo.launchTime, now))
-    actionInfo.actionParams.importance match {
-      case Importance.Critical | Importance.High | Importance.Medium => counter.inc(1)
-      case Importance.Low                                            => ()
+  private def timingAndCount(isSucc: Boolean, launchTime: ZonedDateTime, now: ZonedDateTime): Unit = {
+    if (params.isTiming === TimeAction.Yes) timer.update(Duration.between(launchTime, now))
+    if (params.isCounting === CountAction.Yes) {
+      if (isSucc) succCounter.inc(1) else failCounter.inc(1)
     }
   }
 
@@ -94,15 +93,15 @@ final class ActionRetry[F[_], A, B] private[guard] (
     case Outcome.Canceled() =>
       val error = ActionException.ActionCanceledExternally
       publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
-        timingAndCount(failCounter, actionInfo, ts)
+        timingAndCount(isSucc = false, actionInfo.launchTime, ts)
       }
     case Outcome.Errored(error) =>
       publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
-        timingAndCount(failCounter, actionInfo, ts)
+        timingAndCount(isSucc = false, actionInfo.launchTime, ts)
       }
     case Outcome.Succeeded(output) =>
       publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map { ts =>
-        timingAndCount(succCounter, actionInfo, ts)
+        timingAndCount(isSucc = true, actionInfo.launchTime, ts)
       }
   }
 
@@ -122,7 +121,9 @@ final class ActionRetry[F[_], A, B] private[guard] (
             oc <- F.onCancel(
               poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
               fiber.cancel)
-            _ <- F.raiseError(ActionException.UnexpectedlyTerminated).whenA(!params.isTerminate)
+            _ <- F
+              .raiseError(ActionException.UnexpectedlyTerminated)
+              .whenA(params.isTerminate === ActionTermination.NonTerminate)
             _ <- succ(input, oc)
               .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
               .whenA(!postCondition(oc))

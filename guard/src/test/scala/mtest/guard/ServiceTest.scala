@@ -27,7 +27,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(3.second))
       .updateConfig(_.withQueueCapacity(1))
       .eventStream(gd =>
-        gd.span("normal-exit-action").trivial.max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
+        gd.span("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -85,7 +85,7 @@ class ServiceTest extends AnyFunSuite {
     val s :: b :: c :: d :: rest = guard
       .updateConfig(_.withMetricSchedule(1.second))
       .updateConfig(_.withQueueCapacity(4))
-      .eventStream(_.trivial.retry(IO.never).run)
+      .eventStream(_.retry(IO.never).run)
       .debug()
       .interruptAfter(5.second)
       .compile

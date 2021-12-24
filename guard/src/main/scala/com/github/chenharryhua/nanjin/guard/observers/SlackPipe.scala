@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.action.ATTENTION
 import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.lib.javatime.javaTemporalInstance
@@ -318,10 +317,9 @@ final class SlackPipe[F[_]] private[observers] (
       case ServiceAlert(metricName, si, _, importance, message) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val (users, title, color) = importance match {
-            case Importance.Critical => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
-            case Importance.High     => ("", ":warning: Warning", cfg.warnColor)
-            case Importance.Medium   => ("", ":information_source: Info", cfg.infoColor)
-            case Importance.Low      => ("", "Not/Applicable/Yet", cfg.infoColor)
+            case Importance.High   => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
+            case Importance.Medium => ("", ":warning: Warning", cfg.warnColor)
+            case Importance.Low    => ("", ":information_source: Info", cfg.infoColor)
           }
           SlackApp(
             username = si.serviceParams.taskParams.appName,
@@ -478,7 +476,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.Critical)
+          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.High)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -563,7 +561,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.Critical)
+          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.High)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 

@@ -61,7 +61,9 @@ object ActionRetryParams {
 final case class ActionParams private (
   metricName: MetricName,
   importance: Importance,
-  isTerminate: Boolean,
+  isTerminate: ActionTermination,
+  isCounting: CountAction,
+  isTiming: TimeAction,
   retry: ActionRetryParams)
 
 object ActionParams {
@@ -69,8 +71,11 @@ object ActionParams {
 
   def apply(agentParams: AgentParams, serviceParams: ServiceParams): ActionParams =
     ActionParams(
-      MetricName(agentParams.spans, serviceParams),
-      agentParams.importance,
-      agentParams.isTerminate,
-      agentParams.retry)
+      metricName = MetricName(agentParams.spans, serviceParams),
+      importance = agentParams.importance,
+      isTerminate = agentParams.isTerminate,
+      isCounting = agentParams.isCounting,
+      isTiming = agentParams.isTiming,
+      retry = agentParams.retry
+    )
 }

@@ -20,7 +20,6 @@ class RetryTest extends AnyFunSuite {
   test("retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd.span("succ-trivial")
-        .trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
         .withSuccNotes((a, b) => s"$a -> $b")
@@ -106,7 +105,6 @@ class RetryTest extends AnyFunSuite {
     var i = 0
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
       gd.span("1-time-succ")
-        .trivial
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) =>
           IO(if (i < 2) {
@@ -126,7 +124,6 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd.span("escalate-after-3-times")
-          .trivial
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
           .run(1)
@@ -168,7 +165,6 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd.span("predicate")
-          .trivial
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(_.isInstanceOf[MyException])
@@ -213,7 +209,6 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd.span("postCondition")
-          .trivial
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry(IO(0))
           .withPostCondition(_ > 1)
@@ -235,7 +230,6 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd.span("postCondition")
-          .trivial
           .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
           .retry((a: Int) => IO(a))
           .withSuccNotes((i, j) => s"$i $j")

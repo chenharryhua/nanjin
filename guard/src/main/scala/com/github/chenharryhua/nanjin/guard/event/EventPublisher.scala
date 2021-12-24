@@ -93,10 +93,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       uuid <- UUIDGen.randomUUID[F]
       ts <- realZonedDateTime
       actionInfo = ActionInfo(actionParams, serviceInfo, uuid, ts)
-      _ <- actionParams.importance match {
-        case Importance.Critical | Importance.High => channel.send(ActionStart(actionInfo))
-        case Importance.Medium | Importance.Low    => F.unit
-      }
+      _ <- channel.send(ActionStart(actionInfo)).whenA(actionInfo.actionParams.importance =!= Importance.Low)
     } yield actionInfo
 
   def actionSucced[A, B](
@@ -107,17 +104,12 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     buildNotes: Kleisli[F, (A, B), String]): F[ZonedDateTime] =
     for {
       ts <- realZonedDateTime
-      _ <- actionInfo.actionParams.importance match {
-        case Importance.Critical | Importance.High =>
-          for {
-            result <- output
-            num <- retryCount.get
-            notes <- buildNotes.run((input, result))
-            _ <- channel.send(
-              ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
-          } yield ()
-        case Importance.Medium | Importance.Low => F.unit
-      }
+      result <- output
+      num <- retryCount.get
+      notes <- buildNotes.run((input, result))
+      _ <- channel
+        .send(ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
+        .whenA(actionInfo.actionParams.importance =!= Importance.Low)
     } yield ts
 
   def actionRetrying(
