@@ -8,7 +8,7 @@ import com.amazonaws.services.simpleemail.model.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
-import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 @JsonCodec
@@ -23,13 +23,14 @@ object Email {
   def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, Email[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new EmailImpl[F](regions))) { case (cw, quitCase) =>
-      val logging = quitCase match {
-        case ExitCase.Succeeded  => logger.info(s"${name} was closed normally")
-        case ExitCase.Errored(e) => logger.warn(e)(s"${name} was closed abnormally")
-        case ExitCase.Canceled   => logger.info(s"${name} was canceled")
-      }
-      logging *> cw.shutdown
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new EmailImpl[F](regions, logger))) {
+      case (cw, quitCase) =>
+        val logging = quitCase match {
+          case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
+          case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
+          case ExitCase.Canceled   => logger.info(s"$name was canceled")
+        }
+        logging *> cw.shutdown
     }
   }
 
@@ -43,7 +44,8 @@ object Email {
     }))(_ => F.unit)
   }
 
-  final private class EmailImpl[F[_]](regions: Regions)(implicit F: Sync[F]) extends Email[F] with ShutdownService[F] {
+  final private class EmailImpl[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
+      extends Email[F] with ShutdownService[F] {
 
     private val client: AmazonSimpleEmailService =
       AmazonSimpleEmailServiceClientBuilder.standard().withRegion(regions).build
@@ -56,7 +58,7 @@ object Email {
             .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))
             .withSubject(new Content().withCharset("UTF-8").withData(content.subject)))
         .withSource(content.from)
-      F.blocking(client.sendEmail(request))
+      F.blocking(client.sendEmail(request)).attempt.flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r)).rethrow
     }
 
     override def shutdown: F[Unit] = F.blocking(client.shutdown())

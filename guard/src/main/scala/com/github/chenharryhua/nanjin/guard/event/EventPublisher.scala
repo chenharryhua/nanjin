@@ -79,7 +79,7 @@ final private[guard] class EventPublisher[F[_]](
         snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
       ))
       _ <- channel.send(msg)
-    } yield metricRegistry.removeMatching(MetricFilter.ALL)
+    } yield metricRegistry.removeMatching(metricFilter)
 
   /** actions
     */

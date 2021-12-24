@@ -81,49 +81,46 @@ final class ActionRetry[F[_], A, B] private[guard] (
 
   private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     error: Throwable,
-    details: RetryDetails): F[Unit] =
-    details match {
-      case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, retryCount, wdr, error)
-      case _: GivingUp            => F.unit
-    }
+    details: RetryDetails): F[Unit] = details match {
+    case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, retryCount, wdr, error)
+    case _: GivingUp            => F.unit
+  }
 
   private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(
-    outcome: Outcome[F, Throwable, B]): F[Unit] =
-    outcome match {
-      case Outcome.Canceled() =>
-        val error = ActionException.ActionCanceledExternally
-        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map(timing(failMRName, actionInfo, _))
-      case Outcome.Errored(error) =>
-        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map(timing(failMRName, actionInfo, _))
-      case Outcome.Succeeded(output) =>
-        publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map(timing(succMRName, actionInfo, _))
-    }
+    outcome: Outcome[F, Throwable, B]): F[Unit] = outcome match {
+    case Outcome.Canceled() =>
+      val error = ActionException.ActionCanceledExternally
+      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map(timing(failMRName, actionInfo, _))
+    case Outcome.Errored(error) =>
+      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map(timing(failMRName, actionInfo, _))
+    case Outcome.Succeeded(output) =>
+      publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map(timing(succMRName, actionInfo, _))
+  }
 
-  def run(input: A): F[B] =
-    for {
-      retryCount <- F.ref(0) // hold number of retries
-      actionInfo <- publisher.actionStart(params)
-      res <- F.uncancelable(poll =>
-        retry.mtl
-          .retryingOnSomeErrors[B](
-            params.retry.policy[F],
-            isWorthRetry.map(F.pure).run,
-            onError(actionInfo, retryCount)
-          ) {
-            for {
-              gate <- F.deferred[Outcome[F, Throwable, B]]
-              fiber <- F.start(kfab.run(input).guaranteeCase(gate.complete(_).void))
-              oc <- F.onCancel(
-                poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
-                fiber.cancel)
-              _ <- F.raiseError(ActionException.UnexpectedlyTerminated).whenA(!params.isTerminate)
-              _ <- succ(input, oc)
-                .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
-                .whenA(!postCondition(oc))
-            } yield oc
-          }
-          .guaranteeCase(handleOutcome(input, actionInfo, retryCount)))
-    } yield res
+  def run(input: A): F[B] = for {
+    retryCount <- F.ref(0) // hold number of retries
+    actionInfo <- publisher.actionStart(params)
+    res <- F.uncancelable(poll =>
+      retry.mtl
+        .retryingOnSomeErrors[B](
+          params.retry.policy[F],
+          isWorthRetry.map(F.pure).run,
+          onError(actionInfo, retryCount)
+        ) {
+          for {
+            gate <- F.deferred[Outcome[F, Throwable, B]]
+            fiber <- F.start(kfab.run(input).guaranteeCase(gate.complete(_).void))
+            oc <- F.onCancel(
+              poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
+              fiber.cancel)
+            _ <- F.raiseError(ActionException.UnexpectedlyTerminated).whenA(!params.isTerminate)
+            _ <- succ(input, oc)
+              .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
+              .whenA(!postCondition(oc))
+          } yield oc
+        }
+        .guaranteeCase(handleOutcome(input, actionInfo, retryCount)))
+  } yield res
 }
 
 final class ActionRetryUnit[F[_], B] private[guard] (
