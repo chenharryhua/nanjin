@@ -107,11 +107,12 @@ private[guard] object MetricsSnapshot {
       io.circe.jackson.parse(str).fold(_ => Json.Null, identity)
     }
 
-    val timers: Map[String, Long]   = metricRegistry.getTimers(metricFilter).asScala.view.mapValues(_.getCount).toMap
-    val counters: Map[String, Long] = metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
-    val meters: Map[String, Long]   = metricRegistry.getMeters(metricFilter).asScala.view.mapValues(_.getCount).toMap
+    val counters: Map[String, Long] =
+      metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
+    val meters: Map[String, Long] =
+      metricRegistry.getMeters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-    MetricsSnapshot(timers ++ counters ++ meters, json, text)
+    MetricsSnapshot(counters ++ meters, json, text)
   }
 
   def apply(metricRegistry: MetricRegistry, metricFilter: MetricFilter, params: ServiceParams): MetricsSnapshot =

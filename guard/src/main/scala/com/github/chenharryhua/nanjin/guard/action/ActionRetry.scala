@@ -6,6 +6,7 @@ import cats.effect.Temporal
 import cats.effect.kernel.{Outcome, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.codahale.metrics.{Counter, Timer}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance}
 import com.github.chenharryhua.nanjin.guard.event.*
 import retry.RetryDetails
@@ -23,15 +24,17 @@ final class ActionRetry[F[_], A, B] private[guard] (
   isWorthRetry: Reader[Throwable, Boolean],
   postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
-  private val failMRName: String = actionFailMRName(params)
-  private val succMRName: String = actionSuccMRName(params)
+  private lazy val failCounter: Counter = publisher.metricRegistry.counter(actionFailMRName(params))
+  private lazy val succCounter: Counter = publisher.metricRegistry.counter(actionSuccMRName(params))
+  private lazy val timer: Timer         = publisher.metricRegistry.timer(actionTimerMRName(params))
 
-  private def timing(mrName: String, actionInfo: ActionInfo, now: ZonedDateTime): Unit =
+  private def timingAndCount(counter: Counter, actionInfo: ActionInfo, now: ZonedDateTime): Unit = {
+    timer.update(Duration.between(actionInfo.launchTime, now))
     actionInfo.actionParams.importance match {
-      case Importance.Critical | Importance.High | Importance.Medium =>
-        publisher.metricRegistry.timer(mrName).update(Duration.between(actionInfo.launchTime, now))
-      case Importance.Low => ()
+      case Importance.Critical | Importance.High | Importance.Medium => counter.inc(1)
+      case Importance.Low                                            => ()
     }
+  }
 
   def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -90,11 +93,17 @@ final class ActionRetry[F[_], A, B] private[guard] (
     outcome: Outcome[F, Throwable, B]): F[Unit] = outcome match {
     case Outcome.Canceled() =>
       val error = ActionException.ActionCanceledExternally
-      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map(timing(failMRName, actionInfo, _))
+      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
+        timingAndCount(failCounter, actionInfo, ts)
+      }
     case Outcome.Errored(error) =>
-      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map(timing(failMRName, actionInfo, _))
+      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
+        timingAndCount(failCounter, actionInfo, ts)
+      }
     case Outcome.Succeeded(output) =>
-      publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map(timing(succMRName, actionInfo, _))
+      publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map { ts =>
+        timingAndCount(succCounter, actionInfo, ts)
+      }
   }
 
   def run(input: A): F[B] = for {

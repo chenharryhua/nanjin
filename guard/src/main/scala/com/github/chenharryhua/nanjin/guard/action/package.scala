@@ -6,14 +6,15 @@ package object action {
   final val ATTENTION = "01.error"
   // homebrew
   private[action] def actionFailMRName(params: ActionParams): String = s"$ATTENTION.action.[${params.metricName.value}]"
-  private[action] def actionSuccMRName(params: ActionParams): String = s"30.action.[${params.metricName.value}]"
+  private[action] def actionSuccMRName(params: ActionParams): String = s"15.succ.action.[${params.metricName.value}]"
+  private[action] def actionTimerMRName(params: ActionParams): String = s"21.timer.action.[${params.metricName.value}]"
 
   private[action] def alertMRName(name: MetricName, importance: Importance): String =
     importance match {
       case Importance.Critical => s"$ATTENTION.alert.[${name.value}]"
       case Importance.High     => s"10.warn.alert.[${name.value}]"
-      case Importance.Medium   => s"80.info.alert.[${name.value}]"
-      case Importance.Low      => s"80.debug.alert.[${name.value}]"
+      case Importance.Medium   => s"20.info.alert.[${name.value}]"
+      case Importance.Low      => s"20.debug.alert.[${name.value}]"
     }
 
   private[action] def passThroughMRName(name: MetricName, asError: Boolean): String =
@@ -21,10 +22,10 @@ package object action {
 
   // delegate to dropwizard
   private[action] def counterMRName(name: MetricName, asError: Boolean): String =
-    if (asError) s"$ATTENTION.counter.[${name.value}]" else s"20.counter.[${name.value}]"
+    if (asError) s"$ATTENTION.counter.[${name.value}]" else s"12.counter.[${name.value}]"
 
   private[action] def meterMRName(name: MetricName, asError: Boolean): String =
-    if (asError) s"$ATTENTION.meter.[${name.value}]" else s"21.meter.[${name.value}]"
+    if (asError) s"$ATTENTION.meter.[${name.value}]" else s"13.meter.[${name.value}]"
 
-  private[action] def histogramMRName(name: MetricName): String = s"22.histogram.[${name.value}]"
+  private[action] def histogramMRName(name: MetricName): String = s"14.histogram.[${name.value}]"
 }

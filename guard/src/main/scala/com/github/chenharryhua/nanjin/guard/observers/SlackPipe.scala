@@ -377,14 +377,12 @@ final class SlackPipe[F[_]] private[observers] (
             case MetricReportType.AdventiveReport    => "Adventive Metrics Report"
             case MetricReportType.ScheduledReport(_) => "Metrics Report"
           }
-          val color =
-            if (snapshot.counters.keys.exists(_.startsWith(ATTENTION))) cfg.warnColor else cfg.infoColor
 
           SlackApp(
             username = si.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
-                color = color,
+                color = cfg.infoColor,
                 blocks = List(
                   MarkdownSection(s"${cfg.metricsReportEmoji} *$name*"),
                   hostServiceSection(si.serviceParams),
@@ -406,15 +404,13 @@ final class SlackPipe[F[_]] private[observers] (
 
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val color =
-            if (snapshot.counters.keys.exists(_.startsWith(ATTENTION))) cfg.warnColor else cfg.infoColor
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(
                 username = si.serviceParams.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = color,
+                    color = cfg.infoColor,
                     blocks = List(
                       MarkdownSection("*Adventive Metrics Reset*"),
                       hostServiceSection(si.serviceParams),
@@ -442,7 +438,7 @@ final class SlackPipe[F[_]] private[observers] (
                 username = si.serviceParams.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = color,
+                    color = cfg.infoColor,
                     blocks = List(
                       MarkdownSection(s"*This is summary of activities performed by the service in past $dur*"),
                       hostServiceSection(si.serviceParams),

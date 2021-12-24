@@ -33,7 +33,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("unsafe pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
-      IO(1).map(_ => action.broker("pt").unsafePassThrough(PassThroughObject(1, "a")))
+      IO(1).map(_ => action.broker("pt2").unsafePassThrough(PassThroughObject(1, "a")))
     }.debug()
       .map {
         case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
