@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
+import com.github.chenharryhua.nanjin.guard.action.ATTENTION
 import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.lib.javatime.javaTemporalInstance
@@ -187,7 +188,7 @@ final class SlackPipe[F[_]] private[observers] (
       val msg: String =
         snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
-        KeyValueSection("Counters", "```No Counters Yet```")
+        KeyValueSection("Counters", "*Nothing has happened yet*")
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
@@ -377,7 +378,7 @@ final class SlackPipe[F[_]] private[observers] (
             case MetricReportType.ScheduledReport(_) => "Metrics Report"
           }
           val color =
-            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
+            if (snapshot.counters.keys.exists(_.startsWith(ATTENTION))) cfg.warnColor else cfg.infoColor
 
           SlackApp(
             username = si.serviceParams.taskParams.appName,
@@ -406,7 +407,7 @@ final class SlackPipe[F[_]] private[observers] (
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val color =
-            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
+            if (snapshot.counters.keys.exists(_.startsWith(ATTENTION))) cfg.warnColor else cfg.infoColor
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(
