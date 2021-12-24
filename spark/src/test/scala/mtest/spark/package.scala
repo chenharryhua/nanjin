@@ -11,10 +11,6 @@ package object spark {
   val akkaSystem: ActorSystem    = ActorSystem("nj-spark")
   implicit val mat: Materializer = Materializer(akkaSystem)
 
-  val sparkSession: SparkSession = SparkSettings(sydneyTime)
-    .withAppName("nj.spark.test")
-    .withLogLevel(NJLogLevel.INFO)
-    .withoutUI
-    .withUI
-    .unsafeSession
+  val sparkSession: SparkSession =
+    SparkSettings(sydneyTime).withAppName("nj.spark.test").withLogLevel(NJLogLevel.INFO).withoutUI.withUI.unsafeSession
 }
