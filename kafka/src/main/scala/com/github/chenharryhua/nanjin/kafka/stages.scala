@@ -98,16 +98,18 @@ object stages {
             val cr: KafkaByteConsumerRecord = grab(in)
             val tp: TopicPartition          = new TopicPartition(cr.topic(), cr.partition())
             val offset: Option[Long]        = endOffsets.get(tp).map(_.offset.value - 1)
-            try if (offset.exists(cr.offset() < _)) {
-              push(out, cr)
-            } else if (offset.contains(cr.offset())) {
-              push(out, cr)
-              topicStates += tp -> true
-              if (isPartitionsCompleted(topicStates)) completeStage()
-            } else {
-              topicStates += tp -> true
-              if (isPartitionsCompleted(topicStates)) completeStage() else pull(in)
-            } catch {
+            try
+              if (offset.exists(cr.offset() < _)) {
+                push(out, cr)
+              } else if (offset.contains(cr.offset())) {
+                push(out, cr)
+                topicStates += tp -> true
+                if (isPartitionsCompleted(topicStates)) completeStage()
+              } else {
+                topicStates += tp -> true
+                if (isPartitionsCompleted(topicStates)) completeStage() else pull(in)
+              }
+            catch {
               case NonFatal(ex) =>
                 decider(ex) match {
                   case Supervision.Stop => failStage(ex)
