@@ -187,7 +187,7 @@ final class SlackPipe[F[_]] private[observers] (
       val msg: String =
         snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
-        KeyValueSection("Counters", "*Nothing has happened yet*")
+        KeyValueSection("Counters", "*No Counters*")
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }

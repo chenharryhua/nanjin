@@ -24,7 +24,7 @@ private[guard] object AgentParams {
   def apply(): AgentParams = AgentParams(
     spans = Nil,
     importance = Importance.Low,
-    isTerminate = ActionTermination.Terminate,
+    isTerminate = ActionTermination.Yes,
     isCounting = CountAction.Yes,
     isTiming = TimeAction.Yes,
     retry = ActionRetryParams(maxRetries = 0, capDelay = None, njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds))
@@ -82,7 +82,7 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
     AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(delay), value)))
 
   def withNonTermination: AgentConfig =
-    AgentConfig(Fix(WithTermination(value = ActionTermination.NonTerminate, value)))
+    AgentConfig(Fix(WithTermination(value = ActionTermination.No, value)))
 
   def withLowImportance: AgentConfig    = AgentConfig(Fix(WithImportance(Importance.Low, value)))
   def withMediumImportance: AgentConfig = AgentConfig(Fix(WithImportance(Importance.Medium, value)))

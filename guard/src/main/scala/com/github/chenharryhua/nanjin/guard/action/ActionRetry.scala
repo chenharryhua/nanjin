@@ -24,9 +24,10 @@ final class ActionRetry[F[_], A, B] private[guard] (
   isWorthRetry: Reader[Throwable, Boolean],
   postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
-  private lazy val failCounter: Counter = publisher.metricRegistry.counter(actionFailMRName(params))
-  private lazy val succCounter: Counter = publisher.metricRegistry.counter(actionSuccMRName(params))
-  private lazy val timer: Timer         = publisher.metricRegistry.timer(actionTimerMRName(params))
+  private lazy val failCounter: Counter  = publisher.metricRegistry.counter(actionFailMRName(params))
+  private lazy val succCounter: Counter  = publisher.metricRegistry.counter(actionSuccMRName(params))
+  private lazy val retryCounter: Counter = publisher.metricRegistry.counter(actionRetryMRName(params))
+  private lazy val timer: Timer          = publisher.metricRegistry.timer(actionTimerMRName(params))
 
   private def timingAndCount(isSucc: Boolean, launchTime: ZonedDateTime, now: ZonedDateTime): Unit = {
     if (params.isTiming === TimeAction.Yes) timer.update(Duration.between(launchTime, now))
@@ -84,25 +85,30 @@ final class ActionRetry[F[_], A, B] private[guard] (
   private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     error: Throwable,
     details: RetryDetails): F[Unit] = details match {
-    case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, retryCount, wdr, error)
-    case _: GivingUp            => F.unit
+    case wdr: WillDelayAndRetry =>
+      publisher.actionRetrying(actionInfo, retryCount, wdr, error)
+    case _: GivingUp => F.unit
   }
 
   private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(
-    outcome: Outcome[F, Throwable, B]): F[Unit] = outcome match {
-    case Outcome.Canceled() =>
-      val error = ActionException.ActionCanceledExternally
-      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
-        timingAndCount(isSucc = false, actionInfo.launchTime, ts)
-      }
-    case Outcome.Errored(error) =>
-      publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
-        timingAndCount(isSucc = false, actionInfo.launchTime, ts)
-      }
-    case Outcome.Succeeded(output) =>
-      publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map { ts =>
-        timingAndCount(isSucc = true, actionInfo.launchTime, ts)
-      }
+    outcome: Outcome[F, Throwable, B]): F[Unit] = {
+
+    val messaging = outcome match {
+      case Outcome.Canceled() =>
+        val error = ActionException.ActionCanceledExternally
+        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
+          timingAndCount(isSucc = false, actionInfo.launchTime, ts)
+        }
+      case Outcome.Errored(error) =>
+        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
+          timingAndCount(isSucc = false, actionInfo.launchTime, ts)
+        }
+      case Outcome.Succeeded(output) =>
+        publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map { ts =>
+          timingAndCount(isSucc = true, actionInfo.launchTime, ts)
+        }
+    }
+    messaging >> retryCount.get.map(c => retryCounter.inc(c.toLong)).whenA(params.isCounting === CountAction.Yes)
   }
 
   def run(input: A): F[B] = for {
@@ -121,9 +127,7 @@ final class ActionRetry[F[_], A, B] private[guard] (
             oc <- F.onCancel(
               poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
               fiber.cancel)
-            _ <- F
-              .raiseError(ActionException.UnexpectedlyTerminated)
-              .whenA(params.isTerminate === ActionTermination.NonTerminate)
+            _ <- F.raiseError(ActionException.UnexpectedlyTerminated).whenA(params.isTerminate === ActionTermination.No)
             _ <- succ(input, oc)
               .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
               .whenA(!postCondition(oc))

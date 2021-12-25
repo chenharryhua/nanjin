@@ -33,6 +33,6 @@ sealed trait ActionTermination extends EnumEntry with Lowercase
 object ActionTermination
     extends CatsEnum[ActionTermination] with Enum[ActionTermination] with CirceEnum[ActionTermination] {
   override val values: IndexedSeq[ActionTermination] = findValues
-  case object Terminate extends ActionTermination
-  case object NonTerminate extends ActionTermination
+  case object Yes extends ActionTermination
+  case object No extends ActionTermination
 }

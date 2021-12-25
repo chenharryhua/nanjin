@@ -18,7 +18,7 @@ final class NJBroker[F[_]: Functor](
   isCountAsError: Boolean,
   countOrMeter: Boolean) {
 
-  private val name: String = passThroughMRName(metricName, isCountAsError)
+  private val name: String = passThroughMRName(metricName, isCountAsError, countOrMeter)
   private lazy val cm: Either[Counter, Meter] =
     if (countOrMeter) Left(eventPublisher.metricRegistry.counter(name))
     else Right(eventPublisher.metricRegistry.meter(name))
