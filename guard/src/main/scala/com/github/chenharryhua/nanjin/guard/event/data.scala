@@ -141,7 +141,7 @@ sealed trait MetricResetType
 object MetricResetType {
   implicit val showMetricResetType: Show[MetricResetType] = cats.derived.semiauto.show[MetricResetType]
   case object AdventiveReset extends MetricResetType
-  final case class ScheduledReset(prev: ZonedDateTime, next: ZonedDateTime) extends MetricResetType
+  final case class ScheduledReset(next: ZonedDateTime) extends MetricResetType
 }
 
 @JsonCodec

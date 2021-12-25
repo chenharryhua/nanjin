@@ -65,9 +65,9 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       msg = cronExpr.flatMap { ce =>
-        (ce.prev(ts), ce.next(ts)).mapN { case (prev, next) =>
+        ce.next(ts).map { next =>
           MetricsReset(
-            resetType = MetricResetType.ScheduledReset(prev, next),
+            resetType = MetricResetType.ScheduledReset(next),
             serviceInfo = serviceInfo,
             timestamp = ts,
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
