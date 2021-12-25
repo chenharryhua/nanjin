@@ -273,6 +273,7 @@ class RetryTest extends AnyFunSuite {
     val s :: b :: c :: s1 :: e :: f :: s2 :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
+      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toList

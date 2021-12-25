@@ -65,7 +65,7 @@ final class Agent[F[_]] private[guard] (
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
       isCountAsError = false,
-      countOrMeter = true // default counter
+      counterOrMeter = true // default counter
     )
 
   def alert(alertName: String): NJAlert[F] =

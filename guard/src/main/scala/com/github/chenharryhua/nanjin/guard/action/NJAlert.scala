@@ -14,26 +14,26 @@ final class NJAlert[F[_]: Applicative](
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F]) {
   private lazy val errorCounter: Counter =
-    eventPublisher.metricRegistry.counter(alertMRName(metricName, Importance.High))
+    eventPublisher.metricRegistry.counter(alertMRName(metricName, Importance.Critical))
   private lazy val warnCounter: Counter =
-    eventPublisher.metricRegistry.counter(alertMRName(metricName, Importance.Medium))
+    eventPublisher.metricRegistry.counter(alertMRName(metricName, Importance.High))
   private lazy val infoCounter: Counter =
-    eventPublisher.metricRegistry.counter(alertMRName(metricName, Importance.Low))
+    eventPublisher.metricRegistry.counter(alertMRName(metricName, Importance.Medium))
 
   def error[S: Show](msg: S): F[Unit] =
-    eventPublisher.alert(metricName, msg.show, Importance.High).map(_ => errorCounter.inc(1))
+    eventPublisher.alert(metricName, msg.show, Importance.Critical).map(_ => errorCounter.inc(1))
   def error[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(error(_)).void
   def unsafeError[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(error(msg))
   def unsafeError[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(error(msg))
 
   def warn[S: Show](msg: S): F[Unit] =
-    eventPublisher.alert(metricName, msg.show, Importance.Medium).map(_ => warnCounter.inc(1))
+    eventPublisher.alert(metricName, msg.show, Importance.High).map(_ => warnCounter.inc(1))
   def warn[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(warn(_)).void
   def unsafeWarn[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(warn(msg))
   def unsafeWarn[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(warn(msg))
 
   def info[S: Show](msg: S): F[Unit] =
-    eventPublisher.alert(metricName, msg.show, Importance.Low).map(_ => infoCounter.inc(1))
+    eventPublisher.alert(metricName, msg.show, Importance.Medium).map(_ => infoCounter.inc(1))
   def info[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(info(_)).void
   def unsafeInfo[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(info(msg))
   def unsafeInfo[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(info(msg))
