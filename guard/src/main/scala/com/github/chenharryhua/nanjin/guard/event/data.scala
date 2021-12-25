@@ -114,8 +114,9 @@ private[guard] object MetricsSnapshot {
       io.circe.jackson.parse(str).fold(_ => Json.Null, identity)
     }
 
+    // keep counters which has zero
     val counters: Map[String, Long] =
-      metricRegistry.getCounters(filterOutZero).asScala.view.mapValues(_.getCount).toMap
+      metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
     val meters: Map[String, Long] =
       metricRegistry.getMeters(metricFilter).asScala.view.mapValues(_.getCount).toMap

@@ -185,7 +185,7 @@ final class SlackPipe[F[_]] private[observers] (
     } else {
       val fmt: NumberFormat = NumberFormat.getIntegerInstance
       val msg: String =
-        snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
+        snapshot.counters.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
         KeyValueSection("Counters", "*No Counters*")
       else

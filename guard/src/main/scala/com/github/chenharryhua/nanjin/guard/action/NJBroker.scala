@@ -26,7 +26,7 @@ final class NJBroker[F[_]: Functor](
   def asError: NJBroker[F] =
     new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError = true, countOrMeter)
 
-  def withCount: NJBroker[F] =
+  def withCounter: NJBroker[F] =
     new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, countOrMeter = true)
 
   def withMeter: NJBroker[F] =
