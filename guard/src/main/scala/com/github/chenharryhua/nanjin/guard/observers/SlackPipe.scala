@@ -210,9 +210,7 @@ final class SlackPipe[F[_]] private[observers] (
           case ServiceStopped(info, _, _) => ref.update(_.excl(info))
           case _                          => F.unit
         }
-        updateRef >> publish(evt, sns).attempt
-          .flatMap(_.swap.traverse(ex => logger.warn(ex)("Slack Publish Failure")))
-          .as(evt)
+        updateRef >> publish(evt, sns).attempt.as(evt)
       }.onFinalize { // publish good bye message to slack
         for {
           ts <- F.realTimeInstant

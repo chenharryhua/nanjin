@@ -16,21 +16,21 @@ final class NJBroker[F[_]: Functor](
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F],
   isCountAsError: Boolean,
-  countOrMeter: Boolean) {
+  counterOrMeter: Boolean) {
 
-  private val name: String = passThroughMRName(metricName, isCountAsError, countOrMeter)
+  private val name: String = passThroughMRName(metricName, isCountAsError, counterOrMeter)
   private lazy val cm: Either[Counter, Meter] =
-    if (countOrMeter) Left(eventPublisher.metricRegistry.counter(name))
+    if (counterOrMeter) Left(eventPublisher.metricRegistry.counter(name))
     else Right(eventPublisher.metricRegistry.meter(name))
 
   def asError: NJBroker[F] =
-    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError = true, countOrMeter)
+    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError = true, counterOrMeter)
 
   def withCounter: NJBroker[F] =
-    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, countOrMeter = true)
+    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, counterOrMeter = true)
 
   def withMeter: NJBroker[F] =
-    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, countOrMeter = false)
+    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, counterOrMeter = false)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
     eventPublisher.passThrough(metricName, a.asJson, asError = isCountAsError).map { _ =>
