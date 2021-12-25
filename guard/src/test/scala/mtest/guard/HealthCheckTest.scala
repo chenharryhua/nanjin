@@ -22,7 +22,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
       .withMetricFilter(MetricFilter.startsWith("01"))
-      .updateConfig(_.withMetricSchedule("* * * ? * *"))
+      .updateConfig(_.withMetricReport("* * * ? * *"))
       .eventStream(gd => gd.span("cron").notice.retry(IO.never[Int]).run)
       .evalTap(console[IO](_.show))
       .evalTap(console[IO](_.asJson.noSpaces))
@@ -43,7 +43,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("success-test") {
     val s :: a :: b :: c :: d :: rest = guard
       .service("success-test")
-      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withMetricReport(1.second))
       .eventStream(gd => gd.notice.retry(IO(1)).run >> gd.notice.retry(IO.never).run)
       .evalTap(console[IO](_.asJson.noSpaces))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -63,7 +63,7 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: rest = guard
       .service("metrics-report")
       .updateConfig(
-        _.withMetricSchedule(1.second)
+        _.withMetricReport(1.second)
           .withConstantDelay(1.hour)
           .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
           .withMetricRateTimeUnit(TimeUnit.MINUTES))
@@ -91,7 +91,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("metrics reset") {
     val list = guard
       .service("metrics-reset-test")
-      .updateConfig(_.withMetricSchedule(2.seconds).withMetricReset(crontabs.trisecondly))
+      .updateConfig(_.withMetricReport(2.seconds).withMetricReset(crontabs.trisecondly))
       .eventStream(_.run(IO.never))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone

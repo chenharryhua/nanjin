@@ -83,7 +83,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
-      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.retry(IO.never).run)
       .debug()
@@ -100,7 +100,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("force reset") {
     val s :: b :: c :: rest = guard
-      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .compile
@@ -146,7 +146,7 @@ class ServiceTest extends AnyFunSuite {
   test("slack") {
     TaskGuard[IO]("slack")
       .service("slack")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
