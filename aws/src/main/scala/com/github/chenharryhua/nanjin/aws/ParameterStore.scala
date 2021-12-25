@@ -11,7 +11,7 @@ import com.amazonaws.services.simplesystemsmanagement.{
   AWSSimpleSystemsManagementClientBuilder
 }
 import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
-import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.util.Base64
@@ -36,7 +36,7 @@ object ParameterStore {
 
   def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, ParameterStore[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new PS(regions))) { case (cw, quitCase) =>
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new PS(regions, logger))) { case (cw, quitCase) =>
       val logging = quitCase match {
         case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
         case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
@@ -48,7 +48,7 @@ object ParameterStore {
 
   def apply[F[_]: Async]: Resource[F, ParameterStore[F]] = apply[F](defaultRegion)
 
-  final private class PS[F[_]](regions: Regions)(implicit F: Sync[F])
+  final private class PS[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
       extends ParameterStore[F] with ShutdownService[F] {
     private val client: AWSSimpleSystemsManagement =
       AWSSimpleSystemsManagementClientBuilder.standard.withRegion(regions).build
@@ -56,6 +56,9 @@ object ParameterStore {
     override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
       val req = new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
       F.blocking(ParameterStoreContent(client.getParameters(req).getParameters.get(0).getValue))
+        .attempt
+        .flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r))
+        .rethrow
     }
 
     override def shutdown: F[Unit] = F.blocking(client.shutdown())

@@ -31,10 +31,10 @@ final class Agent[F[_]] private[guard] (
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
-  def trivial: Agent[F]  = updateConfig(_.withLow)
-  def timing: Agent[F]   = updateConfig(_.withMedium)
-  def notice: Agent[F]   = updateConfig(_.withHigh)
-  def critical: Agent[F] = updateConfig(_.withCritical)
+  def trivial: Agent[F]  = updateConfig(_.withLowImportance)
+  def normal: Agent[F]   = updateConfig(_.withMediumImportance)
+  def notice: Agent[F]   = updateConfig(_.withHighImportance)
+  def critical: Agent[F] = updateConfig(_.withCriticalImportance)
 
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -65,7 +65,8 @@ final class Agent[F[_]] private[guard] (
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
       isCountAsError = false,
-      countOrMeter = false)
+      countOrMeter = true // default counter
+    )
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
@@ -98,8 +99,8 @@ final class Agent[F[_]] private[guard] (
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    span("nonStop").trivial
-      .updateConfig(_.withNonTermination.withMaxRetries(0))
+    span("nonStop")
+      .updateConfig(_.withNonTermination.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))

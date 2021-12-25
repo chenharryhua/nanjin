@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
+import com.codahale.metrics.{Counter, MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -14,21 +14,13 @@ import io.circe.Json
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
-import java.time.{Duration, ZonedDateTime}
+import java.time.ZonedDateTime
+import scala.jdk.CollectionConverters.SetHasAsScala
 
-private[guard] object EventPublisher {
-  final val ATTENTION = "01.error"
-}
-
-final private[guard] class EventPublisher[F[_]](
+final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceInfo: ServiceInfo,
   val metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent])(implicit F: Async[F]) {
-  import EventPublisher.ATTENTION
-
-  private def actionFailMRName(params: ActionParams): String  = s"$ATTENTION.action.[${params.metricName.value}]"
-  private def actionRetryMRName(params: ActionParams): String = s"30.retry.action.[${params.metricName.value}]"
-  private def actionSuccMRName(params: ActionParams): String  = s"30.action.[${params.metricName.value}]"
+  channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
     F.realTimeInstant.map(_.atZone(serviceInfo.serviceParams.taskParams.zoneId))
@@ -88,7 +80,10 @@ final private[guard] class EventPublisher[F[_]](
         snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
       ))
       _ <- channel.send(msg)
-    } yield metricRegistry.removeMatching(MetricFilter.ALL)
+    } yield metricRegistry.getCounters(metricFilter).keySet().asScala.foreach { c =>
+      val entry: Counter = metricRegistry.counter(c)
+      entry.dec(entry.getCount)
+    }
 
   /** actions
     */
@@ -98,35 +93,24 @@ final private[guard] class EventPublisher[F[_]](
       uuid <- UUIDGen.randomUUID[F]
       ts <- realZonedDateTime
       actionInfo = ActionInfo(actionParams, serviceInfo, uuid, ts)
-      _ <- actionParams.importance match {
-        case Importance.Critical | Importance.High => channel.send(ActionStart(actionInfo))
-        case Importance.Medium | Importance.Low    => F.unit
-      }
+      _ <- channel.send(ActionStart(actionInfo)).whenA(actionInfo.actionParams.importance >= Importance.High)
     } yield actionInfo
-
-  private def timing(name: String, actionInfo: ActionInfo, timestamp: ZonedDateTime): Unit =
-    metricRegistry.timer(name).update(Duration.between(actionInfo.launchTime, timestamp))
 
   def actionSucced[A, B](
     actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
     input: A,
     output: F[B],
-    buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
-    actionInfo.actionParams.importance match {
-      case Importance.Critical | Importance.High =>
-        for {
-          ts <- realZonedDateTime
-          result <- output
-          num <- retryCount.get
-          notes <- buildNotes.run((input, result))
-          _ <- channel.send(
-            ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
-        } yield timing(actionSuccMRName(actionInfo.actionParams), actionInfo, ts)
-      case Importance.Medium =>
-        realZonedDateTime.map(ts => timing(actionSuccMRName(actionInfo.actionParams), actionInfo, ts))
-      case Importance.Low => F.unit
-    }
+    buildNotes: Kleisli[F, (A, B), String]): F[ZonedDateTime] =
+    for {
+      ts <- realZonedDateTime
+      result <- output
+      num <- retryCount.get
+      notes <- buildNotes.run((input, result))
+      _ <- channel
+        .send(ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
+        .whenA(actionInfo.actionParams.importance >= Importance.High)
+    } yield ts
 
   def actionRetrying(
     actionInfo: ActionInfo,
@@ -144,11 +128,7 @@ final private[guard] class EventPublisher[F[_]](
           willDelayAndRetry = willDelayAndRetry,
           error = NJError(uuid, ex)))
       _ <- retryCount.update(_ + 1)
-    } yield actionInfo.actionParams.importance match {
-      case Importance.Critical | Importance.High | Importance.Medium =>
-        metricRegistry.counter(actionRetryMRName(actionInfo.actionParams)).inc()
-      case Importance.Low => ()
-    }
+    } yield ()
 
   def actionFailed[A](
     actionInfo: ActionInfo,
@@ -156,7 +136,7 @@ final private[guard] class EventPublisher[F[_]](
     input: A,
     ex: Throwable,
     buildNotes: Kleisli[F, (A, Throwable), String]
-  ): F[Unit] =
+  ): F[ZonedDateTime] =
     for {
       ts <- realZonedDateTime
       uuid <- UUIDGen.randomUUID[F]
@@ -169,11 +149,7 @@ final private[guard] class EventPublisher[F[_]](
           numRetries = numRetries,
           notes = Notes(notes),
           error = NJError(uuid, ex)))
-    } yield actionInfo.actionParams.importance match {
-      case Importance.Critical | Importance.High | Importance.Medium =>
-        timing(actionFailMRName(actionInfo.actionParams), actionInfo, ts)
-      case Importance.Low => ()
-    }
+    } yield ts
 
   def passThrough(metricName: MetricName, json: Json, asError: Boolean): F[Unit] =
     for {

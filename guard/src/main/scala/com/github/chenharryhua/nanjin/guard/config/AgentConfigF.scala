@@ -13,7 +13,9 @@ import scala.concurrent.duration.*
 @Lenses @JsonCodec final case class AgentParams private (
   spans: List[String],
   importance: Importance,
-  isTerminate: Boolean,
+  isTerminate: ActionTermination,
+  isCounting: CountAction,
+  isTiming: TimeAction,
   retry: ActionRetryParams)
 
 private[guard] object AgentParams {
@@ -22,7 +24,9 @@ private[guard] object AgentParams {
   def apply(): AgentParams = AgentParams(
     spans = Nil,
     importance = Importance.Medium,
-    isTerminate = true,
+    isTerminate = ActionTermination.Yes,
+    isCounting = CountAction.Yes,
+    isTiming = TimeAction.Yes,
     retry = ActionRetryParams(maxRetries = 0, capDelay = None, njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds))
   )
 }
@@ -37,11 +41,13 @@ private object AgentConfigF {
   final case class WithMaxRetries[K](value: Int, cont: K) extends AgentConfigF[K]
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
-  final case class WithImportance[K](value: Importance, cont: K) extends AgentConfigF[K]
+  final case class WithTermination[K](value: ActionTermination, cont: K) extends AgentConfigF[K]
 
   final case class WithSpans[K](value: List[String], cont: K) extends AgentConfigF[K]
 
-  final case class WithTermination[K](value: Boolean, cont: K) extends AgentConfigF[K]
+  final case class WithImportance[K](value: Importance, cont: K) extends AgentConfigF[K]
+  final case class WithTiming[K](value: TimeAction, cont: K) extends AgentConfigF[K]
+  final case class WithCounting[K](value: CountAction, cont: K) extends AgentConfigF[K]
 
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
@@ -52,6 +58,8 @@ private object AgentConfigF {
       case WithTermination(v, c) => AgentParams.isTerminate.set(v)(c)
       case WithImportance(v, c)  => AgentParams.importance.set(v)(c)
       case WithSpans(v, c)       => AgentParams.spans.modify(_ ::: v)(c)
+      case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
+      case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
     }
 }
 
@@ -74,12 +82,17 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
     AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(delay), value)))
 
   def withNonTermination: AgentConfig =
-    AgentConfig(Fix(WithTermination(value = false, value)))
+    AgentConfig(Fix(WithTermination(value = ActionTermination.No, value)))
 
-  def withLow: AgentConfig      = AgentConfig(Fix(WithImportance(Importance.Low, value)))
-  def withMedium: AgentConfig   = AgentConfig(Fix(WithImportance(Importance.Medium, value)))
-  def withHigh: AgentConfig     = AgentConfig(Fix(WithImportance(Importance.High, value)))
-  def withCritical: AgentConfig = AgentConfig(Fix(WithImportance(Importance.Critical, value)))
+  def withLowImportance: AgentConfig      = AgentConfig(Fix(WithImportance(Importance.Low, value)))
+  def withMediumImportance: AgentConfig   = AgentConfig(Fix(WithImportance(Importance.Medium, value)))
+  def withHighImportance: AgentConfig     = AgentConfig(Fix(WithImportance(Importance.High, value)))
+  def withCriticalImportance: AgentConfig = AgentConfig(Fix(WithImportance(Importance.Critical, value)))
+
+  def withCounting: AgentConfig    = AgentConfig(Fix(WithCounting(value = CountAction.Yes, value)))
+  def withTiming: AgentConfig      = AgentConfig(Fix(WithTiming(value = TimeAction.Yes, value)))
+  def withoutCounting: AgentConfig = AgentConfig(Fix(WithCounting(value = CountAction.No, value)))
+  def withoutTiming: AgentConfig   = AgentConfig(Fix(WithTiming(value = TimeAction.No, value)))
 
   def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
 

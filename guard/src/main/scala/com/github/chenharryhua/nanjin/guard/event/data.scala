@@ -81,6 +81,13 @@ private[guard] object MetricsSnapshot {
     rateTimeUnit: TimeUnit,
     durationTimeUnit: TimeUnit,
     zoneId: ZoneId): MetricsSnapshot = {
+
+    val filterOutZero: MetricFilter = (name: String, metric: Metric) =>
+      metric match {
+        case c: Counter => c.getCount > 0 && metricFilter.matches(name, metric)
+        case _          => metricFilter.matches(name, metric)
+      }
+
     val text: String = {
       val bao = new ByteArrayOutputStream
       val ps  = new PrintStream(bao)
@@ -89,7 +96,7 @@ private[guard] object MetricsSnapshot {
         .convertRatesTo(rateTimeUnit)
         .convertDurationsTo(durationTimeUnit)
         .formattedFor(TimeZone.getTimeZone(zoneId))
-        .filter(metricFilter)
+        .filter(filterOutZero)
         .outputTo(ps)
         .build()
         .report()
@@ -101,17 +108,19 @@ private[guard] object MetricsSnapshot {
     val json: Json = {
       val str =
         new ObjectMapper()
-          .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false, metricFilter))
+          .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false, filterOutZero))
           .writerWithDefaultPrettyPrinter()
           .writeValueAsString(metricRegistry)
       io.circe.jackson.parse(str).fold(_ => Json.Null, identity)
     }
 
-    val timers: Map[String, Long]   = metricRegistry.getTimers(metricFilter).asScala.view.mapValues(_.getCount).toMap
-    val counters: Map[String, Long] = metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
-    val meters: Map[String, Long]   = metricRegistry.getMeters(metricFilter).asScala.view.mapValues(_.getCount).toMap
+    val counters: Map[String, Long] =
+      metricRegistry.getCounters(filterOutZero).asScala.view.mapValues(_.getCount).toMap
 
-    MetricsSnapshot(timers ++ counters ++ meters, json, text)
+    val meters: Map[String, Long] =
+      metricRegistry.getMeters(metricFilter).asScala.view.mapValues(_.getCount).toMap
+
+    MetricsSnapshot(counters ++ meters, json, text)
   }
 
   def apply(metricRegistry: MetricRegistry, metricFilter: MetricFilter, params: ServiceParams): MetricsSnapshot =

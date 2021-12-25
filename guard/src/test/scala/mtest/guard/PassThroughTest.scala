@@ -33,7 +33,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("unsafe pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
-      IO(1).map(_ => action.broker("pt").unsafePassThrough(PassThroughObject(1, "a")))
+      IO(1).map(_ => action.broker("pt2").unsafePassThrough(PassThroughObject(1, "a")))
     }.debug()
       .map {
         case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
@@ -55,28 +55,19 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("01.error.counter.[counter/0135a608]") == 3)
-  }
-
-  test("counter - dec") {
-    val Some(last) = guard
-      .updateConfig(_.withMetricSchedule(crontabs.bihourly))
-      .eventStream(_.counter("counter").dec(1).delayBy(1.second).replicateA(3))
-      .compile
-      .last
-      .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("20.counter.[counter/0135a608]") == -3)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("05.counter.error.[counter/0135a608]") == 3)
   }
 
   test("warn") {
     val Some(last) = guard
       .updateConfig(_.withMetricSchedule(crontabs.c997))
       .eventStream(_.alert("oops").error("message").delayBy(1.second))
+      .debug()
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("01.error.alert.[oops/a32b945e]") == 1)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.alert.warn.[oops/a32b945e]") == 1)
   }
 
   test("meter") {

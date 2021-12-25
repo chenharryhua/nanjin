@@ -6,8 +6,9 @@ import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
+import com.codahale.metrics.{Counter, MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.guard.action.{servicePanicMRName, serviceRestartMRName}
 import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
@@ -56,9 +57,14 @@ final class ServiceGuard[F[_]] private[guard] (
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel)
 
+        val panicCounter: Counter   = publisher.metricRegistry.counter(servicePanicMRName)
+        val restartCounter: Counter = publisher.metricRegistry.counter(serviceRestartMRName)
+
         val theService: F[A] = retry.mtl
-          .retryingOnAllErrors(params.retry.policy[F], (ex: Throwable, rd) => publisher.servicePanic(rd, ex)) {
-            publisher.serviceReStarted *> Dispatcher[F].use(dispatcher =>
+          .retryingOnAllErrors(
+            params.retry.policy[F],
+            (ex: Throwable, rd) => publisher.servicePanic(rd, ex).map(_ => panicCounter.inc(1))) {
+            publisher.serviceReStarted.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
               agent(new Agent[F](publisher, dispatcher, AgentConfig(), metricFilter)))
           }
           .guarantee(publisher.serviceStopped(metricFilter) <* channel.close)

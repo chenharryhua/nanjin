@@ -2,11 +2,9 @@ package mtest.common
 
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import org.scalatest.funsuite.AnyFunSuite
+import cats.syntax.order.*
 
 class NJLogLevelTest extends AnyFunSuite {
-  test("should be compared: off > all") {
-    assert(NJLogLevel.OFF > NJLogLevel.ALL)
-  }
 
   test("should be compared: all < off") {
     val all: NJLogLevel = NJLogLevel.ALL

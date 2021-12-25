@@ -187,7 +187,7 @@ final class SlackPipe[F[_]] private[observers] (
       val msg: String =
         snapshot.counters.map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
-        KeyValueSection("Counters", "```No Counters Yet```")
+        KeyValueSection("Counters", "*No Counters*")
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
@@ -320,7 +320,7 @@ final class SlackPipe[F[_]] private[observers] (
             case Importance.Critical => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
             case Importance.High     => ("", ":warning: Warning", cfg.warnColor)
             case Importance.Medium   => ("", ":information_source: Info", cfg.infoColor)
-            case Importance.Low      => ("", "Not/Applicable/Yet", cfg.infoColor)
+            case Importance.Low      => (cfg.atSupporters, "oops", cfg.errorColor)
           }
           SlackApp(
             username = si.serviceParams.taskParams.appName,
@@ -376,14 +376,12 @@ final class SlackPipe[F[_]] private[observers] (
             case MetricReportType.AdventiveReport    => "Adventive Metrics Report"
             case MetricReportType.ScheduledReport(_) => "Metrics Report"
           }
-          val color =
-            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
 
           SlackApp(
             username = si.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
-                color = color,
+                color = cfg.infoColor,
                 blocks = List(
                   MarkdownSection(s"${cfg.metricsReportEmoji} *$name*"),
                   hostServiceSection(si.serviceParams),
@@ -405,15 +403,13 @@ final class SlackPipe[F[_]] private[observers] (
 
       case MetricsReset(rt, si, at, snapshot) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val color =
-            if (snapshot.counters.keys.exists(_.startsWith(EventPublisher.ATTENTION))) cfg.warnColor else cfg.infoColor
           rt match {
             case MetricResetType.AdventiveReset =>
               SlackApp(
                 username = si.serviceParams.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = color,
+                    color = cfg.infoColor,
                     blocks = List(
                       MarkdownSection("*Adventive Metrics Reset*"),
                       hostServiceSection(si.serviceParams),
@@ -441,7 +437,7 @@ final class SlackPipe[F[_]] private[observers] (
                 username = si.serviceParams.taskParams.appName,
                 attachments = List(
                   Attachment(
-                    color = color,
+                    color = cfg.infoColor,
                     blocks = List(
                       MarkdownSection(s"*This is summary of activities performed by the service in past $dur*"),
                       hostServiceSection(si.serviceParams),
@@ -511,7 +507,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance =!= Importance.Low && cfg.isShowRetry)
+          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.High && cfg.isShowRetry)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -541,7 +537,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance =!= Importance.Low)
+          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.Medium)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -566,7 +562,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.Critical)
+          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.High)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
