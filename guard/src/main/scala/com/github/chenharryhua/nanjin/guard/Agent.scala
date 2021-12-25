@@ -31,14 +31,9 @@ final class Agent[F[_]] private[guard] (
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
-  def normal: Agent[F]   = updateConfig(_.withLow)
-  def notice: Agent[F]   = updateConfig(_.withMedium)
-  def critical: Agent[F] = updateConfig(_.withHigh)
-
-  def withCounting: Agent[F]    = updateConfig(_.withCounting)
-  def withoutCounting: Agent[F] = updateConfig(_.withoutCounting)
-  def withTiming: Agent[F]      = updateConfig(_.withTiming)
-  def withoutTiming: Agent[F]   = updateConfig(_.withoutTiming)
+  def normal: Agent[F]   = updateConfig(_.withLowImportance)
+  def notice: Agent[F]   = updateConfig(_.withMediumImportance)
+  def critical: Agent[F] = updateConfig(_.withHighImportance)
 
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
@@ -103,7 +98,7 @@ final class Agent[F[_]] private[guard] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     span("nonStop")
-      .updateConfig(_.withNonTermination.withMaxRetries(0).withoutTiming.withoutCounting.withLow)
+      .updateConfig(_.withNonTermination.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
