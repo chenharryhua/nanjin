@@ -49,8 +49,10 @@ class PassThroughTest extends AnyFunSuite {
 
   test("counter") {
     val Some(last) = guard
-      .updateConfig(_.withMetricSchedule(crontabs.bihourly))
-      .eventStream(_.counter("counter").asError.inc(1).delayBy(1.second).replicateA(3))
+      .updateConfig(_.withMetricSchedule(crontabs.secondly))
+      .eventStream(ag =>
+        ag.counter("counter")
+          .inc(100) >> ag.metrics.reset >> ag.counter("counter").asError.inc(1).delayBy(1.second).replicateA(3))
       .debug()
       .compile
       .last
