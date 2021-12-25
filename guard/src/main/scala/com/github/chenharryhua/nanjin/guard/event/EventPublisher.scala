@@ -5,7 +5,7 @@ import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
-import com.codahale.metrics.{Counter, MetricFilter, MetricRegistry}
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -15,7 +15,7 @@ import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
-import scala.jdk.CollectionConverters.SetHasAsScala
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceInfo: ServiceInfo,
@@ -80,10 +80,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
       ))
       _ <- channel.send(msg)
-    } yield metricRegistry.getCounters(metricFilter).keySet().asScala.foreach { c =>
-      val entry: Counter = metricRegistry.counter(c)
-      entry.dec(entry.getCount)
-    }
+    } yield metricRegistry.getCounters(metricFilter).values().asScala.foreach(c => c.dec(c.getCount))
 
   /** actions
     */
