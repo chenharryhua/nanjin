@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.{Async, Resource}
-import cats.kernel.Order
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
@@ -429,15 +428,14 @@ final class SlackPipe[F[_]] private[observers] (
                   Attachment(color = cfg.infoColor, blocks = extra)
                 )
               )
-            case MetricResetType.ScheduledReset(prev, next) =>
-              val dur = cfg.durationFormatter.format(Order.max(prev, si.launchTime), at)
+            case MetricResetType.ScheduledReset(_, next) =>
               SlackApp(
                 username = si.serviceParams.taskParams.appName,
                 attachments = List(
                   Attachment(
                     color = cfg.infoColor,
                     blocks = List(
-                      MarkdownSection(s"*This is summary of activities performed by the service in past $dur*"),
+                      MarkdownSection(s"*Scheduled Metrics Reset*"),
                       hostServiceSection(si.serviceParams),
                       JuxtaposeSection(
                         TextField("Up Time", took(si.launchTime, at)),
