@@ -22,9 +22,10 @@ package object action {
 
   private[action] def alertMRName(name: MetricName, importance: Importance): String =
     importance match {
-      case Importance.High   => s"02.alert.error.[${name.value}]"
-      case Importance.Medium => s"10.alert.warn.[${name.value}]"
-      case Importance.Low    => s"21.alert.info.[${name.value}]"
+      case Importance.Critical => s"02.alert.error.[${name.value}]"
+      case Importance.High     => s"10.alert.warn.[${name.value}]"
+      case Importance.Medium   => s"21.alert.info.[${name.value}]"
+      case Importance.Low      => "not support yet"
     }
 
   private[action] def passThroughMRName(name: MetricName, asError: Boolean, countOrMeter: Boolean): String =

@@ -23,7 +23,7 @@ private[guard] object AgentParams {
 
   def apply(): AgentParams = AgentParams(
     spans = Nil,
-    importance = Importance.Low,
+    importance = Importance.Medium,
     isTerminate = ActionTermination.Yes,
     isCounting = CountAction.Yes,
     isTiming = TimeAction.Yes,
@@ -84,9 +84,10 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withNonTermination: AgentConfig =
     AgentConfig(Fix(WithTermination(value = ActionTermination.No, value)))
 
-  def withLowImportance: AgentConfig    = AgentConfig(Fix(WithImportance(Importance.Low, value)))
-  def withMediumImportance: AgentConfig = AgentConfig(Fix(WithImportance(Importance.Medium, value)))
-  def withHighImportance: AgentConfig   = AgentConfig(Fix(WithImportance(Importance.High, value)))
+  def withLowImportance: AgentConfig      = AgentConfig(Fix(WithImportance(Importance.Low, value)))
+  def withMediumImportance: AgentConfig   = AgentConfig(Fix(WithImportance(Importance.Medium, value)))
+  def withHighImportance: AgentConfig     = AgentConfig(Fix(WithImportance(Importance.High, value)))
+  def withCriticalImportance: AgentConfig = AgentConfig(Fix(WithImportance(Importance.Critical, value)))
 
   def withCounting: AgentConfig    = AgentConfig(Fix(WithCounting(value = CountAction.Yes, value)))
   def withTiming: AgentConfig      = AgentConfig(Fix(WithTiming(value = TimeAction.Yes, value)))

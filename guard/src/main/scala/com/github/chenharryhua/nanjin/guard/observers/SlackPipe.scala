@@ -317,9 +317,10 @@ final class SlackPipe[F[_]] private[observers] (
       case ServiceAlert(metricName, si, _, importance, message) =>
         val msg = cfg.extraSlackSections.map { extra =>
           val (users, title, color) = importance match {
-            case Importance.High   => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
-            case Importance.Medium => ("", ":warning: Warning", cfg.warnColor)
-            case Importance.Low    => ("", ":information_source: Info", cfg.infoColor)
+            case Importance.Critical => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
+            case Importance.High     => ("", ":warning: Warning", cfg.warnColor)
+            case Importance.Medium   => ("", ":information_source: Info", cfg.infoColor)
+            case Importance.Low      => (cfg.atSupporters, "oops", cfg.errorColor)
           }
           SlackApp(
             username = si.serviceParams.taskParams.appName,
@@ -476,7 +477,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.High)
+          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.Critical)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -506,7 +507,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance =!= Importance.Low && cfg.isShowRetry)
+          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.Medium && cfg.isShowRetry)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -536,7 +537,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance =!= Importance.Low)
+          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.Medium)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 

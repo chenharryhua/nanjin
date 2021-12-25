@@ -1,16 +1,15 @@
 package com.github.chenharryhua.nanjin.common
 
-import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import enumeratum.EnumEntry.Uppercase
+import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import org.typelevel.log4cats.extras.LogLevel
 
 import scala.collection.immutable
 
 sealed abstract class NJLogLevel(val value: Int, val logLevel: LogLevel)
-    extends EnumEntry with Ordered[NJLogLevel] with Serializable {
-  final override def compare(that: NJLogLevel): Int = Integer.compare(value, that.value)
-}
+    extends IntEnumEntry with Uppercase with Serializable
 
-object NJLogLevel extends Enum[NJLogLevel] with CatsEnum[NJLogLevel] with CirceEnum[NJLogLevel] {
+object NJLogLevel extends CatsOrderValueEnum[Int, NJLogLevel] with IntEnum[NJLogLevel] with IntCirceEnum[NJLogLevel] {
   override val values: immutable.IndexedSeq[NJLogLevel] = findValues
 
   case object ALL extends NJLogLevel(1, LogLevel.Trace)

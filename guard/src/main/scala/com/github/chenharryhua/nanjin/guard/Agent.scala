@@ -31,9 +31,10 @@ final class Agent[F[_]] private[guard] (
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
-  def normal: Agent[F]   = updateConfig(_.withLowImportance)
-  def notice: Agent[F]   = updateConfig(_.withMediumImportance)
-  def critical: Agent[F] = updateConfig(_.withHighImportance)
+  def trivial: Agent[F]  = updateConfig(_.withLowImportance)
+  def normal: Agent[F]   = updateConfig(_.withMediumImportance)
+  def notice: Agent[F]   = updateConfig(_.withHighImportance)
+  def critical: Agent[F] = updateConfig(_.withCriticalImportance)
 
   def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
     new ActionRetry[F, A, B](
