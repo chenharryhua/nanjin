@@ -507,7 +507,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.Medium && cfg.isShowRetry)
+          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.High && cfg.isShowRetry)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 

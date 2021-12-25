@@ -67,7 +67,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("02.alert.error.[oops/a32b945e]") == 1)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("10.alert.warn.[oops/a32b945e]") == 1)
   }
 
   test("meter") {
