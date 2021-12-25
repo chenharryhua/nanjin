@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
-import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
+import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import shapeless.{:+:, CNil}
 
 import scala.collection.immutable
@@ -12,7 +12,8 @@ sealed abstract class NJFileFormat(val value: Int, val format: String, val alias
 }
 
 object NJFileFormat
-    extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] with IntCirceEnum[NJFileFormat] {
+    extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] with IntCirceEnum[NJFileFormat]
+    with CatsValueEnum[Int, NJFileFormat] {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
   case object Unknown extends NJFileFormat(-1, "unknown", "unknown")

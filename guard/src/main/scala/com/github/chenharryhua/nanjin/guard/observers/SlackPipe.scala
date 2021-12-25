@@ -320,7 +320,7 @@ final class SlackPipe[F[_]] private[observers] (
             case Importance.Critical => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
             case Importance.High     => ("", ":warning: Warning", cfg.warnColor)
             case Importance.Medium   => ("", ":information_source: Info", cfg.infoColor)
-            case Importance.Low      => (cfg.atSupporters, "oops", cfg.errorColor)
+            case Importance.Low      => (cfg.atSupporters, "oops. should not happen", cfg.errorColor)
           }
           SlackApp(
             username = si.serviceParams.taskParams.appName,
@@ -337,7 +337,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(importance =!= Importance.Low)
+          _ <- sns.publish(m)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -507,7 +507,7 @@ final class SlackPipe[F[_]] private[observers] (
 
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.High && cfg.isShowRetry)
+          _ <- sns.publish(m).whenA(action.actionParams.importance >= Importance.Medium && cfg.isShowRetry)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 
@@ -562,7 +562,7 @@ final class SlackPipe[F[_]] private[observers] (
         }
         for {
           m <- msg.map(_.asJson.spaces2)
-          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.High)
+          _ <- sns.publish(m).whenA(action.actionParams.importance === Importance.Critical)
           _ <- logger.info(m).whenA(cfg.isLoggging)
         } yield ()
 

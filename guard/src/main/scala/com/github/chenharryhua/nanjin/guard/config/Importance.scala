@@ -1,14 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import enumeratum.EnumEntry.Lowercase
-import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
+import enumeratum.values.*
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract class Importance(val value: Int) extends IntEnumEntry with Lowercase
+sealed abstract class Importance(val value: Int) extends IntEnumEntry
 
-object Importance extends CatsOrderValueEnum[Int, Importance] with IntEnum[Importance] with IntCirceEnum[Importance] {
+object Importance
+    extends CatsOrderValueEnum[Int, Importance] with IntEnum[Importance] with IntCirceEnum[Importance]
+    with CatsValueEnum[Int, Importance] {
   override val values: immutable.IndexedSeq[Importance] = findValues
 
   case object Critical extends Importance(40)
