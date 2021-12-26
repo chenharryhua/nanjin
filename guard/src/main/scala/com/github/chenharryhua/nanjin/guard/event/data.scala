@@ -154,6 +154,6 @@ object MetricReportType {
     override val isShow: Boolean = true
   }
   final case class ScheduledReport(index: Long) extends MetricReportType {
-    override val isShow: Boolean = index === 1
+    override val isShow: Boolean = index === 0
   }
 }
