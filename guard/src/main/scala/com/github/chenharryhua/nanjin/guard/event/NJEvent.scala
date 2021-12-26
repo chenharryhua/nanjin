@@ -10,9 +10,13 @@ import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
+import java.util.UUID
 
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
+  def serviceInfo: ServiceInfo
+  def uuid: UUID
+  def metricName: MetricName
   final def show: String = NJEvent.showNJEvent.show(this)
   final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
 }
@@ -24,37 +28,48 @@ object NJEvent {
 }
 
 sealed trait ServiceEvent extends NJEvent {
-  def serviceInfo: ServiceInfo // service runtime infomation
+  final override def uuid: UUID = serviceInfo.uuid
+
 }
 
-final case class ServiceStarted(serviceInfo: ServiceInfo, timestamp: ZonedDateTime) extends ServiceEvent
+final case class ServiceStarted(serviceInfo: ServiceInfo, timestamp: ZonedDateTime) extends ServiceEvent {
+  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+}
 
 final case class ServicePanic(
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   retryDetails: RetryDetails,
   error: NJError
-) extends ServiceEvent
+) extends ServiceEvent {
+  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+}
 
 final case class ServiceStopped(
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   snapshot: MetricsSnapshot
-) extends ServiceEvent
+) extends ServiceEvent {
+  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+}
 
 final case class MetricsReport(
   reportType: MetricReportType,
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   snapshot: MetricsSnapshot
-) extends ServiceEvent
+) extends ServiceEvent {
+  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+}
 
 final case class MetricsReset(
   resetType: MetricResetType,
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   snapshot: MetricsSnapshot
-) extends ServiceEvent
+) extends ServiceEvent {
+  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+}
 
 final case class ServiceAlert(
   metricName: MetricName,
@@ -74,6 +89,9 @@ final case class PassThrough(
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
+  final override def serviceInfo: ServiceInfo = actionInfo.serviceInfo
+  final override def uuid: UUID               = actionInfo.uuid
+  override def metricName: MetricName         = actionInfo.actionParams.metricName
 }
 
 final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {

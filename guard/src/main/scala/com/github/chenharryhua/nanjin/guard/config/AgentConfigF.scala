@@ -105,7 +105,7 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
 
   def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
 
-  def withAlias(alias: String): AgentConfig = AgentConfig(Fix(WithAlias(alias, value)))
+  def withAlias(alias: String): AgentConfig = AgentConfig(Fix(WithAlias(alias.toLowerCase, value)))
 
   def evalConfig: AgentParams = scheme.cata(algebra).apply(value)
 }
