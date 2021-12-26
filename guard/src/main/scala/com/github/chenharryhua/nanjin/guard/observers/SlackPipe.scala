@@ -464,8 +464,8 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.infoColor,
                 blocks = List(
                   MarkdownSection(
-                    s"${cfg.startActionEmoji} Kick off action: *${ai.actionParams.metricName.value}*".stripMargin),
-                  MarkdownSection(s"""|*Action ID:* ${ai.uuid.show}""".stripMargin),
+                    s"${cfg.startActionEmoji} Kick off ${ai.actionParams.alias}: *${ai.actionParams.metricName.value}*".stripMargin),
+                  MarkdownSection(s"""|*${ai.actionParams.alias} ID:* ${ai.uuid.show}""".stripMargin),
                   hostServiceSection(ai.serviceInfo.serviceParams)
                 )
               ))
@@ -481,7 +481,7 @@ final class SlackPipe[F[_]] private[observers] (
         val msg = cfg.extraSlackSections.map { _ =>
           val header: String =
             s"${cfg.retryActionEmoji} This is the *${toOrdinalWords(wdr.retriesSoFar + 1L)}* " +
-              s"failure of the action *${ai.actionParams.metricName.value}*, " +
+              s"failure of the ${ai.actionParams.alias} *${ai.actionParams.metricName.value}*, " +
               s"took *${took(ai.launchTime, nowTs)}* so far, " +
               s"retry of which takes place in *${cfg.durationFormatter.format(wdr.nextDelay)}*."
 
@@ -492,8 +492,8 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.warnColor,
                 blocks = List(
                   MarkdownSection(header),
-                  MarkdownSection(s"""|*Action ID:* ${ai.uuid.show}
-                                      |*Retry Policy:* ${ai.actionParams.retry.policy[F].show}""".stripMargin),
+                  MarkdownSection(s"""|*${ai.actionParams.alias} ID:* ${ai.uuid.show}
+                                      |*policy:* ${ai.actionParams.retry.policy[F].show}""".stripMargin),
                   hostServiceSection(ai.serviceInfo.serviceParams),
                   KeyValueSection("Cause", s"```${abbreviate(error.stackTrace)}```")
                 )
@@ -509,7 +509,7 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionFailed(ai, nowTs, numRetries, notes, error) =>
         val msg = cfg.extraSlackSections.map { extra =>
-          val header = s"${cfg.failActionEmoji} The action *${ai.actionParams.metricName.value}* " +
+          val header = s"${cfg.failActionEmoji} The ${ai.actionParams.alias} *${ai.actionParams.metricName.value}* " +
             s"was failed after *${numRetries.show}* retries, " +
             s"took *${took(ai.launchTime, nowTs)}*. ${cfg.atSupporters}"
 
@@ -520,9 +520,9 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.errorColor,
                 blocks = List(
                   MarkdownSection(header),
-                  MarkdownSection(s"""|*Action ID:* ${ai.uuid.show}
-                                      |*Error ID:* ${error.uuid.show}
-                                      |*Retry Policy:* ${ai.actionParams.retry.policy[F].show}""".stripMargin),
+                  MarkdownSection(s"""|*${ai.actionParams.alias} ID:* ${ai.uuid.show}
+                                      |*error ID:* ${error.uuid.show}
+                                      |*policy:* ${ai.actionParams.retry.policy[F].show}""".stripMargin),
                   hostServiceSection(ai.serviceInfo.serviceParams),
                   KeyValueSection("Cause", s"```${abbreviate(error.stackTrace)}```")
                 ) ::: (if (notes.value.isEmpty) Nil else List(MarkdownSection(abbreviate(notes.value))))
@@ -539,7 +539,7 @@ final class SlackPipe[F[_]] private[observers] (
 
       case ActionSucced(ai, nowTs, numRetries, notes) =>
         val msg = cfg.extraSlackSections.map { _ =>
-          val header = s"${cfg.succActionEmoji} The action *${ai.actionParams.metricName.value}* " +
+          val header = s"${cfg.succActionEmoji} The ${ai.actionParams.alias} *${ai.actionParams.metricName.value}* " +
             s"was accomplished in *${took(ai.launchTime, nowTs)}*, after *${numRetries.show}* retries"
 
           SlackApp(
@@ -549,7 +549,7 @@ final class SlackPipe[F[_]] private[observers] (
                 color = cfg.goodColor,
                 blocks = List(
                   MarkdownSection(header),
-                  MarkdownSection(s"*Action ID:* ${ai.uuid.show}"),
+                  MarkdownSection(s"*${ai.actionParams.alias} ID:* ${ai.uuid.show}"),
                   hostServiceSection(ai.serviceInfo.serviceParams)
                 ) ::: (if (notes.value.isEmpty) Nil else List(MarkdownSection(abbreviate(notes.value))))
               )

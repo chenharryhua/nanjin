@@ -16,7 +16,8 @@ import scala.concurrent.duration.*
   isTerminate: ActionTermination,
   isCounting: CountAction,
   isTiming: TimeAction,
-  retry: ActionRetryParams)
+  retry: ActionRetryParams,
+  alias: String)
 
 private[guard] object AgentParams {
   implicit val showAgentParams: Show[AgentParams] = cats.derived.semiauto.show[AgentParams]
@@ -27,7 +28,12 @@ private[guard] object AgentParams {
     isTerminate = ActionTermination.Yes,
     isCounting = CountAction.Yes,
     isTiming = TimeAction.Yes,
-    retry = ActionRetryParams(maxRetries = 0, capDelay = None, njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds))
+    retry = ActionRetryParams(
+      maxRetries = 0,
+      capDelay = None,
+      njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds)
+    ),
+    alias = "action"
   )
 }
 
@@ -49,6 +55,8 @@ private object AgentConfigF {
   final case class WithTiming[K](value: TimeAction, cont: K) extends AgentConfigF[K]
   final case class WithCounting[K](value: CountAction, cont: K) extends AgentConfigF[K]
 
+  final case class WithAlias[K](value: String, cont: K) extends AgentConfigF[K]
+
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
       case InitParams()          => AgentParams()
@@ -60,6 +68,7 @@ private object AgentConfigF {
       case WithSpans(v, c)       => AgentParams.spans.modify(_ ::: v)(c)
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
+      case WithAlias(v, c)       => AgentParams.alias.set(v)(c)
     }
 }
 
@@ -95,6 +104,8 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withoutTiming: AgentConfig   = AgentConfig(Fix(WithTiming(value = TimeAction.No, value)))
 
   def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
+
+  def withAlias(alias: String): AgentConfig = AgentConfig(Fix(WithAlias(alias, value)))
 
   def evalConfig: AgentParams = scheme.cata(algebra).apply(value)
 }

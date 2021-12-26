@@ -64,7 +64,8 @@ final case class ActionParams private (
   isTerminate: ActionTermination,
   isCounting: CountAction,
   isTiming: TimeAction,
-  retry: ActionRetryParams)
+  retry: ActionRetryParams,
+  alias: String)
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
@@ -76,6 +77,7 @@ object ActionParams {
       isTerminate = agentParams.isTerminate,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
-      retry = agentParams.retry
+      retry = agentParams.retry,
+      alias = agentParams.alias
     )
 }
