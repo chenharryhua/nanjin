@@ -29,7 +29,7 @@ sealed trait SimpleQueueService[F[_]] {
     fetchRecords(sqs).flatMap(sar => Stream.emits(sqsS3Parser(sar.messageAction.message.body())))
 }
 
-object SimpleQueueService {
+object sqs {
   private val name: String = "aws.SQS"
 
   def fake[F[_]](stream: Stream[F, SqsAckResult])(implicit F: Applicative[F]): Resource[F, SimpleQueueService[F]] =
@@ -40,7 +40,7 @@ object SimpleQueueService {
   def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit
     F: Async[F]): Resource[F, SimpleQueueService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new SQS[F](akkaSystem, bufferSize))) {
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, bufferSize))) {
       case (cw, quitCase) =>
         val logging = quitCase match {
           case ExitCase.Succeeded  => logger.info(s"$name  was closed normally")
@@ -54,7 +54,7 @@ object SimpleQueueService {
   def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
     apply[F](akkaSystem, 1024)
 
-  final private class SQS[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F])
+  final private class AwsSQS[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F])
       extends SimpleQueueService[F] with ShutdownService[F] {
 
     implicit private val client: SqsAsyncClient =

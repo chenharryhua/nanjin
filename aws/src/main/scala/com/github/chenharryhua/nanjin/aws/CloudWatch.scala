@@ -24,7 +24,7 @@ object CloudWatch {
 
   def apply[F[_]](implicit F: Sync[F]): Resource[F, CloudWatch[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new CloudWathImpl(logger))) { case (cw, quitCase) =>
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsCloudWatch(logger))) { case (cw, quitCase) =>
       val logging = quitCase match {
         case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
         case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
@@ -34,7 +34,7 @@ object CloudWatch {
     }
   }
 
-  final private class CloudWathImpl[F[_]](logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsCloudWatch[F[_]](logger: Logger[F])(implicit F: Sync[F])
       extends CloudWatch[F] with ShutdownService[F] {
 
     private val client: AmazonCloudWatch = AmazonCloudWatchClientBuilder.standard().build()

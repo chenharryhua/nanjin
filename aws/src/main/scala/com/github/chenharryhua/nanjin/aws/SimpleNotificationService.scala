@@ -14,7 +14,7 @@ sealed trait SimpleNotificationService[F[_]] {
   def publish(msg: => String): F[PublishResult]
 }
 
-object SimpleNotificationService {
+object sns {
   private val name: String = "aws.SNS"
 
   def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
@@ -27,7 +27,7 @@ object SimpleNotificationService {
 
   def apply[F[_]](topic: SnsArn, region: Regions)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new SNS[F](topic, region, logger))) {
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSNS[F](topic, region, logger))) {
       case (cw, quitCase) =>
         val logging = quitCase match {
           case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
@@ -40,7 +40,7 @@ object SimpleNotificationService {
 
   def apply[F[_]: Sync](topic: SnsArn): Resource[F, SimpleNotificationService[F]] = apply[F](topic, defaultRegion)
 
-  final private class SNS[F[_]](topic: SnsArn, region: Regions, logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsSNS[F[_]](topic: SnsArn, region: Regions, logger: Logger[F])(implicit F: Sync[F])
       extends SimpleNotificationService[F] with ShutdownService[F] {
     private val snsClient: AmazonSNS = AmazonSNSClientBuilder.standard().withRegion(region).build()
 

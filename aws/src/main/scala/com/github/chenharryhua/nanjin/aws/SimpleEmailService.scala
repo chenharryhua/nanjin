@@ -8,22 +8,22 @@ import com.amazonaws.services.simpleemail.model.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 @JsonCodec
 final case class EmailContent(from: String, to: List[String], subject: String, body: String)
 
-trait Email[F[_]] {
+trait SimpleEmailService[F[_]] {
   def send(txt: EmailContent): F[SendEmailResult]
 }
 
-object Email {
-  private val name: String = "aws.Email"
-  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, Email[F]] = {
+object ses {
+  private val name: String = "aws.SES"
+  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new EmailImpl[F](regions, logger))) {
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSES[F](regions, logger))) {
       case (cw, quitCase) =>
         val logging = quitCase match {
           case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
@@ -34,18 +34,18 @@ object Email {
     }
   }
 
-  def apply[F[_]: Sync]: Resource[F, Email[F]] = apply[F](defaultRegion)
+  def apply[F[_]: Sync]: Resource[F, SimpleEmailService[F]] = apply[F](defaultRegion)
 
-  def fake[F[_]](implicit F: Sync[F]): Resource[F, Email[F]] = {
+  def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.make(F.pure(new Email[F] {
+    Resource.make(F.pure(new SimpleEmailService[F] {
       override def send(txt: EmailContent): F[SendEmailResult] =
         logger.info(txt.asJson.noSpaces) *> F.pure(new SendEmailResult)
     }))(_ => F.unit)
   }
 
-  final private class EmailImpl[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
-      extends Email[F] with ShutdownService[F] {
+  final private class AwsSES[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
+      extends SimpleEmailService[F] with ShutdownService[F] {
 
     private val client: AmazonSimpleEmailService =
       AmazonSimpleEmailServiceClientBuilder.standard().withRegion(regions).build
