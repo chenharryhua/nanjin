@@ -3,14 +3,19 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunctorOps, toTraverseOps}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{ses, EmailContent, SimpleEmailService}
+import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
+import org.typelevel.cats.time.instances.all
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalatags.Text
 import scalatags.Text.all.*
 
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 object email {
 
@@ -19,7 +24,15 @@ object email {
     to: List[String],
     subject: String,
     client: Resource[F, SimpleEmailService[F]]): NJEmail[F] =
-    new NJEmail[F](from, to, subject, client, 60, 60.minutes, Reader(_ => div()), false)
+    new NJEmail[F](
+      from = from,
+      to = to,
+      subject = subject,
+      client = client,
+      chunkSize = 60,
+      interval = 60.minutes,
+      handlePassThrough = Reader(_ => div()),
+      isLogging = false)
 
   def apply[F[_]: Async](from: String, to: List[String], subject: String): NJEmail[F] =
     apply[F](from, to, subject, ses[F])
@@ -35,7 +48,7 @@ final class NJEmail[F[_]: Async] private[observers] (
   interval: FiniteDuration,
   handlePassThrough: Reader[PassThrough, Text.TypedTag[String]],
   isLogging: Boolean
-) extends Pipe[F, NJEvent, String] {
+) extends Pipe[F, NJEvent, String] with all {
 
   private def copy(
     chunkSize: Int = chunkSize,
@@ -62,71 +75,79 @@ final class NJEmail[F[_]: Async] private[observers] (
       _ <- Stream.eval(logger.info("\n" + m).whenA(isLogging))
     } yield m
 
+  private def showTimestamp(timestamp: ZonedDateTime): String      = timestamp.truncatedTo(ChronoUnit.SECONDS).show
+  private val fmt: DurationFormatter                               = DurationFormatter.defaultFormatter
+  private def took(from: ZonedDateTime, to: ZonedDateTime): String = fmt.format(from, to)
+
   private def hostService(si: ServiceInfo): Text.TypedTag[String] =
-    p(b("Service:"), si.serviceParams.serviceName, " ", b("Host:"), si.serviceParams.taskParams.hostName)
+    p(b("Service: "), si.serviceParams.serviceName, " ", b("Host: "), si.serviceParams.taskParams.hostName)
 
   def transform(event: NJEvent): Text.TypedTag[String] =
     event match {
       case ServiceStarted(serviceInfo, timestamp) =>
-        div(h3("Service Started"), hostService(serviceInfo))
+        div(h3(s"Service Started - ${showTimestamp(timestamp)}"), hostService(serviceInfo))
       case ServicePanic(serviceInfo, timestamp, retryDetails, error) =>
         div(
-          h3("Service Panic"),
+          h3(s"Service Panic - ${timestamp.truncatedTo(ChronoUnit.SECONDS).show}"),
           hostService(serviceInfo),
+          p(b("Retries so far"), retryDetails.retriesSoFar),
+          p(b("Cause")),
           pre(error.stackTrace)
         )
       case ServiceStopped(serviceInfo, timestamp, snapshot) =>
         div(
-          h3("Service Stopped"),
+          h3(s"Service Stopped - ${showTimestamp(timestamp)}"),
           hostService(serviceInfo),
           pre(snapshot.show)
         )
       case MetricsReport(reportType, serviceInfo, timestamp, snapshot) =>
         div(
-          h3("Metrics Report"),
+          h3(s"${reportType.show} - ${showTimestamp(timestamp)}"),
           hostService(serviceInfo),
           pre(snapshot.show)
         )
       case MetricsReset(resetType, serviceInfo, timestamp, snapshot) =>
         div(
-          h3("Metrics Reset"),
+          h3(s"${resetType.show} - ${showTimestamp(timestamp)}"),
           hostService(serviceInfo),
           pre(snapshot.show)
         )
       case ServiceAlert(metricName, serviceInfo, timestamp, importance, message) =>
         div(
-          h3("Service Alert"),
+          h3(s"Service Alert - ${showTimestamp(timestamp)}"),
           hostService(serviceInfo),
+          p(b("Name: "), metricName.value, b("Importance: "), importance.show),
           pre(message)
         )
 
-      case ActionStart(actionInfo) =>
-        div(
-          h3("Action Start"),
-          hostService(actionInfo.serviceInfo),
-          p("Kick off ", actionInfo.actionParams.alias),
-          ": ",
-          b(actionInfo.actionParams.metricName.value)
-        )
-      case ActionRetrying(actionInfo, timestamp, willDelayAndRetry, error) =>
-        div(
-          h3("Action Retrying"),
-          hostService(actionInfo.serviceInfo),
-          pre(error.stackTrace)
-        )
       case ActionFailed(actionInfo, timestamp, numRetries, notes, error) =>
         div(
-          h3("Action Failed"),
+          h3(s"Action Failed - ${showTimestamp(timestamp)}"),
           hostService(actionInfo.serviceInfo),
+          p(b(s"${actionInfo.actionParams.alias}: "), actionInfo.actionParams.metricName.value),
+          p(b(s"${actionInfo.actionParams.alias} ID: "), actionInfo.uuid.show),
+          p(b("error ID: "), error.uuid.show),
+          p(b("policy: "), actionInfo.actionParams.retry.policy[F].show),
+          p(b("Took: "), took(actionInfo.launchTime, timestamp)),
+          p(b("Number of Retries: "), numRetries.toString),
+          pre(notes.value),
+          p(b("Cause: ")),
           pre(error.stackTrace)
         )
+
       case ActionSucced(actionInfo, timestamp, numRetries, notes) =>
         div(
-          h3("Action Succed"),
+          h3(s"Action Succed - ${showTimestamp(timestamp)}"),
           hostService(actionInfo.serviceInfo),
+          p(b(s"${actionInfo.actionParams.alias}: "), actionInfo.actionParams.metricName.value),
+          p(b(s"${actionInfo.actionParams.alias} ID: "), actionInfo.uuid.show),
+          p(b("Took: "), took(actionInfo.launchTime, timestamp)),
+          p(b("Number of Retries: "), numRetries.toString),
           pre(notes.value)
         )
 
-      case pt: PassThrough => handlePassThrough(pt)
+      case _: ActionStart    => div()
+      case _: ActionRetrying => div()
+      case pt: PassThrough   => handlePassThrough(pt)
     }
 }

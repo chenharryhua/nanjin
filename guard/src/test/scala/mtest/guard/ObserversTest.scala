@@ -31,12 +31,17 @@ class ObserversTest extends AnyFunSuite {
 
   test("mail") {
     val mail =
-      email[IO]("from", List("to"), "subjct", ses.fake[IO]).withInterval(3.seconds).withChunkSize(3).withLogging
+      email[IO]("from", List("to"), "subjct", ses.fake[IO]).withInterval(5.seconds).withChunkSize(100).withLogging
 
     TaskGuard[IO]("ses")
       .service("email")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(1.second))
-      .eventStream(_.span("mail").run(IO.raiseError(new Exception).whenA(Random.nextBoolean())).foreverM)
+      .eventStream(
+        _.span("mail")
+          .max(3)
+          .updateConfig(_.withConstantDelay(1.second))
+          .run(IO.raiseError(new Exception).whenA(Random.nextBoolean()))
+          .foreverM)
       .interruptAfter(15.seconds)
       .through(mail)
       .compile

@@ -139,7 +139,10 @@ private[guard] object MetricsSnapshot {
 @JsonCodec
 sealed trait MetricResetType
 object MetricResetType {
-  implicit val showMetricResetType: Show[MetricResetType] = cats.derived.semiauto.show[MetricResetType]
+  implicit val showMetricResetType: Show[MetricResetType] = {
+    case AdventiveReset       => "Metrics Adventive Reset"
+    case ScheduledReset(next) => s"Metrics Scheduled Reset(next=${next.show})"
+  }
   case object AdventiveReset extends MetricResetType
   final case class ScheduledReset(next: ZonedDateTime) extends MetricResetType
 }
@@ -148,8 +151,12 @@ object MetricResetType {
 sealed trait MetricReportType {
   def isShow: Boolean
 }
+
 object MetricReportType {
-  implicit val showMetricReportType: Show[MetricReportType] = cats.derived.semiauto.show[MetricReportType]
+  implicit val showMetricReportType: Show[MetricReportType] = {
+    case AdventiveReport        => "Metrics Adventive Report"
+    case ScheduledReport(index) => s"Metrics Scheduled Report(index=$index)"
+  }
   case object AdventiveReport extends MetricReportType {
     override val isShow: Boolean = true
   }
