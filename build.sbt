@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.7"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.13.6-SNAPSHOT"
+ThisBuild / version            := "0.13.7-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 // generic
@@ -348,7 +348,8 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.cb372" %% "cats-retry-mtl" % "3.1.0"
+      "com.github.cb372" %% "cats-retry-mtl" % "3.1.0",
+      "com.lihaoyi" %% "scalatags" % "0.11.0"
     ) ++ cronLib ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib
   )
 

@@ -88,14 +88,14 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withQueueCapacity(size: Int): ServiceConfig  = ServiceConfig(Fix(WithQueueCapacity(size, value)))
   def withServiceName(name: String): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
 
-  def withMetricSchedule(interval: FiniteDuration): ServiceConfig =
+  def withMetricReport(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithReportSchedule(Some(Left(interval)), value)))
 
-  def withMetricSchedule(crontab: CronExpr): ServiceConfig =
+  def withMetricReport(crontab: CronExpr): ServiceConfig =
     ServiceConfig(Fix(WithReportSchedule(Some(Right(crontab)), value)))
 
-  def withMetricSchedule(crontab: String): ServiceConfig =
-    withMetricSchedule(Cron.unsafeParse(crontab))
+  def withMetricReport(crontab: String): ServiceConfig =
+    withMetricReport(Cron.unsafeParse(crontab))
 
   def withMetricReset(crontab: CronExpr): ServiceConfig = ServiceConfig(Fix(WithResetSchedule(Some(crontab), value)))
   def withMetricReset(crontab: String): ServiceConfig   = withMetricReset(Cron.unsafeParse(crontab))

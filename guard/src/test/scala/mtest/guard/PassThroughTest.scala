@@ -49,7 +49,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("counter") {
     val Some(last) = guard
-      .updateConfig(_.withMetricSchedule(crontabs.secondly))
+      .updateConfig(_.withMetricReport(crontabs.secondly))
       .eventStream(ag =>
         ag.counter("counter")
           .inc(100) >> ag.metrics.reset >> ag.counter("counter").asError.inc(1).delayBy(1.second).replicateA(3))
@@ -62,7 +62,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("alert") {
     val Some(last) = guard
-      .updateConfig(_.withMetricSchedule(crontabs.c997))
+      .updateConfig(_.withMetricReport(crontabs.c997))
       .eventStream(_.alert("oops").error("message").delayBy(1.second))
       .debug()
       .interruptAfter(5.seconds)
@@ -74,10 +74,10 @@ class PassThroughTest extends AnyFunSuite {
 
   test("meter") {
     guard
-      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
         val meter = agent.meter("nj.test.meter")
-        (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(15)
+        (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging[IO](_.show))
       .compile
@@ -87,10 +87,10 @@ class PassThroughTest extends AnyFunSuite {
 
   test("histogram") {
     guard
-      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
         val meter = agent.histogram("nj.test.histogram")
-        (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(15)
+        (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging[IO](_.show))
       .compile

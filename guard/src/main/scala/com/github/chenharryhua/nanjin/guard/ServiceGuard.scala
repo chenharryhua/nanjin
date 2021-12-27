@@ -80,13 +80,13 @@ final class ServiceGuard[F[_]] private[guard] (
               Stream
                 .fixedRate[F](dur)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2 + 1)))
+                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2)))
                 .drain
             case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2 + 1)))
+                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2)))
                 .drain
             case None => Stream.empty
           }

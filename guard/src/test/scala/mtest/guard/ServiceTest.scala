@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
+import com.github.chenharryhua.nanjin.aws.{sns, SimpleNotificationService}
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
@@ -83,7 +83,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
-      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.retry(IO.never).run)
       .debug()
@@ -100,7 +100,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("force reset") {
     val s :: b :: c :: rest = guard
-      .updateConfig(_.withMetricSchedule(1.second))
+      .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .compile
@@ -143,18 +143,4 @@ class ServiceTest extends AnyFunSuite {
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
   }
 
-  test("slack") {
-    TaskGuard[IO]("slack")
-      .service("slack")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricSchedule(crontabs.secondly).withQueueCapacity(20))
-      .eventStream { root =>
-        val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
-      }
-      .evalTap(logging[IO](_.show))
-      .through(slack[IO](SimpleNotificationService.fake[IO]).at("@chenh"))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
 }

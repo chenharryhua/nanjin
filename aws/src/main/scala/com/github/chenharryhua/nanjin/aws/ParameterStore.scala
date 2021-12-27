@@ -36,7 +36,7 @@ object ParameterStore {
 
   def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, ParameterStore[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new PS(regions, logger))) { case (cw, quitCase) =>
+    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(regions, logger))) { case (cw, quitCase) =>
       val logging = quitCase match {
         case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
         case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
@@ -48,7 +48,7 @@ object ParameterStore {
 
   def apply[F[_]: Async]: Resource[F, ParameterStore[F]] = apply[F](defaultRegion)
 
-  final private class PS[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsPS[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
       extends ParameterStore[F] with ShutdownService[F] {
     private val client: AWSSimpleSystemsManagement =
       AWSSimpleSystemsManagementClientBuilder.standard.withRegion(regions).build
