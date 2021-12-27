@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
+import com.github.chenharryhua.nanjin.aws.{sns, SimpleNotificationService}
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
@@ -143,18 +143,4 @@ class ServiceTest extends AnyFunSuite {
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
   }
 
-  test("slack") {
-    TaskGuard[IO]("slack")
-      .service("slack")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
-      .eventStream { root =>
-        val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
-      }
-      .evalTap(logging[IO](_.show))
-      .through(slack[IO](SimpleNotificationService.fake[IO]).at("@chenh"))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
 }

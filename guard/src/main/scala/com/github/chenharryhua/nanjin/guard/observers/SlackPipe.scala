@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
+import com.github.chenharryhua.nanjin.aws.{sns, SimpleNotificationService}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
@@ -47,7 +47,7 @@ object slack {
       )
     )
 
-  def apply[F[_]: Async](snsArn: SnsArn): SlackPipe[F] = apply[F](SimpleNotificationService[F](snsArn))
+  def apply[F[_]: Async](snsArn: SnsArn): SlackPipe[F] = apply[F](sns[F](snsArn))
 }
 
 final private case class SlackConfig[F[_]](
