@@ -6,6 +6,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{ses, EmailContent, SimpleEmailService}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
+import com.github.chenharryhua.nanjin.guard.action.actionName
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.all
@@ -75,75 +76,85 @@ final class NJEmail[F[_]: Async] private[observers] (
       _ <- Stream.eval(logger.info("\n" + m).whenA(isLogging))
     } yield m
 
-  private def showTimestamp(timestamp: ZonedDateTime): String      = timestamp.truncatedTo(ChronoUnit.SECONDS).show
-  private val fmt: DurationFormatter                               = DurationFormatter.defaultFormatter
-  private def took(from: ZonedDateTime, to: ZonedDateTime): String = fmt.format(from, to)
+  private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
+    p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+  private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
+  private def tookText(from: ZonedDateTime, to: ZonedDateTime): Text.TypedTag[String] =
+    p(b("took: "), fmt.format(from, to))
 
-  private def hostService(si: ServiceInfo): Text.TypedTag[String] =
-    p(b("Service: "), si.serviceParams.serviceName, " ", b("Host: "), si.serviceParams.taskParams.hostName)
+  private def retriesText(numRetry: Int): Text.TypedTag[String] =
+    p(b("number of retries: "), numRetry.toString)
+
+  private def hostServiceText(si: ServiceInfo): Text.TypedTag[String] =
+    p(b("service: "), si.serviceParams.metricName.value, " ", b("host: "), si.serviceParams.taskParams.hostName)
+
+  private def notesText(n: Notes): Text.TypedTag[String]   = p(b("notes: "), pre(n.value))
+  private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
   def transform(event: NJEvent): Text.TypedTag[String] =
     event match {
       case ServiceStarted(serviceInfo, timestamp) =>
-        div(h3(s"Service Started - ${showTimestamp(timestamp)}"), hostService(serviceInfo))
+        div(h3(s"Service Started"), timestampText(timestamp), hostServiceText(serviceInfo))
       case ServicePanic(serviceInfo, timestamp, retryDetails, error) =>
         div(
-          h3(s"Service Panic - ${timestamp.truncatedTo(ChronoUnit.SECONDS).show}"),
-          hostService(serviceInfo),
-          p(b("Retries so far"), retryDetails.retriesSoFar),
-          p(b("Cause")),
+          h3(s"Service Panic"),
+          timestampText(timestamp),
+          hostServiceText(serviceInfo),
+          p(b("restart so far: "), retryDetails.retriesSoFar),
+          p(b("cause: ")),
           pre(error.stackTrace)
         )
       case ServiceStopped(serviceInfo, timestamp, snapshot) =>
         div(
-          h3(s"Service Stopped - ${showTimestamp(timestamp)}"),
-          hostService(serviceInfo),
+          h3(s"Service Stopped"),
+          timestampText(timestamp),
+          hostServiceText(serviceInfo),
           pre(snapshot.show)
         )
-      case MetricsReport(reportType, serviceInfo, timestamp, snapshot) =>
+      case MetricsReport(reportType, serviceInfo, _, snapshot) =>
         div(
-          h3(s"${reportType.show} - ${showTimestamp(timestamp)}"),
-          hostService(serviceInfo),
+          h3(reportType.show),
+          hostServiceText(serviceInfo),
           pre(snapshot.show)
         )
-      case MetricsReset(resetType, serviceInfo, timestamp, snapshot) =>
+      case MetricsReset(resetType, serviceInfo, _, snapshot) =>
         div(
-          h3(s"${resetType.show} - ${showTimestamp(timestamp)}"),
-          hostService(serviceInfo),
+          h3(resetType.show),
+          hostServiceText(serviceInfo),
           pre(snapshot.show)
         )
       case ServiceAlert(metricName, serviceInfo, timestamp, importance, message) =>
         div(
-          h3(s"Service Alert - ${showTimestamp(timestamp)}"),
-          hostService(serviceInfo),
+          h3("Service Alert"),
+          timestampText(timestamp),
+          hostServiceText(serviceInfo),
           p(b("Name: "), metricName.value, b("Importance: "), importance.show),
           pre(message)
         )
 
       case ActionFailed(actionInfo, timestamp, numRetries, notes, error) =>
         div(
-          h3(s"Action Failed - ${showTimestamp(timestamp)}"),
-          hostService(actionInfo.serviceInfo),
-          p(b(s"${actionInfo.actionParams.alias}: "), actionInfo.actionParams.metricName.value),
+          h3(s"${actionInfo.actionParams.actionName} Failed"),
+          timestampText(timestamp),
+          hostServiceText(actionInfo.serviceInfo),
           p(b(s"${actionInfo.actionParams.alias} ID: "), actionInfo.uuid.show),
           p(b("error ID: "), error.uuid.show),
           p(b("policy: "), actionInfo.actionParams.retry.policy[F].show),
-          p(b("Took: "), took(actionInfo.launchTime, timestamp)),
-          p(b("Number of Retries: "), numRetries.toString),
-          pre(notes.value),
-          p(b("Cause: ")),
-          pre(error.stackTrace)
+          tookText(actionInfo.launchTime, timestamp),
+          retriesText(numRetries),
+          notesText(notes),
+          causeText(error)
         )
 
       case ActionSucced(actionInfo, timestamp, numRetries, notes) =>
         div(
-          h3(s"Action Succed - ${showTimestamp(timestamp)}"),
-          hostService(actionInfo.serviceInfo),
-          p(b(s"${actionInfo.actionParams.alias}: "), actionInfo.actionParams.metricName.value),
+          h3(s"${actionInfo.actionParams.actionName} Succed"),
+          timestampText(timestamp),
+          hostServiceText(actionInfo.serviceInfo),
           p(b(s"${actionInfo.actionParams.alias} ID: "), actionInfo.uuid.show),
-          p(b("Took: "), took(actionInfo.launchTime, timestamp)),
-          p(b("Number of Retries: "), numRetries.toString),
-          pre(notes.value)
+          tookText(actionInfo.launchTime, timestamp),
+          retriesText(numRetries),
+          notesText(notes)
         )
 
       case _: ActionStart    => div()
