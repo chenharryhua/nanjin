@@ -72,6 +72,13 @@ object DefaultEmailTranslator extends all {
       pre(sa.message)
     )
 
+  private def actionStart(as: ActionStart): Text.TypedTag[String] =
+    div(
+      h3(s"${as.actionInfo.actionParams.actionName} Start"),
+      timestampText(as.timestamp),
+      hostServiceText(as.actionInfo.serviceInfo)
+    )
+
   private def actionFailed[F[_]: Applicative](af: ActionFailed): Text.TypedTag[String] =
     div(
       h3(s"${af.actionInfo.actionParams.actionName} Failed"),
@@ -106,6 +113,7 @@ object DefaultEmailTranslator extends all {
       .withMetricsReportS(metricsReport)
       .withMetricsResetS(metricsReset)
       .withServiceAlertS(serviceAlert)
+      .withActionStartS(actionStart)
       .withActionFailedS(actionFailed[F])
       .withActionSuccedS(actionSucced)
 }

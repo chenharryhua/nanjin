@@ -31,7 +31,11 @@ class ObserversTest extends AnyFunSuite {
 
   test("mail") {
     val mail =
-      email[IO]("from", List("to"), "subjct", ses.fake[IO]).withInterval(5.seconds).withChunkSize(100).withLogging
+      email[IO]("from", List("to"), "subjct", ses.fake[IO])
+        .withInterval(5.seconds)
+        .withChunkSize(100)
+        .withLogging
+        .updateTranslator(_.disableServiceStart)
 
     TaskGuard[IO]("ses")
       .service("email")
