@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import cats.data.{Kleisli, OptionT}
 import com.github.chenharryhua.nanjin.guard.event.*
+import io.circe.Json
+import io.circe.generic.auto.*
 
 final case class Translator[F[_], A](
   serviceStarted: Kleisli[OptionT[F, *], ServiceStarted, A],
@@ -41,6 +43,7 @@ final case class Translator[F[_], A](
   def disableActionRetrying(implicit F: Applicative[F]): Translator[F, A] = copy(actionRetrying = Translator.noop[F, A])
   def disableActionFailed(implicit F: Applicative[F]): Translator[F, A]   = copy(actionFailed = Translator.noop[F, A])
   def disableActionSucced(implicit F: Applicative[F]): Translator[F, A]   = copy(actionSucced = Translator.noop[F, A])
+  def disableAll(implicit F: Applicative[F]): Translator[F, A]            = Translator.empty[F, A]
 
   def withServiceStarted(f: ServiceStarted => F[Option[A]]): Translator[F, A] =
     copy(serviceStarted = Kleisli(a => OptionT(f(a))))
@@ -146,19 +149,49 @@ final case class Translator[F[_], A](
 }
 
 object Translator {
-  def noop[F[_]: Applicative, A]: Kleisli[OptionT[F, *], NJEvent, A] = Kleisli(_ => OptionT(Applicative[F].pure(None)))
+  def noop[F[_], A](implicit F: Applicative[F]): Kleisli[OptionT[F, *], NJEvent, A] =
+    Kleisli(_ => OptionT(F.pure(None)))
 
-  def empty[F[_]: Applicative, A]: Translator[F, A] = Translator[F, A](
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A],
-    noop[F, A]
-  )
+  def empty[F[_]: Applicative, A]: Translator[F, A] =
+    Translator[F, A](
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A],
+      noop[F, A]
+    )
+
+  def json[F[_]: Applicative]: Translator[F, Json] =
+    empty[F, Json]
+      .withServiceStartedS(_.asJson)
+      .withServicePanicS(_.asJson)
+      .withServiceStoppedS(_.asJson)
+      .withServiceAlertS(_.asJson)
+      .withPassThroughS(_.asJson)
+      .withMetricsResetS(_.asJson)
+      .withMetricsReportS(_.asJson)
+      .withActionStartS(_.asJson)
+      .withActionRetryingS(_.asJson)
+      .withActionFailedS(_.asJson)
+      .withActionSuccedS(_.asJson)
+
+  def text[F[_]: Applicative]: Translator[F, String] =
+    empty[F, String]
+      .withServiceStartedS(_.show)
+      .withServicePanicS(_.show)
+      .withServiceStoppedS(_.show)
+      .withServiceAlertS(_.show)
+      .withPassThroughS(_.show)
+      .withMetricsResetS(_.show)
+      .withMetricsReportS(_.show)
+      .withActionStartS(_.show)
+      .withActionRetryingS(_.show)
+      .withActionFailedS(_.show)
+      .withActionSuccedS(_.show)
 }
