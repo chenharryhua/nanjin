@@ -11,6 +11,7 @@ import scalatags.Text.all.*
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import cats.Monad
 
 object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
@@ -104,16 +105,16 @@ object DefaultEmailTranslator extends all {
       notesText(as.notes)
     )
 
-  def apply[F[_]: Applicative](): Translator[F, Text.TypedTag[String]] =
+  def apply[F[_]: Monad](): Translator[F, Text.TypedTag[String]] =
     Translator
       .empty[F, Text.TypedTag[String]]
-      .withServiceStartedS(serviceStarted)
-      .withServicePanicS(servicePanic)
-      .withServiceStoppedS(serviceStopped)
-      .withMetricsReportS(metricsReport)
-      .withMetricsResetS(metricsReset)
-      .withServiceAlertS(serviceAlert)
-      .withActionStartS(actionStart)
-      .withActionFailedS(actionFailed[F])
-      .withActionSuccedS(actionSucced)
+      .withServiceStarted(serviceStarted)
+      .withServicePanic(servicePanic)
+      .withServiceStopped(serviceStopped)
+      .withMetricsReport(metricsReport)
+      .withMetricsReset(metricsReset)
+      .withServiceAlert(serviceAlert)
+      .withActionStart(actionStart)
+      .withActionFailed(actionFailed[F])
+      .withActionSucced(actionSucced)
 }

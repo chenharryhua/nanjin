@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName, ServiceParams}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
@@ -91,7 +91,10 @@ sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
   final override def serviceInfo: ServiceInfo = actionInfo.serviceInfo
   final override def uuid: UUID               = actionInfo.uuid
-  override def metricName: MetricName         = actionInfo.actionParams.metricName
+  final override def metricName: MetricName   = actionInfo.actionParams.metricName
+  final def actionParams: ActionParams        = actionInfo.actionParams
+  final def serviceParams: ServiceParams      = actionInfo.serviceParams
+  final def launchTime: ZonedDateTime         = actionInfo.launchTime
 }
 
 final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {

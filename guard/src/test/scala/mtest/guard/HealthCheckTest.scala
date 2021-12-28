@@ -24,7 +24,7 @@ class HealthCheckTest extends AnyFunSuite {
       .withMetricFilter(MetricFilter.startsWith("01"))
       .updateConfig(_.withMetricReport("* * * ? * *"))
       .eventStream(gd => gd.span("cron").notice.retry(IO.never[Int]).run)
-      .evalTap(console.json[IO])
+      .evalTap(console.json[IO](_.noSpaces))
       .evalTap(console.text[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -45,7 +45,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .updateConfig(_.withMetricReport(1.second))
       .eventStream(gd => gd.notice.retry(IO(1)).run >> gd.notice.retry(IO.never).run)
-      .evalTap(console.json[IO])
+      .evalTap(console.json[IO](_.spaces2))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)

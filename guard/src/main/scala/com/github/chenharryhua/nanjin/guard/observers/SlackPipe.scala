@@ -50,7 +50,7 @@ object slack {
   def apply[F[_]: Async](snsArn: SnsArn): SlackPipe[F] = apply[F](sns[F](snsArn))
 }
 
-final private case class SlackConfig[F[_]](
+final case class SlackConfig[F[_]](
   goodColor: String,
   warnColor: String,
   infoColor: String,
@@ -79,56 +79,6 @@ final private case class SlackConfig[F[_]](
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
-
-final private case class TextField(tag: String, value: String)
-private object TextField {
-  implicit val encodeTextField: Encoder[TextField] = tf => {
-    val str = s"*${tf.tag}*\n${tf.value}"
-    json"""
-        {
-           "type": "mrkdwn",
-           "text": $str
-        }
-        """
-  }
-}
-// slack format
-sealed private trait Section
-private object Section {
-  implicit val encodeSection: Encoder[Section] = Encoder.instance {
-    case JuxtaposeSection(first, second) =>
-      json"""
-            {
-               "type": "section",
-               "fields": ${List(first, second)}
-            }
-            """
-    case MarkdownSection(text) =>
-      json"""
-            {
-               "type": "section",
-               "text": {
-                          "type": "mrkdwn",
-                          "text": $text
-                       }
-            }
-            """
-    case KeyValueSection(key, value) =>
-      json"""
-            {
-               "type": "section",
-               "text": ${TextField(key, value)}
-            }
-            """
-  }
-}
-
-final private case class JuxtaposeSection(first: TextField, second: TextField) extends Section
-final private case class KeyValueSection(tag: String, value: String) extends Section
-final private case class MarkdownSection(text: String) extends Section
-
-final private case class Attachment(color: String, blocks: List[Section])
-final private case class SlackApp(username: String, attachments: List[Attachment])
 
 final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
@@ -186,7 +136,7 @@ final class SlackPipe[F[_]] private[observers] (
       val msg: String =
         snapshot.counters.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
-        KeyValueSection("Counters", "*No Counters*")
+        KeyValueSection("Counters", "*No Update*")
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }

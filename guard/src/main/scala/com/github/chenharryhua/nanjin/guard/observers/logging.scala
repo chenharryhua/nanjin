@@ -10,13 +10,14 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object logging {
-  def json[F[_]: Sync]: JsonLogging[F] = new JsonLogging[F](Translator.json[F])
-  def text[F[_]: Sync]: TextLogging[F] = new TextLogging[F](Translator.text[F])
+  def json[F[_]: Sync](f: Json => String): JsonLogging[F] = new JsonLogging[F](Translator.json[F], f)
+  def text[F[_]: Sync]: TextLogging[F]                    = new TextLogging[F](Translator.text[F])
 }
 
-final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F, Json]) extends (NJEvent => F[Unit]) {
+final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F, Json], jsonConverter: Json => String)
+    extends (NJEvent => F[Unit]) {
   def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): JsonLogging[F] =
-    new JsonLogging[F](f(translator))
+    new JsonLogging[F](f(translator), jsonConverter)
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
   override def apply(event: NJEvent): F[Unit] =
@@ -25,19 +26,19 @@ final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F
         translator.servicePanic
           .run(sp)
           .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(j.spaces2) }.void)
+          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(jsonConverter(j)) }.void)
       case sa: ServiceAlert =>
-        translator.serviceAlert.run(sa).value.flatMap(_.traverse(j => logger.warn(j.spaces2)).void)
+        translator.serviceAlert.run(sa).value.flatMap(_.traverse(j => logger.warn(jsonConverter(j))).void)
       case ar @ ActionRetrying(_, _, _, error) =>
         translator.actionRetrying
           .run(ar)
           .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(j.spaces2) }.void)
+          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(jsonConverter(j)) }.void)
       case af @ ActionFailed(_, _, _, _, error) =>
         translator.actionFailed
           .run(af)
           .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(j.spaces2) }.void)
+          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(jsonConverter(j)) }.void)
       case others => translator.translate(others).flatMap(_.traverse(m => logger.info(m.spaces2)).void)
     }
 
