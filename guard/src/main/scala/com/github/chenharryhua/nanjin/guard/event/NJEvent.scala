@@ -53,6 +53,14 @@ final case class ServiceStopped(
   override val metricName: MetricName = serviceInfo.serviceParams.metricName
 }
 
+final case class ServiceAlert(
+  metricName: MetricName,
+  serviceInfo: ServiceInfo,
+  timestamp: ZonedDateTime,
+  importance: Importance,
+  message: String
+) extends ServiceEvent
+
 final case class MetricsReport(
   reportType: MetricReportType,
   serviceInfo: ServiceInfo,
@@ -70,14 +78,6 @@ final case class MetricsReset(
 ) extends ServiceEvent {
   override val metricName: MetricName = serviceInfo.serviceParams.metricName
 }
-
-final case class ServiceAlert(
-  metricName: MetricName,
-  serviceInfo: ServiceInfo,
-  timestamp: ZonedDateTime,
-  importance: Importance,
-  message: String
-) extends ServiceEvent
 
 final case class PassThrough(
   metricName: MetricName,

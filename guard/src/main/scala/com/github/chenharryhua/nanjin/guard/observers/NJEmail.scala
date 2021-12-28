@@ -6,7 +6,6 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{ses, EmailContent, SimpleEmailService}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.action.actionName
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.all
