@@ -22,7 +22,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(logging[IO](_.show))
+      .evalTap(logging.text[IO])
       .through(slack[IO](sns.fake[IO]).at("@chenh"))
       .compile
       .drain
