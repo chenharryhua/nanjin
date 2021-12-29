@@ -59,7 +59,7 @@ object ActionRetryParams {
 
 @JsonCodec
 final case class ActionParams private (
-  metricName: MetricName,
+  name: DigestedName,
   importance: Importance,
   isTerminate: ActionTermination,
   isCounting: CountAction,
@@ -72,7 +72,7 @@ object ActionParams {
 
   def apply(agentParams: AgentParams, serviceParams: ServiceParams): ActionParams =
     ActionParams(
-      metricName = MetricName(agentParams.spans, serviceParams),
+      name = DigestedName(agentParams.spans, serviceParams),
       importance = agentParams.importance,
       isTerminate = agentParams.isTerminate,
       isCounting = agentParams.isCounting,

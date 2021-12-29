@@ -4,7 +4,7 @@ import cats.Functor
 import cats.effect.std.Dispatcher
 import cats.syntax.functor.*
 import com.codahale.metrics.{Counter, Meter}
-import com.github.chenharryhua.nanjin.guard.config.MetricName
+import com.github.chenharryhua.nanjin.guard.config.DigestedName
 import com.github.chenharryhua.nanjin.guard.event.EventPublisher
 import io.circe.Encoder
 import io.circe.syntax.*
@@ -12,28 +12,28 @@ import io.circe.syntax.*
 /** countOrMeter: default meter
   */
 final class NJBroker[F[_]: Functor](
-  metricName: MetricName,
+  name: DigestedName,
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F],
   isCountAsError: Boolean,
   counterOrMeter: Boolean) {
 
-  private val name: String = passThroughMRName(metricName, isCountAsError, counterOrMeter)
+  private val mrMame: String = passThroughMRName(name, isCountAsError, counterOrMeter)
   private lazy val cm: Either[Counter, Meter] =
-    if (counterOrMeter) Left(eventPublisher.metricRegistry.counter(name))
-    else Right(eventPublisher.metricRegistry.meter(name))
+    if (counterOrMeter) Left(eventPublisher.metricRegistry.counter(mrMame))
+    else Right(eventPublisher.metricRegistry.meter(mrMame))
 
   def asError: NJBroker[F] =
-    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError = true, counterOrMeter)
+    new NJBroker[F](name, dispatcher, eventPublisher, isCountAsError = true, counterOrMeter)
 
   def withCounter: NJBroker[F] =
-    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, counterOrMeter = true)
+    new NJBroker[F](name, dispatcher, eventPublisher, isCountAsError, counterOrMeter = true)
 
   def withMeter: NJBroker[F] =
-    new NJBroker[F](metricName, dispatcher, eventPublisher, isCountAsError, counterOrMeter = false)
+    new NJBroker[F](name, dispatcher, eventPublisher, isCountAsError, counterOrMeter = false)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
-    eventPublisher.passThrough(metricName, a.asJson, asError = isCountAsError).map { _ =>
+    eventPublisher.passThrough(name, a.asJson, asError = isCountAsError).map { _ =>
       cm.fold(_.inc(1), _.mark(1))
     }
 

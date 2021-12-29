@@ -63,7 +63,7 @@ package object observers {
   private[observers] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private[observers] def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
-    JuxtaposeSection(TextField("Service", sp.metricName.value), TextField("Host", sp.taskParams.hostName))
+    JuxtaposeSection(TextField("Service", sp.name.value), TextField("Host", sp.taskParams.hostName))
 
   def toOrdinalWords(n: Long): String = {
     val w =
@@ -80,5 +80,5 @@ package object observers {
   }
 
   private[observers] def actionTitle(actionParams: ActionParams) =
-    s"${actionParams.alias} ${actionParams.metricName.value}"
+    s"${actionParams.alias} ${actionParams.name.value}"
 }

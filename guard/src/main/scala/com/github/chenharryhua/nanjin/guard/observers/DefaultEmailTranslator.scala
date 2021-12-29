@@ -22,7 +22,7 @@ private[observers] object DefaultEmailTranslator extends all {
     p(b("number of retries: "), numRetry.toString)
 
   private def hostServiceText(si: ServiceInfo): Text.TypedTag[String] =
-    p(b("service: "), si.serviceParams.metricName.value, " ", b("host: "), si.serviceParams.taskParams.hostName)
+    p(b("service: "), si.serviceParams.name.value, "    ", b("host: "), si.serviceParams.taskParams.hostName)
 
   private def notesText(n: Notes): Text.TypedTag[String]    = p(b("notes: "), pre(n.value))
   private def causeText(c: NJError): Text.TypedTag[String]  = p(b("cause: "), pre(c.stackTrace))
@@ -72,7 +72,7 @@ private[observers] object DefaultEmailTranslator extends all {
       h3("Service Alert"),
       timestampText(sa.timestamp),
       hostServiceText(sa.serviceInfo),
-      p(b("Name: "), sa.metricName.value, b("Importance: "), sa.importance.show),
+      p(b("Name: "), sa.name.value, b("Importance: "), sa.importance.show),
       pre(sa.message)
     )
 

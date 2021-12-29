@@ -93,7 +93,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(s"*$title:* ${sa.metricName.value} $users"),
+            MarkdownSection(s"*$title:* ${sa.name.value} $users"),
             hostServiceSection(sa.serviceInfo.serviceParams)) :::
             (if (sa.message.isEmpty) Nil else List(MarkdownSection(abbreviate(sa.message))))
         )
