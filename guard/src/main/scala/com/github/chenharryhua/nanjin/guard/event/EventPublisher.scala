@@ -61,6 +61,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         ))
     } yield ()
 
+  /** Reset Counters only
+    */
   def metricsReset(metricFilter: MetricFilter, cronExpr: Option[CronExpr]): F[Unit] =
     for {
       ts <- realZonedDateTime

@@ -77,6 +77,7 @@ final case class MetricsSnapshot private (
   asJson: Json,
   show: String) {
   override val toString: String = show
+  def isContainErrors: Boolean  = counterCount.filter(_._2 > 0).keys.exists(_.startsWith("0"))
 }
 
 private[guard] object MetricsSnapshot {

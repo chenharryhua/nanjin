@@ -65,9 +65,7 @@ final class Agent[F[_]] private[guard] (
       DigestedName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
-      isCountAsError = false,
-      counterOrMeter = true // default counter
-    )
+      isCountAsError = false)
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
@@ -84,9 +82,7 @@ final class Agent[F[_]] private[guard] (
   def meter(meterName: String): NJMeter[F] =
     new NJMeter[F](
       DigestedName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
-      publisher.metricRegistry,
-      isCountAsError = false
-    )
+      publisher.metricRegistry)
 
   def histogram(metricName: String): NJHistogram[F] =
     new NJHistogram[F](
