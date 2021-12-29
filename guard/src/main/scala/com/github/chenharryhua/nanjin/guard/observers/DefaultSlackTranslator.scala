@@ -79,27 +79,26 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
       ))
   }
 
-  private def serviceAlert(sa: ServiceAlert): F[SlackApp] =
-    cfg.extraSlackSections.map { extra =>
-      val (users, title, color) = sa.importance match {
-        case Importance.Critical => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
-        case Importance.High     => ("", ":warning: Warning", cfg.warnColor)
-        case Importance.Medium   => ("", ":information_source: Info", cfg.infoColor)
-        case Importance.Low      => (cfg.atSupporters, "oops. should not happen", cfg.errorColor)
-      }
-      SlackApp(
-        username = sa.serviceInfo.serviceParams.taskParams.appName,
-        attachments = List(
-          Attachment(
-            color = color,
-            blocks = List(
-              MarkdownSection(s"*$title:* ${sa.metricName.value} $users"),
-              hostServiceSection(sa.serviceInfo.serviceParams)) :::
-              (if (sa.message.isEmpty) Nil else List(MarkdownSection(abbreviate(sa.message))))
-          )
-        ) :+ Attachment(color = cfg.infoColor, blocks = extra)
-      )
+  private def serviceAlert(sa: ServiceAlert): SlackApp = {
+    val (users, title, color) = sa.importance match {
+      case Importance.Critical => (cfg.atSupporters, ":warning: Error", cfg.errorColor)
+      case Importance.High     => ("", ":warning: Warning", cfg.warnColor)
+      case Importance.Medium   => ("", ":information_source: Info", cfg.infoColor)
+      case Importance.Low      => (cfg.atSupporters, "oops. should not happen", cfg.errorColor)
     }
+    SlackApp(
+      username = sa.serviceInfo.serviceParams.taskParams.appName,
+      attachments = List(
+        Attachment(
+          color = color,
+          blocks = List(
+            MarkdownSection(s"*$title:* ${sa.metricName.value} $users"),
+            hostServiceSection(sa.serviceInfo.serviceParams)) :::
+            (if (sa.message.isEmpty) Nil else List(MarkdownSection(abbreviate(sa.message))))
+        )
+      )
+    )
+  }
 
   private def serviceStopped(ss: ServiceStopped): F[SlackApp] =
     cfg.extraSlackSections.map { extra =>
@@ -210,50 +209,46 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
       }
     }
 
-  private def actionStart(as: ActionStart): F[Option[SlackApp]] =
-    cfg.extraSlackSections.map { _ =>
-      if (as.actionParams.importance === Importance.Critical)
-        Some(
-          SlackApp(
-            username = as.serviceParams.taskParams.appName,
-            attachments = List(Attachment(
-              color = cfg.infoColor,
-              blocks = List(
-                MarkdownSection(
-                  s"${cfg.startActionEmoji} Kick off ${as.actionParams.alias}: *${as.metricName.value}*".stripMargin),
-                MarkdownSection(s"""|*${as.actionParams.alias} ID:* ${as.uuid.show}""".stripMargin),
-                hostServiceSection(as.actionInfo.serviceInfo.serviceParams)
-              )
-            ))
+  private def actionStart(as: ActionStart): Option[SlackApp] =
+    if (as.actionParams.importance === Importance.Critical)
+      Some(
+        SlackApp(
+          username = as.serviceParams.taskParams.appName,
+          attachments = List(Attachment(
+            color = cfg.infoColor,
+            blocks = List(
+              MarkdownSection(
+                s"${cfg.startActionEmoji} Kick off ${as.actionParams.alias}: *${as.metricName.value}*".stripMargin),
+              MarkdownSection(s"""|*${as.actionParams.alias} ID:* ${as.uuid.show}""".stripMargin),
+              hostServiceSection(as.actionInfo.serviceInfo.serviceParams)
+            )
           ))
-      else None
-    }
+        ))
+    else None
 
-  private def actionRetrying(ar: ActionRetrying): F[Option[SlackApp]] =
-    cfg.extraSlackSections.map { _ =>
-      if (ar.actionParams.importance >= Importance.Medium) {
-        val header: String =
-          s"${cfg.retryActionEmoji} This is the *${toOrdinalWords(ar.willDelayAndRetry.retriesSoFar + 1L)}* " +
-            s"failure of the ${ar.actionParams.alias} *${ar.actionParams.metricName.value}*, " +
-            s"took *${took(ar.launchTime, ar.timestamp)}* so far, " +
-            s"retry of which takes place in *${cfg.durationFormatter.format(ar.willDelayAndRetry.nextDelay)}*."
+  private def actionRetrying(ar: ActionRetrying): Option[SlackApp] =
+    if (ar.actionParams.importance >= Importance.Medium) {
+      val header: String =
+        s"${cfg.retryActionEmoji} This is the *${toOrdinalWords(ar.willDelayAndRetry.retriesSoFar + 1L)}* " +
+          s"failure of the ${ar.actionParams.alias} *${ar.actionParams.metricName.value}*, " +
+          s"took *${took(ar.launchTime, ar.timestamp)}* so far, " +
+          s"retry of which takes place in *${cfg.durationFormatter.format(ar.willDelayAndRetry.nextDelay)}*."
 
-        Some(
-          SlackApp(
-            username = ar.serviceParams.taskParams.appName,
-            attachments = List(Attachment(
-              color = cfg.warnColor,
-              blocks = List(
-                MarkdownSection(header),
-                MarkdownSection(s"""|*${ar.actionParams.alias} ID:* ${ar.uuid.show}
-                                    |*policy:* ${ar.actionParams.retry.policy[F].show}""".stripMargin),
-                hostServiceSection(ar.serviceInfo.serviceParams),
-                KeyValueSection("Cause", s"```${abbreviate(ar.error.stackTrace)}```")
-              )
-            ))
+      Some(
+        SlackApp(
+          username = ar.serviceParams.taskParams.appName,
+          attachments = List(Attachment(
+            color = cfg.warnColor,
+            blocks = List(
+              MarkdownSection(header),
+              MarkdownSection(s"""|*${ar.actionParams.alias} ID:* ${ar.uuid.show}
+                                  |*policy:* ${ar.actionParams.retry.policy[F].show}""".stripMargin),
+              hostServiceSection(ar.serviceInfo.serviceParams),
+              KeyValueSection("Cause", s"```${abbreviate(ar.error.stackTrace)}```")
+            )
           ))
-      } else None
-    }
+        ))
+    } else None
 
   private def actionFailed(af: ActionFailed): F[Option[SlackApp]] =
     cfg.extraSlackSections.map { extra =>
@@ -285,30 +280,28 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
       } else None
     }
 
-  private def actionSucced(as: ActionSucced): F[Option[SlackApp]] =
-    cfg.extraSlackSections.map { _ =>
-      if (as.actionParams.importance === Importance.Critical) {
-        val header =
-          s"${cfg.succActionEmoji} The ${as.actionParams.alias} *${as.actionParams.metricName.value}* " +
-            s"was accomplished in *${took(as.launchTime, as.timestamp)}*, after *${as.numRetries.show}* retries"
+  private def actionSucced(as: ActionSucced): Option[SlackApp] =
+    if (as.actionParams.importance === Importance.Critical) {
+      val header =
+        s"${cfg.succActionEmoji} The ${as.actionParams.alias} *${as.actionParams.metricName.value}* " +
+          s"was accomplished in *${took(as.launchTime, as.timestamp)}*, after *${as.numRetries.show}* retries"
 
-        Some(
-          SlackApp(
-            username = as.serviceInfo.serviceParams.taskParams.appName,
-            attachments = List(
-              Attachment(
-                color = cfg.goodColor,
-                blocks = List(
-                  MarkdownSection(header),
-                  MarkdownSection(s"*${as.actionParams.alias} ID:* ${as.uuid.show}"),
-                  hostServiceSection(as.serviceInfo.serviceParams)
-                ) ::: (if (as.notes.value.isEmpty) Nil
-                       else List(MarkdownSection(abbreviate(as.notes.value))))
-              )
+      Some(
+        SlackApp(
+          username = as.serviceInfo.serviceParams.taskParams.appName,
+          attachments = List(
+            Attachment(
+              color = cfg.goodColor,
+              blocks = List(
+                MarkdownSection(header),
+                MarkdownSection(s"*${as.actionParams.alias} ID:* ${as.uuid.show}"),
+                hostServiceSection(as.serviceInfo.serviceParams)
+              ) ::: (if (as.notes.value.isEmpty) Nil
+                     else List(MarkdownSection(abbreviate(as.notes.value))))
             )
-          ))
-      } else None
-    }
+          )
+        ))
+    } else None
 
   def translator: Translator[F, SlackApp] =
     Translator

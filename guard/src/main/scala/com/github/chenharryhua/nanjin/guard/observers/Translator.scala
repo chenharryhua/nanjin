@@ -8,6 +8,10 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
 
+trait UpdateTranslator[F[_], A, B] {
+  def updateTranslator(f: Translator[F, A] => Translator[F, A]): B
+}
+
 final case class Translator[F[_], A] private (
   serviceStarted: Kleisli[OptionT[F, *], ServiceStarted, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
@@ -21,6 +25,7 @@ final case class Translator[F[_], A] private (
   actionFailed: Kleisli[OptionT[F, *], ActionFailed, A],
   actionSucced: Kleisli[OptionT[F, *], ActionSucced, A]
 ) {
+
   def translate(event: NJEvent): F[Option[A]] = event match {
     case e: ServiceStarted => serviceStarted.run(e).value
     case e: ServicePanic   => servicePanic.run(e).value
@@ -34,6 +39,7 @@ final case class Translator[F[_], A] private (
     case e: ActionFailed   => actionFailed.run(e).value
     case e: ActionSucced   => actionSucced.run(e).value
   }
+
   def skipServiceStart(implicit F: Applicative[F]): Translator[F, A]   = copy(serviceStarted = Translator.noop[F, A])
   def skipServicePanic(implicit F: Applicative[F]): Translator[F, A]   = copy(servicePanic = Translator.noop[F, A])
   def skipServiceStopped(implicit F: Applicative[F]): Translator[F, A] = copy(serviceStopped = Translator.noop[F, A])

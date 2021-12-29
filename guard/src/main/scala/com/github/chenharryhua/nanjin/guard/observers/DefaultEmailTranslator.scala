@@ -24,8 +24,9 @@ private[observers] object DefaultEmailTranslator extends all {
   private def hostServiceText(si: ServiceInfo): Text.TypedTag[String] =
     p(b("service: "), si.serviceParams.metricName.value, " ", b("host: "), si.serviceParams.taskParams.hostName)
 
-  private def notesText(n: Notes): Text.TypedTag[String]   = p(b("notes: "), pre(n.value))
-  private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
+  private def notesText(n: Notes): Text.TypedTag[String]    = p(b("notes: "), pre(n.value))
+  private def causeText(c: NJError): Text.TypedTag[String]  = p(b("cause: "), pre(c.stackTrace))
+  private def brief(si: ServiceInfo): Text.TypedTag[String] = p(b("brief: ", si.serviceParams.brief))
 
   private def serviceStarted(ss: ServiceStarted): Text.TypedTag[String] =
     div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceInfo))
@@ -36,7 +37,7 @@ private[observers] object DefaultEmailTranslator extends all {
       timestampText(sp.timestamp),
       hostServiceText(sp.serviceInfo),
       p(b("restart so far: "), sp.retryDetails.retriesSoFar),
-      p(b("brief"), sp.serviceInfo.serviceParams.brief),
+      brief(sp.serviceInfo),
       p(b("cause: ")),
       pre(sp.error.stackTrace)
     )
@@ -62,7 +63,7 @@ private[observers] object DefaultEmailTranslator extends all {
     div(
       h3(ms.resetType.show),
       hostServiceText(ms.serviceInfo),
-      p(b("brief"), ms.serviceInfo.serviceParams.brief),
+      brief(ms.serviceInfo),
       pre(ms.snapshot.show)
     )
 
@@ -101,7 +102,7 @@ private[observers] object DefaultEmailTranslator extends all {
       p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
       retriesText(af.numRetries),
       notesText(af.notes),
-      p(b("brief"), af.serviceInfo.serviceParams.brief),
+      brief(af.serviceInfo),
       causeText(af.error)
     )
 

@@ -48,7 +48,7 @@ final class NJEmail[F[_]: Async] private[observers] (
   handlePassThrough: Reader[PassThrough, Text.TypedTag[String]],
   isLogging: Boolean,
   translator: Translator[F, Text.TypedTag[String]]
-) extends Pipe[F, NJEvent, String] with all {
+) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJEmail[F]] with all {
 
   private def copy(
     chunkSize: Int = chunkSize,
@@ -62,10 +62,11 @@ final class NJEmail[F[_]: Async] private[observers] (
   def withChunkSize(cs: Int): NJEmail[F]           = copy(chunkSize = cs)
   def withLogging: NJEmail[F]                      = copy(isLogging = true)
 
-  def updateTranslator(f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJEmail[F] =
-    copy(translator = f(translator))
-
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+
+  override def updateTranslator(
+    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJEmail[F] =
+    copy(translator = f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, String] =
     for {
