@@ -72,6 +72,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
                 TextField("Cummulative Delay", cfg.durationFormatter.format(sp.retryDetails.cumulativeDelay))
               ),
               MarkdownSection(s"*Restart Policy:* ${sp.serviceInfo.serviceParams.retry.policy[F].show}"),
+              MarkdownSection(s"*Error ID:* ${sp.error.uuid.show}"),
               KeyValueSection("Cause", s"```${abbreviate(sp.error.stackTrace)}```")
             )
           ),
@@ -270,7 +271,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
                 blocks = List(
                   MarkdownSection(header),
                   MarkdownSection(s"""|*${af.actionParams.alias} ID:* ${af.uuid.show}
-                                      |*error ID:* ${af.actionInfo.uuid.show}
+                                      |*error ID:* ${af.error.uuid.show}
                                       |*policy:* ${af.actionParams.retry.policy[F].show}""".stripMargin),
                   hostServiceSection(af.serviceParams),
                   KeyValueSection("Cause", s"```${abbreviate(af.error.stackTrace)}```")

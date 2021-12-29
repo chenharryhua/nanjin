@@ -32,12 +32,14 @@ private[observers] object DefaultEmailTranslator extends all {
   private def serviceStarted(ss: ServiceStarted): Text.TypedTag[String] =
     div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceInfo))
 
-  private def servicePanic(sp: ServicePanic): Text.TypedTag[String] =
+  private def servicePanic[F[_]: Applicative](sp: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := "color:red")(s"Service Panic"),
       timestampText(sp.timestamp),
       hostServiceText(sp.serviceInfo),
       p(b("restart so far: "), sp.retryDetails.retriesSoFar),
+      p(b("error ID: "), sp.error.uuid.show),
+      p(b("policy: "), sp.serviceInfo.serviceParams.retry.policy[F].show),
       brief(sp.serviceInfo),
       causeText(sp.error)
     )
@@ -76,7 +78,7 @@ private[observers] object DefaultEmailTranslator extends all {
       h3("Service Alert"),
       timestampText(sa.timestamp),
       hostServiceText(sa.serviceInfo),
-      p(b("Name: "), sa.name.value, b("Importance: "), sa.importance.show),
+      p(b("name: "), sa.name.value, "    ", b("importance: "), sa.importance.show),
       pre(sa.message)
     )
 
@@ -125,7 +127,7 @@ private[observers] object DefaultEmailTranslator extends all {
     Translator
       .empty[F, Text.TypedTag[String]]
       .withServiceStarted(serviceStarted)
-      .withServicePanic(servicePanic)
+      .withServicePanic(servicePanic[F])
       .withServiceStopped(serviceStopped)
       .withMetricsReport(metricsReport)
       .withMetricsReset(metricsReset)
