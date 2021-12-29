@@ -13,7 +13,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import cats.Monad
 
-object DefaultEmailTranslator extends all {
+private[observers] object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
@@ -82,6 +82,14 @@ object DefaultEmailTranslator extends all {
       hostServiceText(as.actionInfo.serviceInfo)
     )
 
+  private def actionRetrying(ar: ActionRetrying): Text.TypedTag[String] =
+    div(
+      h3(s"${ar.actionInfo.actionParams.actionName} Retrying"),
+      timestampText(ar.timestamp),
+      hostServiceText(ar.actionInfo.serviceInfo),
+      p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show)
+    )
+
   private def actionFailed[F[_]: Applicative](af: ActionFailed): Text.TypedTag[String] =
     div(
       h3(s"${af.actionInfo.actionParams.actionName} Failed"),
@@ -118,6 +126,7 @@ object DefaultEmailTranslator extends all {
       .withMetricsReset(metricsReset)
       .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
+      .withActionRetrying(actionRetrying)
       .withActionFailed(actionFailed[F])
       .withActionSucced(actionSucced)
 }

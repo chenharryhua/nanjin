@@ -138,7 +138,6 @@ final class SlackPipe[F[_]] private[observers] (
         .onFinalize { // publish good bye message to slack
           for {
             ts <- F.realTimeInstant
-            extra <- cfg.extraSlackSections
             services <- ref.get
             msg = SlackApp(
               username = "Service Termination Notice",
@@ -155,7 +154,7 @@ final class SlackPipe[F[_]] private[observers] (
                         TextField("Up Time", cfg.durationFormatter.format(ss.launchTime.toInstant, ts)),
                         TextField("App", ss.serviceParams.taskParams.appName))
                     )
-                  )) ::: List(Attachment(color = cfg.infoColor, blocks = extra))
+                  ))
             ).asJson.spaces2
             _ <- sns.publish(msg).attempt.whenA(services.nonEmpty)
             _ <- logger.info(msg).whenA(cfg.isLoggging)

@@ -6,18 +6,13 @@ import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.generic.auto.*
-import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
-final class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
-  // slack not allow message larger than 3000 chars
-  // https://api.slack.com/reference/surfaces/formatting
-  private val MessageSizeLimits: Int          = 2960
-  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
 
   private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
     if (cfg.isShowMetrics && snapshot.show.length <= MessageSizeLimits) {
@@ -27,27 +22,13 @@ final class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) exten
       val msg: String =
         snapshot.counters.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
-        KeyValueSection("Counters", "*No Counters*")
+        KeyValueSection("Counters", "*No counter update*")
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
 
   private def took(from: ZonedDateTime, to: ZonedDateTime): String =
     cfg.durationFormatter.format(from, to)
-
-  private def toOrdinalWords(n: Long): String = {
-    val w =
-      if (n % 100 / 10 == 1) "th"
-      else {
-        n % 10 match {
-          case 1 => "st"
-          case 2 => "nd"
-          case 3 => "rd"
-          case _ => "th"
-        }
-      }
-    s"$n$w"
-  }
 
   private def serviceStarted(ss: ServiceStarted): F[SlackApp] =
     cfg.extraSlackSections.map(extra =>
@@ -329,16 +310,17 @@ final class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) exten
       } else None
     }
 
-  def translator: Translator[F, SlackApp] = Translator
-    .empty[F, SlackApp]
-    .withServiceStarted(serviceStarted)
-    .withServicePanic(servicePanic)
-    .withServiceStopped(serviceStopped)
-    .withMetricsReport(metricsReport)
-    .withMetricsReset(metricsReset)
-    .withServiceAlert(serviceAlert)
-    .withActionStart(actionStart)
-    .withActionRetrying(actionRetrying)
-    .withActionFailed(actionFailed)
-    .withActionSucced(actionSucced)
+  def translator: Translator[F, SlackApp] =
+    Translator
+      .empty[F, SlackApp]
+      .withServiceStarted(serviceStarted)
+      .withServicePanic(servicePanic)
+      .withServiceStopped(serviceStopped)
+      .withMetricsReport(metricsReport)
+      .withMetricsReset(metricsReset)
+      .withServiceAlert(serviceAlert)
+      .withActionStart(actionStart)
+      .withActionRetrying(actionRetrying)
+      .withActionFailed(actionFailed)
+      .withActionSucced(actionSucced)
 }

@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
 
-final case class Translator[F[_], A](
+final case class Translator[F[_], A] private (
   serviceStarted: Kleisli[OptionT[F, *], ServiceStarted, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
   serviceStopped: Kleisli[OptionT[F, *], ServiceStopped, A],

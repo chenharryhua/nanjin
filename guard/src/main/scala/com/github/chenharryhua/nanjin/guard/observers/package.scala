@@ -56,9 +56,26 @@ package object observers {
           }
     }
 
-  private val MessageSizeLimits: Int  = 2960
-  def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+  // slack not allow message larger than 3000 chars
+  // https://api.slack.com/reference/surfaces/formatting
+  final val MessageSizeLimits: Int = 2960
 
-  def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
+  private[observers] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+
+  private[observers] def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
     JuxtaposeSection(TextField("Service", sp.metricName.value), TextField("Host", sp.taskParams.hostName))
+
+  def toOrdinalWords(n: Long): String = {
+    val w =
+      if (n % 100 / 10 == 1) "th"
+      else {
+        n % 10 match {
+          case 1 => "st"
+          case 2 => "nd"
+          case 3 => "rd"
+          case _ => "th"
+        }
+      }
+    s"$n$w"
+  }
 }
