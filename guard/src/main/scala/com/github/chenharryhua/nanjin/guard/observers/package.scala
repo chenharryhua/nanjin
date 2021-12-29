@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
+import org.apache.commons.lang3.StringUtils
 
 import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
@@ -54,4 +55,10 @@ package object observers {
             case Some(Right(ce)) => ce.prev(now).forall(_.isBefore(border) && now.isAfter(border))
           }
     }
+
+  private val MessageSizeLimits: Int  = 2960
+  def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+
+  def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
+    JuxtaposeSection(TextField("Service", sp.metricName.value), TextField("Host", sp.taskParams.hostName))
 }

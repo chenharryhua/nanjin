@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.generic.auto.*
@@ -31,9 +31,6 @@ final class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) exten
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
-
-  private def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
-    JuxtaposeSection(TextField("Service", sp.metricName.value), TextField("Host", sp.taskParams.hostName))
 
   private def took(from: ZonedDateTime, to: ZonedDateTime): String =
     cfg.durationFormatter.format(from, to)

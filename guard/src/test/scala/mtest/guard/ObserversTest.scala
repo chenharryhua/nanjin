@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.aws.{ses, sns}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.observers.{email, logging, slack}
+import com.github.chenharryhua.nanjin.guard.observers.{console, email, logging, slack}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -37,6 +37,31 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
+  test("console") {
+    TaskGuard[IO]("console")
+      .service("text")
+      .withBrief("about console")
+      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
+      .eventStream { root =>
+        val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
+        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+      }
+      .evalTap(
+        console
+          .text[IO]
+          .updateTranslator(
+            _.withServiceStarted(_ => "SVC started")
+              .withActionStart(_ => IO("Action up"))
+              .withActionRetrying(_ => IO(Some("Retrying")))
+              .withActionFailed(_ => Some("failed"))
+              .withActionSucced(_ => "succ")
+              .skipMetricsReport
+              .skipServiceStopped))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
   test("slack") {
     TaskGuard[IO]("sns")
       .service("slack")
@@ -45,8 +70,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(logging.text[IO])
-      .through(slack[IO](sns.fake[IO]).at("@chenh"))
+      .through(slack[IO](sns.fake[IO])(_.at("chenh").withLogging).updateTranslator(_.skipActionFailed))
       .compile
       .drain
       .unsafeRunSync()

@@ -17,8 +17,6 @@ object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
-  private def tookText(from: ZonedDateTime, to: ZonedDateTime): Text.TypedTag[String] =
-    p(b("took: "), fmt.format(from, to))
 
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
     p(b("number of retries: "), numRetry.toString)
@@ -38,6 +36,7 @@ object DefaultEmailTranslator extends all {
       timestampText(sp.timestamp),
       hostServiceText(sp.serviceInfo),
       p(b("restart so far: "), sp.retryDetails.retriesSoFar),
+      p(b("brief"), sp.serviceInfo.serviceParams.brief),
       p(b("cause: ")),
       pre(sp.error.stackTrace)
     )
@@ -54,6 +53,8 @@ object DefaultEmailTranslator extends all {
     div(
       h3(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
+      p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
+      p(b("brief"), mr.serviceInfo.serviceParams.brief),
       pre(mr.snapshot.show)
     )
 
@@ -61,6 +62,7 @@ object DefaultEmailTranslator extends all {
     div(
       h3(ms.resetType.show),
       hostServiceText(ms.serviceInfo),
+      p(b("brief"), ms.serviceInfo.serviceParams.brief),
       pre(ms.snapshot.show)
     )
 
@@ -88,9 +90,10 @@ object DefaultEmailTranslator extends all {
       p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
       p(b("error ID: "), af.error.uuid.show),
       p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
-      tookText(af.actionInfo.launchTime, af.timestamp),
+      p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
       retriesText(af.numRetries),
       notesText(af.notes),
+      p(b("brief"), af.serviceInfo.serviceParams.brief),
       causeText(af.error)
     )
 
@@ -100,7 +103,7 @@ object DefaultEmailTranslator extends all {
       timestampText(as.timestamp),
       hostServiceText(as.actionInfo.serviceInfo),
       p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show),
-      tookText(as.actionInfo.launchTime, as.timestamp),
+      p(b("took: "), fmt.format(as.actionInfo.launchTime, as.timestamp)),
       retriesText(as.numRetries),
       notesText(as.notes)
     )
