@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.Applicative
 import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunctorOps, toTraverseOps}
 import cats.syntax.all.*
+import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.typelevel.cats.time.instances.all
@@ -11,7 +11,6 @@ import scalatags.Text.all.*
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
-import cats.Monad
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
@@ -51,22 +50,26 @@ private[observers] object DefaultEmailTranslator extends all {
       pre(ss.snapshot.show)
     )
 
-  private def metricsReport(mr: MetricsReport): Text.TypedTag[String] =
+  private def metricsReport(mr: MetricsReport): Text.TypedTag[String] = {
+    val color: String = if (mr.snapshot.isContainErrors) "color:red" else "color:black"
     div(
-      h3(mr.reportType.show),
+      h3(style := color)(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
       p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
       brief(mr.serviceInfo),
       pre(mr.snapshot.show)
     )
+  }
 
-  private def metricsReset(ms: MetricsReset): Text.TypedTag[String] =
+  private def metricsReset(ms: MetricsReset): Text.TypedTag[String] = {
+    val color: String = if (ms.snapshot.isContainErrors) "color:red" else "color:black"
     div(
-      h3(ms.resetType.show),
+      h3(style := color)(ms.resetType.show),
       hostServiceText(ms.serviceInfo),
       brief(ms.serviceInfo),
       pre(ms.snapshot.show)
     )
+  }
 
   private def serviceAlert(sa: ServiceAlert): Text.TypedTag[String] =
     div(

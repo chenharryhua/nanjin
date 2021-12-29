@@ -134,7 +134,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
         username = mr.serviceInfo.serviceParams.taskParams.appName,
         attachments = List(
           Attachment(
-            color = cfg.infoColor,
+            color = if (mr.snapshot.isContainErrors) cfg.warnColor else cfg.infoColor,
             blocks = List(
               MarkdownSection(s"${cfg.metricsReportEmoji} *${mr.reportType.show}*"),
               hostServiceSection(mr.serviceInfo.serviceParams),
