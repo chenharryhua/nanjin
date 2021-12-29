@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
+import org.apache.commons.lang3.StringUtils
 
 import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
@@ -54,4 +55,27 @@ package object observers {
             case Some(Right(ce)) => ce.prev(now).forall(_.isBefore(border) && now.isAfter(border))
           }
     }
+
+  // slack not allow message larger than 3000 chars
+  // https://api.slack.com/reference/surfaces/formatting
+  final val MessageSizeLimits: Int = 2960
+
+  private[observers] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+
+  private[observers] def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
+    JuxtaposeSection(TextField("Service", sp.metricName.value), TextField("Host", sp.taskParams.hostName))
+
+  def toOrdinalWords(n: Long): String = {
+    val w =
+      if (n % 100 / 10 == 1) "th"
+      else {
+        n % 10 match {
+          case 1 => "st"
+          case 2 => "nd"
+          case 3 => "rd"
+          case _ => "th"
+        }
+      }
+    s"$n$w"
+  }
 }

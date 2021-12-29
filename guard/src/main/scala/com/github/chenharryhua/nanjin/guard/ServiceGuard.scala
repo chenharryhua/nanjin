@@ -47,6 +47,8 @@ final class ServiceGuard[F[_]] private[guard] (
   def withMetricFilter(filter: MetricFilter) =
     new ServiceGuard[F](serviceConfig, filter, jmxBuilder)
 
+  def withBrief(brief: String): ServiceGuard[F] = updateConfig(_.withBrief(brief))
+
   def eventStream[A](agent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceInfo <- Stream.eval(for {
