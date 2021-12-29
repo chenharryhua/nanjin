@@ -13,6 +13,8 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import cats.Monad
 
+/** https://com-lihaoyi.github.io/scalatags/
+  */
 private[observers] object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
@@ -38,8 +40,7 @@ private[observers] object DefaultEmailTranslator extends all {
       hostServiceText(sp.serviceInfo),
       p(b("restart so far: "), sp.retryDetails.retriesSoFar),
       brief(sp.serviceInfo),
-      p(b("cause: ")),
-      pre(sp.error.stackTrace)
+      causeText(sp.error)
     )
 
   private def serviceStopped(ss: ServiceStopped): Text.TypedTag[String] =
@@ -55,7 +56,7 @@ private[observers] object DefaultEmailTranslator extends all {
       h3(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
       p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
-      p(b("brief"), mr.serviceInfo.serviceParams.brief),
+      brief(mr.serviceInfo),
       pre(mr.snapshot.show)
     )
 
