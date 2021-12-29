@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.syntax.all.*
 import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
@@ -78,4 +78,7 @@ package object observers {
       }
     s"$n$w"
   }
+
+  private[observers] def actionTitle(actionParams: ActionParams) =
+    s"${actionParams.alias} ${actionParams.metricName.value}"
 }

@@ -18,9 +18,10 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
     if (cfg.isShowMetrics && snapshot.show.length <= MessageSizeLimits) {
       KeyValueSection("Metrics", s"```${snapshot.show.replace("-- ", "")}```")
     } else {
-      val fmt: NumberFormat = NumberFormat.getIntegerInstance
+      val fmt: NumberFormat           = NumberFormat.getIntegerInstance
+      val counters: Map[String, Long] = snapshot.counterCount ++ snapshot.meterCount
       val msg: String =
-        snapshot.counters.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
+        counters.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
         KeyValueSection("Counters", "*No counter update*")
       else
@@ -217,8 +218,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
           attachments = List(Attachment(
             color = cfg.infoColor,
             blocks = List(
-              MarkdownSection(
-                s"${cfg.startActionEmoji} Kick off ${as.actionParams.alias}: *${as.metricName.value}*".stripMargin),
+              MarkdownSection(s"${cfg.startActionEmoji} Kick off *${actionTitle(as.actionParams)}*"),
               MarkdownSection(s"""|*${as.actionParams.alias} ID:* ${as.uuid.show}""".stripMargin),
               hostServiceSection(as.actionInfo.serviceInfo.serviceParams)
             )
@@ -230,7 +230,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
     if (ar.actionParams.importance >= Importance.Medium) {
       val header: String =
         s"${cfg.retryActionEmoji} This is the *${toOrdinalWords(ar.willDelayAndRetry.retriesSoFar + 1L)}* " +
-          s"failure of the ${ar.actionParams.alias} *${ar.actionParams.metricName.value}*, " +
+          s"failure of the *${actionTitle(ar.actionParams)}*, " +
           s"took *${took(ar.launchTime, ar.timestamp)}* so far, " +
           s"retry of which takes place in *${cfg.durationFormatter.format(ar.willDelayAndRetry.nextDelay)}*."
 
@@ -254,7 +254,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
     cfg.extraSlackSections.map { extra =>
       if (af.actionParams.importance >= Importance.Medium) {
         val header =
-          s"${cfg.failActionEmoji} The ${af.actionParams.alias} *${af.metricName.value}* " +
+          s"${cfg.failActionEmoji} The *${actionTitle(af.actionParams)}* " +
             s"was failed after *${af.numRetries.show}* retries, " +
             s"took *${took(af.launchTime, af.timestamp)}*. ${cfg.atSupporters}"
 
@@ -283,7 +283,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
   private def actionSucced(as: ActionSucced): Option[SlackApp] =
     if (as.actionParams.importance === Importance.Critical) {
       val header =
-        s"${cfg.succActionEmoji} The ${as.actionParams.alias} *${as.actionParams.metricName.value}* " +
+        s"${cfg.succActionEmoji} The *${actionTitle(as.actionParams)}* " +
           s"was accomplished in *${took(as.launchTime, as.timestamp)}*, after *${as.numRetries.show}* retries"
 
       Some(

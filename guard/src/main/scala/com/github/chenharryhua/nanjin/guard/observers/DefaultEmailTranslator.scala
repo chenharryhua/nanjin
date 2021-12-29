@@ -78,14 +78,14 @@ private[observers] object DefaultEmailTranslator extends all {
 
   private def actionStart(as: ActionStart): Text.TypedTag[String] =
     div(
-      h3(s"${as.actionInfo.actionParams.actionName} Start"),
+      h3(s"${actionTitle(as.actionParams)} Start"),
       timestampText(as.timestamp),
       hostServiceText(as.actionInfo.serviceInfo)
     )
 
   private def actionRetrying(ar: ActionRetrying): Text.TypedTag[String] =
     div(
-      h3(s"${ar.actionInfo.actionParams.actionName} Retrying"),
+      h3(s"${actionTitle(ar.actionParams)} Retrying"),
       timestampText(ar.timestamp),
       hostServiceText(ar.actionInfo.serviceInfo),
       p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show)
@@ -93,7 +93,7 @@ private[observers] object DefaultEmailTranslator extends all {
 
   private def actionFailed[F[_]: Applicative](af: ActionFailed): Text.TypedTag[String] =
     div(
-      h3(s"${af.actionInfo.actionParams.actionName} Failed"),
+      h3(s"${actionTitle(af.actionParams)} Failed"),
       timestampText(af.timestamp),
       hostServiceText(af.actionInfo.serviceInfo),
       p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
@@ -108,7 +108,7 @@ private[observers] object DefaultEmailTranslator extends all {
 
   private def actionSucced(as: ActionSucced): Text.TypedTag[String] =
     div(
-      h3(s"${as.actionInfo.actionParams.actionName} Succed"),
+      h3(s"${actionTitle(as.actionParams)} Succed"),
       timestampText(as.timestamp),
       hostServiceText(as.actionInfo.serviceInfo),
       p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show),

@@ -65,9 +65,7 @@ final case class ActionParams private (
   isCounting: CountAction,
   isTiming: TimeAction,
   retry: ActionRetryParams,
-  alias: String) {
-  val actionName: String = s"$alias.[${metricName.value}]"
-}
+  alias: String)
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
