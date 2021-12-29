@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.syntax.all.*
 import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
@@ -63,7 +63,7 @@ package object observers {
   private[observers] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private[observers] def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
-    JuxtaposeSection(TextField("Service", sp.metricName.value), TextField("Host", sp.taskParams.hostName))
+    JuxtaposeSection(TextField("Service", sp.name.value), TextField("Host", sp.taskParams.hostName))
 
   def toOrdinalWords(n: Long): String = {
     val w =
@@ -78,4 +78,5 @@ package object observers {
       }
     s"$n$w"
   }
+
 }

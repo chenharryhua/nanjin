@@ -9,7 +9,7 @@ import cats.{Alternative, Traverse}
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, DigestedName}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 
@@ -22,9 +22,10 @@ final class Agent[F[_]] private[guard] (
   metricFilter: MetricFilter)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
-  val params: AgentParams      = agentConfig.evalConfig
-  val serviceInfo: ServiceInfo = publisher.serviceInfo
-  val zoneId: ZoneId           = publisher.serviceInfo.serviceParams.taskParams.zoneId
+  val params: AgentParams        = agentConfig.evalConfig
+  val serviceInfo: ServiceInfo   = publisher.serviceInfo
+  val zoneId: ZoneId             = publisher.serviceInfo.serviceParams.taskParams.zoneId
+  val digestedName: DigestedName = DigestedName(params.spans, publisher.serviceInfo.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](publisher, dispatcher, f(agentConfig), metricFilter)
@@ -61,35 +62,31 @@ final class Agent[F[_]] private[guard] (
 
   def broker(metricName: String): NJBroker[F] =
     new NJBroker[F](
-      MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
-      isCountAsError = false,
-      counterOrMeter = true // default counter
-    )
+      isCountAsError = false)
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
-      MetricName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def counter(counterName: String): NJCounter[F] =
     new NJCounter(
-      MetricName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
       publisher.metricRegistry,
       isCountAsError = false)
 
   def meter(meterName: String): NJMeter[F] =
     new NJMeter[F](
-      MetricName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
-      publisher.metricRegistry,
-      isCountAsError = false
-    )
+      DigestedName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
+      publisher.metricRegistry)
 
   def histogram(metricName: String): NJHistogram[F] =
     new NJHistogram[F](
-      MetricName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
       publisher.metricRegistry
     )
 

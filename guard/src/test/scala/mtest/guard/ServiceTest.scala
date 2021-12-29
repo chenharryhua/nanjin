@@ -143,4 +143,12 @@ class ServiceTest extends AnyFunSuite {
     assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
   }
 
+  test("print agent params") {
+    guard
+      .eventStream(ag =>
+        IO.println(ag.params) >> IO.println(ag.digestedName) >> IO.println(ag.zoneId) >> IO.println(ag.serviceInfo))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
 }

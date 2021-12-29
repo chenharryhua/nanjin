@@ -70,8 +70,14 @@ private[guard] object NJError {
 }
 
 @JsonCodec
-final case class MetricsSnapshot private (counters: Map[String, Long], asJson: Json, show: String) {
+final case class MetricsSnapshot private (
+  counterCount: Map[String, Long],
+  meterCount: Map[String, Long],
+  timerCount: Map[String, Long],
+  asJson: Json,
+  show: String) {
   override val toString: String = show
+  def isContainErrors: Boolean  = counterCount.filter(_._2 > 0).keys.exists(_.startsWith("0"))
 }
 
 private[guard] object MetricsSnapshot {
@@ -82,12 +88,6 @@ private[guard] object MetricsSnapshot {
     durationTimeUnit: TimeUnit,
     zoneId: ZoneId): MetricsSnapshot = {
 
-    val filterOutZero: MetricFilter = (name: String, metric: Metric) =>
-      metric match {
-        case c: Counter => c.getCount > 0 && metricFilter.matches(name, metric)
-        case _          => metricFilter.matches(name, metric)
-      }
-
     val text: String = {
       val bao = new ByteArrayOutputStream
       val ps  = new PrintStream(bao)
@@ -96,7 +96,7 @@ private[guard] object MetricsSnapshot {
         .convertRatesTo(rateTimeUnit)
         .convertDurationsTo(durationTimeUnit)
         .formattedFor(TimeZone.getTimeZone(zoneId))
-        .filter(filterOutZero)
+        .filter(metricFilter)
         .outputTo(ps)
         .build()
         .report()
@@ -108,20 +108,22 @@ private[guard] object MetricsSnapshot {
     val json: Json = {
       val str =
         new ObjectMapper()
-          .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false, filterOutZero))
+          .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false, metricFilter))
           .writerWithDefaultPrettyPrinter()
           .writeValueAsString(metricRegistry)
       io.circe.jackson.parse(str).fold(_ => Json.Null, identity)
     }
 
-    // keep counters which has zero
     val counters: Map[String, Long] =
       metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
     val meters: Map[String, Long] =
       metricRegistry.getMeters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-    MetricsSnapshot(counters ++ meters, json, text)
+    val timers: Map[String, Long] =
+      metricRegistry.getTimers(metricFilter).asScala.view.mapValues(_.getCount).toMap
+
+    MetricsSnapshot(counterCount = counters, meterCount = meters, timerCount = timers, json, text)
   }
 
   def apply(metricRegistry: MetricRegistry, metricFilter: MetricFilter, params: ServiceParams): MetricsSnapshot =

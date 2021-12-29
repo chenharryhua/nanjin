@@ -15,11 +15,13 @@ object logging {
 }
 
 final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F, Json], jsonConverter: Json => String)
-    extends (NJEvent => F[Unit]) {
-  def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): JsonLogging[F] =
-    new JsonLogging[F](f(translator), jsonConverter)
+    extends (NJEvent => F[Unit]) with UpdateTranslator[F, Json, JsonLogging[F]] {
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+
+  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): JsonLogging[F] =
+    new JsonLogging[F](f(translator), jsonConverter)
+
   override def apply(event: NJEvent): F[Unit] =
     event match {
       case sp @ ServicePanic(_, _, _, error) =>
@@ -43,14 +45,17 @@ final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F
     }
 
   def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
+
 }
 
 final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F, String])
-    extends (NJEvent => F[Unit]) {
-  def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextLogging[F] =
-    new TextLogging[F](f(translator))
+    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextLogging[F]] {
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+
+  override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextLogging[F] =
+    new TextLogging[F](f(translator))
+
   override def apply(event: NJEvent): F[Unit] =
     event match {
       case sp @ ServicePanic(_, _, _, error) =>
@@ -74,4 +79,5 @@ final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F
     }
 
   def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
+
 }

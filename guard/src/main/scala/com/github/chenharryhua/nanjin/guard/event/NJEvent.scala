@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance, ServiceParams}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
@@ -16,7 +16,7 @@ sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceInfo: ServiceInfo
   def uuid: UUID
-  def metricName: MetricName
+  def name: DigestedName
   final def show: String = NJEvent.showNJEvent.show(this)
   final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
 }
@@ -33,7 +33,7 @@ sealed trait ServiceEvent extends NJEvent {
 }
 
 final case class ServiceStarted(serviceInfo: ServiceInfo, timestamp: ZonedDateTime) extends ServiceEvent {
-  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+  override val name: DigestedName = serviceInfo.serviceParams.name
 }
 
 final case class ServicePanic(
@@ -42,7 +42,7 @@ final case class ServicePanic(
   retryDetails: RetryDetails,
   error: NJError
 ) extends ServiceEvent {
-  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+  override val name: DigestedName = serviceInfo.serviceParams.name
 }
 
 final case class ServiceStopped(
@@ -50,11 +50,11 @@ final case class ServiceStopped(
   timestamp: ZonedDateTime,
   snapshot: MetricsSnapshot
 ) extends ServiceEvent {
-  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+  override val name: DigestedName = serviceInfo.serviceParams.name
 }
 
 final case class ServiceAlert(
-  metricName: MetricName,
+  name: DigestedName,
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   importance: Importance,
@@ -67,7 +67,7 @@ final case class MetricsReport(
   timestamp: ZonedDateTime,
   snapshot: MetricsSnapshot
 ) extends ServiceEvent {
-  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+  override val name: DigestedName = serviceInfo.serviceParams.name
 }
 
 final case class MetricsReset(
@@ -76,11 +76,11 @@ final case class MetricsReset(
   timestamp: ZonedDateTime,
   snapshot: MetricsSnapshot
 ) extends ServiceEvent {
-  override val metricName: MetricName = serviceInfo.serviceParams.metricName
+  override val name: DigestedName = serviceInfo.serviceParams.name
 }
 
 final case class PassThrough(
-  metricName: MetricName,
+  name: DigestedName,
   asError: Boolean, // the payload json represent an error
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
@@ -91,7 +91,7 @@ sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
   final override def serviceInfo: ServiceInfo = actionInfo.serviceInfo
   final override def uuid: UUID               = actionInfo.uuid
-  final override def metricName: MetricName   = actionInfo.actionParams.metricName
+  final override def name: DigestedName       = actionInfo.actionParams.name
   final def actionParams: ActionParams        = actionInfo.actionParams
   final def serviceParams: ServiceParams      = actionInfo.serviceParams
   final def launchTime: ZonedDateTime         = actionInfo.launchTime

@@ -6,7 +6,7 @@ import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -61,6 +61,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         ))
     } yield ()
 
+  /** Reset Counters only
+    */
   def metricsReset(metricFilter: MetricFilter, cronExpr: Option[CronExpr]): F[Unit] =
     for {
       ts <- realZonedDateTime
@@ -148,24 +150,19 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           error = NJError(uuid, ex)))
     } yield ts
 
-  def passThrough(metricName: MetricName, json: Json, asError: Boolean): F[Unit] =
+  def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
-        PassThrough(
-          metricName = metricName,
-          asError = asError,
-          serviceInfo = serviceInfo,
-          timestamp = ts,
-          value = json))
+        PassThrough(name = metricName, asError = asError, serviceInfo = serviceInfo, timestamp = ts, value = json))
     } yield ()
 
-  def alert(metricName: MetricName, msg: String, importance: Importance): F[Unit] =
+  def alert(metricName: DigestedName, msg: String, importance: Importance): F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
         ServiceAlert(
-          metricName = metricName,
+          name = metricName,
           serviceInfo = serviceInfo,
           timestamp = ts,
           importance = importance,

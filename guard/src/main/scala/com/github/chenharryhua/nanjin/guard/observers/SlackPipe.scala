@@ -13,67 +13,6 @@ import io.circe.syntax.*
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import scala.concurrent.duration.FiniteDuration
-
-final case class SlackConfig[F[_]: Monad](
-  goodColor: String,
-  warnColor: String,
-  infoColor: String,
-  errorColor: String,
-  metricsReportEmoji: String,
-  startActionEmoji: String,
-  succActionEmoji: String,
-  failActionEmoji: String,
-  retryActionEmoji: String,
-  durationFormatter: DurationFormatter,
-  reportInterval: Option[FiniteDuration],
-  isShowRetry: Boolean,
-  extraSlackSections: F[List[Section]],
-  isLoggging: Boolean,
-  supporters: List[String],
-  isShowMetrics: Boolean
-) {
-  val atSupporters: String =
-    supporters
-      .filter(_.nonEmpty)
-      .map(_.trim)
-      .map(spt => if (spt.startsWith("@") || spt.startsWith("<")) spt else s"@$spt")
-      .distinct
-      .mkString(" ")
-
-  def withColorGood(color: String): SlackConfig[F]  = copy(goodColor = color)
-  def withColorWarn(color: String): SlackConfig[F]  = copy(warnColor = color)
-  def withColorInfo(color: String): SlackConfig[F]  = copy(infoColor = color)
-  def withColorError(color: String): SlackConfig[F] = copy(errorColor = color)
-
-  def withEmojiMetricsReport(emoji: String): SlackConfig[F] = copy(metricsReportEmoji = emoji)
-  def withEmojiStartAction(emoji: String): SlackConfig[F]   = copy(startActionEmoji = emoji)
-  def withEmojiSuccAction(emoji: String): SlackConfig[F]    = copy(succActionEmoji = emoji)
-  def withEmojiFailAction(emoji: String): SlackConfig[F]    = copy(failActionEmoji = emoji)
-  def withEmojiRetryAction(emoji: String): SlackConfig[F]   = copy(retryActionEmoji = emoji)
-
-  def at(supporter: String): SlackConfig[F]        = copy(supporters = supporter :: supporters)
-  def at(supporters: List[String]): SlackConfig[F] = copy(supporters = supporters ::: supporters)
-
-  def withSection(value: F[String]): SlackConfig[F] =
-    copy(extraSlackSections = for {
-      esf <- extraSlackSections
-      v <- value
-    } yield esf :+ MarkdownSection(abbreviate(v)))
-
-  def withSection(value: String): SlackConfig[F] = withSection(Monad[F].pure(value))
-
-  def withDurationFormatter(fmt: DurationFormatter): SlackConfig[F] = copy(durationFormatter = fmt)
-
-  def withReportInterval(fd: FiniteDuration): SlackConfig[F] = copy(reportInterval = Some(fd))
-  def withoutReportInterval: SlackConfig[F]                  = copy(reportInterval = None)
-
-  def withLogging: SlackConfig[F] = copy(isLoggging = true)
-
-  def showMetricsWhenApplicable: SlackConfig[F] = copy(isShowMetrics = true)
-  def showRetry: SlackConfig[F]                 = copy(isShowRetry = true)
-}
-
 object slack {
   private def defaultCfg[F[_]: Monad]: SlackConfig[F] = SlackConfig[F](
     goodColor = "#36a64f",
@@ -87,11 +26,9 @@ object slack {
     retryActionEmoji = "",
     durationFormatter = DurationFormatter.defaultFormatter,
     reportInterval = None,
-    isShowRetry = false,
     extraSlackSections = Monad[F].pure(Nil),
     isLoggging = false,
-    supporters = Nil,
-    isShowMetrics = false
+    supporters = Nil
   )
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]])(
     update: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] = {
@@ -112,12 +49,12 @@ final class SlackPipe[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig[F],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
-    extends Pipe[F, NJEvent, NJEvent] {
-
-  def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackPipe[F] =
-    new SlackPipe[F](snsResource, cfg, f(translator))
+    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, SlackPipe[F]] {
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+
+  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackPipe[F] =
+    new SlackPipe[F](snsResource, cfg, f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {

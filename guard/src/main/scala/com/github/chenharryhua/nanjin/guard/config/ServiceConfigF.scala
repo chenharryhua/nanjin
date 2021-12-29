@@ -31,7 +31,7 @@ private[guard] object MetricParams {
   metric: MetricParams,
   brief: String
 ) {
-  val metricName: MetricName = MetricName(serviceName, taskParams)
+  val name: DigestedName = DigestedName(serviceName, taskParams)
 }
 
 private[guard] object ServiceParams {

@@ -2,16 +2,16 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.MetricName
+import com.github.chenharryhua.nanjin.guard.config.DigestedName
 
 final class NJCounter[F[_]](
-  metricName: MetricName,
+  name: DigestedName,
   metricRegistry: MetricRegistry,
   isCountAsError: Boolean
 )(implicit F: Sync[F]) {
-  private lazy val counter: Counter = metricRegistry.counter(counterMRName(metricName, isCountAsError))
+  private lazy val counter: Counter = metricRegistry.counter(counterMRName(name, isCountAsError))
 
-  def asError: NJCounter[F] = new NJCounter[F](metricName, metricRegistry, isCountAsError = true)
+  def asError: NJCounter[F] = new NJCounter[F](name, metricRegistry, isCountAsError = true)
 
   def unsafeInc(num: Long): Unit = counter.inc(num)
   def inc(num: Long): F[Unit]    = F.delay(unsafeInc(num))

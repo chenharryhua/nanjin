@@ -20,7 +20,7 @@ class PassThroughTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("test").service("pass-throught")
   test("pass-through") {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
-      List.range(0, 9).traverse(n => action.broker("pt").withMeter.asError.passThrough(PassThroughObject(n, "a")))
+      List.range(0, 9).traverse(n => action.broker("pt").asError.passThrough(PassThroughObject(n, "a")))
     }.map {
       case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
       case _                          => None
@@ -33,7 +33,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("unsafe pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
-      IO(1).map(_ => action.broker("pt").withCounter.unsafePassThrough(PassThroughObject(1, "a")))
+      IO(1).map(_ => action.broker("pt").unsafePassThrough(PassThroughObject(1, "a")))
     }.debug()
       .map {
         case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
@@ -57,7 +57,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("05.counter.[counter/0135a608].error") == 3)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counterCount("04.counter.[counter/0135a608].error") == 3)
   }
 
   test("alert") {
@@ -69,7 +69,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counters("02.alert.[oops/a32b945e].error") == 1)
+    assert(last.asInstanceOf[ServiceStopped].snapshot.counterCount("02.alert.[oops/a32b945e].error") == 1)
   }
 
   test("meter") {
