@@ -17,10 +17,10 @@ package object action {
   private[guard] val servicePanicMRName: String   = "01.service.panic"
   private[guard] val serviceRestartMRName: String = "12.service.start"
 
-  private[action] def actionFailMRName(ap: ActionParams): String  = s"07.${ap.alias}.${ap.name.value}.fail"
-  private[action] def actionRetryMRName(ap: ActionParams): String = s"11.${ap.alias}.${ap.name.value}.retry"
-  private[action] def actionSuccMRName(ap: ActionParams): String  = s"27.${ap.alias}.${ap.name.value}.succ"
-  private[action] def actionTimerMRName(ap: ActionParams): String = s"${ap.alias}.${ap.name.value}"
+  private[action] def actionFailMRName(ap: ActionParams): String  = s"07.${ap.alias}.[${ap.name.value}].fail"
+  private[action] def actionRetryMRName(ap: ActionParams): String = s"11.${ap.alias}.[${ap.name.value}].retry"
+  private[action] def actionSuccMRName(ap: ActionParams): String  = s"27.${ap.alias}.[${ap.name.value}].succ"
+  private[action] def actionTimerMRName(ap: ActionParams): String = s"${ap.alias}.[${ap.name.value}]"
 
   private[action] def alertMRName(name: DigestedName, importance: Importance): String =
     importance match {

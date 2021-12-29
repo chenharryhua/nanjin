@@ -26,11 +26,9 @@ object slack {
     retryActionEmoji = "",
     durationFormatter = DurationFormatter.defaultFormatter,
     reportInterval = None,
-    isShowRetry = false,
     extraSlackSections = Monad[F].pure(Nil),
     isLoggging = false,
-    supporters = Nil,
-    isShowMetrics = false
+    supporters = Nil
   )
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]])(
     update: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] = {

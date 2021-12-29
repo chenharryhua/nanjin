@@ -71,11 +71,9 @@ final case class SlackConfig[F[_]: Monad](
   retryActionEmoji: String,
   durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
-  isShowRetry: Boolean,
   extraSlackSections: F[List[Section]],
   isLoggging: Boolean,
-  supporters: List[String],
-  isShowMetrics: Boolean
+  supporters: List[String]
 ) {
   val atSupporters: String =
     supporters
@@ -114,6 +112,4 @@ final case class SlackConfig[F[_]: Monad](
 
   def withLogging: SlackConfig[F] = copy(isLoggging = true)
 
-  def showMetricsWhenApplicable: SlackConfig[F] = copy(isShowMetrics = true)
-  def showRetry: SlackConfig[F]                 = copy(isShowRetry = true)
 }

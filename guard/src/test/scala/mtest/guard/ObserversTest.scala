@@ -86,7 +86,7 @@ class ObserversTest extends AnyFunSuite {
 
     TaskGuard[IO]("ses")
       .service("email")
-      .updateConfig(_.withMetricReport(1.second).withConstantDelay(1.second))
+      .updateConfig(_.withMetricReport(100.second).withConstantDelay(1.second))
       .eventStream(
         _.span("mail")
           .max(3)

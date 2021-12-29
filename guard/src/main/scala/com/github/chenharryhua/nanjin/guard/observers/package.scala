@@ -79,6 +79,4 @@ package object observers {
     s"$n$w"
   }
 
-  private[observers] def actionTitle(actionParams: ActionParams) =
-    s"${actionParams.alias} ${actionParams.name.value}"
 }

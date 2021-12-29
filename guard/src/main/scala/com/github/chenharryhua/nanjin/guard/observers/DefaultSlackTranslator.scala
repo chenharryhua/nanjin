@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.generic.auto.*
@@ -15,7 +15,7 @@ import java.time.temporal.ChronoUnit
 final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
 
   private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
-    if (cfg.isShowMetrics && snapshot.show.length <= MessageSizeLimits) {
+    if (snapshot.show.length <= MessageSizeLimits) {
       KeyValueSection("Metrics", s"```${snapshot.show.replace("-- ", "")}```")
     } else {
       val fmt: NumberFormat           = NumberFormat.getIntegerInstance
@@ -210,6 +210,9 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
       }
     }
 
+  private def actionTitle(actionParams: ActionParams): String =
+    s"${actionParams.alias} *${actionParams.name.value}*"
+
   private def actionStart(as: ActionStart): Option[SlackApp] =
     if (as.actionParams.importance === Importance.Critical)
       Some(
@@ -218,7 +221,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
           attachments = List(Attachment(
             color = cfg.infoColor,
             blocks = List(
-              MarkdownSection(s"${cfg.startActionEmoji} Kick off *${actionTitle(as.actionParams)}*"),
+              MarkdownSection(s"${cfg.startActionEmoji} Kick off ${actionTitle(as.actionParams)}"),
               MarkdownSection(s"""|*${as.actionParams.alias} ID:* ${as.uuid.show}""".stripMargin),
               hostServiceSection(as.actionInfo.serviceInfo.serviceParams)
             )
@@ -230,7 +233,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
     if (ar.actionParams.importance >= Importance.Medium) {
       val header: String =
         s"${cfg.retryActionEmoji} This is the *${toOrdinalWords(ar.willDelayAndRetry.retriesSoFar + 1L)}* " +
-          s"failure of the *${actionTitle(ar.actionParams)}*, " +
+          s"failure of the ${actionTitle(ar.actionParams)}, " +
           s"took *${took(ar.launchTime, ar.timestamp)}* so far, " +
           s"retry of which takes place in *${cfg.durationFormatter.format(ar.willDelayAndRetry.nextDelay)}*."
 
@@ -254,7 +257,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
     cfg.extraSlackSections.map { extra =>
       if (af.actionParams.importance >= Importance.Medium) {
         val header =
-          s"${cfg.failActionEmoji} The *${actionTitle(af.actionParams)}* " +
+          s"${cfg.failActionEmoji} The ${actionTitle(af.actionParams)} " +
             s"was failed after *${af.numRetries.show}* retries, " +
             s"took *${took(af.launchTime, af.timestamp)}*. ${cfg.atSupporters}"
 
@@ -283,7 +286,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
   private def actionSucced(as: ActionSucced): Option[SlackApp] =
     if (as.actionParams.importance === Importance.Critical) {
       val header =
-        s"${cfg.succActionEmoji} The *${actionTitle(as.actionParams)}* " +
+        s"${cfg.succActionEmoji} The ${actionTitle(as.actionParams)} " +
           s"was accomplished in *${took(as.launchTime, as.timestamp)}*, after *${as.numRetries.show}* retries"
 
       Some(
