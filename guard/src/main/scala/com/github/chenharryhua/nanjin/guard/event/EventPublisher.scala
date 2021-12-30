@@ -46,7 +46,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         ServiceStopped(
           timestamp = ts,
           serviceInfo = serviceInfo,
-          snapshot = MetricSnapshot.Positive(metricFilter, metricRegistry, serviceInfo.serviceParams)
+          snapshot = MetricSnapshot.Regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
         ))
     } yield ()
 
@@ -63,8 +63,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>
               MetricSnapshot.Full(metricRegistry, serviceInfo.serviceParams)
-            case MetricSnapshotType.Positive =>
-              MetricSnapshot.Positive(metricFilter, metricRegistry, serviceInfo.serviceParams)
+            case MetricSnapshotType.Regular =>
+              MetricSnapshot.Regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
             case MetricSnapshotType.Delta =>
               MetricSnapshot.Delta(oldLast, metricFilter, metricRegistry, serviceInfo.serviceParams)
           }
@@ -83,14 +83,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             resetType = MetricResetType.Scheduled(next),
             serviceInfo = serviceInfo,
             timestamp = ts,
-            snapshot = MetricSnapshot.Positive(metricFilter, metricRegistry, serviceInfo.serviceParams)
+            snapshot = MetricSnapshot.Regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
           )
         }
       }.getOrElse(MetricsReset(
         resetType = MetricResetType.Adhoc,
         serviceInfo = serviceInfo,
         timestamp = ts,
-        snapshot = MetricSnapshot.Positive(metricFilter, metricRegistry, serviceInfo.serviceParams)
+        snapshot = MetricSnapshot.Regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
       ))
       _ <- channel.send(msg)
       _ <- lastCountersRef.update(_.resetBy(metricFilter))

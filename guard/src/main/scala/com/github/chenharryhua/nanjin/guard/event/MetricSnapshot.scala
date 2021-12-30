@@ -135,87 +135,63 @@ object MetricSnapshot {
   final case class Full private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
 
   object Full {
-    def apply(
-      metricRegistry: MetricRegistry,
-      rateTimeUnit: TimeUnit,
-      durationTimeUnit: TimeUnit,
-      zoneId: ZoneId): Full = {
+
+    def apply(metricRegistry: MetricRegistry, serviceParams: ServiceParams): Full = {
       val filter = MetricFilter.ALL
       Full(
         counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
-        toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
-        toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
+        toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
+        toText(
+          metricRegistry,
+          filter,
+          serviceParams.metric.rateTimeUnit,
+          serviceParams.metric.durationTimeUnit,
+          serviceParams.taskParams.zoneId)
       )
     }
-
-    def apply(metricRegistry: MetricRegistry, serviceParams: ServiceParams): Full =
-      apply(
-        metricRegistry,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit,
-        serviceParams.taskParams.zoneId
-      )
   }
 
   @JsonCodec
-  final case class Positive private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
+  final case class Regular private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
 
-  object Positive {
-    def apply(
-      metricFilter: MetricFilter,
-      metricRegistry: MetricRegistry,
-      rateTimeUnit: TimeUnit,
-      durationTimeUnit: TimeUnit,
-      zoneId: ZoneId): Positive = {
+  object Regular {
+
+    def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): Regular = {
       val filter = metricFilter |+| positiveFilter
-      Positive(
+      Regular(
         counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
-        toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
-        toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
+        toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
+        toText(
+          metricRegistry,
+          filter,
+          serviceParams.metric.rateTimeUnit,
+          serviceParams.metric.durationTimeUnit,
+          serviceParams.taskParams.zoneId)
       )
     }
-
-    def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): Positive =
-      apply(
-        metricFilter,
-        metricRegistry,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit,
-        serviceParams.taskParams.zoneId)
   }
 
   @JsonCodec
   final case class Delta private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
 
   object Delta {
-    def apply(
-      lastCounters: LastCounters,
-      metricFilter: MetricFilter,
-      metricRegistry: MetricRegistry,
-      rateTimeUnit: TimeUnit,
-      durationTimeUnit: TimeUnit,
-      zoneId: ZoneId
-    ): Delta = { // filter out unchanged metrics and Zero
-      val filter: MetricFilter = metricFilter |+| positiveFilter |+| deltaFilter(lastCounters)
-      Delta(
-        counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
-        toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
-        toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
-      )
-    }
 
     def apply(
       lastCounters: LastCounters,
       metricFilter: MetricFilter,
       metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams
-    ): Delta =
-      apply(
-        lastCounters,
-        metricFilter,
-        metricRegistry,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit,
-        serviceParams.taskParams.zoneId)
+      serviceParams: ServiceParams): Delta = {
+      val filter: MetricFilter = metricFilter |+| positiveFilter |+| deltaFilter(lastCounters)
+      Delta(
+        counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
+        toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
+        toText(
+          metricRegistry,
+          filter,
+          serviceParams.metric.rateTimeUnit,
+          serviceParams.metric.durationTimeUnit,
+          serviceParams.taskParams.zoneId)
+      )
+    }
   }
 }

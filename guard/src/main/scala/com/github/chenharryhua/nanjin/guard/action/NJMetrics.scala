@@ -19,8 +19,8 @@ class NJMetrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[
   private def reporting(mst: MetricSnapshotType): F[Unit] =
     eventPublisher.metricsReport(metricFilter, MetricReportType.Adhoc(mst))
 
-  def report: F[Unit]      = reporting(MetricSnapshotType.Positive)
-  def unsafeReport(): Unit = dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Positive))
+  def report: F[Unit]      = reporting(MetricSnapshotType.Regular)
+  def unsafeReport(): Unit = dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Regular))
 
   def deltaReport: F[Unit]      = reporting(MetricSnapshotType.Delta)
   def unsafeDeltaReport(): Unit = dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Delta))
