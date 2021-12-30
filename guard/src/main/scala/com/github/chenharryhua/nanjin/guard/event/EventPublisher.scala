@@ -93,7 +93,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         snapshot = MetricSnapshot.Positive(metricFilter, metricRegistry, serviceInfo.serviceParams)
       ))
       _ <- channel.send(msg)
-      _ <- lastCountersRef.update(_ => MetricSnapshot.LastCounters.empty)
+      _ <- lastCountersRef.update(_.resetBy(metricFilter))
     } yield metricRegistry.getCounters(metricFilter).values().asScala.foreach(c => c.dec(c.getCount))
 
   /** actions

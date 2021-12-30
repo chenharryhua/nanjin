@@ -102,11 +102,20 @@ object MetricSnapshot {
   private def histograms(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
     metricRegistry.getHistograms(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
+  private val singletonCounter: Counter = new Counter()
   final case class LastCounters private ( // not a snapshot
     counterCount: Map[String, Long],
     meterCount: Map[String, Long],
     timerCount: Map[String, Long],
-    histoCount: Map[String, Long])
+    histoCount: Map[String, Long]) {
+    def resetBy(metricFilter: MetricFilter): LastCounters =
+      LastCounters(
+        counterCount.filter(cc => metricFilter.matches(cc._1, singletonCounter)),
+        meterCount,
+        timerCount,
+        histoCount
+      )
+  }
 
   object LastCounters {
     val empty: LastCounters = LastCounters(Map.empty, Map.empty, Map.empty, Map.empty)
