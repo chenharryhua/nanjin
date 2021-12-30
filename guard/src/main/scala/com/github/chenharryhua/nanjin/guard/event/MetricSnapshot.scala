@@ -36,10 +36,10 @@ object MetricSnapshot {
       (name: String, metric: Metric) => x.matches(name, metric) && y.matches(name, metric)
   }
 
-  val zeroFilter: MetricFilter =
+  val positiveFilter: MetricFilter =
     (_: String, metric: Metric) =>
       metric match {
-        case c: Counting => c.getCount =!= 0
+        case c: Counting => c.getCount > 0
         case _           => true
       }
 
@@ -149,24 +149,24 @@ object MetricSnapshot {
   }
 
   @JsonCodec
-  final case class AsIs private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
+  final case class Positive private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
 
-  object AsIs {
+  object Positive {
     def apply(
       metricFilter: MetricFilter,
       metricRegistry: MetricRegistry,
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
-      zoneId: ZoneId): AsIs = {
-      val filter = metricFilter |+| zeroFilter
-      AsIs(
+      zoneId: ZoneId): Positive = {
+      val filter = metricFilter |+| positiveFilter
+      Positive(
         counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
         toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
         toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
       )
     }
 
-    def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): AsIs =
+    def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): Positive =
       apply(
         metricFilter,
         metricRegistry,
@@ -187,7 +187,7 @@ object MetricSnapshot {
       durationTimeUnit: TimeUnit,
       zoneId: ZoneId
     ): Delta = { // filter out unchanged metrics and Zero
-      val filter: MetricFilter = metricFilter |+| zeroFilter |+| deltaFilter(lastCounters)
+      val filter: MetricFilter = metricFilter |+| positiveFilter |+| deltaFilter(lastCounters)
       Delta(
         counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
         toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),

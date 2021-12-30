@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit
 private[observers] object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   private def retriesText(numRetry: Int): Text.TypedTag[String] =

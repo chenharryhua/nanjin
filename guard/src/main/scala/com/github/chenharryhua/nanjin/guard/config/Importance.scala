@@ -44,7 +44,7 @@ sealed trait MetricSnapshotType extends EnumEntry
 object MetricSnapshotType
     extends CatsEnum[MetricSnapshotType] with Enum[MetricSnapshotType] with CirceEnum[MetricSnapshotType] {
   override val values: IndexedSeq[MetricSnapshotType] = findValues
-  case object Full extends MetricSnapshotType
-  case object AsIs extends MetricSnapshotType
-  case object Delta extends MetricSnapshotType
+  case object Full extends MetricSnapshotType // == MetricFilter.ALL
+  case object Positive extends MetricSnapshotType // filter out zero
+  case object Delta extends MetricSnapshotType // filter out unchanged and zero
 }
