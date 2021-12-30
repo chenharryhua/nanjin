@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.implicits.{catsSyntaxEq, toShow}
+import cats.implicits.{catsSyntaxEq, catsSyntaxSemigroup, toShow}
+import cats.kernel.Monoid
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -27,6 +28,30 @@ sealed trait MetricSnapshot {
 }
 
 object MetricSnapshot {
+
+  implicit val monoidMetricFilter: Monoid[MetricFilter] = new Monoid[MetricFilter] {
+    override val empty: MetricFilter = MetricFilter.ALL
+
+    override def combine(x: MetricFilter, y: MetricFilter): MetricFilter =
+      (name: String, metric: Metric) => x.matches(name, metric) && y.matches(name, metric)
+  }
+
+  val zeroFilter: MetricFilter =
+    (_: String, metric: Metric) =>
+      metric match {
+        case c: Counting => c.getCount =!= 0
+        case _           => true
+      }
+
+  def deltaFilter(lastCounters: LastCounters): MetricFilter =
+    (name: String, metric: Metric) =>
+      metric match {
+        case c: Counter   => lastCounters.counterCount.get(name).forall(_ =!= c.getCount)
+        case m: Meter     => lastCounters.meterCount.get(name).forall(_ =!= m.getCount)
+        case t: Timer     => lastCounters.timerCount.get(name).forall(_ =!= t.getCount)
+        case h: Histogram => lastCounters.histoCount.get(name).forall(_ =!= h.getCount)
+        case _            => true
+      }
 
   implicit val showSnapshot: Show[MetricSnapshot] = _.show
 
@@ -106,11 +131,11 @@ object MetricSnapshot {
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
       zoneId: ZoneId): Full = {
-      val metricFilter = MetricFilter.ALL
+      val filter = MetricFilter.ALL
       Full(
-        counters(metricRegistry, metricFilter) ++ meters(metricRegistry, metricFilter),
-        toJson(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit),
-        toText(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit, zoneId)
+        counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
+        toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
+        toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
       )
     }
 
@@ -132,11 +157,14 @@ object MetricSnapshot {
       metricRegistry: MetricRegistry,
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
-      zoneId: ZoneId): AsIs = AsIs(
-      counters(metricRegistry, metricFilter) ++ meters(metricRegistry, metricFilter),
-      toJson(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit),
-      toText(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit, zoneId)
-    )
+      zoneId: ZoneId): AsIs = {
+      val filter = metricFilter |+| zeroFilter
+      AsIs(
+        counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
+        toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
+        toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
+      )
+    }
 
     def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): AsIs =
       apply(
@@ -159,31 +187,7 @@ object MetricSnapshot {
       durationTimeUnit: TimeUnit,
       zoneId: ZoneId
     ): Delta = { // filter out unchanged metrics and Zero
-      val filter: MetricFilter = (name: String, metric: Metric) =>
-        metric match {
-          case c: Counter =>
-            val count: Long = c.getCount
-            lastCounters.counterCount.get(name).forall(_ =!= count) &&
-            (count =!= 0) &&
-            metricFilter.matches(name, metric)
-          case m: Meter =>
-            val count: Long = m.getCount
-            lastCounters.meterCount.get(name).forall(_ =!= count) &&
-            (count =!= 0) &&
-            metricFilter.matches(name, metric)
-          case t: Timer =>
-            val count: Long = t.getCount
-            lastCounters.timerCount.get(name).forall(_ =!= count) &&
-            (count =!= 0) &&
-            metricFilter.matches(name, metric)
-          case h: Histogram =>
-            val count: Long = h.getCount
-            lastCounters.histoCount.get(name).forall(_ =!= count) &&
-            (count =!= 0) &&
-            metricFilter.matches(name, metric)
-          case _ => metricFilter.matches(name, metric)
-        }
-
+      val filter: MetricFilter = metricFilter |+| zeroFilter |+| deltaFilter(lastCounters)
       Delta(
         counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
         toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
