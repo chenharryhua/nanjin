@@ -48,7 +48,7 @@ final case class ServicePanic(
 final case class ServiceStopped(
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
-  snapshot: MetricsSnapshot
+  snapshot: MetricSnapshot
 ) extends ServiceEvent {
   override val name: DigestedName = serviceInfo.serviceParams.name
 }
@@ -65,7 +65,7 @@ final case class MetricsReport(
   reportType: MetricReportType,
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
-  snapshot: MetricsSnapshot
+  snapshot: MetricSnapshot
 ) extends ServiceEvent {
   override val name: DigestedName = serviceInfo.serviceParams.name
 }
@@ -74,7 +74,7 @@ final case class MetricsReset(
   resetType: MetricResetType,
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
-  snapshot: MetricsSnapshot
+  snapshot: MetricSnapshot
 ) extends ServiceEvent {
   override val name: DigestedName = serviceInfo.serviceParams.name
 }

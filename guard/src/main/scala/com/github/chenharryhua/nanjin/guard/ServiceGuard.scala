@@ -28,6 +28,7 @@ import fs2.{INothing, Stream}
   */
 // format: on
 
+// https://github.com/dropwizard/metrics
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   metricFilter: MetricFilter,
@@ -55,9 +56,10 @@ final class ServiceGuard[F[_]] private[guard] (
         uuid <- UUIDGen.randomUUID
         ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
       } yield ServiceInfo(params, uuid, ts))
+      lastRef <- Stream.eval(F.ref(MetricSnapshot.Last.empty))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, channel)
+        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, lastRef, channel)
 
         val panicCounter: Counter   = publisher.metricRegistry.counter(servicePanicMRName)
         val restartCounter: Counter = publisher.metricRegistry.counter(serviceRestartMRName)
@@ -82,13 +84,15 @@ final class ServiceGuard[F[_]] private[guard] (
               Stream
                 .fixedRate[F](dur)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2)))
+                .evalMap(t =>
+                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(t._2, params.metric.snapshotType)))
                 .drain
             case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2)))
+                .evalMap(t =>
+                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(t._2, params.metric.snapshotType)))
                 .drain
             case None => Stream.empty
           }

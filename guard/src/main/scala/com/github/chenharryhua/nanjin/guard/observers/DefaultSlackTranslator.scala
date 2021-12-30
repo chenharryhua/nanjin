@@ -14,14 +14,13 @@ import java.time.temporal.ChronoUnit
 
 final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
 
-  private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
+  private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
     if (snapshot.show.length <= MessageSizeLimits) {
       KeyValueSection("Metrics", s"```${snapshot.show.replace("-- ", "")}```")
     } else {
-      val fmt: NumberFormat           = NumberFormat.getIntegerInstance
-      val counters: Map[String, Long] = snapshot.counterCount ++ snapshot.meterCount
+      val fmt: NumberFormat = NumberFormat.getIntegerInstance
       val msg: String =
-        counters.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
+        snapshot.counterMap.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
         KeyValueSection("Counters", "*No counter update*")
       else
@@ -72,6 +71,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
                 TextField("Cummulative Delay", cfg.durationFormatter.format(sp.retryDetails.cumulativeDelay))
               ),
               MarkdownSection(s"*Restart Policy:* ${sp.serviceInfo.serviceParams.retry.policy[F].show}"),
+              MarkdownSection(s"*Error ID:* ${sp.error.uuid.show}"),
               KeyValueSection("Cause", s"```${abbreviate(sp.error.stackTrace)}```")
             )
           ),
@@ -161,14 +161,14 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
   private def metricsReset(mr: MetricsReset): F[SlackApp] =
     cfg.extraSlackSections.map { extra =>
       mr.resetType match {
-        case MetricResetType.AdventiveReset =>
+        case MetricResetType.Adhoc =>
           SlackApp(
             username = mr.serviceInfo.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
-                  MarkdownSection("*Adventive Metrics Reset*"),
+                  MarkdownSection("*Adhoc Metric Reset*"),
                   hostServiceSection(mr.serviceInfo.serviceParams),
                   JuxtaposeSection(
                     TextField("Up Time", took(mr.serviceInfo.launchTime, mr.timestamp)),
@@ -188,14 +188,14 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
               Attachment(color = cfg.infoColor, blocks = extra)
             )
           )
-        case MetricResetType.ScheduledReset(next) =>
+        case MetricResetType.Scheduled(next) =>
           SlackApp(
             username = mr.serviceInfo.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(s"*Scheduled Metrics Reset*"),
+                  MarkdownSection(s"*Scheduled Metric Reset*"),
                   hostServiceSection(mr.serviceInfo.serviceParams),
                   JuxtaposeSection(
                     TextField("Up Time", took(mr.serviceInfo.launchTime, mr.timestamp)),
@@ -270,7 +270,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
                 blocks = List(
                   MarkdownSection(header),
                   MarkdownSection(s"""|*${af.actionParams.alias} ID:* ${af.uuid.show}
-                                      |*error ID:* ${af.actionInfo.uuid.show}
+                                      |*error ID:* ${af.error.uuid.show}
                                       |*policy:* ${af.actionParams.retry.policy[F].show}""".stripMargin),
                   hostServiceSection(af.serviceParams),
                   KeyValueSection("Cause", s"```${abbreviate(af.error.stackTrace)}```")

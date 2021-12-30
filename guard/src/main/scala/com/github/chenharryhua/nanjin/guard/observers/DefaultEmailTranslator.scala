@@ -4,6 +4,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
@@ -32,12 +33,14 @@ private[observers] object DefaultEmailTranslator extends all {
   private def serviceStarted(ss: ServiceStarted): Text.TypedTag[String] =
     div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceInfo))
 
-  private def servicePanic(sp: ServicePanic): Text.TypedTag[String] =
+  private def servicePanic[F[_]: Applicative](sp: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := "color:red")(s"Service Panic"),
       timestampText(sp.timestamp),
       hostServiceText(sp.serviceInfo),
       p(b("restart so far: "), sp.retryDetails.retriesSoFar),
+      p(b("error ID: "), sp.error.uuid.show),
+      p(b("policy: "), sp.serviceInfo.serviceParams.retry.policy[F].show),
       brief(sp.serviceInfo),
       causeText(sp.error)
     )
@@ -56,6 +59,7 @@ private[observers] object DefaultEmailTranslator extends all {
       h3(style := color)(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
       p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
+      p(b("snapshot type: ", mr.reportType.snapshotType.show)),
       brief(mr.serviceInfo),
       pre(mr.snapshot.show)
     )
@@ -76,7 +80,7 @@ private[observers] object DefaultEmailTranslator extends all {
       h3("Service Alert"),
       timestampText(sa.timestamp),
       hostServiceText(sa.serviceInfo),
-      p(b("Name: "), sa.name.value, b("Importance: "), sa.importance.show),
+      p(b("name: "), sa.name.value, "    ", b("importance: "), sa.importance.show),
       pre(sa.message)
     )
 
@@ -95,20 +99,23 @@ private[observers] object DefaultEmailTranslator extends all {
       p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show)
     )
 
-  private def actionFailed[F[_]: Applicative](af: ActionFailed): Text.TypedTag[String] =
-    div(
-      h3(style := "color:red")(s"${af.actionParams.name.value} Failed"),
-      timestampText(af.timestamp),
-      hostServiceText(af.actionInfo.serviceInfo),
-      p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
-      p(b("error ID: "), af.error.uuid.show),
-      p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
-      p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
-      retriesText(af.numRetries),
-      notesText(af.notes),
-      brief(af.serviceInfo),
-      causeText(af.error)
-    )
+  private def actionFailed[F[_]: Applicative](af: ActionFailed): Option[Text.TypedTag[String]] =
+    if (af.actionParams.importance >= Importance.Medium)
+      Some(
+        div(
+          h3(style := "color:red")(s"${af.actionParams.name.value} Failed"),
+          timestampText(af.timestamp),
+          hostServiceText(af.actionInfo.serviceInfo),
+          p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
+          p(b("error ID: "), af.error.uuid.show),
+          p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
+          p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
+          retriesText(af.numRetries),
+          notesText(af.notes),
+          brief(af.serviceInfo),
+          causeText(af.error)
+        ))
+    else None
 
   private def actionSucced(as: ActionSucced): Text.TypedTag[String] =
     div(
@@ -125,7 +132,7 @@ private[observers] object DefaultEmailTranslator extends all {
     Translator
       .empty[F, Text.TypedTag[String]]
       .withServiceStarted(serviceStarted)
-      .withServicePanic(servicePanic)
+      .withServicePanic(servicePanic[F])
       .withServiceStopped(serviceStopped)
       .withMetricsReport(metricsReport)
       .withMetricsReset(metricsReset)

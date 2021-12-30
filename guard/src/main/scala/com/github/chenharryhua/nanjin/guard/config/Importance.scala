@@ -40,3 +40,12 @@ object ActionTermination
   case object Yes extends ActionTermination
   case object No extends ActionTermination
 }
+
+sealed trait MetricSnapshotType extends EnumEntry with Lowercase
+object MetricSnapshotType
+    extends CatsEnum[MetricSnapshotType] with Enum[MetricSnapshotType] with CirceEnum[MetricSnapshotType] {
+  override val values: IndexedSeq[MetricSnapshotType] = findValues
+  case object Full extends MetricSnapshotType
+  case object AsIs extends MetricSnapshotType
+  case object Delta extends MetricSnapshotType
+}

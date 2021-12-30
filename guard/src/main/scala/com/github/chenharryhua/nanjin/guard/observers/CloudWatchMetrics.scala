@@ -55,9 +55,8 @@ final class CloudWatchMetrics[F[_]] private[observers] (
   private def buildMetricDatum(
     report: MetricsReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
-    val counterAndMeter: Map[String, Long] = report.snapshot.counterCount ++ report.snapshot.meterCount
 
-    val keyMap: Map[MetricKey, Long] = counterAndMeter.map { case (metricName, counter) =>
+    val keyMap: Map[MetricKey, Long] = report.snapshot.counterMap.map { case (metricName, counter) =>
       MetricKey(
         report.serviceInfo.uuid,
         report.serviceInfo.serviceParams.taskParams.hostName,
