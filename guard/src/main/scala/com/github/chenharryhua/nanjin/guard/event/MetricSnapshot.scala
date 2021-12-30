@@ -6,6 +6,7 @@ import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.chenharryhua.nanjin.datetime.instances.*
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import io.circe.Json
 import io.circe.generic.JsonCodec
 
@@ -22,6 +23,7 @@ sealed trait MetricSnapshot {
   def asJson: Json
   def show: String
   final override def toString: String = show
+  final def isContainErrors: Boolean  = counterMap.filter(_._2 > 0).keys.exists(_.startsWith("0"))
 }
 
 object MetricSnapshot {
@@ -111,22 +113,38 @@ object MetricSnapshot {
         toText(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit, zoneId)
       )
     }
+
+    def apply(metricRegistry: MetricRegistry, serviceParams: ServiceParams): Full =
+      apply(
+        metricRegistry,
+        serviceParams.metric.rateTimeUnit,
+        serviceParams.metric.durationTimeUnit,
+        serviceParams.taskParams.zoneId
+      )
   }
 
   @JsonCodec
-  final case class Adhoc private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
+  final case class AsIs private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
 
-  object Adhoc {
+  object AsIs {
     def apply(
-      metricRegistry: MetricRegistry,
       metricFilter: MetricFilter,
+      metricRegistry: MetricRegistry,
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
-      zoneId: ZoneId): Adhoc = Adhoc(
+      zoneId: ZoneId): AsIs = AsIs(
       counters(metricRegistry, metricFilter) ++ meters(metricRegistry, metricFilter),
       toJson(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit),
       toText(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit, zoneId)
     )
+
+    def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): AsIs =
+      apply(
+        metricFilter,
+        metricRegistry,
+        serviceParams.metric.rateTimeUnit,
+        serviceParams.metric.durationTimeUnit,
+        serviceParams.taskParams.zoneId)
   }
 
   @JsonCodec
@@ -135,12 +153,12 @@ object MetricSnapshot {
   object Delta {
     def apply(
       last: Last,
-      metricRegistry: MetricRegistry,
       metricFilter: MetricFilter,
+      metricRegistry: MetricRegistry,
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
       zoneId: ZoneId
-    ): Delta = {
+    ): Delta = { // filter out unchanged metrics
       val filter: MetricFilter = (name: String, metric: Metric) =>
         metric match {
           case c: Counter =>
@@ -160,5 +178,19 @@ object MetricSnapshot {
         toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
       )
     }
+
+    def apply(
+      last: Last,
+      metricFilter: MetricFilter,
+      metricRegistry: MetricRegistry,
+      serviceParams: ServiceParams
+    ): Delta =
+      apply(
+        last,
+        metricFilter,
+        metricRegistry,
+        serviceParams.metric.rateTimeUnit,
+        serviceParams.metric.durationTimeUnit,
+        serviceParams.taskParams.zoneId)
   }
 }

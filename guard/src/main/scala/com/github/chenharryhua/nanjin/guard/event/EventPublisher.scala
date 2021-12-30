@@ -6,7 +6,7 @@ import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance, MetricSnapshotType}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -20,6 +20,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceInfo: ServiceInfo,
   val metricRegistry: MetricRegistry,
+  lastRef: Ref[F, MetricSnapshot.Last],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
@@ -45,20 +46,30 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         ServiceStopped(
           timestamp = ts,
           serviceInfo = serviceInfo,
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
+          snapshot = MetricSnapshot.AsIs(metricFilter, metricRegistry, serviceInfo.serviceParams)
         ))
     } yield ()
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
       ts <- realZonedDateTime
+      newLast = MetricSnapshot.Last(metricRegistry)
+      oldLast <- lastRef.get
       _ <- channel.send(
         MetricsReport(
           serviceInfo = serviceInfo,
           reportType = metricReportType,
           timestamp = ts,
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
+          snapshot = metricReportType.snapshotType match {
+            case MetricSnapshotType.Full =>
+              MetricSnapshot.Full(metricRegistry, serviceInfo.serviceParams)
+            case MetricSnapshotType.AsIs =>
+              MetricSnapshot.AsIs(metricFilter, metricRegistry, serviceInfo.serviceParams)
+            case MetricSnapshotType.Delta =>
+              MetricSnapshot.Delta(oldLast, metricFilter, metricRegistry, serviceInfo.serviceParams)
+          }
         ))
+      _ <- lastRef.update(_ => newLast)
     } yield ()
 
   /** Reset Counters only
@@ -72,17 +83,17 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             resetType = MetricResetType.Scheduled(next),
             serviceInfo = serviceInfo,
             timestamp = ts,
-            snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
+            snapshot = MetricSnapshot.AsIs(metricFilter, metricRegistry, serviceInfo.serviceParams)
           )
         }
-      }.getOrElse(
-        MetricsReset(
-          resetType = MetricResetType.Adhoc,
-          serviceInfo = serviceInfo,
-          timestamp = ts,
-          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
-        ))
+      }.getOrElse(MetricsReset(
+        resetType = MetricResetType.Adhoc,
+        serviceInfo = serviceInfo,
+        timestamp = ts,
+        snapshot = MetricSnapshot.AsIs(metricFilter, metricRegistry, serviceInfo.serviceParams)
+      ))
       _ <- channel.send(msg)
+      _ <- lastRef.update(_ => MetricSnapshot.Last.empty)
     } yield metricRegistry.getCounters(metricFilter).values().asScala.foreach(c => c.dec(c.getCount))
 
   /** actions

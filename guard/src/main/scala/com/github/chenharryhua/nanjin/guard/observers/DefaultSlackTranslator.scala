@@ -14,14 +14,13 @@ import java.time.temporal.ChronoUnit
 
 final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
 
-  private def metricsSection(snapshot: MetricsSnapshot): KeyValueSection =
+  private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
     if (snapshot.show.length <= MessageSizeLimits) {
       KeyValueSection("Metrics", s"```${snapshot.show.replace("-- ", "")}```")
     } else {
-      val fmt: NumberFormat           = NumberFormat.getIntegerInstance
-      val counters: Map[String, Long] = snapshot.counterCount ++ snapshot.meterCount
+      val fmt: NumberFormat = NumberFormat.getIntegerInstance
       val msg: String =
-        counters.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
+        snapshot.counterMap.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
       if (msg.isEmpty)
         KeyValueSection("Counters", "*No counter update*")
       else
@@ -169,7 +168,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
-                  MarkdownSection("*Adventive Metrics Reset*"),
+                  MarkdownSection("*Adhoc Metric Reset*"),
                   hostServiceSection(mr.serviceInfo.serviceParams),
                   JuxtaposeSection(
                     TextField("Up Time", took(mr.serviceInfo.launchTime, mr.timestamp)),
@@ -196,7 +195,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
-                  MarkdownSection(s"*Scheduled Metrics Reset*"),
+                  MarkdownSection(s"*Scheduled Metric Reset*"),
                   hostServiceSection(mr.serviceInfo.serviceParams),
                   JuxtaposeSection(
                     TextField("Up Time", took(mr.serviceInfo.launchTime, mr.timestamp)),
