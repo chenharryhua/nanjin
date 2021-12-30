@@ -11,6 +11,7 @@ import scala.concurrent.duration.*
 import scala.util.Random
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.crontabs
+import io.circe.Json
 
 class ObserversTest extends AnyFunSuite {
 
@@ -37,7 +38,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("console") {
+  test("console - text") {
     TaskGuard[IO]("console")
       .service("text")
       .withBrief("about console")
@@ -57,6 +58,23 @@ class ObserversTest extends AnyFunSuite {
               .withActionSucced(_ => "succ")
               .skipMetricsReport
               .skipServiceStopped))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("console - json") {
+    TaskGuard[IO]("console")
+      .service("json")
+      .withBrief("about console")
+      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
+      .eventStream { root =>
+        val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
+        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+      }
+      .evalTap(console
+        .json[IO](_.spaces2)
+        .updateTranslator(_.withServiceStarted(_ => Json.fromString("service was kicked off")).skipServiceStopped))
       .compile
       .drain
       .unsafeRunSync()
@@ -91,7 +109,9 @@ class ObserversTest extends AnyFunSuite {
         _.span("mail")
           .max(3)
           .updateConfig(_.withConstantDelay(1.second))
+          .notice
           .run(IO.raiseError(new Exception).whenA(Random.nextBoolean()))
+          .delayBy(2.seconds)
           .foreverM)
       .interruptAfter(15.seconds)
       .through(mail)

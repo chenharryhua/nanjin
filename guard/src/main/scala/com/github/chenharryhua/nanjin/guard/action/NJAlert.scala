@@ -13,11 +13,11 @@ final class NJAlert[F[_]: Applicative](
   name: DigestedName,
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F]) {
-  private lazy val errorCounter: Counter =
+  private val errorCounter: Counter =
     eventPublisher.metricRegistry.counter(alertMRName(name, Importance.Critical))
-  private lazy val warnCounter: Counter =
+  private val warnCounter: Counter =
     eventPublisher.metricRegistry.counter(alertMRName(name, Importance.High))
-  private lazy val infoCounter: Counter =
+  private val infoCounter: Counter =
     eventPublisher.metricRegistry.counter(alertMRName(name, Importance.Medium))
 
   def error[S: Show](msg: S): F[Unit] =

@@ -16,16 +16,15 @@ class NJMetrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[
   val snapshotFull: Eval[MetricSnapshot] =
     Eval.always(MetricSnapshot.Full(eventPublisher.metricRegistry, eventPublisher.serviceInfo.serviceParams))
 
-  def report(mst: MetricSnapshotType): F[Unit] = eventPublisher.metricsReport(metricFilter, MetricReportType.Adhoc(mst))
-  def unsafeReport(mst: MetricSnapshotType): Unit = dispatcher.unsafeRunSync(report(mst))
+  private def reporting(mst: MetricSnapshotType): F[Unit] =
+    eventPublisher.metricsReport(metricFilter, MetricReportType.Adhoc(mst))
 
-  def report: F[Unit]      = report(MetricSnapshotType.AsIs)
-  def unsafeReport(): Unit = dispatcher.unsafeRunSync(report(MetricSnapshotType.AsIs))
+  def report: F[Unit]      = reporting(MetricSnapshotType.Positive)
+  def unsafeReport(): Unit = dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Positive))
 
-  def reportDelta: F[Unit]      = report(MetricSnapshotType.Delta)
-  def unsafeReportDelta(): Unit = dispatcher.unsafeRunSync(report(MetricSnapshotType.Delta))
+  def deltaReport: F[Unit]      = reporting(MetricSnapshotType.Delta)
+  def unsafeDeltaReport(): Unit = dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Delta))
 
-  def reportFull: F[Unit]      = report(MetricSnapshotType.Full)
-  def unsafeReportFull(): Unit = dispatcher.unsafeRunSync(report(MetricSnapshotType.Full))
-
+  def fullReport: F[Unit]      = reporting(MetricSnapshotType.Full)
+  def unsafeFullReport(): Unit = dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Full))
 }

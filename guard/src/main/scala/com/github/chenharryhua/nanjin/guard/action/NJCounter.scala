@@ -9,7 +9,7 @@ final class NJCounter[F[_]](
   metricRegistry: MetricRegistry,
   isCountAsError: Boolean
 )(implicit F: Sync[F]) {
-  private lazy val counter: Counter = metricRegistry.counter(counterMRName(name, isCountAsError))
+  private val counter: Counter = metricRegistry.counter(counterMRName(name, isCountAsError))
 
   def asError: NJCounter[F] = new NJCounter[F](name, metricRegistry, isCountAsError = true)
 

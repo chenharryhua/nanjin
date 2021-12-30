@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.implicits.{catsSyntaxEq, toShow}
+import cats.implicits.{catsSyntaxEq, catsSyntaxSemigroup, toShow}
+import cats.kernel.Monoid
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -27,6 +28,30 @@ sealed trait MetricSnapshot {
 }
 
 object MetricSnapshot {
+
+  implicit val monoidMetricFilter: Monoid[MetricFilter] = new Monoid[MetricFilter] {
+    override val empty: MetricFilter = MetricFilter.ALL
+
+    override def combine(x: MetricFilter, y: MetricFilter): MetricFilter =
+      (name: String, metric: Metric) => x.matches(name, metric) && y.matches(name, metric)
+  }
+
+  val positiveFilter: MetricFilter =
+    (_: String, metric: Metric) =>
+      metric match {
+        case c: Counting => c.getCount > 0
+        case _           => true
+      }
+
+  def deltaFilter(lastCounters: LastCounters): MetricFilter =
+    (name: String, metric: Metric) =>
+      metric match {
+        case c: Counter   => lastCounters.counterCount.get(name).forall(_ =!= c.getCount)
+        case m: Meter     => lastCounters.meterCount.get(name).forall(_ =!= m.getCount)
+        case t: Timer     => lastCounters.timerCount.get(name).forall(_ =!= t.getCount)
+        case h: Histogram => lastCounters.histoCount.get(name).forall(_ =!= h.getCount)
+        case _            => true
+      }
 
   implicit val showSnapshot: Show[MetricSnapshot] = _.show
 
@@ -77,18 +102,27 @@ object MetricSnapshot {
   private def histograms(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
     metricRegistry.getHistograms(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-  final case class Last private ( // not a snapshot
+  private val singletonCounter: Counter = new Counter()
+  final case class LastCounters private ( // not a snapshot
     counterCount: Map[String, Long],
     meterCount: Map[String, Long],
     timerCount: Map[String, Long],
-    histoCount: Map[String, Long])
+    histoCount: Map[String, Long]) {
+    def resetBy(metricFilter: MetricFilter): LastCounters =
+      LastCounters(
+        counterCount.filter(cc => metricFilter.matches(cc._1, singletonCounter)),
+        meterCount,
+        timerCount,
+        histoCount
+      )
+  }
 
-  object Last {
-    val empty: Last = Last(Map.empty, Map.empty, Map.empty, Map.empty)
+  object LastCounters {
+    val empty: LastCounters = LastCounters(Map.empty, Map.empty, Map.empty, Map.empty)
 
-    def apply(metricRegistry: MetricRegistry): Last = {
+    def apply(metricRegistry: MetricRegistry): LastCounters = {
       val filter = MetricFilter.ALL
-      Last(
+      LastCounters(
         counterCount = counters(metricRegistry, filter),
         meterCount = meters(metricRegistry, filter),
         timerCount = timers(metricRegistry, filter),
@@ -106,11 +140,11 @@ object MetricSnapshot {
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
       zoneId: ZoneId): Full = {
-      val metricFilter = MetricFilter.ALL
+      val filter = MetricFilter.ALL
       Full(
-        counters(metricRegistry, metricFilter) ++ meters(metricRegistry, metricFilter),
-        toJson(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit),
-        toText(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit, zoneId)
+        counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
+        toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
+        toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
       )
     }
 
@@ -124,21 +158,24 @@ object MetricSnapshot {
   }
 
   @JsonCodec
-  final case class AsIs private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
+  final case class Positive private (counterMap: Map[String, Long], asJson: Json, show: String) extends MetricSnapshot
 
-  object AsIs {
+  object Positive {
     def apply(
       metricFilter: MetricFilter,
       metricRegistry: MetricRegistry,
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
-      zoneId: ZoneId): AsIs = AsIs(
-      counters(metricRegistry, metricFilter) ++ meters(metricRegistry, metricFilter),
-      toJson(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit),
-      toText(metricRegistry, metricFilter, rateTimeUnit, durationTimeUnit, zoneId)
-    )
+      zoneId: ZoneId): Positive = {
+      val filter = metricFilter |+| positiveFilter
+      Positive(
+        counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
+        toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
+        toText(metricRegistry, filter, rateTimeUnit, durationTimeUnit, zoneId)
+      )
+    }
 
-    def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): AsIs =
+    def apply(metricFilter: MetricFilter, metricRegistry: MetricRegistry, serviceParams: ServiceParams): Positive =
       apply(
         metricFilter,
         metricRegistry,
@@ -152,26 +189,14 @@ object MetricSnapshot {
 
   object Delta {
     def apply(
-      last: Last,
+      lastCounters: LastCounters,
       metricFilter: MetricFilter,
       metricRegistry: MetricRegistry,
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
       zoneId: ZoneId
-    ): Delta = { // filter out unchanged metrics
-      val filter: MetricFilter = (name: String, metric: Metric) =>
-        metric match {
-          case c: Counter =>
-            last.counterCount.get(name).forall(_ =!= c.getCount) && metricFilter.matches(name, metric)
-          case m: Meter =>
-            last.meterCount.get(name).forall(_ =!= m.getCount) && metricFilter.matches(name, metric)
-          case t: Timer =>
-            last.timerCount.get(name).forall(_ =!= t.getCount) && metricFilter.matches(name, metric)
-          case h: Histogram =>
-            last.histoCount.get(name).forall(_ =!= h.getCount) && metricFilter.matches(name, metric)
-          case _ => metricFilter.matches(name, metric)
-        }
-
+    ): Delta = { // filter out unchanged metrics and Zero
+      val filter: MetricFilter = metricFilter |+| positiveFilter |+| deltaFilter(lastCounters)
       Delta(
         counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
         toJson(metricRegistry, filter, rateTimeUnit, durationTimeUnit),
@@ -180,13 +205,13 @@ object MetricSnapshot {
     }
 
     def apply(
-      last: Last,
+      lastCounters: LastCounters,
       metricFilter: MetricFilter,
       metricRegistry: MetricRegistry,
       serviceParams: ServiceParams
     ): Delta =
       apply(
-        last,
+        lastCounters,
         metricFilter,
         metricRegistry,
         serviceParams.metric.rateTimeUnit,

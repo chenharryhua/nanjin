@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit
 private[observers] object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
@@ -59,7 +60,6 @@ private[observers] object DefaultEmailTranslator extends all {
       h3(style := color)(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
       p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
-      p(b("snapshot type: ", mr.reportType.snapshotType.show)),
       brief(mr.serviceInfo),
       pre(mr.snapshot.show)
     )

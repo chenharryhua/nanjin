@@ -50,7 +50,7 @@ private[guard] object ServiceParams {
         resetSchedule = None,
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS,
-        snapshotType = MetricSnapshotType.Delta
+        snapshotType = MetricSnapshotType.Positive
       ),
       brief = ""
     )
@@ -130,9 +130,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withBrief(brief: String): ServiceConfig = ServiceConfig(Fix(WithBrief(brief, value)))
 
-  def withFullSnapshot: ServiceConfig  = ServiceConfig(Fix(WithSnapshotType(MetricSnapshotType.Full, value)))
-  def withDeltaSnapshot: ServiceConfig = ServiceConfig(Fix(WithSnapshotType(MetricSnapshotType.Delta, value)))
-  def withAsIsSnapshot: ServiceConfig  = ServiceConfig(Fix(WithSnapshotType(MetricSnapshotType.AsIs, value)))
+  def withFullSnapshot: ServiceConfig     = ServiceConfig(Fix(WithSnapshotType(MetricSnapshotType.Full, value)))
+  def withDeltaSnapshot: ServiceConfig    = ServiceConfig(Fix(WithSnapshotType(MetricSnapshotType.Delta, value)))
+  def withPositiveSnapshot: ServiceConfig = ServiceConfig(Fix(WithSnapshotType(MetricSnapshotType.Positive, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
