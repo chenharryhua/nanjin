@@ -162,7 +162,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
   private def metricsReset(mr: MetricsReset): F[SlackApp] =
     cfg.extraSlackSections.map { extra =>
       mr.resetType match {
-        case MetricResetType.AdventiveReset =>
+        case MetricResetType.Adhoc =>
           SlackApp(
             username = mr.serviceInfo.serviceParams.taskParams.appName,
             attachments = List(
@@ -189,7 +189,7 @@ final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: Sl
               Attachment(color = cfg.infoColor, blocks = extra)
             )
           )
-        case MetricResetType.ScheduledReset(next) =>
+        case MetricResetType.Scheduled(next) =>
           SlackApp(
             username = mr.serviceInfo.serviceParams.taskParams.appName,
             attachments = List(

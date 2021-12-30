@@ -69,18 +69,19 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       msg = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>
           MetricsReset(
-            resetType = MetricResetType.ScheduledReset(next),
+            resetType = MetricResetType.Scheduled(next),
             serviceInfo = serviceInfo,
             timestamp = ts,
             snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
           )
         }
-      }.getOrElse(MetricsReset(
-        resetType = MetricResetType.AdventiveReset,
-        serviceInfo = serviceInfo,
-        timestamp = ts,
-        snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
-      ))
+      }.getOrElse(
+        MetricsReset(
+          resetType = MetricResetType.Adhoc,
+          serviceInfo = serviceInfo,
+          timestamp = ts,
+          snapshot = MetricsSnapshot(metricRegistry, metricFilter, serviceInfo.serviceParams)
+        ))
       _ <- channel.send(msg)
     } yield metricRegistry.getCounters(metricFilter).values().asScala.foreach(c => c.dec(c.getCount))
 

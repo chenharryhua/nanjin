@@ -81,6 +81,8 @@ final case class MetricsSnapshot private (
 }
 
 private[guard] object MetricsSnapshot {
+  def empty: MetricsSnapshot = MetricsSnapshot(Map.empty, Map.empty, Map.empty, Json.Null, "")
+
   private def create(
     metricRegistry: MetricRegistry,
     metricFilter: MetricFilter,
@@ -142,11 +144,11 @@ private[guard] object MetricsSnapshot {
 sealed trait MetricResetType
 object MetricResetType {
   implicit val showMetricResetType: Show[MetricResetType] = {
-    case AdventiveReset       => "Metrics Adventive Reset"
-    case ScheduledReset(next) => s"Metrics Scheduled Reset(next=${next.show})"
+    case Adhoc           => "Adhoc Metric Reset"
+    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.show})"
   }
-  case object AdventiveReset extends MetricResetType
-  final case class ScheduledReset(next: ZonedDateTime) extends MetricResetType
+  case object Adhoc extends MetricResetType
+  final case class Scheduled(next: ZonedDateTime) extends MetricResetType
 }
 
 @JsonCodec
@@ -156,13 +158,15 @@ sealed trait MetricReportType {
 
 object MetricReportType {
   implicit val showMetricReportType: Show[MetricReportType] = {
-    case AdventiveReport        => "Metrics Adventive Report"
-    case ScheduledReport(index) => s"Metrics Scheduled Report(index=$index)"
+    case Adhoc            => "Adhoc Metric Report"
+    case Scheduled(index) => s"Scheduled Metric Report(index=$index)"
   }
-  case object AdventiveReport extends MetricReportType {
+
+  case object Adhoc extends MetricReportType {
     override val isShow: Boolean = true
   }
-  final case class ScheduledReport(index: Long) extends MetricReportType {
+
+  final case class Scheduled(index: Long) extends MetricReportType {
     override val isShow: Boolean = index === 0
   }
 }

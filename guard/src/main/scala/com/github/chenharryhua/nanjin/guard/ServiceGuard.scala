@@ -28,6 +28,7 @@ import fs2.{INothing, Stream}
   */
 // format: on
 
+// https://github.com/dropwizard/metrics
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   metricFilter: MetricFilter,
@@ -82,13 +83,13 @@ final class ServiceGuard[F[_]] private[guard] (
               Stream
                 .fixedRate[F](dur)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2)))
+                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.Scheduled(t._2)))
                 .drain
             case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
-                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.ScheduledReport(t._2)))
+                .evalMap(t => publisher.metricsReport(metricFilter, MetricReportType.Scheduled(t._2)))
                 .drain
             case None => Stream.empty
           }

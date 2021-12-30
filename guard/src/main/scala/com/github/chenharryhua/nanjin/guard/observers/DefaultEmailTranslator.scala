@@ -4,6 +4,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
@@ -97,20 +98,23 @@ private[observers] object DefaultEmailTranslator extends all {
       p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show)
     )
 
-  private def actionFailed[F[_]: Applicative](af: ActionFailed): Text.TypedTag[String] =
-    div(
-      h3(style := "color:red")(s"${af.actionParams.name.value} Failed"),
-      timestampText(af.timestamp),
-      hostServiceText(af.actionInfo.serviceInfo),
-      p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
-      p(b("error ID: "), af.error.uuid.show),
-      p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
-      p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
-      retriesText(af.numRetries),
-      notesText(af.notes),
-      brief(af.serviceInfo),
-      causeText(af.error)
-    )
+  private def actionFailed[F[_]: Applicative](af: ActionFailed): Option[Text.TypedTag[String]] =
+    if (af.actionParams.importance >= Importance.Medium)
+      Some(
+        div(
+          h3(style := "color:red")(s"${af.actionParams.name.value} Failed"),
+          timestampText(af.timestamp),
+          hostServiceText(af.actionInfo.serviceInfo),
+          p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
+          p(b("error ID: "), af.error.uuid.show),
+          p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
+          p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
+          retriesText(af.numRetries),
+          notesText(af.notes),
+          brief(af.serviceInfo),
+          causeText(af.error)
+        ))
+    else None
 
   private def actionSucced(as: ActionSucced): Text.TypedTag[String] =
     div(

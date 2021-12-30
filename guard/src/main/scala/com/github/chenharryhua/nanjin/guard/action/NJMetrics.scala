@@ -15,6 +15,6 @@ class NJMetrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[
   val snapshot: Eval[MetricsSnapshot] =
     Eval.always(MetricsSnapshot(eventPublisher.metricRegistry, metricFilter, eventPublisher.serviceInfo.serviceParams))
 
-  def report: F[Unit]      = eventPublisher.metricsReport(metricFilter, MetricReportType.AdventiveReport)
+  def report: F[Unit]      = eventPublisher.metricsReport(metricFilter, MetricReportType.Adhoc)
   def unsafeReport(): Unit = dispatcher.unsafeRunSync(report)
 }
