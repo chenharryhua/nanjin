@@ -91,7 +91,9 @@ class ObserversTest extends AnyFunSuite {
         _.span("mail")
           .max(3)
           .updateConfig(_.withConstantDelay(1.second))
+          .notice
           .run(IO.raiseError(new Exception).whenA(Random.nextBoolean()))
+          .delayBy(2.seconds)
           .foreverM)
       .interruptAfter(15.seconds)
       .through(mail)
