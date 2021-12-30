@@ -56,10 +56,10 @@ final class ServiceGuard[F[_]] private[guard] (
         uuid <- UUIDGen.randomUUID
         ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
       } yield ServiceInfo(params, uuid, ts))
-      lastRef <- Stream.eval(F.ref(MetricSnapshot.Last.empty))
+      lastCountersRef <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-        val publisher: EventPublisher[F]   = new EventPublisher[F](serviceInfo, metricRegistry, lastRef, channel)
+        val publisher: EventPublisher[F] = new EventPublisher[F](serviceInfo, metricRegistry, lastCountersRef, channel)
 
         val panicCounter: Counter   = publisher.metricRegistry.counter(servicePanicMRName)
         val restartCounter: Counter = publisher.metricRegistry.counter(serviceRestartMRName)

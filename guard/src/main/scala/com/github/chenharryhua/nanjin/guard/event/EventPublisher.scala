@@ -20,7 +20,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceInfo: ServiceInfo,
   val metricRegistry: MetricRegistry,
-  lastRef: Ref[F, MetricSnapshot.Last],
+  lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
@@ -53,8 +53,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
       ts <- realZonedDateTime
-      newLast = MetricSnapshot.Last(metricRegistry)
-      oldLast <- lastRef.get
+      newLast = MetricSnapshot.LastCounters(metricRegistry)
+      oldLast <- lastCountersRef.get
       _ <- channel.send(
         MetricsReport(
           serviceInfo = serviceInfo,
@@ -69,7 +69,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               MetricSnapshot.Delta(oldLast, metricFilter, metricRegistry, serviceInfo.serviceParams)
           }
         ))
-      _ <- lastRef.update(_ => newLast)
+      _ <- lastCountersRef.update(_ => newLast)
     } yield ()
 
   /** Reset Counters only
@@ -93,7 +93,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         snapshot = MetricSnapshot.AsIs(metricFilter, metricRegistry, serviceInfo.serviceParams)
       ))
       _ <- channel.send(msg)
-      _ <- lastRef.update(_ => MetricSnapshot.Last.empty)
+      _ <- lastCountersRef.update(_ => MetricSnapshot.LastCounters.empty)
     } yield metricRegistry.getCounters(metricFilter).values().asScala.foreach(c => c.dec(c.getCount))
 
   /** actions

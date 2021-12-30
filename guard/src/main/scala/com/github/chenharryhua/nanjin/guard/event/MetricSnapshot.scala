@@ -77,18 +77,18 @@ object MetricSnapshot {
   private def histograms(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
     metricRegistry.getHistograms(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-  final case class Last private ( // not a snapshot
+  final case class LastCounters private ( // not a snapshot
     counterCount: Map[String, Long],
     meterCount: Map[String, Long],
     timerCount: Map[String, Long],
     histoCount: Map[String, Long])
 
-  object Last {
-    val empty: Last = Last(Map.empty, Map.empty, Map.empty, Map.empty)
+  object LastCounters {
+    val empty: LastCounters = LastCounters(Map.empty, Map.empty, Map.empty, Map.empty)
 
-    def apply(metricRegistry: MetricRegistry): Last = {
+    def apply(metricRegistry: MetricRegistry): LastCounters = {
       val filter = MetricFilter.ALL
-      Last(
+      LastCounters(
         counterCount = counters(metricRegistry, filter),
         meterCount = meters(metricRegistry, filter),
         timerCount = timers(metricRegistry, filter),
@@ -152,23 +152,35 @@ object MetricSnapshot {
 
   object Delta {
     def apply(
-      last: Last,
+      lastCounters: LastCounters,
       metricFilter: MetricFilter,
       metricRegistry: MetricRegistry,
       rateTimeUnit: TimeUnit,
       durationTimeUnit: TimeUnit,
       zoneId: ZoneId
-    ): Delta = { // filter out unchanged metrics
+    ): Delta = { // filter out unchanged metrics and Zero
       val filter: MetricFilter = (name: String, metric: Metric) =>
         metric match {
           case c: Counter =>
-            last.counterCount.get(name).forall(_ =!= c.getCount) && metricFilter.matches(name, metric)
+            val count: Long = c.getCount
+            lastCounters.counterCount.get(name).forall(_ =!= count) &&
+            (count =!= 0) &&
+            metricFilter.matches(name, metric)
           case m: Meter =>
-            last.meterCount.get(name).forall(_ =!= m.getCount) && metricFilter.matches(name, metric)
+            val count: Long = m.getCount
+            lastCounters.meterCount.get(name).forall(_ =!= count) &&
+            (count =!= 0) &&
+            metricFilter.matches(name, metric)
           case t: Timer =>
-            last.timerCount.get(name).forall(_ =!= t.getCount) && metricFilter.matches(name, metric)
+            val count: Long = t.getCount
+            lastCounters.timerCount.get(name).forall(_ =!= count) &&
+            (count =!= 0) &&
+            metricFilter.matches(name, metric)
           case h: Histogram =>
-            last.histoCount.get(name).forall(_ =!= h.getCount) && metricFilter.matches(name, metric)
+            val count: Long = h.getCount
+            lastCounters.histoCount.get(name).forall(_ =!= count) &&
+            (count =!= 0) &&
+            metricFilter.matches(name, metric)
           case _ => metricFilter.matches(name, metric)
         }
 
@@ -180,13 +192,13 @@ object MetricSnapshot {
     }
 
     def apply(
-      last: Last,
+      lastCounters: LastCounters,
       metricFilter: MetricFilter,
       metricRegistry: MetricRegistry,
       serviceParams: ServiceParams
     ): Delta =
       apply(
-        last,
+        lastCounters,
         metricFilter,
         metricRegistry,
         serviceParams.metric.rateTimeUnit,

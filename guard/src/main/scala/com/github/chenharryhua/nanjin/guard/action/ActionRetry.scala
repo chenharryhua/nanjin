@@ -24,10 +24,10 @@ final class ActionRetry[F[_], A, B] private[guard] (
   isWorthRetry: Reader[Throwable, Boolean],
   postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
-  private lazy val failCounter: Counter  = publisher.metricRegistry.counter(actionFailMRName(params))
-  private lazy val succCounter: Counter  = publisher.metricRegistry.counter(actionSuccMRName(params))
-  private lazy val retryCounter: Counter = publisher.metricRegistry.counter(actionRetryMRName(params))
-  private lazy val timer: Timer          = publisher.metricRegistry.timer(actionTimerMRName(params))
+  private val failCounter: Counter  = publisher.metricRegistry.counter(actionFailMRName(params))
+  private val succCounter: Counter  = publisher.metricRegistry.counter(actionSuccMRName(params))
+  private val retryCounter: Counter = publisher.metricRegistry.counter(actionRetryMRName(params))
+  private val timer: Timer          = publisher.metricRegistry.timer(actionTimerMRName(params))
 
   private def timingAndCount(isSucc: Boolean, launchTime: ZonedDateTime, now: ZonedDateTime): Unit = {
     if (params.isTiming === TimeAction.Yes) timer.update(Duration.between(launchTime, now))
