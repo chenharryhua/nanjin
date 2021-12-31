@@ -11,15 +11,12 @@ import scalatags.Text
 import scalatags.Text.all.*
 
 import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
 private[observers] object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
-    p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
-
-  private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
+    p(b("timestamp: "), localTimestampStr(timestamp))
 
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
     p(b("number of retries: "), numRetry.toString)
@@ -59,7 +56,7 @@ private[observers] object DefaultEmailTranslator extends all {
     div(
       h3(style := color)(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
-      p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
+      p(b("up time: "), tookStr(mr.serviceInfo.launchTime, mr.timestamp)),
       p(b("runnings: "), mr.runnings.map(_.actionParams.name.value).mkString(", ")),
       brief(mr.serviceInfo),
       pre(mr.snapshot.show)
@@ -110,7 +107,7 @@ private[observers] object DefaultEmailTranslator extends all {
           p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
           p(b("error ID: "), af.error.uuid.show),
           p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
-          p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
+          p(b("took: "), tookStr(af.actionInfo.launchTime, af.timestamp)),
           retriesText(af.numRetries),
           notesText(af.notes),
           brief(af.serviceInfo),
@@ -124,7 +121,7 @@ private[observers] object DefaultEmailTranslator extends all {
       timestampText(as.timestamp),
       hostServiceText(as.actionInfo.serviceInfo),
       p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show),
-      p(b("took: "), fmt.format(as.actionInfo.launchTime, as.timestamp)),
+      p(b("took: "), tookStr(as.actionInfo.launchTime, as.timestamp)),
       retriesText(as.numRetries),
       notesText(as.notes)
     )

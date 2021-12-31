@@ -2,12 +2,14 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
 import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
+import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
 
+import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
@@ -78,5 +80,13 @@ package object observers {
       }
     s"$n$w"
   }
+
+  private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
+
+  private[observers] def tookStr(launchTime: ZonedDateTime, now: ZonedDateTime): String =
+    fmt.format(launchTime, now)
+
+  private[observers] def localTimestampStr(timestamp: ZonedDateTime): String =
+    timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 
 }
