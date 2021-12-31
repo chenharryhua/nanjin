@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
+import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance, ServiceParams}
 import io.circe.generic.auto.*
@@ -63,6 +64,7 @@ final case class ServiceAlert(
 
 final case class MetricsReport(
   reportType: MetricReportType,
+  runnings: List[ActionInfo],
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot

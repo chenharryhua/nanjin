@@ -60,6 +60,7 @@ private[observers] object DefaultEmailTranslator extends all {
       h3(style := color)(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
       p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
+      p(b("runnings: "), mr.runnings.map(_.actionParams.name.value).mkString(", ")),
       brief(mr.serviceInfo),
       pre(mr.snapshot.show)
     )

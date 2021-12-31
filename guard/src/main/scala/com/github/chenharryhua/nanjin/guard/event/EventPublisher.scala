@@ -21,6 +21,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceInfo: ServiceInfo,
   val metricRegistry: MetricRegistry,
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
+  runningCriticalActions: Ref[F, Set[ActionInfo]],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
@@ -54,11 +55,13 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       newLast = MetricSnapshot.LastCounters(metricRegistry)
+      runnings <- runningCriticalActions.get
       oldLast <- lastCountersRef.get
       _ <- channel.send(
         MetricsReport(
           serviceInfo = serviceInfo,
           reportType = metricReportType,
+          runnings = runnings.toList,
           timestamp = ts,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>
@@ -106,23 +109,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       ts <- realZonedDateTime
       actionInfo = ActionInfo(actionParams, serviceInfo, uuid, ts)
       _ <- channel.send(ActionStart(actionInfo)).whenA(actionInfo.actionParams.importance >= Importance.High)
+      _ <- runningCriticalActions.update(_ + actionInfo).whenA(actionParams.importance === Importance.Critical)
     } yield actionInfo
-
-  def actionSucced[A, B](
-    actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
-    input: A,
-    output: F[B],
-    buildNotes: Kleisli[F, (A, B), String]): F[ZonedDateTime] =
-    for {
-      ts <- realZonedDateTime
-      result <- output
-      num <- retryCount.get
-      notes <- buildNotes.run((input, result))
-      _ <- channel
-        .send(ActionSucc(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
-        .whenA(actionInfo.actionParams.importance >= Importance.High)
-    } yield ts
 
   def actionRetrying(
     actionInfo: ActionInfo,
@@ -141,6 +129,25 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           error = NJError(uuid, ex)))
       _ <- retryCount.update(_ + 1)
     } yield ()
+
+  def actionSucced[A, B](
+    actionInfo: ActionInfo,
+    retryCount: Ref[F, Int],
+    input: A,
+    output: F[B],
+    buildNotes: Kleisli[F, (A, B), String]): F[ZonedDateTime] =
+    for {
+      ts <- realZonedDateTime
+      result <- output
+      num <- retryCount.get
+      notes <- buildNotes.run((input, result))
+      _ <- channel
+        .send(ActionSucc(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
+        .whenA(actionInfo.actionParams.importance >= Importance.High)
+      _ <- runningCriticalActions
+        .update(_ - actionInfo)
+        .whenA(actionInfo.actionParams.importance === Importance.Critical)
+    } yield ts
 
   def actionFailed[A](
     actionInfo: ActionInfo,
@@ -161,6 +168,9 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           numRetries = numRetries,
           notes = Notes(notes),
           error = NJError(uuid, ex)))
+      _ <- runningCriticalActions
+        .update(_ - actionInfo)
+        .whenA(actionInfo.actionParams.importance === Importance.Critical)
     } yield ts
 
   def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =

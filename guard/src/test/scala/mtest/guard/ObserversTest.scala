@@ -56,7 +56,6 @@ class ObserversTest extends AnyFunSuite {
               .withActionRetry(_ => IO(Some("Retrying")))
               .withActionFail(_ => Some("failed"))
               .withActionSucc(_ => "succ")
-              .skipMetricsReport
               .skipServiceStop))
       .compile
       .drain

@@ -6,7 +6,6 @@ import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import cats.{Alternative, Traverse}
-import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, DigestedName}

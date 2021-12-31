@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
+import cats.derived.auto.show.*
 import cats.implicits.{catsSyntaxEq, toShow}
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, MetricSnapshotType, ServiceParams}
