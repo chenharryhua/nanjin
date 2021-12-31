@@ -12,6 +12,7 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @JsonCodec
@@ -67,7 +68,7 @@ sealed trait MetricResetType
 object MetricResetType {
   implicit val showMetricResetType: Show[MetricResetType] = {
     case Adhoc           => s"Adhoc Metric Reset"
-    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.show})"
+    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show})"
   }
   case object Adhoc extends MetricResetType
   final case class Scheduled(next: ZonedDateTime) extends MetricResetType

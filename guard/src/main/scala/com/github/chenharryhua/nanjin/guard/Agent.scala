@@ -18,8 +18,7 @@ import java.time.ZoneId
 final class Agent[F[_]] private[guard] (
   publisher: EventPublisher[F],
   dispatcher: Dispatcher[F],
-  agentConfig: AgentConfig,
-  metricFilter: MetricFilter)(implicit F: Async[F])
+  agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
   val params: AgentParams        = agentConfig.evalConfig
@@ -28,7 +27,7 @@ final class Agent[F[_]] private[guard] (
   val digestedName: DigestedName = DigestedName(params.spans, publisher.serviceInfo.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
-    new Agent[F](publisher, dispatcher, f(agentConfig), metricFilter)
+    new Agent[F](publisher, dispatcher, f(agentConfig))
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
@@ -90,7 +89,7 @@ final class Agent[F[_]] private[guard] (
       publisher.metricRegistry
     )
 
-  val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher, metricFilter)
+  val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))

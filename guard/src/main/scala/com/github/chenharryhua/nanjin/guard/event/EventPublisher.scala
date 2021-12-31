@@ -39,14 +39,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       _ <- channel.send(ServicePanic(serviceInfo, ts, retryDetails, NJError(uuid, ex)))
     } yield ()
 
-  def serviceStopped(metricFilter: MetricFilter): F[Unit] =
+  def serviceStopped: F[Unit] =
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
         ServiceStopped(
           timestamp = ts,
           serviceInfo = serviceInfo,
-          snapshot = MetricSnapshot.Regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
+          snapshot = MetricSnapshot.Full(metricRegistry, serviceInfo.serviceParams)
         ))
     } yield ()
 
@@ -74,7 +74,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
 
   /** Reset Counters only
     */
-  def metricsReset(metricFilter: MetricFilter, cronExpr: Option[CronExpr]): F[Unit] =
+  def metricsReset(cronExpr: Option[CronExpr]): F[Unit] =
     for {
       ts <- realZonedDateTime
       msg = cronExpr.flatMap { ce =>
@@ -83,18 +83,19 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
             resetType = MetricResetType.Scheduled(next),
             serviceInfo = serviceInfo,
             timestamp = ts,
-            snapshot = MetricSnapshot.Regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
+            snapshot = MetricSnapshot.Full(metricRegistry, serviceInfo.serviceParams)
           )
         }
-      }.getOrElse(MetricsReset(
-        resetType = MetricResetType.Adhoc,
-        serviceInfo = serviceInfo,
-        timestamp = ts,
-        snapshot = MetricSnapshot.Regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
-      ))
+      }.getOrElse(
+        MetricsReset(
+          resetType = MetricResetType.Adhoc,
+          serviceInfo = serviceInfo,
+          timestamp = ts,
+          snapshot = MetricSnapshot.Full(metricRegistry, serviceInfo.serviceParams)
+        ))
       _ <- channel.send(msg)
-      _ <- lastCountersRef.update(_.resetBy(metricFilter))
-    } yield metricRegistry.getCounters(metricFilter).values().asScala.foreach(c => c.dec(c.getCount))
+      _ <- lastCountersRef.update(_ => MetricSnapshot.LastCounters.empty)
+    } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   /** actions
     */

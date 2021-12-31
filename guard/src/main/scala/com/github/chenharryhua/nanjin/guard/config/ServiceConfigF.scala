@@ -117,6 +117,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig     = ServiceConfig(Fix(WithRateTimeUnit(tu, value)))
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(Fix(WithDurationTimeUnit(tu, value)))
 
+  def withMetricSnapshotType(mst: MetricSnapshotType): ServiceConfig = ServiceConfig(Fix(WithSnapshotType(mst, value)))
+
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))
 
@@ -129,8 +131,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 
   def withBrief(brief: String): ServiceConfig = ServiceConfig(Fix(WithBrief(brief, value)))
-
-  def withSnapshotType(mst: MetricSnapshotType): ServiceConfig = ServiceConfig(Fix(WithSnapshotType(mst, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
