@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
-import cats.{Applicative, Functor}
+import cats.{Applicative, Functor, Monad}
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
@@ -185,11 +185,52 @@ final case class Translator[F[_], A] private (
   def withActionSucc(f: ActionSucc => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(actionSucc = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  // TODO
-  // def flatMap[B](f: A => Translator[F, B])(implicit F: Monad[F]): Translator[F, B] = ???
+  def flatMap[B](f: A => Translator[F, B])(implicit F: Monad[F]): Translator[F, B] = {
+    val g: NJEvent => F[Option[Translator[F, B]]] = { (evt: NJEvent) => translate(evt).map(_.map(f)) }
+    Translator
+      .empty[F, B]
+      .withServiceStart(evt => g(evt).flatMap(_.flatTraverse(_.serviceStart.run(evt).value)))
+      .withServicePanic(evt => g(evt).flatMap(_.flatTraverse(_.servicePanic.run(evt).value)))
+      .withServiceStop(evt => g(evt).flatMap(_.flatTraverse(_.serviceStop.run(evt).value)))
+      .withServiceAlert(evt => g(evt).flatMap(_.flatTraverse(_.serviceAlert.run(evt).value)))
+      .withPassThrough(evt => g(evt).flatMap(_.flatTraverse(_.passThrough.run(evt).value)))
+      .withMetricsReport(evt => g(evt).flatMap(_.flatTraverse(_.metricsReport.run(evt).value)))
+      .withMetricsReset(evt => g(evt).flatMap(_.flatTraverse(_.metricsReset.run(evt).value)))
+      .withActionStart(evt => g(evt).flatMap(_.flatTraverse(_.actionStart.run(evt).value)))
+      .withActionRetry(evt => g(evt).flatMap(_.flatTraverse(_.actionRetry.run(evt).value)))
+      .withActionFail(evt => g(evt).flatMap(_.flatTraverse(_.actionFail.run(evt).value)))
+      .withActionSucc(evt => g(evt).flatMap(_.flatTraverse(_.actionSucc.run(evt).value)))
+  }
 }
 
 object Translator {
+  implicit def monadTranslator[F[_]](implicit F: Monad[F]): Monad[Translator[F, *]] =
+    new Monad[Translator[F, *]] {
+      override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] = fa.flatMap(f)
+
+      // TODO tailrec ???
+      override def tailRecM[A, B](a: A)(f: A => Translator[F, Either[A, B]]): Translator[F, B] =
+        f(a).flatMap {
+          case Left(value)  => tailRecM(value)(f)
+          case Right(value) => pure(value)
+        }
+
+      override def pure[A](x: A): Translator[F, A] =
+        Translator[F, A](
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x))))
+        )
+    }
+
   def noop[F[_], A](implicit F: Applicative[F]): Kleisli[OptionT[F, *], NJEvent, A] =
     Kleisli(_ => OptionT(F.pure(None)))
 
