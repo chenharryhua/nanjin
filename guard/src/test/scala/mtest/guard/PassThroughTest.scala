@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStopped}
+import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import io.circe.Decoder
 import io.circe.generic.auto.*
@@ -57,7 +57,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counterMap("04.counter.[counter/0135a608].error") == 3)
+    assert(last.asInstanceOf[ServiceStop].snapshot.counterMap("04.counter.[counter/0135a608].error") == 3)
   }
 
   test("alert") {
@@ -69,7 +69,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStopped].snapshot.counterMap("02.alert.[oops/a32b945e].error") == 1)
+    assert(last.asInstanceOf[ServiceStop].snapshot.counterMap("02.alert.[oops/a32b945e].error") == 1)
   }
 
   test("meter") {

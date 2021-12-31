@@ -31,13 +31,13 @@ final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F
           .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(jsonConverter(j)) }.void)
       case sa: ServiceAlert =>
         translator.serviceAlert.run(sa).value.flatMap(_.traverse(j => logger.warn(jsonConverter(j))).void)
-      case ar @ ActionRetrying(_, _, _, error) =>
-        translator.actionRetrying
+      case ar @ ActionRetry(_, _, _, error) =>
+        translator.actionRetry
           .run(ar)
           .value
           .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(jsonConverter(j)) }.void)
-      case af @ ActionFailed(_, _, _, _, error) =>
-        translator.actionFailed
+      case af @ ActionFail(_, _, _, _, error) =>
+        translator.actionFail
           .run(af)
           .value
           .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(jsonConverter(j)) }.void)
@@ -65,13 +65,13 @@ final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F
           .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(j) }.void)
       case sa: ServiceAlert =>
         translator.serviceAlert.run(sa).value.flatMap(_.traverse(j => logger.warn(j)).void)
-      case ar @ ActionRetrying(_, _, _, error) =>
-        translator.actionRetrying
+      case ar @ ActionRetry(_, _, _, error) =>
+        translator.actionRetry
           .run(ar)
           .value
           .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(j) }.void)
-      case af @ ActionFailed(_, _, _, _, error) =>
-        translator.actionFailed
+      case af @ ActionFail(_, _, _, _, error) =>
+        translator.actionFail
           .run(af)
           .value
           .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(j) }.void)

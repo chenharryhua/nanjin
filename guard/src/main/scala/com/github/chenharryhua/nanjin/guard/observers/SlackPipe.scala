@@ -61,9 +61,9 @@ final class SlackPipe[F[_]] private[observers] (
       sns <- Stream.resource(snsResource)
       ref <- Stream.eval(F.ref[Set[ServiceInfo]](Set.empty))
       event <- es.evalTap {
-        case ServiceStarted(info, _)    => ref.update(_.incl(info))
-        case ServiceStopped(info, _, _) => ref.update(_.excl(info))
-        case _                          => F.unit
+        case ServiceStart(info, _)   => ref.update(_.incl(info))
+        case ServiceStop(info, _, _) => ref.update(_.excl(info))
+        case _                       => F.unit
       }.evalTap(e =>
         translator
           .translate(e)

@@ -13,57 +13,57 @@ trait UpdateTranslator[F[_], A, B] {
 }
 
 final case class Translator[F[_], A] private (
-  serviceStarted: Kleisli[OptionT[F, *], ServiceStarted, A],
+  serviceStart: Kleisli[OptionT[F, *], ServiceStart, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
-  serviceStopped: Kleisli[OptionT[F, *], ServiceStopped, A],
+  serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],
   metricsReport: Kleisli[OptionT[F, *], MetricsReport, A],
   metricsReset: Kleisli[OptionT[F, *], MetricsReset, A],
   serviceAlert: Kleisli[OptionT[F, *], ServiceAlert, A],
   passThrough: Kleisli[OptionT[F, *], PassThrough, A],
   actionStart: Kleisli[OptionT[F, *], ActionStart, A],
-  actionRetrying: Kleisli[OptionT[F, *], ActionRetrying, A],
-  actionFailed: Kleisli[OptionT[F, *], ActionFailed, A],
-  actionSucced: Kleisli[OptionT[F, *], ActionSucced, A]
+  actionRetry: Kleisli[OptionT[F, *], ActionRetry, A],
+  actionFail: Kleisli[OptionT[F, *], ActionFail, A],
+  actionSucc: Kleisli[OptionT[F, *], ActionSucc, A]
 ) {
 
   def translate(event: NJEvent): F[Option[A]] = event match {
-    case e: ServiceStarted => serviceStarted.run(e).value
-    case e: ServicePanic   => servicePanic.run(e).value
-    case e: ServiceStopped => serviceStopped.run(e).value
-    case e: MetricsReport  => metricsReport.run(e).value
-    case e: MetricsReset   => metricsReset.run(e).value
-    case e: ServiceAlert   => serviceAlert.run(e).value
-    case e: PassThrough    => passThrough.run(e).value
-    case e: ActionStart    => actionStart.run(e).value
-    case e: ActionRetrying => actionRetrying.run(e).value
-    case e: ActionFailed   => actionFailed.run(e).value
-    case e: ActionSucced   => actionSucced.run(e).value
+    case e: ServiceStart  => serviceStart.run(e).value
+    case e: ServicePanic  => servicePanic.run(e).value
+    case e: ServiceStop   => serviceStop.run(e).value
+    case e: MetricsReport => metricsReport.run(e).value
+    case e: MetricsReset  => metricsReset.run(e).value
+    case e: ServiceAlert  => serviceAlert.run(e).value
+    case e: PassThrough   => passThrough.run(e).value
+    case e: ActionStart   => actionStart.run(e).value
+    case e: ActionRetry   => actionRetry.run(e).value
+    case e: ActionFail    => actionFail.run(e).value
+    case e: ActionSucc    => actionSucc.run(e).value
   }
 
-  def skipServiceStart(implicit F: Applicative[F]): Translator[F, A]   = copy(serviceStarted = Translator.noop[F, A])
-  def skipServicePanic(implicit F: Applicative[F]): Translator[F, A]   = copy(servicePanic = Translator.noop[F, A])
-  def skipServiceStopped(implicit F: Applicative[F]): Translator[F, A] = copy(serviceStopped = Translator.noop[F, A])
-  def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A]  = copy(metricsReport = Translator.noop[F, A])
-  def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A]   = copy(metricsReset = Translator.noop[F, A])
-  def skipServiceAlert(implicit F: Applicative[F]): Translator[F, A]   = copy(serviceAlert = Translator.noop[F, A])
-  def skipPassThrough(implicit F: Applicative[F]): Translator[F, A]    = copy(passThrough = Translator.noop[F, A])
-  def skipActionStart(implicit F: Applicative[F]): Translator[F, A]    = copy(actionStart = Translator.noop[F, A])
-  def skipActionRetrying(implicit F: Applicative[F]): Translator[F, A] = copy(actionRetrying = Translator.noop[F, A])
-  def skipActionFailed(implicit F: Applicative[F]): Translator[F, A]   = copy(actionFailed = Translator.noop[F, A])
-  def skipActionSucced(implicit F: Applicative[F]): Translator[F, A]   = copy(actionSucced = Translator.noop[F, A])
-  def skipAll(implicit F: Applicative[F]): Translator[F, A]            = Translator.empty[F, A]
+  def skipServiceStart(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceStart = Translator.noop[F, A])
+  def skipServicePanic(implicit F: Applicative[F]): Translator[F, A]  = copy(servicePanic = Translator.noop[F, A])
+  def skipServiceStop(implicit F: Applicative[F]): Translator[F, A]   = copy(serviceStop = Translator.noop[F, A])
+  def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A] = copy(metricsReport = Translator.noop[F, A])
+  def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A]  = copy(metricsReset = Translator.noop[F, A])
+  def skipServiceAlert(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceAlert = Translator.noop[F, A])
+  def skipPassThrough(implicit F: Applicative[F]): Translator[F, A]   = copy(passThrough = Translator.noop[F, A])
+  def skipActionStart(implicit F: Applicative[F]): Translator[F, A]   = copy(actionStart = Translator.noop[F, A])
+  def skipActionRetry(implicit F: Applicative[F]): Translator[F, A]   = copy(actionRetry = Translator.noop[F, A])
+  def skipActionFail(implicit F: Applicative[F]): Translator[F, A]    = copy(actionFail = Translator.noop[F, A])
+  def skipActionSucc(implicit F: Applicative[F]): Translator[F, A]    = copy(actionSucc = Translator.noop[F, A])
+  def skipAll(implicit F: Applicative[F]): Translator[F, A]           = Translator.empty[F, A]
 
-  def withServiceStarted(f: ServiceStarted => F[Option[A]]): Translator[F, A] =
-    copy(serviceStarted = Kleisli(a => OptionT(f(a))))
+  def withServiceStart(f: ServiceStart => F[Option[A]]): Translator[F, A] =
+    copy(serviceStart = Kleisli(a => OptionT(f(a))))
 
-  def withServiceStarted(f: ServiceStarted => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(serviceStarted = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withServiceStart(f: ServiceStart => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(serviceStart = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withServiceStarted(f: ServiceStarted => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(serviceStarted = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withServiceStart(f: ServiceStart => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(serviceStart = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withServiceStarted(f: ServiceStarted => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(serviceStarted = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withServiceStart(f: ServiceStart => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(serviceStart = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withServicePanic(f: ServicePanic => F[Option[A]]): Translator[F, A] =
     copy(servicePanic = Kleisli(a => OptionT(f(a))))
@@ -77,17 +77,17 @@ final case class Translator[F[_], A] private (
   def withServicePanic(f: ServicePanic => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(servicePanic = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withServiceStopped(f: ServiceStopped => F[Option[A]]): Translator[F, A] =
-    copy(serviceStopped = Kleisli(a => OptionT(f(a))))
+  def withServiceStop(f: ServiceStop => F[Option[A]]): Translator[F, A] =
+    copy(serviceStop = Kleisli(a => OptionT(f(a))))
 
-  def withServiceStopped(f: ServiceStopped => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(serviceStopped = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withServiceStop(f: ServiceStop => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(serviceStop = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withServiceStopped(f: ServiceStopped => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(serviceStopped = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withServiceStop(f: ServiceStop => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(serviceStop = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withServiceStopped(f: ServiceStopped => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(serviceStopped = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withServiceStop(f: ServiceStop => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(serviceStop = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withMetricsReport(f: MetricsReport => F[Option[A]]): Translator[F, A] =
     copy(metricsReport = Kleisli(a => OptionT(f(a))))
@@ -149,41 +149,41 @@ final case class Translator[F[_], A] private (
   def withActionStart(f: ActionStart => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(actionStart = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withActionRetrying(f: ActionRetrying => F[Option[A]]): Translator[F, A] =
-    copy(actionRetrying = Kleisli(a => OptionT(f(a))))
+  def withActionRetry(f: ActionRetry => F[Option[A]]): Translator[F, A] =
+    copy(actionRetry = Kleisli(a => OptionT(f(a))))
 
-  def withActionRetrying(f: ActionRetrying => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(actionRetrying = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withActionRetry(f: ActionRetry => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(actionRetry = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withActionRetrying(f: ActionRetrying => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(actionRetrying = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withActionRetry(f: ActionRetry => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(actionRetry = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withActionRetrying(f: ActionRetrying => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(actionRetrying = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withActionRetry(f: ActionRetry => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(actionRetry = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withActionFailed(f: ActionFailed => F[Option[A]]): Translator[F, A] =
-    copy(actionFailed = Kleisli(a => OptionT(f(a))))
+  def withActionFail(f: ActionFail => F[Option[A]]): Translator[F, A] =
+    copy(actionFail = Kleisli(a => OptionT(f(a))))
 
-  def withActionFailed(f: ActionFailed => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(actionFailed = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withActionFail(f: ActionFail => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(actionFail = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withActionFailed(f: ActionFailed => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(actionFailed = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withActionFail(f: ActionFail => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(actionFail = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withActionFailed(f: ActionFailed => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(actionFailed = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withActionFail(f: ActionFail => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(actionFail = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withActionSucced(f: ActionSucced => F[Option[A]]): Translator[F, A] =
-    copy(actionSucced = Kleisli(a => OptionT(f(a))))
+  def withActionSucc(f: ActionSucc => F[Option[A]]): Translator[F, A] =
+    copy(actionSucc = Kleisli(a => OptionT(f(a))))
 
-  def withActionSucced(f: ActionSucced => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(actionSucced = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withActionSucc(f: ActionSucc => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(actionSucc = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withActionSucced(f: ActionSucced => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(actionSucced = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withActionSucc(f: ActionSucc => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(actionSucc = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withActionSucced(f: ActionSucced => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(actionSucced = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withActionSucc(f: ActionSucc => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(actionSucc = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   // TODO
   // def flatMap[B](f: A => Translator[F, B])(implicit F: Monad[F]): Translator[F, B] = ???
@@ -210,29 +210,29 @@ object Translator {
 
   def json[F[_]: Applicative]: Translator[F, Json] =
     empty[F, Json]
-      .withServiceStarted(_.asJson)
+      .withServiceStart(_.asJson)
       .withServicePanic(_.asJson)
-      .withServiceStopped(_.asJson)
+      .withServiceStop(_.asJson)
       .withServiceAlert(_.asJson)
       .withPassThrough(_.asJson)
       .withMetricsReset(_.asJson)
       .withMetricsReport(_.asJson)
       .withActionStart(_.asJson)
-      .withActionRetrying(_.asJson)
-      .withActionFailed(_.asJson)
-      .withActionSucced(_.asJson)
+      .withActionRetry(_.asJson)
+      .withActionFail(_.asJson)
+      .withActionSucc(_.asJson)
 
   def text[F[_]: Applicative]: Translator[F, String] =
     empty[F, String]
-      .withServiceStarted(_.show)
+      .withServiceStart(_.show)
       .withServicePanic(_.show)
-      .withServiceStopped(_.show)
+      .withServiceStop(_.show)
       .withServiceAlert(_.show)
       .withPassThrough(_.show)
       .withMetricsReset(_.show)
       .withMetricsReport(_.show)
       .withActionStart(_.show)
-      .withActionRetrying(_.show)
-      .withActionFailed(_.show)
-      .withActionSucced(_.show)
+      .withActionRetry(_.show)
+      .withActionFail(_.show)
+      .withActionSucc(_.show)
 }

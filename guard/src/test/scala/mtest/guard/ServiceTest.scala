@@ -33,8 +33,8 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStarted])
-    assert(d.isInstanceOf[ServiceStopped])
+    assert(a.isInstanceOf[ServiceStart])
+    assert(d.isInstanceOf[ServiceStop])
   }
 
   test("escalate to up level if retry failed") {
@@ -54,12 +54,12 @@ class ServiceTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -92,7 +92,7 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[MetricsReport])
     assert(c.isInstanceOf[MetricsReport])
     assert(d.isInstanceOf[MetricsReport])
@@ -107,7 +107,7 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[MetricsReset])
     assert(c.isInstanceOf[MetricsReset])
   }
@@ -122,12 +122,12 @@ class ServiceTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionSucced])
+    assert(b.isInstanceOf[ActionSucc])
     assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[ActionSucced])
-    assert(e.isInstanceOf[ServiceStopped])
+    assert(d.isInstanceOf[ActionSucc])
+    assert(e.isInstanceOf[ServiceStop])
   }
 
   test("combine two event streams") {
@@ -139,8 +139,8 @@ class ServiceTest extends AnyFunSuite {
     val ss2 = s2.eventStream(gd => gd.span("s2-a1").notice.retry(IO(1)).run >> gd.span("s2-a2").notice.retry(IO(2)).run)
 
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
-    assert(vector.count(_.isInstanceOf[ActionSucced]) == 4)
-    assert(vector.count(_.isInstanceOf[ServiceStopped]) == 2)
+    assert(vector.count(_.isInstanceOf[ActionSucc]) == 4)
+    assert(vector.count(_.isInstanceOf[ServiceStop]) == 2)
   }
 
   test("print agent params") {

@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.event.EventPublisher
 import io.circe.Encoder
 import io.circe.syntax.*
 
-final class NJBroker[F[_]: Functor](
+final class NJBroker[F[_]: Functor] private[guard] (
   name: DigestedName,
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F],

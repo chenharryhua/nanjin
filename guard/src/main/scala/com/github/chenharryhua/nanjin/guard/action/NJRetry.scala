@@ -15,7 +15,7 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
-final class ActionRetry[F[_], A, B] private[guard] (
+final class NJRetry[F[_], A, B] private[guard] (
   publisher: EventPublisher[F],
   params: ActionParams,
   kfab: Kleisli[F, A, B],
@@ -36,8 +36,8 @@ final class ActionRetry[F[_], A, B] private[guard] (
     }
   }
 
-  def withSuccNotesM(succ: (A, B) => F[String]): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](
+  def withSuccNotesM(succ: (A, B) => F[String]): NJRetry[F, A, B] =
+    new NJRetry[F, A, B](
       publisher = publisher,
       params = params,
       kfab = kfab,
@@ -46,11 +46,11 @@ final class ActionRetry[F[_], A, B] private[guard] (
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
 
-  def withSuccNotes(f: (A, B) => String): ActionRetry[F, A, B] =
+  def withSuccNotes(f: (A, B) => String): NJRetry[F, A, B] =
     withSuccNotesM((a: A, b: B) => F.pure(f(a, b)))
 
-  def withFailNotesM(fail: (A, Throwable) => F[String]): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](
+  def withFailNotesM(fail: (A, Throwable) => F[String]): NJRetry[F, A, B] =
+    new NJRetry[F, A, B](
       publisher = publisher,
       params = params,
       kfab = kfab,
@@ -59,11 +59,11 @@ final class ActionRetry[F[_], A, B] private[guard] (
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
 
-  def withFailNotes(f: (A, Throwable) => String): ActionRetry[F, A, B] =
+  def withFailNotes(f: (A, Throwable) => String): NJRetry[F, A, B] =
     withFailNotesM((a: A, b: Throwable) => F.pure(f(a, b)))
 
-  def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](
+  def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetry[F, A, B] =
+    new NJRetry[F, A, B](
       publisher = publisher,
       params = params,
       kfab = kfab,
@@ -72,8 +72,8 @@ final class ActionRetry[F[_], A, B] private[guard] (
       isWorthRetry = Reader(isWorthRetry),
       postCondition = postCondition)
 
-  def withPostCondition(postCondition: B => Boolean): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](
+  def withPostCondition(postCondition: B => Boolean): NJRetry[F, A, B] =
+    new NJRetry[F, A, B](
       publisher = publisher,
       params = params,
       kfab = kfab,
@@ -137,7 +137,7 @@ final class ActionRetry[F[_], A, B] private[guard] (
   } yield res
 }
 
-final class ActionRetryUnit[F[_], B] private[guard] (
+final class NJRetryUnit[F[_], B] private[guard] (
   fb: F[B],
   publisher: EventPublisher[F],
   params: ActionParams,
@@ -146,8 +146,8 @@ final class ActionRetryUnit[F[_], B] private[guard] (
   isWorthRetry: Reader[Throwable, Boolean],
   postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
-  def withSuccNotesM(succ: B => F[String]): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
+  def withSuccNotesM(succ: B => F[String]): NJRetryUnit[F, B] =
+    new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
       params = params,
@@ -156,11 +156,11 @@ final class ActionRetryUnit[F[_], B] private[guard] (
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
 
-  def withSuccNotes(f: B => String): ActionRetryUnit[F, B] =
+  def withSuccNotes(f: B => String): NJRetryUnit[F, B] =
     withSuccNotesM(Kleisli.fromFunction(f).run)
 
-  def withFailNotesM(fail: Throwable => F[String]): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
+  def withFailNotesM(fail: Throwable => F[String]): NJRetryUnit[F, B] =
+    new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
       params = params,
@@ -169,11 +169,11 @@ final class ActionRetryUnit[F[_], B] private[guard] (
       isWorthRetry = isWorthRetry,
       postCondition = postCondition)
 
-  def withFailNotes(f: Throwable => String): ActionRetryUnit[F, B] =
+  def withFailNotes(f: Throwable => String): NJRetryUnit[F, B] =
     withFailNotesM(Kleisli.fromFunction(f).run)
 
-  def withWorthRetry(isWorthRetry: Throwable => Boolean): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
+  def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetryUnit[F, B] =
+    new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
       params = params,
@@ -182,8 +182,8 @@ final class ActionRetryUnit[F[_], B] private[guard] (
       isWorthRetry = Reader(isWorthRetry),
       postCondition = postCondition)
 
-  def withPostCondition(postCondition: B => Boolean): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
+  def withPostCondition(postCondition: B => Boolean): NJRetryUnit[F, B] =
+    new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
       params = params,
@@ -193,7 +193,7 @@ final class ActionRetryUnit[F[_], B] private[guard] (
       postCondition = Predicate(postCondition))
 
   val run: F[B] =
-    new ActionRetry[F, Unit, B](
+    new NJRetry[F, Unit, B](
       publisher = publisher,
       params = params,
       kfab = Kleisli(_ => fb),

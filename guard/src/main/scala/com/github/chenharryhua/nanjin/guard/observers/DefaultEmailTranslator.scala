@@ -31,7 +31,7 @@ private[observers] object DefaultEmailTranslator extends all {
   private def causeText(c: NJError): Text.TypedTag[String]  = p(b("cause: "), pre(c.stackTrace))
   private def brief(si: ServiceInfo): Text.TypedTag[String] = p(b("brief: ", si.serviceParams.brief))
 
-  private def serviceStarted(ss: ServiceStarted): Text.TypedTag[String] =
+  private def serviceStarted(ss: ServiceStart): Text.TypedTag[String] =
     div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceInfo))
 
   private def servicePanic[F[_]: Applicative](sp: ServicePanic): Text.TypedTag[String] =
@@ -46,7 +46,7 @@ private[observers] object DefaultEmailTranslator extends all {
       causeText(sp.error)
     )
 
-  private def serviceStopped(ss: ServiceStopped): Text.TypedTag[String] =
+  private def serviceStopped(ss: ServiceStop): Text.TypedTag[String] =
     div(
       h3(style := "color:blue")(s"Service Stopped"),
       timestampText(ss.timestamp),
@@ -86,12 +86,12 @@ private[observers] object DefaultEmailTranslator extends all {
 
   private def actionStart(as: ActionStart): Text.TypedTag[String] =
     div(
-      h3(s"${as.actionParams.name.value} Start"),
+      h3(s"${as.actionParams.name.value} Started"),
       timestampText(as.timestamp),
       hostServiceText(as.actionInfo.serviceInfo)
     )
 
-  private def actionRetrying(ar: ActionRetrying): Text.TypedTag[String] =
+  private def actionRetrying(ar: ActionRetry): Text.TypedTag[String] =
     div(
       h3(s"${ar.actionParams.name.value} Retrying"),
       timestampText(ar.timestamp),
@@ -99,7 +99,7 @@ private[observers] object DefaultEmailTranslator extends all {
       p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show)
     )
 
-  private def actionFailed[F[_]: Applicative](af: ActionFailed): Option[Text.TypedTag[String]] =
+  private def actionFailed[F[_]: Applicative](af: ActionFail): Option[Text.TypedTag[String]] =
     if (af.actionParams.importance >= Importance.Medium)
       Some(
         div(
@@ -117,7 +117,7 @@ private[observers] object DefaultEmailTranslator extends all {
         ))
     else None
 
-  private def actionSucced(as: ActionSucced): Text.TypedTag[String] =
+  private def actionSucced(as: ActionSucc): Text.TypedTag[String] =
     div(
       h3(s"${as.actionParams.name.value} Succed"),
       timestampText(as.timestamp),
@@ -131,14 +131,14 @@ private[observers] object DefaultEmailTranslator extends all {
   def apply[F[_]: Monad](): Translator[F, Text.TypedTag[String]] =
     Translator
       .empty[F, Text.TypedTag[String]]
-      .withServiceStarted(serviceStarted)
+      .withServiceStart(serviceStarted)
       .withServicePanic(servicePanic[F])
-      .withServiceStopped(serviceStopped)
+      .withServiceStop(serviceStopped)
       .withMetricsReport(metricsReport)
       .withMetricsReset(metricsReset)
       .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
-      .withActionRetrying(actionRetrying)
-      .withActionFailed(actionFailed[F])
-      .withActionSucced(actionSucced)
+      .withActionRetry(actionRetrying)
+      .withActionFail(actionFailed[F])
+      .withActionSucc(actionSucced)
 }

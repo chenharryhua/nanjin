@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.action.ActionRetry
+import com.github.chenharryhua.nanjin.guard.action.NJRetry
 
 final case class MyException() extends Exception("my exception")
 
@@ -28,8 +28,8 @@ class RetryTest extends AnyFunSuite {
         .run(1)
     }.compile.toVector.unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(c.isInstanceOf[ServiceStopped])
+    assert(s.isInstanceOf[ServiceStart])
+    assert(c.isInstanceOf[ServiceStop])
   }
 
   test("retry - success notice") {
@@ -45,19 +45,19 @@ class RetryTest extends AnyFunSuite {
       List(1, 2, 3).traverse(i => ag.run(i))
     }.compile.toVector.unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucced].notes.value == "1->2")
+    assert(b.asInstanceOf[ActionSucc].notes.value == "1->2")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucced].notes.value == "2->3")
+    assert(d.asInstanceOf[ActionSucc].notes.value == "2->3")
     assert(e.isInstanceOf[ActionStart])
-    assert(f.asInstanceOf[ActionSucced].notes.value == "3->4")
-    assert(g.isInstanceOf[ServiceStopped])
+    assert(f.asInstanceOf[ActionSucc].notes.value == "3->4")
+    assert(g.isInstanceOf[ServiceStop])
   }
 
   test("retry - all fail") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
-      val ag: ActionRetry[IO, Int, Int] = gd
+      val ag: NJRetry[IO, Int, Int] = gd
         .span("all-fail")
         .notice
         .updateConfig(_.withMaxRetries(1).withConstantDelay(0.1.second))
@@ -66,17 +66,17 @@ class RetryTest extends AnyFunSuite {
       List(1, 2, 3).traverse(i => ag.run(i).attempt)
     }.compile.toVector.unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.asInstanceOf[ActionFailed].notes.value == "1")
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.asInstanceOf[ActionFail].notes.value == "1")
     assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionRetrying])
-    assert(f.asInstanceOf[ActionFailed].notes.value == "2")
+    assert(e.isInstanceOf[ActionRetry])
+    assert(f.asInstanceOf[ActionFail].notes.value == "2")
     assert(g.isInstanceOf[ActionStart])
-    assert(h.isInstanceOf[ActionRetrying])
-    assert(i.asInstanceOf[ActionFailed].notes.value == "3")
-    assert(j.isInstanceOf[ServiceStopped])
+    assert(h.isInstanceOf[ActionRetry])
+    assert(i.asInstanceOf[ActionFail].notes.value == "3")
+    assert(j.isInstanceOf[ServiceStop])
   }
 
   test("retry - should retry 2 times when operation fail") {
@@ -93,12 +93,12 @@ class RetryTest extends AnyFunSuite {
         .run(1)
     }.compile.toVector.unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.asInstanceOf[ActionSucced].numRetries == 2)
-    assert(e.isInstanceOf[ServiceStopped])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.asInstanceOf[ActionSucc].numRetries == 2)
+    assert(e.isInstanceOf[ServiceStop])
   }
 
   test("retry - should retry 2 times when operation fail - low") {
@@ -113,10 +113,10 @@ class RetryTest extends AnyFunSuite {
         .run(1)
     }.compile.toVector.unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ServiceStopped])
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ServiceStop])
   }
 
   test("retry - should escalate to up level if retry failed") {
@@ -133,11 +133,11 @@ class RetryTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -153,10 +153,10 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.asInstanceOf[ActionFailed].numRetries == 2)
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.asInstanceOf[ActionFail].numRetries == 2)
     assert(e.isInstanceOf[ServicePanic])
   }
 
@@ -175,11 +175,11 @@ class RetryTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -198,9 +198,9 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFailed].numRetries == 0)
+    assert(b.asInstanceOf[ActionFail].numRetries == 0)
     assert(c.isInstanceOf[ServicePanic])
   }
 
@@ -218,11 +218,11 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "")
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "")
     assert(f.isInstanceOf[ServicePanic])
   }
   test("retry - should fail the action if post condition is unsatisfied - 2") {
@@ -240,11 +240,11 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "0 0")
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "0 0")
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -257,14 +257,14 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(c.isInstanceOf[ServicePanic])
-    assert(s1.isInstanceOf[ServiceStarted])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
+    assert(s1.isInstanceOf[ServiceStart])
+    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(f.isInstanceOf[ServicePanic])
-    assert(s2.isInstanceOf[ServiceStarted])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was terminated unexpectedly")
+    assert(s2.isInstanceOf[ServiceStart])
+    assert(h.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was terminated unexpectedly")
     assert(i.isInstanceOf[ServicePanic])
   }
 
@@ -279,14 +279,14 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(c.isInstanceOf[ServicePanic])
-    assert(s1.isInstanceOf[ServiceStarted])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
+    assert(s1.isInstanceOf[ServiceStart])
+    assert(e.asInstanceOf[ActionFail].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(f.isInstanceOf[ServicePanic])
-    assert(s2.isInstanceOf[ServiceStarted])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
+    assert(s2.isInstanceOf[ServiceStart])
+    assert(h.asInstanceOf[ActionFail].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(i.isInstanceOf[ServicePanic])
   }
 
@@ -298,14 +298,14 @@ class RetryTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
     assert(c.isInstanceOf[ServicePanic])
-    assert(s2.isInstanceOf[ServiceStarted])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
+    assert(s2.isInstanceOf[ServiceStart])
+    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
     assert(f.isInstanceOf[ServicePanic])
-    assert(s3.isInstanceOf[ServiceStarted])
-    assert(h.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
+    assert(s3.isInstanceOf[ServiceStart])
+    assert(h.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
     assert(i.isInstanceOf[ServicePanic])
   }
 

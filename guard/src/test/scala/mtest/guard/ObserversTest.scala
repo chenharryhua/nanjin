@@ -28,11 +28,11 @@ class ObserversTest extends AnyFunSuite {
         logging
           .text[IO]
           .updateTranslator(
-            _.withServiceStarted(_ => "SVC started")
+            _.withServiceStart(_ => "SVC started")
               .withActionStart(_ => IO("Action up"))
-              .withActionRetrying(_ => IO(Some("Retrying")))
-              .withActionFailed(_ => Some("failed"))
-              .withActionSucced(_ => "succ")))
+              .withActionRetry(_ => IO(Some("Retrying")))
+              .withActionFail(_ => Some("failed"))
+              .withActionSucc(_ => "succ")))
       .compile
       .drain
       .unsafeRunSync()
@@ -51,13 +51,13 @@ class ObserversTest extends AnyFunSuite {
         console
           .text[IO]
           .updateTranslator(
-            _.withServiceStarted(_ => "SVC started")
+            _.withServiceStart(_ => "SVC started")
               .withActionStart(_ => IO("Action up"))
-              .withActionRetrying(_ => IO(Some("Retrying")))
-              .withActionFailed(_ => Some("failed"))
-              .withActionSucced(_ => "succ")
+              .withActionRetry(_ => IO(Some("Retrying")))
+              .withActionFail(_ => Some("failed"))
+              .withActionSucc(_ => "succ")
               .skipMetricsReport
-              .skipServiceStopped))
+              .skipServiceStop))
       .compile
       .drain
       .unsafeRunSync()
@@ -74,7 +74,7 @@ class ObserversTest extends AnyFunSuite {
       }
       .evalTap(console
         .json[IO](_.spaces2)
-        .updateTranslator(_.withServiceStarted(_ => Json.fromString("service was kicked off")).skipServiceStopped))
+        .updateTranslator(_.withServiceStart(_ => Json.fromString("service was kicked off")).skipServiceStop))
       .compile
       .drain
       .unsafeRunSync()
@@ -88,7 +88,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .through(slack[IO](sns.fake[IO])(_.at("chenh").withLogging).updateTranslator(_.skipActionFailed))
+      .through(slack[IO](sns.fake[IO])(_.at("chenh").withLogging).updateTranslator(_.skipActionFail))
       .compile
       .drain
       .unsafeRunSync()

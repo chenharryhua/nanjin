@@ -36,8 +36,8 @@ final class Agent[F[_]] private[guard] (
   def notice: Agent[F]   = updateConfig(_.withHighImportance)
   def critical: Agent[F] = updateConfig(_.withCriticalImportance)
 
-  def retry[A, B](f: A => F[B]): ActionRetry[F, A, B] =
-    new ActionRetry[F, A, B](
+  def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
+    new NJRetry[F, A, B](
       publisher = publisher,
       params = ActionParams(params, publisher.serviceInfo.serviceParams),
       kfab = Kleisli(f),
@@ -46,8 +46,8 @@ final class Agent[F[_]] private[guard] (
       isWorthRetry = Reader(_ => true),
       postCondition = Predicate(_ => true))
 
-  def retry[B](fb: F[B]): ActionRetryUnit[F, B] =
-    new ActionRetryUnit[F, B](
+  def retry[B](fb: F[B]): NJRetryUnit[F, B] =
+    new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
       params = ActionParams(params, publisher.serviceInfo.serviceParams),

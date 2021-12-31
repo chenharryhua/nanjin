@@ -30,7 +30,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     */
 
   val serviceReStarted: F[Unit] =
-    realZonedDateTime.flatMap(ts => channel.send(ServiceStarted(timestamp = ts, serviceInfo = serviceInfo)).void)
+    realZonedDateTime.flatMap(ts => channel.send(ServiceStart(timestamp = ts, serviceInfo = serviceInfo)).void)
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
@@ -43,7 +43,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
-        ServiceStopped(
+        ServiceStop(
           timestamp = ts,
           serviceInfo = serviceInfo,
           snapshot = MetricSnapshot.full(metricRegistry, serviceInfo.serviceParams)
@@ -120,7 +120,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       num <- retryCount.get
       notes <- buildNotes.run((input, result))
       _ <- channel
-        .send(ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
+        .send(ActionSucc(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
         .whenA(actionInfo.actionParams.importance >= Importance.High)
     } yield ts
 
@@ -134,7 +134,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       ts <- realZonedDateTime
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(
-        ActionRetrying(
+        ActionRetry(
           actionInfo = actionInfo,
           timestamp = ts,
           willDelayAndRetry = willDelayAndRetry,
@@ -155,7 +155,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       numRetries <- retryCount.get
       notes <- buildNotes.run((input, ex))
       _ <- channel.send(
-        ActionFailed(
+        ActionFail(
           actionInfo = actionInfo,
           timestamp = ts,
           numRetries = numRetries,
