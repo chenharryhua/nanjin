@@ -28,7 +28,7 @@ class HealthCheckTest extends AnyFunSuite {
       .evalTap(console.text[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
-      .interruptAfter(5.second)
+      .interruptAfter(7.second)
       .compile
       .toList
       .unsafeRunSync()

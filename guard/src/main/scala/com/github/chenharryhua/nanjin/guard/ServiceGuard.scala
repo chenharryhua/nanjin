@@ -69,9 +69,9 @@ final class ServiceGuard[F[_]] private[guard] (
             params.retry.policy[F],
             (ex: Throwable, rd) => publisher.servicePanic(rd, ex).map(_ => panicCounter.inc(1))) {
             publisher.serviceReStarted.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
-              agent(new Agent[F](publisher, dispatcher, AgentConfig(), metricFilter)))
+              agent(new Agent[F](publisher, dispatcher, AgentConfig())))
           }
-          .guarantee(publisher.serviceStopped(metricFilter) <* channel.close)
+          .guarantee(publisher.serviceStopped <* channel.close)
 
         /** concurrent streams
           */
@@ -99,7 +99,7 @@ final class ServiceGuard[F[_]] private[guard] (
         }
 
         val metricsReset: Stream[F, INothing] = params.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
-          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(metricFilter, Some(cron))).drain)
+          cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(Some(cron))).drain)
 
         val jmxReporting: Stream[F, INothing] = {
           jmxBuilder match {
