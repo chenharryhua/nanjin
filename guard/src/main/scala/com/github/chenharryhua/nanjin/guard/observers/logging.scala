@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toShow, toTraverseOps}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.Chunk
 import io.circe.Json
 import org.typelevel.log4cats.SelfAwareStructuredLogger

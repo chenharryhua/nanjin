@@ -99,17 +99,17 @@ private[guard] object MetricSnapshot {
   private def histograms(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
     metricRegistry.getHistograms(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-  final private[guard] case class LastCounters private ( // not a snapshot
+  final case class LastCounters private (
     counterCount: Map[String, Long],
     meterCount: Map[String, Long],
     timerCount: Map[String, Long],
     histoCount: Map[String, Long])
 
-  final private[guard] object LastCounters {
+  final object LastCounters {
     val empty: LastCounters = LastCounters(Map.empty, Map.empty, Map.empty, Map.empty)
 
     def apply(metricRegistry: MetricRegistry): LastCounters = {
-      val filter = MetricFilter.ALL
+      val filter: MetricFilter = MetricFilter.ALL
       LastCounters(
         counterCount = counters(metricRegistry, filter),
         meterCount = meters(metricRegistry, filter),
@@ -119,8 +119,8 @@ private[guard] object MetricSnapshot {
     }
   }
 
-  private[guard] def full(metricRegistry: MetricRegistry, serviceParams: ServiceParams): MetricSnapshot = {
-    val filter = MetricFilter.ALL
+  def full(metricRegistry: MetricRegistry, serviceParams: ServiceParams): MetricSnapshot = {
+    val filter: MetricFilter = MetricFilter.ALL
     MetricSnapshot(
       counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
       toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
@@ -133,11 +133,11 @@ private[guard] object MetricSnapshot {
     )
   }
 
-  private[guard] def regular(
+  def regular(
     metricFilter: MetricFilter,
     metricRegistry: MetricRegistry,
     serviceParams: ServiceParams): MetricSnapshot = {
-    val filter = metricFilter |+| positiveFilter
+    val filter: MetricFilter = metricFilter |+| positiveFilter
     MetricSnapshot(
       counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
       toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
@@ -150,7 +150,7 @@ private[guard] object MetricSnapshot {
     )
   }
 
-  private[guard] def delta(
+  def delta(
     lastCounters: LastCounters,
     metricFilter: MetricFilter,
     metricRegistry: MetricRegistry,

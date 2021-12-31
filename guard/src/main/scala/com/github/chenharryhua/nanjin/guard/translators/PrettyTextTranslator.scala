@@ -1,9 +1,10 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.event.*
 
-object PrettyTextTranslator {
+// TODO
+private[guard] object PrettyTextTranslator {
 
   private def serviceStarted(ss: ServiceStart): String =
     s"""
@@ -23,21 +24,46 @@ object PrettyTextTranslator {
        |
        |""".stripMargin
 
-  private def serviceStopped(ss: ServiceStop): String = ""
+  private def serviceStopped(ss: ServiceStop): String =
+    s"""
+       |${ss.show}
+       |""".stripMargin
 
-  private def metricsReport(mr: MetricsReport): String = ""
+  private def metricsReport(mr: MetricsReport): String =
+    s"""
+       |${mr.show}
+       |""".stripMargin
 
-  private def metricsReset(ms: MetricsReset): String = ""
+  private def metricsReset(ms: MetricsReset): String =
+    s"""
+       |${ms.show}
+       |""".stripMargin
 
-  private def passThrough(pt: PassThrough): String = ""
+  private def passThrough(pt: PassThrough): String =
+    s"""
+       |
+       |${pt.show}
+       |""".stripMargin
 
-  private def serviceAlert(sa: ServiceAlert): String = ""
+  private def serviceAlert(sa: ServiceAlert): String =
+    s"""
+       |${sa.show}
+       |""".stripMargin
 
-  private def actionStart(as: ActionStart): String = ""
+  private def actionStart(as: ActionStart): String =
+    s"""
+       |${as.show}
+       |""".stripMargin
 
-  private def actionRetrying(ar: ActionRetry): String = ""
+  private def actionRetrying(ar: ActionRetry): String =
+    s"""
+       |${ar.show}
+       |""".stripMargin
 
-  private def actionFailed[F[_]: Applicative](af: ActionFail): String = ""
+  private def actionFailed[F[_]: Applicative](af: ActionFail): String =
+    s"""
+       |${af.show}
+       |""".stripMargin
 
   private def actionSucced(as: ActionSucc): String = ""
 

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunctorOps, toTraverseOps}
 import cats.syntax.all.*
@@ -14,7 +14,7 @@ import java.time.ZonedDateTime
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
-private[observers] object DefaultEmailTranslator extends all {
+private[guard] object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), localTimestampStr(timestamp))
 

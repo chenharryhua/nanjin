@@ -5,6 +5,7 @@ import cats.effect.std.Console
 import cats.implicits.{toFunctorOps, toShow}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.Chunk
 import io.circe.Json
 

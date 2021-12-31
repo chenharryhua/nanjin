@@ -6,6 +6,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import com.github.chenharryhua.nanjin.aws.{ses, EmailContent, SimpleEmailService}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.translators.{DefaultEmailTranslator, Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -14,6 +15,7 @@ import scalatags.Text
 import scalatags.Text.all.*
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+
 object email {
 
   def apply[F[_]: Async](

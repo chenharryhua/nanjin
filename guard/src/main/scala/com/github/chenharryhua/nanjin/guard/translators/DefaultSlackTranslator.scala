@@ -1,4 +1,5 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.translators
+
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
@@ -12,7 +13,7 @@ import java.text.NumberFormat
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
-final private[observers] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
+final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
     if (snapshot.show.length <= MessageSizeLimits) {

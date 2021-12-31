@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.translators
 
 import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
@@ -7,8 +7,6 @@ import cats.{Applicative, Functor, Monad}
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
-
-import scala.annotation.tailrec
 
 trait UpdateTranslator[F[_], A, B] {
   def updateTranslator(f: Translator[F, A] => Translator[F, A]): B
