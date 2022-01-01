@@ -34,16 +34,16 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
   private def serviceStarted(ss: ServiceStart): F[SlackApp] =
     cfg.extraSlackSections.map(extra =>
       SlackApp(
-        username = ss.serviceInfo.serviceParams.taskParams.appName,
+        username = ss.serviceParams.taskParams.appName,
         attachments = List(
           Attachment(
             color = cfg.infoColor,
             blocks = List(
               MarkdownSection(":rocket: *(Re)Started Service*"),
-              hostServiceSection(ss.serviceInfo.serviceParams),
+              hostServiceSection(ss.serviceParams),
               JuxtaposeSection(
-                first = TextField("Up Time", took(ss.serviceInfo.launchTime, ss.timestamp)),
-                second = TextField("Time Zone", ss.serviceInfo.serviceParams.taskParams.zoneId.show)
+                first = TextField("Up Time", took(ss.serviceStatus.launchTime, ss.timestamp)),
+                second = TextField("Time Zone", ss.serviceParams.taskParams.zoneId.show)
               )
             )
           ),
@@ -59,19 +59,19 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
     }
     cfg.extraSlackSections.map(extra =>
       SlackApp(
-        username = sp.serviceInfo.serviceParams.taskParams.appName,
+        username = sp.serviceParams.taskParams.appName,
         attachments = List(
           Attachment(
             color = cfg.errorColor,
             blocks = List(
               MarkdownSection(
                 s":alarm: The service experienced a panic, the *${toOrdinalWords(sp.retryDetails.retriesSoFar + 1L)}* time, $upcoming"),
-              hostServiceSection(sp.serviceInfo.serviceParams),
+              hostServiceSection(sp.serviceParams),
               JuxtaposeSection(
-                TextField("Up Time", took(sp.serviceInfo.launchTime, sp.timestamp)),
+                TextField("Up Time", took(sp.serviceStatus.launchTime, sp.timestamp)),
                 TextField("Cummulative Delay", cfg.durationFormatter.format(sp.retryDetails.cumulativeDelay))
               ),
-              MarkdownSection(s"*Restart Policy:* ${sp.serviceInfo.serviceParams.retry.policy[F].show}"),
+              MarkdownSection(s"*Restart Policy:* ${sp.serviceParams.retry.policy[F].show}"),
               MarkdownSection(s"*Error ID:* ${sp.error.uuid.show}"),
               KeyValueSection("Cause", s"```${abbreviate(sp.error.stackTrace)}```")
             )
@@ -89,13 +89,11 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
       case Importance.Low      => (cfg.atSupporters, "oops. should not happen", cfg.errorColor)
     }
     SlackApp(
-      username = sa.serviceInfo.serviceParams.taskParams.appName,
+      username = sa.serviceParams.taskParams.appName,
       attachments = List(
         Attachment(
           color = color,
-          blocks = List(
-            MarkdownSection(s"*$title:* ${sa.name.value} $users"),
-            hostServiceSection(sa.serviceInfo.serviceParams)) :::
+          blocks = List(MarkdownSection(s"*$title:* ${sa.name.value} $users"), hostServiceSection(sa.serviceParams)) :::
             (if (sa.message.isEmpty) Nil else List(MarkdownSection(abbreviate(sa.message))))
         )
       )
@@ -105,16 +103,16 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
   private def serviceStopped(ss: ServiceStop): F[SlackApp] =
     cfg.extraSlackSections.map { extra =>
       SlackApp(
-        username = ss.serviceInfo.serviceParams.taskParams.appName,
+        username = ss.serviceParams.taskParams.appName,
         attachments = List(
           Attachment(
             color = cfg.warnColor,
             blocks = List(
               MarkdownSection(s":octagonal_sign: *Service Stopped*. ${cfg.atSupporters}"),
-              hostServiceSection(ss.serviceInfo.serviceParams),
+              hostServiceSection(ss.serviceParams),
               JuxtaposeSection(
-                TextField("Up Time", took(ss.serviceInfo.launchTime, ss.timestamp)),
-                TextField("Time Zone", ss.serviceInfo.serviceParams.taskParams.zoneId.show)),
+                TextField("Up Time", took(ss.serviceStatus.launchTime, ss.timestamp)),
+                TextField("Time Zone", ss.serviceParams.taskParams.zoneId.show)),
               metricsSection(ss.snapshot)
             )
           ),
@@ -125,22 +123,20 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
 
   private def metricsReport(mr: MetricsReport): F[Option[SlackApp]] = {
     val msg = cfg.extraSlackSections.map { extra =>
-      val next = nextTime(
-        mr.serviceInfo.serviceParams.metric.reportSchedule,
-        mr.timestamp,
-        cfg.reportInterval,
-        mr.serviceInfo.launchTime).fold("None")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+      val next =
+        nextTime(mr.serviceParams.metric.reportSchedule, mr.timestamp, cfg.reportInterval, mr.serviceStatus.launchTime)
+          .fold("None")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
 
       SlackApp(
-        username = mr.serviceInfo.serviceParams.taskParams.appName,
+        username = mr.serviceParams.taskParams.appName,
         attachments = List(
           Attachment(
             color = if (mr.snapshot.isContainErrors) cfg.warnColor else cfg.infoColor,
             blocks = List(
               MarkdownSection(s"${cfg.metricsReportEmoji} *${mr.reportType.show}*"),
-              hostServiceSection(mr.serviceInfo.serviceParams),
+              hostServiceSection(mr.serviceParams),
               JuxtaposeSection(
-                TextField("Up Time", took(mr.serviceInfo.launchTime, mr.timestamp)),
+                TextField("Up Time", took(mr.serviceStatus.launchTime, mr.timestamp)),
                 TextField("Scheduled Next", next)),
               metricsSection(mr.snapshot)
             )
@@ -151,10 +147,10 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
     }
     val isShow =
       isShowMetrics(
-        mr.serviceInfo.serviceParams.metric.reportSchedule,
+        mr.serviceParams.metric.reportSchedule,
         mr.timestamp,
         cfg.reportInterval,
-        mr.serviceInfo.launchTime) || mr.reportType.isShow
+        mr.serviceStatus.launchTime) || mr.reportType.isShow
 
     msg.map(m => if (isShow) Some(m) else None)
   }
@@ -164,22 +160,21 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
       mr.resetType match {
         case MetricResetType.Adhoc =>
           SlackApp(
-            username = mr.serviceInfo.serviceParams.taskParams.appName,
+            username = mr.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
                   MarkdownSection("*Adhoc Metric Reset*"),
-                  hostServiceSection(mr.serviceInfo.serviceParams),
+                  hostServiceSection(mr.serviceParams),
                   JuxtaposeSection(
-                    TextField("Up Time", took(mr.serviceInfo.launchTime, mr.timestamp)),
+                    TextField("Up Time", took(mr.serviceStatus.launchTime, mr.timestamp)),
                     TextField(
                       "Scheduled Next",
-                      mr.serviceInfo.serviceParams.metric.resetSchedule
+                      mr.serviceParams.metric.resetSchedule
                         .flatMap(_.next(mr.timestamp.toInstant))
-                        .map(_.atZone(mr.serviceInfo.serviceParams.taskParams.zoneId).toLocalTime
-                          .truncatedTo(ChronoUnit.SECONDS)
-                          .show)
+                        .map(
+                          _.atZone(mr.serviceParams.taskParams.zoneId).toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
                         .getOrElse("None")
                     )
                   ),
@@ -191,15 +186,15 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
           )
         case MetricResetType.Scheduled(next) =>
           SlackApp(
-            username = mr.serviceInfo.serviceParams.taskParams.appName,
+            username = mr.serviceParams.taskParams.appName,
             attachments = List(
               Attachment(
                 color = cfg.infoColor,
                 blocks = List(
                   MarkdownSection(s"*Scheduled Metric Reset*"),
-                  hostServiceSection(mr.serviceInfo.serviceParams),
+                  hostServiceSection(mr.serviceParams),
                   JuxtaposeSection(
-                    TextField("Up Time", took(mr.serviceInfo.launchTime, mr.timestamp)),
+                    TextField("Up Time", took(mr.serviceStatus.launchTime, mr.timestamp)),
                     TextField("Scheduled Next", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)
                   ),
                   metricsSection(mr.snapshot)
@@ -224,7 +219,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
             blocks = List(
               MarkdownSection(s"${cfg.startActionEmoji} Kick off ${actionTitle(as.actionParams)}"),
               MarkdownSection(s"""|*${as.actionParams.alias} ID:* ${as.uuid.show}""".stripMargin),
-              hostServiceSection(as.actionInfo.serviceInfo.serviceParams)
+              hostServiceSection(as.actionInfo.serviceParams)
             )
           ))
         ))
@@ -247,7 +242,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
               MarkdownSection(header),
               MarkdownSection(s"""|*${ar.actionParams.alias} ID:* ${ar.uuid.show}
                                   |*policy:* ${ar.actionParams.retry.policy[F].show}""".stripMargin),
-              hostServiceSection(ar.serviceInfo.serviceParams),
+              hostServiceSection(ar.serviceParams),
               KeyValueSection("Cause", s"```${abbreviate(ar.error.stackTrace)}```")
             )
           ))
@@ -292,14 +287,14 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
 
       Some(
         SlackApp(
-          username = as.serviceInfo.serviceParams.taskParams.appName,
+          username = as.serviceParams.taskParams.appName,
           attachments = List(
             Attachment(
               color = cfg.goodColor,
               blocks = List(
                 MarkdownSection(header),
                 MarkdownSection(s"*${as.actionParams.alias} ID:* ${as.uuid.show}"),
-                hostServiceSection(as.serviceInfo.serviceParams)
+                hostServiceSection(as.serviceParams)
               ) ::: (if (as.notes.value.isEmpty) Nil
                      else List(MarkdownSection(abbreviate(as.notes.value))))
             )

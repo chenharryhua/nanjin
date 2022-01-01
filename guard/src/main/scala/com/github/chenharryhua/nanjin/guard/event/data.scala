@@ -17,19 +17,6 @@ import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
 @JsonCodec
-sealed trait NJRuntimeInfo {
-  def serviceParams: ServiceParams
-  def uuid: UUID
-  def launchTime: ZonedDateTime
-}
-
-final case class ServiceInfo(serviceParams: ServiceParams, uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
-final case class ActionInfo(actionParams: ActionParams, serviceInfo: ServiceInfo, uuid: UUID, launchTime: ZonedDateTime)
-    extends NJRuntimeInfo {
-  override val serviceParams: ServiceParams = serviceInfo.serviceParams
-}
-
-@JsonCodec
 final case class Notes private (value: String) extends AnyVal
 
 private[guard] object Notes {
@@ -97,17 +84,25 @@ object MetricReportType {
 }
 
 @JsonCodec
+final case class ActionInfo(
+  actionParams: ActionParams,
+  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
+  uuid: UUID,
+  launchTime: ZonedDateTime)
+
+object ActionInfo {
+  implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
+}
+
+@JsonCodec
 sealed trait ServiceStatus {
-  def serviceParams: ServiceParams
   def uuid: UUID
   def launchTime: ZonedDateTime
   def upTime(now: ZonedDateTime): Duration
   def isUp: Boolean
-
-  final def flip(now: ZonedDateTime): ServiceStatus = this match {
-    case up: ServiceStatus.Up     => up.down(now)
-    case down: ServiceStatus.Down => down.up(now)
-  }
+  def goUp(now: ZonedDateTime): ServiceStatus
+  def goDown(now: ZonedDateTime): ServiceStatus
 }
 
 object ServiceStatus {
@@ -115,31 +110,27 @@ object ServiceStatus {
 
   @JsonCodec
   final case class Up private[ServiceStatus] (
-    serviceParams: ServiceParams,
     uuid: UUID,
     launchTime: ZonedDateTime,
     lastRestartAt: ZonedDateTime,
     lastCrashAt: ZonedDateTime)
       extends ServiceStatus {
-    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
-    override val isUp: Boolean                        = true
-    def down(crashOn: ZonedDateTime): Down            = Down(serviceParams, uuid, launchTime, crashOn)
+    override def upTime(now: ZonedDateTime): Duration      = Duration.between(launchTime, now)
+    override val isUp: Boolean                             = true
+    override def goUp(now: ZonedDateTime): ServiceStatus   = this
+    override def goDown(now: ZonedDateTime): ServiceStatus = Down(uuid, launchTime, now)
   }
 
   object Up {
-    def apply(serviceParams: ServiceParams, uuid: UUID, launchTime: ZonedDateTime): Up =
-      Up(serviceParams, uuid, launchTime, launchTime, launchTime)
+    def apply(uuid: UUID, launchTime: ZonedDateTime): ServiceStatus = Up(uuid, launchTime, launchTime, launchTime)
   }
 
   @JsonCodec
-  final case class Down private[ServiceStatus] (
-    serviceParams: ServiceParams,
-    uuid: UUID,
-    launchTime: ZonedDateTime,
-    crashAt: ZonedDateTime)
+  final case class Down private[ServiceStatus] (uuid: UUID, launchTime: ZonedDateTime, crashAt: ZonedDateTime)
       extends ServiceStatus {
-    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
-    override val isUp: Boolean                        = false
-    def up(restart: ZonedDateTime): Up                = Up(serviceParams, uuid, launchTime, restart, crashAt)
+    override def upTime(now: ZonedDateTime): Duration      = Duration.between(launchTime, now)
+    override val isUp: Boolean                             = false
+    override def goUp(now: ZonedDateTime): ServiceStatus   = Up(uuid, launchTime, now, crashAt)
+    override def goDown(now: ZonedDateTime): ServiceStatus = this
   }
 }

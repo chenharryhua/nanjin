@@ -8,19 +8,19 @@ private[guard] object PrettyTextTranslator {
 
   private def serviceStarted(ss: ServiceStart): String =
     s"""
-       |App Name: ${ss.serviceInfo.serviceParams.taskParams.appName}
+       |App Name: ${ss.serviceParams.taskParams.appName}
        |Service Name: ${ss.name.value}
-       |Up Time: ${tookStr(ss.serviceInfo.launchTime, ss.timestamp)}
-       |Time Zone: ${ss.serviceInfo.serviceParams.taskParams.zoneId}
-       |Host: ${ss.serviceInfo.serviceParams.taskParams.hostName}
+       |Up Time: ${tookStr(ss.serviceStatus.launchTime, ss.timestamp)}
+       |Time Zone: ${ss.serviceParams.taskParams.zoneId}
+       |Host: ${ss.serviceParams.taskParams.hostName}
        |""".stripMargin
 
   private def servicePanic[F[_]: Applicative](sp: ServicePanic): String =
     s"""
        |Service Name: ${sp.name.value}
-       |Host: ${sp.serviceInfo.serviceParams.taskParams.hostName}
-       |Up Time: ${tookStr(sp.serviceInfo.launchTime, sp.timestamp)}
-       |Policy: ${sp.serviceInfo.serviceParams.retry.policy[F].show}
+       |Host: ${sp.serviceParams.taskParams.hostName}
+       |Up Time: ${tookStr(sp.serviceStatus.launchTime, sp.timestamp)}
+       |Policy: ${sp.serviceParams.retry.policy[F].show}
        |
        |""".stripMargin
 

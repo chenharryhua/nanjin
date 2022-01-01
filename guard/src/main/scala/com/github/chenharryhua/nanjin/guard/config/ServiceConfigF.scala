@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.derived.auto.show.*
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.datetime.instances.*
+import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -10,15 +11,22 @@ import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import monocle.macros.Lenses
 
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 @Lenses @JsonCodec final case class MetricParams private[guard] (
   reportSchedule: Option[Either[FiniteDuration, CronExpr]],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit,
-  snapshotType: MetricSnapshotType)
+  snapshotType: MetricSnapshotType) {
+  def nextReport(now: ZonedDateTime): Option[ZonedDateTime] =
+    reportSchedule.flatMap(_.fold(fd => Some(now.plus(fd.toJava)), _.next(now)))
+  def nextReset(now: ZonedDateTime): Option[ZonedDateTime] =
+    resetSchedule.flatMap(_.next(now))
+}
 
 private[guard] object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]

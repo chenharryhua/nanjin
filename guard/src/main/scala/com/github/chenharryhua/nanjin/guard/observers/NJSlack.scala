@@ -6,8 +6,8 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{sns, SimpleNotificationService}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.translators
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
@@ -61,11 +61,11 @@ final class NJSlack[F[_]] private[observers] (
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
       sns <- Stream.resource(snsResource)
-      ref <- Stream.eval(F.ref[Set[ServiceInfo]](Set.empty))
+      ref <- Stream.eval(F.ref[Set[ServiceParams]](Set.empty))
       event <- es.evalTap {
-        case ServiceStart(info, _)   => ref.update(_.incl(info))
-        case ServiceStop(info, _, _) => ref.update(_.excl(info))
-        case _                       => F.unit
+        case ServiceStart(_, _, params)   => ref.update(_.incl(params))
+        case ServiceStop(_, _, params, _) => ref.update(_.excl(params))
+        case _                            => F.unit
       }.evalTap(e =>
         translator
           .translate(e)
@@ -76,7 +76,6 @@ final class NJSlack[F[_]] private[observers] (
           .void)
         .onFinalize { // publish good bye message to slack
           for {
-            ts <- F.realTimeInstant
             services <- ref.get
             msg = SlackApp(
               username = "Service Termination Notice",
@@ -84,16 +83,7 @@ final class NJSlack[F[_]] private[observers] (
                 Attachment(
                   color = cfg.warnColor,
                   blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)* ${cfg.atSupporters}")))) :::
-                services.toList.map(ss =>
-                  Attachment(
-                    color = cfg.warnColor,
-                    blocks = List(
-                      hostServiceSection(ss.serviceParams),
-                      JuxtaposeSection(
-                        TextField("Up Time", cfg.durationFormatter.format(ss.launchTime.toInstant, ts)),
-                        TextField("App", ss.serviceParams.taskParams.appName))
-                    )
-                  ))
+                services.toList.map(ss => Attachment(color = cfg.warnColor, blocks = List(hostServiceSection(ss))))
             ).asJson.spaces2
             _ <- sns.publish(msg).attempt.whenA(services.nonEmpty)
             _ <- logger.info(msg).whenA(cfg.isLoggging)

@@ -21,9 +21,8 @@ final class Agent[F[_]] private[guard] (
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
   val params: AgentParams        = agentConfig.evalConfig
-  val serviceInfo: ServiceInfo   = publisher.serviceInfo
-  val zoneId: ZoneId             = publisher.serviceInfo.serviceParams.taskParams.zoneId
-  val digestedName: DigestedName = DigestedName(params.spans, publisher.serviceInfo.serviceParams)
+  val zoneId: ZoneId             = publisher.serviceParams.taskParams.zoneId
+  val digestedName: DigestedName = DigestedName(params.spans, publisher.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](publisher, dispatcher, f(agentConfig))
@@ -38,7 +37,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.serviceParams),
+      params = ActionParams(params, publisher.serviceParams),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -49,7 +48,7 @@ final class Agent[F[_]] private[guard] (
     new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceInfo.serviceParams),
+      params = ActionParams(params, publisher.serviceParams),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -60,31 +59,29 @@ final class Agent[F[_]] private[guard] (
 
   def broker(metricName: String): NJBroker[F] =
     new NJBroker[F](
-      DigestedName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ metricName, publisher.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
       isCountAsError = false)
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
-      DigestedName(params.spans :+ alertName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ alertName, publisher.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def counter(counterName: String): NJCounter[F] =
     new NJCounter(
-      DigestedName(params.spans :+ counterName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ counterName, publisher.serviceParams),
       publisher.metricRegistry,
       isCountAsError = false)
 
   def meter(meterName: String): NJMeter[F] =
-    new NJMeter[F](
-      DigestedName(params.spans :+ meterName, publisher.serviceInfo.serviceParams),
-      publisher.metricRegistry)
+    new NJMeter[F](DigestedName(params.spans :+ meterName, publisher.serviceParams), publisher.metricRegistry)
 
   def histogram(metricName: String): NJHistogram[F] =
     new NJHistogram[F](
-      DigestedName(params.spans :+ metricName, publisher.serviceInfo.serviceParams),
+      DigestedName(params.spans :+ metricName, publisher.serviceParams),
       publisher.metricRegistry
     )
 

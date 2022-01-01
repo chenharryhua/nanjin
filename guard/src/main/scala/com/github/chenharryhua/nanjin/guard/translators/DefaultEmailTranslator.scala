@@ -4,7 +4,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
@@ -21,25 +21,25 @@ private[guard] object DefaultEmailTranslator extends all {
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
     p(b("number of retries: "), numRetry.toString)
 
-  private def hostServiceText(si: ServiceInfo): Text.TypedTag[String] =
-    p(b("service: "), si.serviceParams.name.value, "    ", b("host: "), si.serviceParams.taskParams.hostName)
+  private def hostServiceText(si: ServiceParams): Text.TypedTag[String] =
+    p(b("service: "), si.name.value, "    ", b("host: "), si.taskParams.hostName)
 
-  private def notesText(n: Notes): Text.TypedTag[String]    = p(b("notes: "), pre(n.value))
-  private def causeText(c: NJError): Text.TypedTag[String]  = p(b("cause: "), pre(c.stackTrace))
-  private def brief(si: ServiceInfo): Text.TypedTag[String] = p(b("brief: ", si.serviceParams.brief))
+  private def notesText(n: Notes): Text.TypedTag[String]      = p(b("notes: "), pre(n.value))
+  private def causeText(c: NJError): Text.TypedTag[String]    = p(b("cause: "), pre(c.stackTrace))
+  private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: ", si.brief))
 
   private def serviceStarted(ss: ServiceStart): Text.TypedTag[String] =
-    div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceInfo))
+    div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceParams))
 
   private def servicePanic[F[_]: Applicative](sp: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := "color:red")(s"Service Panic"),
       timestampText(sp.timestamp),
-      hostServiceText(sp.serviceInfo),
+      hostServiceText(sp.serviceParams),
       p(b("restart so far: "), sp.retryDetails.retriesSoFar),
       p(b("error ID: "), sp.error.uuid.show),
-      p(b("policy: "), sp.serviceInfo.serviceParams.retry.policy[F].show),
-      brief(sp.serviceInfo),
+      p(b("policy: "), sp.serviceParams.retry.policy[F].show),
+      brief(sp.serviceParams),
       causeText(sp.error)
     )
 
@@ -68,7 +68,7 @@ private[guard] object DefaultEmailTranslator extends all {
     div(
       h3(style := "color:blue")(s"Service Stopped"),
       timestampText(ss.timestamp),
-      hostServiceText(ss.serviceInfo),
+      hostServiceText(ss.serviceParams),
       pre(ss.snapshot.show)
     )
 
@@ -76,10 +76,10 @@ private[guard] object DefaultEmailTranslator extends all {
     val color: String = if (mr.snapshot.isContainErrors) "color:red" else "color:black"
     div(
       h3(style := color)(mr.reportType.show),
-      hostServiceText(mr.serviceInfo),
-      p(b("up time: "), tookStr(mr.serviceInfo.launchTime, mr.timestamp)),
+      hostServiceText(mr.serviceParams),
+      p(b("up time: "), tookStr(mr.serviceStatus.launchTime, mr.timestamp)),
       runningActions(mr.runnings, mr.timestamp),
-      brief(mr.serviceInfo),
+      brief(mr.serviceParams),
       pre(mr.snapshot.show)
     )
   }
@@ -88,8 +88,8 @@ private[guard] object DefaultEmailTranslator extends all {
     val color: String = if (ms.snapshot.isContainErrors) "color:red" else "color:black"
     div(
       h3(style := color)(ms.resetType.show),
-      hostServiceText(ms.serviceInfo),
-      brief(ms.serviceInfo),
+      hostServiceText(ms.serviceParams),
+      brief(ms.serviceParams),
       pre(ms.snapshot.show)
     )
   }
@@ -98,7 +98,7 @@ private[guard] object DefaultEmailTranslator extends all {
     div(
       h3("Service Alert"),
       timestampText(sa.timestamp),
-      hostServiceText(sa.serviceInfo),
+      hostServiceText(sa.serviceParams),
       p(b("name: "), sa.name.value, "    ", b("importance: "), sa.importance.show),
       pre(sa.message)
     )
@@ -107,7 +107,7 @@ private[guard] object DefaultEmailTranslator extends all {
     div(
       h3(s"${as.actionParams.name.value} Started"),
       timestampText(as.timestamp),
-      hostServiceText(as.actionInfo.serviceInfo),
+      hostServiceText(as.serviceParams),
       p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show)
     )
 
@@ -115,7 +115,7 @@ private[guard] object DefaultEmailTranslator extends all {
     div(
       h3(s"${ar.actionParams.name.value} Retrying"),
       timestampText(ar.timestamp),
-      hostServiceText(ar.actionInfo.serviceInfo),
+      hostServiceText(ar.serviceParams),
       p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show)
     )
 
@@ -125,14 +125,14 @@ private[guard] object DefaultEmailTranslator extends all {
         div(
           h3(style := "color:red")(s"${af.actionParams.name.value} Failed"),
           timestampText(af.timestamp),
-          hostServiceText(af.actionInfo.serviceInfo),
+          hostServiceText(af.serviceParams),
           p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
           p(b("error ID: "), af.error.uuid.show),
           p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
           p(b("took: "), tookStr(af.actionInfo.launchTime, af.timestamp)),
           retriesText(af.numRetries),
           notesText(af.notes),
-          brief(af.serviceInfo),
+          brief(af.serviceParams),
           causeText(af.error)
         ))
     else None
@@ -141,7 +141,7 @@ private[guard] object DefaultEmailTranslator extends all {
     div(
       h3(s"${as.actionParams.name.value} Succed"),
       timestampText(as.timestamp),
-      hostServiceText(as.actionInfo.serviceInfo),
+      hostServiceText(as.serviceParams),
       p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show),
       p(b("took: "), tookStr(as.actionInfo.launchTime, as.timestamp)),
       retriesText(as.numRetries),

@@ -25,7 +25,7 @@ final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F
 
   override def apply(event: NJEvent): F[Unit] =
     event match {
-      case sp @ ServicePanic(_, _, _, error) =>
+      case sp @ ServicePanic(_, _, _, _, error) =>
         translator.servicePanic
           .run(sp)
           .value
@@ -59,7 +59,7 @@ final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F
 
   override def apply(event: NJEvent): F[Unit] =
     event match {
-      case sp @ ServicePanic(_, _, _, error) =>
+      case sp @ ServicePanic(_, _, _, _, error) =>
         translator.servicePanic
           .run(sp)
           .value
