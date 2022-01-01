@@ -46,7 +46,7 @@ private[guard] object DefaultEmailTranslator extends all {
   private def runningActions(as: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
-      b("running actions:"),
+      b("running critical actions:"),
       table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 60%;")(
         tr(th(style := tds)("name"), th(style := tds)("spend"), th(style := tds)("launch time")),
         as.map(a =>

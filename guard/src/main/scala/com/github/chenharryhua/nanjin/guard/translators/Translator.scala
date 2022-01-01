@@ -208,12 +208,120 @@ object Translator {
     new Monad[Translator[F, *]] {
       override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] = fa.flatMap(f)
 
-      // TODO tailrec ???
-      override def tailRecM[A, B](a: A)(f: A => Translator[F, Either[A, B]]): Translator[F, B] =
-        f(a).flatMap {
-          case Left(value)  => tailRecM(value)(f)
-          case Right(value) => pure(value)
-        }
+      override def tailRecM[A, B](a: A)(f: A => Translator[F, Either[A, B]]): Translator[F, B] = {
+
+        val serviceStart: Kleisli[OptionT[F, *], ServiceStart, B] =
+          Kleisli((ss: ServiceStart) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).serviceStart.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val servicePanic: Kleisli[OptionT[F, *], ServicePanic, B] =
+          Kleisli((ss: ServicePanic) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).servicePanic.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val serviceStop: Kleisli[OptionT[F, *], ServiceStop, B] =
+          Kleisli((ss: ServiceStop) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).serviceStop.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val metricsReport: Kleisli[OptionT[F, *], MetricsReport, B] =
+          Kleisli((ss: MetricsReport) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).metricsReport.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val metricsReset: Kleisli[OptionT[F, *], MetricsReset, B] =
+          Kleisli((ss: MetricsReset) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).metricsReset.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val serviceAlert: Kleisli[OptionT[F, *], ServiceAlert, B] =
+          Kleisli((ss: ServiceAlert) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).serviceAlert.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val passThrough: Kleisli[OptionT[F, *], PassThrough, B] =
+          Kleisli((ss: PassThrough) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).passThrough.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val actionStart: Kleisli[OptionT[F, *], ActionStart, B] =
+          Kleisli((ss: ActionStart) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).actionStart.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val actionRetry: Kleisli[OptionT[F, *], ActionRetry, B] =
+          Kleisli((ss: ActionRetry) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).actionRetry.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val actionFail: Kleisli[OptionT[F, *], ActionFail, B] =
+          Kleisli((ss: ActionFail) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).actionFail.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        val actionSucc: Kleisli[OptionT[F, *], ActionSucc, B] =
+          Kleisli((ss: ActionSucc) =>
+            OptionT(F.tailRecM(a)(x =>
+              f(x).actionSucc.run(ss).value.map[Either[A, Option[B]]] {
+                case None           => Right(None)
+                case Some(Right(r)) => Right(Some(r))
+                case Some(Left(l))  => Left(l)
+              })))
+
+        Translator[F, B](
+          serviceStart,
+          servicePanic,
+          serviceStop,
+          metricsReport,
+          metricsReset,
+          serviceAlert,
+          passThrough,
+          actionStart,
+          actionRetry,
+          actionFail,
+          actionSucc)
+      }
 
       override def pure[A](x: A): Translator[F, A] =
         Translator[F, A](
