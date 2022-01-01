@@ -2,16 +2,16 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{ses, sns}
+import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.{console, email, logging, slack}
+import com.github.chenharryhua.nanjin.guard.translators.Translator
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 import scala.util.Random
-import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.crontabs
-import io.circe.Json
 
 class ObserversTest extends AnyFunSuite {
 
@@ -24,15 +24,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(
-        logging
-          .text[IO]
-          .updateTranslator(
-            _.withServiceStart(_ => "SVC started")
-              .withActionStart(_ => IO("Action up"))
-              .withActionRetry(_ => IO(Some("Retrying")))
-              .withActionFail(_ => Some("failed"))
-              .withActionSucc(_ => "succ")))
+      .evalTap(logging[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -47,16 +39,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(
-        console
-          .text[IO]
-          .updateTranslator(
-            _.withServiceStart(_ => "SVC started")
-              .withActionStart(_ => IO("Action up"))
-              .withActionRetry(_ => IO(Some("Retrying")))
-              .withActionFail(_ => Some("failed"))
-              .withActionSucc(_ => "succ")
-              .skipServiceStop))
+      .evalTap(console(Translator.json[IO].map(_.spaces2)))
       .compile
       .drain
       .unsafeRunSync()
@@ -71,9 +54,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(console
-        .json[IO](_.spaces2)
-        .updateTranslator(_.withServiceStart(_ => Json.fromString("service was kicked off")).skipServiceStop))
+      .evalTap(console(Translator.text[IO]))
       .compile
       .drain
       .unsafeRunSync()

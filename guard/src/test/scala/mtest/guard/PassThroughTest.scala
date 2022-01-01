@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.logging
+import com.github.chenharryhua.nanjin.guard.translators.Translator
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -79,7 +80,7 @@ class PassThroughTest extends AnyFunSuite {
         val meter = agent.meter("nj.test.meter")
         (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
-      .evalTap(logging.text[IO])
+      .evalTap(logging(Translator.text[IO]))
       .compile
       .drain
       .unsafeRunSync()
@@ -92,7 +93,7 @@ class PassThroughTest extends AnyFunSuite {
         val meter = agent.histogram("nj.test.histogram")
         (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(5)
       }
-      .evalTap(logging.text[IO])
+      .evalTap(logging(Translator.json[IO].map(_.spaces2)))
       .compile
       .drain
       .unsafeRunSync()
