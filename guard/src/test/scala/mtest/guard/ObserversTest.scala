@@ -103,14 +103,13 @@ class ObserversTest extends AnyFunSuite {
 
     TaskGuard[IO]("ses")
       .service("email")
-      .updateConfig(_.withMetricReport(100.second).withConstantDelay(1.second))
+      .updateConfig(_.withMetricReport(1.second).withConstantDelay(1.second))
       .eventStream(
         _.span("mail")
           .max(3)
           .updateConfig(_.withConstantDelay(1.second))
-          .notice
-          .run(IO.raiseError(new Exception).whenA(Random.nextBoolean()))
-          .delayBy(2.seconds)
+          .critical
+          .run(IO.raiseError(new Exception).whenA(Random.nextBoolean()).delayBy(3.seconds))
           .foreverM)
       .interruptAfter(15.seconds)
       .through(mail)

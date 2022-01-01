@@ -43,6 +43,21 @@ private[guard] object DefaultEmailTranslator extends all {
       causeText(sp.error)
     )
 
+  private def runningActions(as: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {
+    val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
+    div(
+      b("running actions:"),
+      table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 60%;")(
+        tr(th(style := tds)("name"), th(style := tds)("spend"), th(style := tds)("launch time")),
+        as.map(a =>
+          tr(
+            td(style := tds)(a.actionParams.name.value),
+            td(style := tds)(tookStr(a.launchTime, now)),
+            td(style := tds)(localTimestampStr(a.launchTime))))
+      )
+    )
+  }
+
   private def serviceStopped(ss: ServiceStop): Text.TypedTag[String] =
     div(
       h3(style := "color:blue")(s"Service Stopped"),
@@ -57,7 +72,7 @@ private[guard] object DefaultEmailTranslator extends all {
       h3(style := color)(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
       p(b("up time: "), tookStr(mr.serviceInfo.launchTime, mr.timestamp)),
-      p(b("runnings: "), mr.runnings.map(_.actionParams.name.value).mkString(", ")),
+      runningActions(mr.runnings, mr.timestamp),
       brief(mr.serviceInfo),
       pre(mr.snapshot.show)
     )
