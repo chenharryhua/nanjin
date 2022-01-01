@@ -119,8 +119,10 @@ private[guard] object MetricSnapshot {
     }
   }
 
-  def full(metricRegistry: MetricRegistry, serviceParams: ServiceParams): MetricSnapshot = {
-    val filter: MetricFilter = MetricFilter.ALL
+  private def build(
+    metricRegistry: MetricRegistry,
+    serviceParams: ServiceParams,
+    filter: MetricFilter): MetricSnapshot =
     MetricSnapshot(
       counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
       toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
@@ -131,40 +133,20 @@ private[guard] object MetricSnapshot {
         serviceParams.metric.durationTimeUnit,
         serviceParams.taskParams.zoneId)
     )
-  }
+
+  def full(metricRegistry: MetricRegistry, serviceParams: ServiceParams): MetricSnapshot =
+    build(metricRegistry, serviceParams, MetricFilter.ALL)
 
   def regular(
     metricFilter: MetricFilter,
     metricRegistry: MetricRegistry,
-    serviceParams: ServiceParams): MetricSnapshot = {
-    val filter: MetricFilter = metricFilter |+| positiveFilter
-    MetricSnapshot(
-      counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
-      toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
-      toText(
-        metricRegistry,
-        filter,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit,
-        serviceParams.taskParams.zoneId)
-    )
-  }
+    serviceParams: ServiceParams): MetricSnapshot =
+    build(metricRegistry, serviceParams, metricFilter |+| positiveFilter)
 
   def delta(
     lastCounters: LastCounters,
     metricFilter: MetricFilter,
     metricRegistry: MetricRegistry,
-    serviceParams: ServiceParams): MetricSnapshot = {
-    val filter: MetricFilter = metricFilter |+| positiveFilter |+| deltaFilter(lastCounters)
-    MetricSnapshot(
-      counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
-      toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
-      toText(
-        metricRegistry,
-        filter,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit,
-        serviceParams.taskParams.zoneId)
-    )
-  }
+    serviceParams: ServiceParams): MetricSnapshot =
+    build(metricRegistry, serviceParams, metricFilter |+| positiveFilter |+| deltaFilter(lastCounters))
 }
