@@ -8,6 +8,7 @@ import cats.effect.unsafe.implicits.global
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.MetricsReport
+import com.github.chenharryhua.nanjin.guard.translators.Translator
 
 import scala.concurrent.duration.*
 
@@ -18,7 +19,7 @@ class MetricsTest extends AnyFunSuite {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Delta))
       .eventStream(ag => ag.span("one").run(IO(0)) >> IO.sleep(10.minutes))
-      .evalTap(console.text[IO])
+      .evalTap(console[IO])
       .interruptAfter(5.seconds)
       .compile
       .last
@@ -29,7 +30,7 @@ class MetricsTest extends AnyFunSuite {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Full))
       .eventStream(ag => ag.span("one").run(IO(0)) >> IO.sleep(10.minutes))
-      .evalTap(console.text[IO])
+      .evalTap(console(Translator.text[IO]))
       .interruptAfter(5.seconds)
       .compile
       .last
@@ -42,7 +43,7 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular))
       .eventStream(ag =>
         ag.span("one").run(IO(0)) >> ag.span("two").run(IO(1)) >> ag.metrics.reset >> IO.sleep(10.minutes))
-      .evalTap(console.text[IO])
+      .evalTap(console(Translator.text[IO]))
       .interruptAfter(5.seconds)
       .compile
       .last

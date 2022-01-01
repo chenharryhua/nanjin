@@ -52,16 +52,17 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def eventStream[A](agent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      serviceInfo <- Stream.eval(for {
+      serviceStatus <- Stream.eval(for {
         uuid <- UUIDGen.randomUUID
         ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
-      } yield ServiceInfo(params, uuid, ts))
+        ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
+      } yield ssRef)
       lastCountersRef <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
       ongoingCriticalActions <- Stream.eval(F.ref(Set.empty[ActionInfo]))
       event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val publisher: EventPublisher[F] =
-          new EventPublisher[F](serviceInfo, metricRegistry, lastCountersRef, ongoingCriticalActions, channel)
+          new EventPublisher[F](params, metricRegistry, lastCountersRef, ongoingCriticalActions, serviceStatus, channel)
 
         val panicCounter: Counter   = publisher.metricRegistry.counter(servicePanicMRName)
         val restartCounter: Counter = publisher.metricRegistry.counter(serviceRestartMRName)

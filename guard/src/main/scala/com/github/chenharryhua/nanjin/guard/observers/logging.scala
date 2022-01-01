@@ -6,47 +6,13 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.Chunk
-import io.circe.Json
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object logging {
-  def json[F[_]: Sync](f: Json => String): JsonLogging[F] = new JsonLogging[F](Translator.json[F], f)
-  def text[F[_]: Sync]: TextLogging[F]                    = new TextLogging[F](Translator.text[F])
-}
+  def apply[F[_]: Sync](translator: Translator[F, String]): TextLogging[F] = new TextLogging[F](translator)
 
-final class JsonLogging[F[_]: Sync] private[observers] (translator: Translator[F, Json], jsonConverter: Json => String)
-    extends (NJEvent => F[Unit]) with UpdateTranslator[F, Json, JsonLogging[F]] {
-
-  private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-
-  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): JsonLogging[F] =
-    new JsonLogging[F](f(translator), jsonConverter)
-
-  override def apply(event: NJEvent): F[Unit] =
-    event match {
-      case sp @ ServicePanic(_, _, _, error) =>
-        translator.servicePanic
-          .run(sp)
-          .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(jsonConverter(j)) }.void)
-      case sa: ServiceAlert =>
-        translator.serviceAlert.run(sa).value.flatMap(_.traverse(j => logger.warn(jsonConverter(j))).void)
-      case ar @ ActionRetry(_, _, _, error) =>
-        translator.actionRetry
-          .run(ar)
-          .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(jsonConverter(j)) }.void)
-      case af @ ActionFail(_, _, _, _, error) =>
-        translator.actionFail
-          .run(af)
-          .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(jsonConverter(j)) }.void)
-      case others => translator.translate(others).flatMap(_.traverse(m => logger.info(m.spaces2)).void)
-    }
-
-  def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
-
+  def apply[F[_]: Sync]: TextLogging[F] = new TextLogging[F](Translator.text[F])
 }
 
 final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F, String])
@@ -59,7 +25,7 @@ final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F
 
   override def apply(event: NJEvent): F[Unit] =
     event match {
-      case sp @ ServicePanic(_, _, _, error) =>
+      case sp @ ServicePanic(_, _, _, _, error) =>
         translator.servicePanic
           .run(sp)
           .value
@@ -75,7 +41,7 @@ final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F
         translator.actionFail
           .run(af)
           .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(j) }.void)
+          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(j) }.void)
       case others => translator.translate(others).flatMap(_.traverse(m => logger.info(m)).void)
     }
 

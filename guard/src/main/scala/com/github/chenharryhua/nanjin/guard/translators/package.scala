@@ -80,10 +80,7 @@ package object translators {
     s"$n$w"
   }
 
-  private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
-
-  private[translators] def tookStr(launchTime: ZonedDateTime, now: ZonedDateTime): String =
-    fmt.format(launchTime, now)
+  private[translators] val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   private[translators] def localTimestampStr(timestamp: ZonedDateTime): String =
     timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show

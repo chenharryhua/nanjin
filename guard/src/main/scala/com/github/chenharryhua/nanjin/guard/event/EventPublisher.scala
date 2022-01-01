@@ -6,7 +6,7 @@ import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance, MetricSnapshotType}
+import com.github.chenharryhua.nanjin.guard.config.*
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -18,64 +18,74 @@ import java.time.ZonedDateTime
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 final private[guard] class EventPublisher[F[_]: UUIDGen](
-  val serviceInfo: ServiceInfo,
+  val serviceParams: ServiceParams,
   val metricRegistry: MetricRegistry,
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
   ongoingCriticalActions: Ref[F, Set[ActionInfo]],
+  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
-  private val realZonedDateTime: F[ZonedDateTime] =
-    F.realTimeInstant.map(_.atZone(serviceInfo.serviceParams.taskParams.zoneId))
+  private val realZonedDateTime: F[ZonedDateTime] = {
+    for {
+      ts <- F.realTimeInstant
+    } yield ts.atZone(serviceParams.taskParams.zoneId)
+  }
 
   /** services
     */
 
-  val serviceReStarted: F[Unit] =
-    realZonedDateTime.flatMap(ts =>
-      channel
-        .send(ServiceStart(timestamp = ts, serviceInfo = serviceInfo))
-        .flatMap(_ => ongoingCriticalActions.set(Set.empty)))
+  val serviceReStarted: F[Unit] = {
+    for {
+      ts <- realZonedDateTime
+      ss <- serviceStatus.updateAndGet(_.goUp(ts))
+      _ <- channel.send(ServiceStart(timestamp = ts, serviceStatus = ss, serviceParams = serviceParams))
+      _ <- ongoingCriticalActions.set(Set.empty)
+    } yield ()
+  }
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
       ts <- realZonedDateTime
+      ss <- serviceStatus.updateAndGet(_.goDown(ts))
       uuid <- UUIDGen.randomUUID[F]
-      _ <- channel.send(ServicePanic(serviceInfo, ts, retryDetails, NJError(uuid, ex)))
+      _ <- channel.send(ServicePanic(ss, ts, retryDetails, serviceParams, NJError(uuid, ex)))
     } yield ()
 
   def serviceStopped: F[Unit] =
     for {
       ts <- realZonedDateTime
+      ss <- serviceStatus.updateAndGet(_.goDown(ts))
       _ <- channel.send(
         ServiceStop(
           timestamp = ts,
-          serviceInfo = serviceInfo,
-          snapshot = MetricSnapshot.full(metricRegistry, serviceInfo.serviceParams)
+          serviceStatus = ss,
+          serviceParams = serviceParams,
+          snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
         ))
     } yield ()
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
       ts <- realZonedDateTime
-      newLast = MetricSnapshot.LastCounters(metricRegistry)
       runnings <- ongoingCriticalActions.get
-      oldLast <- lastCountersRef.get
+      oldLast <- lastCountersRef.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
+      ss <- serviceStatus.get
       _ <- channel.send(
         MetricsReport(
-          serviceInfo = serviceInfo,
+          serviceStatus = ss,
           reportType = metricReportType,
-          runnings = runnings.toList.sortBy(_.launchTime),
+          pendings = runnings.map(PendingAction(_)).toList.sortBy(_.launchTime),
           timestamp = ts,
+          serviceParams = serviceParams,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>
-              MetricSnapshot.full(metricRegistry, serviceInfo.serviceParams)
+              MetricSnapshot.full(metricRegistry, serviceParams)
             case MetricSnapshotType.Regular =>
-              MetricSnapshot.regular(metricFilter, metricRegistry, serviceInfo.serviceParams)
+              MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
             case MetricSnapshotType.Delta =>
-              MetricSnapshot.delta(oldLast, metricFilter, metricRegistry, serviceInfo.serviceParams)
+              MetricSnapshot.delta(oldLast, metricFilter, metricRegistry, serviceParams)
           }
         ))
-      _ <- lastCountersRef.update(_ => newLast)
     } yield ()
 
   /** Reset Counters only
@@ -83,21 +93,24 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def metricsReset(cronExpr: Option[CronExpr]): F[Unit] =
     for {
       ts <- realZonedDateTime
+      ss <- serviceStatus.get
       msg = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>
           MetricsReset(
             resetType = MetricResetType.Scheduled(next),
-            serviceInfo = serviceInfo,
+            serviceStatus = ss,
             timestamp = ts,
-            snapshot = MetricSnapshot.full(metricRegistry, serviceInfo.serviceParams)
+            serviceParams = serviceParams,
+            snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
           )
         }
       }.getOrElse(
         MetricsReset(
           resetType = MetricResetType.Adhoc,
-          serviceInfo = serviceInfo,
+          serviceStatus = ss,
           timestamp = ts,
-          snapshot = MetricSnapshot.full(metricRegistry, serviceInfo.serviceParams)
+          serviceParams = serviceParams,
+          snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
         ))
       _ <- channel.send(msg)
       _ <- lastCountersRef.set(MetricSnapshot.LastCounters.empty)
@@ -110,7 +123,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       uuid <- UUIDGen.randomUUID[F]
       ts <- realZonedDateTime
-      actionInfo = ActionInfo(actionParams, serviceInfo, uuid, ts)
+      ss <- serviceStatus.get
+      actionInfo = ActionInfo(actionParams, ss, serviceParams, uuid, ts)
       _ <- channel.send(ActionStart(actionInfo)).whenA(actionInfo.actionParams.importance >= Importance.High)
       _ <- ongoingCriticalActions.update(_ + actionInfo).whenA(actionParams.importance === Importance.Critical)
     } yield actionInfo
@@ -179,19 +193,28 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =
     for {
       ts <- realZonedDateTime
+      ss <- serviceStatus.get
       _ <- channel.send(
-        PassThrough(name = metricName, asError = asError, serviceInfo = serviceInfo, timestamp = ts, value = json))
+        PassThrough(
+          name = metricName,
+          asError = asError,
+          serviceStatus = ss,
+          timestamp = ts,
+          serviceParams = serviceParams,
+          value = json))
     } yield ()
 
   def alert(metricName: DigestedName, msg: String, importance: Importance): F[Unit] =
     for {
       ts <- realZonedDateTime
+      ss <- serviceStatus.get
       _ <- channel.send(
         ServiceAlert(
           name = metricName,
-          serviceInfo = serviceInfo,
+          serviceStatus = ss,
           timestamp = ts,
           importance = importance,
+          serviceParams = serviceParams,
           message = msg))
     } yield ()
 }

@@ -4,7 +4,7 @@ import cats.Show
 import cats.derived.auto.show.*
 import cats.implicits.{catsSyntaxEq, toShow}
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, MetricSnapshotType, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, MetricSnapshotType, ServiceParams}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -12,22 +12,9 @@ import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
-
-@JsonCodec
-sealed trait NJRuntimeInfo {
-  def serviceParams: ServiceParams
-  def uuid: UUID
-  def launchTime: ZonedDateTime
-}
-
-final case class ServiceInfo(serviceParams: ServiceParams, uuid: UUID, launchTime: ZonedDateTime) extends NJRuntimeInfo
-final case class ActionInfo(actionParams: ActionParams, serviceInfo: ServiceInfo, uuid: UUID, launchTime: ZonedDateTime)
-    extends NJRuntimeInfo {
-  override val serviceParams: ServiceParams = serviceInfo.serviceParams
-}
 
 @JsonCodec
 final case class Notes private (value: String) extends AnyVal
@@ -93,5 +80,81 @@ object MetricReportType {
 
   final case class Scheduled(index: Long, snapshotType: MetricSnapshotType) extends MetricReportType {
     override val isShow: Boolean = index === 0
+  }
+}
+
+@JsonCodec
+final case class PendingAction private (name: DigestedName, uuid: UUID, launchTime: ZonedDateTime)
+object PendingAction {
+  implicit val showPendingAction: Show[PendingAction] = cats.derived.semiauto.show[PendingAction]
+  def apply(ai: ActionInfo): PendingAction =
+    PendingAction(
+      ai.actionParams.name,
+      ai.uuid,
+      ai.launchTime
+    )
+}
+
+@JsonCodec
+final case class ActionInfo(
+  actionParams: ActionParams,
+  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
+  uuid: UUID,
+  launchTime: ZonedDateTime)
+
+object ActionInfo {
+  implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
+}
+
+@JsonCodec
+sealed trait ServiceStatus {
+  def uuid: UUID
+  def launchTime: ZonedDateTime
+  def upTime(now: ZonedDateTime): Duration
+  def isUp: Boolean
+  def isDown: Boolean
+  def goUp(now: ZonedDateTime): ServiceStatus.Up
+  def goDown(now: ZonedDateTime): ServiceStatus.Down
+  final def fold[A](up: ServiceStatus.Up => A)(down: ServiceStatus.Down => A): A =
+    this match {
+      case s: ServiceStatus.Up   => up(s)
+      case s: ServiceStatus.Down => down(s)
+    }
+}
+
+object ServiceStatus {
+  implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
+
+  @JsonCodec
+  final case class Up private[ServiceStatus] (
+    uuid: UUID,
+    launchTime: ZonedDateTime,
+    lastRestartAt: ZonedDateTime,
+    lastCrashAt: ZonedDateTime)
+      extends ServiceStatus {
+    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+
+    override def goUp(now: ZonedDateTime): Up     = this
+    override def goDown(now: ZonedDateTime): Down = Down(uuid, launchTime, now)
+
+    override val isUp: Boolean   = true
+    override val isDown: Boolean = false
+  }
+
+  object Up {
+    def apply(uuid: UUID, launchTime: ZonedDateTime): ServiceStatus = Up(uuid, launchTime, launchTime, launchTime)
+  }
+
+  @JsonCodec
+  final case class Down private[ServiceStatus] (uuid: UUID, launchTime: ZonedDateTime, crashAt: ZonedDateTime)
+      extends ServiceStatus {
+    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+
+    override def goUp(now: ZonedDateTime): Up     = Up(uuid, launchTime, now, crashAt)
+    override def goDown(now: ZonedDateTime): Down = this
+
+    override val isUp: Boolean   = false
+    override val isDown: Boolean = true
   }
 }
