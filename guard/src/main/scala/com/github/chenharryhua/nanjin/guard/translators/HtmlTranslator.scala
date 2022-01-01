@@ -14,7 +14,7 @@ import java.time.ZonedDateTime
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
-private[guard] object DefaultEmailTranslator extends all {
+object HtmlTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), localTimestampStr(timestamp))
 
@@ -26,7 +26,7 @@ private[guard] object DefaultEmailTranslator extends all {
 
   private def notesText(n: Notes): Text.TypedTag[String]      = p(b("notes: "), pre(n.value))
   private def causeText(c: NJError): Text.TypedTag[String]    = p(b("cause: "), pre(c.stackTrace))
-  private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: ", pre(si.brief)))
+  private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: "), pre(si.brief))
 
   private def serviceStatus(ss: ServiceStatus): Text.TypedTag[String] =
     if (ss.isUp) p(b("service is up")) else p(b(style := "color:red")("service is down"))

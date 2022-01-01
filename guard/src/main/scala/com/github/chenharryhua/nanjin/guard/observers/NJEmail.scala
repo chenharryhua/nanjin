@@ -6,7 +6,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import com.github.chenharryhua.nanjin.aws.{ses, EmailContent, SimpleEmailService}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.translators.{DefaultEmailTranslator, Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.translators.{HtmlTranslator, Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -32,7 +32,7 @@ object email {
       interval = 60.minutes,
       handlePassThrough = Reader(_ => div()),
       isLogging = false,
-      DefaultEmailTranslator[F]()
+      HtmlTranslator[F]()
     )
 
   def apply[F[_]: Async](from: String, to: List[String], subject: String): NJEmail[F] =

@@ -35,12 +35,12 @@ object slack {
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]])(
     update: SlackConfig[F] => SlackConfig[F]): NJSlack[F] = {
     val cfg = update(defaultCfg)
-    new NJSlack[F](snsResource, cfg, new DefaultSlackTranslator[F](cfg).translator)
+    new NJSlack[F](snsResource, cfg, new SlackTranslator[F](cfg).translator)
   }
 
   def apply[F[_]: Async](snsArn: SnsArn)(update: SlackConfig[F] => SlackConfig[F]): NJSlack[F] = {
     val cfg = update(defaultCfg)
-    new NJSlack[F](sns[F](snsArn), cfg, new DefaultSlackTranslator[F](cfg).translator)
+    new NJSlack[F](sns[F](snsArn), cfg, new SlackTranslator[F](cfg).translator)
   }
 }
 
