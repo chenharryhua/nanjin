@@ -60,19 +60,7 @@ final case class Attachment(color: String, blocks: List[Section])
 final case class SlackApp(username: String, attachments: List[Attachment])
 
 final case class SlackConfig[F[_]: Monad](
-  goodColor: String,
-  warnColor: String,
-  infoColor: String,
-  errorColor: String,
-  metricsReportEmoji: String,
-  startActionEmoji: String,
-  succActionEmoji: String,
-  failActionEmoji: String,
-  retryActionEmoji: String,
-  durationFormatter: DurationFormatter,
   reportInterval: Option[FiniteDuration],
-  extraSlackSections: F[List[Section]],
-  isLoggging: Boolean,
   supporters: List[String]
 ) {
   val atSupporters: String =
@@ -83,33 +71,10 @@ final case class SlackConfig[F[_]: Monad](
       .distinct
       .mkString(" ")
 
-  def withColorGood(color: String): SlackConfig[F]  = copy(goodColor = color)
-  def withColorWarn(color: String): SlackConfig[F]  = copy(warnColor = color)
-  def withColorInfo(color: String): SlackConfig[F]  = copy(infoColor = color)
-  def withColorError(color: String): SlackConfig[F] = copy(errorColor = color)
-
-  def withEmojiMetricsReport(emoji: String): SlackConfig[F] = copy(metricsReportEmoji = emoji)
-  def withEmojiStartAction(emoji: String): SlackConfig[F]   = copy(startActionEmoji = emoji)
-  def withEmojiSuccAction(emoji: String): SlackConfig[F]    = copy(succActionEmoji = emoji)
-  def withEmojiFailAction(emoji: String): SlackConfig[F]    = copy(failActionEmoji = emoji)
-  def withEmojiRetryAction(emoji: String): SlackConfig[F]   = copy(retryActionEmoji = emoji)
-
   def at(supporter: String): SlackConfig[F]        = copy(supporters = supporter :: supporters)
   def at(supporters: List[String]): SlackConfig[F] = copy(supporters = supporters ::: supporters)
 
-  def withSection(value: F[String]): SlackConfig[F] =
-    copy(extraSlackSections = for {
-      esf <- extraSlackSections
-      v <- value
-    } yield esf :+ MarkdownSection(abbreviate(v)))
-
-  def withSection(value: String): SlackConfig[F] = withSection(Monad[F].pure(value))
-
-  def withDurationFormatter(fmt: DurationFormatter): SlackConfig[F] = copy(durationFormatter = fmt)
-
   def withReportInterval(fd: FiniteDuration): SlackConfig[F] = copy(reportInterval = Some(fd))
   def withoutReportInterval: SlackConfig[F]                  = copy(reportInterval = None)
-
-  def withLogging: SlackConfig[F] = copy(isLoggging = true)
 
 }

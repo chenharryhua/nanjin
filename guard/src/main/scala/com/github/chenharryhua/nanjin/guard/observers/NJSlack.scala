@@ -17,19 +17,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object slack {
   private def defaultCfg[F[_]: Monad]: SlackConfig[F] = SlackConfig[F](
-    goodColor = "#36a64f",
-    warnColor = "#ffd79a",
-    infoColor = "#b3d1ff",
-    errorColor = "#935252",
-    metricsReportEmoji = ":eyes:",
-    startActionEmoji = "",
-    succActionEmoji = "",
-    failActionEmoji = "",
-    retryActionEmoji = "",
-    durationFormatter = DurationFormatter.defaultFormatter,
     reportInterval = None,
-    extraSlackSections = Monad[F].pure(Nil),
-    isLoggging = false,
     supporters = Nil
   )
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]])(
@@ -69,10 +57,7 @@ final class NJSlack[F[_]] private[observers] (
       }.evalTap(e =>
         translator
           .translate(e)
-          .flatMap(_.traverse { sa =>
-            logger.info(sa.asJson.spaces2).whenA(cfg.isLoggging) <*
-              sns.publish(sa.asJson.noSpaces).attempt
-          })
+          .flatMap(_.traverse { sa => sns.publish(sa.asJson.noSpaces).attempt})
           .void)
         .onFinalize { // publish good bye message to slack
           for {
@@ -81,12 +66,11 @@ final class NJSlack[F[_]] private[observers] (
               username = "Service Termination Notice",
               attachments = List(
                 Attachment(
-                  color = cfg.warnColor,
-                  blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)* ${cfg.atSupporters}")))) :::
-                services.toList.map(ss => Attachment(color = cfg.warnColor, blocks = List(hostServiceSection(ss))))
+                  color = "",
+                  blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)*")))) :::
+                services.toList.map(ss => Attachment(color = "", blocks = List(hostServiceSection(ss))))
             ).asJson.spaces2
             _ <- sns.publish(msg).attempt.whenA(services.nonEmpty)
-            _ <- logger.info(msg).whenA(cfg.isLoggging)
           } yield ()
         }
     } yield event

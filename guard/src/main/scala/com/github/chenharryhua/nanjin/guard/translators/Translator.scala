@@ -357,6 +357,21 @@ object Translator {
       noop[F, A]
     )
 
+  def idTranslator[F[_]](implicit F: Applicative[F]): Translator[F, NJEvent] =
+    Translator[F, NJEvent](
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x))))
+    )
+
   def json[F[_]: Applicative]: Translator[F, Json] =
     empty[F, Json]
       .withServiceStart(_.asJson)
