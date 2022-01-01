@@ -9,7 +9,7 @@ import com.codahale.metrics.Counter
 import com.github.chenharryhua.nanjin.guard.config.{DigestedName, Importance}
 import com.github.chenharryhua.nanjin.guard.event.EventPublisher
 
-final class NJAlert[F[_]: Applicative](
+final class NJAlert[F[_]: Applicative] private[guard] (
   name: DigestedName,
   dispatcher: Dispatcher[F],
   eventPublisher: EventPublisher[F]) {

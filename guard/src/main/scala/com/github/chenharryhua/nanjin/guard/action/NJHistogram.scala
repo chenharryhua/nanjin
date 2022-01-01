@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import com.codahale.metrics.{Histogram, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.DigestedName
 
-final class NJHistogram[F[_]](name: DigestedName, metricRegistry: MetricRegistry)(implicit F: Sync[F]) {
+final class NJHistogram[F[_]] private[guard] (name: DigestedName, metricRegistry: MetricRegistry)(implicit F: Sync[F]) {
   private val histo: Histogram = metricRegistry.histogram(histogramMRName(name))
 
   def unsafeUpdate(num: Long): Unit = histo.update(num)

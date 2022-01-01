@@ -6,7 +6,7 @@ import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.{EventPublisher, MetricReportType, MetricSnapshot}
 
-class NJMetrics[F[_]](dispatcher: Dispatcher[F], eventPublisher: EventPublisher[F]) {
+class NJMetrics[F[_]] private[guard] (dispatcher: Dispatcher[F], eventPublisher: EventPublisher[F]) {
 
   def reset: F[Unit]      = eventPublisher.metricsReset(None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)

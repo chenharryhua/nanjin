@@ -7,6 +7,8 @@ import com.github.chenharryhua.nanjin.aws.{sns, SimpleNotificationService}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.translators
+import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
@@ -31,39 +33,39 @@ object slack {
     supporters = Nil
   )
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]])(
-    update: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] = {
+    update: SlackConfig[F] => SlackConfig[F]): NJSlack[F] = {
     val cfg = update(defaultCfg)
-    new SlackPipe[F](snsResource, cfg, new DefaultSlackTranslator[F](cfg).translator)
+    new NJSlack[F](snsResource, cfg, new DefaultSlackTranslator[F](cfg).translator)
   }
 
-  def apply[F[_]: Async](snsArn: SnsArn)(update: SlackConfig[F] => SlackConfig[F]): SlackPipe[F] = {
+  def apply[F[_]: Async](snsArn: SnsArn)(update: SlackConfig[F] => SlackConfig[F]): NJSlack[F] = {
     val cfg = update(defaultCfg)
-    new SlackPipe[F](sns[F](snsArn), cfg, new DefaultSlackTranslator[F](cfg).translator)
+    new NJSlack[F](sns[F](snsArn), cfg, new DefaultSlackTranslator[F](cfg).translator)
   }
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 
-final class SlackPipe[F[_]] private[observers] (
+final class NJSlack[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
   cfg: SlackConfig[F],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
-    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, SlackPipe[F]] {
+    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, NJSlack[F]] {
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackPipe[F] =
-    new SlackPipe[F](snsResource, cfg, f(translator))
+  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlack[F] =
+    new NJSlack[F](snsResource, cfg, f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
       sns <- Stream.resource(snsResource)
       ref <- Stream.eval(F.ref[Set[ServiceInfo]](Set.empty))
       event <- es.evalTap {
-        case ServiceStarted(info, _)    => ref.update(_.incl(info))
-        case ServiceStopped(info, _, _) => ref.update(_.excl(info))
-        case _                          => F.unit
+        case ServiceStart(info, _)   => ref.update(_.incl(info))
+        case ServiceStop(info, _, _) => ref.update(_.excl(info))
+        case _                       => F.unit
       }.evalTap(e =>
         translator
           .translate(e)

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
+import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance, ServiceParams}
 import io.circe.generic.auto.*
@@ -32,7 +33,7 @@ sealed trait ServiceEvent extends NJEvent {
 
 }
 
-final case class ServiceStarted(serviceInfo: ServiceInfo, timestamp: ZonedDateTime) extends ServiceEvent {
+final case class ServiceStart(serviceInfo: ServiceInfo, timestamp: ZonedDateTime) extends ServiceEvent {
   override val name: DigestedName = serviceInfo.serviceParams.name
 }
 
@@ -45,7 +46,7 @@ final case class ServicePanic(
   override val name: DigestedName = serviceInfo.serviceParams.name
 }
 
-final case class ServiceStopped(
+final case class ServiceStop(
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot
@@ -63,6 +64,7 @@ final case class ServiceAlert(
 
 final case class MetricsReport(
   reportType: MetricReportType,
+  runnings: List[ActionInfo],
   serviceInfo: ServiceInfo,
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot
@@ -101,14 +103,14 @@ final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
   override val timestamp: ZonedDateTime = actionInfo.launchTime
 }
 
-final case class ActionRetrying(
+final case class ActionRetry(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
     extends ActionEvent
 
-final case class ActionFailed(
+final case class ActionFail(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before giving up
@@ -116,7 +118,7 @@ final case class ActionFailed(
   error: NJError)
     extends ActionEvent
 
-final case class ActionSucced(
+final case class ActionSucc(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before success

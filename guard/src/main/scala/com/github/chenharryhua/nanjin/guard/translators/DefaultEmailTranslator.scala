@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunctorOps, toTraverseOps}
 import cats.syntax.all.*
@@ -11,15 +11,12 @@ import scalatags.Text
 import scalatags.Text.all.*
 
 import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
-private[observers] object DefaultEmailTranslator extends all {
+private[guard] object DefaultEmailTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
-    p(b("timestamp: "), timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
-
-  private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
+    p(b("timestamp: "), localTimestampStr(timestamp))
 
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
     p(b("number of retries: "), numRetry.toString)
@@ -31,7 +28,7 @@ private[observers] object DefaultEmailTranslator extends all {
   private def causeText(c: NJError): Text.TypedTag[String]  = p(b("cause: "), pre(c.stackTrace))
   private def brief(si: ServiceInfo): Text.TypedTag[String] = p(b("brief: ", si.serviceParams.brief))
 
-  private def serviceStarted(ss: ServiceStarted): Text.TypedTag[String] =
+  private def serviceStarted(ss: ServiceStart): Text.TypedTag[String] =
     div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceInfo))
 
   private def servicePanic[F[_]: Applicative](sp: ServicePanic): Text.TypedTag[String] =
@@ -46,7 +43,28 @@ private[observers] object DefaultEmailTranslator extends all {
       causeText(sp.error)
     )
 
-  private def serviceStopped(ss: ServiceStopped): Text.TypedTag[String] =
+  private def runningActions(as: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {
+    val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
+    div(
+      b("ongoing critical actions:"),
+      table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 60%;")(
+        tr(
+          th(style := tds)("name"),
+          th(style := tds)("so far took"),
+          th(style := tds)("launch time"),
+          th(style := tds)("id")),
+        as.map(a =>
+          tr(
+            td(style := tds)(a.actionParams.name.value),
+            td(style := tds)(tookStr(a.launchTime, now)),
+            td(style := tds)(localTimestampStr(a.launchTime)),
+            td(style := tds)(a.uuid.show)
+          ))
+      )
+    )
+  }
+
+  private def serviceStopped(ss: ServiceStop): Text.TypedTag[String] =
     div(
       h3(style := "color:blue")(s"Service Stopped"),
       timestampText(ss.timestamp),
@@ -59,7 +77,8 @@ private[observers] object DefaultEmailTranslator extends all {
     div(
       h3(style := color)(mr.reportType.show),
       hostServiceText(mr.serviceInfo),
-      p(b("up time: "), fmt.format(mr.serviceInfo.launchTime, mr.timestamp)),
+      p(b("up time: "), tookStr(mr.serviceInfo.launchTime, mr.timestamp)),
+      runningActions(mr.runnings, mr.timestamp),
       brief(mr.serviceInfo),
       pre(mr.snapshot.show)
     )
@@ -86,12 +105,13 @@ private[observers] object DefaultEmailTranslator extends all {
 
   private def actionStart(as: ActionStart): Text.TypedTag[String] =
     div(
-      h3(s"${as.actionParams.name.value} Start"),
+      h3(s"${as.actionParams.name.value} Started"),
       timestampText(as.timestamp),
-      hostServiceText(as.actionInfo.serviceInfo)
+      hostServiceText(as.actionInfo.serviceInfo),
+      p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show)
     )
 
-  private def actionRetrying(ar: ActionRetrying): Text.TypedTag[String] =
+  private def actionRetrying(ar: ActionRetry): Text.TypedTag[String] =
     div(
       h3(s"${ar.actionParams.name.value} Retrying"),
       timestampText(ar.timestamp),
@@ -99,7 +119,7 @@ private[observers] object DefaultEmailTranslator extends all {
       p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show)
     )
 
-  private def actionFailed[F[_]: Applicative](af: ActionFailed): Option[Text.TypedTag[String]] =
+  private def actionFailed[F[_]: Applicative](af: ActionFail): Option[Text.TypedTag[String]] =
     if (af.actionParams.importance >= Importance.Medium)
       Some(
         div(
@@ -109,7 +129,7 @@ private[observers] object DefaultEmailTranslator extends all {
           p(b(s"${af.actionInfo.actionParams.alias} ID: "), af.actionInfo.uuid.show),
           p(b("error ID: "), af.error.uuid.show),
           p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
-          p(b("took: "), fmt.format(af.actionInfo.launchTime, af.timestamp)),
+          p(b("took: "), tookStr(af.actionInfo.launchTime, af.timestamp)),
           retriesText(af.numRetries),
           notesText(af.notes),
           brief(af.serviceInfo),
@@ -117,13 +137,13 @@ private[observers] object DefaultEmailTranslator extends all {
         ))
     else None
 
-  private def actionSucced(as: ActionSucced): Text.TypedTag[String] =
+  private def actionSucced(as: ActionSucc): Text.TypedTag[String] =
     div(
       h3(s"${as.actionParams.name.value} Succed"),
       timestampText(as.timestamp),
       hostServiceText(as.actionInfo.serviceInfo),
       p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show),
-      p(b("took: "), fmt.format(as.actionInfo.launchTime, as.timestamp)),
+      p(b("took: "), tookStr(as.actionInfo.launchTime, as.timestamp)),
       retriesText(as.numRetries),
       notesText(as.notes)
     )
@@ -131,14 +151,14 @@ private[observers] object DefaultEmailTranslator extends all {
   def apply[F[_]: Monad](): Translator[F, Text.TypedTag[String]] =
     Translator
       .empty[F, Text.TypedTag[String]]
-      .withServiceStarted(serviceStarted)
+      .withServiceStart(serviceStarted)
       .withServicePanic(servicePanic[F])
-      .withServiceStopped(serviceStopped)
+      .withServiceStop(serviceStopped)
       .withMetricsReport(metricsReport)
       .withMetricsReset(metricsReset)
       .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
-      .withActionRetrying(actionRetrying)
-      .withActionFailed(actionFailed[F])
-      .withActionSucced(actionSucced)
+      .withActionRetry(actionRetrying)
+      .withActionFail(actionFailed[F])
+      .withActionSucc(actionSucced)
 }

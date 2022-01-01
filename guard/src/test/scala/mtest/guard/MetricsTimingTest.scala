@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.datetime.beijingTime
 import com.github.chenharryhua.nanjin.guard.{ServiceGuard, TaskGuard}
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.guard.observers.{isShowMetrics, nextTime}
+import com.github.chenharryhua.nanjin.guard.translators.{isShowMetrics, nextTime}
 
 import java.time.ZonedDateTime
 import scala.concurrent.duration.{DurationDouble, DurationInt}

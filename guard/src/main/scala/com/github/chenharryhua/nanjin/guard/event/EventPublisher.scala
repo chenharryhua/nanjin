@@ -21,6 +21,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceInfo: ServiceInfo,
   val metricRegistry: MetricRegistry,
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
+  ongoingCriticalActions: Ref[F, Set[ActionInfo]],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
@@ -30,7 +31,10 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     */
 
   val serviceReStarted: F[Unit] =
-    realZonedDateTime.flatMap(ts => channel.send(ServiceStarted(timestamp = ts, serviceInfo = serviceInfo)).void)
+    realZonedDateTime.flatMap(ts =>
+      channel
+        .send(ServiceStart(timestamp = ts, serviceInfo = serviceInfo))
+        .flatMap(_ => ongoingCriticalActions.set(Set.empty)))
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
@@ -43,7 +47,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       _ <- channel.send(
-        ServiceStopped(
+        ServiceStop(
           timestamp = ts,
           serviceInfo = serviceInfo,
           snapshot = MetricSnapshot.full(metricRegistry, serviceInfo.serviceParams)
@@ -54,11 +58,13 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       newLast = MetricSnapshot.LastCounters(metricRegistry)
+      runnings <- ongoingCriticalActions.get
       oldLast <- lastCountersRef.get
       _ <- channel.send(
         MetricsReport(
           serviceInfo = serviceInfo,
           reportType = metricReportType,
+          runnings = runnings.toList.sortBy(_.launchTime),
           timestamp = ts,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>
@@ -94,7 +100,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           snapshot = MetricSnapshot.full(metricRegistry, serviceInfo.serviceParams)
         ))
       _ <- channel.send(msg)
-      _ <- lastCountersRef.update(_ => MetricSnapshot.LastCounters.empty)
+      _ <- lastCountersRef.set(MetricSnapshot.LastCounters.empty)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   /** actions
@@ -106,7 +112,26 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       ts <- realZonedDateTime
       actionInfo = ActionInfo(actionParams, serviceInfo, uuid, ts)
       _ <- channel.send(ActionStart(actionInfo)).whenA(actionInfo.actionParams.importance >= Importance.High)
+      _ <- ongoingCriticalActions.update(_ + actionInfo).whenA(actionParams.importance === Importance.Critical)
     } yield actionInfo
+
+  def actionRetrying(
+    actionInfo: ActionInfo,
+    retryCount: Ref[F, Int],
+    willDelayAndRetry: WillDelayAndRetry,
+    ex: Throwable
+  ): F[Unit] =
+    for {
+      ts <- realZonedDateTime
+      uuid <- UUIDGen.randomUUID[F]
+      _ <- channel.send(
+        ActionRetry(
+          actionInfo = actionInfo,
+          timestamp = ts,
+          willDelayAndRetry = willDelayAndRetry,
+          error = NJError(uuid, ex)))
+      _ <- retryCount.update(_ + 1)
+    } yield ()
 
   def actionSucced[A, B](
     actionInfo: ActionInfo,
@@ -120,27 +145,12 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       num <- retryCount.get
       notes <- buildNotes.run((input, result))
       _ <- channel
-        .send(ActionSucced(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
+        .send(ActionSucc(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
         .whenA(actionInfo.actionParams.importance >= Importance.High)
+      _ <- ongoingCriticalActions
+        .update(_ - actionInfo)
+        .whenA(actionInfo.actionParams.importance === Importance.Critical)
     } yield ts
-
-  def actionRetrying(
-    actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
-    willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable
-  ): F[Unit] =
-    for {
-      ts <- realZonedDateTime
-      uuid <- UUIDGen.randomUUID[F]
-      _ <- channel.send(
-        ActionRetrying(
-          actionInfo = actionInfo,
-          timestamp = ts,
-          willDelayAndRetry = willDelayAndRetry,
-          error = NJError(uuid, ex)))
-      _ <- retryCount.update(_ + 1)
-    } yield ()
 
   def actionFailed[A](
     actionInfo: ActionInfo,
@@ -155,12 +165,15 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       numRetries <- retryCount.get
       notes <- buildNotes.run((input, ex))
       _ <- channel.send(
-        ActionFailed(
+        ActionFail(
           actionInfo = actionInfo,
           timestamp = ts,
           numRetries = numRetries,
           notes = Notes(notes),
           error = NJError(uuid, ex)))
+      _ <- ongoingCriticalActions
+        .update(_ - actionInfo)
+        .whenA(actionInfo.actionParams.importance === Importance.Critical)
     } yield ts
 
   def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =

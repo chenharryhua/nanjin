@@ -25,12 +25,12 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -44,9 +44,9 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(c.isInstanceOf[ServiceStopped])
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled externally")
+    assert(c.isInstanceOf[ServiceStop])
   }
 
   test("compare to exception") {
@@ -60,8 +60,8 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled externally")
     assert(c.isInstanceOf[ServicePanic])
   }
 
@@ -77,14 +77,14 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(c.asInstanceOf[ActionFailed].actionInfo.actionParams.name.value == "never/86d0fbe4")
-    assert(c.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(d.asInstanceOf[ActionRetrying].actionInfo.actionParams.name.value == "supervisor/f154e9cf")
-    assert(f.asInstanceOf[ActionFailed].actionInfo.actionParams.name.value == "never/86d0fbe4")
-    assert(f.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(g.asInstanceOf[ActionFailed].actionInfo.actionParams.name.value == "supervisor/f154e9cf")
-    assert(g.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled internally")
+    assert(s.isInstanceOf[ServiceStart])
+    assert(c.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "never/86d0fbe4")
+    assert(c.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled externally")
+    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.name.value == "supervisor/f154e9cf")
+    assert(f.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "never/86d0fbe4")
+    assert(f.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled externally")
+    assert(g.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "supervisor/f154e9cf")
+    assert(g.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
     assert(h.isInstanceOf[ServicePanic])
   }
 
@@ -100,12 +100,12 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucced].actionInfo.actionParams.name.value == "a1/6f340f3f")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.value == "a1/6f340f3f")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucced].actionInfo.actionParams.name.value == "a2/56199b40")
-    assert(e.isInstanceOf[ServiceStopped])
+    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.name.value == "a2/56199b40")
+    assert(e.isInstanceOf[ServiceStop])
   }
 
   test("cancellation - sequentially - no chance to cancel") {
@@ -127,13 +127,13 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucced].actionInfo.actionParams.name.value == "a1/6f340f3f")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.value == "a1/6f340f3f")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetrying].actionInfo.actionParams.name.value == "a2/56199b40")
-    assert(e.asInstanceOf[ActionFailed].actionInfo.actionParams.name.value == "a2/56199b40")
-    assert(e.asInstanceOf[ActionFailed].error.message == "Exception: ")
+    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.name.value == "a2/56199b40")
+    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "a2/56199b40")
+    assert(e.asInstanceOf[ActionFail].error.message == "Exception: ")
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -160,31 +160,31 @@ class CancellationTest extends AnyFunSuite {
         .toVector
         .unsafeRunSync()
 
-    assert(v(0).isInstanceOf[ServiceStarted])
+    assert(v(0).isInstanceOf[ServiceStart])
     assert(v(1).isInstanceOf[ActionStart])
     assert(v(2).isInstanceOf[ActionStart])
     assert(v(3).isInstanceOf[ActionStart])
     assert(v(4).isInstanceOf[ActionStart])
 
-    assert(v(5).isInstanceOf[ActionRetrying]) // a2
-    assert(v(6).isInstanceOf[ActionSucced] || v(6).isInstanceOf[ActionRetrying]) // a1
-    assert(v(7).isInstanceOf[ActionRetrying] || v(7).isInstanceOf[ActionSucced]) // a2
-    assert(v(8).isInstanceOf[ActionRetrying]) // a2
-    assert(v(9).isInstanceOf[ActionFailed]) // a2 failed
-    assert(v(10).isInstanceOf[ActionFailed]) // a3 cancelled
+    assert(v(5).isInstanceOf[ActionRetry]) // a2
+    assert(v(6).isInstanceOf[ActionSucc] || v(6).isInstanceOf[ActionRetry]) // a1
+    assert(v(7).isInstanceOf[ActionRetry] || v(7).isInstanceOf[ActionSucc]) // a2
+    assert(v(8).isInstanceOf[ActionRetry]) // a2
+    assert(v(9).isInstanceOf[ActionFail]) // a2 failed
+    assert(v(10).isInstanceOf[ActionFail]) // a3 cancelled
 
-    assert(v(11).isInstanceOf[ActionRetrying]) // supervisor
+    assert(v(11).isInstanceOf[ActionRetry]) // supervisor
     assert(v(12).isInstanceOf[ActionStart])
     assert(v(13).isInstanceOf[ActionStart])
     assert(v(14).isInstanceOf[ActionStart])
 
-    assert(v(15).isInstanceOf[ActionRetrying] || v(15).isInstanceOf[ActionSucced]) // a1 or a2
-    assert(v(16).isInstanceOf[ActionSucced] || v(16).isInstanceOf[ActionRetrying]) // a1 or a2
-    assert(v(17).isInstanceOf[ActionRetrying] || v(17).isInstanceOf[ActionSucced]) // a1 or a2
-    assert(v(18).isInstanceOf[ActionRetrying]) // a2
-    assert(v(19).isInstanceOf[ActionFailed]) // a2 failed
-    assert(v(20).isInstanceOf[ActionFailed]) // a3 cancelled
-    assert(v(21).isInstanceOf[ActionFailed]) // supervisor
+    assert(v(15).isInstanceOf[ActionRetry] || v(15).isInstanceOf[ActionSucc]) // a1 or a2
+    assert(v(16).isInstanceOf[ActionSucc] || v(16).isInstanceOf[ActionRetry]) // a1 or a2
+    assert(v(17).isInstanceOf[ActionRetry] || v(17).isInstanceOf[ActionSucc]) // a1 or a2
+    assert(v(18).isInstanceOf[ActionRetry]) // a2
+    assert(v(19).isInstanceOf[ActionFail]) // a2 failed
+    assert(v(20).isInstanceOf[ActionFail]) // a3 cancelled
+    assert(v(21).isInstanceOf[ActionFail]) // supervisor
     assert(v(22).isInstanceOf[ServicePanic])
   }
 
@@ -203,12 +203,12 @@ class CancellationTest extends AnyFunSuite {
       .compile
       .toVector
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.asInstanceOf[ActionFailed].error.throwable.get.getMessage == "action was canceled externally")
-    assert(e.isInstanceOf[ServiceStopped])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled externally")
+    assert(e.isInstanceOf[ServiceStop])
   }
 
   test("cancellation - wrapped within uncancelable") {
@@ -227,11 +227,11 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
-    assert(b.isInstanceOf[ActionRetrying])
-    assert(c.isInstanceOf[ActionRetrying])
-    assert(d.isInstanceOf[ActionRetrying])
-    assert(e.isInstanceOf[ActionFailed])
+    assert(s.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServicePanic])
   }
 }

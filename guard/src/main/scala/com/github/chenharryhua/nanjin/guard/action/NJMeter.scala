@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import com.codahale.metrics.{Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.DigestedName
 
-final class NJMeter[F[_]: Sync](name: DigestedName, metricRegistry: MetricRegistry) {
+final class NJMeter[F[_]: Sync] private[guard] (name: DigestedName, metricRegistry: MetricRegistry) {
 
   private val meter: Meter = metricRegistry.meter(meterMRName(name))
 

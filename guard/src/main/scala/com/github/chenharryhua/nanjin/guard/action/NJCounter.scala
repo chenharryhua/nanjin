@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.DigestedName
 
-final class NJCounter[F[_]](
+final class NJCounter[F[_]] private[guard] (
   name: DigestedName,
   metricRegistry: MetricRegistry,
   isCountAsError: Boolean

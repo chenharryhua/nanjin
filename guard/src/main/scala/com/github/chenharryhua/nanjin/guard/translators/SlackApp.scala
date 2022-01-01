@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Monad
 import cats.syntax.all.*

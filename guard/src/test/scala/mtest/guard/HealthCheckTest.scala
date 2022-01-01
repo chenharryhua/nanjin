@@ -33,7 +33,7 @@ class HealthCheckTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[MetricsReport])
     assert(c.isInstanceOf[MetricsReport])
@@ -52,9 +52,9 @@ class HealthCheckTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionSucced])
+    assert(b.isInstanceOf[ActionSucc])
     assert(c.isInstanceOf[ActionStart])
     assert(d.isInstanceOf[MetricsReport])
   }
@@ -82,9 +82,9 @@ class HealthCheckTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStarted])
+    assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetrying])
+    assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[MetricsReport])
   }
 
