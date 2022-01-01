@@ -15,7 +15,7 @@ final class NJBroker[F[_]: Functor] private[guard] (
   eventPublisher: EventPublisher[F],
   isCountAsError: Boolean) {
 
-  private val counter: Counter = eventPublisher.metricRegistry.counter(passThroughMRName(name, isCountAsError))
+  private lazy val counter: Counter = eventPublisher.metricRegistry.counter(passThroughMRName(name, isCountAsError))
 
   def asError: NJBroker[F] = new NJBroker[F](name, dispatcher, eventPublisher, isCountAsError = true)
 
