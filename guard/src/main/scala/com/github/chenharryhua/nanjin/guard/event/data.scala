@@ -12,8 +12,8 @@ import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
 @JsonCodec
@@ -93,5 +93,53 @@ object MetricReportType {
 
   final case class Scheduled(index: Long, snapshotType: MetricSnapshotType) extends MetricReportType {
     override val isShow: Boolean = index === 0
+  }
+}
+
+@JsonCodec
+sealed trait ServiceStatus {
+  def serviceParams: ServiceParams
+  def uuid: UUID
+  def launchTime: ZonedDateTime
+  def upTime(now: ZonedDateTime): Duration
+  def isUp: Boolean
+
+  final def flip(now: ZonedDateTime): ServiceStatus = this match {
+    case up: ServiceStatus.Up     => up.down(now)
+    case down: ServiceStatus.Down => down.up(now)
+  }
+}
+
+object ServiceStatus {
+  implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
+
+  @JsonCodec
+  final case class Up private[ServiceStatus] (
+    serviceParams: ServiceParams,
+    uuid: UUID,
+    launchTime: ZonedDateTime,
+    lastRestartAt: ZonedDateTime,
+    lastCrashAt: ZonedDateTime)
+      extends ServiceStatus {
+    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+    override val isUp: Boolean                        = true
+    def down(crashOn: ZonedDateTime): Down            = Down(serviceParams, uuid, launchTime, crashOn)
+  }
+
+  object Up {
+    def apply(serviceParams: ServiceParams, uuid: UUID, launchTime: ZonedDateTime): Up =
+      Up(serviceParams, uuid, launchTime, launchTime, launchTime)
+  }
+
+  @JsonCodec
+  final case class Down private[ServiceStatus] (
+    serviceParams: ServiceParams,
+    uuid: UUID,
+    launchTime: ZonedDateTime,
+    crashAt: ZonedDateTime)
+      extends ServiceStatus {
+    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+    override val isUp: Boolean                        = false
+    def up(restart: ZonedDateTime): Up                = Up(serviceParams, uuid, launchTime, restart, crashAt)
   }
 }

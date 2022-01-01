@@ -47,7 +47,7 @@ private[guard] object DefaultEmailTranslator extends all {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
       b("ongoing critical actions:"),
-      table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 60%;")(
+      table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 100%;")(
         tr(
           th(style := tds)("name"),
           th(style := tds)("so far took"),
