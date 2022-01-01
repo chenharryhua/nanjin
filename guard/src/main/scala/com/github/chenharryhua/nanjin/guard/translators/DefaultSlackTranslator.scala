@@ -3,14 +3,13 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance}
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.generic.auto.*
 import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
-import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
@@ -28,9 +27,6 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
 
-  private def took(from: ZonedDateTime, to: ZonedDateTime): String =
-    cfg.durationFormatter.format(from, to)
-
   private def serviceStarted(ss: ServiceStart): F[SlackApp] =
     cfg.extraSlackSections.map(extra =>
       SlackApp(
@@ -42,7 +38,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
               MarkdownSection(":rocket: *(Re)Started Service*"),
               hostServiceSection(ss.serviceParams),
               JuxtaposeSection(
-                first = TextField("Up Time", took(ss.serviceStatus.launchTime, ss.timestamp)),
+                first = TextField("Up Time", cfg.durationFormatter.format(ss.upTime)),
                 second = TextField("Time Zone", ss.serviceParams.taskParams.zoneId.show)
               )
             )
@@ -68,7 +64,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
                 s":alarm: The service experienced a panic, the *${toOrdinalWords(sp.retryDetails.retriesSoFar + 1L)}* time, $upcoming"),
               hostServiceSection(sp.serviceParams),
               JuxtaposeSection(
-                TextField("Up Time", took(sp.serviceStatus.launchTime, sp.timestamp)),
+                TextField("Up Time", cfg.durationFormatter.format(sp.upTime)),
                 TextField("Cummulative Delay", cfg.durationFormatter.format(sp.retryDetails.cumulativeDelay))
               ),
               MarkdownSection(s"*Restart Policy:* ${sp.serviceParams.retry.policy[F].show}"),
@@ -111,7 +107,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
               MarkdownSection(s":octagonal_sign: *Service Stopped*. ${cfg.atSupporters}"),
               hostServiceSection(ss.serviceParams),
               JuxtaposeSection(
-                TextField("Up Time", took(ss.serviceStatus.launchTime, ss.timestamp)),
+                TextField("Up Time", cfg.durationFormatter.format(ss.upTime)),
                 TextField("Time Zone", ss.serviceParams.taskParams.zoneId.show)),
               metricsSection(ss.snapshot)
             )
@@ -136,7 +132,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
               MarkdownSection(s"${cfg.metricsReportEmoji} *${mr.reportType.show}*"),
               hostServiceSection(mr.serviceParams),
               JuxtaposeSection(
-                TextField("Up Time", took(mr.serviceStatus.launchTime, mr.timestamp)),
+                TextField("Up Time", cfg.durationFormatter.format(mr.upTime)),
                 TextField("Scheduled Next", next)),
               metricsSection(mr.snapshot)
             )
@@ -168,7 +164,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
                   MarkdownSection("*Adhoc Metric Reset*"),
                   hostServiceSection(mr.serviceParams),
                   JuxtaposeSection(
-                    TextField("Up Time", took(mr.serviceStatus.launchTime, mr.timestamp)),
+                    TextField("Up Time", cfg.durationFormatter.format(mr.upTime)),
                     TextField(
                       "Scheduled Next",
                       mr.serviceParams.metric.resetSchedule
@@ -194,7 +190,7 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
                   MarkdownSection(s"*Scheduled Metric Reset*"),
                   hostServiceSection(mr.serviceParams),
                   JuxtaposeSection(
-                    TextField("Up Time", took(mr.serviceStatus.launchTime, mr.timestamp)),
+                    TextField("Up Time", cfg.durationFormatter.format(mr.upTime)),
                     TextField("Scheduled Next", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)
                   ),
                   metricsSection(mr.snapshot)
@@ -206,9 +202,6 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
       }
     }
 
-  private def actionTitle(actionParams: ActionParams): String =
-    s"${actionParams.alias} *${actionParams.name.value}*"
-
   private def actionStart(as: ActionStart): Option[SlackApp] =
     if (as.actionParams.importance === Importance.Critical)
       Some(
@@ -217,9 +210,9 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
           attachments = List(Attachment(
             color = cfg.infoColor,
             blocks = List(
-              MarkdownSection(s"${cfg.startActionEmoji} Kick off ${actionTitle(as.actionParams)}"),
-              MarkdownSection(s"""|*${as.actionParams.alias} ID:* ${as.uuid.show}""".stripMargin),
-              hostServiceSection(as.actionInfo.serviceParams)
+              MarkdownSection(s"${cfg.startActionEmoji} *${as.actionParams.startTitle}*"),
+              hostServiceSection(as.actionInfo.serviceParams),
+              MarkdownSection(s"""|*${as.actionParams.alias} ID:* ${as.uuid.show}""".stripMargin)
             )
           ))
         ))
@@ -227,20 +220,18 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
 
   private def actionRetrying(ar: ActionRetry): Option[SlackApp] =
     if (ar.actionParams.importance >= Importance.Medium) {
-      val header: String =
-        s"${cfg.retryActionEmoji} This is the *${toOrdinalWords(ar.willDelayAndRetry.retriesSoFar + 1L)}* " +
-          s"failure of the ${actionTitle(ar.actionParams)}, " +
-          s"took *${took(ar.launchTime, ar.timestamp)}* so far, " +
-          s"retry of which takes place in *${cfg.durationFormatter.format(ar.willDelayAndRetry.nextDelay)}*."
-
       Some(
         SlackApp(
           username = ar.serviceParams.taskParams.appName,
           attachments = List(Attachment(
             color = cfg.warnColor,
             blocks = List(
-              MarkdownSection(header),
+              MarkdownSection(s"${cfg.retryActionEmoji} *${ar.actionParams.retryTitle}*"),
+              JuxtaposeSection(
+                TextField("Took so far", cfg.durationFormatter.format(ar.took)),
+                TextField("Retries so far", ar.willDelayAndRetry.retriesSoFar.show)),
               MarkdownSection(s"""|*${ar.actionParams.alias} ID:* ${ar.uuid.show}
+                                  |*next retry in: * ${cfg.durationFormatter.format(ar.willDelayAndRetry.nextDelay)}
                                   |*policy:* ${ar.actionParams.retry.policy[F].show}""".stripMargin),
               hostServiceSection(ar.serviceParams),
               KeyValueSection("Cause", s"```${abbreviate(ar.error.stackTrace)}```")
@@ -252,11 +243,6 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
   private def actionFailed(af: ActionFail): F[Option[SlackApp]] =
     cfg.extraSlackSections.map { extra =>
       if (af.actionParams.importance >= Importance.Medium) {
-        val header =
-          s"${cfg.failActionEmoji} The ${actionTitle(af.actionParams)} " +
-            s"was failed after *${af.numRetries.show}* retries, " +
-            s"took *${took(af.launchTime, af.timestamp)}*. ${cfg.atSupporters}"
-
         Some(
           SlackApp(
             username = af.serviceParams.taskParams.appName,
@@ -264,7 +250,10 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
               Attachment(
                 color = cfg.errorColor,
                 blocks = List(
-                  MarkdownSection(header),
+                  MarkdownSection(s"${cfg.failActionEmoji} *${af.actionParams.failedTitle}*"),
+                  JuxtaposeSection(
+                    TextField("Took", cfg.durationFormatter.format(af.took)),
+                    TextField("Retries", af.numRetries.show)),
                   MarkdownSection(s"""|*${af.actionParams.alias} ID:* ${af.uuid.show}
                                       |*error ID:* ${af.error.uuid.show}
                                       |*policy:* ${af.actionParams.retry.policy[F].show}""".stripMargin),
@@ -281,10 +270,6 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
 
   private def actionSucced(as: ActionSucc): Option[SlackApp] =
     if (as.actionParams.importance === Importance.Critical) {
-      val header =
-        s"${cfg.succActionEmoji} The ${actionTitle(as.actionParams)} " +
-          s"was accomplished in *${took(as.launchTime, as.timestamp)}*, after *${as.numRetries.show}* retries"
-
       Some(
         SlackApp(
           username = as.serviceParams.taskParams.appName,
@@ -292,7 +277,10 @@ final private[guard] class DefaultSlackTranslator[F[_]: Applicative](cfg: SlackC
             Attachment(
               color = cfg.goodColor,
               blocks = List(
-                MarkdownSection(header),
+                MarkdownSection(s"${cfg.succActionEmoji} *${as.actionParams.succedTitle}*"),
+                JuxtaposeSection(
+                  TextField("Took", cfg.durationFormatter.format(as.took)),
+                  TextField("Retries", as.numRetries.show)),
                 MarkdownSection(s"*${as.actionParams.alias} ID:* ${as.uuid.show}"),
                 hostServiceSection(as.serviceParams)
               ) ::: (if (as.notes.value.isEmpty) Nil

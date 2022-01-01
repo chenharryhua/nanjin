@@ -4,7 +4,7 @@ import cats.Show
 import cats.derived.auto.show.*
 import cats.implicits.{catsSyntaxEq, toShow}
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, MetricSnapshotType, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, MetricSnapshotType, ServiceParams}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -84,6 +84,18 @@ object MetricReportType {
 }
 
 @JsonCodec
+final case class PendingAction private (name: DigestedName, uuid: UUID, launchTime: ZonedDateTime)
+object PendingAction {
+  implicit val showPendingAction: Show[PendingAction] = cats.derived.semiauto.show[PendingAction]
+  def apply(ai: ActionInfo): PendingAction =
+    PendingAction(
+      ai.actionParams.name,
+      ai.uuid,
+      ai.launchTime
+    )
+}
+
+@JsonCodec
 final case class ActionInfo(
   actionParams: ActionParams,
   serviceStatus: ServiceStatus,
@@ -101,8 +113,14 @@ sealed trait ServiceStatus {
   def launchTime: ZonedDateTime
   def upTime(now: ZonedDateTime): Duration
   def isUp: Boolean
-  def goUp(now: ZonedDateTime): ServiceStatus
-  def goDown(now: ZonedDateTime): ServiceStatus
+  def isDown: Boolean
+  def goUp(now: ZonedDateTime): ServiceStatus.Up
+  def goDown(now: ZonedDateTime): ServiceStatus.Down
+  final def fold[A](up: ServiceStatus.Up => A)(down: ServiceStatus.Down => A): A =
+    this match {
+      case s: ServiceStatus.Up   => up(s)
+      case s: ServiceStatus.Down => down(s)
+    }
 }
 
 object ServiceStatus {
@@ -115,10 +133,13 @@ object ServiceStatus {
     lastRestartAt: ZonedDateTime,
     lastCrashAt: ZonedDateTime)
       extends ServiceStatus {
-    override def upTime(now: ZonedDateTime): Duration      = Duration.between(launchTime, now)
-    override val isUp: Boolean                             = true
-    override def goUp(now: ZonedDateTime): ServiceStatus   = this
-    override def goDown(now: ZonedDateTime): ServiceStatus = Down(uuid, launchTime, now)
+    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+
+    override def goUp(now: ZonedDateTime): Up     = this
+    override def goDown(now: ZonedDateTime): Down = Down(uuid, launchTime, now)
+
+    override val isUp: Boolean   = true
+    override val isDown: Boolean = false
   }
 
   object Up {
@@ -128,9 +149,12 @@ object ServiceStatus {
   @JsonCodec
   final case class Down private[ServiceStatus] (uuid: UUID, launchTime: ZonedDateTime, crashAt: ZonedDateTime)
       extends ServiceStatus {
-    override def upTime(now: ZonedDateTime): Duration      = Duration.between(launchTime, now)
-    override val isUp: Boolean                             = false
-    override def goUp(now: ZonedDateTime): ServiceStatus   = Up(uuid, launchTime, now, crashAt)
-    override def goDown(now: ZonedDateTime): ServiceStatus = this
+    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+
+    override def goUp(now: ZonedDateTime): Up     = Up(uuid, launchTime, now, crashAt)
+    override def goDown(now: ZonedDateTime): Down = this
+
+    override val isUp: Boolean   = false
+    override val isDown: Boolean = true
   }
 }

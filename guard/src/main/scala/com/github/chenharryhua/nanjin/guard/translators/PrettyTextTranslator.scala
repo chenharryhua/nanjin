@@ -10,7 +10,7 @@ private[guard] object PrettyTextTranslator {
     s"""
        |App Name: ${ss.serviceParams.taskParams.appName}
        |Service Name: ${ss.name.value}
-       |Up Time: ${tookStr(ss.serviceStatus.launchTime, ss.timestamp)}
+       |Up Time: ${fmt.format(ss.upTime)}
        |Time Zone: ${ss.serviceParams.taskParams.zoneId}
        |Host: ${ss.serviceParams.taskParams.hostName}
        |""".stripMargin
@@ -19,7 +19,7 @@ private[guard] object PrettyTextTranslator {
     s"""
        |Service Name: ${sp.name.value}
        |Host: ${sp.serviceParams.taskParams.hostName}
-       |Up Time: ${tookStr(sp.serviceStatus.launchTime, sp.timestamp)}
+       |Up Time: ${fmt.format(sp.upTime)}
        |Policy: ${sp.serviceParams.retry.policy[F].show}
        |
        |""".stripMargin
@@ -65,7 +65,10 @@ private[guard] object PrettyTextTranslator {
        |${af.show}
        |""".stripMargin
 
-  private def actionSucced(as: ActionSucc): String = ""
+  private def actionSucced(as: ActionSucc): String =
+    s"""
+       |${as.show}
+       |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator

@@ -31,11 +31,14 @@ object NJEvent {
 
 sealed trait ServiceEvent extends NJEvent {
   final override def uuid: UUID = serviceStatus.uuid
+
+  final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
 }
 
 final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime, serviceParams: ServiceParams)
     extends ServiceEvent {
   override val name: DigestedName = serviceParams.name
+
 }
 
 final case class ServicePanic(
@@ -68,13 +71,14 @@ final case class ServiceAlert(
 
 final case class MetricsReport(
   reportType: MetricReportType,
-  runnings: List[ActionInfo],
   serviceStatus: ServiceStatus,
+  pendings: List[PendingAction],
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
   override val name: DigestedName = serviceParams.name
+
 }
 
 final case class MetricsReset(

@@ -65,7 +65,12 @@ final case class ActionParams private (
   isCounting: CountAction,
   isTiming: TimeAction,
   retry: ActionRetryParams,
-  alias: String)
+  alias: String) {
+  def startTitle: String  = s"$alias ${name.value} Started"
+  def retryTitle: String  = s"$alias ${name.value} Retrying"
+  def failedTitle: String = s"$alias ${name.value} Failed"
+  def succedTitle: String = s"$alias ${name.value} Succed"
+}
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]

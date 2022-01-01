@@ -6,13 +6,7 @@ import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{
-  ActionParams,
-  DigestedName,
-  Importance,
-  MetricSnapshotType,
-  ServiceParams
-}
+import com.github.chenharryhua.nanjin.guard.config.*
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -73,15 +67,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
       ts <- realZonedDateTime
-      newLast = MetricSnapshot.LastCounters(metricRegistry)
       runnings <- ongoingCriticalActions.get
-      oldLast <- lastCountersRef.get
+      oldLast <- lastCountersRef.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
       ss <- serviceStatus.get
       _ <- channel.send(
         MetricsReport(
           serviceStatus = ss,
           reportType = metricReportType,
-          runnings = runnings.toList.sortBy(_.launchTime),
+          pendings = runnings.map(PendingAction(_)).toList.sortBy(_.launchTime),
           timestamp = ts,
           serviceParams = serviceParams,
           snapshot = metricReportType.snapshotType match {
@@ -93,7 +86,6 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
               MetricSnapshot.delta(oldLast, metricFilter, metricRegistry, serviceParams)
           }
         ))
-      _ <- lastCountersRef.update(_ => newLast)
     } yield ()
 
   /** Reset Counters only
