@@ -46,14 +46,20 @@ private[guard] object DefaultEmailTranslator extends all {
   private def runningActions(as: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
-      b("running critical actions:"),
+      b("ongoing critical actions:"),
       table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 60%;")(
-        tr(th(style := tds)("name"), th(style := tds)("spend"), th(style := tds)("launch time")),
+        tr(
+          th(style := tds)("name"),
+          th(style := tds)("so far took"),
+          th(style := tds)("launch time"),
+          th(style := tds)("id")),
         as.map(a =>
           tr(
             td(style := tds)(a.actionParams.name.value),
             td(style := tds)(tookStr(a.launchTime, now)),
-            td(style := tds)(localTimestampStr(a.launchTime))))
+            td(style := tds)(localTimestampStr(a.launchTime)),
+            td(style := tds)(a.uuid.show)
+          ))
       )
     )
   }
@@ -101,7 +107,8 @@ private[guard] object DefaultEmailTranslator extends all {
     div(
       h3(s"${as.actionParams.name.value} Started"),
       timestampText(as.timestamp),
-      hostServiceText(as.actionInfo.serviceInfo)
+      hostServiceText(as.actionInfo.serviceInfo),
+      p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show)
     )
 
   private def actionRetrying(ar: ActionRetry): Text.TypedTag[String] =
