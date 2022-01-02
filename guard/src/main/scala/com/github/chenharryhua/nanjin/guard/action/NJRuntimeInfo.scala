@@ -16,14 +16,14 @@ final class NJRuntimeInfo[F[_]: Functor] private[guard] (
   def latestCrashDuration: F[Option[Duration]] = serviceStatus.get.map {
     case ServiceStatus.Up(_, _, lastRestartAt, lastCrashAt) =>
       Some(Duration.between(lastCrashAt, lastRestartAt))
-    case ServiceStatus.Down(_, _, _, _) => None
+    case _: ServiceStatus.Down => None
   }
 
-  def latestCrash: F[ZonedDateTime] = serviceStatus.get.map(_.fold(_.lastCrashAt)(_.crashAt))
+  def latestCrash: F[ZonedDateTime] = serviceStatus.get.map(_.fold(_.lastCrashAt, _.crashAt))
 
-  def latestRestart: F[Option[ZonedDateTime]] = serviceStatus.get.map {
-    _.fold[Option[ZonedDateTime]](u => Some(u.lastRestartAt))(_ => None)
-  }
+  def latestRestart: F[Option[ZonedDateTime]] = serviceStatus.get.map(_.fold(u => Some(u.lastRestartAt), _ => None))
+
+  def downCause: F[Option[String]] = serviceStatus.get.map(_.fold(_ => None, d => Some(d.cause)))
 
   def serviceUUID: F[UUID] = serviceStatus.get.map(_.uuid)
 

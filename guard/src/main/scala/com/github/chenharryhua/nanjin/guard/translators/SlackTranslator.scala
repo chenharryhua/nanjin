@@ -32,10 +32,16 @@ private[translators] object SlackTranslator extends all {
     }
 
   private def serviceStatus(ss: ServiceStatus): MarkdownSection =
-    ss.fold(_ => MarkdownSection("Service is Up"))(_.upcommingRestart match {
-      case Some(value) => MarkdownSection(s"*Service is down and will be restarted at ${localTimestampStr(value)}*")
-      case None        => MarkdownSection("*Service was stopped*")
-    })
+    ss.fold(
+      _ => MarkdownSection("Service is Up"),
+      d =>
+        d.upcommingRestart match {
+          case Some(value) =>
+            MarkdownSection(
+              s"Service was down due to *${d.cause}* and will be restarted at *${localTimestampStr(value)}*")
+          case None => MarkdownSection(s"*${d.cause}*")
+        }
+    )
 
   private def serviceStarted(evt: ServiceStart): SlackApp =
     SlackApp(

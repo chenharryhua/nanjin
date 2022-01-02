@@ -85,7 +85,7 @@ final class NJRetry[F[_], A, B] private[guard] (
   private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     error: Throwable,
     details: RetryDetails): F[Unit] = details match {
-    case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, retryCount, wdr, error)
+    case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
     case _: GivingUp            => F.unit
   }
 
@@ -95,15 +95,15 @@ final class NJRetry[F[_], A, B] private[guard] (
     val messaging = outcome match {
       case Outcome.Canceled() =>
         val error = ActionException.ActionCanceledExternally
-        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
+        publisher.actionFail[A](actionInfo, retryCount, input, error, fail).map { ts =>
           timingAndCount(isSucc = false, actionInfo.launchTime, ts)
         }
       case Outcome.Errored(error) =>
-        publisher.actionFailed[A](actionInfo, retryCount, input, error, fail).map { ts =>
+        publisher.actionFail[A](actionInfo, retryCount, input, error, fail).map { ts =>
           timingAndCount(isSucc = false, actionInfo.launchTime, ts)
         }
       case Outcome.Succeeded(output) =>
-        publisher.actionSucced[A, B](actionInfo, retryCount, input, output, succ).map { ts =>
+        publisher.actionSucc[A, B](actionInfo, retryCount, input, output, succ).map { ts =>
           timingAndCount(isSucc = true, actionInfo.launchTime, ts)
         }
     }

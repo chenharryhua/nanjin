@@ -11,6 +11,7 @@ import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 import io.circe.Json
+import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
@@ -33,7 +34,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   /** services
     */
 
-  val serviceReStarted: F[Unit] =
+  val serviceReStart: F[Unit] =
     for {
       ts <- realZonedDateTime
       ss <- serviceStatus.updateAndGet(_.goUp(ts))
@@ -44,15 +45,15 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
       ts <- realZonedDateTime
-      ss <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay))
+      ss <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, ExceptionUtils.getMessage(ex)))
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(ServicePanic(ss, ts, retryDetails, serviceParams, NJError(uuid, ex)))
     } yield ()
 
-  def serviceStopped: F[Unit] =
+  def serviceStop: F[Unit] =
     for {
       ts <- realZonedDateTime
-      ss <- serviceStatus.updateAndGet(_.goDown(ts, None))
+      ss <- serviceStatus.updateAndGet(_.goDown(ts, None, cause = "service was stopped"))
       _ <- channel.send(
         ServiceStop(
           timestamp = ts,
@@ -127,7 +128,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       _ <- ongoingCriticalActions.update(_ + actionInfo).whenA(actionParams.importance === Importance.Critical)
     } yield actionInfo
 
-  def actionRetrying(
+  def actionRetry(
     actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
     willDelayAndRetry: WillDelayAndRetry,
@@ -145,7 +146,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       _ <- retryCount.update(_ + 1)
     } yield ()
 
-  def actionSucced[A, B](
+  def actionSucc[A, B](
     actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
     input: A,
@@ -164,7 +165,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         .whenA(actionInfo.actionParams.importance === Importance.Critical)
     } yield ts
 
-  def actionFailed[A](
+  def actionFail[A](
     actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
     input: A,

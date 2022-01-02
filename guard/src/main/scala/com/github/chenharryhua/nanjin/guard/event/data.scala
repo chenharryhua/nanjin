@@ -121,10 +121,10 @@ sealed trait ServiceStatus {
   def isStopped: Boolean
 
   def goUp(now: ZonedDateTime): ServiceStatus
-  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): ServiceStatus
+  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): ServiceStatus
 
   final def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
-  final def fold[A](up: ServiceStatus.Up => A)(down: ServiceStatus.Down => A): A =
+  final def fold[A](up: ServiceStatus.Up => A, down: ServiceStatus.Down => A): A =
     this match {
       case s: ServiceStatus.Up   => up(s)
       case s: ServiceStatus.Down => down(s)
@@ -150,8 +150,8 @@ object ServiceStatus {
       extends ServiceStatus {
 
     override def goUp(now: ZonedDateTime): Up = this
-    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): Down =
-      Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)))
+    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
+      Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
 
     override val isUp: Boolean      = true
     override val isDown: Boolean    = false
@@ -167,11 +167,12 @@ object ServiceStatus {
     uuid: UUID,
     launchTime: ZonedDateTime,
     crashAt: ZonedDateTime,
-    upcommingRestart: Option[ZonedDateTime])
+    upcommingRestart: Option[ZonedDateTime],
+    cause: String)
       extends ServiceStatus {
 
     override def goUp(now: ZonedDateTime): Up = Up(uuid, launchTime, now, crashAt)
-    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): Down = this
+    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down = this
 
     override val isUp: Boolean      = false
     override val isDown: Boolean    = true

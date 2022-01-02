@@ -77,10 +77,10 @@ final class ServiceGuard[F[_]] private[guard] (
           .retryingOnAllErrors(
             serviceParams.retry.policy[F],
             (ex: Throwable, rd) => publisher.servicePanic(rd, ex).map(_ => panicCounter.inc(1))) {
-            publisher.serviceReStarted.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
+            publisher.serviceReStart.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
               agent(new Agent[F](publisher, dispatcher, AgentConfig())))
           }
-          .guarantee(publisher.serviceStopped <* channel.close)
+          .guarantee(publisher.serviceStop <* channel.close)
 
         /** concurrent streams
           */
