@@ -86,7 +86,7 @@ final class ServiceGuard[F[_]] private[guard] (
           */
         val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
-        val metricsReport: Stream[F, INothing] = {
+        val metricsReport: Stream[F, INothing] =
           serviceParams.metric.reportSchedule match {
             case Some(Left(dur)) =>
               // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
@@ -107,7 +107,6 @@ final class ServiceGuard[F[_]] private[guard] (
                 .drain
             case None => Stream.empty
           }
-        }
 
         val metricsReset: Stream[F, INothing] = serviceParams.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
           cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(Some(cron))).drain)
