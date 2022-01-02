@@ -66,10 +66,10 @@ final case class ActionParams private (
   isTiming: TimeAction,
   retry: ActionRetryParams,
   alias: String) {
-  def startTitle: String  = s"$alias ${name.value} Started"
-  def retryTitle: String  = s"$alias ${name.value} Retrying"
-  def failedTitle: String = s"$alias ${name.value} Failed"
-  def succedTitle: String = s"$alias ${name.value} Succed"
+  def startTitle: String  = s"$alias ${name.value} started"
+  def retryTitle: String  = s"$alias ${name.value} retrying"
+  def failedTitle: String = s"$alias ${name.value} failed"
+  def succedTitle: String = s"$alias ${name.value} succed"
 }
 
 object ActionParams {
