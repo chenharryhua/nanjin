@@ -31,7 +31,7 @@ final class NJSlack[F[_]] private[observers] (
   translator: Translator[F, SlackApp])(implicit F: Async[F])
     extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, NJSlack[F]] {
 
-  def withInternal(fd: FiniteDuration): NJSlack[F] = new NJSlack[F](snsResource, Some(fd), translator)
+  def withInterval(fd: FiniteDuration): NJSlack[F] = new NJSlack[F](snsResource, Some(fd), translator)
 
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlack[F] =
     new NJSlack[F](snsResource, interval, f(translator))
@@ -44,7 +44,12 @@ final class NJSlack[F[_]] private[observers] (
         case ServiceStart(_, _, params)   => ref.update(_.incl(params))
         case ServiceStop(_, _, params, _) => ref.update(_.excl(params))
         case _                            => F.unit
-      }.evalTap(e => translator.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
+      }.evalTap(e =>
+        translator.filter {
+          case MetricsReport(rt, ss, _, ts, sp, _) =>
+            isShowMetrics(sp.metric.reportSchedule, ts, interval, ss.launchTime) || rt.isShow
+          case _ => true
+        }.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
         .onFinalize { // publish good bye message to slack
           for {
             services <- ref.get
@@ -55,8 +60,8 @@ final class NJSlack[F[_]] private[observers] (
                   color = "#ffd79a",
                   blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)*")))) :::
                 services.toList.map(ss => Attachment(color = "#ffd79a", blocks = List(hostServiceSection(ss))))
-            ).asJson.spaces2
-            _ <- sns.publish(msg).attempt.whenA(services.nonEmpty)
+            )
+            _ <- sns.publish(msg.asJson.noSpaces).attempt.whenA(services.nonEmpty)
           } yield ()
         }
     } yield event
