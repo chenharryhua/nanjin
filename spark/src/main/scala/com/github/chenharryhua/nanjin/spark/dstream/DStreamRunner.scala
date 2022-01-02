@@ -68,7 +68,7 @@ final class DStreamRunner[F[_]] private (
 
   }
 
-  private val resource: Resource[F, StreamingContext] = {
+  private val resource: Resource[F, StreamingContext] =
     for {
       dispatcher <- Dispatcher[F]
       _ <- Resource.eval(NJHadoop[F](sparkContext.hadoopConfiguration).delete(checkpoint).whenA(freshStart))
@@ -77,7 +77,6 @@ final class DStreamRunner[F[_]] private (
           F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
         .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
     } yield sc
-  }
 
   def stream: Stream[F, StreamingListenerEvent] = for {
     dispatcher <- Stream.resource(Dispatcher[F])
