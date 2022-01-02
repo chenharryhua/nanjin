@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.Monad
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{sns, SimpleNotificationService}
@@ -12,23 +11,15 @@ import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.syntax.*
-import org.typelevel.log4cats.SelfAwareStructuredLogger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
+
+import scala.concurrent.duration.FiniteDuration
 
 object slack {
-  private def defaultCfg[F[_]: Monad]: SlackConfig[F] = SlackConfig[F](
-    reportInterval = None
-  )
-  def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]])(
-    update: SlackConfig[F] => SlackConfig[F]): NJSlack[F] = {
-    val cfg = update(defaultCfg)
-    new NJSlack[F](snsResource, cfg, new SlackTranslator[F](cfg).translator)
-  }
+  def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): NJSlack[F] =
+    new NJSlack[F](snsResource, None, Translator.slack[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn)(update: SlackConfig[F] => SlackConfig[F]): NJSlack[F] = {
-    val cfg = update(defaultCfg)
-    new NJSlack[F](sns[F](snsArn), cfg, new SlackTranslator[F](cfg).translator)
-  }
+  def apply[F[_]: Async](snsArn: SnsArn): NJSlack[F] =
+    new NJSlack[F](sns[F](snsArn), None, Translator.slack[F])
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -36,14 +27,14 @@ object slack {
 
 final class NJSlack[F[_]] private[observers] (
   snsResource: Resource[F, SimpleNotificationService[F]],
-  cfg: SlackConfig[F],
+  interval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
     extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, NJSlack[F]] {
 
-  private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+  def withInternal(fd: FiniteDuration): NJSlack[F] = new NJSlack[F](snsResource, Some(fd), translator)
 
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlack[F] =
-    new NJSlack[F](snsResource, cfg, f(translator))
+    new NJSlack[F](snsResource, interval, f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
@@ -60,8 +51,10 @@ final class NJSlack[F[_]] private[observers] (
             msg = SlackApp(
               username = "Service Termination Notice",
               attachments = List(
-                Attachment(color = "", blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)*")))) :::
-                services.toList.map(ss => Attachment(color = "", blocks = List(hostServiceSection(ss))))
+                Attachment(
+                  color = "#ffd79a",
+                  blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)*")))) :::
+                services.toList.map(ss => Attachment(color = "#ffd79a", blocks = List(hostServiceSection(ss))))
             ).asJson.spaces2
             _ <- sns.publish(msg).attempt.whenA(services.nonEmpty)
           } yield ()

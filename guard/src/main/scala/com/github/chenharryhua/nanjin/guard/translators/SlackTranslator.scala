@@ -12,7 +12,7 @@ import org.typelevel.cats.time.instances.all
 import java.text.NumberFormat
 import java.time.temporal.ChronoUnit
 
-final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all {
+private[translators] object SlackTranslator extends all {
   private val goodColor  = "#36a64f"
   private val warnColor  = "#ffd79a"
   private val infoColor  = "#b3d1ff"
@@ -49,7 +49,7 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
       )
     )
 
-  private def servicePanic(evt: ServicePanic): SlackApp = {
+  private def servicePanic[F[_]: Applicative](evt: ServicePanic): SlackApp = {
     val upcoming: String = evt.retryDetails.upcomingDelay.map(fmt.format) match {
       case None => "report to developer once you see this message" // never happen
       case Some(ts) =>
@@ -111,39 +111,26 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
       )
     )
 
-  private def metricsReport(evt: MetricsReport): Option[SlackApp] = {
-    val msg = {
-      val next =
-        nextTime(
-          evt.serviceParams.metric.reportSchedule,
-          evt.timestamp,
-          cfg.reportInterval,
-          evt.serviceStatus.launchTime).fold("None")(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
-
-      SlackApp(
-        username = evt.serviceParams.taskParams.appName,
-        attachments = List(
-          Attachment(
-            color = if (evt.snapshot.isContainErrors) warnColor else infoColor,
-            blocks = List(
-              MarkdownSection(s"*${evt.reportType.show}*"),
-              hostServiceSection(evt.serviceParams),
-              JuxtaposeSection(TextField("Up Time", fmt.format(evt.upTime)), TextField("Scheduled Next", next)),
-              metricsSection(evt.snapshot)
-            )
+  private def metricsReport(evt: MetricsReport): SlackApp =
+    SlackApp(
+      username = evt.serviceParams.taskParams.appName,
+      attachments = List(
+        Attachment(
+          color = if (evt.snapshot.isContainErrors) warnColor else infoColor,
+          blocks = List(
+            MarkdownSection(s"*${evt.reportType.show}*"),
+            hostServiceSection(evt.serviceParams),
+            JuxtaposeSection(
+              TextField("Up Time", fmt.format(evt.upTime)),
+              TextField(
+                "Scheduled Next",
+                evt.serviceParams.metric.nextReport(evt.timestamp).map(localTimestampStr).getOrElse("None"))
+            ),
+            metricsSection(evt.snapshot)
           )
         )
       )
-    }
-    val isShow =
-      isShowMetrics(
-        evt.serviceParams.metric.reportSchedule,
-        evt.timestamp,
-        cfg.reportInterval,
-        evt.serviceStatus.launchTime) || evt.reportType.isShow
-
-    if (isShow) Some(msg) else None
-  }
+    )
 
   private def metricsReset(evt: MetricsReset): SlackApp =
     evt.resetType match {
@@ -208,7 +195,7 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
         ))
     else None
 
-  private def actionRetrying(evt: ActionRetry): Option[SlackApp] =
+  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Option[SlackApp] =
     if (evt.actionParams.importance >= Importance.Medium) {
       Some(
         SlackApp(
@@ -230,7 +217,7 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
         ))
     } else None
 
-  private def actionFailed(evt: ActionFail): Option[SlackApp] =
+  private def actionFailed[F[_]: Applicative](evt: ActionFail): Option[SlackApp] =
     if (evt.actionParams.importance >= Importance.Medium) {
       Some(
         SlackApp(
@@ -273,17 +260,17 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
         ))
     } else None
 
-  def translator: Translator[F, SlackApp] =
+  def apply[F[_]: Applicative]: Translator[F, SlackApp] =
     Translator
       .empty[F, SlackApp]
       .withServiceStart(serviceStarted)
-      .withServicePanic(servicePanic)
+      .withServicePanic(servicePanic[F])
       .withServiceStop(serviceStopped)
       .withMetricsReport(metricsReport)
       .withMetricsReset(metricsReset)
       .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
-      .withActionRetry(actionRetrying)
-      .withActionFail(actionFailed)
+      .withActionRetry(actionRetrying[F])
+      .withActionFail(actionFailed[F])
       .withActionSucc(actionSucced)
 }
