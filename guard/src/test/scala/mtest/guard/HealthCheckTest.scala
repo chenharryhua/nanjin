@@ -24,13 +24,12 @@ class HealthCheckTest extends AnyFunSuite {
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
       .withMetricFilter(MetricFilter.startsWith("01"))
-      .updateConfig(_.withMetricReport("* * * ? * *"))
+      .updateConfig(_.withMetricReport(2.seconds))
       .eventStream(gd => gd.span("cron").notice.retry(IO.never[Int]).run)
-      .evalTap(console(Translator.json[IO].map(_.noSpaces)))
-      .evalTap(console(Translator.text[IO]))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
-      .interruptAfter(7.second)
+      .interruptAfter(9.second)
+      .evalTap(console(Translator.text[IO]))
       .compile
       .toList
       .unsafeRunSync()

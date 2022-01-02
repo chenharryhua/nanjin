@@ -29,7 +29,10 @@ private[translators] object HtmlTranslator extends all {
   private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: "), pre(si.brief))
 
   private def serviceStatus(ss: ServiceStatus): Text.TypedTag[String] =
-    if (ss.isUp) p(b("service is up")) else p(b(style := "color:red")("service is down"))
+    ss.fold(_ => p(b("service is up"))) {
+      _.upcommingRestart.fold(p(b(style := "color:red")("service was stopped")))(zd =>
+        p(b(style := "color:red")("service is down and will be restarted at: "), localTimestampStr(zd)))
+    }
 
   private def pendingActions(as: List[PendingAction], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
@@ -54,106 +57,110 @@ private[translators] object HtmlTranslator extends all {
 
   // events
 
-  private def serviceStarted(ss: ServiceStart): Text.TypedTag[String] =
-    div(h3(s"Service Started"), timestampText(ss.timestamp), hostServiceText(ss.serviceParams))
+  private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
+    div(h3(s"Service Started"), timestampText(evt.timestamp), hostServiceText(evt.serviceParams))
 
-  private def servicePanic[F[_]: Applicative](sp: ServicePanic): Text.TypedTag[String] =
+  private def servicePanic[F[_]: Applicative](evt: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := "color:red")(s"Service Panic"),
-      timestampText(sp.timestamp),
-      hostServiceText(sp.serviceParams),
-      p(b("restart so far: "), sp.retryDetails.retriesSoFar),
-      p(b("error ID: "), sp.error.uuid.show),
-      p(b("policy: "), sp.serviceParams.retry.policy[F].show),
-      brief(sp.serviceParams),
-      causeText(sp.error)
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      p(b("restart so far: "), evt.retryDetails.retriesSoFar),
+      p(b("error ID: "), evt.error.uuid.show),
+      p(b("policy: "), evt.serviceParams.retry.policy[F].show),
+      brief(evt.serviceParams),
+      causeText(evt.error)
     )
 
-  private def serviceStopped(ss: ServiceStop): Text.TypedTag[String] =
+  private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
       h3(style := "color:blue")(s"Service Stopped"),
-      timestampText(ss.timestamp),
-      hostServiceText(ss.serviceParams),
-      pre(ss.snapshot.show)
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      pre(evt.snapshot.show)
     )
 
-  private def metricsReport(mr: MetricsReport): Text.TypedTag[String] = {
-    val color: String = if (mr.snapshot.isContainErrors) "color:red" else "color:black"
+  private def metricsReport(evt: MetricsReport): Text.TypedTag[String] = {
+    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
     div(
-      h3(style := color)(mr.reportType.show),
-      serviceStatus(mr.serviceStatus),
-      hostServiceText(mr.serviceParams),
-      p(b("up time: "), fmt.format(mr.upTime)),
-      pendingActions(mr.pendings, mr.timestamp),
-      brief(mr.serviceParams),
-      pre(mr.snapshot.show)
+      h3(style := color)(evt.reportType.show),
+      serviceStatus(evt.serviceStatus),
+      timestampText(evt.timestamp),
+      p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
+      hostServiceText(evt.serviceParams),
+      p(b("up time: "), fmt.format(evt.upTime)),
+      pendingActions(evt.pendings, evt.timestamp),
+      brief(evt.serviceParams),
+      pre(evt.snapshot.show)
     )
   }
 
-  private def metricsReset(ms: MetricsReset): Text.TypedTag[String] = {
-    val color: String = if (ms.snapshot.isContainErrors) "color:red" else "color:black"
+  private def metricsReset(evt: MetricsReset): Text.TypedTag[String] = {
+    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
     div(
-      h3(style := color)(ms.resetType.show),
-      serviceStatus(ms.serviceStatus),
-      hostServiceText(ms.serviceParams),
-      brief(ms.serviceParams),
-      pre(ms.snapshot.show)
+      h3(style := color)(evt.resetType.show),
+      serviceStatus(evt.serviceStatus),
+      timestampText(evt.timestamp),
+      p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
+      hostServiceText(evt.serviceParams),
+      brief(evt.serviceParams),
+      pre(evt.snapshot.show)
     )
   }
 
-  private def serviceAlert(sa: ServiceAlert): Text.TypedTag[String] =
+  private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =
     div(
       h3("Service Alert"),
-      timestampText(sa.timestamp),
-      hostServiceText(sa.serviceParams),
-      p(b("name: "), sa.name.value, "    ", b("importance: "), sa.importance.show),
-      pre(sa.message)
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      p(b("name: "), evt.name.value, "    ", b("importance: "), evt.importance.show),
+      pre(evt.message)
     )
 
-  private def actionStart(as: ActionStart): Text.TypedTag[String] =
+  private def actionStart(evt: ActionStart): Text.TypedTag[String] =
     div(
-      h3(as.actionParams.startTitle),
-      timestampText(as.timestamp),
-      hostServiceText(as.serviceParams),
-      p(b(s"${as.actionInfo.actionParams.alias} ID: "), as.actionInfo.uuid.show)
+      h3(evt.actionParams.startTitle),
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show)
     )
 
-  private def actionRetrying[F[_]: Applicative](ar: ActionRetry): Text.TypedTag[String] =
+  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
-      h3(ar.actionParams.retryTitle),
-      timestampText(ar.timestamp),
-      hostServiceText(ar.serviceParams),
-      p(b(s"${ar.actionInfo.actionParams.alias} ID: "), ar.actionInfo.uuid.show),
-      p(b("policy: "), ar.actionInfo.actionParams.retry.policy[F].show)
+      h3(evt.actionParams.retryTitle),
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+      p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show)
     )
 
-  private def actionFailed[F[_]: Applicative](af: ActionFail): Option[Text.TypedTag[String]] =
-    if (af.actionParams.importance >= Importance.Medium)
+  private def actionFailed[F[_]: Applicative](evt: ActionFail): Option[Text.TypedTag[String]] =
+    if (evt.actionParams.importance >= Importance.Medium)
       Some(
         div(
-          h3(style := "color:red")(af.actionParams.failedTitle),
-          timestampText(af.timestamp),
-          hostServiceText(af.serviceParams),
-          p(b(s"${af.actionParams.alias} ID: "), af.actionInfo.uuid.show),
-          p(b("error ID: "), af.error.uuid.show),
-          p(b("policy: "), af.actionInfo.actionParams.retry.policy[F].show),
-          p(b("took: "), fmt.format(af.took)),
-          retriesText(af.numRetries),
-          notesText(af.notes),
-          brief(af.serviceParams),
-          causeText(af.error)
+          h3(style := "color:red")(evt.actionParams.failedTitle),
+          timestampText(evt.timestamp),
+          hostServiceText(evt.serviceParams),
+          p(b(s"${evt.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+          p(b("error ID: "), evt.error.uuid.show),
+          p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
+          p(b("took: "), fmt.format(evt.took)),
+          retriesText(evt.numRetries),
+          notesText(evt.notes),
+          brief(evt.serviceParams),
+          causeText(evt.error)
         ))
     else None
 
-  private def actionSucced(as: ActionSucc): Text.TypedTag[String] =
+  private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
-      h3(as.actionParams.succedTitle),
-      timestampText(as.timestamp),
-      hostServiceText(as.serviceParams),
-      p(b(s"${as.actionParams.alias} ID: "), as.actionInfo.uuid.show),
-      p(b("took: "), fmt.format(as.took)),
-      retriesText(as.numRetries),
-      notesText(as.notes)
+      h3(evt.actionParams.succedTitle),
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      p(b(s"${evt.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+      p(b("took: "), fmt.format(evt.took)),
+      retriesText(evt.numRetries),
+      notesText(evt.notes)
     )
 
   def apply[F[_]: Monad]: Translator[F, Text.TypedTag[String]] =

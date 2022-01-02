@@ -20,9 +20,9 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceParams: ServiceParams,
   val metricRegistry: MetricRegistry,
+  val ongoingCriticalActions: Ref[F, Set[ActionInfo]],
+  val serviceStatus: Ref[F, ServiceStatus],
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
-  ongoingCriticalActions: Ref[F, Set[ActionInfo]],
-  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
@@ -44,7 +44,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
       ts <- realZonedDateTime
-      ss <- serviceStatus.updateAndGet(_.goDown(ts))
+      ss <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay))
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(ServicePanic(ss, ts, retryDetails, serviceParams, NJError(uuid, ex)))
     } yield ()
@@ -52,7 +52,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def serviceStopped: F[Unit] =
     for {
       ts <- realZonedDateTime
-      ss <- serviceStatus.updateAndGet(_.goDown(ts))
+      ss <- serviceStatus.updateAndGet(_.goDown(ts, None))
       _ <- channel.send(
         ServiceStop(
           timestamp = ts,

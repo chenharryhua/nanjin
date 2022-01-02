@@ -31,6 +31,12 @@ private[translators] object SlackTranslator extends all {
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
 
+  private def serviceStatus(ss: ServiceStatus): MarkdownSection =
+    ss.fold(_ => MarkdownSection("Service is Up"))(_.upcommingRestart match {
+      case Some(value) => MarkdownSection(s"*Service is down and will be restarted at ${localTimestampStr(value)}*")
+      case None        => MarkdownSection("*Service was stopped*")
+    })
+
   private def serviceStarted(evt: ServiceStart): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
@@ -116,9 +122,10 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
         Attachment(
-          color = if (evt.snapshot.isContainErrors) warnColor else infoColor,
+          color = if (evt.snapshot.isContainErrors || evt.serviceStatus.isDown) warnColor else infoColor,
           blocks = List(
             MarkdownSection(s"*${evt.reportType.show}*"),
+            serviceStatus(evt.serviceStatus),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
@@ -142,6 +149,7 @@ private[translators] object SlackTranslator extends all {
               color = infoColor,
               blocks = List(
                 MarkdownSection("*Adhoc Metric Reset*"),
+                serviceStatus(evt.serviceStatus),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
@@ -167,6 +175,7 @@ private[translators] object SlackTranslator extends all {
               color = infoColor,
               blocks = List(
                 MarkdownSection(s"*Scheduled Metric Reset*"),
+                serviceStatus(evt.serviceStatus),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),

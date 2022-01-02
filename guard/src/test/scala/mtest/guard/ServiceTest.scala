@@ -145,7 +145,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("print agent params") {
     guard
-      .eventStream(ag => IO.println(ag.params) >> IO.println(ag.digestedName) >> IO.println(ag.zoneId))
+      .eventStream(ag => IO.println(ag.agentParams) >> IO.println(ag.digestedName) >> IO.println(ag.zoneId))
       .compile
       .drain
       .unsafeRunSync()
