@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import cats.derived.auto.show.*
 import cats.implicits.{catsSyntaxEq, toShow}
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, MetricSnapshotType, ServiceParams}
 import io.circe.generic.JsonCodec
@@ -32,6 +33,7 @@ final case class NJError private (
 
 private[guard] object NJError {
   implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.uuid.show}, message=${ex.message})"
+  implicit val eqNJError: Eq[NJError]     = (x: NJError, y: NJError) => x.uuid === y.uuid
 
   implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
     Json.obj(
