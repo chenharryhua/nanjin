@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, ServiceStatus}
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
-final class NJRuntimeInfo[F[_]: Functor](
+final class NJRuntimeInfo[F[_]: Functor] private[guard] (
   serviceStatus: Ref[F, ServiceStatus],
   ongoingCriticalActions: Ref[F, Set[ActionInfo]]) {
   def upTime(now: ZonedDateTime): F[Duration] = serviceStatus.get.map(_.upTime(now))
@@ -27,7 +27,8 @@ final class NJRuntimeInfo[F[_]: Functor](
 
   def serviceUUID: F[UUID] = serviceStatus.get.map(_.uuid)
 
-  def isServiceUp: F[Boolean] = serviceStatus.get.map(_.isUp)
+  def isServiceUp: F[Boolean]   = serviceStatus.get.map(_.isUp)
+  def isServiceDown: F[Boolean] = serviceStatus.get.map(_.isDown)
 
   def pendingActions: F[Set[ActionInfo]] = ongoingCriticalActions.get
 }

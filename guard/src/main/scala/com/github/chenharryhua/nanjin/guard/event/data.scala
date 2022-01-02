@@ -115,12 +115,15 @@ object ActionInfo {
 sealed trait ServiceStatus {
   def uuid: UUID
   def launchTime: ZonedDateTime
-  def upTime(now: ZonedDateTime): Duration
+
   def isUp: Boolean
   def isDown: Boolean
-  def goUp(now: ZonedDateTime): ServiceStatus.Up
-  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): ServiceStatus.Down
+  def isStopped: Boolean
 
+  def goUp(now: ZonedDateTime): ServiceStatus
+  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): ServiceStatus
+
+  final def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
   final def fold[A](up: ServiceStatus.Up => A)(down: ServiceStatus.Down => A): A =
     this match {
       case s: ServiceStatus.Up   => up(s)
@@ -145,14 +148,14 @@ object ServiceStatus {
     lastRestartAt: ZonedDateTime,
     lastCrashAt: ZonedDateTime)
       extends ServiceStatus {
-    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
 
     override def goUp(now: ZonedDateTime): Up = this
     override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): Down =
       Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)))
 
-    override val isUp: Boolean   = true
-    override val isDown: Boolean = false
+    override val isUp: Boolean      = true
+    override val isDown: Boolean    = false
+    override val isStopped: Boolean = false
   }
 
   object Up {
@@ -166,12 +169,12 @@ object ServiceStatus {
     crashAt: ZonedDateTime,
     upcommingRestart: Option[ZonedDateTime])
       extends ServiceStatus {
-    override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
 
     override def goUp(now: ZonedDateTime): Up = Up(uuid, launchTime, now, crashAt)
     override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): Down = this
 
-    override val isUp: Boolean   = false
-    override val isDown: Boolean = true
+    override val isUp: Boolean      = false
+    override val isDown: Boolean    = true
+    override val isStopped: Boolean = upcommingRestart.isEmpty
   }
 }
