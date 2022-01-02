@@ -35,7 +35,7 @@ final class ServiceGuard[F[_]] private[guard] (
   jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
-  val params: ServiceParams = serviceConfig.evalConfig
+  val serviceParams: ServiceParams = serviceConfig.evalConfig
 
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
@@ -54,22 +54,28 @@ final class ServiceGuard[F[_]] private[guard] (
     for {
       serviceStatus <- Stream.eval(for {
         uuid <- UUIDGen.randomUUID
-        ts <- F.realTimeInstant.map(_.atZone(params.taskParams.zoneId))
+        ts <- F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
         ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
       } yield ssRef)
       lastCountersRef <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
       ongoingCriticalActions <- Stream.eval(F.ref(Set.empty[ActionInfo]))
-      event <- Stream.eval(Channel.bounded[F, NJEvent](params.queueCapacity)).flatMap { channel =>
+      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val publisher: EventPublisher[F] =
-          new EventPublisher[F](params, metricRegistry, lastCountersRef, ongoingCriticalActions, serviceStatus, channel)
+          new EventPublisher[F](
+            serviceParams,
+            metricRegistry,
+            ongoingCriticalActions,
+            serviceStatus,
+            lastCountersRef,
+            channel)
 
         val panicCounter: Counter   = publisher.metricRegistry.counter(servicePanicMRName)
         val restartCounter: Counter = publisher.metricRegistry.counter(serviceRestartMRName)
 
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(
-            params.retry.policy[F],
+            serviceParams.retry.policy[F],
             (ex: Throwable, rd) => publisher.servicePanic(rd, ex).map(_ => panicCounter.inc(1))) {
             publisher.serviceReStarted.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
               agent(new Agent[F](publisher, dispatcher, AgentConfig())))
@@ -78,30 +84,32 @@ final class ServiceGuard[F[_]] private[guard] (
 
         /** concurrent streams
           */
-        val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(params.taskParams.zoneId))
+        val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
         val metricsReport: Stream[F, INothing] = {
-          params.metric.reportSchedule match {
+          serviceParams.metric.reportSchedule match {
             case Some(Left(dur)) =>
               // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
               Stream
                 .fixedRate[F](dur)
                 .zipWithIndex
                 .evalMap(t =>
-                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(params.metric.snapshotType, t._2)))
+                  publisher
+                    .metricsReport(metricFilter, MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
                 .drain
             case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
                 .evalMap(t =>
-                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(params.metric.snapshotType, t._2)))
+                  publisher
+                    .metricsReport(metricFilter, MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
                 .drain
             case None => Stream.empty
           }
         }
 
-        val metricsReset: Stream[F, INothing] = params.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
+        val metricsReset: Stream[F, INothing] = serviceParams.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
           cronScheduler.awakeEvery(cron).evalMap(_ => publisher.metricsReset(Some(cron))).drain)
 
         val jmxReporting: Stream[F, INothing] = {

@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import cats.{Alternative, Traverse}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, DigestedName}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, DigestedName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 
@@ -20,9 +20,10 @@ final class Agent[F[_]] private[guard] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
-  val params: AgentParams        = agentConfig.evalConfig
-  val zoneId: ZoneId             = publisher.serviceParams.taskParams.zoneId
-  val digestedName: DigestedName = DigestedName(params.spans, publisher.serviceParams)
+  val agentParams: AgentParams     = agentConfig.evalConfig
+  val serviceParams: ServiceParams = publisher.serviceParams
+  val zoneId: ZoneId               = publisher.serviceParams.taskParams.zoneId
+  val digestedName: DigestedName   = DigestedName(agentParams.spans, publisher.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](publisher, dispatcher, f(agentConfig))
@@ -37,7 +38,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceParams),
+      params = ActionParams(agentParams, publisher.serviceParams),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -48,7 +49,7 @@ final class Agent[F[_]] private[guard] (
     new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(params, publisher.serviceParams),
+      params = ActionParams(agentParams, publisher.serviceParams),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -59,33 +60,35 @@ final class Agent[F[_]] private[guard] (
 
   def broker(metricName: String): NJBroker[F] =
     new NJBroker[F](
-      DigestedName(params.spans :+ metricName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ metricName, publisher.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
       isCountAsError = false)
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
-      DigestedName(params.spans :+ alertName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ alertName, publisher.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def counter(counterName: String): NJCounter[F] =
     new NJCounter(
-      DigestedName(params.spans :+ counterName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ counterName, publisher.serviceParams),
       publisher.metricRegistry,
       isCountAsError = false)
 
   def meter(meterName: String): NJMeter[F] =
-    new NJMeter[F](DigestedName(params.spans :+ meterName, publisher.serviceParams), publisher.metricRegistry)
+    new NJMeter[F](DigestedName(agentParams.spans :+ meterName, publisher.serviceParams), publisher.metricRegistry)
 
   def histogram(metricName: String): NJHistogram[F] =
     new NJHistogram[F](
-      DigestedName(params.spans :+ metricName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ metricName, publisher.serviceParams),
       publisher.metricRegistry
     )
 
   val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher)
+
+  def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](publisher.serviceStatus, publisher.ongoingCriticalActions)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))

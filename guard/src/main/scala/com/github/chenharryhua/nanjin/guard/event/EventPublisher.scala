@@ -20,9 +20,9 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceParams: ServiceParams,
   val metricRegistry: MetricRegistry,
+  val ongoingCriticalActions: Ref[F, Set[ActionInfo]],
+  val serviceStatus: Ref[F, ServiceStatus],
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
-  ongoingCriticalActions: Ref[F, Set[ActionInfo]],
-  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] = {
