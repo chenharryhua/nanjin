@@ -46,7 +46,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
       ts <- realZonedDateTime
-      ss <- serviceStatus.updateAndGet(_.goDown(ts))
+      ss <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay))
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(ServicePanic(ss, ts, retryDetails, serviceParams, NJError(uuid, ex)))
     } yield ()
@@ -54,7 +54,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def serviceStopped: F[Unit] =
     for {
       ts <- realZonedDateTime
-      ss <- serviceStatus.updateAndGet(_.goDown(ts))
+      ss <- serviceStatus.updateAndGet(_.goDown(ts, None))
       _ <- channel.send(
         ServiceStop(
           timestamp = ts,

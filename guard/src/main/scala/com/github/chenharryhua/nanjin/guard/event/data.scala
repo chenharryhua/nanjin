@@ -16,6 +16,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class Notes private (value: String) extends AnyVal
@@ -117,13 +119,21 @@ sealed trait ServiceStatus {
   def isUp: Boolean
   def isDown: Boolean
   def goUp(now: ZonedDateTime): ServiceStatus.Up
-  def goDown(now: ZonedDateTime): ServiceStatus.Down
+  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): ServiceStatus.Down
+
   final def fold[A](up: ServiceStatus.Up => A)(down: ServiceStatus.Down => A): A =
     this match {
       case s: ServiceStatus.Up   => up(s)
       case s: ServiceStatus.Down => down(s)
     }
 }
+
+/** Up - service is up
+  *
+  * Down: Stopped when upcommingRestart is None
+  *
+  * : restarting when upcommingRestart is Some
+  */
 
 object ServiceStatus {
   implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
@@ -137,8 +147,9 @@ object ServiceStatus {
       extends ServiceStatus {
     override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
 
-    override def goUp(now: ZonedDateTime): Up     = this
-    override def goDown(now: ZonedDateTime): Down = Down(uuid, launchTime, now)
+    override def goUp(now: ZonedDateTime): Up = this
+    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): Down =
+      Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)))
 
     override val isUp: Boolean   = true
     override val isDown: Boolean = false
@@ -149,12 +160,16 @@ object ServiceStatus {
   }
 
   @JsonCodec
-  final case class Down private[ServiceStatus] (uuid: UUID, launchTime: ZonedDateTime, crashAt: ZonedDateTime)
+  final case class Down private[ServiceStatus] (
+    uuid: UUID,
+    launchTime: ZonedDateTime,
+    crashAt: ZonedDateTime,
+    upcommingRestart: Option[ZonedDateTime])
       extends ServiceStatus {
     override def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
 
-    override def goUp(now: ZonedDateTime): Up     = Up(uuid, launchTime, now, crashAt)
-    override def goDown(now: ZonedDateTime): Down = this
+    override def goUp(now: ZonedDateTime): Up = Up(uuid, launchTime, now, crashAt)
+    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration]): Down = this
 
     override val isUp: Boolean   = false
     override val isDown: Boolean = true

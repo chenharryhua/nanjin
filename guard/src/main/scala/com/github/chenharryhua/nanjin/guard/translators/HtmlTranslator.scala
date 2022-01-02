@@ -29,7 +29,10 @@ private[translators] object HtmlTranslator extends all {
   private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: "), pre(si.brief))
 
   private def serviceStatus(ss: ServiceStatus): Text.TypedTag[String] =
-    if (ss.isUp) p(b("service is up")) else p(b(style := "color:red")("service is down"))
+    ss.fold(_ => p(b("service is up"))) {
+      _.upcommingRestart.fold(p(b(style := "color:red")("service was stopped")))(zd =>
+        p(b(style := "color:red")("service is down and will be restarted at: "), localTimestampStr(zd)))
+    }
 
   private def pendingActions(as: List[PendingAction], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
