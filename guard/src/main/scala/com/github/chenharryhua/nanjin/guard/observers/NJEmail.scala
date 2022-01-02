@@ -5,7 +5,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import com.github.chenharryhua.nanjin.aws.{ses, EmailContent, SimpleEmailService}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.translators.{HtmlTranslator, Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
@@ -63,7 +63,7 @@ final class NJEmail[F[_]: Async] private[observers] (
       c <- Stream.resource(client)
       mb <- es.evalMap(e => translator.translate(e)).unNone.groupWithin(chunkSize, interval).evalMap { events =>
         val mailBody: String =
-          html(body(events.map(hr(_)).toList, footer(hr(p(b("Total Events: "), events.size))))).render
+          html(body(events.map(hr(_)).toList, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
         c.send(EmailContent(from, to.distinct, subject, mailBody)).attempt.as(mailBody)
       }
     } yield mb
