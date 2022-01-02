@@ -88,14 +88,14 @@ final class ServiceGuard[F[_]] private[guard] (
                 .fixedRate[F](dur)
                 .zipWithIndex
                 .evalMap(t =>
-                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(t._2, params.metric.snapshotType)))
+                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(params.metric.snapshotType, t._2)))
                 .drain
             case Some(Right(cron)) =>
               cronScheduler
                 .awakeEvery(cron)
                 .zipWithIndex
                 .evalMap(t =>
-                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(t._2, params.metric.snapshotType)))
+                  publisher.metricsReport(metricFilter, MetricReportType.Scheduled(params.metric.snapshotType, t._2)))
                 .drain
             case None => Stream.empty
           }

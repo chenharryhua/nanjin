@@ -27,7 +27,7 @@ object email {
       client = client,
       chunkSize = 60,
       interval = 60.minutes,
-      HtmlTranslator[F]()
+      Translator.html[F]
     )
 
   def apply[F[_]: Async](from: String, to: List[String], subject: String): NJEmail[F] =

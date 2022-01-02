@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.aws.{ses, sns}
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.{console, email, logging, slack}
-import com.github.chenharryhua.nanjin.guard.translators.Translator
+import com.github.chenharryhua.nanjin.guard.translators.{SimpleTextTranslator, Translator}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -24,7 +24,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(logging[IO])
+      .evalTap(logging(Translator.simpleText[IO]))
       .compile
       .drain
       .unsafeRunSync()
@@ -54,7 +54,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(console(Translator.text[IO]))
+      .evalTap(console(Translator.json[IO].map(_.noSpaces)))
       .compile
       .drain
       .unsafeRunSync()
@@ -68,7 +68,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .through(slack[IO](sns.fake[IO])(_.at("chenh").withLogging).updateTranslator(_.skipActionFail))
+      .through(slack[IO](sns.fake[IO])(identity))
       .compile
       .drain
       .unsafeRunSync()
@@ -79,7 +79,6 @@ class ObserversTest extends AnyFunSuite {
       email[IO]("from", List("to"), "subjct", ses.fake[IO])
         .withInterval(5.seconds)
         .withChunkSize(100)
-        .withLogging
         .updateTranslator(_.skipActionStart)
 
     TaskGuard[IO]("ses")
@@ -93,7 +92,7 @@ class ObserversTest extends AnyFunSuite {
           .run(IO.raiseError(new Exception).whenA(Random.nextBoolean()).delayBy(3.seconds))
           .foreverM)
       .interruptAfter(15.seconds)
-      .through(mail)
+      .evalTap(logging(Translator.html[IO].map(_.render)))
       .compile
       .drain
       .unsafeRunSync()

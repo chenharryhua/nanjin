@@ -53,7 +53,7 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
     val upcoming: String = evt.retryDetails.upcomingDelay.map(fmt.format) match {
       case None => "report to developer once you see this message" // never happen
       case Some(ts) =>
-        s"restart of which takes place in *$ts* meanwhile the service is dysfunctional. ${cfg.atSupporters}"
+        s"restart of which takes place in *$ts* meanwhile the service is dysfunctional."
     }
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
@@ -75,20 +75,19 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
   }
 
   private def serviceAlert(evt: ServiceAlert): SlackApp = {
-    val (users, title, color) = evt.importance match {
-      case Importance.Critical => (cfg.atSupporters, ":warning: Error", errorColor)
-      case Importance.High     => ("", ":warning: Warning", warnColor)
-      case Importance.Medium   => ("", ":information_source: Info", infoColor)
-      case Importance.Low      => (cfg.atSupporters, "oops. should not happen", errorColor)
+    val (title, color) = evt.importance match {
+      case Importance.Critical => (":warning: Error", errorColor)
+      case Importance.High     => (":warning: Warning", warnColor)
+      case Importance.Medium   => (":information_source: Info", infoColor)
+      case Importance.Low      => ("oops. should not happen", errorColor)
     }
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
         Attachment(
           color = color,
-          blocks =
-            List(MarkdownSection(s"*$title:* ${evt.name.value} $users"), hostServiceSection(evt.serviceParams)) :::
-              (if (evt.message.isEmpty) Nil else List(MarkdownSection(abbreviate(evt.message))))
+          blocks = List(MarkdownSection(s"*$title:* ${evt.name.value}"), hostServiceSection(evt.serviceParams)) :::
+            (if (evt.message.isEmpty) Nil else List(MarkdownSection(abbreviate(evt.message))))
         )
       )
     )
@@ -101,7 +100,7 @@ final class SlackTranslator[F[_]: Applicative](cfg: SlackConfig[F]) extends all 
         Attachment(
           color = warnColor,
           blocks = List(
-            MarkdownSection(s":octagonal_sign: *Service Stopped*. ${cfg.atSupporters}"),
+            MarkdownSection(s":octagonal_sign: *Service Stopped*."),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),

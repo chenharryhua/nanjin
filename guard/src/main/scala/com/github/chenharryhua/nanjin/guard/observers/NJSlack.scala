@@ -17,8 +17,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object slack {
   private def defaultCfg[F[_]: Monad]: SlackConfig[F] = SlackConfig[F](
-    reportInterval = None,
-    supporters = Nil
+    reportInterval = None
   )
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]])(
     update: SlackConfig[F] => SlackConfig[F]): NJSlack[F] = {
@@ -54,20 +53,14 @@ final class NJSlack[F[_]] private[observers] (
         case ServiceStart(_, _, params)   => ref.update(_.incl(params))
         case ServiceStop(_, _, params, _) => ref.update(_.excl(params))
         case _                            => F.unit
-      }.evalTap(e =>
-        translator
-          .translate(e)
-          .flatMap(_.traverse { sa => sns.publish(sa.asJson.noSpaces).attempt})
-          .void)
+      }.evalTap(e => translator.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
         .onFinalize { // publish good bye message to slack
           for {
             services <- ref.get
             msg = SlackApp(
               username = "Service Termination Notice",
               attachments = List(
-                Attachment(
-                  color = "",
-                  blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)*")))) :::
+                Attachment(color = "", blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)*")))) :::
                 services.toList.map(ss => Attachment(color = "", blocks = List(hostServiceSection(ss))))
             ).asJson.spaces2
             _ <- sns.publish(msg).attempt.whenA(services.nonEmpty)

@@ -60,19 +60,8 @@ final case class Attachment(color: String, blocks: List[Section])
 final case class SlackApp(username: String, attachments: List[Attachment])
 
 final case class SlackConfig[F[_]: Monad](
-  reportInterval: Option[FiniteDuration],
-  supporters: List[String]
+  reportInterval: Option[FiniteDuration]
 ) {
-  val atSupporters: String =
-    supporters
-      .filter(_.nonEmpty)
-      .map(_.trim)
-      .map(spt => if (spt.startsWith("@") || spt.startsWith("<")) spt else s"@$spt")
-      .distinct
-      .mkString(" ")
-
-  def at(supporter: String): SlackConfig[F]        = copy(supporters = supporter :: supporters)
-  def at(supporters: List[String]): SlackConfig[F] = copy(supporters = supporters ::: supporters)
 
   def withReportInterval(fd: FiniteDuration): SlackConfig[F] = copy(reportInterval = Some(fd))
   def withoutReportInterval: SlackConfig[F]                  = copy(reportInterval = None)
