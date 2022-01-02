@@ -25,23 +25,21 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
-  private val realZonedDateTime: F[ZonedDateTime] = {
+  private val realZonedDateTime: F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant
     } yield ts.atZone(serviceParams.taskParams.zoneId)
-  }
 
   /** services
     */
 
-  val serviceReStarted: F[Unit] = {
+  val serviceReStarted: F[Unit] =
     for {
       ts <- realZonedDateTime
       ss <- serviceStatus.updateAndGet(_.goUp(ts))
       _ <- channel.send(ServiceStart(timestamp = ts, serviceStatus = ss, serviceParams = serviceParams))
       _ <- ongoingCriticalActions.set(Set.empty)
     } yield ()
-  }
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
