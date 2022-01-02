@@ -24,17 +24,17 @@ final class NJRetry[F[_], A, B] private[guard] (
   isWorthRetry: Reader[Throwable, Boolean],
   postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
-  private val failCounter: Counter  = publisher.metricRegistry.counter(actionFailMRName(params))
-  private val succCounter: Counter  = publisher.metricRegistry.counter(actionSuccMRName(params))
-  private val retryCounter: Counter = publisher.metricRegistry.counter(actionRetryMRName(params))
-  private val timer: Timer          = publisher.metricRegistry.timer(actionTimerMRName(params))
+  private lazy val failCounter: Counter  = publisher.metricRegistry.counter(actionFailMRName(params))
+  private lazy val succCounter: Counter  = publisher.metricRegistry.counter(actionSuccMRName(params))
+  private lazy val retryCounter: Counter = publisher.metricRegistry.counter(actionRetryMRName(params))
+  private lazy val timer: Timer          = publisher.metricRegistry.timer(actionTimerMRName(params))
 
   private def timingAndCount(isSucc: Boolean, launchTime: ZonedDateTime, now: ZonedDateTime): Unit = {
     if (params.isTiming === TimeAction.Yes) timer.update(Duration.between(launchTime, now))
-    if (params.isCounting === CountAction.Yes) {
-      if (isSucc) succCounter.inc(1) else failCounter.inc(1)
-    }
+    if (params.isCounting === CountAction.Yes) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
   }
+  private def countRetries(num: Int): Unit =
+    if (params.isCounting === CountAction.Yes && num > 0) retryCounter.inc(num.toLong)
 
   def withSuccNotesM(succ: (A, B) => F[String]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
@@ -85,9 +85,8 @@ final class NJRetry[F[_], A, B] private[guard] (
   private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
     error: Throwable,
     details: RetryDetails): F[Unit] = details match {
-    case wdr: WillDelayAndRetry =>
-      publisher.actionRetrying(actionInfo, retryCount, wdr, error)
-    case _: GivingUp => F.unit
+    case wdr: WillDelayAndRetry => publisher.actionRetrying(actionInfo, retryCount, wdr, error)
+    case _: GivingUp            => F.unit
   }
 
   private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(
@@ -108,7 +107,7 @@ final class NJRetry[F[_], A, B] private[guard] (
           timingAndCount(isSucc = true, actionInfo.launchTime, ts)
         }
     }
-    messaging >> retryCount.get.map(c => retryCounter.inc(c.toLong)).whenA(params.isCounting === CountAction.Yes)
+    messaging >> retryCount.get.map(n => countRetries(n))
   }
 
   def run(input: A): F[B] = for {

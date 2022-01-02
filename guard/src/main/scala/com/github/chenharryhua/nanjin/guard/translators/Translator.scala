@@ -7,6 +7,7 @@ import cats.{Applicative, Functor, Monad}
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
+import scalatags.Text
 
 trait UpdateTranslator[F[_], A, B] {
   def updateTranslator(f: Translator[F, A] => Translator[F, A]): B
@@ -39,6 +40,21 @@ final case class Translator[F[_], A] private (
     case e: ActionFail    => actionFail.run(e).value
     case e: ActionSucc    => actionSucc.run(e).value
   }
+
+  def filter(f: NJEvent => Boolean)(implicit F: Applicative[F]): Translator[F, A] =
+    Translator[F, A](
+      Kleisli(ss => if (f(ss)) serviceStart.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) servicePanic.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) serviceStop.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) metricsReport.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) metricsReset.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) serviceAlert.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) passThrough.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) actionStart.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) actionRetry.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) actionFail.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) actionSucc.run(ss) else OptionT(F.pure(None)))
+    )
 
   def skipServiceStart(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceStart = Translator.noop[F, A])
   def skipServicePanic(implicit F: Applicative[F]): Translator[F, A]  = copy(servicePanic = Translator.noop[F, A])
@@ -357,6 +373,21 @@ object Translator {
       noop[F, A]
     )
 
+  def idTranslator[F[_]](implicit F: Applicative[F]): Translator[F, NJEvent] =
+    Translator[F, NJEvent](
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x))))
+    )
+
   def json[F[_]: Applicative]: Translator[F, Json] =
     empty[F, Json]
       .withServiceStart(_.asJson)
@@ -384,4 +415,8 @@ object Translator {
       .withActionRetry(_.show)
       .withActionFail(_.show)
       .withActionSucc(_.show)
+
+  def simpleText[F[_]: Applicative]: Translator[F, String]    = SimpleTextTranslator[F]
+  def html[F[_]: Monad]: Translator[F, Text.TypedTag[String]] = HtmlTranslator[F]
+  def slack[F[_]: Applicative]: Translator[F, SlackApp]       = SlackTranslator[F]
 }

@@ -37,26 +37,6 @@ package object translators {
     }
   }
 
-  def isShowMetrics(
-    reportSchedule: Option[Either[FiniteDuration, CronExpr]],
-    now: ZonedDateTime,
-    interval: Option[FiniteDuration],
-    launchTime: ZonedDateTime): Boolean =
-    interval match {
-      case None => true
-      case Some(iv) =>
-        val border: ZonedDateTime =
-          launchTime.plus(((Duration.between(launchTime, now).toScala / iv).toLong * iv).toJava)
-        if (now === border) true
-        else
-          reportSchedule match {
-            case None => true
-            // true when now cross the border
-            case Some(Left(fd))  => now.minus(fd.toJava).isBefore(border) && now.isAfter(border)
-            case Some(Right(ce)) => ce.prev(now).forall(_.isBefore(border) && now.isAfter(border))
-          }
-    }
-
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
   final val MessageSizeLimits: Int = 2960

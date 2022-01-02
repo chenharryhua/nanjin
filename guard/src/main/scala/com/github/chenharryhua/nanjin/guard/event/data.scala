@@ -71,14 +71,14 @@ sealed trait MetricReportType {
 object MetricReportType {
   implicit val showMetricReportType: Show[MetricReportType] = {
     case Adhoc(mst)            => s"Adhoc ${mst.show} Metric Report"
-    case Scheduled(index, mst) => s"Scheduled ${mst.show} Metric Report(index=$index)"
+    case Scheduled(mst, index) => s"Scheduled ${mst.show} Metric Report(index=$index)"
   }
 
   final case class Adhoc(snapshotType: MetricSnapshotType) extends MetricReportType {
     override val isShow: Boolean = true
   }
 
-  final case class Scheduled(index: Long, snapshotType: MetricSnapshotType) extends MetricReportType {
+  final case class Scheduled(snapshotType: MetricSnapshotType, index: Long) extends MetricReportType {
     override val isShow: Boolean = index === 0
   }
 }

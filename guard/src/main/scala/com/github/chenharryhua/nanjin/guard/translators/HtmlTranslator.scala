@@ -14,7 +14,7 @@ import java.time.ZonedDateTime
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
-object HtmlTranslator extends all {
+private[translators] object HtmlTranslator extends all {
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("timestamp: "), localTimestampStr(timestamp))
 
@@ -156,7 +156,7 @@ object HtmlTranslator extends all {
       notesText(as.notes)
     )
 
-  def apply[F[_]: Monad](): Translator[F, Text.TypedTag[String]] =
+  def apply[F[_]: Monad]: Translator[F, Text.TypedTag[String]] =
     Translator
       .empty[F, Text.TypedTag[String]]
       .withServiceStart(serviceStarted)

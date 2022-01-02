@@ -47,7 +47,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .updateConfig(_.withMetricReport(1.second))
       .eventStream(gd => gd.notice.retry(IO(1)).run >> gd.notice.retry(IO.never).run)
-      .evalTap(console(Translator.json[IO].map(_.spaces2)))
+      .evalTap(console(Translator.json[IO].map(_.noSpaces)))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)
