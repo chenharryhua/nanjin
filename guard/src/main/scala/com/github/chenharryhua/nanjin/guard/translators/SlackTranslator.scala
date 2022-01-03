@@ -32,19 +32,6 @@ private[translators] object SlackTranslator extends all {
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
 
-  private def serviceStatus(ss: ServiceStatus): MarkdownSection =
-    ss.fold(
-      _ => MarkdownSection("Service is Up"),
-      d =>
-        d.upcommingRestart match {
-          case Some(value) =>
-            MarkdownSection(
-              s"The service was down due to *${d.cause}*. It will be restarted in " +
-                s"${fmt.format(d.crashAt, value)}, at *${localTimestampStr(value)}*")
-          case None => MarkdownSection(s"*${d.cause}*")
-        }
-    )
-
   private def serviceStarted(evt: ServiceStart): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
@@ -132,10 +119,10 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
         Attachment(
-          color = if (evt.snapshot.isContainErrors || evt.serviceStatus.isDown) warnColor else infoColor,
+          color = if (evt.hasError) warnColor else infoColor,
           blocks = List(
             MarkdownSection(s"*${evt.reportType.show}*"),
-            serviceStatus(evt.serviceStatus),
+            MarkdownSection(serviceStatusWord(evt.serviceStatus)),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
@@ -156,10 +143,10 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.appName,
           attachments = List(
             Attachment(
-              color = infoColor,
+              color = if (evt.hasError) warnColor else infoColor,
               blocks = List(
                 MarkdownSection("*Adhoc Metric Reset*"),
-                serviceStatus(evt.serviceStatus),
+                MarkdownSection(serviceStatusWord(evt.serviceStatus)),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
@@ -182,10 +169,10 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.appName,
           attachments = List(
             Attachment(
-              color = infoColor,
+              color = if (evt.hasError) warnColor else infoColor,
               blocks = List(
                 MarkdownSection(s"*Scheduled Metric Reset*"),
-                serviceStatus(evt.serviceStatus),
+                MarkdownSection(serviceStatusWord(evt.serviceStatus)),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),

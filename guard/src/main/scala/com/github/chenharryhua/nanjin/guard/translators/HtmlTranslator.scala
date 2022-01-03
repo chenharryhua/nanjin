@@ -28,18 +28,6 @@ private[translators] object HtmlTranslator extends all {
   private def causeText(c: NJError): Text.TypedTag[String]    = p(b("cause: "), pre(c.stackTrace))
   private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: "), pre(si.brief))
 
-  private def serviceStatus(ss: ServiceStatus): Text.TypedTag[String] =
-    ss.fold(
-      _ => div(),
-      down =>
-        down.upcommingRestart.fold(p(b(down.cause)))(zd =>
-          p(
-            b(style := "color:red")(s"service was down"),
-            p(b("cause: "), down.cause),
-            p(s"it will be restarted in ${fmt.format(down.crashAt, zd)}, at ${localTimestampStr(zd)}")
-          ))
-    )
-
   private def pendingActions(oas: List[OngoingAction], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
@@ -87,10 +75,10 @@ private[translators] object HtmlTranslator extends all {
     )
 
   private def metricsReport(evt: MetricsReport): Text.TypedTag[String] = {
-    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
+    val color: String = if (evt.hasError) "color:red" else "color:black"
     div(
       h3(style := color)(evt.reportType.show),
-      serviceStatus(evt.serviceStatus),
+      p(serviceStatusWord(evt.serviceStatus)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
@@ -102,10 +90,10 @@ private[translators] object HtmlTranslator extends all {
   }
 
   private def metricsReset(evt: MetricsReset): Text.TypedTag[String] = {
-    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
+    val color: String = if (evt.hasError) "color:red" else "color:black"
     div(
       h3(style := color)(evt.resetType.show),
-      serviceStatus(evt.serviceStatus),
+      p(serviceStatusWord(evt.serviceStatus)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),

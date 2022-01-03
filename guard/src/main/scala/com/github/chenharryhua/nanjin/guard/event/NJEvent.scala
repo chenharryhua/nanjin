@@ -79,6 +79,7 @@ final case class MetricsReport(
 ) extends ServiceEvent {
   override val name: DigestedName = serviceParams.name
 
+  val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
 
 final case class MetricsReset(
@@ -89,6 +90,8 @@ final case class MetricsReset(
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
   override val name: DigestedName = serviceParams.name
+
+  val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
 
 final case class PassThrough(
