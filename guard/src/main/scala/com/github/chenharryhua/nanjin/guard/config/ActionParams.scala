@@ -59,17 +59,17 @@ object ActionRetryParams {
 
 @JsonCodec
 final case class ActionParams private (
-  name: DigestedName,
+  metricName: DigestedName,
   importance: Importance,
   isTerminate: ActionTermination,
   isCounting: CountAction,
   isTiming: TimeAction,
   retry: ActionRetryParams,
   alias: String) {
-  def startTitle: String  = s"$alias ${name.value} started"
-  def retryTitle: String  = s"$alias ${name.value} retrying"
-  def failedTitle: String = s"$alias ${name.value} failed"
-  def succedTitle: String = s"$alias ${name.value} succed"
+  def startTitle: String  = s"$alias ${metricName.metricRepr} started"
+  def retryTitle: String  = s"$alias ${metricName.metricRepr} retrying"
+  def failedTitle: String = s"$alias ${metricName.metricRepr} failed"
+  def succedTitle: String = s"$alias ${metricName.metricRepr} succed"
 }
 
 object ActionParams {
@@ -77,7 +77,7 @@ object ActionParams {
 
   def apply(agentParams: AgentParams, serviceParams: ServiceParams): ActionParams =
     ActionParams(
-      name = DigestedName(agentParams.spans, serviceParams),
+      metricName = DigestedName(agentParams.spans, serviceParams),
       importance = agentParams.importance,
       isTerminate = agentParams.isTerminate,
       isCounting = agentParams.isCounting,

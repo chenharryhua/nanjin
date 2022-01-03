@@ -58,17 +58,11 @@ final class ServiceGuard[F[_]] private[guard] (
         ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
       } yield ssRef)
       lastCountersRef <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
-      ongoingCriticalActions <- Stream.eval(F.ref(Set.empty[ActionInfo]))
+      ongoings <- Stream.eval(F.ref(Set.empty[ActionInfo])) // currently running actions
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val publisher: EventPublisher[F] =
-          new EventPublisher[F](
-            serviceParams,
-            metricRegistry,
-            ongoingCriticalActions,
-            serviceStatus,
-            lastCountersRef,
-            channel)
+          new EventPublisher[F](serviceParams, metricRegistry, ongoings, serviceStatus, lastCountersRef, channel)
 
         val panicCounter: Counter   = publisher.metricRegistry.counter(servicePanicMRName)
         val restartCounter: Counter = publisher.metricRegistry.counter(serviceRestartMRName)
@@ -77,10 +71,10 @@ final class ServiceGuard[F[_]] private[guard] (
           .retryingOnAllErrors(
             serviceParams.retry.policy[F],
             (ex: Throwable, rd) => publisher.servicePanic(rd, ex).map(_ => panicCounter.inc(1))) {
-            publisher.serviceReStarted.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
+            publisher.serviceReStart.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
               agent(new Agent[F](publisher, dispatcher, AgentConfig())))
           }
-          .guarantee(publisher.serviceStopped <* channel.close)
+          .guarantee(publisher.serviceStop <* channel.close)
 
         /** concurrent streams
           */

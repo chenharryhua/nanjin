@@ -22,31 +22,25 @@ private[translators] object HtmlTranslator extends all {
     p(b("number of retries: "), numRetry.toString)
 
   private def hostServiceText(si: ServiceParams): Text.TypedTag[String] =
-    p(b("service: "), si.name.value, "    ", b("host: "), si.taskParams.hostName)
+    p(b("service: "), si.metricName.metricRepr, "    ", b("host: "), si.taskParams.hostName)
 
   private def notesText(n: Notes): Text.TypedTag[String]      = p(b("notes: "), pre(n.value))
   private def causeText(c: NJError): Text.TypedTag[String]    = p(b("cause: "), pre(c.stackTrace))
   private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: "), pre(si.brief))
 
-  private def serviceStatus(ss: ServiceStatus): Text.TypedTag[String] =
-    ss.fold(_ => p(b("service is up"))) {
-      _.upcommingRestart.fold(p(b(style := "color:red")("service was stopped")))(zd =>
-        p(b(style := "color:red")("service is down and will be restarted at: "), localTimestampStr(zd)))
-    }
-
-  private def pendingActions(as: List[PendingAction], now: ZonedDateTime): Text.TypedTag[String] = {
+  private def pendingActions(oas: List[OngoingAction], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
-      b("pending critical actions:"),
+      b("ongoing actions:"),
       table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 100%;")(
         tr(
           th(style := tds)("name"),
           th(style := tds)("so far took"),
           th(style := tds)("launch time"),
           th(style := tds)("id")),
-        as.map(a =>
+        oas.map(a =>
           tr(
-            td(style := tds)(a.name.value),
+            td(style := tds)(a.metricName.metricRepr),
             td(style := tds)(fmt.format(a.launchTime, now)),
             td(style := tds)(localTimestampStr(a.launchTime)),
             td(style := tds)(a.uuid.show)
@@ -81,25 +75,25 @@ private[translators] object HtmlTranslator extends all {
     )
 
   private def metricsReport(evt: MetricsReport): Text.TypedTag[String] = {
-    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
+    val color: String = if (evt.hasError) "color:red" else "color:black"
     div(
       h3(style := color)(evt.reportType.show),
-      serviceStatus(evt.serviceStatus),
+      p(serviceStatusWord(evt.serviceStatus)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
       p(b("up time: "), fmt.format(evt.upTime)),
-      pendingActions(evt.pendings, evt.timestamp),
+      pendingActions(evt.ongoings, evt.timestamp),
       brief(evt.serviceParams),
       pre(evt.snapshot.show)
     )
   }
 
   private def metricsReset(evt: MetricsReset): Text.TypedTag[String] = {
-    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
+    val color: String = if (evt.hasError) "color:red" else "color:black"
     div(
       h3(style := color)(evt.resetType.show),
-      serviceStatus(evt.serviceStatus),
+      p(serviceStatusWord(evt.serviceStatus)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
@@ -113,7 +107,7 @@ private[translators] object HtmlTranslator extends all {
       h3("Service Alert"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("name: "), evt.name.value, "    ", b("importance: "), evt.importance.show),
+      p(b("name: "), evt.metricName.metricRepr, "    ", b("importance: "), evt.importance.show),
       pre(evt.message)
     )
 

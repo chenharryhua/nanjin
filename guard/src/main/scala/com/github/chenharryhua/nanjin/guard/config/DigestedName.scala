@@ -6,15 +6,15 @@ import io.circe.generic.JsonCodec
 
 @JsonCodec
 final case class DigestedName private (origin: String, digest: String) {
-  val value: String = s"$origin/$digest"
+  val metricRepr: String = s"[$origin][$digest]"
 
-  override def toString: String = value
+  override def toString: String = metricRepr
 }
 
 private[guard] object DigestedName {
   private val LENGTH: Int = 8
 
-  implicit val showDigestedName: Show[DigestedName] = _.value
+  implicit val showDigestedName: Show[DigestedName] = _.metricRepr
 
   def apply(spans: List[String], serviceParams: ServiceParams): DigestedName = {
     val name: String    = spans.mkString("/")

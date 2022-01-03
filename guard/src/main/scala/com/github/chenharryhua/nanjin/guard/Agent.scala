@@ -88,7 +88,7 @@ final class Agent[F[_]] private[guard] (
 
   val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher)
 
-  def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](publisher.serviceStatus, publisher.ongoingCriticalActions)
+  def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](publisher.serviceStatus, publisher.ongoings)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))

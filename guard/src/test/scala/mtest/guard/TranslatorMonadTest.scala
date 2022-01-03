@@ -13,9 +13,13 @@ import munit.DisciplineSuite
 
 import java.time.ZonedDateTime
 import java.util.UUID
+import cats._
+import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
+import org.scalacheck.Prop._
 
 class TranslatorMonadTest extends DisciplineSuite {
-  val service = TaskGuard[IO]("monad").service("service")
+  val service = TaskGuard[IO]("monad").service("tailrecM")
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
     ExhaustiveCheck.instance(
       List(
@@ -24,11 +28,11 @@ class TranslatorMonadTest extends DisciplineSuite {
           ZonedDateTime.now(),
           service.serviceParams)))
 
-  implicit def translatorEq(implicit ev: Eq[NJEvent => Eval[Int]]): Eq[Translator[Eval, Int]] =
+  implicit def translatorEq: Eq[Translator[Eval, Int]] =
     Eq.by[Translator[Eval, Int], NJEvent => Eval[Option[Int]]](_.translate)
 
-  implicit val iso = Isomorphisms.invariant[Translator[Eval, *]]
+  implicit val iso: Isomorphisms[Translator[Eval, *]] = Isomorphisms.invariant[Translator[Eval, *]]
 
-  // checkAll("Translator.MonadLaws", MonadTests[Translator[Eval, *]].monad[Int, Int, Int])
+  //checkAll("Translator.MonadLaws", MonadTests[Translator[Eval, *]].monad[Int, Int, Int])
 
 }

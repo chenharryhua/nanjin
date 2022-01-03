@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{ses, sns}
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.MetricsReport
 import com.github.chenharryhua.nanjin.guard.observers.{console, email, logging, slack}
 import com.github.chenharryhua.nanjin.guard.translators.{SimpleTextTranslator, Translator}
 import org.scalatest.funsuite.AnyFunSuite
@@ -83,16 +84,10 @@ class ObserversTest extends AnyFunSuite {
 
     TaskGuard[IO]("ses")
       .service("email")
-      .updateConfig(_.withMetricReport(1.second).withConstantDelay(1.second))
-      .eventStream(
-        _.span("mail")
-          .max(3)
-          .updateConfig(_.withConstantDelay(1.second))
-          .critical
-          .run(IO.raiseError(new Exception).whenA(Random.nextBoolean()).delayBy(3.seconds))
-          .foreverM)
-      .interruptAfter(15.seconds)
-      .evalTap(logging(Translator.html[IO].map(_.render)))
+      .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
+      .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .interruptAfter(7.seconds)
+      .evalTap(console(Translator.html[IO].filter(_.isInstanceOf[MetricsReport]).map(_.render)))
       .compile
       .drain
       .unsafeRunSync()

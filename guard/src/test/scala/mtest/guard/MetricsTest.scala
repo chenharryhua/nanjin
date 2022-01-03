@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.guard.observers.console
 import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.unsafe.implicits.global
 import com.codahale.metrics.MetricFilter
-import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
+import com.github.chenharryhua.nanjin.guard.config.{DigestedName, MetricSnapshotType}
 import com.github.chenharryhua.nanjin.guard.event.MetricsReport
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 

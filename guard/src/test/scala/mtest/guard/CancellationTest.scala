@@ -78,12 +78,12 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
-    assert(c.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "never/86d0fbe4")
+    assert(c.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[never][86d0fbe4]")
     assert(c.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled externally")
-    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.name.value == "supervisor/f154e9cf")
-    assert(f.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "never/86d0fbe4")
+    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.metricName.metricRepr == "[supervisor][f154e9cf]")
+    assert(f.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[never][86d0fbe4]")
     assert(f.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled externally")
-    assert(g.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "supervisor/f154e9cf")
+    assert(g.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[supervisor][f154e9cf]")
     assert(g.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
     assert(h.isInstanceOf[ServicePanic])
   }
@@ -102,9 +102,9 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.value == "a1/6f340f3f")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[a1][6f340f3f]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.name.value == "a2/56199b40")
+    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[a2][56199b40]")
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -129,10 +129,10 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.value == "a1/6f340f3f")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[a1][6f340f3f]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.name.value == "a2/56199b40")
-    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.name.value == "a2/56199b40")
+    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.metricName.metricRepr == "[a2][56199b40]")
+    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[a2][56199b40]")
     assert(e.asInstanceOf[ActionFail].error.message == "Exception: ")
     assert(f.isInstanceOf[ServicePanic])
   }

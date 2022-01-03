@@ -11,6 +11,7 @@ import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
 import java.time.temporal.ChronoUnit
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 private[translators] object SlackTranslator extends all {
   private val goodColor  = "#36a64f"
@@ -31,12 +32,6 @@ private[translators] object SlackTranslator extends all {
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
 
-  private def serviceStatus(ss: ServiceStatus): MarkdownSection =
-    ss.fold(_ => MarkdownSection("Service is Up"))(_.upcommingRestart match {
-      case Some(value) => MarkdownSection(s"*Service is down and will be restarted at ${localTimestampStr(value)}*")
-      case None        => MarkdownSection("*Service was stopped*")
-    })
-
   private def serviceStarted(evt: ServiceStart): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
@@ -56,11 +51,13 @@ private[translators] object SlackTranslator extends all {
     )
 
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): SlackApp = {
-    val upcoming: String = evt.retryDetails.upcomingDelay.map(fmt.format) match {
-      case None => "report to developer once you see this message" // never happen
-      case Some(ts) =>
-        s"restart of which takes place in *$ts* meanwhile the service is dysfunctional."
+    val upcoming: String = evt.retryDetails.upcomingDelay match {
+      case None => "the service was stopped" // never happen
+      case Some(fd) =>
+        s"restart of which takes place in *${fmt.format(fd)}*, at ${localTimestampStr(evt.timestamp.plus(fd.toJava))}," +
+          " meanwhile the service is dysfunctional."
     }
+
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
@@ -92,8 +89,9 @@ private[translators] object SlackTranslator extends all {
       attachments = List(
         Attachment(
           color = color,
-          blocks = List(MarkdownSection(s"*$title:* ${evt.name.value}"), hostServiceSection(evt.serviceParams)) :::
-            (if (evt.message.isEmpty) Nil else List(MarkdownSection(abbreviate(evt.message))))
+          blocks =
+            List(MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"), hostServiceSection(evt.serviceParams)) :::
+              (if (evt.message.isEmpty) Nil else List(MarkdownSection(abbreviate(evt.message))))
         )
       )
     )
@@ -122,10 +120,10 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
         Attachment(
-          color = if (evt.snapshot.isContainErrors || evt.serviceStatus.isDown) warnColor else infoColor,
+          color = if (evt.hasError) warnColor else infoColor,
           blocks = List(
             MarkdownSection(s"*${evt.reportType.show}*"),
-            serviceStatus(evt.serviceStatus),
+            MarkdownSection(serviceStatusWord(evt.serviceStatus)),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
@@ -146,10 +144,10 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.appName,
           attachments = List(
             Attachment(
-              color = infoColor,
+              color = if (evt.hasError) warnColor else infoColor,
               blocks = List(
                 MarkdownSection("*Adhoc Metric Reset*"),
-                serviceStatus(evt.serviceStatus),
+                MarkdownSection(serviceStatusWord(evt.serviceStatus)),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
@@ -172,10 +170,10 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.appName,
           attachments = List(
             Attachment(
-              color = infoColor,
+              color = if (evt.hasError) warnColor else infoColor,
               blocks = List(
                 MarkdownSection(s"*Scheduled Metric Reset*"),
-                serviceStatus(evt.serviceStatus),
+                MarkdownSection(serviceStatusWord(evt.serviceStatus)),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
@@ -188,86 +186,76 @@ private[translators] object SlackTranslator extends all {
         )
     }
 
-  private def actionStart(evt: ActionStart): Option[SlackApp] =
-    if (evt.actionParams.importance === Importance.Critical)
-      Some(
-        SlackApp(
-          username = evt.serviceParams.taskParams.appName,
-          attachments = List(Attachment(
-            color = infoColor,
-            blocks = List(
-              MarkdownSection(s"*${evt.actionParams.startTitle}*"),
-              hostServiceSection(evt.actionInfo.serviceParams),
-              MarkdownSection(s"*${evt.actionParams.alias} ID:* ${evt.uuid.show}")
-            )
-          ))
-        ))
-    else None
-
-  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Option[SlackApp] =
-    if (evt.actionParams.importance >= Importance.Medium) {
-      Some(
-        SlackApp(
-          username = evt.serviceParams.taskParams.appName,
-          attachments = List(Attachment(
-            color = warnColor,
-            blocks = List(
-              MarkdownSection(s"*${evt.actionParams.retryTitle}*"),
-              JuxtaposeSection(
-                TextField("Took so far", fmt.format(evt.took)),
-                TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-              MarkdownSection(s"""|*${evt.actionParams.alias} ID:* ${evt.uuid.show}
-                                  |*next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
-                                  |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
-              hostServiceSection(evt.serviceParams),
-              MarkdownSection(s"*Cause:* ${evt.error.message}")
-            )
-          ))
-        ))
-    } else None
-
-  private def actionFailed[F[_]: Applicative](evt: ActionFail): Option[SlackApp] =
-    if (evt.actionParams.importance >= Importance.Medium) {
-      Some(
-        SlackApp(
-          username = evt.serviceParams.taskParams.appName,
-          attachments = List(
-            Attachment(
-              color = errorColor,
-              blocks = List(
-                MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
-                JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-                MarkdownSection(s"""|*${evt.actionParams.alias} ID:* ${evt.uuid.show}
-                                    |*error ID:* ${evt.error.uuid.show}
-                                    |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
-                hostServiceSection(evt.serviceParams),
-                MarkdownSection(s"*Cause:* ${evt.error.message}")
-              ) ::: (if (evt.notes.value.isEmpty) Nil
-                     else List(MarkdownSection(abbreviate(evt.notes.value))))
-            )
+  private def actionStart(evt: ActionStart): SlackApp =
+    SlackApp(
+      username = evt.serviceParams.taskParams.appName,
+      attachments = List(
+        Attachment(
+          color = infoColor,
+          blocks = List(
+            MarkdownSection(s"*${evt.actionParams.startTitle}*"),
+            hostServiceSection(evt.actionInfo.serviceParams),
+            MarkdownSection(s"*${evt.actionParams.alias} ID:* ${evt.uuid.show}")
           )
         ))
-    } else None
+    )
 
-  private def actionSucced(evt: ActionSucc): Option[SlackApp] =
-    if (evt.actionParams.importance === Importance.Critical) {
-      Some(
-        SlackApp(
-          username = evt.serviceParams.taskParams.appName,
-          attachments = List(
-            Attachment(
-              color = goodColor,
-              blocks = List(
-                MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
-                JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-                MarkdownSection(s"*${evt.actionParams.alias} ID:* ${evt.uuid.show}"),
-                hostServiceSection(evt.serviceParams)
-              ) ::: (if (evt.notes.value.isEmpty) Nil
-                     else List(MarkdownSection(abbreviate(evt.notes.value))))
-            )
+  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): SlackApp =
+    SlackApp(
+      username = evt.serviceParams.taskParams.appName,
+      attachments = List(
+        Attachment(
+          color = warnColor,
+          blocks = List(
+            MarkdownSection(s"*${evt.actionParams.retryTitle}*"),
+            JuxtaposeSection(
+              TextField("Took so far", fmt.format(evt.took)),
+              TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
+            MarkdownSection(s"""|*${evt.actionParams.alias} ID:* ${evt.uuid.show}
+                                |*next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
+                                |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
+            hostServiceSection(evt.serviceParams),
+            MarkdownSection(s"*Cause:* ${evt.error.message}")
           )
         ))
-    } else None
+    )
+
+  private def actionFailed[F[_]: Applicative](evt: ActionFail): SlackApp =
+    SlackApp(
+      username = evt.serviceParams.taskParams.appName,
+      attachments = List(
+        Attachment(
+          color = errorColor,
+          blocks = List(
+            MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
+            JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
+            MarkdownSection(s"""|*${evt.actionParams.alias} ID:* ${evt.uuid.show}
+                                |*error ID:* ${evt.error.uuid.show}
+                                |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
+            hostServiceSection(evt.serviceParams),
+            MarkdownSection(s"*Cause:* ${evt.error.message}")
+          ) ::: (if (evt.notes.value.isEmpty) Nil
+                 else List(MarkdownSection(abbreviate(evt.notes.value))))
+        )
+      )
+    )
+
+  private def actionSucced(evt: ActionSucc): SlackApp =
+    SlackApp(
+      username = evt.serviceParams.taskParams.appName,
+      attachments = List(
+        Attachment(
+          color = goodColor,
+          blocks = List(
+            MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
+            JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
+            MarkdownSection(s"*${evt.actionParams.alias} ID:* ${evt.uuid.show}"),
+            hostServiceSection(evt.serviceParams)
+          ) ::: (if (evt.notes.value.isEmpty) Nil
+                 else List(MarkdownSection(abbreviate(evt.notes.value))))
+        )
+      )
+    )
 
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =
     Translator

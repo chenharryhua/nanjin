@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.ServiceStatus
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
@@ -44,7 +45,7 @@ package object translators {
   private[translators] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private[guard] def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
-    JuxtaposeSection(TextField("Service", sp.name.value), TextField("Host", sp.taskParams.hostName))
+    JuxtaposeSection(TextField("Service", sp.metricName.metricRepr), TextField("Host", sp.taskParams.hostName))
 
   def toOrdinalWords(n: Long): String = {
     val w =
@@ -65,4 +66,14 @@ package object translators {
   private[translators] def localTimestampStr(timestamp: ZonedDateTime): String =
     timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 
+  private[translators] def serviceStatusWord(ss: ServiceStatus): String =
+    ss.fold(
+      _ => "Service is Up",
+      down =>
+        down.upcommingRestart match {
+          case Some(ts) =>
+            s"${down.cause} occured at ${localTimestampStr(down.crashAt)}. restart is scheduled at ${localTimestampStr(ts)}"
+          case None => down.cause
+        }
+    )
 }
