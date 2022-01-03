@@ -72,7 +72,7 @@ final case class ServiceAlert(
 final case class MetricsReport(
   reportType: MetricReportType,
   serviceStatus: ServiceStatus,
-  pendings: List[PendingAction],
+  ongoings: List[OngoingAction],
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot

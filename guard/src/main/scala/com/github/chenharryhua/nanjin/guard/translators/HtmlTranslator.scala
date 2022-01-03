@@ -34,21 +34,23 @@ private[translators] object HtmlTranslator extends all {
       down =>
         down.upcommingRestart.fold(p(b(down.cause)))(zd =>
           p(
-            b(style := "color:red")(
-              s"service is down due to ${down.cause} and will be restarted at: ${localTimestampStr(zd)}")))
+            b(style := "color:red")(s"service was down"),
+            p(b("cause: "), down.cause),
+            p(s"it will be restarted in ${fmt.format(down.crashAt, zd)}, at ${localTimestampStr(zd)}")
+          ))
     )
 
-  private def pendingActions(as: List[PendingAction], now: ZonedDateTime): Text.TypedTag[String] = {
+  private def pendingActions(oas: List[OngoingAction], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
-      b("pending critical actions:"),
+      b("ongoing actions:"),
       table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 100%;")(
         tr(
           th(style := tds)("name"),
           th(style := tds)("so far took"),
           th(style := tds)("launch time"),
           th(style := tds)("id")),
-        as.map(a =>
+        oas.map(a =>
           tr(
             td(style := tds)(a.name.value),
             td(style := tds)(fmt.format(a.launchTime, now)),
@@ -93,7 +95,7 @@ private[translators] object HtmlTranslator extends all {
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
       p(b("up time: "), fmt.format(evt.upTime)),
-      pendingActions(evt.pendings, evt.timestamp),
+      pendingActions(evt.ongoings, evt.timestamp),
       brief(evt.serviceParams),
       pre(evt.snapshot.show)
     )

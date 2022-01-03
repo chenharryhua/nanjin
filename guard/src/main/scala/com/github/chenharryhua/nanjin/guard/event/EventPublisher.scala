@@ -73,7 +73,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         MetricsReport(
           serviceStatus = ss,
           reportType = metricReportType,
-          pendings = ogs.map(PendingAction(_)).toList.sortBy(_.launchTime),
+          ongoings = ogs.map(OngoingAction(_)).toList.sortBy(_.launchTime),
           timestamp = ts,
           serviceParams = serviceParams,
           snapshot = metricReportType.snapshotType match {
