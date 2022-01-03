@@ -89,8 +89,9 @@ private[translators] object SlackTranslator extends all {
       attachments = List(
         Attachment(
           color = color,
-          blocks = List(MarkdownSection(s"*$title:* ${evt.name.value}"), hostServiceSection(evt.serviceParams)) :::
-            (if (evt.message.isEmpty) Nil else List(MarkdownSection(abbreviate(evt.message))))
+          blocks =
+            List(MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"), hostServiceSection(evt.serviceParams)) :::
+              (if (evt.message.isEmpty) Nil else List(MarkdownSection(abbreviate(evt.message))))
         )
       )
     )

@@ -22,7 +22,7 @@ private[translators] object HtmlTranslator extends all {
     p(b("number of retries: "), numRetry.toString)
 
   private def hostServiceText(si: ServiceParams): Text.TypedTag[String] =
-    p(b("service: "), si.name.value, "    ", b("host: "), si.taskParams.hostName)
+    p(b("service: "), si.metricName.metricRepr, "    ", b("host: "), si.taskParams.hostName)
 
   private def notesText(n: Notes): Text.TypedTag[String]      = p(b("notes: "), pre(n.value))
   private def causeText(c: NJError): Text.TypedTag[String]    = p(b("cause: "), pre(c.stackTrace))
@@ -40,7 +40,7 @@ private[translators] object HtmlTranslator extends all {
           th(style := tds)("id")),
         oas.map(a =>
           tr(
-            td(style := tds)(a.name.value),
+            td(style := tds)(a.metricName.metricRepr),
             td(style := tds)(fmt.format(a.launchTime, now)),
             td(style := tds)(localTimestampStr(a.launchTime)),
             td(style := tds)(a.uuid.show)
@@ -107,7 +107,7 @@ private[translators] object HtmlTranslator extends all {
       h3("Service Alert"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("name: "), evt.name.value, "    ", b("importance: "), evt.importance.show),
+      p(b("name: "), evt.metricName.metricRepr, "    ", b("importance: "), evt.importance.show),
       pre(evt.message)
     )
 

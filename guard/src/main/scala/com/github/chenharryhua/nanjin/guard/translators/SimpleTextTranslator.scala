@@ -9,7 +9,7 @@ private[translators] object SimpleTextTranslator {
   private def serviceStarted(evt: ServiceStart): String =
     s"""
        |Service (Re)Started
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Up Time: ${fmt.format(evt.upTime)}
        |Time Zone: ${evt.serviceParams.taskParams.zoneId}
@@ -19,7 +19,7 @@ private[translators] object SimpleTextTranslator {
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): String =
     s"""
        |Service Panic
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Up Time: ${fmt.format(evt.upTime)}
        |Policy: ${evt.serviceParams.retry.policy[F].show}
@@ -29,7 +29,7 @@ private[translators] object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""
        |Service Stopped
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Up Time: ${fmt.format(evt.upTime)}
        |""".stripMargin
@@ -37,7 +37,7 @@ private[translators] object SimpleTextTranslator {
   private def metricsReport(evt: MetricsReport): String =
     s"""
        |${evt.reportType.show}
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Up Time: ${fmt.format(evt.upTime)}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |${evt.snapshot.show}
@@ -46,7 +46,7 @@ private[translators] object SimpleTextTranslator {
   private def metricsReset(evt: MetricsReset): String =
     s"""
        |${evt.resetType.show}
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Up Time: ${fmt.format(evt.upTime)}
        |${evt.snapshot.show}
@@ -55,7 +55,7 @@ private[translators] object SimpleTextTranslator {
   private def passThrough(evt: PassThrough): String =
     s"""
        |Pass Through
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Message: ${evt.value.noSpaces}
        |""".stripMargin
@@ -63,7 +63,7 @@ private[translators] object SimpleTextTranslator {
   private def serviceAlert(evt: ServiceAlert): String =
     s"""
        |Service Alert
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Alert: ${evt.message}
        |""".stripMargin
@@ -71,14 +71,14 @@ private[translators] object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""
        |${evt.actionInfo.actionParams.startTitle}
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
     s"""
        |${evt.actionInfo.actionParams.retryTitle}
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Took so far: ${fmt.format(evt.took)}
        |""".stripMargin
@@ -86,7 +86,7 @@ private[translators] object SimpleTextTranslator {
   private def actionFailed[F[_]: Applicative](evt: ActionFail): String =
     s"""
        |${evt.actionInfo.actionParams.failedTitle}
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Took: ${fmt.format(evt.took)}
        |Cause: ${evt.error.stackTrace}
@@ -95,7 +95,7 @@ private[translators] object SimpleTextTranslator {
   private def actionSucced(evt: ActionSucc): String =
     s"""
        |${evt.actionInfo.actionParams.succedTitle}
-       |Service: ${evt.name.value}
+       |Service: ${evt.metricName.metricRepr}
        |Host: ${evt.serviceParams.taskParams.hostName}
        |Took: ${fmt.format(evt.took)}
        |""".stripMargin

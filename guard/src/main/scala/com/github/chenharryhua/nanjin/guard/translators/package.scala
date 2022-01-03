@@ -45,7 +45,7 @@ package object translators {
   private[translators] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private[guard] def hostServiceSection(sp: ServiceParams): JuxtaposeSection =
-    JuxtaposeSection(TextField("Service", sp.name.value), TextField("Host", sp.taskParams.hostName))
+    JuxtaposeSection(TextField("Service", sp.metricName.metricRepr), TextField("Host", sp.taskParams.hostName))
 
   def toOrdinalWords(n: Long): String = {
     val w =

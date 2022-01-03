@@ -18,7 +18,7 @@ sealed trait NJEvent {
   def serviceStatus: ServiceStatus
   def serviceParams: ServiceParams
   def uuid: UUID
-  def name: DigestedName
+  def metricName: DigestedName
   final def show: String = NJEvent.showNJEvent.show(this)
   final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
 }
@@ -37,7 +37,7 @@ sealed trait ServiceEvent extends NJEvent {
 
 final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime, serviceParams: ServiceParams)
     extends ServiceEvent {
-  override val name: DigestedName = serviceParams.name
+  override val metricName: DigestedName = serviceParams.metricName
 
 }
 
@@ -48,7 +48,7 @@ final case class ServicePanic(
   serviceParams: ServiceParams,
   error: NJError
 ) extends ServiceEvent {
-  override val name: DigestedName = serviceParams.name
+  override val metricName: DigestedName = serviceParams.metricName
 }
 
 final case class ServiceStop(
@@ -57,11 +57,11 @@ final case class ServiceStop(
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
-  override val name: DigestedName = serviceParams.name
+  override val metricName: DigestedName = serviceParams.metricName
 }
 
 final case class ServiceAlert(
-  name: DigestedName,
+  metricName: DigestedName,
   serviceStatus: ServiceStatus,
   timestamp: ZonedDateTime,
   importance: Importance,
@@ -77,7 +77,7 @@ final case class MetricsReport(
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
-  override val name: DigestedName = serviceParams.name
+  override val metricName: DigestedName = serviceParams.metricName
 
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
@@ -89,13 +89,13 @@ final case class MetricsReset(
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
-  override val name: DigestedName = serviceParams.name
+  override val metricName: DigestedName = serviceParams.metricName
 
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
 
 final case class PassThrough(
-  name: DigestedName,
+  metricName: DigestedName,
   asError: Boolean, // the payload json represent an error
   serviceStatus: ServiceStatus,
   timestamp: ZonedDateTime,
@@ -108,7 +108,7 @@ sealed trait ActionEvent extends NJEvent {
   final override def serviceStatus: ServiceStatus = actionInfo.serviceStatus
   final override def serviceParams: ServiceParams = actionInfo.serviceParams
   final override def uuid: UUID                   = actionInfo.uuid
-  final override def name: DigestedName           = actionInfo.actionParams.name
+  final override def metricName: DigestedName     = actionInfo.actionParams.metricName
   final def actionParams: ActionParams            = actionInfo.actionParams
   final def launchTime: ZonedDateTime             = actionInfo.launchTime
 }

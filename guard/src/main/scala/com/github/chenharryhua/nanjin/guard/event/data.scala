@@ -89,12 +89,12 @@ object MetricReportType {
 }
 
 @JsonCodec
-final case class OngoingAction private (name: DigestedName, uuid: UUID, launchTime: ZonedDateTime)
+final case class OngoingAction private (metricName: DigestedName, uuid: UUID, launchTime: ZonedDateTime)
 object OngoingAction {
   implicit val showPendingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
   def apply(ai: ActionInfo): OngoingAction =
     OngoingAction(
-      ai.actionParams.name,
+      ai.actionParams.metricName,
       ai.uuid,
       ai.launchTime
     )

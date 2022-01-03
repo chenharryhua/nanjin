@@ -188,7 +188,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       ss <- serviceStatus.get
       _ <- channel.send(
         PassThrough(
-          name = metricName,
+          metricName = metricName,
           asError = asError,
           serviceStatus = ss,
           timestamp = ts,
@@ -202,7 +202,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       ss <- serviceStatus.get
       _ <- channel.send(
         ServiceAlert(
-          name = metricName,
+          metricName = metricName,
           serviceStatus = ss,
           timestamp = ts,
           importance = importance,
