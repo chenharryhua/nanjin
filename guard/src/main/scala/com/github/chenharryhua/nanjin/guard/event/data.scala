@@ -4,8 +4,9 @@ import cats.Show
 import cats.derived.auto.show.*
 import cats.implicits.{catsSyntaxEq, toShow}
 import cats.kernel.Eq
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, MetricSnapshotType, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
@@ -105,7 +106,10 @@ final case class ActionInfo(
   serviceStatus: ServiceStatus,
   serviceParams: ServiceParams,
   uuid: UUID,
-  launchTime: ZonedDateTime)
+  launchTime: ZonedDateTime) {
+  val isNotice: Boolean   = actionParams.importance >= Importance.High
+  val isCritical: Boolean = actionParams.importance === Importance.Critical
+}
 
 object ActionInfo {
   implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]

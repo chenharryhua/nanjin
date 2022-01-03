@@ -10,7 +10,8 @@ import java.util.UUID
 
 final class NJRuntimeInfo[F[_]: Functor] private[guard] (
   serviceStatus: Ref[F, ServiceStatus],
-  ongoingCriticalActions: Ref[F, Set[ActionInfo]]) {
+  ongoings: Ref[F, Set[ActionInfo]]) {
+
   def upTime(now: ZonedDateTime): F[Duration] = serviceStatus.get.map(_.upTime(now))
 
   def latestCrashDuration: F[Option[Duration]] = serviceStatus.get.map {
@@ -30,5 +31,5 @@ final class NJRuntimeInfo[F[_]: Functor] private[guard] (
   def isServiceUp: F[Boolean]   = serviceStatus.get.map(_.isUp)
   def isServiceDown: F[Boolean] = serviceStatus.get.map(_.isDown)
 
-  def pendingActions: F[Set[ActionInfo]] = ongoingCriticalActions.get
+  def pendingActions: F[Set[ActionInfo]] = ongoings.get
 }

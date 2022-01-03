@@ -21,7 +21,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final private[guard] class EventPublisher[F[_]: UUIDGen](
   val serviceParams: ServiceParams,
   val metricRegistry: MetricRegistry,
-  val ongoingCriticalActions: Ref[F, Set[ActionInfo]],
+  val ongoings: Ref[F, Set[ActionInfo]],
   val serviceStatus: Ref[F, ServiceStatus],
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
@@ -38,8 +38,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
     for {
       ts <- realZonedDateTime
       ss <- serviceStatus.updateAndGet(_.goUp(ts))
-      _ <- channel.send(ServiceStart(timestamp = ts, serviceStatus = ss, serviceParams = serviceParams))
-      _ <- ongoingCriticalActions.set(Set.empty)
+      _ <- channel.send(ServiceStart(ss, ts, serviceParams))
+      _ <- ongoings.set(Set.empty)
     } yield ()
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
@@ -66,14 +66,14 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
       ts <- realZonedDateTime
-      runnings <- ongoingCriticalActions.get
+      ogs <- ongoings.get
       oldLast <- lastCountersRef.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
       ss <- serviceStatus.get
       _ <- channel.send(
         MetricsReport(
           serviceStatus = ss,
           reportType = metricReportType,
-          pendings = runnings.map(PendingAction(_)).toList.sortBy(_.launchTime),
+          pendings = ogs.map(PendingAction(_)).toList.sortBy(_.launchTime),
           timestamp = ts,
           serviceParams = serviceParams,
           snapshot = metricReportType.snapshotType match {
@@ -124,8 +124,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       ts <- realZonedDateTime
       ss <- serviceStatus.get
       actionInfo = ActionInfo(actionParams, ss, serviceParams, uuid, ts)
-      _ <- channel.send(ActionStart(actionInfo)).whenA(actionInfo.actionParams.importance >= Importance.High)
-      _ <- ongoingCriticalActions.update(_ + actionInfo).whenA(actionParams.importance === Importance.Critical)
+      _ <- (channel.send(ActionStart(actionInfo)) *> ongoings.update(_.incl(actionInfo))).whenA(actionInfo.isNotice)
     } yield actionInfo
 
   def actionRetry(
@@ -157,12 +156,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       result <- output
       num <- retryCount.get
       notes <- buildNotes.run((input, result))
-      _ <- channel
-        .send(ActionSucc(actionInfo = actionInfo, timestamp = ts, numRetries = num, notes = Notes(notes)))
-        .whenA(actionInfo.actionParams.importance >= Importance.High)
-      _ <- ongoingCriticalActions
-        .update(_ - actionInfo)
-        .whenA(actionInfo.actionParams.importance === Importance.Critical)
+      _ <- (channel.send(ActionSucc(actionInfo, ts, num, Notes(notes))) *> ongoings.update(_.excl(actionInfo)))
+        .whenA(actionInfo.isNotice)
     } yield ts
 
   def actionFail[A](
@@ -184,9 +179,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
           numRetries = numRetries,
           notes = Notes(notes),
           error = NJError(uuid, ex)))
-      _ <- ongoingCriticalActions
-        .update(_ - actionInfo)
-        .whenA(actionInfo.actionParams.importance === Importance.Critical)
+      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isNotice)
     } yield ts
 
   def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =
