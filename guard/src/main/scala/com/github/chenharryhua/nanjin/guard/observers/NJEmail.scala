@@ -61,10 +61,18 @@ final class NJEmail[F[_]: Async] private[observers] (
   override def apply(es: Stream[F, NJEvent]): Stream[F, String] =
     for {
       c <- Stream.resource(client)
-      mb <- es.evalMap(e => translator.translate(e)).unNone.groupWithin(chunkSize, interval).evalMap { events =>
-        val mailBody: String =
-          html(body(events.map(hr(_)).toList, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-        c.send(EmailContent(from, to.distinct, subject, mailBody)).attempt.as(mailBody)
-      }
+      mb <- es
+        .evalMap(e =>
+          translator.filter {
+            case event: ActionEvent => event.actionInfo.nonTrivial
+            case _                  => true
+          }.translate(e))
+        .unNone
+        .groupWithin(chunkSize, interval)
+        .evalMap { events =>
+          val mailBody: String =
+            html(body(events.map(hr(_)).toList, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+          c.send(EmailContent(from, to.distinct, subject, mailBody)).attempt.as(mailBody)
+        }
     } yield mb
 }

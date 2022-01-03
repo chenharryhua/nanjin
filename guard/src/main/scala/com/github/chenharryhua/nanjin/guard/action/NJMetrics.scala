@@ -11,9 +11,6 @@ final class NJMetrics[F[_]] private[guard] (dispatcher: Dispatcher[F], eventPubl
   def reset: F[Unit]      = eventPublisher.metricsReset(None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)
 
-  val snapshotFull: Eval[MetricSnapshot] =
-    Eval.always(MetricSnapshot.full(eventPublisher.metricRegistry, eventPublisher.serviceParams))
-
   private def reporting(mst: MetricSnapshotType, metricFilter: MetricFilter): F[Unit] =
     eventPublisher.metricsReport(metricFilter, MetricReportType.Adhoc(mst))
 
@@ -28,4 +25,12 @@ final class NJMetrics[F[_]] private[guard] (dispatcher: Dispatcher[F], eventPubl
   def fullReport: F[Unit] = reporting(MetricSnapshotType.Full, MetricFilter.ALL)
   def unsafeFullReport(): Unit =
     dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Full, MetricFilter.ALL))
+
+  // query metricRegistry
+  val snapshotFull: Eval[MetricSnapshot] =
+    Eval.always(MetricSnapshot.full(eventPublisher.metricRegistry, eventPublisher.serviceParams))
+
+  def snapshot(metricFilter: MetricFilter): Eval[MetricSnapshot] =
+    Eval.always(MetricSnapshot.regular(metricFilter, eventPublisher.metricRegistry, eventPublisher.serviceParams))
+
 }
