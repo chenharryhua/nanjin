@@ -4,7 +4,7 @@ import cats.implicits.{catsSyntaxApplicative, catsSyntaxApplicativeError, toFunc
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
@@ -119,17 +119,20 @@ private[translators] object HtmlTranslator extends all {
       p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show)
     )
 
-  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
-    div(
-      h3(evt.actionParams.retryTitle),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
-      p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show)
-    )
+  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Option[Text.TypedTag[String]] =
+    if (evt.actionInfo.nonTrivial)
+      Some(
+        div(
+          h3(evt.actionParams.retryTitle),
+          timestampText(evt.timestamp),
+          hostServiceText(evt.serviceParams),
+          p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+          p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show)
+        ))
+    else None
 
   private def actionFailed[F[_]: Applicative](evt: ActionFail): Option[Text.TypedTag[String]] =
-    if (evt.actionParams.importance >= Importance.Medium)
+    if (evt.actionInfo.nonTrivial)
       Some(
         div(
           h3(style := "color:red")(evt.actionParams.failedTitle),
