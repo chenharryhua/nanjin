@@ -119,35 +119,29 @@ private[translators] object HtmlTranslator extends all {
       p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show)
     )
 
-  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Option[Text.TypedTag[String]] =
-    if (evt.actionInfo.nonTrivial)
-      Some(
-        div(
-          h3(evt.actionParams.retryTitle),
-          timestampText(evt.timestamp),
-          hostServiceText(evt.serviceParams),
-          p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
-          p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show)
-        ))
-    else None
+  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
+    div(
+      h3(evt.actionParams.retryTitle),
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+      p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show)
+    )
 
-  private def actionFailed[F[_]: Applicative](evt: ActionFail): Option[Text.TypedTag[String]] =
-    if (evt.actionInfo.nonTrivial)
-      Some(
-        div(
-          h3(style := "color:red")(evt.actionParams.failedTitle),
-          timestampText(evt.timestamp),
-          hostServiceText(evt.serviceParams),
-          p(b(s"${evt.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
-          p(b("error ID: "), evt.error.uuid.show),
-          p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
-          p(b("took: "), fmt.format(evt.took)),
-          retriesText(evt.numRetries),
-          notesText(evt.notes),
-          brief(evt.serviceParams),
-          causeText(evt.error)
-        ))
-    else None
+  private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
+    div(
+      h3(style := "color:red")(evt.actionParams.failedTitle),
+      timestampText(evt.timestamp),
+      hostServiceText(evt.serviceParams),
+      p(b(s"${evt.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+      p(b("error ID: "), evt.error.uuid.show),
+      p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
+      p(b("took: "), fmt.format(evt.took)),
+      retriesText(evt.numRetries),
+      notesText(evt.notes),
+      brief(evt.serviceParams),
+      causeText(evt.error)
+    )
 
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
