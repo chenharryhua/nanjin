@@ -38,7 +38,7 @@ final class Agent[F[_]] private[guard] (
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
       publisher = publisher,
-      params = ActionParams(agentParams, publisher.serviceParams),
+      params = ActionParams(agentParams),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -49,7 +49,7 @@ final class Agent[F[_]] private[guard] (
     new NJRetryUnit[F, B](
       fb = fb,
       publisher = publisher,
-      params = ActionParams(agentParams, publisher.serviceParams),
+      params = ActionParams(agentParams),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -60,29 +60,29 @@ final class Agent[F[_]] private[guard] (
 
   def broker(metricName: String): NJBroker[F] =
     new NJBroker[F](
-      DigestedName(agentParams.spans :+ metricName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ metricName, agentParams.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F],
       isCountAsError = false)
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
-      DigestedName(agentParams.spans :+ alertName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ alertName, agentParams.serviceParams),
       dispatcher: Dispatcher[F],
       publisher: EventPublisher[F])
 
   def counter(counterName: String): NJCounter[F] =
     new NJCounter(
-      DigestedName(agentParams.spans :+ counterName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ counterName, agentParams.serviceParams),
       publisher.metricRegistry,
       isCountAsError = false)
 
   def meter(meterName: String): NJMeter[F] =
-    new NJMeter[F](DigestedName(agentParams.spans :+ meterName, publisher.serviceParams), publisher.metricRegistry)
+    new NJMeter[F](DigestedName(agentParams.spans :+ meterName, agentParams.serviceParams), publisher.metricRegistry)
 
   def histogram(metricName: String): NJHistogram[F] =
     new NJHistogram[F](
-      DigestedName(agentParams.spans :+ metricName, publisher.serviceParams),
+      DigestedName(agentParams.spans :+ metricName, agentParams.serviceParams),
       publisher.metricRegistry
     )
 

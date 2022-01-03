@@ -15,7 +15,6 @@ import java.util.UUID
 
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
-  def serviceStatus: ServiceStatus
   def serviceParams: ServiceParams
   def uuid: UUID
   def metricName: DigestedName
@@ -30,6 +29,7 @@ object NJEvent {
 }
 
 sealed trait ServiceEvent extends NJEvent {
+  def serviceStatus: ServiceStatus
   final override def uuid: UUID = serviceStatus.uuid
 
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
@@ -105,8 +105,7 @@ final case class PassThrough(
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
-  final override def serviceStatus: ServiceStatus = actionInfo.serviceStatus
-  final override def serviceParams: ServiceParams = actionInfo.serviceParams
+  final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
   final override def uuid: UUID                   = actionInfo.uuid
   final override def metricName: DigestedName     = actionInfo.actionParams.metricName
   final def actionParams: ActionParams            = actionInfo.actionParams

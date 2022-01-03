@@ -72,7 +72,7 @@ final class ServiceGuard[F[_]] private[guard] (
             serviceParams.retry.policy[F],
             (ex: Throwable, rd) => publisher.servicePanic(rd, ex).map(_ => panicCounter.inc(1))) {
             publisher.serviceReStart.map(_ => restartCounter.inc(1)) *> Dispatcher[F].use(dispatcher =>
-              agent(new Agent[F](publisher, dispatcher, AgentConfig())))
+              agent(new Agent[F](publisher, dispatcher, AgentConfig(serviceParams))))
           }
           .guarantee(publisher.serviceStop <* channel.close)
 

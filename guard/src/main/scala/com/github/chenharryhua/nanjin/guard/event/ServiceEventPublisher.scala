@@ -18,15 +18,13 @@ import retry.RetryDetails.WillDelayAndRetry
 import java.time.ZonedDateTime
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-final private[guard] class EventPublisher[F[_]: UUIDGen](
-  val serviceParams: ServiceParams,
+final class ServiceEventPublisher[F[_]: UUIDGen](
   val metricRegistry: MetricRegistry,
   val ongoings: Ref[F, Set[ActionInfo]],
-  val serviceStatus: Ref[F, ServiceStatus],
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
-  private val realZonedDateTime: F[ZonedDateTime] =
+  private def realZonedDateTime(serviceParams: ServiceParams): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant
     } yield ts.atZone(serviceParams.taskParams.zoneId)
@@ -34,25 +32,29 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   /** services
     */
 
-  val serviceReStart: F[Unit] =
+  def serviceReStart(serviceParams: ServiceParams, serviceStatus: Ref[F, ServiceStatus]): F[Unit] =
     for {
-      ts <- realZonedDateTime
+      ts <- realZonedDateTime(serviceParams)
       ss <- serviceStatus.updateAndGet(_.goUp(ts))
       _ <- channel.send(ServiceStart(ss, ts, serviceParams))
       _ <- ongoings.set(Set.empty)
     } yield ()
 
-  def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
+  def servicePanic(
+    serviceParams: ServiceParams,
+    serviceStatus: Ref[F, ServiceStatus],
+    retryDetails: RetryDetails,
+    ex: Throwable): F[Unit] =
     for {
-      ts <- realZonedDateTime
+      ts <- realZonedDateTime(serviceParams)
       ss <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, ExceptionUtils.getMessage(ex)))
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(ServicePanic(ss, ts, retryDetails, serviceParams, NJError(uuid, ex)))
     } yield ()
 
-  def serviceStop: F[Unit] =
+  def serviceStop(serviceParams: ServiceParams, serviceStatus: Ref[F, ServiceStatus]): F[Unit] =
     for {
-      ts <- realZonedDateTime
+      ts <- realZonedDateTime(serviceParams)
       ss <- serviceStatus.updateAndGet(_.goDown(ts, None, cause = "service was stopped"))
       _ <- channel.send(
         ServiceStop(
@@ -63,9 +65,13 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         ))
     } yield ()
 
-  def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
+  def metricsReport(
+    serviceParams: ServiceParams,
+    serviceStatus: Ref[F, ServiceStatus],
+    metricFilter: MetricFilter,
+    metricReportType: MetricReportType): F[Unit] =
     for {
-      ts <- realZonedDateTime
+      ts <- realZonedDateTime(serviceParams)
       ogs <- ongoings.get
       oldLast <- lastCountersRef.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
       ss <- serviceStatus.get
@@ -89,9 +95,12 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
 
   /** Reset Counters only
     */
-  def metricsReset(cronExpr: Option[CronExpr]): F[Unit] =
+  def metricsReset(
+    serviceParams: ServiceParams,
+    serviceStatus: Ref[F, ServiceStatus],
+    cronExpr: Option[CronExpr]): F[Unit] =
     for {
-      ts <- realZonedDateTime
+      ts <- realZonedDateTime(serviceParams)
       ss <- serviceStatus.get
       msg = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>
@@ -115,98 +124,4 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       _ <- lastCountersRef.set(MetricSnapshot.LastCounters.empty)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
-  /** actions
-    */
-
-  def actionStart(actionParams: ActionParams): F[ActionInfo] =
-    for {
-      uuid <- UUIDGen.randomUUID[F]
-      ts <- realZonedDateTime
-      ss <- serviceStatus.get
-      actionInfo = ActionInfo(actionParams, uuid, ts)
-      _ <- (channel.send(ActionStart(actionInfo)) *> ongoings.update(_.incl(actionInfo))).whenA(actionInfo.isNotice)
-    } yield actionInfo
-
-  def actionRetry(
-    actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
-    willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable
-  ): F[Unit] =
-    for {
-      ts <- realZonedDateTime
-      uuid <- UUIDGen.randomUUID[F]
-      _ <- channel.send(
-        ActionRetry(
-          actionInfo = actionInfo,
-          timestamp = ts,
-          willDelayAndRetry = willDelayAndRetry,
-          error = NJError(uuid, ex)))
-      _ <- retryCount.update(_ + 1)
-    } yield ()
-
-  def actionSucc[A, B](
-    actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
-    input: A,
-    output: F[B],
-    buildNotes: Kleisli[F, (A, B), String]): F[ZonedDateTime] =
-    for {
-      ts <- realZonedDateTime
-      result <- output
-      num <- retryCount.get
-      notes <- buildNotes.run((input, result))
-      _ <- (channel.send(ActionSucc(actionInfo, ts, num, Notes(notes))) *> ongoings.update(_.excl(actionInfo)))
-        .whenA(actionInfo.isNotice)
-    } yield ts
-
-  def actionFail[A](
-    actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
-    input: A,
-    ex: Throwable,
-    buildNotes: Kleisli[F, (A, Throwable), String]
-  ): F[ZonedDateTime] =
-    for {
-      ts <- realZonedDateTime
-      uuid <- UUIDGen.randomUUID[F]
-      numRetries <- retryCount.get
-      notes <- buildNotes.run((input, ex))
-      _ <- channel.send(
-        ActionFail(
-          actionInfo = actionInfo,
-          timestamp = ts,
-          numRetries = numRetries,
-          notes = Notes(notes),
-          error = NJError(uuid, ex)))
-      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isNotice)
-    } yield ts
-
-  def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =
-    for {
-      ts <- realZonedDateTime
-      ss <- serviceStatus.get
-      _ <- channel.send(
-        PassThrough(
-          metricName = metricName,
-          asError = asError,
-          serviceStatus = ss,
-          timestamp = ts,
-          serviceParams = serviceParams,
-          value = json))
-    } yield ()
-
-  def alert(metricName: DigestedName, msg: String, importance: Importance): F[Unit] =
-    for {
-      ts <- realZonedDateTime
-      ss <- serviceStatus.get
-      _ <- channel.send(
-        ServiceAlert(
-          metricName = metricName,
-          serviceStatus = ss,
-          timestamp = ts,
-          importance = importance,
-          serviceParams = serviceParams,
-          message = msg))
-    } yield ()
 }

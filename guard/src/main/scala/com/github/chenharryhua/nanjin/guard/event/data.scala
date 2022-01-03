@@ -101,12 +101,7 @@ object OngoingAction {
 }
 
 @JsonCodec
-final case class ActionInfo(
-  actionParams: ActionParams,
-  serviceStatus: ServiceStatus,
-  serviceParams: ServiceParams,
-  uuid: UUID,
-  launchTime: ZonedDateTime) {
+final case class ActionInfo(actionParams: ActionParams, uuid: UUID, launchTime: ZonedDateTime) {
   val isCritical: Boolean = actionParams.importance > Importance.High // Critical
   val isNotice: Boolean   = actionParams.importance > Importance.Medium // Hight + Critical
   val nonTrivial: Boolean = actionParams.importance > Importance.Low // Medium + High + Critical
@@ -120,7 +115,6 @@ object ActionInfo {
 sealed trait ServiceStatus {
   def uuid: UUID
   def launchTime: ZonedDateTime
-
   def isUp: Boolean
   def isDown: Boolean
   def isStopped: Boolean

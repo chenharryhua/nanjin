@@ -17,12 +17,13 @@ import scala.concurrent.duration.*
   isCounting: CountAction,
   isTiming: TimeAction,
   retry: ActionRetryParams,
-  catalog: String)
+  catalog: String,
+  serviceParams: ServiceParams)
 
 private[guard] object AgentParams {
   implicit val showAgentParams: Show[AgentParams] = cats.derived.semiauto.show[AgentParams]
 
-  def apply(): AgentParams = AgentParams(
+  def apply(serviceParams: ServiceParams): AgentParams = AgentParams(
     spans = Nil,
     importance = Importance.Medium,
     isTerminate = ActionTermination.Yes,
@@ -33,7 +34,8 @@ private[guard] object AgentParams {
       capDelay = None,
       njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds)
     ),
-    catalog = "action"
+    catalog = "action",
+    serviceParams = serviceParams
   )
 }
 
@@ -42,7 +44,7 @@ sealed private[guard] trait AgentConfigF[F]
 private object AgentConfigF {
   implicit val functorActionConfigF: Functor[AgentConfigF] = cats.derived.semiauto.functor[AgentConfigF]
 
-  final case class InitParams[K]() extends AgentConfigF[K]
+  final case class InitParams[K](serviceParams: ServiceParams) extends AgentConfigF[K]
 
   final case class WithMaxRetries[K](value: Int, cont: K) extends AgentConfigF[K]
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
@@ -59,7 +61,7 @@ private object AgentConfigF {
 
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
-      case InitParams()          => AgentParams()
+      case InitParams(sp)        => AgentParams(sp)
       case WithRetryPolicy(v, c) => AgentParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
       case WithMaxRetries(v, c)  => AgentParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
       case WithCapDelay(v, c)    => AgentParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
@@ -112,5 +114,5 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
 
 private[guard] object AgentConfig {
 
-  def apply(): AgentConfig = AgentConfig(Fix(AgentConfigF.InitParams[Fix[AgentConfigF]]()))
+  def apply(sp: ServiceParams): AgentConfig = AgentConfig(Fix(AgentConfigF.InitParams[Fix[AgentConfigF]](sp)))
 }

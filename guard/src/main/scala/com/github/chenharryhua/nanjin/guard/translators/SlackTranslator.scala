@@ -194,7 +194,7 @@ private[translators] object SlackTranslator extends all {
           color = infoColor,
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
-            hostServiceSection(evt.actionInfo.serviceParams),
+            hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.uuid.show}")
           )
         ))
