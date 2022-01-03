@@ -107,8 +107,9 @@ final case class ActionInfo(
   serviceParams: ServiceParams,
   uuid: UUID,
   launchTime: ZonedDateTime) {
-  val isNotice: Boolean   = actionParams.importance >= Importance.High
-  val isCritical: Boolean = actionParams.importance === Importance.Critical
+  val isCritical: Boolean = actionParams.importance > Importance.High // Critical
+  val isNotice: Boolean   = actionParams.importance > Importance.Medium // Hight + Critical
+  val nonTrivial: Boolean = actionParams.importance > Importance.Low // Medium + High + Critical
 }
 
 object ActionInfo {
