@@ -65,11 +65,11 @@ final case class ActionParams private (
   isCounting: CountAction,
   isTiming: TimeAction,
   retry: ActionRetryParams,
-  alias: String) {
-  def startTitle: String  = s"$alias ${metricName.metricRepr} started"
-  def retryTitle: String  = s"$alias ${metricName.metricRepr} retrying"
-  def failedTitle: String = s"$alias ${metricName.metricRepr} failed"
-  def succedTitle: String = s"$alias ${metricName.metricRepr} succed"
+  catalog: String) {
+  def startTitle: String  = s"$catalog ${metricName.metricRepr} started"
+  def retryTitle: String  = s"$catalog ${metricName.metricRepr} retrying"
+  def failedTitle: String = s"$catalog ${metricName.metricRepr} failed"
+  def succedTitle: String = s"$catalog ${metricName.metricRepr} succed"
 }
 
 object ActionParams {
@@ -83,6 +83,6 @@ object ActionParams {
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
       retry = agentParams.retry,
-      alias = agentParams.alias
+      catalog = agentParams.catalog
     )
 }

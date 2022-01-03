@@ -195,7 +195,7 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
             hostServiceSection(evt.actionInfo.serviceParams),
-            MarkdownSection(s"*${evt.actionParams.alias} ID:* ${evt.uuid.show}")
+            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.uuid.show}")
           )
         ))
     )
@@ -211,7 +211,7 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-            MarkdownSection(s"""|*${evt.actionParams.alias} ID:* ${evt.uuid.show}
+            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.uuid.show}
                                 |*next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                 |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
             hostServiceSection(evt.serviceParams),
@@ -229,7 +229,7 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""|*${evt.actionParams.alias} ID:* ${evt.uuid.show}
+            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.uuid.show}
                                 |*error ID:* ${evt.error.uuid.show}
                                 |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
             hostServiceSection(evt.serviceParams),
@@ -249,7 +249,7 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"*${evt.actionParams.alias} ID:* ${evt.uuid.show}"),
+            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.uuid.show}"),
             hostServiceSection(evt.serviceParams)
           ) ::: (if (evt.notes.value.isEmpty) Nil
                  else List(MarkdownSection(abbreviate(evt.notes.value))))

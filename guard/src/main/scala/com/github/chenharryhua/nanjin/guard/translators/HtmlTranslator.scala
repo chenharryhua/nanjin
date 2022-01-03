@@ -116,7 +116,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.startTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show)
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.uuid.show)
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
@@ -124,8 +124,8 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionInfo.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
-      p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show)
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.uuid.show),
+      p(b("policy: "), evt.actionParams.retry.policy[F].show)
     )
 
   private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
@@ -133,7 +133,7 @@ private[translators] object HtmlTranslator extends all {
       h3(style := "color:red")(evt.actionParams.failedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.uuid.show),
       p(b("error ID: "), evt.error.uuid.show),
       p(b("policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("took: "), fmt.format(evt.took)),
@@ -148,7 +148,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.succedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionParams.alias} ID: "), evt.actionInfo.uuid.show),
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.uuid.show),
       p(b("took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       notesText(evt.notes)
