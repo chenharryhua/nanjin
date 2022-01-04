@@ -102,7 +102,7 @@ private[translators] object HtmlTranslator extends all {
     )
   }
 
-  private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =
+  private def serviceAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
       h3("Service Alert"),
       timestampText(evt.timestamp),

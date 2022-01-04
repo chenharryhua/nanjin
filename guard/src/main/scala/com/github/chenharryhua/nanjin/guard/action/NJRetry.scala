@@ -3,20 +3,17 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.Temporal
-import cats.effect.kernel.{Outcome, Ref}
+import cats.effect.kernel.Outcome
+import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.{Counter, Timer}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ActionTermination, CountAction, TimeAction}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ActionTermination}
 import com.github.chenharryhua.nanjin.guard.event.*
-import retry.RetryDetails
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.time.{Duration, ZonedDateTime}
-
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
-final class NJRetry[F[_], A, B] private[guard] (
-  publisher: EventPublisher[F],
+final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
+  publisher2: EventPublisher[F],
   params: ActionParams,
   kfab: Kleisli[F, A, B],
   succ: Kleisli[F, (A, B), String],
@@ -24,21 +21,9 @@ final class NJRetry[F[_], A, B] private[guard] (
   isWorthRetry: Reader[Throwable, Boolean],
   postCondition: Predicate[B])(implicit F: Temporal[F]) {
 
-  private lazy val failCounter: Counter  = publisher.metricRegistry.counter(actionFailMRName(params))
-  private lazy val succCounter: Counter  = publisher.metricRegistry.counter(actionSuccMRName(params))
-  private lazy val retryCounter: Counter = publisher.metricRegistry.counter(actionRetryMRName(params))
-  private lazy val timer: Timer          = publisher.metricRegistry.timer(actionTimerMRName(params))
-
-  private def timingAndCount(isSucc: Boolean, launchTime: ZonedDateTime, now: ZonedDateTime): Unit = {
-    if (params.isTiming === TimeAction.Yes) timer.update(Duration.between(launchTime, now))
-    if (params.isCounting === CountAction.Yes) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
-  }
-  private def countRetries(num: Int): Unit =
-    if (params.isCounting === CountAction.Yes && num > 0) retryCounter.inc(num.toLong)
-
   def withSuccNotesM(succ: (A, B) => F[String]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
-      publisher = publisher,
+      publisher2 = publisher2,
       params = params,
       kfab = kfab,
       succ = Kleisli(succ.tupled),
@@ -51,7 +36,7 @@ final class NJRetry[F[_], A, B] private[guard] (
 
   def withFailNotesM(fail: (A, Throwable) => F[String]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
-      publisher = publisher,
+      publisher2 = publisher2,
       params = params,
       kfab = kfab,
       succ = succ,
@@ -64,7 +49,7 @@ final class NJRetry[F[_], A, B] private[guard] (
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
-      publisher = publisher,
+      publisher2 = publisher2,
       params = params,
       kfab = kfab,
       succ = succ,
@@ -74,7 +59,7 @@ final class NJRetry[F[_], A, B] private[guard] (
 
   def withPostCondition(postCondition: B => Boolean): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
-      publisher = publisher,
+      publisher2 = publisher2,
       params = params,
       kfab = kfab,
       succ = succ,
@@ -82,43 +67,27 @@ final class NJRetry[F[_], A, B] private[guard] (
       isWorthRetry = isWorthRetry,
       postCondition = Predicate(postCondition))
 
-  private def onError(actionInfo: ActionInfo, retryCount: Ref[F, Int])(
-    error: Throwable,
-    details: RetryDetails): F[Unit] = details match {
-    case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
-    case _: GivingUp            => F.unit
-  }
-
-  private def handleOutcome(input: A, actionInfo: ActionInfo, retryCount: Ref[F, Int])(
-    outcome: Outcome[F, Throwable, B]): F[Unit] = {
-
-    val messaging = outcome match {
-      case Outcome.Canceled() =>
-        val error = ActionException.ActionCanceledExternally
-        publisher.actionFail[A](actionInfo, retryCount, input, error, fail).map { ts =>
-          timingAndCount(isSucc = false, actionInfo.launchTime, ts)
-        }
-      case Outcome.Errored(error) =>
-        publisher.actionFail[A](actionInfo, retryCount, input, error, fail).map { ts =>
-          timingAndCount(isSucc = false, actionInfo.launchTime, ts)
-        }
-      case Outcome.Succeeded(output) =>
-        publisher.actionSucc[A, B](actionInfo, retryCount, input, output, succ).map { ts =>
-          timingAndCount(isSucc = true, actionInfo.launchTime, ts)
-        }
-    }
-    messaging >> retryCount.get.map(n => countRetries(n))
-  }
-
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries
-    actionInfo <- publisher.actionStart(params)
+    ts <- realZonedDateTime2(params)
+    uuid <- UUIDGen.randomUUID[F]
+    publisher = new ActionEventPublisher[F](
+      ActionInfo(params, uuid, ts),
+      publisher2.metricRegistry,
+      publisher2.channel,
+      publisher2.ongoings)
+    _ <- publisher.actionStart
     res <- F.uncancelable(poll =>
       retry.mtl
-        .retryingOnSomeErrors[B](
+        .retryingOnSomeErrors[B]
+        .apply[F, Throwable](
           params.retry.policy[F],
           isWorthRetry.map(F.pure).run,
-          onError(actionInfo, retryCount)
+          (error, details) =>
+            details match {
+              case wdr: WillDelayAndRetry => publisher.actionRetry(retryCount, wdr, error)
+              case _: GivingUp            => F.unit
+            }
         ) {
           for {
             gate <- F.deferred[Outcome[F, Throwable, B]]
@@ -132,18 +101,24 @@ final class NJRetry[F[_], A, B] private[guard] (
               .whenA(!postCondition(oc))
           } yield oc
         }
-        .guaranteeCase(handleOutcome(input, actionInfo, retryCount)))
+        .guaranteeCase {
+          case Outcome.Canceled() =>
+            val error = ActionException.ActionCanceledExternally
+            publisher.actionFail[A](retryCount, input, error, fail)
+          case Outcome.Errored(error)    => publisher.actionFail[A](retryCount, input, error, fail)
+          case Outcome.Succeeded(output) => publisher.actionSucc[A, B](retryCount, input, output, succ)
+        })
   } yield res
 }
 
-final class NJRetryUnit[F[_], B] private[guard] (
+final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
   fb: F[B],
   publisher: EventPublisher[F],
   params: ActionParams,
   succ: Kleisli[F, B, String],
   fail: Kleisli[F, Throwable, String],
   isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B])(implicit F: Temporal[F]) {
+  postCondition: Predicate[B]) {
 
   def withSuccNotesM(succ: B => F[String]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
@@ -193,7 +168,7 @@ final class NJRetryUnit[F[_], B] private[guard] (
 
   val run: F[B] =
     new NJRetry[F, Unit, B](
-      publisher = publisher,
+      publisher2 = publisher,
       params = params,
       kfab = Kleisli(_ => fb),
       succ = succ.local(_._2),

@@ -60,7 +60,7 @@ private[translators] object SimpleTextTranslator {
        |Message: ${evt.value.noSpaces}
        |""".stripMargin
 
-  private def serviceAlert(evt: ServiceAlert): String =
+  private def serviceAlert(evt: InstantAlert): String =
     s"""
        |Service Alert
        |Service: ${evt.metricName.metricRepr}

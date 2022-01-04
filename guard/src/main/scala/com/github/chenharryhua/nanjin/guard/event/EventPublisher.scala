@@ -24,7 +24,7 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
   val ongoings: Ref[F, Set[ActionInfo]],
   val serviceStatus: Ref[F, ServiceStatus],
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
-  channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
+  val channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   private val realZonedDateTime: F[ZonedDateTime] =
     for {
@@ -190,7 +190,6 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
         PassThrough(
           metricName = metricName,
           asError = asError,
-          serviceStatus = ss,
           timestamp = ts,
           serviceParams = serviceParams,
           value = json))
@@ -201,9 +200,8 @@ final private[guard] class EventPublisher[F[_]: UUIDGen](
       ts <- realZonedDateTime
       ss <- serviceStatus.get
       _ <- channel.send(
-        ServiceAlert(
+        InstantAlert(
           metricName = metricName,
-          serviceStatus = ss,
           timestamp = ts,
           importance = importance,
           serviceParams = serviceParams,

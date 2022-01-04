@@ -25,7 +25,7 @@ final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F
 
   override def apply(event: NJEvent): F[Unit] =
     event match {
-      case sa: ServiceAlert => translator.serviceAlert.run(sa).value.flatMap(_.traverse(logger.warn(_)).void)
+      case sa: InstantAlert => translator.serviceAlert.run(sa).value.flatMap(_.traverse(logger.warn(_)).void)
       case sp @ ServicePanic(_, _, _, _, error) =>
         translator.servicePanic
           .run(sp)

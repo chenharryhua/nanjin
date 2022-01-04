@@ -16,7 +16,6 @@ import java.util.UUID
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
-  def uuid: UUID
   def metricName: DigestedName
   final def show: String = NJEvent.showNJEvent.show(this)
   final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
@@ -30,7 +29,7 @@ object NJEvent {
 
 sealed trait ServiceEvent extends NJEvent {
   def serviceStatus: ServiceStatus
-  final override def uuid: UUID = serviceStatus.uuid
+  final def uuid: UUID = serviceStatus.uuid
 
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
 }
@@ -60,15 +59,6 @@ final case class ServiceStop(
   override val metricName: DigestedName = serviceParams.metricName
 }
 
-final case class ServiceAlert(
-  metricName: DigestedName,
-  serviceStatus: ServiceStatus,
-  timestamp: ZonedDateTime,
-  importance: Importance,
-  serviceParams: ServiceParams,
-  message: String
-) extends ServiceEvent
-
 final case class MetricsReport(
   reportType: MetricReportType,
   serviceStatus: ServiceStatus,
@@ -94,19 +84,10 @@ final case class MetricsReset(
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
 
-final case class PassThrough(
-  metricName: DigestedName,
-  asError: Boolean, // the payload json represent an error
-  serviceStatus: ServiceStatus,
-  timestamp: ZonedDateTime,
-  serviceParams: ServiceParams,
-  value: Json
-) extends ServiceEvent
-
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
   final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
-  final override def uuid: UUID                   = actionInfo.uuid
+  final def uuid: UUID                            = actionInfo.uuid
   final override def metricName: DigestedName     = actionInfo.actionParams.metricName
   final def actionParams: ActionParams            = actionInfo.actionParams
   final def launchTime: ZonedDateTime             = actionInfo.launchTime
@@ -143,3 +124,21 @@ final case class ActionSucc(
 ) extends ActionEvent {
   def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
 }
+
+sealed trait InstantEvent extends NJEvent {}
+
+final case class InstantAlert(
+  metricName: DigestedName,
+  timestamp: ZonedDateTime,
+  importance: Importance,
+  serviceParams: ServiceParams,
+  message: String
+) extends InstantEvent
+
+final case class PassThrough(
+  metricName: DigestedName,
+  asError: Boolean, // the payload json represent an error
+  timestamp: ZonedDateTime,
+  serviceParams: ServiceParams,
+  value: Json
+) extends InstantEvent

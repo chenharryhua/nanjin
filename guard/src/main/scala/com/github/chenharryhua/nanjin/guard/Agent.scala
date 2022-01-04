@@ -37,7 +37,7 @@ final class Agent[F[_]] private[guard] (
 
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
-      publisher = publisher,
+      publisher2 = publisher,
       params = ActionParams(agentParams),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),

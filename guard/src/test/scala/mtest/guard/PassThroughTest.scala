@@ -23,8 +23,8 @@ class PassThroughTest extends AnyFunSuite {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
       List.range(0, 9).traverse(n => action.broker("pt").asError.passThrough(PassThroughObject(n, "a")))
     }.map {
-      case PassThrough(_, _, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
-      case _                             => None
+      case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
+      case _                          => None
     }.unNone.compile.toList.unsafeRunSync()
     assert(a == 0)
     assert(b == "a")
@@ -37,8 +37,8 @@ class PassThroughTest extends AnyFunSuite {
       IO(1).map(_ => action.broker("pt").unsafePassThrough(PassThroughObject(1, "a")))
     }.debug()
       .map {
-        case PassThrough(_, _, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
-        case _                             => None
+        case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
+        case _                          => None
       }
       .unNone
       .compile
