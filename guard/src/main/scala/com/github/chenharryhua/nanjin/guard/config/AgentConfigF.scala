@@ -17,12 +17,13 @@ import scala.concurrent.duration.*
   isCounting: CountAction,
   isTiming: TimeAction,
   retry: ActionRetryParams,
-  alias: String)
+  catalog: String,
+  serviceParams: ServiceParams)
 
 private[guard] object AgentParams {
   implicit val showAgentParams: Show[AgentParams] = cats.derived.semiauto.show[AgentParams]
 
-  def apply(): AgentParams = AgentParams(
+  def apply(serviceParams: ServiceParams): AgentParams = AgentParams(
     spans = Nil,
     importance = Importance.Medium,
     isTerminate = ActionTermination.Yes,
@@ -33,7 +34,8 @@ private[guard] object AgentParams {
       capDelay = None,
       njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds)
     ),
-    alias = "action"
+    catalog = "action",
+    serviceParams = serviceParams
   )
 }
 
@@ -42,7 +44,7 @@ sealed private[guard] trait AgentConfigF[F]
 private object AgentConfigF {
   implicit val functorActionConfigF: Functor[AgentConfigF] = cats.derived.semiauto.functor[AgentConfigF]
 
-  final case class InitParams[K]() extends AgentConfigF[K]
+  final case class InitParams[K](serviceParams: ServiceParams) extends AgentConfigF[K]
 
   final case class WithMaxRetries[K](value: Int, cont: K) extends AgentConfigF[K]
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
@@ -55,11 +57,11 @@ private object AgentConfigF {
   final case class WithTiming[K](value: TimeAction, cont: K) extends AgentConfigF[K]
   final case class WithCounting[K](value: CountAction, cont: K) extends AgentConfigF[K]
 
-  final case class WithAlias[K](value: String, cont: K) extends AgentConfigF[K]
+  final case class WithCatalog[K](value: String, cont: K) extends AgentConfigF[K]
 
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
-      case InitParams()          => AgentParams()
+      case InitParams(sp)        => AgentParams(sp)
       case WithRetryPolicy(v, c) => AgentParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
       case WithMaxRetries(v, c)  => AgentParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
       case WithCapDelay(v, c)    => AgentParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
@@ -68,7 +70,7 @@ private object AgentConfigF {
       case WithSpans(v, c)       => AgentParams.spans.modify(_ ::: v)(c)
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
-      case WithAlias(v, c)       => AgentParams.alias.set(v)(c)
+      case WithCatalog(v, c)     => AgentParams.catalog.set(v)(c)
     }
 }
 
@@ -105,12 +107,12 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
 
   def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
 
-  def withAlias(alias: String): AgentConfig = AgentConfig(Fix(WithAlias(alias.toLowerCase, value)))
+  def withCatalog(alias: String): AgentConfig = AgentConfig(Fix(WithCatalog(alias.toLowerCase, value)))
 
   def evalConfig: AgentParams = scheme.cata(algebra).apply(value)
 }
 
 private[guard] object AgentConfig {
 
-  def apply(): AgentConfig = AgentConfig(Fix(AgentConfigF.InitParams[Fix[AgentConfigF]]()))
+  def apply(sp: ServiceParams): AgentConfig = AgentConfig(Fix(AgentConfigF.InitParams[Fix[AgentConfigF]](sp)))
 }

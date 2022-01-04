@@ -5,7 +5,8 @@ import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.datetime.beijingTime
 import com.github.chenharryhua.nanjin.guard.observers.isShowMetrics
 import com.github.chenharryhua.nanjin.guard.translators.nextTime
-import com.github.chenharryhua.nanjin.guard.{ServiceGuard, TaskGuard}
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZonedDateTime

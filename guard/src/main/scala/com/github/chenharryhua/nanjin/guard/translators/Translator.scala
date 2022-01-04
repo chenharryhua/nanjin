@@ -19,7 +19,7 @@ final case class Translator[F[_], A] private (
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],
   metricsReport: Kleisli[OptionT[F, *], MetricsReport, A],
   metricsReset: Kleisli[OptionT[F, *], MetricsReset, A],
-  serviceAlert: Kleisli[OptionT[F, *], ServiceAlert, A],
+  serviceAlert: Kleisli[OptionT[F, *], InstantAlert, A],
   passThrough: Kleisli[OptionT[F, *], PassThrough, A],
   actionStart: Kleisli[OptionT[F, *], ActionStart, A],
   actionRetry: Kleisli[OptionT[F, *], ActionRetry, A],
@@ -33,7 +33,7 @@ final case class Translator[F[_], A] private (
     case e: ServiceStop   => serviceStop.run(e).value
     case e: MetricsReport => metricsReport.run(e).value
     case e: MetricsReset  => metricsReset.run(e).value
-    case e: ServiceAlert  => serviceAlert.run(e).value
+    case e: InstantAlert  => serviceAlert.run(e).value
     case e: PassThrough   => passThrough.run(e).value
     case e: ActionStart   => actionStart.run(e).value
     case e: ActionRetry   => actionRetry.run(e).value
@@ -129,16 +129,16 @@ final case class Translator[F[_], A] private (
   def withMetricsReset(f: MetricsReset => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(metricsReset = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withServiceAlert(f: ServiceAlert => F[Option[A]]): Translator[F, A] =
+  def withServiceAlert(f: InstantAlert => F[Option[A]]): Translator[F, A] =
     copy(serviceAlert = Kleisli(a => OptionT(f(a))))
 
-  def withServiceAlert(f: ServiceAlert => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withServiceAlert(f: InstantAlert => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
     copy(serviceAlert = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withServiceAlert(f: ServiceAlert => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withServiceAlert(f: InstantAlert => F[A])(implicit F: Functor[F]): Translator[F, A] =
     copy(serviceAlert = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withServiceAlert(f: ServiceAlert => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withServiceAlert(f: InstantAlert => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(serviceAlert = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withPassThrough(f: PassThrough => F[Option[A]]): Translator[F, A] =
@@ -271,8 +271,8 @@ object Translator {
                 case Some(Left(l))  => Left(l)
               })))
 
-        val serviceAlert: Kleisli[OptionT[F, *], ServiceAlert, B] =
-          Kleisli((ss: ServiceAlert) =>
+        val serviceAlert: Kleisli[OptionT[F, *], InstantAlert, B] =
+          Kleisli((ss: InstantAlert) =>
             OptionT(F.tailRecM(a)(x =>
               f(x).serviceAlert.run(ss).value.map[Either[A, Option[B]]] {
                 case None           => Right(None)

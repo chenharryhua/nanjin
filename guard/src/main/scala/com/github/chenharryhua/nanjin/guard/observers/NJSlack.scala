@@ -41,13 +41,17 @@ final class NJSlack[F[_]] private[observers] (
       sns <- Stream.resource(snsResource)
       ref <- Stream.eval(F.ref[Set[ServiceParams]](Set.empty))
       event <- es.evalTap {
-        case ServiceStart(_, _, params)   => ref.update(_.incl(params))
-        case ServiceStop(_, _, params, _) => ref.update(_.excl(params))
-        case _                            => F.unit
+        case ServiceStart(_, _, params) => ref.update(_.incl(params))
+        case ServiceStop(_, _, params)  => ref.update(_.excl(params))
+        case _                          => F.unit
       }.evalTap(e =>
         translator.filter {
           case MetricsReport(rt, ss, _, ts, sp, _) =>
-            isShowMetrics(sp.metric.reportSchedule, ts, interval, ss.launchTime) || rt.isShow
+            isShowMetrics(
+              sp.metric.reportSchedule,
+              sp.toZonedDateTime(ts),
+              interval,
+              sp.toZonedDateTime(ss.launchTime)) || rt.isShow
           case ActionStart(ai)            => ai.isCritical
           case ActionSucc(ai, _, _, _)    => ai.isCritical
           case ActionRetry(ai, _, _, _)   => ai.isNotice

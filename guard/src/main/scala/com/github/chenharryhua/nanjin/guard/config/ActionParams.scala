@@ -65,24 +65,26 @@ final case class ActionParams private (
   isCounting: CountAction,
   isTiming: TimeAction,
   retry: ActionRetryParams,
-  alias: String) {
-  def startTitle: String  = s"$alias ${metricName.metricRepr} started"
-  def retryTitle: String  = s"$alias ${metricName.metricRepr} retrying"
-  def failedTitle: String = s"$alias ${metricName.metricRepr} failed"
-  def succedTitle: String = s"$alias ${metricName.metricRepr} succed"
+  catalog: String,
+  serviceParams: ServiceParams) {
+  def startTitle: String  = s"$catalog ${metricName.metricRepr} started"
+  def retryTitle: String  = s"$catalog ${metricName.metricRepr} retrying"
+  def failedTitle: String = s"$catalog ${metricName.metricRepr} failed"
+  def succedTitle: String = s"$catalog ${metricName.metricRepr} succed"
 }
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
-  def apply(agentParams: AgentParams, serviceParams: ServiceParams): ActionParams =
+  def apply(agentParams: AgentParams): ActionParams =
     ActionParams(
-      metricName = DigestedName(agentParams.spans, serviceParams),
+      metricName = DigestedName(agentParams.spans, agentParams.serviceParams),
       importance = agentParams.importance,
       isTerminate = agentParams.isTerminate,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
       retry = agentParams.retry,
-      alias = agentParams.alias
+      catalog = agentParams.catalog,
+      serviceParams = agentParams.serviceParams
     )
 }

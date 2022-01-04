@@ -10,7 +10,7 @@ import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
 
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -63,16 +63,17 @@ package object translators {
 
   private[translators] val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
-  private[translators] def localTimestampStr(timestamp: ZonedDateTime): String =
-    timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
+  private[translators] def localTimestampStr(zdt: ZonedDateTime): String =
+    zdt.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 
-  private[translators] def serviceStatusWord(ss: ServiceStatus): String =
+  private[translators] def serviceStatusWord(ss: ServiceStatus, zoneId: ZoneId): String =
     ss.fold(
       _ => "Service is Up",
       down =>
         down.upcommingRestart match {
           case Some(ts) =>
-            s"${down.cause} occured at ${localTimestampStr(down.crashAt)}. restart is scheduled at ${localTimestampStr(ts)}"
+            s"${down.cause} occured at ${localTimestampStr(
+              down.crashAt.atZone(zoneId))}. restart is scheduled at ${localTimestampStr(ts.atZone(zoneId))}"
           case None => down.cause
         }
     )
