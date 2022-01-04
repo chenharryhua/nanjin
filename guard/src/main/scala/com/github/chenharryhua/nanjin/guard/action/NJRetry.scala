@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
+import cats.effect.Temporal
 import cats.effect.kernel.{Outcome, Ref}
 import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
-import cats.effect.{Temporal, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ActionTermination, CountAction, TimeAction}
@@ -71,8 +71,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
 
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries
-    actionInfo <- F.realTimeInstant.flatMap(ts => Unique[F].unique.map(t => ActionInfo(actionParams, t.hash, ts)))
-    _ <- publisher.actionStart(actionInfo)
+    actionInfo <- publisher.actionStart(actionParams)
     res <- F.uncancelable(poll =>
       retry.mtl
         .retryingOnSomeErrors[B]

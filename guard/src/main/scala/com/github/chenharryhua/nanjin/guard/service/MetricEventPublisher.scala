@@ -51,7 +51,7 @@ final private class MetricEventPublisher[F[_]](
       ts <- F.realTimeInstant
       ss <- serviceStatus.get
       msg = cronExpr.flatMap { ce =>
-        ce.next(ts).map { next =>
+        ce.next(serviceParams.toZonedDateTime(ts)).map { next =>
           MetricsReset(
             resetType = MetricResetType.Scheduled(next),
             serviceStatus = ss,

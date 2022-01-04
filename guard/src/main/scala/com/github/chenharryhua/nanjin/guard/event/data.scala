@@ -13,7 +13,7 @@ import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.{Duration, Instant}
+import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -58,11 +58,11 @@ private[guard] object NJError {
 sealed trait MetricResetType
 object MetricResetType {
   implicit val showMetricResetType: Show[MetricResetType] = {
-    case Adhoc        => s"Adhoc Metric Reset"
-    case Scheduled(_) => s"Scheduled Metric Reset"
+    case Adhoc           => s"Adhoc Metric Reset"
+    case Scheduled(next) => s"Scheduled Metric Reset(next=$next)"
   }
   case object Adhoc extends MetricResetType
-  final case class Scheduled(next: Instant) extends MetricResetType
+  final case class Scheduled(next: ZonedDateTime) extends MetricResetType
 }
 
 @JsonCodec
@@ -87,19 +87,19 @@ object MetricReportType {
 }
 
 @JsonCodec
-final case class OngoingAction private (metricName: DigestedName, hashId: Int, launchTime: Instant)
+final case class OngoingAction private (metricName: DigestedName, uniqueId: Int, launchTime: Instant)
 object OngoingAction {
   implicit val showPendingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
   def apply(ai: ActionInfo): OngoingAction =
     OngoingAction(
       ai.actionParams.metricName,
-      ai.hashId,
+      ai.uniqueId,
       ai.launchTime
     )
 }
 
 @JsonCodec
-final case class ActionInfo(actionParams: ActionParams, hashId: Int, launchTime: Instant) {
+final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTime: Instant) {
   val isCritical: Boolean = actionParams.importance > Importance.High // Critical
   val isNotice: Boolean   = actionParams.importance > Importance.Medium // Hight + Critical
   val nonTrivial: Boolean = actionParams.importance > Importance.Low // Medium + High + Critical
