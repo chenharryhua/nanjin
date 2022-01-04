@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import cats.derived.auto.show.*
-import cats.implicits.{catsSyntaxEq, toShow}
 import cats.kernel.Eq
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
@@ -14,8 +13,7 @@ import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.temporal.ChronoUnit
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, Instant}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -60,11 +58,11 @@ private[guard] object NJError {
 sealed trait MetricResetType
 object MetricResetType {
   implicit val showMetricResetType: Show[MetricResetType] = {
-    case Adhoc           => s"Adhoc Metric Reset"
-    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show})"
+    case Adhoc        => s"Adhoc Metric Reset"
+    case Scheduled(_) => s"Scheduled Metric Reset"
   }
   case object Adhoc extends MetricResetType
-  final case class Scheduled(next: ZonedDateTime) extends MetricResetType
+  final case class Scheduled(next: Instant) extends MetricResetType
 }
 
 @JsonCodec
@@ -89,7 +87,7 @@ object MetricReportType {
 }
 
 @JsonCodec
-final case class OngoingAction private (metricName: DigestedName, hashId: Int, launchTime: ZonedDateTime)
+final case class OngoingAction private (metricName: DigestedName, hashId: Int, launchTime: Instant)
 object OngoingAction {
   implicit val showPendingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
   def apply(ai: ActionInfo): OngoingAction =
@@ -101,7 +99,7 @@ object OngoingAction {
 }
 
 @JsonCodec
-final case class ActionInfo(actionParams: ActionParams, hashId: Int, launchTime: ZonedDateTime) {
+final case class ActionInfo(actionParams: ActionParams, hashId: Int, launchTime: Instant) {
   val isCritical: Boolean = actionParams.importance > Importance.High // Critical
   val isNotice: Boolean   = actionParams.importance > Importance.Medium // Hight + Critical
   val nonTrivial: Boolean = actionParams.importance > Importance.Low // Medium + High + Critical
@@ -114,15 +112,15 @@ object ActionInfo {
 @JsonCodec
 sealed trait ServiceStatus {
   def uuid: UUID
-  def launchTime: ZonedDateTime
+  def launchTime: Instant
   def isUp: Boolean
   def isDown: Boolean
   def isStopped: Boolean
 
-  def goUp(now: ZonedDateTime): ServiceStatus
-  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): ServiceStatus
+  def goUp(now: Instant): ServiceStatus
+  def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): ServiceStatus
 
-  final def upTime(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+  final def upTime(now: Instant): Duration = Duration.between(launchTime, now)
   final def fold[A](up: ServiceStatus.Up => A, down: ServiceStatus.Down => A): A =
     this match {
       case s: ServiceStatus.Up   => up(s)
@@ -143,13 +141,13 @@ object ServiceStatus {
   @JsonCodec
   final case class Up private[ServiceStatus] (
     uuid: UUID,
-    launchTime: ZonedDateTime,
-    lastRestartAt: ZonedDateTime,
-    lastCrashAt: ZonedDateTime)
+    launchTime: Instant,
+    lastRestartAt: Instant,
+    lastCrashAt: Instant)
       extends ServiceStatus {
 
-    override def goUp(now: ZonedDateTime): Up = this
-    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
+    override def goUp(now: Instant): Up = this
+    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down =
       Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
 
     override val isUp: Boolean      = true
@@ -158,20 +156,20 @@ object ServiceStatus {
   }
 
   object Up {
-    def apply(uuid: UUID, launchTime: ZonedDateTime): ServiceStatus = Up(uuid, launchTime, launchTime, launchTime)
+    def apply(uuid: UUID, launchTime: Instant): ServiceStatus = Up(uuid, launchTime, launchTime, launchTime)
   }
 
   @JsonCodec
   final case class Down private[ServiceStatus] (
     uuid: UUID,
-    launchTime: ZonedDateTime,
-    crashAt: ZonedDateTime,
-    upcommingRestart: Option[ZonedDateTime],
+    launchTime: Instant,
+    crashAt: Instant,
+    upcommingRestart: Option[Instant],
     cause: String)
       extends ServiceStatus {
 
-    override def goUp(now: ZonedDateTime): Up = Up(uuid, launchTime, now, crashAt)
-    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down = this
+    override def goUp(now: Instant): Up = Up(uuid, launchTime, now, crashAt)
+    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down = this
 
     override val isUp: Boolean      = false
     override val isDown: Boolean    = true

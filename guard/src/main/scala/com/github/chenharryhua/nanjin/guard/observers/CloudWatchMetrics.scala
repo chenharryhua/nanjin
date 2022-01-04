@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, NJEvent}
 import fs2.{Pipe, Pull, Stream}
 
-import java.time.ZonedDateTime
+import java.time.Instant
 import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
@@ -26,7 +26,7 @@ final private case class MetricKey(
   task: String,
   service: String,
   metricName: String) {
-  def metricDatum(ts: ZonedDateTime, count: Long): MetricDatum =
+  def metricDatum(ts: Instant, count: Long): MetricDatum =
     new MetricDatum()
       .withDimensions(
         new Dimension().withName("Task").withValue(task),
@@ -35,7 +35,7 @@ final private case class MetricKey(
       )
       .withMetricName(metricName)
       .withUnit(standardUnit)
-      .withTimestamp(Date.from(ts.toInstant))
+      .withTimestamp(Date.from(ts))
       .withValue(count)
 }
 

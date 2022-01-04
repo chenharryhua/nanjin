@@ -112,7 +112,8 @@ final class Agent[F[_]] private[service] (
       ongoings = ongoings,
       lastCounters = lastCounters)
 
-  def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus, ongoings = ongoings)
+  def runtime: NJRuntimeInfo[F] =
+    new NJRuntimeInfo[F](serviceParams = serviceParams, serviceStatus = serviceStatus, ongoings = ongoings)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))

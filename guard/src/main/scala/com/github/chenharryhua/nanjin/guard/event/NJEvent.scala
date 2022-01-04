@@ -10,13 +10,15 @@ import io.circe.{Decoder, Encoder, Json}
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 
 sealed trait NJEvent {
-  def timestamp: ZonedDateTime // event timestamp - when the event occurs
+  def timestamp: Instant // event timestamp - when the event occurs
   def serviceParams: ServiceParams
   def metricName: DigestedName
+
+  final def zoneId: ZoneId = serviceParams.taskParams.zoneId
 
   final def show: String = NJEvent.showNJEvent.show(this)
   final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
@@ -35,27 +37,28 @@ sealed trait ServiceEvent extends NJEvent {
 
   final def uuid: UUID       = serviceStatus.uuid
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
+
 }
 
-final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime, serviceParams: ServiceParams)
+final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: Instant, serviceParams: ServiceParams)
     extends ServiceEvent
 
 final case class ServicePanic(
   serviceStatus: ServiceStatus,
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   retryDetails: RetryDetails,
   serviceParams: ServiceParams,
   error: NJError
 ) extends ServiceEvent
 
-final case class ServiceStop(serviceStatus: ServiceStatus, timestamp: ZonedDateTime, serviceParams: ServiceParams)
+final case class ServiceStop(serviceStatus: ServiceStatus, timestamp: Instant, serviceParams: ServiceParams)
     extends ServiceEvent
 
 final case class MetricsReport(
   reportType: MetricReportType,
   serviceStatus: ServiceStatus,
   ongoings: List[OngoingAction],
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
@@ -65,7 +68,7 @@ final case class MetricsReport(
 final case class MetricsReset(
   resetType: MetricResetType,
   serviceStatus: ServiceStatus,
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
@@ -79,25 +82,25 @@ sealed trait ActionEvent extends NJEvent {
   final override def metricName: DigestedName     = actionInfo.actionParams.metricName
 
   final def actionParams: ActionParams = actionInfo.actionParams
-  final def launchTime: ZonedDateTime  = actionInfo.launchTime
+  final def launchTime: Instant        = actionInfo.launchTime
 
   final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
 }
 
 final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
-  override val timestamp: ZonedDateTime = actionInfo.launchTime
+  override val timestamp: Instant = actionInfo.launchTime
 }
 
 final case class ActionRetry(
   actionInfo: ActionInfo,
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
     extends ActionEvent
 
 final case class ActionFail(
   actionInfo: ActionInfo,
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
@@ -105,7 +108,7 @@ final case class ActionFail(
 
 final case class ActionSucc(
   actionInfo: ActionInfo,
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   numRetries: Int, // number of retries before success
   notes: Notes // success notes
 ) extends ActionEvent
@@ -114,7 +117,7 @@ sealed trait InstantEvent extends NJEvent
 
 final case class InstantAlert(
   metricName: DigestedName,
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   importance: Importance,
   serviceParams: ServiceParams,
   message: String
@@ -123,7 +126,7 @@ final case class InstantAlert(
 final case class PassThrough(
   metricName: DigestedName,
   asError: Boolean, // the payload json represent an error
-  timestamp: ZonedDateTime,
+  timestamp: Instant,
   serviceParams: ServiceParams,
   value: Json
 ) extends InstantEvent

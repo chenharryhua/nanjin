@@ -7,10 +7,11 @@ import com.github.chenharryhua.nanjin.guard.event.{InstantAlert, NJEvent, PassTh
 import fs2.concurrent.Channel
 import io.circe.Json
 
-final private class InstantEventPublisher[F[_]: Temporal](channel: Channel[F, NJEvent], serviceParams: ServiceParams) {
+final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams)(implicit
+  F: Temporal[F]) {
   def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =
     for {
-      ts <- realZonedDateTime(serviceParams.taskParams.zoneId)
+      ts <- F.realTimeInstant
       _ <- channel.send(
         PassThrough(
           metricName = metricName,
@@ -22,7 +23,7 @@ final private class InstantEventPublisher[F[_]: Temporal](channel: Channel[F, NJ
 
   def alert(metricName: DigestedName, msg: String, importance: Importance): F[Unit] =
     for {
-      ts <- realZonedDateTime(serviceParams.taskParams.zoneId)
+      ts <- F.realTimeInstant
       _ <- channel.send(
         InstantAlert(
           metricName = metricName,

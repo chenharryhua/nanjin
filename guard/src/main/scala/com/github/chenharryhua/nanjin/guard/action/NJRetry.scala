@@ -7,11 +7,13 @@ import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.effect.{Temporal, Unique}
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ActionTermination}
+import com.codahale.metrics.{Counter, MetricRegistry, Timer}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ActionTermination, CountAction, TimeAction}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
+
+import java.time.{Duration, Instant}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
@@ -54,12 +56,23 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   def withPostCondition(postCondition: B => Boolean): NJRetry[F, A, B] =
     copy(postCondition = Predicate(postCondition))
 
+  private lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
+  private lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
+  private lazy val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
+
+  private def timingAndCounting(isSucc: Boolean, launchTime: Instant, now: Instant): Unit = {
+    if (actionParams.isTiming === TimeAction.Yes) timer.update(Duration.between(launchTime, now))
+    if (actionParams.isCounting === CountAction.Yes) {
+      if (isSucc) succCounter.inc(1) else failCounter.inc(1)
+    }
+  }
+
+  private val publisher: ActionEventPublisher[F] = new ActionEventPublisher[F](channel, ongoings)
+
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries
-    ts <- realZonedDateTime(actionParams.serviceParams.taskParams.zoneId)
-    hash <- Unique[F].unique.map(_.hash)
-    publisher = new ActionEventPublisher[F](ActionInfo(actionParams, hash, ts), metricRegistry, channel, ongoings)
-    _ <- publisher.actionStart
+    actionInfo <- F.realTimeInstant.flatMap(ts => Unique[F].unique.map(t => ActionInfo(actionParams, t.hash, ts)))
+    _ <- publisher.actionStart(actionInfo)
     res <- F.uncancelable(poll =>
       retry.mtl
         .retryingOnSomeErrors[B]
@@ -68,7 +81,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
           isWorthRetry.map(F.pure).run,
           (error, details) =>
             details match {
-              case wdr: WillDelayAndRetry => publisher.actionRetry(retryCount, wdr, error)
+              case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
               case _: GivingUp            => F.unit
             }
         ) {
@@ -89,9 +102,17 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
         .guaranteeCase {
           case Outcome.Canceled() =>
             val error = ActionException.ActionCanceledExternally
-            publisher.actionFail[A](retryCount, input, error, fail)
-          case Outcome.Errored(error)    => publisher.actionFail[A](retryCount, input, error, fail)
-          case Outcome.Succeeded(output) => publisher.actionSucc[A, B](retryCount, input, output, succ)
+            publisher
+              .actionFail[A](actionInfo, retryCount, input, error, fail)
+              .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+          case Outcome.Errored(error) =>
+            publisher
+              .actionFail[A](actionInfo, retryCount, input, error, fail)
+              .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+          case Outcome.Succeeded(output) =>
+            publisher
+              .actionSucc[A, B](actionInfo, retryCount, input, output, succ)
+              .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
         })
   } yield res
 }

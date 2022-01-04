@@ -1,10 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Ref, RefSource, Temporal}
-import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.action.realZonedDateTime
 import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
@@ -13,18 +11,18 @@ import fs2.concurrent.Channel
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-final private class MetricEventPublisher[F[_]: Temporal](
+final private class MetricEventPublisher[F[_]](
   serviceParams: ServiceParams,
   channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
   serviceStatus: RefSource[F, ServiceStatus],
   ongoings: RefSource[F, Set[ActionInfo]],
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters]
-) {
+)(implicit F: Temporal[F]) {
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
-      ts <- realZonedDateTime(serviceParams.taskParams.zoneId)
+      ts <- F.realTimeInstant
       ogs <- ongoings.get
       oldLast <- lastCountersRef.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
       ss <- serviceStatus.get
@@ -50,7 +48,7 @@ final private class MetricEventPublisher[F[_]: Temporal](
     */
   def metricsReset(cronExpr: Option[CronExpr]): F[Unit] =
     for {
-      ts <- realZonedDateTime(serviceParams.taskParams.zoneId)
+      ts <- F.realTimeInstant
       ss <- serviceStatus.get
       msg = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>

@@ -11,28 +11,24 @@ import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStart, Servic
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import munit.DisciplineSuite
 
-import java.time.ZonedDateTime
+import java.time.{Instant, ZonedDateTime}
 import java.util.UUID
-import cats._
-import cats.laws.discipline.arbitrary._
-import cats.syntax.all._
-import org.scalacheck.Prop._
+import cats.*
+import cats.laws.discipline.arbitrary.*
+import cats.syntax.all.*
+import org.scalacheck.Prop.*
 
 class TranslatorMonadTest extends DisciplineSuite {
   val service = TaskGuard[IO]("monad").service("tailrecM")
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
     ExhaustiveCheck.instance(
-      List(
-        ServiceStart(
-          ServiceStatus.Up(UUID.randomUUID(), ZonedDateTime.now()),
-          ZonedDateTime.now(),
-          service.serviceParams)))
+      List(ServiceStart(ServiceStatus.Up(UUID.randomUUID(), Instant.now()), Instant.now(), service.serviceParams)))
 
   implicit def translatorEq: Eq[Translator[Eval, Int]] =
     Eq.by[Translator[Eval, Int], NJEvent => Eval[Option[Int]]](_.translate)
 
   implicit val iso: Isomorphisms[Translator[Eval, *]] = Isomorphisms.invariant[Translator[Eval, *]]
 
-  //checkAll("Translator.MonadLaws", MonadTests[Translator[Eval, *]].monad[Int, Int, Int])
+  // checkAll("Translator.MonadLaws", MonadTests[Translator[Eval, *]].monad[Int, Int, Int])
 
 }

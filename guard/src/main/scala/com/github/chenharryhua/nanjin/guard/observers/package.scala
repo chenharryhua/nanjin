@@ -6,20 +6,20 @@ import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, Instant}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object observers {
   def isShowMetrics(
     reportSchedule: Option[Either[FiniteDuration, CronExpr]],
-    now: ZonedDateTime,
+    now: Instant,
     interval: Option[FiniteDuration],
-    launchTime: ZonedDateTime): Boolean =
+    launchTime: Instant): Boolean =
     interval match {
       case None => true
       case Some(iv) =>
-        val border: ZonedDateTime =
+        val border: Instant =
           launchTime.plus(((Duration.between(launchTime, now).toScala / iv).toLong * iv).toJava)
         if (now === border) true
         else

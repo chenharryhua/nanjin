@@ -1,10 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.Temporal
-import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance}
-
-import java.time.{ZoneId, ZonedDateTime}
 package object action {
 
   /** 01 - 09: Errors
@@ -38,8 +34,5 @@ package object action {
   private[action] def actionFailMRName(ap: ActionParams): String  = s"04.${ap.catalog}.${ap.metricName.metricRepr}.fail"
   private[action] def actionSuccMRName(ap: ActionParams): String  = s"28.${ap.catalog}.${ap.metricName.metricRepr}.succ"
   private[action] def actionTimerMRName(ap: ActionParams): String = s"${ap.catalog}.${ap.metricName.metricRepr}"
-
-  def realZonedDateTime[F[_]](zoneId: ZoneId)(implicit F: Temporal[F]): F[ZonedDateTime] =
-    F.realTimeInstant.map(_.atZone(zoneId))
 
 }

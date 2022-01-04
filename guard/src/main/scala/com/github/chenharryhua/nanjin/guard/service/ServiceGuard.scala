@@ -15,6 +15,7 @@ import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
+
 // format: off
 /** @example
   *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
@@ -53,7 +54,7 @@ final class ServiceGuard[F[_]] private[guard] (
     for {
       serviceStatus <- Stream.eval(for {
         uuid <- UUIDGen.randomUUID
-        ts <- F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
+        ts <- F.realTimeInstant
         ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
       } yield ssRef)
       lastCounters <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))

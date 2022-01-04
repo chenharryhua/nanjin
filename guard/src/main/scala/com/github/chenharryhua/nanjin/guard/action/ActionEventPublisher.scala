@@ -3,42 +3,27 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.Kleisli
 import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
-import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
-import com.codahale.metrics.{Counter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.config.{CountAction, TimeAction}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails.WillDelayAndRetry
 
-import java.time.{Duration, ZonedDateTime}
+import java.time.Instant
 
-final private class ActionEventPublisher[F[_]: UUIDGen: Temporal](
-  actionInfo: ActionInfo,
-  metricRegistry: MetricRegistry,
+final private class ActionEventPublisher[F[_]: UUIDGen](
   channel: Channel[F, NJEvent],
-  ongoings: Ref[F, Set[ActionInfo]]) {
-  private lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionInfo.actionParams))
-  private lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionInfo.actionParams))
-  private lazy val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionInfo.actionParams))
+  ongoings: Ref[F, Set[ActionInfo]])(implicit F: Temporal[F]) {
 
-  private def timingAndCounting(isSucc: Boolean, now: ZonedDateTime): Unit = {
-    if (actionInfo.actionParams.isTiming === TimeAction.Yes) timer.update(Duration.between(actionInfo.launchTime, now))
-    if (actionInfo.actionParams.isCounting === CountAction.Yes) {
-      if (isSucc) succCounter.inc(1) else failCounter.inc(1)
-    }
-  }
-
-  def actionStart: F[Unit] =
+  def actionStart(actionInfo: ActionInfo): F[Unit] =
     (channel.send(ActionStart(actionInfo)) *> ongoings.update(_.incl(actionInfo))).whenA(actionInfo.isNotice)
 
   def actionRetry(
+    actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
     willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable
-  ): F[Unit] =
+    ex: Throwable): F[Unit] =
     for {
-      ts <- realZonedDateTime(actionInfo.actionParams.serviceParams.taskParams.zoneId)
+      ts <- F.realTimeInstant
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(
         ActionRetry(
@@ -50,11 +35,12 @@ final private class ActionEventPublisher[F[_]: UUIDGen: Temporal](
     } yield ()
 
   def actionSucc[A, B](
+    actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
     input: A,
     output: F[B],
-    buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
-    realZonedDateTime(actionInfo.actionParams.serviceParams.taskParams.zoneId).flatMap { ts =>
+    buildNotes: Kleisli[F, (A, B), String]): F[Instant] =
+    F.realTimeInstant.flatMap { ts =>
       val publish: F[Unit] = for {
         result <- output
         num <- retryCount.get
@@ -62,17 +48,17 @@ final private class ActionEventPublisher[F[_]: UUIDGen: Temporal](
         _ <- channel.send(ActionSucc(actionInfo, ts, num, Notes(notes)))
         _ <- ongoings.update(_.excl(actionInfo))
       } yield ()
-      publish.whenA(actionInfo.isNotice).map(_ => timingAndCounting(isSucc = true, ts))
+      publish.whenA(actionInfo.isNotice).as(ts)
     }
 
   def actionFail[A](
+    actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
     input: A,
     ex: Throwable,
-    buildNotes: Kleisli[F, (A, Throwable), String]
-  ): F[Unit] =
+    buildNotes: Kleisli[F, (A, Throwable), String]): F[Instant] =
     for {
-      ts <- realZonedDateTime(actionInfo.actionParams.serviceParams.taskParams.zoneId)
+      ts <- F.realTimeInstant
       uuid <- UUIDGen.randomUUID[F]
       numRetries <- retryCount.get
       notes <- buildNotes.run((input, ex))
@@ -84,5 +70,5 @@ final private class ActionEventPublisher[F[_]: UUIDGen: Temporal](
           notes = Notes(notes),
           error = NJError(uuid, ex)))
       _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isNotice)
-    } yield timingAndCounting(isSucc = false, ts)
+    } yield ts
 }
