@@ -34,12 +34,14 @@ private[translators] object HtmlTranslator extends all {
       table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 100%;")(
         tr(
           th(style := tds)("name"),
+          th(style := tds)("digest"),
           th(style := tds)("so far took"),
           th(style := tds)("launch time"),
           th(style := tds)("id")),
         oas.map(a =>
           tr(
-            td(style := tds)(a.metricName.metricRepr),
+            td(style := tds)(a.metricName.origin),
+            td(style := tds)(a.metricName.digest),
             td(style := tds)(fmt.format(a.launchTime, now)),
             td(style := tds)(localTimestampStr(a.launchTime.atZone(zoneId))),
             td(style := tds)(a.uniqueId.show)
