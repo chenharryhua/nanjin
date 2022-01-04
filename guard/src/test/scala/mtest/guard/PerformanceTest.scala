@@ -8,9 +8,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 
-@Ignore
+//@Ignore
 class PerformanceTest extends AnyFunSuite {
-  val service = TaskGuard[IO]("performance").service("actions")
+  val service = TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(500))
   val take    = 10.seconds
 
   test("critical") {

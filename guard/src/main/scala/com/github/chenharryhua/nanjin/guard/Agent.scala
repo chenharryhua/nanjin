@@ -2,31 +2,35 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import cats.{Alternative, Traverse}
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig, AgentParams, DigestedName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
+import fs2.concurrent.Channel
 
 import java.time.ZoneId
 
 final class Agent[F[_]] private[guard] (
-  publisher: EventPublisher[F],
+  metricRegistry: MetricRegistry,
+  channel: Channel[F, NJEvent],
+  ongoings: Ref[F, Set[ActionInfo]],
   dispatcher: Dispatcher[F],
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
   val agentParams: AgentParams     = agentConfig.evalConfig
-  val serviceParams: ServiceParams = publisher.serviceParams
-  val zoneId: ZoneId               = publisher.serviceParams.taskParams.zoneId
-  val digestedName: DigestedName   = DigestedName(agentParams.spans, publisher.serviceParams)
+  val serviceParams: ServiceParams = agentParams.serviceParams
+  val zoneId: ZoneId               = agentParams.serviceParams.taskParams.zoneId
+  val digestedName: DigestedName   = DigestedName(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
-    new Agent[F](publisher, dispatcher, f(agentConfig))
+    new Agent[F](metricRegistry, channel, ongoings, dispatcher, f(agentConfig))
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
@@ -37,8 +41,10 @@ final class Agent[F[_]] private[guard] (
 
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
-      publisher2 = publisher,
-      params = ActionParams(agentParams),
+      metricRegistry: MetricRegistry,
+      channel: Channel[F, NJEvent],
+      ongoings: Ref[F, Set[ActionInfo]],
+      actionParams = ActionParams(agentParams),
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
@@ -47,9 +53,11 @@ final class Agent[F[_]] private[guard] (
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
+      metricRegistry = metricRegistry,
+      channel = channel,
+      ongoings = ongoings,
+      actionParams = ActionParams(agentParams),
       fb = fb,
-      publisher = publisher,
-      params = ActionParams(agentParams),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Reader(_ => true),
@@ -61,34 +69,38 @@ final class Agent[F[_]] private[guard] (
   def broker(metricName: String): NJBroker[F] =
     new NJBroker[F](
       DigestedName(agentParams.spans :+ metricName, agentParams.serviceParams),
-      dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F],
+      dispatcher,
+      metricRegistry,
+      channel,
+      agentParams.serviceParams,
       isCountAsError = false)
 
   def alert(alertName: String): NJAlert[F] =
     new NJAlert(
       DigestedName(agentParams.spans :+ alertName, agentParams.serviceParams),
-      dispatcher: Dispatcher[F],
-      publisher: EventPublisher[F])
+      dispatcher,
+      metricRegistry,
+      channel,
+      agentParams.serviceParams)
 
   def counter(counterName: String): NJCounter[F] =
     new NJCounter(
       DigestedName(agentParams.spans :+ counterName, agentParams.serviceParams),
-      publisher.metricRegistry,
+      metricRegistry,
       isCountAsError = false)
 
   def meter(meterName: String): NJMeter[F] =
-    new NJMeter[F](DigestedName(agentParams.spans :+ meterName, agentParams.serviceParams), publisher.metricRegistry)
+    new NJMeter[F](DigestedName(agentParams.spans :+ meterName, agentParams.serviceParams), metricRegistry)
 
   def histogram(metricName: String): NJHistogram[F] =
     new NJHistogram[F](
       DigestedName(agentParams.spans :+ metricName, agentParams.serviceParams),
-      publisher.metricRegistry
+      metricRegistry
     )
 
-  val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher)
+  // val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher)
 
-  def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](publisher.serviceStatus, publisher.ongoings)
+  // def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](publisher.serviceStatus, ongoings)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))
