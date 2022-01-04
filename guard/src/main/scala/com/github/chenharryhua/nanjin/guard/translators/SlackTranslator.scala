@@ -108,8 +108,7 @@ private[translators] object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
-              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)),
-            metricsSection(evt.snapshot)
+              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show))
           )
         )
       )

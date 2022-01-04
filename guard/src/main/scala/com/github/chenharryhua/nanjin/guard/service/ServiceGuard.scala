@@ -56,15 +56,16 @@ final class ServiceGuard[F[_]] private[guard] (
         ts <- F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
         ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
       } yield ssRef)
-      lastCountersRef <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
+      lastCounters <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
       ongoings <- Stream.eval(F.ref(Set.empty[ActionInfo])) // currently running actions
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
+
         val metricEventPublisher: MetricEventPublisher[F] =
-          new MetricEventPublisher[F](serviceParams, serviceStatus, metricRegistry, ongoings, lastCountersRef, channel)
+          new MetricEventPublisher[F](serviceParams, serviceStatus, channel, metricRegistry, ongoings, lastCounters)
 
         val serviceEventPublisher: ServiceEventPublisher[F] =
-          new ServiceEventPublisher[F](serviceParams, serviceStatus, metricRegistry, ongoings, channel)
+          new ServiceEventPublisher[F](serviceParams, serviceStatus, channel, ongoings)
 
         val theService: F[A] = retry.mtl
           .retryingOnAllErrors(
@@ -78,7 +79,7 @@ final class ServiceGuard[F[_]] private[guard] (
                   channel,
                   ongoings,
                   dispatcher,
-                  lastCountersRef,
+                  lastCounters,
                   AgentConfig(serviceParams))))
           }
           .guarantee(serviceEventPublisher.serviceStop <* channel.close)

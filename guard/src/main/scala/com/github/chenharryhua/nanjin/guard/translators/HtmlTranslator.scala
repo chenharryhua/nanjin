@@ -70,8 +70,7 @@ private[translators] object HtmlTranslator extends all {
     div(
       h3(style := "color:blue")(s"Service Stopped"),
       timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      pre(evt.snapshot.show)
+      hostServiceText(evt.serviceParams)
     )
 
   private def metricsReport(evt: MetricsReport): Text.TypedTag[String] = {

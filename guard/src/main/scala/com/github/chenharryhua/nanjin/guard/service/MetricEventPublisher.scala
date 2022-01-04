@@ -16,10 +16,11 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final private[service] class MetricEventPublisher[F[_]: Temporal](
   serviceParams: ServiceParams,
   serviceStatus: Ref[F, ServiceStatus],
+  channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
   ongoings: Ref[F, Set[ActionInfo]],
-  lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
-  channel: Channel[F, NJEvent]) {
+  lastCountersRef: Ref[F, MetricSnapshot.LastCounters]
+) {
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {

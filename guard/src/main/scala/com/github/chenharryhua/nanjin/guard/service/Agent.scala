@@ -22,7 +22,7 @@ final class Agent[F[_]] private[guard] (
   channel: Channel[F, NJEvent],
   ongoings: Ref[F, Set[ActionInfo]],
   dispatcher: Dispatcher[F],
-  lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
+  lastCounters: Ref[F, MetricSnapshot.LastCounters],
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
@@ -32,7 +32,7 @@ final class Agent[F[_]] private[guard] (
   val digestedName: DigestedName   = DigestedName(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
-    new Agent[F](metricRegistry, serviceStatus, channel, ongoings, dispatcher, lastCountersRef, f(agentConfig))
+    new Agent[F](metricRegistry, serviceStatus, channel, ongoings, dispatcher, lastCounters, f(agentConfig))
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
@@ -101,7 +101,7 @@ final class Agent[F[_]] private[guard] (
     )
 
   val metrics: NJMetrics[F] =
-    new NJMetrics[F](dispatcher, serviceStatus, ongoings, channel, metricRegistry, lastCountersRef, serviceParams)
+    new NJMetrics[F](dispatcher, serviceParams, serviceStatus, channel, metricRegistry, ongoings, lastCounters)
 
   def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus, ongoings)
 

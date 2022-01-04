@@ -17,6 +17,7 @@ sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
   def metricName: DigestedName
+
   final def show: String = NJEvent.showNJEvent.show(this)
   final def asJson: Json = NJEvent.encoderNJEvent.apply(this)
 }
@@ -29,16 +30,15 @@ object NJEvent {
 
 sealed trait ServiceEvent extends NJEvent {
   def serviceStatus: ServiceStatus
-  final def uuid: UUID = serviceStatus.uuid
 
+  final override def metricName: DigestedName = serviceParams.metricName
+
+  final def uuid: UUID       = serviceStatus.uuid
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
 }
 
 final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime, serviceParams: ServiceParams)
-    extends ServiceEvent {
-  override val metricName: DigestedName = serviceParams.metricName
-
-}
+    extends ServiceEvent
 
 final case class ServicePanic(
   serviceStatus: ServiceStatus,
@@ -46,18 +46,10 @@ final case class ServicePanic(
   retryDetails: RetryDetails,
   serviceParams: ServiceParams,
   error: NJError
-) extends ServiceEvent {
-  override val metricName: DigestedName = serviceParams.metricName
-}
+) extends ServiceEvent
 
-final case class ServiceStop(
-  serviceStatus: ServiceStatus,
-  timestamp: ZonedDateTime,
-  serviceParams: ServiceParams,
-  snapshot: MetricSnapshot
-) extends ServiceEvent {
-  override val metricName: DigestedName = serviceParams.metricName
-}
+final case class ServiceStop(serviceStatus: ServiceStatus, timestamp: ZonedDateTime, serviceParams: ServiceParams)
+    extends ServiceEvent
 
 final case class MetricsReport(
   reportType: MetricReportType,
@@ -67,8 +59,6 @@ final case class MetricsReport(
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
-  override val metricName: DigestedName = serviceParams.metricName
-
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
 
@@ -79,18 +69,21 @@ final case class MetricsReset(
   serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
-  override val metricName: DigestedName = serviceParams.metricName
-
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
+
   final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
-  final def uuid: UUID                            = actionInfo.uuid
   final override def metricName: DigestedName     = actionInfo.actionParams.metricName
-  final def actionParams: ActionParams            = actionInfo.actionParams
-  final def launchTime: ZonedDateTime             = actionInfo.launchTime
+
+  final def uuid: UUID = actionInfo.uuid
+
+  final def actionParams: ActionParams = actionInfo.actionParams
+  final def launchTime: ZonedDateTime  = actionInfo.launchTime
+
+  final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
 }
 
 final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
@@ -102,9 +95,7 @@ final case class ActionRetry(
   timestamp: ZonedDateTime,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
-    extends ActionEvent {
-  def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
-}
+    extends ActionEvent
 
 final case class ActionFail(
   actionInfo: ActionInfo,
@@ -112,20 +103,16 @@ final case class ActionFail(
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
-    extends ActionEvent {
-  def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
-}
+    extends ActionEvent
 
 final case class ActionSucc(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before success
   notes: Notes // success notes
-) extends ActionEvent {
-  def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
-}
+) extends ActionEvent
 
-sealed trait InstantEvent extends NJEvent {}
+sealed trait InstantEvent extends NJEvent
 
 final case class InstantAlert(
   metricName: DigestedName,

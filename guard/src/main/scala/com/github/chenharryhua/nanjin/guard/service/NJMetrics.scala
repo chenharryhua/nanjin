@@ -10,14 +10,15 @@ import fs2.concurrent.Channel
 
 final class NJMetrics[F[_]: Temporal] private[guard] (
   dispatcher: Dispatcher[F],
+  serviceParams: ServiceParams,
   serviceStatus: Ref[F, ServiceStatus],
-  ongoings: Ref[F, Set[ActionInfo]],
   channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
-  lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
-  serviceParams: ServiceParams) {
+  ongoings: Ref[F, Set[ActionInfo]],
+  lastCounters: Ref[F, MetricSnapshot.LastCounters]
+) {
   private val metricEventPublisher: MetricEventPublisher[F] =
-    new MetricEventPublisher[F](serviceParams, serviceStatus, metricRegistry, ongoings, lastCountersRef, channel)
+    new MetricEventPublisher[F](serviceParams, serviceStatus, channel, metricRegistry, ongoings, lastCounters)
 
   def reset: F[Unit]      = metricEventPublisher.metricsReset(None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)

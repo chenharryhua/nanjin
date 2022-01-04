@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStop}
@@ -52,25 +53,31 @@ class PassThroughTest extends AnyFunSuite {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.secondly))
       .eventStream(ag =>
-        ag.counter("counter")
-          .inc(100) >> ag.metrics.reset >> ag.counter("counter").asError.inc(1).delayBy(1.second).replicateA(3))
+        ag.counter("counter").inc(100) >> ag.metrics.reset >> ag
+          .counter("counter")
+          .asError
+          .inc(1)
+          .delayBy(1.second)
+          .replicateA(3) >> ag.metrics.fullReport)
       .debug()
+      .filter(_.isInstanceOf[MetricsReport])
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStop].snapshot.counterMap("04.counter.[counter][0135a608].error") == 3)
+    assert(last.asInstanceOf[MetricsReport].snapshot.counterMap("03.counter.[counter][0135a608].error") == 3)
   }
 
   test("alert") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.c997))
-      .eventStream(_.alert("oops").error("message").delayBy(1.second))
+      .eventStream(ag => ag.alert("oops").error("message").delayBy(1.second) >> ag.metrics.report(MetricFilter.ALL))
       .debug()
+      .filter(_.isInstanceOf[MetricsReport])
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[ServiceStop].snapshot.counterMap("02.alert.[oops][a32b945e].error") == 1)
+    assert(last.asInstanceOf[MetricsReport].snapshot.counterMap("01.alert.[oops][a32b945e].error") == 1)
   }
 
   test("meter") {
