@@ -78,8 +78,6 @@ sealed trait ActionEvent extends NJEvent {
   final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
   final override def metricName: DigestedName     = actionInfo.actionParams.metricName
 
-  final def uuid: UUID = actionInfo.uuid
-
   final def actionParams: ActionParams = actionInfo.actionParams
   final def launchTime: ZonedDateTime  = actionInfo.launchTime
 
