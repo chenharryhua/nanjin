@@ -4,7 +4,7 @@ import cats.effect.kernel.Temporal
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance, ServiceParams}
 
-import java.time.ZonedDateTime
+import java.time.{ZoneId, ZonedDateTime}
 package object action {
 
   /** 01 - 09: Errors
@@ -42,7 +42,7 @@ package object action {
   private[action] def actionSuccMRName(ap: ActionParams): String  = s"26.${ap.catalog}.${ap.metricName.metricRepr}.succ"
   private[action] def actionTimerMRName(ap: ActionParams): String = s"${ap.catalog}.${ap.metricName.metricRepr}"
 
-  private[action] def realZonedDateTime2[F[_]](serviceParams: ServiceParams)(implicit
-    F: Temporal[F]): F[ZonedDateTime] =
-    F.realTimeInstant.map(_.atZone(serviceParams.taskParams.zoneId))
+  def realZonedDateTime[F[_]](zoneId: ZoneId)(implicit F: Temporal[F]): F[ZonedDateTime] =
+    F.realTimeInstant.map(_.atZone(zoneId))
+
 }

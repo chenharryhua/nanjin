@@ -12,7 +12,7 @@ private[action] class InstantEventPublisher[F[_]: Temporal](
   serviceParams: ServiceParams) {
   def passThrough(metricName: DigestedName, json: Json, asError: Boolean): F[Unit] =
     for {
-      ts <- realZonedDateTime2(serviceParams)
+      ts <- realZonedDateTime(serviceParams.taskParams.zoneId)
       _ <- channel.send(
         PassThrough(
           metricName = metricName,
@@ -24,7 +24,7 @@ private[action] class InstantEventPublisher[F[_]: Temporal](
 
   def alert(metricName: DigestedName, msg: String, importance: Importance): F[Unit] =
     for {
-      ts <- realZonedDateTime2(serviceParams)
+      ts <- realZonedDateTime(serviceParams.taskParams.zoneId)
       _ <- channel.send(
         InstantAlert(
           metricName = metricName,

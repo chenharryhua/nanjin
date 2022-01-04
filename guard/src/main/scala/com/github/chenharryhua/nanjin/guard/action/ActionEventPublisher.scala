@@ -38,7 +38,7 @@ final private[action] class ActionEventPublisher[F[_]: UUIDGen: Temporal](
     ex: Throwable
   ): F[Unit] =
     for {
-      ts <- realZonedDateTime2(actionInfo.actionParams.serviceParams)
+      ts <- realZonedDateTime(actionInfo.actionParams.serviceParams.taskParams.zoneId)
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(
         ActionRetry(
@@ -54,7 +54,7 @@ final private[action] class ActionEventPublisher[F[_]: UUIDGen: Temporal](
     input: A,
     output: F[B],
     buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
-    realZonedDateTime2(actionInfo.actionParams.serviceParams).flatMap { ts =>
+    realZonedDateTime(actionInfo.actionParams.serviceParams.taskParams.zoneId).flatMap { ts =>
       val op: F[Unit] = for {
         result <- output
         num <- retryCount.get
@@ -72,7 +72,7 @@ final private[action] class ActionEventPublisher[F[_]: UUIDGen: Temporal](
     buildNotes: Kleisli[F, (A, Throwable), String]
   ): F[Unit] =
     for {
-      ts <- realZonedDateTime2(actionInfo.actionParams.serviceParams)
+      ts <- realZonedDateTime(actionInfo.actionParams.serviceParams.taskParams.zoneId)
       uuid <- UUIDGen.randomUUID[F]
       numRetries <- retryCount.get
       notes <- buildNotes.run((input, ex))

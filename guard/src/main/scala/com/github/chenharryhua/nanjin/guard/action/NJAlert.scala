@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Show
 import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
 import cats.syntax.functor.*
 import cats.syntax.show.*
 import cats.syntax.traverse.*
-import cats.{Applicative, Show}
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{DigestedName, Importance, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{EventPublisher, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 
 final class NJAlert[F[_]: Temporal] private[guard] (

@@ -56,7 +56,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
 
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries
-    ts <- realZonedDateTime2(actionParams.serviceParams)
+    ts <- realZonedDateTime(actionParams.serviceParams.taskParams.zoneId)
     uuid <- UUIDGen.randomUUID[F]
     publisher = new ActionEventPublisher[F](ActionInfo(actionParams, uuid, ts), metricRegistry, channel, ongoings)
     _ <- publisher.actionStart

@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.service
 
 import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
@@ -18,9 +18,11 @@ import java.time.ZoneId
 
 final class Agent[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
+  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   ongoings: Ref[F, Set[ActionInfo]],
   dispatcher: Dispatcher[F],
+  lastCountersRef: Ref[F, MetricSnapshot.LastCounters],
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
@@ -30,7 +32,7 @@ final class Agent[F[_]] private[guard] (
   val digestedName: DigestedName   = DigestedName(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
-    new Agent[F](metricRegistry, channel, ongoings, dispatcher, f(agentConfig))
+    new Agent[F](metricRegistry, serviceStatus, channel, ongoings, dispatcher, lastCountersRef, f(agentConfig))
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
@@ -98,9 +100,10 @@ final class Agent[F[_]] private[guard] (
       metricRegistry
     )
 
-  // val metrics: NJMetrics[F] = new NJMetrics[F](dispatcher, publisher)
+  val metrics: NJMetrics[F] =
+    new NJMetrics[F](dispatcher, serviceStatus, ongoings, channel, metricRegistry, lastCountersRef, serviceParams)
 
-  // def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](publisher.serviceStatus, ongoings)
+  def runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus, ongoings)
 
   // maximum retries
   def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))

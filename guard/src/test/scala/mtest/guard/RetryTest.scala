@@ -9,6 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.action.NJRetry
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 
 final case class MyException() extends Exception("my exception")
 
