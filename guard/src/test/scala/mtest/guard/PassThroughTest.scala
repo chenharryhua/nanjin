@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -105,4 +106,20 @@ class PassThroughTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("importance settings") {
+    guard.eventStream { ag =>
+      val a1 = ag.critical
+      val a2 = ag.notice
+      val a3 = ag.normal
+      val a4 = ag.trivial
+      IO {
+        assert(a1.agentParams.importance == Importance.Critical)
+        assert(a2.agentParams.importance == Importance.High)
+        assert(a3.agentParams.importance == Importance.Medium)
+        assert(a4.agentParams.importance == Importance.Low)
+      }
+    }.compile.drain.timeout(1.second).unsafeRunSync()
+  }
+
 }

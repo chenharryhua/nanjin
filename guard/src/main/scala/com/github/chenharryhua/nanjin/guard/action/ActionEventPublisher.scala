@@ -13,7 +13,7 @@ import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.{Duration, ZonedDateTime}
 
-final private[action] class ActionEventPublisher[F[_]: UUIDGen: Temporal](
+final private class ActionEventPublisher[F[_]: UUIDGen: Temporal](
   actionInfo: ActionInfo,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -55,14 +55,14 @@ final private[action] class ActionEventPublisher[F[_]: UUIDGen: Temporal](
     output: F[B],
     buildNotes: Kleisli[F, (A, B), String]): F[Unit] =
     realZonedDateTime(actionInfo.actionParams.serviceParams.taskParams.zoneId).flatMap { ts =>
-      val op: F[Unit] = for {
+      val publish: F[Unit] = for {
         result <- output
         num <- retryCount.get
         notes <- buildNotes.run((input, result))
         _ <- channel.send(ActionSucc(actionInfo, ts, num, Notes(notes)))
         _ <- ongoings.update(_.excl(actionInfo))
       } yield ()
-      op.whenA(actionInfo.isNotice).map(_ => timingAndCounting(isSucc = true, ts))
+      publish.whenA(actionInfo.isNotice).map(_ => timingAndCounting(isSucc = true, ts))
     }
 
   def actionFail[A](

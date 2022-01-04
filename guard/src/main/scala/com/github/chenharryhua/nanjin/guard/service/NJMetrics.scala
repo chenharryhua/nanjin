@@ -1,24 +1,24 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Eval
-import cats.effect.kernel.{Ref, Temporal}
+import cats.effect.kernel.{Ref, RefSource, Temporal}
 import cats.effect.std.Dispatcher
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, MetricReportType, MetricSnapshot, NJEvent, ServiceStatus}
 import fs2.concurrent.Channel
 
-final class NJMetrics[F[_]: Temporal] private[guard] (
+final class NJMetrics[F[_]: Temporal] private[service] (
   dispatcher: Dispatcher[F],
   serviceParams: ServiceParams,
-  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
-  ongoings: Ref[F, Set[ActionInfo]],
+  serviceStatus: RefSource[F, ServiceStatus],
+  ongoings: RefSource[F, Set[ActionInfo]],
   lastCounters: Ref[F, MetricSnapshot.LastCounters]
 ) {
   private val metricEventPublisher: MetricEventPublisher[F] =
-    new MetricEventPublisher[F](serviceParams, serviceStatus, channel, metricRegistry, ongoings, lastCounters)
+    new MetricEventPublisher[F](serviceParams, channel, metricRegistry, serviceStatus, ongoings, lastCounters)
 
   def reset: F[Unit]      = metricEventPublisher.metricsReset(None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)

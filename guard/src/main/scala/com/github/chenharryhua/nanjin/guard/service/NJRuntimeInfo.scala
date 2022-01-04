@@ -1,16 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Functor
-import cats.effect.kernel.Ref
+import cats.effect.kernel.RefSource
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, ServiceStatus}
 
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
-final class NJRuntimeInfo[F[_]: Functor] private[guard] (
-  serviceStatus: Ref[F, ServiceStatus],
-  ongoings: Ref[F, Set[ActionInfo]]) {
+final class NJRuntimeInfo[F[_]: Functor] private[service] (
+  serviceStatus: RefSource[F, ServiceStatus],
+  ongoings: RefSource[F, Set[ActionInfo]]) {
 
   def upTime(now: ZonedDateTime): F[Duration] = serviceStatus.get.map(_.upTime(now))
 

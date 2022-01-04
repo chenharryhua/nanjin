@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Ref, Temporal}
+import cats.effect.kernel.{Ref, RefSource, Temporal}
 import cats.implicits.{catsSyntaxApply, toFunctorOps}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
@@ -13,12 +13,12 @@ import fs2.concurrent.Channel
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-final private[service] class MetricEventPublisher[F[_]: Temporal](
+final private class MetricEventPublisher[F[_]: Temporal](
   serviceParams: ServiceParams,
-  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
-  ongoings: Ref[F, Set[ActionInfo]],
+  serviceStatus: RefSource[F, ServiceStatus],
+  ongoings: RefSource[F, Set[ActionInfo]],
   lastCountersRef: Ref[F, MetricSnapshot.LastCounters]
 ) {
 
@@ -59,7 +59,7 @@ final private[service] class MetricEventPublisher[F[_]: Temporal](
             serviceStatus = ss,
             timestamp = ts,
             serviceParams = serviceParams,
-            snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
+            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, serviceParams)
           )
         }
       }.getOrElse(

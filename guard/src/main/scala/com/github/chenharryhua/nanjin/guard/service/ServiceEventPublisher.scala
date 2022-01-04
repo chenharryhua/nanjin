@@ -11,22 +11,16 @@ import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 
-final private[service] class ServiceEventPublisher[F[_]: Temporal: UUIDGen](
+final private class ServiceEventPublisher[F[_]: Temporal: UUIDGen](
   serviceParams: ServiceParams,
   serviceStatus: Ref[F, ServiceStatus],
-  channel: Channel[F, NJEvent],
-  ongoings: Ref[F, Set[ActionInfo]]
-) {
-
-  /** services
-    */
+  channel: Channel[F, NJEvent]) {
 
   def serviceReStart: F[Unit] =
     for {
       ts <- realZonedDateTime(serviceParams.taskParams.zoneId)
       ss <- serviceStatus.updateAndGet(_.goUp(ts))
       _ <- channel.send(ServiceStart(ss, ts, serviceParams))
-      _ <- ongoings.set(Set.empty)
     } yield ()
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =

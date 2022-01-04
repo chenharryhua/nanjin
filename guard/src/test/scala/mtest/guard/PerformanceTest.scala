@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.MetricsReport
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -10,39 +11,41 @@ import scala.concurrent.duration.*
 
 @Ignore
 class PerformanceTest extends AnyFunSuite {
-  val service = TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(500))
-  val take    = 10.seconds
+  val service =
+    TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(3.seconds))
+  val take   = 90.seconds
+  val repeat = 1
 
   test("critical") {
     var i = 0
-    service.eventStream { ag =>
-      ag.span("c").critical.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"$i critical")
+    val run = service.eventStream { ag =>
+      ag.span("critical").critical.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
+    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    run.replicateA(repeat).unsafeRunSync()
   }
 
   test("notice") {
-    var i: Int = 0
-    service.eventStream { ag =>
-      ag.span("n").notice.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"$i notice")
+    var i = 0
+    val run = service.eventStream { ag =>
+      ag.span("notice").notice.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
+    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    run.replicateA(repeat).unsafeRunSync()
   }
 
   test("normal") {
-    var i: Int = 0
-    service.eventStream { ag =>
-      ag.span("m").normal.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"$i normal")
+    var i = 0
+    val run = service.eventStream { ag =>
+      ag.span("normal").normal.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
+    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    run.replicateA(repeat).unsafeRunSync()
   }
 
   test("trivial") {
     var i = 0
-    service.eventStream { ag =>
-      ag.span("t").trivial.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"$i trivial")
+    val run = service.eventStream { ag =>
+      ag.span("trivial").trivial.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
+    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    run.replicateA(repeat).unsafeRunSync()
   }
 
   test("critical - no timing") {

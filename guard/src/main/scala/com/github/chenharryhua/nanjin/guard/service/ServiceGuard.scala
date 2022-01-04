@@ -61,32 +61,31 @@ final class ServiceGuard[F[_]] private[guard] (
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
-        val metricEventPublisher: MetricEventPublisher[F] =
-          new MetricEventPublisher[F](serviceParams, serviceStatus, channel, metricRegistry, ongoings, lastCounters)
+        val theService: F[A] = {
+          val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceParams, serviceStatus, channel)
 
-        val serviceEventPublisher: ServiceEventPublisher[F] =
-          new ServiceEventPublisher[F](serviceParams, serviceStatus, channel, ongoings)
-
-        val theService: F[A] = retry.mtl
-          .retryingOnAllErrors(
-            serviceParams.retry.policy[F],
-            (ex: Throwable, rd) => serviceEventPublisher.servicePanic(rd, ex)) {
-            serviceEventPublisher.serviceReStart *> Dispatcher[F].use(dispatcher =>
-              agent(
-                new Agent[F](
-                  metricRegistry,
-                  serviceStatus,
-                  channel,
-                  ongoings,
-                  dispatcher,
-                  lastCounters,
-                  AgentConfig(serviceParams))))
-          }
-          .guarantee(serviceEventPublisher.serviceStop <* channel.close)
+          retry.mtl
+            .retryingOnAllErrors(serviceParams.retry.policy[F], (ex: Throwable, rd) => sep.servicePanic(rd, ex)) {
+              sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
+                agent(
+                  new Agent[F](
+                    metricRegistry,
+                    serviceStatus,
+                    channel,
+                    ongoings,
+                    dispatcher,
+                    lastCounters,
+                    AgentConfig(serviceParams))))
+            }
+            .guarantee(sep.serviceStop <* channel.close)
+        }
 
         /** concurrent streams
           */
         val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
+
+        val metricEventPublisher: MetricEventPublisher[F] =
+          new MetricEventPublisher[F](serviceParams, channel, metricRegistry, serviceStatus, ongoings, lastCounters)
 
         val metricsReport: Stream[F, INothing] =
           serviceParams.metric.reportSchedule match {
