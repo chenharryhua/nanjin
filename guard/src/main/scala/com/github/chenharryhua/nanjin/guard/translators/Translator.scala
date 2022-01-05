@@ -18,8 +18,8 @@ trait UpdateTranslator[F[_], A, B] {
   serviceStart: Kleisli[OptionT[F, *], ServiceStart, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],
-  metricsReport: Kleisli[OptionT[F, *], MetricsReport, A],
-  metricsReset: Kleisli[OptionT[F, *], MetricsReset, A],
+  metricReport: Kleisli[OptionT[F, *], MetricReport, A],
+  metricReset: Kleisli[OptionT[F, *], MetricReset, A],
   serviceAlert: Kleisli[OptionT[F, *], InstantAlert, A],
   passThrough: Kleisli[OptionT[F, *], PassThrough, A],
   actionStart: Kleisli[OptionT[F, *], ActionStart, A],
@@ -29,17 +29,17 @@ trait UpdateTranslator[F[_], A, B] {
 ) {
 
   def translate(event: NJEvent): F[Option[A]] = event match {
-    case e: ServiceStart  => serviceStart.run(e).value
-    case e: ServicePanic  => servicePanic.run(e).value
-    case e: ServiceStop   => serviceStop.run(e).value
-    case e: MetricsReport => metricsReport.run(e).value
-    case e: MetricsReset  => metricsReset.run(e).value
-    case e: InstantAlert  => serviceAlert.run(e).value
-    case e: PassThrough   => passThrough.run(e).value
-    case e: ActionStart   => actionStart.run(e).value
-    case e: ActionRetry   => actionRetry.run(e).value
-    case e: ActionFail    => actionFail.run(e).value
-    case e: ActionSucc    => actionSucc.run(e).value
+    case e: ServiceStart => serviceStart.run(e).value
+    case e: ServicePanic => servicePanic.run(e).value
+    case e: ServiceStop  => serviceStop.run(e).value
+    case e: MetricReport => metricReport.run(e).value
+    case e: MetricReset  => metricReset.run(e).value
+    case e: InstantAlert => serviceAlert.run(e).value
+    case e: PassThrough  => passThrough.run(e).value
+    case e: ActionStart  => actionStart.run(e).value
+    case e: ActionRetry  => actionRetry.run(e).value
+    case e: ActionFail   => actionFail.run(e).value
+    case e: ActionSucc   => actionSucc.run(e).value
   }
 
   def filter(f: NJEvent => Boolean)(implicit F: Applicative[F]): Translator[F, A] =
@@ -47,8 +47,8 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) serviceStart.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) servicePanic.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) serviceStop.run(ss) else OptionT(F.pure(None))),
-      Kleisli(ss => if (f(ss)) metricsReport.run(ss) else OptionT(F.pure(None))),
-      Kleisli(ss => if (f(ss)) metricsReset.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) metricReport.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) metricReset.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) serviceAlert.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) passThrough.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionStart.run(ss) else OptionT(F.pure(None))),
@@ -60,8 +60,8 @@ trait UpdateTranslator[F[_], A, B] {
   def skipServiceStart(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceStart = Translator.noop[F, A])
   def skipServicePanic(implicit F: Applicative[F]): Translator[F, A]  = copy(servicePanic = Translator.noop[F, A])
   def skipServiceStop(implicit F: Applicative[F]): Translator[F, A]   = copy(serviceStop = Translator.noop[F, A])
-  def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A] = copy(metricsReport = Translator.noop[F, A])
-  def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A]  = copy(metricsReset = Translator.noop[F, A])
+  def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A] = copy(metricReport = Translator.noop[F, A])
+  def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A]  = copy(metricReset = Translator.noop[F, A])
   def skipServiceAlert(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceAlert = Translator.noop[F, A])
   def skipPassThrough(implicit F: Applicative[F]): Translator[F, A]   = copy(passThrough = Translator.noop[F, A])
   def skipActionStart(implicit F: Applicative[F]): Translator[F, A]   = copy(actionStart = Translator.noop[F, A])
@@ -106,29 +106,29 @@ trait UpdateTranslator[F[_], A, B] {
   def withServiceStop(f: ServiceStop => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(serviceStop = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withMetricsReport(f: MetricsReport => F[Option[A]]): Translator[F, A] =
-    copy(metricsReport = Kleisli(a => OptionT(f(a))))
+  def withMetricsReport(f: MetricReport => F[Option[A]]): Translator[F, A] =
+    copy(metricReport = Kleisli(a => OptionT(f(a))))
 
-  def withMetricsReport(f: MetricsReport => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(metricsReport = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withMetricsReport(f: MetricReport => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(metricReport = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withMetricsReport(f: MetricsReport => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(metricsReport = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withMetricsReport(f: MetricReport => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(metricReport = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withMetricsReport(f: MetricsReport => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(metricsReport = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withMetricsReport(f: MetricReport => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(metricReport = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withMetricsReset(f: MetricsReset => F[Option[A]]): Translator[F, A] =
-    copy(metricsReset = Kleisli(a => OptionT(f(a))))
+  def withMetricsReset(f: MetricReset => F[Option[A]]): Translator[F, A] =
+    copy(metricReset = Kleisli(a => OptionT(f(a))))
 
-  def withMetricsReset(f: MetricsReset => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(metricsReset = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withMetricsReset(f: MetricReset => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(metricReset = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withMetricsReset(f: MetricsReset => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(metricsReset = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withMetricsReset(f: MetricReset => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(metricReset = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withMetricsReset(f: MetricsReset => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(metricsReset = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withMetricsReset(f: MetricReset => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(metricReset = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withServiceAlert(f: InstantAlert => F[Option[A]]): Translator[F, A] =
     copy(serviceAlert = Kleisli(a => OptionT(f(a))))
@@ -211,8 +211,8 @@ trait UpdateTranslator[F[_], A, B] {
       .withServiceStop(evt => g(evt).flatMap(_.flatTraverse(_.serviceStop.run(evt).value)))
       .withServiceAlert(evt => g(evt).flatMap(_.flatTraverse(_.serviceAlert.run(evt).value)))
       .withPassThrough(evt => g(evt).flatMap(_.flatTraverse(_.passThrough.run(evt).value)))
-      .withMetricsReport(evt => g(evt).flatMap(_.flatTraverse(_.metricsReport.run(evt).value)))
-      .withMetricsReset(evt => g(evt).flatMap(_.flatTraverse(_.metricsReset.run(evt).value)))
+      .withMetricsReport(evt => g(evt).flatMap(_.flatTraverse(_.metricReport.run(evt).value)))
+      .withMetricsReset(evt => g(evt).flatMap(_.flatTraverse(_.metricReset.run(evt).value)))
       .withActionStart(evt => g(evt).flatMap(_.flatTraverse(_.actionStart.run(evt).value)))
       .withActionRetry(evt => g(evt).flatMap(_.flatTraverse(_.actionRetry.run(evt).value)))
       .withActionFail(evt => g(evt).flatMap(_.flatTraverse(_.actionFail.run(evt).value)))
@@ -254,19 +254,19 @@ object Translator {
                 case Some(Left(l))  => Left(l)
               })))
 
-        val metricsReport: Kleisli[OptionT[F, *], MetricsReport, B] =
-          Kleisli((ss: MetricsReport) =>
+        val metricsReport: Kleisli[OptionT[F, *], MetricReport, B] =
+          Kleisli((ss: MetricReport) =>
             OptionT(F.tailRecM(a)(x =>
-              f(x).metricsReport.run(ss).value.map[Either[A, Option[B]]] {
+              f(x).metricReport.run(ss).value.map[Either[A, Option[B]]] {
                 case None           => Right(None)
                 case Some(Right(r)) => Right(Some(r))
                 case Some(Left(l))  => Left(l)
               })))
 
-        val metricsReset: Kleisli[OptionT[F, *], MetricsReset, B] =
-          Kleisli((ss: MetricsReset) =>
+        val metricsReset: Kleisli[OptionT[F, *], MetricReset, B] =
+          Kleisli((ss: MetricReset) =>
             OptionT(F.tailRecM(a)(x =>
-              f(x).metricsReset.run(ss).value.map[Either[A, Option[B]]] {
+              f(x).metricReset.run(ss).value.map[Either[A, Option[B]]] {
                 case None           => Right(None)
                 case Some(Right(r)) => Right(Some(r))
                 case Some(Left(l))  => Left(l)

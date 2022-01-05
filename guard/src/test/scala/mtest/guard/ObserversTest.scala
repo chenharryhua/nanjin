@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{ses, sns}
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.MetricsReport
+import com.github.chenharryhua.nanjin.guard.event.MetricReport
 import com.github.chenharryhua.nanjin.guard.observers.{console, email, logging, slack}
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import org.scalatest.funsuite.AnyFunSuite
@@ -86,7 +86,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
-      .evalTap(console(Translator.html[IO].filter(_.isInstanceOf[MetricsReport]).map(_.render)))
+      .evalTap(console(Translator.html[IO].filter(_.isInstanceOf[MetricReport]).map(_.render)))
       .compile
       .drain
       .unsafeRunSync()

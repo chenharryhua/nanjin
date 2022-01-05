@@ -7,7 +7,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.unsafe.implicits.global
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.guard.config.{DigestedName, MetricSnapshotType}
-import com.github.chenharryhua.nanjin.guard.event.MetricsReport
+import com.github.chenharryhua.nanjin.guard.event.MetricReport
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 
@@ -25,7 +25,7 @@ class MetricsTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.forall(_.asInstanceOf[MetricsReport].snapshot.counterMap.isEmpty))
+    assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.isEmpty))
   }
   test("full") {
     val last = sg
@@ -36,7 +36,7 @@ class MetricsTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.forall(_.asInstanceOf[MetricsReport].snapshot.counterMap.nonEmpty))
+    assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.nonEmpty))
   }
 
   test("reset") {
@@ -53,6 +53,6 @@ class MetricsTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
 
-    assert(last.get.asInstanceOf[MetricsReport].snapshot.counterMap.size === 0)
+    assert(last.get.asInstanceOf[MetricReport].snapshot.counterMap.size === 0)
   }
 }

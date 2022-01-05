@@ -45,7 +45,7 @@ final class NJSlack[F[_]] private[observers] (
         case _                          => F.unit
       }.evalTap(e =>
         translator.filter {
-          case MetricsReport(rt, ss, _, ts, sp, _) =>
+          case MetricReport(rt, ss, _, ts, sp, _) =>
             isShowMetrics(
               sp.metric.reportSchedule,
               sp.toZonedDateTime(ts),

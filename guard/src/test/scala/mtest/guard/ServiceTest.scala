@@ -93,9 +93,9 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricsReport])
-    assert(c.isInstanceOf[MetricsReport])
-    assert(d.isInstanceOf[MetricsReport])
+    assert(b.isInstanceOf[MetricReport])
+    assert(c.isInstanceOf[MetricReport])
+    assert(d.isInstanceOf[MetricReport])
   }
 
   test("force reset") {
@@ -108,8 +108,8 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricsReset])
-    assert(c.isInstanceOf[MetricsReset])
+    assert(b.isInstanceOf[MetricReset])
+    assert(c.isInstanceOf[MetricReset])
   }
 
   test("normal service stop after two operations") {

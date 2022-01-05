@@ -54,7 +54,7 @@ final case class ServicePanic(
 final case class ServiceStop(serviceStatus: ServiceStatus, timestamp: Instant, serviceParams: ServiceParams)
     extends ServiceEvent
 
-final case class MetricsReport(
+final case class MetricReport(
   reportType: MetricReportType,
   serviceStatus: ServiceStatus,
   ongoings: List[OngoingAction],
@@ -65,7 +65,7 @@ final case class MetricsReport(
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
 }
 
-final case class MetricsReset(
+final case class MetricReset(
   resetType: MetricResetType,
   serviceStatus: ServiceStatus,
   timestamp: Instant,

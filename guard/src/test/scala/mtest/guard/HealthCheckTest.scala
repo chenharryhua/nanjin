@@ -36,9 +36,9 @@ class HealthCheckTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[MetricsReport])
-    assert(c.isInstanceOf[MetricsReport])
-    assert(c.isInstanceOf[MetricsReport])
+    assert(b.isInstanceOf[MetricReport])
+    assert(c.isInstanceOf[MetricReport])
+    assert(c.isInstanceOf[MetricReport])
   }
 
   test("success-test") {
@@ -57,7 +57,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionSucc])
     assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[MetricsReport])
+    assert(d.isInstanceOf[MetricReport])
   }
 
   test("never success") {
@@ -86,7 +86,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[MetricsReport])
+    assert(c.isInstanceOf[MetricReport])
   }
 
   test("metrics reset") {

@@ -27,7 +27,7 @@ final private class MetricEventPublisher[F[_]](
       oldLast <- lastCounters.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
       ss <- serviceStatus.get
       _ <- channel.send(
-        MetricsReport(
+        MetricReport(
           serviceStatus = ss,
           reportType = metricReportType,
           ongoings = ogs.map(OngoingAction(_)).toList.sortBy(_.launchTime),
@@ -52,7 +52,7 @@ final private class MetricEventPublisher[F[_]](
       ss <- serviceStatus.get
       msg = cronExpr.flatMap { ce =>
         ce.next(serviceParams.toZonedDateTime(ts)).map { next =>
-          MetricsReset(
+          MetricReset(
             resetType = MetricResetType.Scheduled(next),
             serviceStatus = ss,
             timestamp = ts,
@@ -61,7 +61,7 @@ final private class MetricEventPublisher[F[_]](
           )
         }
       }.getOrElse(
-        MetricsReset(
+        MetricReset(
           resetType = MetricResetType.Adhoc,
           serviceStatus = ss,
           timestamp = ts,

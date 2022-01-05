@@ -114,7 +114,7 @@ private[translators] object SlackTranslator extends all {
       )
     )
 
-  private def metricsReport(evt: MetricsReport): SlackApp =
+  private def metricReport(evt: MetricReport): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
@@ -136,7 +136,7 @@ private[translators] object SlackTranslator extends all {
       )
     )
 
-  private def metricsReset(evt: MetricsReset): SlackApp =
+  private def metricReset(evt: MetricReset): SlackApp =
     evt.resetType match {
       case MetricResetType.Adhoc =>
         SlackApp(
@@ -261,8 +261,8 @@ private[translators] object SlackTranslator extends all {
       .withServiceStart(serviceStarted)
       .withServicePanic(servicePanic[F])
       .withServiceStop(serviceStopped)
-      .withMetricsReport(metricsReport)
-      .withMetricsReset(metricsReset)
+      .withMetricsReport(metricReport)
+      .withMetricsReset(metricReset)
       .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying[F])

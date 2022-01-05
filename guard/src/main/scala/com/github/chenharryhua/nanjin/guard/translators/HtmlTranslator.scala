@@ -74,7 +74,7 @@ private[translators] object HtmlTranslator extends all {
       hostServiceText(evt.serviceParams)
     )
 
-  private def metricsReport(evt: MetricsReport): Text.TypedTag[String] = {
+  private def metricReport(evt: MetricReport): Text.TypedTag[String] = {
     val color: String = if (evt.hasError) "color:red" else "color:black"
     div(
       h3(style := color)(evt.reportType.show),
@@ -89,7 +89,7 @@ private[translators] object HtmlTranslator extends all {
     )
   }
 
-  private def metricsReset(evt: MetricsReset): Text.TypedTag[String] = {
+  private def metricReset(evt: MetricReset): Text.TypedTag[String] = {
     val color: String = if (evt.hasError) "color:red" else "color:black"
     div(
       h3(style := color)(evt.resetType.show),
@@ -160,8 +160,8 @@ private[translators] object HtmlTranslator extends all {
       .withServiceStart(serviceStarted)
       .withServicePanic(servicePanic[F])
       .withServiceStop(serviceStopped)
-      .withMetricsReport(metricsReport)
-      .withMetricsReset(metricsReset)
+      .withMetricsReport(metricReport)
+      .withMetricsReset(metricReset)
       .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying[F])

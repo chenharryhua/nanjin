@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.MetricsReport
+import com.github.chenharryhua.nanjin.guard.event.MetricReport
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -20,7 +20,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     val run = service.eventStream { ag =>
       ag.span("critical").critical.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
     run.replicateA(repeat).unsafeRunSync()
   }
 
@@ -28,7 +28,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     val run = service.eventStream { ag =>
       ag.span("notice").notice.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
     run.replicateA(repeat).unsafeRunSync()
   }
 
@@ -36,7 +36,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     val run = service.eventStream { ag =>
       ag.span("normal").normal.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
     run.replicateA(repeat).unsafeRunSync()
   }
 
@@ -44,7 +44,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     val run = service.eventStream { ag =>
       ag.span("trivial").trivial.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricsReport]).evalTap(IO.println).compile.drain
+    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
     run.replicateA(repeat).unsafeRunSync()
   }
 
