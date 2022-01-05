@@ -77,7 +77,7 @@ private[translators] object SlackTranslator extends all {
     )
   }
 
-  private def serviceAlert(evt: InstantAlert): SlackApp = {
+  private def instantAlert(evt: InstantAlert): SlackApp = {
     val (title, color) = evt.importance match {
       case Importance.Critical => (":warning: Error", errorColor)
       case Importance.High     => (":warning: Warning", warnColor)
@@ -263,7 +263,7 @@ private[translators] object SlackTranslator extends all {
       .withServiceStop(serviceStopped)
       .withMetricsReport(metricReport)
       .withMetricsReset(metricReset)
-      .withServiceAlert(serviceAlert)
+      .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying[F])
       .withActionFail(actionFailed[F])

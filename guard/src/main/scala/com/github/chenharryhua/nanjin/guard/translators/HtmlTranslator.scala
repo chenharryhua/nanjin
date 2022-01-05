@@ -102,7 +102,7 @@ private[translators] object HtmlTranslator extends all {
     )
   }
 
-  private def serviceAlert(evt: InstantAlert): Text.TypedTag[String] =
+  private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
       h3("Service Alert"),
       timestampText(evt.zonedDateTime),
@@ -162,7 +162,7 @@ private[translators] object HtmlTranslator extends all {
       .withServiceStop(serviceStopped)
       .withMetricsReport(metricReport)
       .withMetricsReset(metricReset)
-      .withServiceAlert(serviceAlert)
+      .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying[F])
       .withActionFail(actionFailed[F])

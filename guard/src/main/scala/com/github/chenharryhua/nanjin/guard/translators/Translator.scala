@@ -20,7 +20,7 @@ trait UpdateTranslator[F[_], A, B] {
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],
   metricReport: Kleisli[OptionT[F, *], MetricReport, A],
   metricReset: Kleisli[OptionT[F, *], MetricReset, A],
-  serviceAlert: Kleisli[OptionT[F, *], InstantAlert, A],
+  instantAlert: Kleisli[OptionT[F, *], InstantAlert, A],
   passThrough: Kleisli[OptionT[F, *], PassThrough, A],
   actionStart: Kleisli[OptionT[F, *], ActionStart, A],
   actionRetry: Kleisli[OptionT[F, *], ActionRetry, A],
@@ -34,7 +34,7 @@ trait UpdateTranslator[F[_], A, B] {
     case e: ServiceStop  => serviceStop.run(e).value
     case e: MetricReport => metricReport.run(e).value
     case e: MetricReset  => metricReset.run(e).value
-    case e: InstantAlert => serviceAlert.run(e).value
+    case e: InstantAlert => instantAlert.run(e).value
     case e: PassThrough  => passThrough.run(e).value
     case e: ActionStart  => actionStart.run(e).value
     case e: ActionRetry  => actionRetry.run(e).value
@@ -49,7 +49,7 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) serviceStop.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) metricReport.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) metricReset.run(ss) else OptionT(F.pure(None))),
-      Kleisli(ss => if (f(ss)) serviceAlert.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) instantAlert.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) passThrough.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionStart.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionRetry.run(ss) else OptionT(F.pure(None))),
@@ -62,7 +62,7 @@ trait UpdateTranslator[F[_], A, B] {
   def skipServiceStop(implicit F: Applicative[F]): Translator[F, A]   = copy(serviceStop = Translator.noop[F, A])
   def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A] = copy(metricReport = Translator.noop[F, A])
   def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A]  = copy(metricReset = Translator.noop[F, A])
-  def skipServiceAlert(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceAlert = Translator.noop[F, A])
+  def skipInstantAlert(implicit F: Applicative[F]): Translator[F, A]  = copy(instantAlert = Translator.noop[F, A])
   def skipPassThrough(implicit F: Applicative[F]): Translator[F, A]   = copy(passThrough = Translator.noop[F, A])
   def skipActionStart(implicit F: Applicative[F]): Translator[F, A]   = copy(actionStart = Translator.noop[F, A])
   def skipActionRetry(implicit F: Applicative[F]): Translator[F, A]   = copy(actionRetry = Translator.noop[F, A])
@@ -130,17 +130,17 @@ trait UpdateTranslator[F[_], A, B] {
   def withMetricsReset(f: MetricReset => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(metricReset = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withServiceAlert(f: InstantAlert => F[Option[A]]): Translator[F, A] =
-    copy(serviceAlert = Kleisli(a => OptionT(f(a))))
+  def withInstantAlert(f: InstantAlert => F[Option[A]]): Translator[F, A] =
+    copy(instantAlert = Kleisli(a => OptionT(f(a))))
 
-  def withServiceAlert(f: InstantAlert => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(serviceAlert = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withInstantAlert(f: InstantAlert => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(instantAlert = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withServiceAlert(f: InstantAlert => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(serviceAlert = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withInstantAlert(f: InstantAlert => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(instantAlert = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withServiceAlert(f: InstantAlert => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(serviceAlert = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withInstantAlert(f: InstantAlert => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(instantAlert = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withPassThrough(f: PassThrough => F[Option[A]]): Translator[F, A] =
     copy(passThrough = Kleisli(a => OptionT(f(a))))
@@ -209,7 +209,7 @@ trait UpdateTranslator[F[_], A, B] {
       .withServiceStart(evt => g(evt).flatMap(_.flatTraverse(_.serviceStart.run(evt).value)))
       .withServicePanic(evt => g(evt).flatMap(_.flatTraverse(_.servicePanic.run(evt).value)))
       .withServiceStop(evt => g(evt).flatMap(_.flatTraverse(_.serviceStop.run(evt).value)))
-      .withServiceAlert(evt => g(evt).flatMap(_.flatTraverse(_.serviceAlert.run(evt).value)))
+      .withInstantAlert(evt => g(evt).flatMap(_.flatTraverse(_.instantAlert.run(evt).value)))
       .withPassThrough(evt => g(evt).flatMap(_.flatTraverse(_.passThrough.run(evt).value)))
       .withMetricsReport(evt => g(evt).flatMap(_.flatTraverse(_.metricReport.run(evt).value)))
       .withMetricsReset(evt => g(evt).flatMap(_.flatTraverse(_.metricReset.run(evt).value)))
@@ -272,10 +272,10 @@ object Translator {
                 case Some(Left(l))  => Left(l)
               })))
 
-        val serviceAlert: Kleisli[OptionT[F, *], InstantAlert, B] =
+        val instantAlert: Kleisli[OptionT[F, *], InstantAlert, B] =
           Kleisli((ss: InstantAlert) =>
             OptionT(F.tailRecM(a)(x =>
-              f(x).serviceAlert.run(ss).value.map[Either[A, Option[B]]] {
+              f(x).instantAlert.run(ss).value.map[Either[A, Option[B]]] {
                 case None           => Right(None)
                 case Some(Right(r)) => Right(Some(r))
                 case Some(Left(l))  => Left(l)
@@ -332,7 +332,7 @@ object Translator {
           serviceStop,
           metricsReport,
           metricsReset,
-          serviceAlert,
+          instantAlert,
           passThrough,
           actionStart,
           actionRetry,
@@ -394,7 +394,7 @@ object Translator {
       .withServiceStart(_.asJson)
       .withServicePanic(_.asJson)
       .withServiceStop(_.asJson)
-      .withServiceAlert(_.asJson)
+      .withInstantAlert(_.asJson)
       .withPassThrough(_.asJson)
       .withMetricsReset(_.asJson)
       .withMetricsReport(_.asJson)
@@ -408,7 +408,7 @@ object Translator {
       .withServiceStart(_.show)
       .withServicePanic(_.show)
       .withServiceStop(_.show)
-      .withServiceAlert(_.show)
+      .withInstantAlert(_.show)
       .withPassThrough(_.show)
       .withMetricsReset(_.show)
       .withMetricsReport(_.show)

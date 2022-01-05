@@ -60,7 +60,7 @@ private[translators] object SimpleTextTranslator {
        |Message: ${evt.value.noSpaces}
        |""".stripMargin
 
-  private def serviceAlert(evt: InstantAlert): String =
+  private def instantAlert(evt: InstantAlert): String =
     s"""
        |Service Alert
        |Service: ${evt.metricName.metricRepr}
@@ -109,7 +109,7 @@ private[translators] object SimpleTextTranslator {
       .withMetricsReport(metricReport)
       .withMetricsReset(metricReset)
       .withPassThrough(passThrough)
-      .withServiceAlert(serviceAlert)
+      .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed[F])
