@@ -9,6 +9,18 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 
+// sbt "guard/testOnly  mtest.guard.PerformanceTest"
+
+/** last time:
+  *
+  * 7065536 critical - no timing
+  *
+  * 7410330 notice - no timing
+  *
+  * 10196619 normal - no timing
+  *
+  * 10245915 trivial - no timing
+  */
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service =
