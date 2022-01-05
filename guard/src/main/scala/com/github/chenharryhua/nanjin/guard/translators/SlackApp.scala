@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
+import cats.Show
+import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import io.circe.Encoder
+import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.literal.JsonStringContext
 
@@ -53,4 +56,10 @@ final case class KeyValueSection(tag: String, value: String) extends Section
 final case class MarkdownSection(text: String) extends Section
 
 final case class Attachment(color: String, blocks: List[Section])
+
+@JsonCodec
 final case class SlackApp(username: String, attachments: List[Attachment])
+
+object SlackApp {
+  implicit val showSlackApp: Show[SlackApp] = cats.derived.semiauto.show[SlackApp]
+}

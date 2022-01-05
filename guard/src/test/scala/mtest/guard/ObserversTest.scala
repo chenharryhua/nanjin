@@ -8,11 +8,10 @@ import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricsReport
 import com.github.chenharryhua.nanjin.guard.observers.{console, email, logging, slack}
-import com.github.chenharryhua.nanjin.guard.translators.{SimpleTextTranslator, Translator}
+import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import scala.util.Random
 
 class ObserversTest extends AnyFunSuite {
 
@@ -88,6 +87,23 @@ class ObserversTest extends AnyFunSuite {
       .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .evalTap(console(Translator.html[IO].filter(_.isInstanceOf[MetricsReport]).map(_.render)))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("lense") {
+    val len =
+      Translator
+        .serviceStart[IO, SlackApp]
+        .modify(_.map(s => s.copy(attachments = Attachment("modified by lense", List.empty) :: s.attachments)))
+        .apply(Translator.slack[IO])
+
+    TaskGuard[IO]("lense")
+      .service("lense")
+      .eventStream(_.span("lense").notice.run(IO(())))
+      .interruptAfter(3.seconds)
+      .evalTap(console(len.map(_.show)))
       .compile
       .drain
       .unsafeRunSync()

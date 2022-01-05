@@ -7,13 +7,14 @@ import cats.{Applicative, Functor, Monad}
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
+import monocle.macros.Lenses
 import scalatags.Text
 
 trait UpdateTranslator[F[_], A, B] {
   def updateTranslator(f: Translator[F, A] => Translator[F, A]): B
 }
 
-final case class Translator[F[_], A] private (
+@Lenses final case class Translator[F[_], A] private (
   serviceStart: Kleisli[OptionT[F, *], ServiceStart, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],

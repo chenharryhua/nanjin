@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
-import io.circe.generic.auto.*
 import io.circe.syntax.*
 
 import scala.concurrent.duration.FiniteDuration

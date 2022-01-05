@@ -102,7 +102,7 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry
     )
 
-  def metrics: NJMetrics[F] =
+  lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](
       new MetricEventPublisher[F](
         serviceParams = serviceParams,
@@ -115,7 +115,7 @@ final class Agent[F[_]] private[service] (
       serviceParams = serviceParams,
       metricRegistry = metricRegistry)
 
-  def runtime: NJRuntimeInfo[F] =
+  lazy val runtime: NJRuntimeInfo[F] =
     new NJRuntimeInfo[F](serviceParams = serviceParams, serviceStatus = serviceStatus, ongoings = ongoings)
 
   // maximum retries
