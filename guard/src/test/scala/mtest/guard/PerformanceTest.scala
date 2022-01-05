@@ -4,29 +4,30 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricReport
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 
-// sbt "guard/testOnly  mtest.guard.PerformanceTest"
+// sbt "guard/testOnly mtest.guard.PerformanceTest"
 
 /** last time:
   *
-  * 7065536 critical - no timing
+  * 8267783 critical - no timing
   *
-  * 7410330 notice - no timing
+  * 8478866 notice - no timing
   *
-  * 10196619 normal - no timing
+  * 11257607 normal - no timing
   *
-  * 10245915 trivial - no timing
+  * 11340776 trivial - no timing
   */
 @Ignore
 class PerformanceTest extends AnyFunSuite {
-  val service =
+  val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(3.seconds))
-  val take   = 90.seconds
-  val repeat = 1
+  val take: FiniteDuration = 100.seconds
+  val repeat               = 1
 
   test("critical") {
     var i = 0
@@ -91,5 +92,4 @@ class PerformanceTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
     println(s"$i trivial - no timing")
   }
-
 }
