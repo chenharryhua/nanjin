@@ -16,6 +16,7 @@ import scala.concurrent.duration.*
   isTerminate: ActionTermination,
   isCounting: CountAction,
   isTiming: TimeAction,
+  isExpensive: ExpensiveAction,
   retry: ActionRetryParams,
   catalog: String,
   serviceParams: ServiceParams)
@@ -29,6 +30,7 @@ private[guard] object AgentParams {
     isTerminate = ActionTermination.Yes,
     isCounting = CountAction.Yes,
     isTiming = TimeAction.Yes,
+    isExpensive = ExpensiveAction.No,
     retry = ActionRetryParams(
       maxRetries = 0,
       capDelay = None,
@@ -56,6 +58,7 @@ private object AgentConfigF {
   final case class WithImportance[K](value: Importance, cont: K) extends AgentConfigF[K]
   final case class WithTiming[K](value: TimeAction, cont: K) extends AgentConfigF[K]
   final case class WithCounting[K](value: CountAction, cont: K) extends AgentConfigF[K]
+  final case class WithExpensive[K](value: ExpensiveAction, cont: K) extends AgentConfigF[K]
 
   final case class WithCatalog[K](value: String, cont: K) extends AgentConfigF[K]
 
@@ -71,6 +74,7 @@ private object AgentConfigF {
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
       case WithCatalog(v, c)     => AgentParams.catalog.set(v)(c)
+      case WithExpensive(v, c)   => AgentParams.isExpensive.set(v)(c)
     }
 }
 
@@ -104,6 +108,7 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withTiming: AgentConfig      = AgentConfig(Fix(WithTiming(value = TimeAction.Yes, value)))
   def withoutCounting: AgentConfig = AgentConfig(Fix(WithCounting(value = CountAction.No, value)))
   def withoutTiming: AgentConfig   = AgentConfig(Fix(WithTiming(value = TimeAction.No, value)))
+  def withExpensive: AgentConfig   = AgentConfig(Fix(WithExpensive(value = ExpensiveAction.Yes, value)))
 
   def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
 

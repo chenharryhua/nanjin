@@ -100,9 +100,10 @@ object OngoingAction extends instant {
 
 @JsonCodec
 final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTime: Instant) {
-  val isCritical: Boolean = actionParams.importance > Importance.High // Critical
-  val isNotice: Boolean   = actionParams.importance > Importance.Medium // Hight + Critical
-  val nonTrivial: Boolean = actionParams.importance > Importance.Low // Medium + High + Critical
+  val isCritical: Boolean  = actionParams.importance > Importance.High // Critical
+  val isNotice: Boolean    = actionParams.importance > Importance.Medium // Hight + Critical
+  val nonTrivial: Boolean  = actionParams.importance > Importance.Low // Medium + High + Critical
+  val isExpensive: Boolean = actionParams.isExpensive === ExpensiveAction.Yes
 }
 
 object ActionInfo extends instant {

@@ -14,18 +14,19 @@ import scala.concurrent.duration.*
 
 /** last time:
   *
-  * 8267783 critical - no timing
+  * 89854651 critical - no timing
   *
-  * 8478866 notice - no timing
+  * 87683264 notice - expensive no timing
   *
-  * 11257607 normal - no timing
+  * 100883475 normal - expensive no timing
   *
-  * 11340776 trivial - no timing
+  * 106398872 trivial - no timing
   */
+
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(3.seconds))
+    TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
   val repeat               = 1
 
@@ -69,20 +70,20 @@ class PerformanceTest extends AnyFunSuite {
     println(s"$i critical - no timing")
   }
 
-  test("notice - no timing") {
+  test("notice - expensive no timing") {
     var i: Int = 0
     service.eventStream { ag =>
-      ag.span("n").notice.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
+      ag.span("n").notice.expensive.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i notice - no timing")
+    println(s"$i notice - expensive no timing")
   }
 
-  test("normal - no timing") {
+  test("normal - expensive no timing") {
     var i: Int = 0
     service.eventStream { ag =>
-      ag.span("m").normal.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
+      ag.span("m").normal.expensive.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i normal - no timing")
+    println(s"$i normal - expensive no timing")
   }
 
   test("trivial - no timing") {
