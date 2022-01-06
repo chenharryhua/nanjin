@@ -5,7 +5,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.*
-import cron4s.lib.javatime.javaTemporalInstance
 import io.circe.generic.auto.*
 import org.typelevel.cats.time.instances.all
 
@@ -78,7 +77,7 @@ private[translators] object SlackTranslator extends all {
     )
   }
 
-  private def serviceAlert(evt: InstantAlert): SlackApp = {
+  private def instantAlert(evt: InstantAlert): SlackApp = {
     val (title, color) = evt.importance match {
       case Importance.Critical => (":warning: Error", errorColor)
       case Importance.High     => (":warning: Warning", warnColor)
@@ -115,7 +114,7 @@ private[translators] object SlackTranslator extends all {
       )
     )
 
-  private def metricsReport(evt: MetricsReport): SlackApp =
+  private def metricReport(evt: MetricReport): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
@@ -129,10 +128,7 @@ private[translators] object SlackTranslator extends all {
               TextField("Up Time", fmt.format(evt.upTime)),
               TextField(
                 "Scheduled Next",
-                evt.serviceParams.metric
-                  .nextReport(evt.timestamp.atZone(evt.zoneId))
-                  .map(localTimestampStr)
-                  .getOrElse("None"))
+                evt.serviceParams.metric.nextReport(evt.zonedDateTime).map(localTimestampStr).getOrElse("None"))
             ),
             metricsSection(evt.snapshot)
           )
@@ -140,7 +136,7 @@ private[translators] object SlackTranslator extends all {
       )
     )
 
-  private def metricsReset(evt: MetricsReset): SlackApp =
+  private def metricReset(evt: MetricReset): SlackApp =
     evt.resetType match {
       case MetricResetType.Adhoc =>
         SlackApp(
@@ -156,10 +152,9 @@ private[translators] object SlackTranslator extends all {
                   TextField("Up Time", fmt.format(evt.upTime)),
                   TextField(
                     "Scheduled Next",
-                    evt.serviceParams.metric.resetSchedule
-                      .flatMap(_.next(evt.timestamp))
-                      .map(
-                        _.atZone(evt.serviceParams.taskParams.zoneId).toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+                    evt.serviceParams.metric
+                      .nextReport(evt.zonedDateTime)
+                      .map(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
                       .getOrElse("None")
                   )
                 ),
@@ -180,9 +175,7 @@ private[translators] object SlackTranslator extends all {
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
-                  TextField(
-                    "Scheduled Next",
-                    next.atZone(evt.zoneId).toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)
+                  TextField("Scheduled Next", next.show)
                 ),
                 metricsSection(evt.snapshot)
               )
@@ -200,7 +193,7 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.hashId.show}")
+            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}")
           )
         ))
     )
@@ -216,7 +209,7 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.hashId.show}
+            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                 |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
             hostServiceSection(evt.serviceParams),
@@ -234,7 +227,7 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.hashId.show}
+            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*error ID:* ${evt.error.uuid.show}
                                 |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
             hostServiceSection(evt.serviceParams),
@@ -254,7 +247,7 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.hashId.show}"),
+            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}"),
             hostServiceSection(evt.serviceParams)
           ) ::: (if (evt.notes.value.isEmpty) Nil
                  else List(MarkdownSection(abbreviate(evt.notes.value))))
@@ -268,9 +261,9 @@ private[translators] object SlackTranslator extends all {
       .withServiceStart(serviceStarted)
       .withServicePanic(servicePanic[F])
       .withServiceStop(serviceStopped)
-      .withMetricsReport(metricsReport)
-      .withMetricsReset(metricsReset)
-      .withServiceAlert(serviceAlert)
+      .withMetricsReport(metricReport)
+      .withMetricsReset(metricReset)
+      .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying[F])
       .withActionFail(actionFailed[F])

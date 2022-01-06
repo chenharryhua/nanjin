@@ -17,17 +17,17 @@ final private class MetricEventPublisher[F[_]](
   metricRegistry: MetricRegistry,
   serviceStatus: RefSource[F, ServiceStatus],
   ongoings: RefSource[F, Set[ActionInfo]],
-  lastCountersRef: Ref[F, MetricSnapshot.LastCounters]
+  lastCounters: Ref[F, MetricSnapshot.LastCounters]
 )(implicit F: Temporal[F]) {
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
       ts <- F.realTimeInstant
       ogs <- ongoings.get
-      oldLast <- lastCountersRef.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
+      oldLast <- lastCounters.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
       ss <- serviceStatus.get
       _ <- channel.send(
-        MetricsReport(
+        MetricReport(
           serviceStatus = ss,
           reportType = metricReportType,
           ongoings = ogs.map(OngoingAction(_)).toList.sortBy(_.launchTime),
@@ -51,8 +51,8 @@ final private class MetricEventPublisher[F[_]](
       ts <- F.realTimeInstant
       ss <- serviceStatus.get
       msg = cronExpr.flatMap { ce =>
-        ce.next(ts).map { next =>
-          MetricsReset(
+        ce.next(serviceParams.toZonedDateTime(ts)).map { next =>
+          MetricReset(
             resetType = MetricResetType.Scheduled(next),
             serviceStatus = ss,
             timestamp = ts,
@@ -61,7 +61,7 @@ final private class MetricEventPublisher[F[_]](
           )
         }
       }.getOrElse(
-        MetricsReset(
+        MetricReset(
           resetType = MetricResetType.Adhoc,
           serviceStatus = ss,
           timestamp = ts,
@@ -69,7 +69,7 @@ final private class MetricEventPublisher[F[_]](
           snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
         ))
       _ <- channel.send(msg)
-      _ <- lastCountersRef.set(MetricSnapshot.LastCounters.empty)
+      _ <- lastCounters.set(MetricSnapshot.LastCounters.empty)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
 }

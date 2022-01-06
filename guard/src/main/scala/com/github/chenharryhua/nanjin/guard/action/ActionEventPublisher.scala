@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
+import cats.effect.Unique
 import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails.WillDelayAndRetry
@@ -14,8 +16,13 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
   channel: Channel[F, NJEvent],
   ongoings: Ref[F, Set[ActionInfo]])(implicit F: Temporal[F]) {
 
-  def actionStart(actionInfo: ActionInfo): F[Unit] =
-    (channel.send(ActionStart(actionInfo)) *> ongoings.update(_.incl(actionInfo))).whenA(actionInfo.isNotice)
+  def actionStart(actionParams: ActionParams): F[ActionInfo] =
+    for {
+      ts <- F.realTimeInstant
+      token <- Unique[F].unique.map(_.hash)
+      ai = ActionInfo(actionParams, token, ts)
+      _ <- (channel.send(ActionStart(ai)) *> ongoings.update(_.incl(ai))).whenA(ai.isNotice)
+    } yield ai
 
   def actionRetry(
     actionInfo: ActionInfo,

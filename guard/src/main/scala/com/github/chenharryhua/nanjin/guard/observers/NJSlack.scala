@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
-import io.circe.generic.auto.*
 import io.circe.syntax.*
 
 import scala.concurrent.duration.FiniteDuration
@@ -46,7 +45,7 @@ final class NJSlack[F[_]] private[observers] (
         case _                          => F.unit
       }.evalTap(e =>
         translator.filter {
-          case MetricsReport(rt, ss, _, ts, sp, _) =>
+          case MetricReport(rt, ss, _, ts, sp, _) =>
             isShowMetrics(
               sp.metric.reportSchedule,
               sp.toZonedDateTime(ts),

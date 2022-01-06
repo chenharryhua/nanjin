@@ -4,7 +4,7 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
-import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricReport, NJEvent}
 import fs2.{Pipe, Pull, Stream}
 
 import java.time.Instant
@@ -53,7 +53,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
   }
 
   private def buildMetricDatum(
-    report: MetricsReport,
+    report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
     val keyMap: Map[MetricKey, Long] = report.snapshot.counterMap.map { case (metricName, counter) =>
@@ -83,7 +83,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
     def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
-          val (mds, next) = events.collect { case mr: MetricsReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
+          val (mds, next) = events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
             case ((lmd, last), mr) =>
               val (mds, newLast) = buildMetricDatum(mr, last)
               (mds ::: lmd, newLast)

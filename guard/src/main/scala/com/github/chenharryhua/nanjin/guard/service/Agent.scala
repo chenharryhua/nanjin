@@ -68,9 +68,9 @@ final class Agent[F[_]] private[service] (
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
-  def broker(metricName: String): NJBroker[F] =
+  def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
-      metricName = DigestedName(agentParams.spans :+ metricName, serviceParams),
+      metricName = DigestedName(agentParams.spans :+ brokerName, serviceParams),
       dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -96,23 +96,26 @@ final class Agent[F[_]] private[service] (
       metricName = DigestedName(agentParams.spans :+ meterName, serviceParams),
       metricRegistry = metricRegistry)
 
-  def histogram(metricName: String): NJHistogram[F] =
+  def histogram(histoName: String): NJHistogram[F] =
     new NJHistogram[F](
-      metricName = DigestedName(agentParams.spans :+ metricName, serviceParams),
+      metricName = DigestedName(agentParams.spans :+ histoName, serviceParams),
       metricRegistry = metricRegistry
     )
 
-  val metrics: NJMetrics[F] =
+  lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](
+      new MetricEventPublisher[F](
+        serviceParams = serviceParams,
+        channel = channel,
+        metricRegistry = metricRegistry,
+        serviceStatus = serviceStatus,
+        ongoings = ongoings,
+        lastCounters = lastCounters),
       dispatcher = dispatcher,
       serviceParams = serviceParams,
-      serviceStatus = serviceStatus,
-      channel = channel,
-      metricRegistry = metricRegistry,
-      ongoings = ongoings,
-      lastCounters = lastCounters)
+      metricRegistry = metricRegistry)
 
-  def runtime: NJRuntimeInfo[F] =
+  lazy val runtime: NJRuntimeInfo[F] =
     new NJRuntimeInfo[F](serviceParams = serviceParams, serviceStatus = serviceStatus, ongoings = ongoings)
 
   // maximum retries

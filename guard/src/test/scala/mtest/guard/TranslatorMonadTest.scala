@@ -16,9 +16,18 @@ import java.util.UUID
 import cats.*
 import cats.laws.discipline.arbitrary.*
 import cats.syntax.all.*
+import org.scalacheck.{Cogen, Gen}
 import org.scalacheck.Prop.*
 
+object gendata {
+  implicit val cogenEvent: Cogen[NJEvent] = Cogen[NJEvent]((e: NJEvent) => e.timestamp.toEpochMilli)
+
+  val f1 = Gen.function1[NJEvent, Int]
+
+}
+
 class TranslatorMonadTest extends DisciplineSuite {
+  import gendata.*
   val service = TaskGuard[IO]("monad").service("tailrecM")
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
     ExhaustiveCheck.instance(
@@ -30,5 +39,9 @@ class TranslatorMonadTest extends DisciplineSuite {
   implicit val iso: Isomorphisms[Translator[Eval, *]] = Isomorphisms.invariant[Translator[Eval, *]]
 
   // checkAll("Translator.MonadLaws", MonadTests[Translator[Eval, *]].monad[Int, Int, Int])
+
+  test("test") {
+    val ggg = f1.sample.map(_(Gen.posNum[Int]))
+  }
 
 }

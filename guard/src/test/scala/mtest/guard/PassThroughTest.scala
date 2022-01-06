@@ -7,7 +7,7 @@ import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.{MetricsReport, PassThrough, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.{MetricReport, PassThrough, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import io.circe.Decoder
@@ -61,11 +61,11 @@ class PassThroughTest extends AnyFunSuite {
           .delayBy(1.second)
           .replicateA(3) >> ag.metrics.fullReport)
       .debug()
-      .filter(_.isInstanceOf[MetricsReport])
+      .filter(_.isInstanceOf[MetricReport])
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricsReport].snapshot.counterMap("03.counter.[counter][0135a608].error") == 3)
+    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("03.counter.[counter][0135a608].error") == 3)
   }
 
   test("alert") {
@@ -73,12 +73,12 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(crontabs.c997))
       .eventStream(ag => ag.alert("oops").error("message").delayBy(1.second) >> ag.metrics.report(MetricFilter.ALL))
       .debug()
-      .filter(_.isInstanceOf[MetricsReport])
+      .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricsReport].snapshot.counterMap("01.alert.[oops][a32b945e].error") == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[oops][a32b945e].error") == 1)
   }
 
   test("meter") {

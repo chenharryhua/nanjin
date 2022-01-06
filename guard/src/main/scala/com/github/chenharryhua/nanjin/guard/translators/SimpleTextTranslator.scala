@@ -34,7 +34,7 @@ private[translators] object SimpleTextTranslator {
        |Up Time: ${fmt.format(evt.upTime)}
        |""".stripMargin
 
-  private def metricsReport(evt: MetricsReport): String =
+  private def metricReport(evt: MetricReport): String =
     s"""
        |${evt.reportType.show}
        |Service: ${evt.metricName.metricRepr}
@@ -43,7 +43,7 @@ private[translators] object SimpleTextTranslator {
        |${evt.snapshot.show}
        |""".stripMargin
 
-  private def metricsReset(evt: MetricsReset): String =
+  private def metricReset(evt: MetricReset): String =
     s"""
        |${evt.resetType.show}
        |Service: ${evt.metricName.metricRepr}
@@ -60,7 +60,7 @@ private[translators] object SimpleTextTranslator {
        |Message: ${evt.value.noSpaces}
        |""".stripMargin
 
-  private def serviceAlert(evt: InstantAlert): String =
+  private def instantAlert(evt: InstantAlert): String =
     s"""
        |Service Alert
        |Service: ${evt.metricName.metricRepr}
@@ -106,10 +106,10 @@ private[translators] object SimpleTextTranslator {
       .withServiceStart(serviceStarted)
       .withServiceStop(serviceStopped)
       .withServicePanic(servicePanic[F])
-      .withMetricsReport(metricsReport)
-      .withMetricsReset(metricsReset)
+      .withMetricsReport(metricReport)
+      .withMetricsReset(metricReset)
       .withPassThrough(passThrough)
-      .withServiceAlert(serviceAlert)
+      .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed[F])

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.data.Reader
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -50,13 +50,15 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def withBrief(brief: String): ServiceGuard[F] = updateConfig(_.withBrief(brief))
 
+  private val initStatus: F[Ref[F, ServiceStatus]] = for {
+    uuid <- UUIDGen.randomUUID
+    ts <- F.realTimeInstant
+    ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
+  } yield ssRef
+
   def eventStream[A](agent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      serviceStatus <- Stream.eval(for {
-        uuid <- UUIDGen.randomUUID
-        ts <- F.realTimeInstant
-        ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
-      } yield ssRef)
+      serviceStatus <- Stream.eval(initStatus)
       lastCounters <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
       ongoings <- Stream.eval(F.ref(Set.empty[ActionInfo])) // currently running actions
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
