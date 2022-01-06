@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
-import cats.{Applicative, Functor, Monad}
+import cats.{Applicative, Functor, Monad, Traverse}
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
@@ -56,6 +56,10 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) actionFail.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionSucc.run(ss) else OptionT(F.pure(None)))
     )
+
+  // for convenience
+  def traverse[G[_]](ge: G[NJEvent])(implicit F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =
+    G.traverse(ge)(translate)
 
   def skipServiceStart(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceStart = Translator.noop[F, A])
   def skipServicePanic(implicit F: Applicative[F]): Translator[F, A]  = copy(servicePanic = Translator.noop[F, A])
