@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
-import cats.{Applicative, Functor, Monad, Traverse}
+import cats.{Applicative, Functor, FunctorFilter, Monad, Traverse}
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.generic.auto.*
@@ -225,8 +225,8 @@ trait UpdateTranslator[F[_], A, B] {
 }
 
 object Translator {
-  implicit def monadTranslator[F[_]](implicit F: Monad[F]): Monad[Translator[F, *]] =
-    new Monad[Translator[F, *]] {
+  implicit def monadTranslator[F[_]](implicit F: Monad[F]): Monad[Translator[F, *]] & FunctorFilter[Translator[F, *]] =
+    new Monad[Translator[F, *]] with FunctorFilter[Translator[F, *]] {
       override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] = fa.flatMap(f)
 
       override def tailRecM[A, B](a: A)(f: A => Translator[F, Either[A, B]]): Translator[F, B] = {
@@ -358,6 +358,25 @@ object Translator {
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x))))
         )
+
+      override val functor: Functor[Translator[F, *]] = this
+
+      override def mapFilter[A, B](fa: Translator[F, A])(f: A => Option[B]): Translator[F, B] = {
+        def go(e: NJEvent): F[Option[B]] = fa.translate(e).map(_.flatMap(f))
+        Translator
+          .empty[F, B]
+          .withServiceStart(go)
+          .withServicePanic(go)
+          .withServiceStop(go)
+          .withInstantAlert(go)
+          .withPassThrough(go)
+          .withMetricsReport(go)
+          .withMetricsReset(go)
+          .withActionStart(go)
+          .withActionRetry(go)
+          .withActionFail(go)
+          .withActionSucc(go)
+      }
     }
 
   def noop[F[_], A](implicit F: Applicative[F]): Kleisli[OptionT[F, *], NJEvent, A] =
