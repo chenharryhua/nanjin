@@ -139,11 +139,7 @@ object ServiceStatus {
   implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
 
   @JsonCodec
-  final case class Up private[ServiceStatus] (
-    uuid: UUID,
-    launchTime: Instant,
-    lastRestartAt: Instant,
-    lastCrashAt: Instant)
+  final case class Up(uuid: UUID, launchTime: Instant, lastRestartAt: Instant, lastCrashAt: Instant)
       extends ServiceStatus {
 
     override def goUp(now: Instant): Up = this
@@ -160,7 +156,7 @@ object ServiceStatus {
   }
 
   @JsonCodec
-  final case class Down private[ServiceStatus] (
+  final case class Down(
     uuid: UUID,
     launchTime: Instant,
     crashAt: Instant,
