@@ -22,7 +22,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import org.apache.kafka.common.record.TimestampType
-import org.scalacheck.Arbitrary.{arbitrary, _}
+import org.scalacheck.Arbitrary.{arbitrary, *}
 import org.scalacheck.Gen
 
 import java.util.Optional
