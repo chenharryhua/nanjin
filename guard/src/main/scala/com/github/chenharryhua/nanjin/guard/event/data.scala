@@ -179,7 +179,6 @@ object ServiceStatus extends instant {
 sealed trait ServiceStopCause
 object ServiceStopCause {
   implicit val showServiceStopCause: Show[ServiceStopCause] = cats.derived.semiauto.show[ServiceStopCause]
-  case object BySuccess extends ServiceStopCause
-  case object ByCancelation extends ServiceStopCause
-  final case class ByException(msg: String) extends ServiceStopCause
+  case object Normally extends ServiceStopCause
+  final case class Abnormally(msg: String) extends ServiceStopCause
 }

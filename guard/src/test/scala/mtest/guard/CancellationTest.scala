@@ -19,9 +19,8 @@ class CancellationTest extends AnyFunSuite {
           .span("canceled")
           .notice
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
-          .retry(IO(1) >> IO.canceled)
+          .retry(IO(1) <* IO.canceled)
           .run)
-      .interruptAfter(7.seconds)
       .debug()
       .compile
       .toVector
@@ -32,6 +31,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].serviceStatus.isDown)
+    assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.Abnormally])
   }
 
   test("2.cancellation - can be canceled externally") {
@@ -41,6 +41,7 @@ class CancellationTest extends AnyFunSuite {
         val a1 = action.span("never").normal.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
+      .debug()
       .compile
       .toVector
       .unsafeRunSync()
