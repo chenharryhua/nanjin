@@ -51,8 +51,12 @@ final case class ServicePanic(
   error: NJError
 ) extends ServiceEvent
 
-final case class ServiceStop(serviceStatus: ServiceStatus, timestamp: Instant, serviceParams: ServiceParams)
-    extends ServiceEvent
+final case class ServiceStop(
+  serviceStatus: ServiceStatus,
+  timestamp: Instant,
+  cause: ServiceStopCause,
+  serviceParams: ServiceParams
+) extends ServiceEvent
 
 final case class MetricReport(
   reportType: MetricReportType,

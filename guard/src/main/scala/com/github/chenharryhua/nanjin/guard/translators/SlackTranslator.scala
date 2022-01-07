@@ -104,7 +104,8 @@ private[translators] object SlackTranslator extends all {
         Attachment(
           color = warnColor,
           blocks = List(
-            MarkdownSection(s":octagonal_sign: *Service Stopped*."),
+            MarkdownSection(s":octagonal_sign: *Service Stopped*"),
+            MarkdownSection(s"*Cause:* ${evt.cause.show}"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),

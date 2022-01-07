@@ -174,3 +174,12 @@ object ServiceStatus extends instant {
     override val isStopped: Boolean = upcommingRestart.isEmpty
   }
 }
+
+@JsonCodec
+sealed trait ServiceStopCause
+object ServiceStopCause {
+  implicit val showServiceStopCause: Show[ServiceStopCause] = cats.derived.semiauto.show[ServiceStopCause]
+  case object BySuccess extends ServiceStopCause
+  case object ByCancelation extends ServiceStopCause
+  final case class ByException(msg: String) extends ServiceStopCause
+}
