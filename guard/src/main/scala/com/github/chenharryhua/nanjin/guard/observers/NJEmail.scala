@@ -38,7 +38,6 @@ object email {
     new NJSnsEmail[F](client = client, chunkSize = 60, interval = 60.minutes, Translator.html[F])
 
   def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmail[F] = apply(sns(snsArn))
-
 }
 
 final class NJSesEmail[F[_]: Async] private[observers] (
