@@ -40,9 +40,9 @@ final class NJSlack[F[_]] private[observers] (
       sns <- Stream.resource(snsResource)
       ref <- Stream.eval(F.ref[Set[ServiceParams]](Set.empty))
       event <- es.evalTap {
-        case ServiceStart(_, _, params) => ref.update(_.incl(params))
-        case ServiceStop(_, _, params)  => ref.update(_.excl(params))
-        case _                          => F.unit
+        case ServiceStart(_, _, params)   => ref.update(_.incl(params))
+        case ServiceStop(_, _, _, params) => ref.update(_.excl(params))
+        case _                            => F.unit
       }.evalTap(e =>
         translator.filter {
           case MetricReport(rt, ss, _, ts, sp, _) =>

@@ -29,7 +29,7 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
       _ <- channel.send(ServicePanic(ss, ts, retryDetails, serviceParams, NJError(uuid, ex)))
     } yield ()
 
-  def serviceStop: F[Unit] =
+  def serviceStop(cause: ServiceStopCause): F[Unit] =
     for {
       ts <- F.realTimeInstant
       ss <- serviceStatus.updateAndGet(_.goDown(ts, None, cause = "service was stopped"))
@@ -37,7 +37,8 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
         ServiceStop(
           timestamp = ts,
           serviceStatus = ss,
-          serviceParams = serviceParams
+          serviceParams = serviceParams,
+          cause = cause
         ))
     } yield ()
 }

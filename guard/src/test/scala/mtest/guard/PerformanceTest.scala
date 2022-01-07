@@ -29,7 +29,7 @@ import scala.concurrent.duration.*
   * 36787140 trivial
   */
 
-// @Ignore
+@Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
