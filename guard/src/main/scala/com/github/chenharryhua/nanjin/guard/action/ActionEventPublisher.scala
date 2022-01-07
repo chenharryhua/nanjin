@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Kleisli
 import cats.effect.Unique
 import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
@@ -47,15 +46,14 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
     retryCount: Ref[F, Int],
     input: A,
     output: F[B],
-    buildNotes: Kleisli[F, (A, B), String]): F[Instant] =
+    buildNotes: (A, F[B]) => F[Notes]): F[Instant] =
     for {
       ts <- F.realTimeInstant
       _ <- {
         for {
-          result <- output
           num <- retryCount.get
-          notes <- buildNotes.run((input, result))
-          _ <- channel.send(ActionSucc(actionInfo, ts, num, Notes(notes)))
+          notes <- buildNotes(input, output)
+          _ <- channel.send(ActionSucc(actionInfo, ts, num, notes))
         } yield ()
       }.whenA(actionInfo.isNotice)
       _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isExpensive)
@@ -64,20 +62,20 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
   def actionFail[A](
     actionInfo: ActionInfo,
     retryCount: Ref[F, Int],
-    input: A,
     ex: Throwable,
-    buildNotes: Kleisli[F, (A, Throwable), String]): F[Instant] =
+    input: A,
+    buildNotes: (A, Throwable) => F[Notes]): F[Instant] =
     for {
       ts <- F.realTimeInstant
       uuid <- UUIDGen.randomUUID[F]
       numRetries <- retryCount.get
-      notes <- buildNotes.run((input, ex))
+      notes <- buildNotes(input, ex)
       _ <- channel.send(
         ActionFail(
           actionInfo = actionInfo,
           timestamp = ts,
           numRetries = numRetries,
-          notes = Notes(notes),
+          notes = notes,
           error = NJError(uuid, ex)))
       _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isExpensive)
     } yield ts

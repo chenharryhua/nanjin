@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.Temporal
 import cats.effect.kernel.{Outcome, Ref}
@@ -8,7 +7,7 @@ import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ActionTermination, CountAction, TimeAction}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, CountAction, TimeAction}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -22,39 +21,34 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   ongoings: Ref[F, Set[ActionInfo]],
   actionParams: ActionParams,
   kfab: Kleisli[F, A, B],
-  succ: Kleisli[F, (A, B), String],
-  fail: Kleisli[F, (A, Throwable), String],
-  isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B])(implicit F: Temporal[F]) {
+  succ: Option[Kleisli[F, (A, B), String]],
+  fail: Option[Kleisli[F, (A, Throwable), String]],
+  isWorthRetry: Reader[Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
     metricRegistry: MetricRegistry = metricRegistry,
     channel: Channel[F, NJEvent] = channel,
     ongoings: Ref[F, Set[ActionInfo]] = ongoings,
     actionParams: ActionParams = actionParams,
     kfab: Kleisli[F, A, B] = kfab,
-    succ: Kleisli[F, (A, B), String] = succ,
-    fail: Kleisli[F, (A, Throwable), String] = fail,
-    isWorthRetry: Reader[Throwable, Boolean] = isWorthRetry,
-    postCondition: Predicate[B] = postCondition): NJRetry[F, A, B] =
-    new NJRetry[F, A, B](metricRegistry, channel, ongoings, actionParams, kfab, succ, fail, isWorthRetry, postCondition)
+    succ: Option[Kleisli[F, (A, B), String]] = succ,
+    fail: Option[Kleisli[F, (A, Throwable), String]] = fail,
+    isWorthRetry: Reader[Throwable, Boolean] = isWorthRetry): NJRetry[F, A, B] =
+    new NJRetry[F, A, B](metricRegistry, channel, ongoings, actionParams, kfab, succ, fail, isWorthRetry)
 
   def withSuccNotesM(succ: (A, B) => F[String]): NJRetry[F, A, B] =
-    copy(succ = Kleisli(succ.tupled))
+    copy(succ = Some(Kleisli(succ.tupled)))
 
   def withSuccNotes(f: (A, B) => String): NJRetry[F, A, B] =
     withSuccNotesM((a: A, b: B) => F.pure(f(a, b)))
 
   def withFailNotesM(fail: (A, Throwable) => F[String]): NJRetry[F, A, B] =
-    copy(fail = Kleisli(fail.tupled))
+    copy(fail = Some(Kleisli(fail.tupled)))
 
   def withFailNotes(f: (A, Throwable) => String): NJRetry[F, A, B] =
     withFailNotesM((a: A, b: Throwable) => F.pure(f(a, b)))
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetry[F, A, B] =
     copy(isWorthRetry = Reader(isWorthRetry))
-
-  def withPostCondition(postCondition: B => Boolean): NJRetry[F, A, B] =
-    copy(postCondition = Predicate(postCondition))
 
   private lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
@@ -66,6 +60,12 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
       if (isSucc) succCounter.inc(1) else failCounter.inc(1)
     }
   }
+
+  @inline private val succNotes: (A, F[B]) => F[Notes] =
+    (a: A, b: F[B]) => succ.fold(F.pure(Notes.empty))(k => b.flatMap(k.run(a, _)).map(Notes(_)))
+
+  @inline private val failNotes: (A, Throwable) => F[Notes] =
+    (a: A, ex: Throwable) => fail.fold(F.pure(Notes.empty))(_.run((a, ex)).map(Notes(_)))
 
   private val publisher: ActionEventPublisher[F] = new ActionEventPublisher[F](channel, ongoings)
 
@@ -82,29 +82,19 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
             case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
             case _: GivingUp            => F.unit
           }
-      ) {
-        for {
-          out <- kfab.run(input)
-          _ <- F
-            .raiseError(ActionException.UnexpectedlyTerminated)
-            .whenA(actionParams.isTerminate === ActionTermination.No)
-          _ <- succ(input, out)
-            .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
-            .whenA(!postCondition(out))
-        } yield out
-      }
+      )(kfab.run(input))
       .guaranteeCase {
         case Outcome.Canceled() =>
           publisher
-            .actionFail[A](actionInfo, retryCount, input, ActionException.ActionCanceled, fail)
+            .actionFail[A](actionInfo, retryCount, ActionException.ActionCanceled, input, failNotes)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Errored(error) =>
           publisher
-            .actionFail[A](actionInfo, retryCount, input, error, fail)
+            .actionFail[A](actionInfo, retryCount, error, input, failNotes)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
-            .actionSucc[A, B](actionInfo, retryCount, input, output, succ)
+            .actionSucc[A, B](actionInfo, retryCount, input, output, succNotes)
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
   } yield res
@@ -116,39 +106,34 @@ final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
   ongoings: Ref[F, Set[ActionInfo]],
   actionParams: ActionParams,
   fb: F[B],
-  succ: Kleisli[F, B, String],
-  fail: Kleisli[F, Throwable, String],
-  isWorthRetry: Reader[Throwable, Boolean],
-  postCondition: Predicate[B]) {
+  succ: Option[Kleisli[F, B, String]],
+  fail: Option[Kleisli[F, Throwable, String]],
+  isWorthRetry: Reader[Throwable, Boolean]) {
   private def copy(
     metricRegistry: MetricRegistry = metricRegistry,
     channel: Channel[F, NJEvent] = channel,
     ongoings: Ref[F, Set[ActionInfo]] = ongoings,
     actionParams: ActionParams = actionParams,
     fb: F[B] = fb,
-    succ: Kleisli[F, B, String] = succ,
-    fail: Kleisli[F, Throwable, String] = fail,
-    isWorthRetry: Reader[Throwable, Boolean] = isWorthRetry,
-    postCondition: Predicate[B] = postCondition): NJRetryUnit[F, B] =
-    new NJRetryUnit[F, B](metricRegistry, channel, ongoings, actionParams, fb, succ, fail, isWorthRetry, postCondition)
+    succ: Option[Kleisli[F, B, String]] = succ,
+    fail: Option[Kleisli[F, Throwable, String]] = fail,
+    isWorthRetry: Reader[Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, B] =
+    new NJRetryUnit[F, B](metricRegistry, channel, ongoings, actionParams, fb, succ, fail, isWorthRetry)
 
   def withSuccNotesM(succ: B => F[String]): NJRetryUnit[F, B] =
-    copy(succ = Kleisli(succ))
+    copy(succ = Some(Kleisli(succ)))
 
   def withSuccNotes(f: B => String): NJRetryUnit[F, B] =
     withSuccNotesM(Kleisli.fromFunction(f).run)
 
   def withFailNotesM(fail: Throwable => F[String]): NJRetryUnit[F, B] =
-    copy(fail = Kleisli(fail))
+    copy(fail = Some(Kleisli(fail)))
 
   def withFailNotes(f: Throwable => String): NJRetryUnit[F, B] =
     withFailNotesM(Kleisli.fromFunction(f).run)
 
   def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetryUnit[F, B] =
     copy(isWorthRetry = Reader(isWorthRetry))
-
-  def withPostCondition(postCondition: B => Boolean): NJRetryUnit[F, B] =
-    copy(postCondition = Predicate(postCondition))
 
   val run: F[B] =
     new NJRetry[F, Unit, B](
@@ -157,9 +142,8 @@ final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
       ongoings: Ref[F, Set[ActionInfo]],
       actionParams = actionParams,
       kfab = Kleisli(_ => fb),
-      succ = succ.local(_._2),
-      fail = fail.local(_._2),
-      isWorthRetry = isWorthRetry,
-      postCondition = postCondition
+      succ = succ.map(_.local(_._2)),
+      fail = fail.map(_.local(_._2)),
+      isWorthRetry = isWorthRetry
     ).run(())
 }

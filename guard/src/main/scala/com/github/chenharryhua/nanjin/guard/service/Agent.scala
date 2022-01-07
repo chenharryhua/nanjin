@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.collections.Predicate
 import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.{Async, Ref, RefSource}
 import cats.effect.std.Dispatcher
@@ -51,10 +50,9 @@ final class Agent[F[_]] private[service] (
       ongoings = ongoings,
       actionParams = ActionParams(agentParams),
       kfab = Kleisli(f),
-      succ = Kleisli(_ => F.pure("")),
-      fail = Kleisli(_ => F.pure("")),
-      isWorthRetry = Reader(_ => true),
-      postCondition = Predicate(_ => true))
+      succ = None,
+      fail = None,
+      isWorthRetry = Reader(_ => true))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
@@ -63,10 +61,9 @@ final class Agent[F[_]] private[service] (
       ongoings = ongoings,
       actionParams = ActionParams(agentParams),
       fb = fb,
-      succ = Kleisli(_ => F.pure("")),
-      fail = Kleisli(_ => F.pure("")),
-      isWorthRetry = Reader(_ => true),
-      postCondition = Predicate(_ => true))
+      succ = None,
+      fail = None,
+      isWorthRetry = Reader(_ => true))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
@@ -126,10 +123,10 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     span("nonStop")
-      .updateConfig(_.withNonTermination.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
+      .updateConfig(_.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
       .retry(fb)
       .run
-      .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
+      .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 
   def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
 

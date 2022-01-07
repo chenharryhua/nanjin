@@ -23,6 +23,7 @@ final case class Notes private (value: String) extends AnyVal
 
 private[guard] object Notes {
   def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
+  val empty: Notes              = Notes("")
 }
 
 final case class NJError private (
