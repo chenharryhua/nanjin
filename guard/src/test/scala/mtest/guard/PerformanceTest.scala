@@ -14,83 +14,133 @@ import scala.concurrent.duration.*
 
 /** last time:
   *
-  * 16059036 critical - no timing
+  * 22728690 critical
   *
-  * 14364771 notice - expensive no timing
+  * 19172075 critical - notes
   *
-  * 27723153 normal - expensive no timing
+  * 18717938 critical - expensive notes
   *
-  * 31362268 trivial - no timing
+  * 21779936 notice
+  *
+  * 38037062 normal
+  *
+  * 34593395 normal - expensive
+  *
+  * 36787140 trivial
   */
 
-@Ignore
+// @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
-  val repeat               = 1
 
   test("critical") {
     var i = 0
-    val run = service.eventStream { ag =>
-      ag.span("critical").critical.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
-    run.replicateA(repeat).unsafeRunSync()
+    service.eventStream { ag =>
+      ag.span("c")
+        .critical
+        .updateConfig(_.withoutTiming.withoutCounting)
+        .retry(IO(i += 1))
+        .run
+        .foreverM
+        .timeout(take)
+        .attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"$i critical")
+  }
+
+  test("critical - notes") {
+    var i = 0
+    service.eventStream { ag =>
+      ag.span("cn")
+        .critical
+        .updateConfig(_.withoutTiming.withoutCounting)
+        .retry(IO(i += 1))
+        .withSuccNotes(_ => "ok")
+        .run
+        .foreverM
+        .timeout(take)
+        .attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"$i critical - notes")
+  }
+
+  test("critical - expensive notes") {
+    var i = 0
+    service.eventStream { ag =>
+      ag.span("cen")
+        .critical
+        .updateConfig(_.withoutTiming.withoutCounting)
+        .expensive
+        .retry(IO(i += 1))
+        .withSuccNotes(_ => "ok")
+        .run
+        .foreverM
+        .timeout(take)
+        .attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"$i critical - expensive notes")
   }
 
   test("notice") {
-    var i = 0
-    val run = service.eventStream { ag =>
-      ag.span("notice").notice.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
-    run.replicateA(repeat).unsafeRunSync()
+    var i: Int = 0
+    service.eventStream { ag =>
+      ag.span("nt")
+        .notice
+        .updateConfig(_.withoutTiming.withoutCounting)
+        .retry(IO(i += 1))
+        .run
+        .foreverM
+        .timeout(take)
+        .attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"$i notice")
   }
 
   test("normal") {
-    var i = 0
-    val run = service.eventStream { ag =>
-      ag.span("normal").normal.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
-    run.replicateA(repeat).unsafeRunSync()
+    var i: Int = 0
+    service.eventStream { ag =>
+      ag.span("n")
+        .normal
+        .updateConfig(_.withoutTiming.withoutCounting)
+        .retry(IO(i += 1))
+        .run
+        .foreverM
+        .timeout(take)
+        .attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"$i normal")
+  }
+
+  test("normal - expensive") {
+    var i: Int = 0
+    service.eventStream { ag =>
+      ag.span("ne")
+        .normal
+        .updateConfig(_.withoutTiming.withoutCounting)
+        .expensive
+        .retry(IO(i += 1))
+        .run
+        .foreverM
+        .timeout(take)
+        .attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"$i normal - expensive")
   }
 
   test("trivial") {
     var i = 0
-    val run = service.eventStream { ag =>
-      ag.span("trivial").trivial.retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.filter(_.isInstanceOf[MetricReport]).evalTap(IO.println).compile.drain
-    run.replicateA(repeat).unsafeRunSync()
-  }
-
-  test("critical - no timing") {
-    var i = 0
     service.eventStream { ag =>
-      ag.span("c").critical.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
+      ag.span("t")
+        .trivial
+        .updateConfig(_.withoutTiming.withoutCounting)
+        .retry(IO(i += 1))
+        .run
+        .foreverM
+        .timeout(take)
+        .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i critical - no timing")
-  }
-
-  test("notice - expensive no timing") {
-    var i: Int = 0
-    service.eventStream { ag =>
-      ag.span("n").notice.expensive.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"$i notice - expensive no timing")
-  }
-
-  test("normal - expensive no timing") {
-    var i: Int = 0
-    service.eventStream { ag =>
-      ag.span("m").normal.expensive.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"$i normal - expensive no timing")
-  }
-
-  test("trivial - no timing") {
-    var i = 0
-    service.eventStream { ag =>
-      ag.span("t").trivial.updateConfig(_.withoutTiming).retry(IO(i += 1)).run.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"$i trivial - no timing")
+    println(s"$i trivial")
   }
 }
