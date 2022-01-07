@@ -205,50 +205,6 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-  test("10.retry - should fail the action if post condition is unsatisfied") {
-    val Vector(s, b, c, d, e, f) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour))
-      .eventStream { gd =>
-        gd.span("postCondition")
-          .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
-          .retry(IO(0))
-          .withPostCondition(_ > 1)
-          .run
-      }
-      .interruptAfter(5.seconds)
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "")
-    assert(f.isInstanceOf[ServicePanic])
-  }
-  test("11.retry - should fail the action if post condition is unsatisfied - 2") {
-    val Vector(s, b, c, d, e, f) = serviceGuard
-      .updateConfig(_.withConstantDelay(1.hour))
-      .eventStream { gd =>
-        gd.span("postCondition")
-          .updateConfig(_.withConstantDelay(1.seconds).withMaxRetries(3))
-          .retry((a: Int) => IO(a))
-          .withSuccNotes((i, j) => s"$i $j")
-          .withPostCondition(_ > 1)
-          .run(0)
-      }
-      .interruptAfter(5.seconds)
-      .compile
-      .toVector
-      .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "0 0")
-    assert(f.isInstanceOf[ServicePanic])
-  }
-
   test("12.retry - nonterminating - should retry") {
     val a :: b :: c :: d :: e :: f :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
