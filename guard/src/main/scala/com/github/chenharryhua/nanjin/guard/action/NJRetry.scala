@@ -72,47 +72,41 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries
     actionInfo <- publisher.actionStart(actionParams)
-    res <- F.uncancelable(poll =>
-      retry.mtl
-        .retryingOnSomeErrors[B]
-        .apply[F, Throwable](
-          actionParams.retry.policy[F],
-          isWorthRetry.map(F.pure).run,
-          (error, details) =>
-            details match {
-              case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
-              case _: GivingUp            => F.unit
-            }
-        ) {
-          for {
-            gate <- F.deferred[Outcome[F, Throwable, B]]
-            fiber <- F.start(kfab.run(input).guaranteeCase(gate.complete(_).void))
-            oc <- F.onCancel(
-              poll(gate.get).flatMap(_.embed(F.raiseError[B](ActionException.ActionCanceledInternally))),
-              fiber.cancel)
-            _ <- F
-              .raiseError(ActionException.UnexpectedlyTerminated)
-              .whenA(actionParams.isTerminate === ActionTermination.No)
-            _ <- succ(input, oc)
-              .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
-              .whenA(!postCondition(oc))
-          } yield oc
-        }
-        .guaranteeCase {
-          case Outcome.Canceled() =>
-            val error = ActionException.ActionCanceledExternally
-            publisher
-              .actionFail[A](actionInfo, retryCount, input, error, fail)
-              .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-          case Outcome.Errored(error) =>
-            publisher
-              .actionFail[A](actionInfo, retryCount, input, error, fail)
-              .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-          case Outcome.Succeeded(output) =>
-            publisher
-              .actionSucc[A, B](actionInfo, retryCount, input, output, succ)
-              .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
-        })
+    res <- retry.mtl
+      .retryingOnSomeErrors[B]
+      .apply[F, Throwable](
+        actionParams.retry.policy[F],
+        isWorthRetry.map(F.pure).run,
+        (error, details) =>
+          details match {
+            case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
+            case _: GivingUp            => F.unit
+          }
+      ) {
+        for {
+          out <- kfab.run(input)
+          _ <- F
+            .raiseError(ActionException.UnexpectedlyTerminated)
+            .whenA(actionParams.isTerminate === ActionTermination.No)
+          _ <- succ(input, out)
+            .flatMap[B](msg => F.raiseError(ActionException.PostConditionUnsatisfied(msg)))
+            .whenA(!postCondition(out))
+        } yield out
+      }
+      .guaranteeCase {
+        case Outcome.Canceled() =>
+          publisher
+            .actionFail[A](actionInfo, retryCount, input, ActionException.ActionCanceled, fail)
+            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+        case Outcome.Errored(error) =>
+          publisher
+            .actionFail[A](actionInfo, retryCount, input, error, fail)
+            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+        case Outcome.Succeeded(output) =>
+          publisher
+            .actionSucc[A, B](actionInfo, retryCount, input, output, succ)
+            .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
+      }
   } yield res
 }
 

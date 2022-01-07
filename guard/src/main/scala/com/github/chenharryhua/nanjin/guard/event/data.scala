@@ -4,7 +4,6 @@ import cats.Show
 import cats.derived.auto.show.*
 import cats.kernel.Eq
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
@@ -12,6 +11,7 @@ import io.circe.shapes.*
 import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.typelevel.cats.time.instances.instant
 
 import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
@@ -88,7 +88,7 @@ object MetricReportType {
 
 @JsonCodec
 final case class OngoingAction private (metricName: DigestedName, uniqueId: Int, launchTime: Instant)
-object OngoingAction {
+object OngoingAction extends instant {
   implicit val showPendingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
   def apply(ai: ActionInfo): OngoingAction =
     OngoingAction(
@@ -100,12 +100,13 @@ object OngoingAction {
 
 @JsonCodec
 final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTime: Instant) {
-  val isCritical: Boolean = actionParams.importance > Importance.High // Critical
-  val isNotice: Boolean   = actionParams.importance > Importance.Medium // Hight + Critical
-  val nonTrivial: Boolean = actionParams.importance > Importance.Low // Medium + High + Critical
+  val isCritical: Boolean  = actionParams.importance > Importance.High // Critical
+  val isNotice: Boolean    = actionParams.importance > Importance.Medium // Hight + Critical
+  val nonTrivial: Boolean  = actionParams.importance > Importance.Low // Medium + High + Critical
+  val isExpensive: Boolean = actionParams.isExpensive === ExpensiveAction.Yes
 }
 
-object ActionInfo {
+object ActionInfo extends instant {
   implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 }
 
@@ -135,7 +136,7 @@ sealed trait ServiceStatus {
   * : restarting when upcommingRestart is Some
   */
 
-object ServiceStatus {
+object ServiceStatus extends instant {
   implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
 
   @JsonCodec

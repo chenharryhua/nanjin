@@ -21,7 +21,8 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
       ts <- F.realTimeInstant
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams, token, ts)
-      _ <- (channel.send(ActionStart(ai)) *> ongoings.update(_.incl(ai))).whenA(ai.isNotice)
+      _ <- channel.send(ActionStart(ai)).whenA(ai.isNotice)
+      _ <- ongoings.update(_.incl(ai)).whenA(ai.isExpensive)
     } yield ai
 
   def actionRetry(
@@ -47,16 +48,18 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
     input: A,
     output: F[B],
     buildNotes: Kleisli[F, (A, B), String]): F[Instant] =
-    F.realTimeInstant.flatMap { ts =>
-      val publish: F[Unit] = for {
-        result <- output
-        num <- retryCount.get
-        notes <- buildNotes.run((input, result))
-        _ <- channel.send(ActionSucc(actionInfo, ts, num, Notes(notes)))
-        _ <- ongoings.update(_.excl(actionInfo))
-      } yield ()
-      publish.whenA(actionInfo.isNotice).as(ts)
-    }
+    for {
+      ts <- F.realTimeInstant
+      _ <- {
+        for {
+          result <- output
+          num <- retryCount.get
+          notes <- buildNotes.run((input, result))
+          _ <- channel.send(ActionSucc(actionInfo, ts, num, Notes(notes)))
+        } yield ()
+      }.whenA(actionInfo.isNotice)
+      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isExpensive)
+    } yield ts
 
   def actionFail[A](
     actionInfo: ActionInfo,
@@ -76,6 +79,6 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
           numRetries = numRetries,
           notes = Notes(notes),
           error = NJError(uuid, ex)))
-      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isNotice)
+      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isExpensive)
     } yield ts
 }

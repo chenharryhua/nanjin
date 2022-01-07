@@ -64,6 +64,7 @@ final case class ActionParams private (
   isTerminate: ActionTermination,
   isCounting: CountAction,
   isTiming: TimeAction,
+  isExpensive: ExpensiveAction,
   retry: ActionRetryParams,
   catalog: String,
   serviceParams: ServiceParams) {
@@ -83,6 +84,7 @@ object ActionParams {
       isTerminate = agentParams.isTerminate,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
+      isExpensive = agentParams.isExpensive,
       retry = agentParams.retry,
       catalog = agentParams.catalog,
       serviceParams = agentParams.serviceParams

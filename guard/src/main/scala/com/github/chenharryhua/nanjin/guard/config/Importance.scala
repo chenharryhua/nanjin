@@ -32,6 +32,13 @@ object TimeAction extends CatsEnum[TimeAction] with Enum[TimeAction] with CirceE
   case object No extends TimeAction
 }
 
+sealed trait ExpensiveAction extends EnumEntry
+object ExpensiveAction extends CatsEnum[ExpensiveAction] with Enum[ExpensiveAction] with CirceEnum[ExpensiveAction] {
+  override val values: IndexedSeq[ExpensiveAction] = findValues
+  case object Yes extends ExpensiveAction
+  case object No extends ExpensiveAction
+}
+
 sealed trait ActionTermination extends EnumEntry
 object ActionTermination
     extends CatsEnum[ActionTermination] with Enum[ActionTermination] with CirceEnum[ActionTermination] {
