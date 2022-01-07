@@ -13,10 +13,10 @@ import scala.concurrent.duration.*
 @Lenses @JsonCodec final case class AgentParams private (
   spans: List[String],
   importance: Importance,
-  isTerminate: ActionTermination,
-  isCounting: CountAction,
-  isTiming: TimeAction,
-  isExpensive: ExpensiveAction,
+  isTerminate: ActionTermination, // does the action terminate?
+  isCounting: CountAction, // if counting the action?
+  isTiming: TimeAction, // if timing the action?
+  isExpensive: ExpensiveAction, // if the action take long time to accomplish, like a few minutes or hours?
   retry: ActionRetryParams,
   catalog: String,
   serviceParams: ServiceParams)
@@ -108,7 +108,8 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withTiming: AgentConfig      = AgentConfig(Fix(WithTiming(value = TimeAction.Yes, value)))
   def withoutCounting: AgentConfig = AgentConfig(Fix(WithCounting(value = CountAction.No, value)))
   def withoutTiming: AgentConfig   = AgentConfig(Fix(WithTiming(value = TimeAction.No, value)))
-  def withExpensive: AgentConfig   = AgentConfig(Fix(WithExpensive(value = ExpensiveAction.Yes, value)))
+  def withExpensive(isCostly: Boolean): AgentConfig =
+    AgentConfig(Fix(WithExpensive(value = if (isCostly) ExpensiveAction.Yes else ExpensiveAction.No, value)))
 
   def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
 

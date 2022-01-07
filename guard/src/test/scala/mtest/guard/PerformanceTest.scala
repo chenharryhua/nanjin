@@ -14,13 +14,13 @@ import scala.concurrent.duration.*
 
 /** last time:
   *
-  * 89854651 critical - no timing
+  * 16059036 critical - no timing
   *
-  * 87683264 notice - expensive no timing
+  * 14364771 notice - expensive no timing
   *
-  * 100883475 normal - expensive no timing
+  * 27723153 normal - expensive no timing
   *
-  * 106398872 trivial - no timing
+  * 31362268 trivial - no timing
   */
 
 @Ignore

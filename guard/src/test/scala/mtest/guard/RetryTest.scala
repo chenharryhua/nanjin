@@ -18,7 +18,7 @@ class RetryTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
 
-  test("retry - success trivial") {
+  test("1.retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd.span("succ-trivial")
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
@@ -33,7 +33,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStop])
   }
 
-  test("retry - success notice") {
+  test("2.retry - success notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag = gd
         .span("all-succ")
@@ -56,7 +56,7 @@ class RetryTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStop])
   }
 
-  test("retry - all fail") {
+  test("3.retry - all fail") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
       val ag: NJRetry[IO, Int, Int] = gd
         .span("all-fail")
@@ -80,7 +80,7 @@ class RetryTest extends AnyFunSuite {
     assert(j.isInstanceOf[ServiceStop])
   }
 
-  test("retry - should retry 2 times when operation fail") {
+  test("4.retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(s, a, b, c, d, e) = serviceGuard.eventStream { gd =>
       gd.span("1-time-succ")
@@ -102,7 +102,7 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServiceStop])
   }
 
-  test("retry - should retry 2 times when operation fail - low") {
+  test("5.retry - should retry 2 times when operation fail - low") {
     var i = 0
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
       gd.span("1-time-succ")
@@ -120,7 +120,7 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServiceStop])
   }
 
-  test("retry - should escalate to up level if retry failed") {
+  test("6.retry - should escalate to up level if retry failed") {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -142,7 +142,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("retry - Null pointer exception") {
+  test("7.retry - Null pointer exception") {
     val s :: b :: c :: d :: e :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
@@ -161,7 +161,7 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServicePanic])
   }
 
-  test("retry - predicate - should retry") {
+  test("8.retry - predicate - should retry") {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -184,7 +184,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("retry - predicate - should not retry") {
+  test("9.retry - predicate - should not retry") {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -205,7 +205,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-  test("retry - should fail the action if post condition is unsatisfied") {
+  test("10.retry - should fail the action if post condition is unsatisfied") {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -226,7 +226,7 @@ class RetryTest extends AnyFunSuite {
     assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "")
     assert(f.isInstanceOf[ServicePanic])
   }
-  test("retry - should fail the action if post condition is unsatisfied - 2") {
+  test("11.retry - should fail the action if post condition is unsatisfied - 2") {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -249,7 +249,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("retry - nonterminating - should retry") {
+  test("12.retry - nonterminating - should retry") {
     val s :: b :: c :: s1 :: e :: f :: s2 :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
@@ -269,7 +269,7 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ServicePanic])
   }
 
-  test("retry - nonterminating - exception") {
+  test("13.retry - nonterminating - exception") {
 
     val s :: b :: c :: s1 :: e :: f :: s2 :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
@@ -291,26 +291,21 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ServicePanic])
   }
 
-  test("retry - nonterminating - cancelation") {
-    val s :: b :: c :: s2 :: e :: f :: s3 :: h :: i :: rest = serviceGuard
+  test("14.retry - nonterminating - cancelation") {
+    val a :: b :: c :: Nil = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO(1) >> IO.canceled))
+      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
-    assert(s.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
-    assert(c.isInstanceOf[ServicePanic])
-    assert(s2.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
-    assert(f.isInstanceOf[ServicePanic])
-    assert(s3.isInstanceOf[ServiceStart])
-    assert(h.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled internally")
-    assert(i.isInstanceOf[ServicePanic])
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
+    assert(c.isInstanceOf[ServiceStop])
   }
 
-  test("quasi syntax") {
+  test("15.quasi syntax") {
     serviceGuard.eventStream { ag =>
       ag.quasi(3)(IO("a"), IO("b")) >>
         ag.quasi(3, List(IO("a"), IO("b"))) >>

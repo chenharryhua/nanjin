@@ -36,11 +36,13 @@ final class Agent[F[_]] private[service] (
 
   def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
-  def trivial: Agent[F]   = updateConfig(_.withLowImportance)
-  def normal: Agent[F]    = updateConfig(_.withMediumImportance)
-  def notice: Agent[F]    = updateConfig(_.withHighImportance)
-  def critical: Agent[F]  = updateConfig(_.withCriticalImportance)
-  def expensive: Agent[F] = updateConfig(_.withExpensive)
+  def trivial: Agent[F]  = updateConfig(_.withLowImportance)
+  def normal: Agent[F]   = updateConfig(_.withMediumImportance)
+  def notice: Agent[F]   = updateConfig(_.withHighImportance)
+  def critical: Agent[F] = updateConfig(_.withCriticalImportance)
+
+  def expensive: Agent[F] = updateConfig(_.withExpensive(isCostly = true))
+  def cheap: Agent[F]     = updateConfig(_.withExpensive(isCostly = false))
 
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
