@@ -250,23 +250,21 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("12.retry - nonterminating - should retry") {
-    val s :: b :: c :: s1 :: e :: f :: s2 :: h :: i :: rest = serviceGuard
+    val a :: b :: c :: d :: e :: f :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
+      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was terminated unexpectedly")
-    assert(c.isInstanceOf[ServicePanic])
-    assert(s1.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was terminated unexpectedly")
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ServicePanic])
+    assert(c.isInstanceOf[ServiceStart])
+    assert(d.isInstanceOf[ServicePanic])
+    assert(e.isInstanceOf[ServiceStart])
     assert(f.isInstanceOf[ServicePanic])
-    assert(s2.isInstanceOf[ServiceStart])
-    assert(h.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was terminated unexpectedly")
-    assert(i.isInstanceOf[ServicePanic])
   }
 
   test("13.retry - nonterminating - exception") {

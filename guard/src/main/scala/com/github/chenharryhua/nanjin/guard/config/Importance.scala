@@ -39,14 +39,6 @@ object ExpensiveAction extends CatsEnum[ExpensiveAction] with Enum[ExpensiveActi
   case object No extends ExpensiveAction
 }
 
-sealed trait ActionTermination extends EnumEntry
-object ActionTermination
-    extends CatsEnum[ActionTermination] with Enum[ActionTermination] with CirceEnum[ActionTermination] {
-  override val values: IndexedSeq[ActionTermination] = findValues
-  case object Yes extends ActionTermination
-  case object No extends ActionTermination
-}
-
 sealed trait MetricSnapshotType extends EnumEntry
 object MetricSnapshotType
     extends CatsEnum[MetricSnapshotType] with Enum[MetricSnapshotType] with CirceEnum[MetricSnapshotType] {

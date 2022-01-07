@@ -126,10 +126,10 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     span("nonStop")
-      .updateConfig(_.withNonTermination.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
+      .updateConfig(_.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
       .retry(fb)
       .run
-      .flatMap[Nothing](_ => F.raiseError(new Exception("never happen")))
+      .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 
   def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
 

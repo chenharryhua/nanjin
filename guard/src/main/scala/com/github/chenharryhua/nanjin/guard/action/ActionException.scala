@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-private[guard] object ActionException {
+object ActionException {
 
   final case class PostConditionUnsatisfied(msg: String) extends Exception(msg)
 

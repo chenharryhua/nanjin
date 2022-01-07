@@ -13,7 +13,6 @@ import scala.concurrent.duration.*
 @Lenses @JsonCodec final case class AgentParams private (
   spans: List[String],
   importance: Importance,
-  isTerminate: ActionTermination, // does the action terminate?
   isCounting: CountAction, // if counting the action?
   isTiming: TimeAction, // if timing the action?
   isExpensive: ExpensiveAction, // if the action take long time to accomplish, like a few minutes or hours?
@@ -27,7 +26,6 @@ private[guard] object AgentParams {
   def apply(serviceParams: ServiceParams): AgentParams = AgentParams(
     spans = Nil,
     importance = Importance.Medium,
-    isTerminate = ActionTermination.Yes,
     isCounting = CountAction.Yes,
     isTiming = TimeAction.Yes,
     isExpensive = ExpensiveAction.No,
@@ -51,7 +49,6 @@ private object AgentConfigF {
   final case class WithMaxRetries[K](value: Int, cont: K) extends AgentConfigF[K]
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
-  final case class WithTermination[K](value: ActionTermination, cont: K) extends AgentConfigF[K]
 
   final case class WithSpans[K](value: List[String], cont: K) extends AgentConfigF[K]
 
@@ -68,7 +65,6 @@ private object AgentConfigF {
       case WithRetryPolicy(v, c) => AgentParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
       case WithMaxRetries(v, c)  => AgentParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
       case WithCapDelay(v, c)    => AgentParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
-      case WithTermination(v, c) => AgentParams.isTerminate.set(v)(c)
       case WithImportance(v, c)  => AgentParams.importance.set(v)(c)
       case WithSpans(v, c)       => AgentParams.spans.modify(_ ::: v)(c)
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
@@ -95,9 +91,6 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
 
   def withFullJitterBackoff(delay: FiniteDuration): AgentConfig =
     AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(delay), value)))
-
-  def withNonTermination: AgentConfig =
-    AgentConfig(Fix(WithTermination(value = ActionTermination.No, value)))
 
   def withLowImportance: AgentConfig      = AgentConfig(Fix(WithImportance(Importance.Low, value)))
   def withMediumImportance: AgentConfig   = AgentConfig(Fix(WithImportance(Importance.Medium, value)))

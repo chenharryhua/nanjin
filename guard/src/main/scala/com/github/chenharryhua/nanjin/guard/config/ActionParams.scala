@@ -61,7 +61,6 @@ object ActionRetryParams {
 final case class ActionParams private (
   metricName: DigestedName,
   importance: Importance,
-  isTerminate: ActionTermination,
   isCounting: CountAction,
   isTiming: TimeAction,
   isExpensive: ExpensiveAction,
@@ -81,7 +80,6 @@ object ActionParams {
     ActionParams(
       metricName = DigestedName(agentParams.spans, agentParams.serviceParams),
       importance = agentParams.importance,
-      isTerminate = agentParams.isTerminate,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
       isExpensive = agentParams.isExpensive,
