@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Ref, RefSource, Temporal}
+import cats.effect.kernel.{Async, Ref, RefSource}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
@@ -17,8 +17,7 @@ final private class MetricEventPublisher[F[_]](
   metricRegistry: MetricRegistry,
   serviceStatus: RefSource[F, ServiceStatus],
   ongoings: RefSource[F, Set[ActionInfo]],
-  lastCounters: Ref[F, MetricSnapshot.LastCounters]
-)(implicit F: Temporal[F]) {
+  lastCounters: Ref[F, MetricSnapshot.LastCounters])(implicit F: Async[F]) {
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
@@ -71,5 +70,12 @@ final private class MetricEventPublisher[F[_]](
       _ <- channel.send(msg)
       _ <- lastCounters.set(MetricSnapshot.LastCounters.empty)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
+
+  // query
+  val snapshotFull: F[MetricSnapshot] =
+    F.delay(MetricSnapshot.full(metricRegistry, serviceParams))
+
+  def snapshot(metricFilter: MetricFilter): F[MetricSnapshot] =
+    F.delay(MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams))
 
 }

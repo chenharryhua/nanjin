@@ -23,7 +23,7 @@ sealed trait NJHadoop[F[_]] {
   def delete(pathStr: String): F[Boolean]
   def isExist(pathStr: String): F[Boolean]
   def locatedFileStatus(pathStr: String): F[List[LocatedFileStatus]]
-  def dataFolders(pathStr: String): F[Set[Path]]
+  def dataFolders(pathStr: String): F[List[Path]]
 
   def byteSink(pathStr: String): Pipe[F, Byte, Unit]
   def byteSource(pathStr: String, chunkSize: Int): Stream[F, Byte]
@@ -76,13 +76,13 @@ object NJHadoop {
         }
 
       // folders which contain data files
-      def dataFolders(pathStr: String): F[Set[Path]] =
+      override def dataFolders(pathStr: String): F[List[Path]] =
         fileSystem(pathStr).use { fs =>
           F.blocking {
             val ri = fs.listFiles(new Path(pathStr), true)
             val lb = collection.mutable.Set.empty[Path]
             while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
-            lb.toSet
+            lb.toList.sortBy(_.toString)
           }
         }
 

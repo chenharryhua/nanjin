@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.Applicative
-import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.regions.Regions
@@ -11,7 +10,7 @@ import com.amazonaws.services.simplesystemsmanagement.{
   AWSSimpleSystemsManagementClientBuilder
 }
 import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.util.Base64
@@ -24,6 +23,7 @@ sealed trait ParameterStore[F[_]] {
 }
 
 object ParameterStore {
+
   private val name: String = "aws.ParameterStore"
 
   def fake[F[_]](content: String)(implicit F: Applicative[F]): Resource[F, ParameterStore[F]] =
@@ -34,22 +34,18 @@ object ParameterStore {
 
     }))(_ => F.unit)
 
-  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, ParameterStore[F]] = {
-    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(regions, logger))) { case (cw, quitCase) =>
-      val logging = quitCase match {
-        case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
-        case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
-        case ExitCase.Canceled   => logger.info(s"$name was canceled")
+  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, ParameterStore[F]] =
+    for {
+      logger <- Resource.eval(Slf4jLogger.create[F])
+      ps <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(regions, logger))) {
+        case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
-      logging *> cw.shutdown
-    }
-  }
+    } yield ps
 
   def apply[F[_]: Async]: Resource[F, ParameterStore[F]] = apply[F](defaultRegion)
 
   final private class AwsPS[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
-      extends ParameterStore[F] with ShutdownService[F] {
+      extends ShutdownService[F] with ParameterStore[F] {
     private val client: AWSSimpleSystemsManagement =
       AWSSimpleSystemsManagementClientBuilder.standard.withRegion(regions).build
 
@@ -61,6 +57,6 @@ object ParameterStore {
         .rethrow
     }
 
-    override def shutdown: F[Unit] = F.blocking(client.shutdown())
+    override protected val closeService: F[Unit] = F.blocking(client.shutdown())
   }
 }

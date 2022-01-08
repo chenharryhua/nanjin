@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.regions.Regions
@@ -19,20 +18,16 @@ trait SimpleEmailService[F[_]] {
 }
 
 object ses {
-  private val name: String = "aws.SES"
-  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] = {
-    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSES[F](regions, logger))) {
-      case (cw, quitCase) =>
-        val logging = quitCase match {
-          case ExitCase.Succeeded  => logger.info(s"$name was closed normally")
-          case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
-          case ExitCase.Canceled   => logger.info(s"$name was canceled")
-        }
-        logging *> cw.shutdown
-    }
-  }
+  private val name: String = "aws.SES"
+
+  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] =
+    for {
+      logger <- Resource.eval(Slf4jLogger.create[F])
+      er <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSES[F](regions, logger))) {
+        case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
+      }
+    } yield er
 
   def apply[F[_]: Sync]: Resource[F, SimpleEmailService[F]] = apply[F](defaultRegion)
 
@@ -45,7 +40,7 @@ object ses {
   }
 
   final private class AwsSES[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
-      extends SimpleEmailService[F] with ShutdownService[F] {
+      extends ShutdownService[F] with SimpleEmailService[F] {
 
     private val client: AmazonSimpleEmailService =
       AmazonSimpleEmailServiceClientBuilder.standard().withRegion(regions).build
@@ -61,6 +56,6 @@ object ses {
       F.blocking(client.sendEmail(request)).attempt.flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r)).rethrow
     }
 
-    override def shutdown: F[Unit] = F.blocking(client.shutdown())
+    override protected val closeService: F[Unit] = F.blocking(client.shutdown())
   }
 }

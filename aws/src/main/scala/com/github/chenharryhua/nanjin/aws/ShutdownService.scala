@@ -1,5 +1,18 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.Applicative
+import cats.effect.kernel.Resource.ExitCase
+import cats.syntax.apply.*
+import org.typelevel.log4cats.Logger
+
 private[aws] trait ShutdownService[F[_]] {
-  def shutdown: F[Unit]
+
+  protected def closeService: F[Unit]
+
+  final def shutdown(name: String, cause: ExitCase, logger: Logger[F])(implicit F: Applicative[F]): F[Unit] =
+    cause match {
+      case ExitCase.Succeeded  => logger.info(s"$name was closed normally") *> closeService
+      case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally") *> closeService
+      case ExitCase.Canceled   => logger.info(s"$name was canceled") *> closeService
+    }
 }

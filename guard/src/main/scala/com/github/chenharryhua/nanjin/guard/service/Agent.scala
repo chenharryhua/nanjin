@@ -111,9 +111,7 @@ final class Agent[F[_]] private[service] (
         serviceStatus = serviceStatus,
         ongoings = ongoings,
         lastCounters = lastCounters),
-      dispatcher = dispatcher,
-      serviceParams = serviceParams,
-      metricRegistry = metricRegistry)
+      dispatcher = dispatcher)
 
   lazy val runtime: NJRuntimeInfo[F] =
     new NJRuntimeInfo[F](serviceParams = serviceParams, serviceStatus = serviceStatus, ongoings = ongoings)
@@ -123,7 +121,9 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     span("nonStop")
-      .updateConfig(_.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
+      .max(retries = 0)
+      .cheap
+      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance)
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
