@@ -35,6 +35,8 @@ class PerformanceTest extends AnyFunSuite {
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
 
+  def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
+
   test("critical") {
     var i = 0
     service.eventStream { ag =>
@@ -47,7 +49,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${i / (take.toSeconds * 1000)}k/s critical")
+    println(s"${speed(i)} critical")
   }
 
   test("critical - notes") {
@@ -63,7 +65,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${i / (take.toSeconds * 1000)}k/s critical - notes")
+    println(s"${speed(i)} critical - notes")
   }
 
   test("critical - expensive notes") {
@@ -80,7 +82,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${i / (take.toSeconds * 1000)}k/s critical - expensive notes")
+    println(s"${speed(i)} critical - expensive notes")
   }
 
   test("notice") {
@@ -95,7 +97,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${i / (take.toSeconds * 1000)}k/s notice")
+    println(s"${speed(i)} notice")
   }
 
   test("normal") {
@@ -110,7 +112,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${i / (take.toSeconds * 1000)}k/s normal")
+    println(s"${speed(i)} normal")
   }
 
   test("normal - expensive") {
@@ -126,7 +128,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${i / (take.toSeconds * 1000)}k/s - normal expensive")
+    println(s"${speed(i)} - normal expensive")
   }
 
   test("trivial") {
@@ -141,6 +143,6 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${i / (take.toSeconds * 1000)}k/s trivial")
+    println(s"${speed(i)} trivial")
   }
 }
