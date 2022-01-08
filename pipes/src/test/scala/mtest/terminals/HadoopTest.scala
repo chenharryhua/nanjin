@@ -125,8 +125,8 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("dataFolders") {
-    val pathStr = "./data/sparKafka"
+    val pathStr = "./data/test/devices"
     val folders = hdp.dataFolders(pathStr).unsafeRunSync()
-    assert(folders.headOption.exists(_.toUri.getPath.contains("sparKafka")))
+    assert(folders.headOption.exists(_.toUri.getPath.contains("devices")))
   }
 }
