@@ -204,7 +204,7 @@ val kafkaLib = Seq(
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   "com.typesafe.akka" %% "akka-stream-kafka"  % "2.1.1",
-  "com.github.fd4s" %% "fs2-kafka"            % "2.2.0"
+  "com.github.fd4s" %% "fs2-kafka"            % "2.3.0"
 )
 
 val enumLib = Seq(
