@@ -7,7 +7,7 @@ import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, CountAction, TimeAction}
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
@@ -50,24 +50,24 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetry[F, A, B] =
     copy(isWorthRetry = Reader(isWorthRetry))
 
-  private lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
-  private lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
-  private lazy val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
+  private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
+  private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
+  private[this] lazy val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
 
-  private def timingAndCounting(isSucc: Boolean, launchTime: Instant, now: Instant): Unit = {
-    if (actionParams.isTiming === TimeAction.Yes) timer.update(Duration.between(launchTime, now))
-    if (actionParams.isCounting === CountAction.Yes) {
+  private[this] def timingAndCounting(isSucc: Boolean, launchTime: Instant, now: Instant): Unit = {
+    if (actionParams.isTiming.value) timer.update(Duration.between(launchTime, now))
+    if (actionParams.isCounting.value) {
       if (isSucc) succCounter.inc(1) else failCounter.inc(1)
     }
   }
 
-  @inline private val succNotes: (A, F[B]) => F[Notes] =
+  private[this] val succNotes: (A, F[B]) => F[Notes] =
     (a: A, b: F[B]) => succ.fold(F.pure(Notes.empty))(k => b.flatMap(k.run(a, _)).map(Notes(_)))
 
-  @inline private val failNotes: (A, Throwable) => F[Notes] =
+  private[this] val failNotes: (A, Throwable) => F[Notes] =
     (a: A, ex: Throwable) => fail.fold(F.pure(Notes.empty))(_.run((a, ex)).map(Notes(_)))
 
-  private val publisher: ActionEventPublisher[F] = new ActionEventPublisher[F](channel, ongoings)
+  private[this] val publisher: ActionEventPublisher[F] = new ActionEventPublisher[F](channel, ongoings)
 
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries

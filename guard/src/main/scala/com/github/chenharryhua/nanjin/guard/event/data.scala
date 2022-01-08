@@ -104,7 +104,7 @@ final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTim
   val isCritical: Boolean  = actionParams.importance > Importance.High // Critical
   val isNotice: Boolean    = actionParams.importance > Importance.Medium // Hight + Critical
   val nonTrivial: Boolean  = actionParams.importance > Importance.Low // Medium + High + Critical
-  val isExpensive: Boolean = actionParams.isExpensive === ExpensiveAction.Yes
+  val isExpensive: Boolean = actionParams.isExpensive.value
 }
 
 object ActionInfo extends instant {
@@ -179,7 +179,6 @@ object ServiceStatus extends instant {
 sealed trait ServiceStopCause
 object ServiceStopCause {
   implicit val showServiceStopCause: Show[ServiceStopCause] = cats.derived.semiauto.show[ServiceStopCause]
-  case object BySuccess extends ServiceStopCause
-  case object ByCancelation extends ServiceStopCause
-  final case class ByException(msg: String) extends ServiceStopCause
+  case object Normally extends ServiceStopCause
+  final case class Abnormally(msg: String) extends ServiceStopCause
 }

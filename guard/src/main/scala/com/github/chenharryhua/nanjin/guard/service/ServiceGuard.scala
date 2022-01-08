@@ -21,9 +21,9 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 /** @example
   *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
   *       val es: Stream[IO,NJEvent] = guard.eventStream {
-  *           gd => gd("action-1").retry(IO(1)).run >> 
+  *           gd => gd.span("action-1").retry(IO(1)).run >> 
   *                  IO("other computation") >> 
-  *                  gd("action-2").retry(IO(2)).run 
+  *                  gd.span("action-2").retry(IO(2)).run 
   *            }
   * }}}
   */
@@ -57,7 +57,7 @@ final class ServiceGuard[F[_]] private[guard] (
     ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
   } yield ssRef
 
-  def eventStream[A](agent: Agent[F] => F[A]): Stream[F, NJEvent] =
+  def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceStatus <- Stream.eval(initStatus)
       lastCounters <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
@@ -71,7 +71,7 @@ final class ServiceGuard[F[_]] private[guard] (
           retry.mtl
             .retryingOnAllErrors(serviceParams.retry.policy[F], (ex: Throwable, rd) => sep.servicePanic(rd, ex)) {
               sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
-                agent(
+                runAgent(
                   new Agent[F](
                     metricRegistry,
                     serviceStatus,
@@ -82,12 +82,12 @@ final class ServiceGuard[F[_]] private[guard] (
                     AgentConfig(serviceParams))))
             }
             .guaranteeCase {
-              case Outcome.Succeeded(fa) =>
-                sep.serviceStop(ServiceStopCause.BySuccess) <* channel.close
+              case Outcome.Succeeded(_) =>
+                sep.serviceStop(ServiceStopCause.Normally) <* channel.close
               case Outcome.Errored(e) =>
-                sep.serviceStop(ServiceStopCause.ByException(ExceptionUtils.getMessage(e))) <* channel.close
+                sep.serviceStop(ServiceStopCause.Abnormally(ExceptionUtils.getMessage(e))) <* channel.close
               case Outcome.Canceled() =>
-                sep.serviceStop(ServiceStopCause.ByCancelation) <* channel.close
+                sep.serviceStop(ServiceStopCause.Abnormally("canceled")) <* channel.close
             }
         }
 

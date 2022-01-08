@@ -37,7 +37,7 @@ object email {
   def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): NJSnsEmail[F] =
     new NJSnsEmail[F](client = client, chunkSize = 60, interval = 60.minutes, Translator.html[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmail[F] = apply(sns(snsArn))
+  def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmail[F] = apply[F](sns(snsArn))
 }
 
 final class NJSesEmail[F[_]: Async] private[observers] (
