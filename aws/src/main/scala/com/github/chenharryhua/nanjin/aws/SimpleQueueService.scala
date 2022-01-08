@@ -6,7 +6,6 @@ import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
 import akka.stream.scaladsl.Sink
 import cats.Applicative
-import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
@@ -15,7 +14,6 @@ import fs2.Stream
 import fs2.interop.reactivestreams.*
 import io.circe.optics.JsonPath.*
 import io.circe.parser.*
-import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
@@ -30,6 +28,7 @@ sealed trait SimpleQueueService[F[_]] {
 }
 
 object sqs {
+
   private val name: String = "aws.SQS"
 
   def fake[F[_]](stream: Stream[F, SqsAckResult])(implicit F: Applicative[F]): Resource[F, SimpleQueueService[F]] =
@@ -37,25 +36,19 @@ object sqs {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
     }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit
-    F: Async[F]): Resource[F, SimpleQueueService[F]] = {
-    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, bufferSize))) {
-      case (cw, quitCase) =>
-        val logging = quitCase match {
-          case ExitCase.Succeeded  => logger.info(s"$name  was closed normally")
-          case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally")
-          case ExitCase.Canceled   => logger.info(s"$name was canceled")
-        }
-        logging *> cw.shutdown
-    }
-  }
+  def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
+    for {
+      logger <- Resource.eval(Slf4jLogger.create[F])
+      qr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, bufferSize))) {
+        case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
+      }
+    } yield qr
 
   def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
     apply[F](akkaSystem, 1024)
 
   final private class AwsSQS[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F])
-      extends SimpleQueueService[F] with ShutdownService[F] {
+      extends ShutdownService[F] with SimpleQueueService[F] {
 
     implicit private val client: SqsAsyncClient =
       SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
@@ -72,7 +65,7 @@ object sqs {
           .runWith(Sink.asPublisher(fanout = false))
           .toStreamBuffered(bufferSize))
 
-    override def shutdown: F[Unit] = F.blocking(client.close())
+    override protected val closeService: F[Unit] = F.blocking(client.close())
   }
 }
 

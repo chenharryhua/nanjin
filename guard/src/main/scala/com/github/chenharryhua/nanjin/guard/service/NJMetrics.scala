@@ -1,16 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.Eval
 import cats.effect.std.Dispatcher
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
+import com.codahale.metrics.MetricFilter
+import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricSnapshot}
 
-final class NJMetrics[F[_]] private[service] (
-  publisher: MetricEventPublisher[F],
-  dispatcher: Dispatcher[F],
-  serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry) {
+final class NJMetrics[F[_]] private[service] (publisher: MetricEventPublisher[F], dispatcher: Dispatcher[F]) {
 
   def reset: F[Unit]      = publisher.metricsReset(None)
   def unsafeReset(): Unit = dispatcher.unsafeRunSync(reset)
@@ -30,11 +25,8 @@ final class NJMetrics[F[_]] private[service] (
   def unsafeFullReport(): Unit =
     dispatcher.unsafeRunSync(reporting(MetricSnapshotType.Full, MetricFilter.ALL))
 
-  // query metricRegistry
-  val snapshotFull: Eval[MetricSnapshot] =
-    Eval.always(MetricSnapshot.full(metricRegistry, serviceParams))
-
-  def snapshot(metricFilter: MetricFilter): Eval[MetricSnapshot] =
-    Eval.always(MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams))
+  // query
+  def snapshot: F[MetricSnapshot]                             = publisher.snapshotFull
+  def snapshot(metricFilter: MetricFilter): F[MetricSnapshot] = publisher.snapshot(metricFilter)
 
 }
