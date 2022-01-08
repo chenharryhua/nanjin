@@ -32,6 +32,13 @@ final class NJSlack[F[_]] private[observers] (
 
   def withInterval(fd: FiniteDuration): NJSlack[F] = new NJSlack[F](snsResource, Some(fd), translator)
 
+  def at(supporters: String): NJSlack[F] = {
+    // bother supporters when action failed or service panic
+    val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
+    val af = Translator.actionFail[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
+    updateTranslator(t => sp.andThen(af).apply(t))
+  }
+
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlack[F] =
     new NJSlack[F](snsResource, interval, f(translator))
 

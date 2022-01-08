@@ -58,7 +58,16 @@ final case class MarkdownSection(text: String) extends Section
 final case class Attachment(color: String, blocks: List[Section])
 
 @JsonCodec
-final case class SlackApp(username: String, attachments: List[Attachment])
+final case class SlackApp(username: String, attachments: List[Attachment]) {
+  def prependMarkdown(text: String): SlackApp = {
+    val mkd = MarkdownSection(text)
+    val updated: List[Attachment] = attachments match {
+      case Nil          => List(Attachment("", List(mkd)))
+      case head :: rest => Attachment(head.color, mkd :: head.blocks) :: rest
+    }
+    SlackApp(username, updated)
+  }
+}
 
 object SlackApp {
   implicit val showSlackApp: Show[SlackApp] = cats.derived.semiauto.show[SlackApp]
