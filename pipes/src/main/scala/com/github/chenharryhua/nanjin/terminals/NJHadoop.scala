@@ -8,19 +8,22 @@ import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem, Path}
+import org.apache.hadoop.fs.*
 import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter, AvroReadSupport}
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
 
 import java.net.URI
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.*
 
 sealed trait NJHadoop[F[_]] {
 
   def delete(pathStr: String): F[Boolean]
   def isExist(pathStr: String): F[Boolean]
+  def locatedFileStatus(pathStr: String): F[List[LocatedFileStatus]]
+  def dataFolders(pathStr: String): F[Set[Path]]
 
   def byteSink(pathStr: String): Pipe[F, Byte, Unit]
   def byteSource(pathStr: String, chunkSize: Int): Stream[F, Byte]
@@ -61,6 +64,27 @@ object NJHadoop {
 
       override def isExist(pathStr: String): F[Boolean] =
         fileSystem(pathStr).use(fs => F.blocking(fs.exists(new Path(pathStr))))
+
+      override def locatedFileStatus(pathStr: String): F[List[LocatedFileStatus]] =
+        fileSystem(pathStr).use { fs =>
+          F.blocking {
+            val ri = fs.listFiles(new Path(pathStr), true)
+            val lb = ListBuffer.empty[LocatedFileStatus]
+            while (ri.hasNext) lb.addOne(ri.next())
+            lb.toList
+          }
+        }
+
+      // folders which contain data files
+      def dataFolders(pathStr: String): F[Set[Path]] =
+        fileSystem(pathStr).use { fs =>
+          F.blocking {
+            val ri = fs.listFiles(new Path(pathStr), true)
+            val lb = collection.mutable.Set.empty[Path]
+            while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
+            lb.toSet
+          }
+        }
 
       override def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
         (for {

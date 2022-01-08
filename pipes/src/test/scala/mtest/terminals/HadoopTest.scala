@@ -8,6 +8,7 @@ import org.apache.avro.Schema
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -121,5 +122,11 @@ class HadoopTest extends AnyFunSuite {
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.nullCodec)).compile.drain >>
       hdp.avroSource(pathStr, pandaSchema, 100).compile.toList
     assert(action.unsafeRunSync() == pandas)
+  }
+
+  test("dataFolders") {
+    val pathStr = "./data/sparKafka"
+    val folders = hdp.dataFolders(pathStr).unsafeRunSync()
+    assert(folders.headOption.exists(_.toUri.getPath.contains("sparKafka")))
   }
 }
