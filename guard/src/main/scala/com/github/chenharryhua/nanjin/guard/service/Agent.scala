@@ -123,7 +123,9 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     span("nonStop")
-      .updateConfig(_.withMaxRetries(0).withoutTiming.withoutCounting.withLowImportance)
+      .max(0)
+      .cheap
+      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance)
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
