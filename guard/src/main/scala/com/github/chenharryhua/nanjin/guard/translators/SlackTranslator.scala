@@ -70,7 +70,8 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
                                 |*Error ID:* ${evt.error.uuid.show}
-                                |*Cause:* ${evt.error.message}""".stripMargin)
+                                |*Cause:* ${evt.error.message}
+                                |${evt.serviceParams.brief}""".stripMargin)
           )
         )
       )
@@ -131,6 +132,7 @@ private[translators] object SlackTranslator extends all {
                 "Scheduled Next",
                 evt.serviceParams.metric.nextReport(evt.zonedDateTime).map(localTimestampStr).getOrElse("None"))
             ),
+            MarkdownSection(evt.serviceParams.brief),
             metricsSection(evt.snapshot)
           )
         )
@@ -230,7 +232,8 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*error ID:* ${evt.error.uuid.show}
-                                |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
+                                |*policy:* ${evt.actionParams.retry.policy[F].show}
+                                |${evt.serviceParams.brief}""".stripMargin),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*Cause:* ${evt.error.message}")
           ) ::: (if (evt.notes.value.isEmpty) Nil
