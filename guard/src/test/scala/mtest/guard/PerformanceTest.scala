@@ -14,19 +14,19 @@ import scala.concurrent.duration.*
 
 /** last time: (run more than once, pick up the best)
   *
-  * 22132321 critical
+  * 217k/s critical
   *
-  * 23960750 critical - notes
+  * 247k/s critical - notes
   *
-  * 20128671 critical - expensive notes
+  * 231k/s critical - expensive notes
   *
-  * 23187371 notice
+  * 248k/s notice
   *
-  * 42019615 normal
+  * 444k/s normal
   *
-  * 38032930 normal - expensive
+  * 397k/s - normal expensive
   *
-  * 42671655 trivial
+  * 434k/s trivial
   */
 
 @Ignore
@@ -34,6 +34,8 @@ class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
+
+  def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
 
   test("critical") {
     var i = 0
@@ -47,7 +49,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i critical")
+    println(s"${speed(i)} critical")
   }
 
   test("critical - notes") {
@@ -63,7 +65,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i critical - notes")
+    println(s"${speed(i)} critical - notes")
   }
 
   test("critical - expensive notes") {
@@ -80,7 +82,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i critical - expensive notes")
+    println(s"${speed(i)} critical - expensive notes")
   }
 
   test("notice") {
@@ -95,7 +97,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i notice")
+    println(s"${speed(i)} notice")
   }
 
   test("normal") {
@@ -110,7 +112,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i normal")
+    println(s"${speed(i)} normal")
   }
 
   test("normal - expensive") {
@@ -126,7 +128,7 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i normal - expensive")
+    println(s"${speed(i)} - normal expensive")
   }
 
   test("trivial") {
@@ -141,6 +143,6 @@ class PerformanceTest extends AnyFunSuite {
         .timeout(take)
         .attempt
     }.compile.drain.unsafeRunSync()
-    println(s"$i trivial")
+    println(s"${speed(i)} trivial")
   }
 }
