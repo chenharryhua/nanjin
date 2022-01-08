@@ -184,7 +184,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("9.retry - predicate - should not retry") {
+  test("9.retry - isWorthRetry - should not retry") {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
@@ -225,7 +225,7 @@ class RetryTest extends AnyFunSuite {
 
   test("13.retry - nonterminating - exception") {
 
-    val s :: b :: c :: s1 :: e :: f :: s2 :: h :: i :: rest = serviceGuard
+    val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
       .debug()
@@ -234,13 +234,13 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    assert(s.isInstanceOf[ServiceStart])
+    assert(a.isInstanceOf[ServiceStart])
     assert(b.asInstanceOf[ActionFail].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(c.isInstanceOf[ServicePanic])
-    assert(s1.isInstanceOf[ServiceStart])
+    assert(d.isInstanceOf[ServiceStart])
     assert(e.asInstanceOf[ActionFail].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(f.isInstanceOf[ServicePanic])
-    assert(s2.isInstanceOf[ServiceStart])
+    assert(g.isInstanceOf[ServiceStart])
     assert(h.asInstanceOf[ActionFail].error.throwable.get.asInstanceOf[Exception].getMessage == "ex")
     assert(i.isInstanceOf[ServicePanic])
   }

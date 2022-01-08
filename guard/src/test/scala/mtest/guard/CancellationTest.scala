@@ -4,12 +4,14 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 
 class CancellationTest extends AnyFunSuite {
-  val serviceGuard = TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
+  val serviceGuard: ServiceGuard[IO] =
+    TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard

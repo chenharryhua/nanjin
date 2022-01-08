@@ -104,7 +104,7 @@ final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTim
   val isCritical: Boolean  = actionParams.importance > Importance.High // Critical
   val isNotice: Boolean    = actionParams.importance > Importance.Medium // Hight + Critical
   val nonTrivial: Boolean  = actionParams.importance > Importance.Low // Medium + High + Critical
-  val isExpensive: Boolean = actionParams.isExpensive === ExpensiveAction.Yes
+  val isExpensive: Boolean = actionParams.isExpensive.value
 }
 
 object ActionInfo extends instant {

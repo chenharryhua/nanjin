@@ -12,21 +12,21 @@ import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.PerformanceTest"
 
-/** last time:
+/** last time: (run more than once, pick up the best)
   *
-  * 22728690 critical
+  * 22132321 critical
   *
-  * 19172075 critical - notes
+  * 23960750 critical - notes
   *
-  * 18717938 critical - expensive notes
+  * 20128671 critical - expensive notes
   *
-  * 21779936 notice
+  * 23187371 notice
   *
-  * 38037062 normal
+  * 42019615 normal
   *
-  * 34593395 normal - expensive
+  * 38032930 normal - expensive
   *
-  * 36787140 trivial
+  * 42671655 trivial
   */
 
 @Ignore
