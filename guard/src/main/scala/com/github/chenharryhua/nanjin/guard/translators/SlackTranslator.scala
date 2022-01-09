@@ -120,12 +120,13 @@ private[translators] object SlackTranslator extends all {
       )
     )
 
-  private def metricReport(evt: MetricReport): SlackApp =
+  private def metricReport(evt: MetricReport): SlackApp = {
+    val color = if (evt.hasError) warnColor else infoColor
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
       attachments = List(
         Attachment(
-          color = if (evt.hasError) warnColor else infoColor,
+          color = color,
           blocks = List(
             MarkdownSection(s"*${evt.reportType.show}*"),
             hostServiceSection(evt.serviceParams),
@@ -137,9 +138,11 @@ private[translators] object SlackTranslator extends all {
             ),
             metricsSection(evt.snapshot)
           )
-        )
+        ),
+        Attachment(color = color, blocks = List(MarkdownSection(evt.serviceParams.brief)))
       )
     )
+  }
 
   private def metricReset(evt: MetricReset): SlackApp =
     evt.resetType match {

@@ -88,6 +88,7 @@ private[translators] object HtmlTranslator extends all {
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
       p(b("up time: "), fmt.format(evt.upTime)),
+      pre(evt.serviceParams.brief),
       pendingActions(evt.ongoings, evt.timestamp, evt.zoneId),
       pre(evt.snapshot.show)
     )

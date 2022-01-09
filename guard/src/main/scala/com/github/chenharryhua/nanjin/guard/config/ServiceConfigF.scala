@@ -37,7 +37,8 @@ private[guard] object MetricParams {
   taskParams: TaskParams,
   retry: NJRetryPolicy,
   queueCapacity: Int,
-  metric: MetricParams
+  metric: MetricParams,
+  brief: String
 ) {
   val metricName: DigestedName                    = DigestedName(serviceName, taskParams)
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
@@ -62,7 +63,8 @@ private[guard] object ServiceParams {
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS,
         snapshotType = MetricSnapshotType.Regular
-      )
+      ),
+      brief = ""
     )
 }
 
@@ -84,6 +86,8 @@ private object ServiceConfigF {
 
   final case class WithSnapshotType[K](value: MetricSnapshotType, cont: K) extends ServiceConfigF[K]
 
+  final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
+
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(s, t)        => ServiceParams(s, t)
@@ -96,6 +100,8 @@ private object ServiceConfigF {
       case WithRateTimeUnit(v, c)     => ServiceParams.metric.composeLens(MetricParams.rateTimeUnit).set(v)(c)
       case WithDurationTimeUnit(v, c) => ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
       case WithSnapshotType(v, c)     => ServiceParams.metric.composeLens(MetricParams.snapshotType).set(v)(c)
+
+      case WithBrief(v, c) => ServiceParams.brief.set(v)(c)
 
     }
 }
@@ -136,6 +142,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
+
+  def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
