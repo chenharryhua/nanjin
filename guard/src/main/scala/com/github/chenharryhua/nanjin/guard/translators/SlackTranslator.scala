@@ -232,10 +232,8 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*error ID:* ${evt.error.uuid.show}
-                                |*policy:* ${evt.actionParams.retry.policy[F].show}
-                                |${evt.serviceParams.brief}""".stripMargin),
-            hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Cause:* ${evt.error.message}")
+                                |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
+            hostServiceSection(evt.serviceParams)
           ) ::: (if (evt.notes.value.isEmpty) Nil
                  else List(MarkdownSection(abbreviate(evt.notes.value))))
         )
