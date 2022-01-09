@@ -20,12 +20,17 @@ private[translators] object HtmlTranslator extends all {
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
     p(b("number of retries: "), numRetry.toString)
 
-  private def hostServiceText(si: ServiceParams): Text.TypedTag[String] =
-    p(b("service: "), si.metricName.metricRepr, "    ", b("host: "), si.taskParams.hostName)
+  private def hostServiceText(si: ServiceParams): Text.TypedTag[String] = {
+    val sn = si.taskParams.homePage.fold(p(b("service: "), si.metricName.metricRepr))(hp =>
+      p(b("sevice: "), a(href := hp)(si.metricName.origin)))
+    div(
+      sn,
+      p(b("host: "), si.taskParams.hostName)
+    )
+  }
 
-  private def notesText(n: Notes): Text.TypedTag[String]      = p(b("notes: "), pre(n.value))
-  private def causeText(c: NJError): Text.TypedTag[String]    = p(b("cause: "), pre(c.stackTrace))
-  private def brief(si: ServiceParams): Text.TypedTag[String] = p(b("brief: "), pre(si.brief))
+  private def notesText(n: Notes): Text.TypedTag[String]   = pre(n.value)
+  private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
   private def pendingActions(oas: List[OngoingAction], now: Instant, zoneId: ZoneId): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
@@ -63,7 +68,6 @@ private[translators] object HtmlTranslator extends all {
       p(b("restart so far: "), evt.retryDetails.retriesSoFar),
       p(b("error ID: "), evt.error.uuid.show),
       p(b("policy: "), evt.serviceParams.retry.policy[F].show),
-      brief(evt.serviceParams),
       causeText(evt.error)
     )
 
@@ -85,7 +89,6 @@ private[translators] object HtmlTranslator extends all {
       hostServiceText(evt.serviceParams),
       p(b("up time: "), fmt.format(evt.upTime)),
       pendingActions(evt.ongoings, evt.timestamp, evt.zoneId),
-      brief(evt.serviceParams),
       pre(evt.snapshot.show)
     )
   }
@@ -98,7 +101,6 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.zonedDateTime),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
-      brief(evt.serviceParams),
       pre(evt.snapshot.show)
     )
   }
@@ -140,7 +142,6 @@ private[translators] object HtmlTranslator extends all {
       p(b("took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       notesText(evt.notes),
-      brief(evt.serviceParams),
       causeText(evt.error)
     )
 

@@ -49,8 +49,6 @@ final class ServiceGuard[F[_]] private[guard] (
   def withMetricFilter(filter: MetricFilter) =
     new ServiceGuard[F](serviceConfig, filter, jmxBuilder)
 
-  def withBrief(brief: String): ServiceGuard[F] = updateConfig(_.withBrief(brief))
-
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant

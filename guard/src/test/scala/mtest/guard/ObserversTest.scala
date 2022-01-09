@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricReport
 import com.github.chenharryhua.nanjin.guard.observers.{console, email, logging, slack}
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
+import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -18,7 +19,6 @@ class ObserversTest extends AnyFunSuite {
   test("logging") {
     TaskGuard[IO]("logging")
       .service("text")
-      .withBrief("about")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.hourly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
@@ -33,7 +33,6 @@ class ObserversTest extends AnyFunSuite {
   test("console - text") {
     TaskGuard[IO]("console")
       .service("text")
-      .withBrief("about console")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
@@ -48,7 +47,6 @@ class ObserversTest extends AnyFunSuite {
   test("console - json") {
     TaskGuard[IO]("console")
       .service("json")
-      .withBrief("about console")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
@@ -62,6 +60,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("slack") {
     TaskGuard[IO]("sns")
+      .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
@@ -82,6 +81,7 @@ class ObserversTest extends AnyFunSuite {
         .updateTranslator(_.skipActionStart)
 
     TaskGuard[IO]("ses")
+      .updateConfig(_.withHomePage("https://google.com"))
       .service("email")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)

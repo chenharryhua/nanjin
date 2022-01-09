@@ -30,7 +30,11 @@ private[translators] object SlackTranslator extends all {
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
+  // don't trim string
+  private def noteSection(notes: Notes): Option[MarkdownSection] =
+    if (notes.value.isEmpty) None else Some(MarkdownSection(abbreviate(notes.value)))
 
+// events
   private def serviceStarted(evt: ServiceStart): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.appName,
@@ -69,9 +73,8 @@ private[translators] object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
-                                |*Error ID:* ${evt.error.uuid.show}
-                                |*Cause:* ${evt.error.message}
-                                |${evt.serviceParams.brief}""".stripMargin)
+                                |*Error ID:* ${evt.error.uuid.show}""".stripMargin),
+            KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
         )
       )
@@ -90,9 +93,10 @@ private[translators] object SlackTranslator extends all {
       attachments = List(
         Attachment(
           color = color,
-          blocks =
-            List(MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"), hostServiceSection(evt.serviceParams)) :::
-              (if (evt.message.isEmpty) Nil else List(MarkdownSection(abbreviate(evt.message))))
+          blocks = List(
+            MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"),
+            hostServiceSection(evt.serviceParams),
+            MarkdownSection(abbreviate(evt.message)))
         )
       )
     )
@@ -106,11 +110,11 @@ private[translators] object SlackTranslator extends all {
           color = warnColor,
           blocks = List(
             MarkdownSection(s":octagonal_sign: *Service Stopped*"),
-            MarkdownSection(s"*Cause:* ${evt.cause.show}"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
-              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show))
+              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)),
+            MarkdownSection(s"*Cause:* ${evt.cause.show}")
           )
         )
       )
@@ -124,7 +128,6 @@ private[translators] object SlackTranslator extends all {
           color = if (evt.hasError) warnColor else infoColor,
           blocks = List(
             MarkdownSection(s"*${evt.reportType.show}*"),
-            MarkdownSection(serviceStatusWord(evt.serviceStatus, evt.zoneId)),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
@@ -132,7 +135,6 @@ private[translators] object SlackTranslator extends all {
                 "Scheduled Next",
                 evt.serviceParams.metric.nextReport(evt.zonedDateTime).map(localTimestampStr).getOrElse("None"))
             ),
-            MarkdownSection(evt.serviceParams.brief),
             metricsSection(evt.snapshot)
           )
         )
@@ -149,7 +151,6 @@ private[translators] object SlackTranslator extends all {
               color = if (evt.hasError) warnColor else infoColor,
               blocks = List(
                 MarkdownSection("*Adhoc Metric Reset*"),
-                MarkdownSection(serviceStatusWord(evt.serviceStatus, evt.zoneId)),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
@@ -174,7 +175,6 @@ private[translators] object SlackTranslator extends all {
               color = if (evt.hasError) warnColor else infoColor,
               blocks = List(
                 MarkdownSection(s"*Scheduled Metric Reset*"),
-                MarkdownSection(serviceStatusWord(evt.serviceStatus, evt.zoneId)),
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
@@ -209,14 +209,14 @@ private[translators] object SlackTranslator extends all {
           color = warnColor,
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.retryTitle}*"),
+            hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                 |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
-            hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Cause:* ${evt.error.message}")
+            KeyValueSection("Cause", s"```${evt.error.message}```")
           )
         ))
     )
@@ -229,15 +229,12 @@ private[translators] object SlackTranslator extends all {
           color = errorColor,
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
+            hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*error ID:* ${evt.error.uuid.show}
-                                |*policy:* ${evt.actionParams.retry.policy[F].show}
-                                |${evt.serviceParams.brief}""".stripMargin),
-            hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Cause:* ${evt.error.message}")
-          ) ::: (if (evt.notes.value.isEmpty) Nil
-                 else List(MarkdownSection(abbreviate(evt.notes.value))))
+                                |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin)
+          ).appendedAll(noteSection(evt.notes))
         )
       )
     )
@@ -250,11 +247,10 @@ private[translators] object SlackTranslator extends all {
           color = goodColor,
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
+            hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}"),
-            hostServiceSection(evt.serviceParams)
-          ) ::: (if (evt.notes.value.isEmpty) Nil
-                 else List(MarkdownSection(abbreviate(evt.notes.value))))
+            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}")
+          ).appendedAll(noteSection(evt.notes))
         )
       )
     )

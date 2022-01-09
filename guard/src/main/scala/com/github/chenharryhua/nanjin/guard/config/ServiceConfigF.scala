@@ -11,7 +11,7 @@ import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import monocle.macros.Lenses
 
-import java.time.{Instant, ZonedDateTime}
+import java.time.*
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -37,11 +37,13 @@ private[guard] object MetricParams {
   taskParams: TaskParams,
   retry: NJRetryPolicy,
   queueCapacity: Int,
-  metric: MetricParams,
-  brief: String
+  metric: MetricParams
 ) {
   val metricName: DigestedName                    = DigestedName(serviceName, taskParams)
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
+  def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
+  def toLocalDate(ts: Instant): LocalDate         = toZonedDateTime(ts).toLocalDate
+  def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime
 }
 
 private[guard] object ServiceParams {
@@ -60,8 +62,7 @@ private[guard] object ServiceParams {
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS,
         snapshotType = MetricSnapshotType.Regular
-      ),
-      brief = ""
+      )
     )
 }
 
@@ -81,8 +82,6 @@ private object ServiceConfigF {
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
 
-  final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
-
   final case class WithSnapshotType[K](value: MetricSnapshotType, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
@@ -98,7 +97,6 @@ private object ServiceConfigF {
       case WithDurationTimeUnit(v, c) => ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
       case WithSnapshotType(v, c)     => ServiceParams.metric.composeLens(MetricParams.snapshotType).set(v)(c)
 
-      case WithBrief(v, c) => ServiceParams.brief.set(v)(c)
     }
 }
 
@@ -138,8 +136,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
-
-  def withBrief(brief: String): ServiceConfig = ServiceConfig(Fix(WithBrief(brief, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }

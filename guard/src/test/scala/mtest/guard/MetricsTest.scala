@@ -15,7 +15,7 @@ import scala.concurrent.duration.*
 
 class MetricsTest extends AnyFunSuite {
   val sg: ServiceGuard[IO] =
-    TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(1.second).withBrief("test"))
+    TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(1.second))
   test("delta") {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Delta))

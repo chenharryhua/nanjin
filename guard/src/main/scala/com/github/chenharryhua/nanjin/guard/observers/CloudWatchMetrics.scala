@@ -6,6 +6,7 @@ import com.amazonaws.services.cloudwatch.model.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.guard.event.{MetricReport, NJEvent}
 import fs2.{Pipe, Pull, Stream}
+import org.typelevel.cats.time.instances.localdate
 
 import java.time.Instant
 import java.util.{Date, UUID}
@@ -25,13 +26,15 @@ final private case class MetricKey(
   standardUnit: StandardUnit,
   task: String,
   service: String,
-  metricName: String) {
+  metricName: String,
+  launchDate: String) {
   def metricDatum(ts: Instant, count: Long): MetricDatum =
     new MetricDatum()
       .withDimensions(
         new Dimension().withName("Task").withValue(task),
         new Dimension().withName("Service").withValue(service),
-        new Dimension().withName("Host").withValue(hostName)
+        new Dimension().withName("Host").withValue(hostName),
+        new Dimension().withName("LaunchDate").withValue(launchDate)
       )
       .withMetricName(metricName)
       .withUnit(standardUnit)
@@ -43,7 +46,7 @@ final class CloudWatchMetrics[F[_]] private[observers] (
   client: Resource[F, CloudWatch[F]],
   namespace: String,
   storageResolution: Int)(implicit F: Sync[F])
-    extends Pipe[F, NJEvent, NJEvent] {
+    extends Pipe[F, NJEvent, NJEvent] with localdate {
 
   def withStorageResolution(storageResolution: Int): CloudWatchMetrics[F] = {
     require(
@@ -63,7 +66,8 @@ final class CloudWatchMetrics[F[_]] private[observers] (
         StandardUnit.Count,
         report.serviceParams.taskParams.appName,
         report.serviceParams.serviceName,
-        metricName
+        metricName,
+        report.serviceParams.toLocalDate(report.serviceStatus.launchTime).show
       ) -> counter
     }
 

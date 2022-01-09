@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.instances.*
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.Url
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
@@ -10,7 +12,11 @@ import monocle.macros.Lenses
 
 import java.time.ZoneId
 
-@Lenses @JsonCodec final case class TaskParams private (appName: String, zoneId: ZoneId, hostName: String)
+@Lenses @JsonCodec final case class TaskParams private (
+  appName: String,
+  zoneId: ZoneId,
+  hostName: String,
+  homePage: Option[String])
 
 private[guard] object TaskParams {
   implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
@@ -18,7 +24,8 @@ private[guard] object TaskParams {
   def apply(appName: String, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
-    hostName = hostName.name
+    hostName = hostName.name,
+    homePage = None
   )
 }
 
@@ -33,11 +40,14 @@ private object TaskConfigF {
 
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
 
+  final case class WithHomePage[K](value: Option[String], cont: K) extends TaskConfigF[K]
+
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName, hostName) => TaskParams(appName, hostName)
       case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
       case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
+      case WithHomePage(v, c)            => TaskParams.homePage.set(v)(c)
     }
 }
 
@@ -47,6 +57,8 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
   def withZoneId(zoneId: ZoneId): TaskConfig = TaskConfig(Fix(WithZoneId(zoneId, value)))
 
   def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
+
+  def withHomePage(url: Refined[String, Url]): TaskConfig = TaskConfig(Fix(WithHomePage(Some(url.value), value)))
 
   def evalConfig: TaskParams = scheme.cata(algebra).apply(value)
 }

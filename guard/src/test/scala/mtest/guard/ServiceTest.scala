@@ -2,23 +2,20 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.aws.{sns, SimpleNotificationService}
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.{logging, slack}
-import cron4s.lib.javatime.javaTemporalInstance
+import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.ZonedDateTime
 import scala.concurrent.duration.*
 
 class ServiceTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateConfig(_.withHostName(HostName.local_host))
+    .updateConfig(_.withHostName(HostName.local_host).withHomePage("https://abc.com/efg"))
     .service("service")
     .updateConfig(_.withConstantDelay(1.seconds))
 
