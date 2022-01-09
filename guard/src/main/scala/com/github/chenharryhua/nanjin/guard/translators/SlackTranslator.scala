@@ -209,13 +209,13 @@ private[translators] object SlackTranslator extends all {
           color = warnColor,
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.retryTitle}*"),
+            hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                 |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
-            hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*Cause:* ${evt.error.message}")
           )
         ))
@@ -229,13 +229,13 @@ private[translators] object SlackTranslator extends all {
           color = errorColor,
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
+            hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
                                 |*error ID:* ${evt.error.uuid.show}
-                                |*policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
-            hostServiceSection(evt.serviceParams)
-          ) ::: (if (evt.notes.value.isEmpty) Nil
-                 else List(MarkdownSection(abbreviate(evt.notes.value))))
+                                |*policy:* ${evt.actionParams.retry.policy[F].show}
+                                |${abbreviate(evt.notes.value)}""".stripMargin)
+          )
         )
       )
     )
@@ -248,11 +248,11 @@ private[translators] object SlackTranslator extends all {
           color = goodColor,
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
+            hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}"),
-            hostServiceSection(evt.serviceParams)
-          ) ::: (if (evt.notes.value.isEmpty) Nil
-                 else List(MarkdownSection(abbreviate(evt.notes.value))))
+            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
+                                |${abbreviate(evt.notes.value)}""".stripMargin)
+          )
         )
       )
     )

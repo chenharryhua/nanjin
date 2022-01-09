@@ -11,7 +11,7 @@ import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import monocle.macros.Lenses
 
-import java.time.{Instant, LocalDate, LocalDateTime, ZonedDateTime}
+import java.time.*
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -44,6 +44,7 @@ private[guard] object MetricParams {
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
   def toLocalDate(ts: Instant): LocalDate         = toZonedDateTime(ts).toLocalDate
+  def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime
 }
 
 private[guard] object ServiceParams {
