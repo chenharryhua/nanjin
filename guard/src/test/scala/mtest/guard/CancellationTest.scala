@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import eu.timepit.refined.auto.*
 
 class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =

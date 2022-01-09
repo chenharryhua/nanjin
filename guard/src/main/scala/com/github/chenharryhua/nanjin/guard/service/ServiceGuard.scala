@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig, ServiceName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
@@ -41,7 +41,7 @@ final class ServiceGuard[F[_]] private[guard] (
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
 
-  def apply(serviceName: String): ServiceGuard[F] = updateConfig(_.withServiceName(serviceName))
+  def apply(serviceName: ServiceName): ServiceGuard[F] = updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, metricFilter, Some(Reader(builder)))
@@ -60,7 +60,7 @@ final class ServiceGuard[F[_]] private[guard] (
       serviceStatus <- Stream.eval(initStatus)
       lastCounters <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
       ongoings <- Stream.eval(F.ref(Set.empty[ActionInfo])) // currently running actions
-      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
+      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val theService: F[A] = {

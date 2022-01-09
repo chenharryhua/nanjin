@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
+import com.github.chenharryhua.nanjin.guard.config.{AppName, ServiceConfig, ServiceName, TaskConfig, TaskParams}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 
 /** credit to the excellent retry lib [[https://github.com/cb372/cats-retry]]
@@ -15,13 +15,13 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig) extends Upda
   override def updateConfig(f: TaskConfig => TaskConfig): TaskGuard[F] =
     new TaskGuard[F](f(taskConfig))
 
-  def service(serviceName: String): ServiceGuard[F] =
+  def service(serviceName: ServiceName): ServiceGuard[F] =
     new ServiceGuard[F](ServiceConfig(serviceName, params), MetricFilter.ALL, None)
 
 }
 
 object TaskGuard {
 
-  def apply[F[_]: Async](applicationName: String): TaskGuard[F] =
+  def apply[F[_]: Async](applicationName: AppName): TaskGuard[F] =
     new TaskGuard[F](TaskConfig(applicationName, HostName.local_host))
 }

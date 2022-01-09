@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
+import eu.timepit.refined.auto.*
 
 import java.time.Instant
 import java.util.UUID

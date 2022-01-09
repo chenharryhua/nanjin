@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.{DigestedName, MetricSnapshot
 import com.github.chenharryhua.nanjin.guard.event.MetricReport
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
+import eu.timepit.refined.auto.*
 
 import scala.concurrent.duration.*
 
