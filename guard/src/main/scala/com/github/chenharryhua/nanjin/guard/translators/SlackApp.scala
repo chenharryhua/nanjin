@@ -59,13 +59,22 @@ final case class Attachment(color: String, blocks: List[Section])
 
 @JsonCodec
 final case class SlackApp(username: String, attachments: List[Attachment]) {
-  def prependMarkdown(text: String): SlackApp = {
-    val mkd = MarkdownSection(text)
-    val updated: List[Attachment] = attachments match {
-      case Nil          => List(Attachment("", List(mkd)))
-      case head :: rest => Attachment(head.color, mkd :: head.blocks) :: rest
+  // before first section
+  def prependMarkdown(text: String): SlackApp =
+    SlackApp(
+      username,
+      attachments match {
+        case Nil          => Nil
+        case head :: rest => Attachment(head.color, MarkdownSection(text) :: head.blocks) :: rest
+      })
+
+  // after last section
+  def appendMarkdown(text: String): SlackApp = {
+    val updated = attachments.reverse match {
+      case Nil          => Nil
+      case head :: rest => Attachment(head.color, head.blocks ::: List(MarkdownSection(text))) :: rest
     }
-    SlackApp(username, updated)
+    SlackApp(username, updated.reverse)
   }
 }
 

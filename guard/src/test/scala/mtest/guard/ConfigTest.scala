@@ -75,4 +75,10 @@ class ConfigTest extends AnyFunSuite {
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }
+  test("max retries") {
+    val as = service.eventStream { agent =>
+      agent.notice.max(10).run(IO(1))
+    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
+    assert(as.actionInfo.actionParams.retry.maxRetries == 10)
+  }
 }
