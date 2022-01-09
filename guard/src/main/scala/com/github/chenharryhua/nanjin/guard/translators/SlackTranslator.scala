@@ -47,8 +47,7 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(
               first = TextField("Up Time", fmt.format(evt.upTime)),
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
-            ),
-            MarkdownSection(abbreviate(evt.serviceParams.brief))
+            )
           )
         )
       )
