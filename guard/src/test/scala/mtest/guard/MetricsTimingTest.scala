@@ -3,10 +3,11 @@ package mtest.guard
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.datetime.beijingTime
-import com.github.chenharryhua.nanjin.guard.observers.isShowMetrics
-import com.github.chenharryhua.nanjin.guard.translators.nextTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.observers.isShowMetrics
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.translators.nextTime
+import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZonedDateTime

@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.ActionStart
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
+import eu.timepit.refined.auto.*
 
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] = TaskGuard[IO]("config").service("config")
@@ -79,6 +80,6 @@ class ConfigTest extends AnyFunSuite {
     val as = service.eventStream { agent =>
       agent.notice.max(10).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.actionParams.retry.maxRetries == 10)
+    assert(as.actionInfo.actionParams.retry.maxRetries.value == 10)
   }
 }

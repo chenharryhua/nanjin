@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.translators.Translator
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
+import eu.timepit.refined.auto.*
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random

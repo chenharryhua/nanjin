@@ -10,13 +10,14 @@ import scala.concurrent.duration.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.action.NJRetry
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import eu.timepit.refined.auto.*
 
 final case class MyException() extends Exception("my exception")
 
 class RetryTest extends AnyFunSuite {
 
   val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withConstantDelay(1.seconds))
+    TaskGuard[IO]("retry-guard").service("retry test").updateConfig(_.withConstantDelay(1.seconds))
 
   test("1.retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>

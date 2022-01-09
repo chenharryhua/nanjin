@@ -64,8 +64,8 @@ final class CloudWatchMetrics[F[_]] private[observers] (
         report.serviceStatus.uuid,
         report.serviceParams.taskParams.hostName,
         StandardUnit.Count,
-        report.serviceParams.taskParams.appName,
-        report.serviceParams.serviceName,
+        report.serviceParams.taskParams.appName.value,
+        report.serviceParams.serviceName.value,
         metricName,
         report.serviceParams.toLocalDate(report.serviceStatus.launchTime).show
       ) -> counter

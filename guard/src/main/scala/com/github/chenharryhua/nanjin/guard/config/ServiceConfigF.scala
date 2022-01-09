@@ -5,10 +5,17 @@ import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.boolean.And
+import eu.timepit.refined.cats.*
+import eu.timepit.refined.collection.NonEmpty
+import eu.timepit.refined.refineMV
+import eu.timepit.refined.string.Trimmed
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
+import io.circe.refined.*
 import monocle.macros.Lenses
 
 import java.time.*
@@ -33,13 +40,14 @@ private[guard] object MetricParams {
 }
 
 @Lenses @JsonCodec final case class ServiceParams private (
-  serviceName: String,
+  serviceName: ServiceName,
   taskParams: TaskParams,
   retry: NJRetryPolicy,
-  queueCapacity: Int,
-  metric: MetricParams
+  queueCapacity: QueueCapacity,
+  metric: MetricParams,
+  brief: String
 ) {
-  val metricName: DigestedName                    = DigestedName(serviceName, taskParams)
+  val metricName: DigestedName                    = DigestedName(serviceName.value, taskParams)
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
   def toLocalDate(ts: Instant): LocalDate         = toZonedDateTime(ts).toLocalDate
@@ -50,19 +58,20 @@ private[guard] object ServiceParams {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
-  def apply(serviceName: String, taskParams: TaskParams): ServiceParams =
+  def apply(serviceName: ServiceName, taskParams: TaskParams): ServiceParams =
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,
       retry = NJRetryPolicy.ConstantDelay(30.seconds),
-      queueCapacity = 0, // synchronous
+      queueCapacity = refineMV(0), // synchronous
       metric = MetricParams(
         reportSchedule = None,
         resetSchedule = None,
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS,
         snapshotType = MetricSnapshotType.Regular
-      )
+      ),
+      brief = ""
     )
 }
 
@@ -71,10 +80,10 @@ sealed private[guard] trait ServiceConfigF[F]
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
-  final case class InitParams[K](serviceName: String, taskParams: TaskParams) extends ServiceConfigF[K]
+  final case class InitParams[K](serviceName: ServiceName, taskParams: TaskParams) extends ServiceConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
-  final case class WithServiceName[K](value: String, cont: K) extends ServiceConfigF[K]
-  final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
+  final case class WithServiceName[K](value: Refined[String, NonEmpty And Trimmed], cont: K) extends ServiceConfigF[K]
+  final case class WithQueueCapacity[K](value: QueueCapacity, cont: K) extends ServiceConfigF[K]
 
   final case class WithReportSchedule[K](value: Option[Either[FiniteDuration, CronExpr]], cont: K)
       extends ServiceConfigF[K]
@@ -83,6 +92,8 @@ private object ServiceConfigF {
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
 
   final case class WithSnapshotType[K](value: MetricSnapshotType, cont: K) extends ServiceConfigF[K]
+
+  final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -97,14 +108,16 @@ private object ServiceConfigF {
       case WithDurationTimeUnit(v, c) => ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
       case WithSnapshotType(v, c)     => ServiceParams.metric.composeLens(MetricParams.snapshotType).set(v)(c)
 
+      case WithBrief(v, c) => ServiceParams.brief.set(v)(c)
+
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
-  def withQueueCapacity(size: Int): ServiceConfig  = ServiceConfig(Fix(WithQueueCapacity(size, value)))
-  def withServiceName(name: String): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
+  def withQueueCapacity(size: QueueCapacity): ServiceConfig = ServiceConfig(Fix(WithQueueCapacity(size, value)))
+  def withServiceName(name: ServiceName): ServiceConfig     = ServiceConfig(Fix(WithServiceName(name, value)))
 
   def withMetricReport(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithReportSchedule(Some(Left(interval)), value)))
@@ -137,11 +150,13 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 
+  def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
+
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }
 
 private[guard] object ServiceConfig {
 
-  def apply(serviceName: String, taskParams: TaskParams): ServiceConfig = new ServiceConfig(
-    Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](serviceName, taskParams)))
+  def apply(serviceName: ServiceName, taskParams: TaskParams): ServiceConfig =
+    new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](serviceName, taskParams)))
 }

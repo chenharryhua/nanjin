@@ -9,6 +9,7 @@ import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import eu.timepit.refined.auto.*
 
 // sbt "guard/testOnly mtest.guard.PerformanceTest"
 

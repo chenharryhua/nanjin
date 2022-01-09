@@ -2,10 +2,13 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.datetime.instances.*
+import eu.timepit.refined.cats.*
+import eu.timepit.refined.refineMV
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
+import io.circe.refined.*
 import monocle.macros.Lenses
 
 import scala.concurrent.duration.*
@@ -17,7 +20,7 @@ import scala.concurrent.duration.*
   isTiming: TimeAction, // if timing the action?
   isExpensive: ExpensiveAction, // if the action take long time to accomplish, like a few minutes or hours?
   retry: ActionRetryParams,
-  catalog: String,
+  catalog: Catalog,
   serviceParams: ServiceParams)
 
 private[guard] object AgentParams {
@@ -30,11 +33,11 @@ private[guard] object AgentParams {
     isTiming = TimeAction.Yes,
     isExpensive = ExpensiveAction.No,
     retry = ActionRetryParams(
-      maxRetries = 0,
+      maxRetries = refineMV(0),
       capDelay = None,
       njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds)
     ),
-    catalog = "action",
+    catalog = refineMV("action"),
     serviceParams = serviceParams
   )
 }
@@ -46,7 +49,7 @@ private object AgentConfigF {
 
   final case class InitParams[K](serviceParams: ServiceParams) extends AgentConfigF[K]
 
-  final case class WithMaxRetries[K](value: Int, cont: K) extends AgentConfigF[K]
+  final case class WithMaxRetries[K](value: MaxRetry, cont: K) extends AgentConfigF[K]
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
 
@@ -57,7 +60,7 @@ private object AgentConfigF {
   final case class WithCounting[K](value: CountAction, cont: K) extends AgentConfigF[K]
   final case class WithExpensive[K](value: ExpensiveAction, cont: K) extends AgentConfigF[K]
 
-  final case class WithCatalog[K](value: String, cont: K) extends AgentConfigF[K]
+  final case class WithCatalog[K](value: Catalog, cont: K) extends AgentConfigF[K]
 
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
@@ -77,7 +80,7 @@ private object AgentConfigF {
 final case class AgentConfig private (value: Fix[AgentConfigF]) {
   import AgentConfigF.*
 
-  def withMaxRetries(num: Int): AgentConfig          = AgentConfig(Fix(WithMaxRetries(num, value)))
+  def withMaxRetries(num: MaxRetry): AgentConfig     = AgentConfig(Fix(WithMaxRetries(num, value)))
   def withCapDelay(dur: FiniteDuration): AgentConfig = AgentConfig(Fix(WithCapDelay(dur, value)))
 
   def withConstantDelay(delay: FiniteDuration): AgentConfig =
@@ -106,7 +109,7 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
 
   def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
 
-  def withCatalog(alias: String): AgentConfig = AgentConfig(Fix(WithCatalog(alias.toLowerCase, value)))
+  def withCatalog(alias: Catalog): AgentConfig = AgentConfig(Fix(WithCatalog(alias, value)))
 
   def evalConfig: AgentParams = scheme.cata(algebra).apply(value)
 }

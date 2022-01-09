@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import org.scalatest.funsuite.AnyFunSuite
+import eu.timepit.refined.auto.*
 
 class DigestedNameTest extends AnyFunSuite {
   val s = TaskGuard[IO]("digest").service("abc")
