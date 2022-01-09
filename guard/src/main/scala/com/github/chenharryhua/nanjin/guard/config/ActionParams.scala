@@ -4,8 +4,10 @@ import cats.syntax.show.*
 import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
+import eu.timepit.refined.cats.*
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
+import io.circe.refined.*
 import monocle.macros.Lenses
 import retry.PolicyDecision.DelayAndRetry
 import retry.{RetryPolicies, RetryPolicy}
@@ -45,12 +47,12 @@ object NJRetryPolicy {
 }
 
 @Lenses @JsonCodec final case class ActionRetryParams(
-  maxRetries: Int,
+  maxRetries: MaxRetry,
   capDelay: Option[FiniteDuration],
   njRetryPolicy: NJRetryPolicy) {
   def policy[F[_]: Applicative]: RetryPolicy[F] =
-    capDelay.fold(njRetryPolicy.policy[F].join(RetryPolicies.limitRetries[F](maxRetries)))(cd =>
-      RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(RetryPolicies.limitRetries[F](maxRetries)))
+    capDelay.fold(njRetryPolicy.policy[F].join(RetryPolicies.limitRetries[F](maxRetries.value)))(cd =>
+      RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(RetryPolicies.limitRetries[F](maxRetries.value)))
 }
 
 object ActionRetryParams {
@@ -65,7 +67,7 @@ final case class ActionParams private (
   isTiming: TimeAction,
   isExpensive: ExpensiveAction,
   retry: ActionRetryParams,
-  catalog: String,
+  catalog: Catalog,
   serviceParams: ServiceParams) {
   def startTitle: String  = s"$catalog ${metricName.metricRepr} started"
   def retryTitle: String  = s"$catalog ${metricName.metricRepr} retrying"

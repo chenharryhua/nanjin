@@ -112,6 +112,7 @@ val circeLib = Seq(
   "io.circe" %% "circe-optics"         % "0.14.1",
   "io.circe" %% "circe-jackson210"     % "0.14.0",
   "io.circe" %% "circe-generic-extras" % "0.14.1",
+  "io.circe" %% "circe-refined"        % "0.14.1",
   "org.gnieh" %% "diffson-circe"       % "4.1.1"
 )
 
@@ -349,7 +350,7 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry-mtl" % "3.1.0",
-      "com.lihaoyi" %% "scalatags" % "0.11.0"
+      "com.lihaoyi" %% "scalatags"           % "0.11.0"
     ) ++ cronLib ++ metrics ++ circeLib ++ baseLib ++ monocleLib ++ testLib ++ logLib
   )
 

@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -117,11 +118,11 @@ final class Agent[F[_]] private[service] (
     new NJRuntimeInfo[F](serviceParams = serviceParams, serviceStatus = serviceStatus, ongoings = ongoings)
 
   // maximum retries
-  def max(retries: Int): Agent[F] = updateConfig(_.withMaxRetries(retries))
+  def max(retries: MaxRetry): Agent[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     span("nonStop")
-      .max(retries = 0)
+      .max(retries = refineMV(0))
       .cheap
       .updateConfig(_.withoutTiming.withoutCounting.withLowImportance)
       .retry(fb)

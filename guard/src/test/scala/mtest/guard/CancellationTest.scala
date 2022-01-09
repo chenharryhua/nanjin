@@ -5,10 +5,11 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import eu.timepit.refined.auto.*
 
 class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
@@ -73,7 +74,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
+        val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1).withCatalog("operation"))
         val a1     = action.span("inner").run(IO.never[Int])
         action.span("outer").retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))).run
       }
