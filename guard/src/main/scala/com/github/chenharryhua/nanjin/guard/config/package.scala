@@ -15,7 +15,7 @@ package object config {
   type AppName = Refined[String, NonEmpty And Trimmed]
   object AppName extends RefinedTypeOps[AppName, String] with CatsRefinedTypeOpsSyntax
 
-  type Span = Refined[String, NonEmpty And Trimmed]
+  type Span = Refined[String, NonEmpty And Trimmed] // And Not[Contains['/']]]
   object Span extends RefinedTypeOps[Span, String] with CatsRefinedTypeOpsSyntax
 
   type HomePage      = Refined[String, Url]
