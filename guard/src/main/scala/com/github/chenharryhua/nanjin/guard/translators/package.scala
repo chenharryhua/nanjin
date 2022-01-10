@@ -45,7 +45,7 @@ package object translators {
   private[translators] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private[guard] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
-    val sn = sp.taskParams.homePage.fold(sp.metricName.metricRepr)(hp => s"<$hp|${sp.metricName.origin}>")
+    val sn = sp.taskParams.homePage.fold(sp.metricName.metricRepr)(hp => s"<${hp.value}|${sp.metricName.origin}>")
     JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName.value))
   }
 
