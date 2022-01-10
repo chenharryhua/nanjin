@@ -34,7 +34,7 @@ final class Agent[F[_]] private[service] (
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, ongoings, dispatcher, lastCounters, f(agentConfig))
 
-  def span(name: Span): Agent[F] = updateConfig(_.withSpan(name))
+  def span(name: String): Agent[F] = updateConfig(_.withSpan(name))
 
   def trivial: Agent[F]  = updateConfig(_.withLowImportance)
   def normal: Agent[F]   = updateConfig(_.withMediumImportance)
@@ -69,7 +69,7 @@ final class Agent[F[_]] private[service] (
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
 
-  def broker(brokerName: Span): NJBroker[F] =
+  def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
       metricName = DigestedName(agentParams.spans :+ brokerName, serviceParams),
       dispatcher = dispatcher,
@@ -78,7 +78,7 @@ final class Agent[F[_]] private[service] (
       serviceParams = agentParams.serviceParams,
       isCountAsError = false)
 
-  def alert(alertName: Span): NJAlert[F] =
+  def alert(alertName: String): NJAlert[F] =
     new NJAlert(
       metricName = DigestedName(agentParams.spans :+ alertName, serviceParams),
       dispatcher = dispatcher,
@@ -86,18 +86,18 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       serviceParams = agentParams.serviceParams)
 
-  def counter(counterName: Span): NJCounter[F] =
+  def counter(counterName: String): NJCounter[F] =
     new NJCounter(
       metricName = DigestedName(agentParams.spans :+ counterName, serviceParams),
       metricRegistry = metricRegistry,
       isCountAsError = false)
 
-  def meter(meterName: Span): NJMeter[F] =
+  def meter(meterName: String): NJMeter[F] =
     new NJMeter[F](
       metricName = DigestedName(agentParams.spans :+ meterName, serviceParams),
       metricRegistry = metricRegistry)
 
-  def histogram(histoName: Span): NJHistogram[F] =
+  def histogram(histoName: String): NJHistogram[F] =
     new NJHistogram[F](
       metricName = DigestedName(agentParams.spans :+ histoName, serviceParams),
       metricRegistry = metricRegistry
@@ -121,7 +121,7 @@ final class Agent[F[_]] private[service] (
   def max(retries: MaxRetry): Agent[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    span(refineMV("nonStop"))
+    span("nonStop")
       .max(retries = refineMV(0))
       .cheap
       .updateConfig(_.withoutTiming.withoutCounting.withLowImportance)

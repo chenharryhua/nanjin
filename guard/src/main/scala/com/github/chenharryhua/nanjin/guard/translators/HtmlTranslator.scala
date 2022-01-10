@@ -25,7 +25,7 @@ private[translators] object HtmlTranslator extends all {
       p(b("sevice: "), a(href := hp.value)(si.metricName.origin)))
     div(
       sn,
-      p(b("host: "), si.taskParams.hostName)
+      p(b("host: "), si.taskParams.hostName.value)
     )
   }
 
