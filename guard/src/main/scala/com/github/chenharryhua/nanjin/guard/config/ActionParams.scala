@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.syntax.show.*
+import cats.syntax.all.*
 import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
@@ -73,6 +73,10 @@ final case class ActionParams private (
   def retryTitle: String  = s"$catalog ${metricName.metricRepr} retrying"
   def failedTitle: String = s"$catalog ${metricName.metricRepr} failed"
   def succedTitle: String = s"$catalog ${metricName.metricRepr} succed"
+
+  val isCritical: Boolean = importance > Importance.High // Critical
+  val isNotice: Boolean   = importance > Importance.Medium // Hight + Critical
+  val nonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 }
 
 object ActionParams {

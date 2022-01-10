@@ -69,7 +69,7 @@ final class NJSesEmail[F[_]: Async] private[observers] (
       mb <- es
         .evalMap(e =>
           translator.filter {
-            case event: ActionEvent => event.actionInfo.nonTrivial
+            case event: ActionEvent => event.actionInfo.actionParams.nonTrivial
             case _                  => true
           }.translate(e))
         .unNone
@@ -108,7 +108,7 @@ final class NJSnsEmail[F[_]: Async] private[observers] (
       rst <- es
         .evalMap(e =>
           translator.filter {
-            case event: ActionEvent => event.actionInfo.nonTrivial
+            case event: ActionEvent => event.actionInfo.actionParams.nonTrivial
             case _                  => true
           }.translate(e))
         .unNone

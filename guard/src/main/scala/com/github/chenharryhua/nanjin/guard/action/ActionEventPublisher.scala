@@ -20,8 +20,8 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
       ts <- F.realTimeInstant
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams, token, ts)
-      _ <- channel.send(ActionStart(ai)).whenA(ai.isNotice)
-      _ <- ongoings.update(_.incl(ai)).whenA(ai.isExpensive)
+      _ <- channel.send(ActionStart(ai)).whenA(actionParams.isNotice)
+      _ <- ongoings.update(_.incl(ai)).whenA(actionParams.isExpensive.value)
     } yield ai
 
   def actionRetry(
@@ -55,8 +55,8 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
           notes <- buildNotes(input, output)
           _ <- channel.send(ActionSucc(actionInfo, ts, num, notes))
         } yield ()
-      }.whenA(actionInfo.isNotice)
-      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isExpensive)
+      }.whenA(actionInfo.actionParams.isNotice)
+      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
     } yield ts
 
   def actionFail[A](
@@ -77,6 +77,6 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
           numRetries = numRetries,
           notes = notes,
           error = NJError(uuid, ex)))
-      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.isExpensive)
+      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
     } yield ts
 }

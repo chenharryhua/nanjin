@@ -56,10 +56,10 @@ final class NJSlack[F[_]] private[observers] (
               sp.toZonedDateTime(ts),
               interval,
               sp.toZonedDateTime(ss.launchTime)) || rt.isShow
-          case ActionStart(ai)            => ai.isCritical
-          case ActionSucc(ai, _, _, _)    => ai.isCritical
-          case ActionRetry(ai, _, _, _)   => ai.isNotice
-          case ActionFail(ai, _, _, _, _) => ai.nonTrivial
+          case ActionStart(ai)            => ai.actionParams.isCritical
+          case ActionSucc(ai, _, _, _)    => ai.actionParams.isCritical
+          case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice
+          case ActionFail(ai, _, _, _, _) => ai.actionParams.nonTrivial
           case _                          => true
         }.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
         .onFinalize { // publish good bye message to slack
