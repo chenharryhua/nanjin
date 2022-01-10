@@ -14,7 +14,7 @@ import monocle.macros.Lenses
 import scala.concurrent.duration.*
 
 @Lenses @JsonCodec final case class AgentParams private (
-  spans: List[String],
+  spans: List[Span],
   importance: Importance,
   isCounting: CountAction, // if counting the action?
   isTiming: TimeAction, // if timing the action?
@@ -53,7 +53,7 @@ private object AgentConfigF {
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
 
-  final case class WithSpan[K](value: String, cont: K) extends AgentConfigF[K]
+  final case class WithSpan[K](value: Span, cont: K) extends AgentConfigF[K]
 
   final case class WithImportance[K](value: Importance, cont: K) extends AgentConfigF[K]
   final case class WithTiming[K](value: TimeAction, cont: K) extends AgentConfigF[K]
@@ -107,7 +107,7 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withExpensive(isCostly: Boolean): AgentConfig =
     AgentConfig(Fix(WithExpensive(value = if (isCostly) ExpensiveAction.Yes else ExpensiveAction.No, value)))
 
-  def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpan(name, value)))
+  def withSpan(name: Span): AgentConfig = AgentConfig(Fix(WithSpan(name, value)))
 
   def withCatalog(alias: Catalog): AgentConfig = AgentConfig(Fix(WithCatalog(alias, value)))
 

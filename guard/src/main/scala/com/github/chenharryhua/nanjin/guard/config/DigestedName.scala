@@ -16,8 +16,8 @@ private[guard] object DigestedName {
 
   implicit val showDigestedName: Show[DigestedName] = _.metricRepr
 
-  def apply(spans: List[String], serviceParams: ServiceParams): DigestedName = {
-    val name: String = spans.mkString("/")
+  def apply(spans: List[Span], serviceParams: ServiceParams): DigestedName = {
+    val name: String = spans.map(_.value).mkString("/")
     val sha1Hex: String =
       DigestUtils.sha1Hex(s"${serviceParams.taskParams.appName.value}/${serviceParams.serviceName.value}/$name")
     new DigestedName(name, sha1Hex.take(LENGTH))
