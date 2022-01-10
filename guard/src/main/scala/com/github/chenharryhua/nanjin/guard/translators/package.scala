@@ -46,7 +46,7 @@ package object translators {
 
   private[guard] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn = sp.taskParams.homePage.fold(sp.metricName.metricRepr)(hp => s"<$hp|${sp.metricName.origin}>")
-    JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName))
+    JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName.value))
   }
 
   def toOrdinalWords(n: Long): String = {

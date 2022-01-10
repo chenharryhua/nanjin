@@ -53,7 +53,7 @@ private object AgentConfigF {
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
 
-  final case class WithSpans[K](value: List[String], cont: K) extends AgentConfigF[K]
+  final case class WithSpan[K](value: String, cont: K) extends AgentConfigF[K]
 
   final case class WithImportance[K](value: Importance, cont: K) extends AgentConfigF[K]
   final case class WithTiming[K](value: TimeAction, cont: K) extends AgentConfigF[K]
@@ -69,7 +69,7 @@ private object AgentConfigF {
       case WithMaxRetries(v, c)  => AgentParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
       case WithCapDelay(v, c)    => AgentParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
       case WithImportance(v, c)  => AgentParams.importance.set(v)(c)
-      case WithSpans(v, c)       => AgentParams.spans.modify(_ ::: v)(c)
+      case WithSpan(v, c)        => AgentParams.spans.modify(_.appended(v))(c)
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
       case WithCatalog(v, c)     => AgentParams.catalog.set(v)(c)
@@ -107,7 +107,7 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withExpensive(isCostly: Boolean): AgentConfig =
     AgentConfig(Fix(WithExpensive(value = if (isCostly) ExpensiveAction.Yes else ExpensiveAction.No, value)))
 
-  def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpans(List(name), value)))
+  def withSpan(name: String): AgentConfig = AgentConfig(Fix(WithSpan(name, value)))
 
   def withCatalog(alias: Catalog): AgentConfig = AgentConfig(Fix(WithCatalog(alias, value)))
 

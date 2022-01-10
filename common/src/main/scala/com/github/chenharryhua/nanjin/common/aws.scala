@@ -4,6 +4,7 @@ import cats.Show
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.{MatchesRegex, Url}
+import io.circe.generic.JsonCodec
 
 object aws {
   type SqsUrl = String Refined Url
@@ -21,6 +22,7 @@ object aws {
     String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:kms:[A-Za-z0-9-]+:\\d{12}:key/[A-Za-z0-9-]+$"]
   object KmsArn extends RefinedTypeOps[KmsArn, String] with CatsRefinedTypeOpsSyntax
 
+  @JsonCodec
   final case class S3Path(bucket: String, key: String) {
     val s3: String  = s"${S3Protocols.S3.value}://$bucket/$key"
     val s3a: String = s"${S3Protocols.S3A.value}://$bucket/$key"

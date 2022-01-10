@@ -1,4 +1,4 @@
-package mtest.msg.codec
+package example.protobuf
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, SerdeOf}
 import mtest.pb.messages.MessagePerson

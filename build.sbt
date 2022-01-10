@@ -309,7 +309,7 @@ lazy val common = (project in file("common"))
     libraryDependencies ++= Seq(
       "org.apache.commons"    % "commons-lang3" % "3.12.0",
       "io.dropwizard.metrics" % "metrics-core"  % "4.2.7" % Provided) ++
-      baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib
+      baseLib ++ fs2Lib ++ effectLib ++ circeLib ++ monocleLib ++ testLib ++ logLib
   )
 
 lazy val http = (project in file("http"))
@@ -363,7 +363,6 @@ lazy val messages = (project in file("messages"))
       ("com.github.ghik"                % "silencer-lib"    % silencer % Provided).cross(CrossVersion.full)
     ) ++ baseLib ++ effectLib ++ fs2Lib ++ serdeLib ++ kafkaLib ++ monocleLib ++ testLib ++ logLib
   )
-  .settings(Test / PB.targets := Seq(scalapb.gen() -> (Test / sourceManaged).value))
 
 lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
@@ -372,7 +371,6 @@ lazy val pipes = (project in file("pipes"))
     libraryDependencies ++= baseLib ++ fs2Lib ++ effectLib ++ kantanLib ++ ftpLib ++ akkaLib ++
       hadoopLib ++ serdeLib ++ testLib ++ logLib
   )
-  .settings(Test / PB.targets := Seq(scalapb.gen() -> (Test / sourceManaged).value))
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -388,7 +386,7 @@ lazy val database = (project in file("database"))
   )
 
 lazy val kafka = (project in file("kafka"))
-  .dependsOn(messages % "compile->compile;test->test")
+  .dependsOn(messages)
   .dependsOn(datetime)
   .dependsOn(common)
   .settings(commonSettings: _*)
@@ -399,7 +397,7 @@ lazy val kafka = (project in file("kafka"))
   )
 
 lazy val spark = (project in file("spark"))
-  .dependsOn(kafka % "compile->compile;test->test")
+  .dependsOn(kafka)
   .dependsOn(pipes)
   .dependsOn(database)
   .settings(commonSettings: _*)
@@ -425,6 +423,7 @@ lazy val example = (project in file("example"))
   .settings(commonSettings: _*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= testLib)
+  .settings(Test / PB.targets := Seq(scalapb.gen() -> (Test / sourceManaged).value))
 
 lazy val nanjin =
   (project in file("."))

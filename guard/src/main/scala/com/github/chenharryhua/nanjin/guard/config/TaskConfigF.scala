@@ -15,7 +15,7 @@ import java.time.ZoneId
 @Lenses @JsonCodec final case class TaskParams private (
   appName: AppName,
   zoneId: ZoneId,
-  hostName: String,
+  hostName: HostName,
   homePage: Option[HomePage])
 
 private[guard] object TaskParams {
@@ -24,7 +24,7 @@ private[guard] object TaskParams {
   def apply(appName: AppName, hostName: HostName): TaskParams = TaskParams(
     appName = appName,
     zoneId = ZoneId.systemDefault(),
-    hostName = hostName.name,
+    hostName = hostName,
     homePage = None
   )
 }
@@ -46,7 +46,7 @@ private object TaskConfigF {
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(appName, hostName) => TaskParams(appName, hostName)
       case WithZoneId(v, c)              => TaskParams.zoneId.set(v)(c)
-      case WithHostName(v, c)            => TaskParams.hostName.set(v.name)(c)
+      case WithHostName(v, c)            => TaskParams.hostName.set(v)(c)
       case WithHomePage(v, c)            => TaskParams.homePage.set(v)(c)
     }
 }

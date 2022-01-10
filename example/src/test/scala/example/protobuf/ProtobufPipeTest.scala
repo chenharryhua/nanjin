@@ -1,4 +1,4 @@
-package mtest.pipes
+package example.protobuf
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -7,8 +7,11 @@ import fs2.Stream
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.util.Random
+
 class ProtobufPipeTest extends AnyFunSuite {
-  import TestData.*
+  val lions: List[Lion] =
+    (1 to 10).map(x => Lion("Melbourne Zoo", Random.nextInt())).toList
 
   test("delimited protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
