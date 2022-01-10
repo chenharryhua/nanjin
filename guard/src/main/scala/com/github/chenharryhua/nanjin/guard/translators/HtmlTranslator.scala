@@ -58,7 +58,11 @@ private[translators] object HtmlTranslator extends all {
   // events
 
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
-    div(h3(s"Service Started"), timestampText(evt.zonedDateTime), hostServiceText(evt.serviceParams))
+    div(
+      h3(s"Service Started"),
+      timestampText(evt.zonedDateTime),
+      hostServiceText(evt.serviceParams),
+      pre(evt.serviceParams.brief))
 
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): Text.TypedTag[String] =
     div(

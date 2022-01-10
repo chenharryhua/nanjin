@@ -49,7 +49,8 @@ private[translators] object SlackTranslator extends all {
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
             )
           )
-        )
+        ),
+        Attachment(color = infoColor, blocks = List(MarkdownSection(evt.serviceParams.brief)))
       )
     )
 
