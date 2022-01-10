@@ -309,7 +309,7 @@ lazy val common = (project in file("common"))
     libraryDependencies ++= Seq(
       "org.apache.commons"    % "commons-lang3" % "3.12.0",
       "io.dropwizard.metrics" % "metrics-core"  % "4.2.7" % Provided) ++
-      baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib
+      baseLib ++ fs2Lib ++ effectLib ++ circeLib ++ monocleLib ++ testLib ++ logLib
   )
 
 lazy val http = (project in file("http"))
