@@ -18,7 +18,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.concurrent.duration.*
 import scala.util.Random
-
+import eu.timepit.refined.auto.*
 @DoNotDiscover
 class SparkKafkaStreamTest extends AnyFunSuite {
 

@@ -365,6 +365,7 @@ lazy val messages = (project in file("messages"))
   )
 
 lazy val pipes = (project in file("pipes"))
+  .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(

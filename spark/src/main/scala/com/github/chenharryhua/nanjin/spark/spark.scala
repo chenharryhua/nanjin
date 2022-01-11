@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.database.{DbUploader, SparkDBTable}
@@ -31,7 +32,8 @@ package object spark {
     def dismissNulls(implicit ev: ClassTag[A]): RDD[A] = rdd.flatMap(Option(_))
     def numOfNulls(implicit ev: ClassTag[A]): Long     = rdd.subtract(dismissNulls).count()
 
-    def stream[F[_]: Sync](chunkSize: Int): Stream[F, A] = Stream.fromIterator(rdd.toLocalIterator, chunkSize)
+    def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
+      Stream.fromIterator(rdd.toLocalIterator, chunkSize.value)
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
@@ -45,7 +47,7 @@ package object spark {
 
   implicit final class DatasetExt[A](ds: Dataset[A]) extends Serializable {
 
-    def stream[F[_]: Sync](chunkSize: Int): Stream[F, A] = ds.rdd.stream[F](chunkSize)
+    def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] = ds.rdd.stream[F](chunkSize)
 
     def dismissNulls: Dataset[A] = ds.flatMap(Option(_))(ds.encoder)
     def numOfNulls: Long         = ds.except(dismissNulls).count()

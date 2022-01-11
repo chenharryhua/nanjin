@@ -13,6 +13,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import eu.timepit.refined.auto.*
 
 object HadoopTestData {
 

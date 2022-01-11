@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
@@ -9,8 +10,8 @@ import java.io.*
 
 final class JavaObjectSerialization[F[_], A] extends Serializable {
 
-  def serialize(chunkSize: Int): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
-    ss.chunkN(chunkSize).flatMap { as =>
+  def serialize(chunkSize: ChunkSize): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
+    ss.chunkN(chunkSize.value).flatMap { as =>
       val bos = new ByteArrayOutputStream()
       val oos = new ObjectOutputStream(bos)
       as.foreach(oos.writeObject)

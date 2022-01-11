@@ -11,6 +11,7 @@ import fs2.kafka.ProducerRecord
 import fs2.kafka.ProducerRecords
 import cats.effect.unsafe.implicits.global
 import io.circe.Codec
+import eu.timepit.refined.auto.*
 
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)

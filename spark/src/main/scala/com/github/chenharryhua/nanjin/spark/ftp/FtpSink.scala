@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.ftp
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import akka.stream.{IOResult, Materializer}
 import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.*
 import com.github.chenharryhua.nanjin.terminals.FtpUploader
 import com.sksamuel.avro4s.Encoder as AvroEncoder
@@ -12,7 +13,7 @@ import kantan.csv.{CsvConfiguration, RowEncoder}
 
 final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C, S]) {
 
-  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: Int)(implicit
+  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: ChunkSize)(implicit
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] = {
@@ -20,7 +21,7 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
     _.through(pipe.serialize).through(uploader.upload(pathStr))
   }
 
-  def csv[A](pathStr: String, chunkSize: Int)(implicit
+  def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] =
@@ -33,7 +34,7 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
     _.through(pipe.serialize(isKeepNull)).through(uploader.upload(pathStr))
   }
 
-  def jackson[A](pathStr: String, enc: AvroEncoder[A], chunkSize: Int)(implicit
+  def jackson[A](pathStr: String, enc: AvroEncoder[A], chunkSize: ChunkSize)(implicit
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] = {
     val pipe = new JacksonSerialization[F](enc.schema)

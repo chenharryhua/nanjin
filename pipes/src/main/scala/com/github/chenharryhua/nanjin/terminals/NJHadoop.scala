@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
@@ -26,13 +27,13 @@ sealed trait NJHadoop[F[_]] {
   def dataFolders(pathStr: String): F[List[Path]]
 
   def byteSink(pathStr: String): Pipe[F, Byte, Unit]
-  def byteSource(pathStr: String, chunkSize: Int): Stream[F, Byte]
+  def byteSource(pathStr: String, chunkSize: ChunkSize): Stream[F, Byte]
 
   def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit]
   def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
 
   def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
-  def avroSource(pathStr: String, schema: Schema, chunkSize: Int): Stream[F, GenericRecord]
+  def avroSource(pathStr: String, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord]
 }
 
 object NJHadoop {
@@ -93,10 +94,10 @@ object NJHadoop {
         } yield res).drain
       }
 
-      override def byteSource(pathStr: String, chunkSize: Int): Stream[F, Byte] =
+      override def byteSource(pathStr: String, chunkSize: ChunkSize): Stream[F, Byte] =
         for {
           is <- Stream.resource(fsInput(pathStr))
-          bt <- readInputStream[F](F.delay(is), chunkSize)
+          bt <- readInputStream[F](F.delay(is), chunkSize.value)
         } yield bt
 
       override def parquetSink(
@@ -162,13 +163,13 @@ object NJHadoop {
           } yield ()).drain
       }
 
-      override def avroSource(pathStr: String, schema: Schema, chunkSize: Int): Stream[F, GenericRecord] = for {
+      override def avroSource(pathStr: String, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] = for {
         is <- Stream.resource(fsInput(pathStr))
         dfs <- Stream.resource(
           Resource.make[F, DataFileStream[GenericRecord]](
             F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r =>
             F.blocking(r.close()).attempt.void))
-        gr <- Stream.fromIterator(dfs.iterator().asScala, chunkSize)
+        gr <- Stream.fromIterator(dfs.iterator().asScala, chunkSize.value)
       } yield gr
     }
 }

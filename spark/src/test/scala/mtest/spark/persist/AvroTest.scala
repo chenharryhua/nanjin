@@ -9,7 +9,7 @@ import mtest.spark.*
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
   val hadoop: NJHadoop[IO]                = NJHadoop[IO](sparkSession.sparkContext.hadoopConfiguration)

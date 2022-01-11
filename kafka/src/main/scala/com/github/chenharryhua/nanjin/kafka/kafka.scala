@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin
 
+import com.github.chenharryhua.nanjin.common.ChunkSize
+
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 package object kafka {
@@ -9,9 +11,9 @@ package object kafka {
     final val TimeLimit: FiniteDuration   = FiniteDuration(21474835, TimeUnit.SECONDS)
     final val RecordsLimit: Long          = Long.MaxValue
     final val IdleTimeout: FiniteDuration = FiniteDuration(120, TimeUnit.SECONDS)
-    final val BufferSize: Int             = 16
+    final val bufferSize: Int             = 16
     final val Interval: FiniteDuration    = FiniteDuration(1, TimeUnit.SECONDS)
-    final val BulkSize: Int               = 1024 * 1024
-    final val ChunkSize: Int              = 1000
+    final val bulkSize: Int               = 1024 * 1024
+    final val chunkSize: ChunkSize        = ChunkSize(1000)
   }
 }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.common.{ChunkSize, NJFileFormat}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -12,12 +12,12 @@ import org.apache.spark.sql.SaveMode
   outPath: String,
   saveMode: SaveMode,
   compression: Compression,
-  chunkSize: Int)
+  chunkSize: ChunkSize)
 
 private[persist] object HoarderParams {
 
   def apply(outPath: String): HoarderParams =
-    HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, Compression.Uncompressed, 1024)
+    HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, Compression.Uncompressed, ChunkSize(1024))
 }
 
 sealed private[persist] trait HoarderConfigF[X]
@@ -30,7 +30,7 @@ private object HoarderConfigF {
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
-  final case class WithChunkSize[K](value: Int, cont: K) extends HoarderConfigF[K]
+  final case class WithChunkSize[K](value: ChunkSize, cont: K) extends HoarderConfigF[K]
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
@@ -66,7 +66,7 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def outputCompression(compression: Compression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
 
-  def chunkSize(cs: Int): HoarderConfig =
+  def chunkSize(cs: ChunkSize): HoarderConfig =
     HoarderConfig(Fix(WithChunkSize(cs, value)))
 }
 

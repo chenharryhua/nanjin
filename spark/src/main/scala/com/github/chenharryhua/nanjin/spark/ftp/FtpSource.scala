@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.ftp
 import akka.stream.Materializer
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.{
   CirceSerialization,
   CsvSerialization,
@@ -18,7 +19,7 @@ import kantan.csv.{CsvConfiguration, RowDecoder}
 
 final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloader[F, C, S]) {
 
-  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: Int)(implicit
+  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] = {
@@ -26,7 +27,7 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     downloader.download(pathStr).through(pipe.deserialize)
   }
 
-  def csv[A](pathStr: String, chunkSize: Int)(implicit
+  def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] =

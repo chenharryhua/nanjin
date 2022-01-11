@@ -14,7 +14,7 @@ import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
 

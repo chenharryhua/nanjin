@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration
@@ -23,7 +24,7 @@ final class SaveSingleProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends
   def errorIfExists: SaveSingleProtobuf[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleProtobuf[F, A] = updateConfig(cfg.ignoreMode)
 
-  def withChunkSize(cs: Int): SaveSingleProtobuf[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleProtobuf[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Async[F], enc: A <:< GeneratedMessage): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
