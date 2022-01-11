@@ -4,8 +4,8 @@ import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
@@ -18,22 +18,15 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object sesEmail {
 
-  def apply[F[_]: Async](
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
-    client: Resource[F, SimpleEmailService[F]]): NJSesEmail[F] =
+  def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): NJSesEmail[F] =
     new NJSesEmail[F](
-      client = client,
+      client = ses[F],
       from = from,
       to = to,
       subject = None,
       chunkSize = ChunkSize(60),
       interval = 60.minutes,
       Translator.html[F])
-
-  def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): NJSesEmail[F] =
-    apply[F](from, to, ses[F])
-
 }
 
 object snsEmail {
@@ -49,7 +42,7 @@ object snsEmail {
   def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmail[F] = apply[F](sns(snsArn))
 }
 
-final class NJSesEmail[F[_]: Async] private[observers] (
+final class NJSesEmail[F[_]: Async](
   client: Resource[F, SimpleEmailService[F]],
   from: EmailAddr,
   to: NonEmptyList[EmailAddr],
@@ -80,7 +73,7 @@ final class NJSesEmail[F[_]: Async] private[observers] (
       mb <- es
         .evalMap(e =>
           translator.filter {
-            case event: ActionEvent => event.actionInfo.actionParams.nonTrivial
+            case event: ActionEvent => event.actionParams.isNonTrivial
             case _                  => true
           }.translate(e))
         .unNone
@@ -96,7 +89,7 @@ final class NJSesEmail[F[_]: Async] private[observers] (
     } yield mb
 }
 
-final class NJSnsEmail[F[_]: Async] private[observers] (
+final class NJSnsEmail[F[_]: Async](
   client: Resource[F, SimpleNotificationService[F]],
   title: Option[Title],
   chunkSize: ChunkSize,
@@ -125,7 +118,7 @@ final class NJSnsEmail[F[_]: Async] private[observers] (
       rst <- es
         .evalMap(e =>
           translator.filter {
-            case event: ActionEvent => event.actionInfo.actionParams.nonTrivial
+            case event: ActionEvent => event.actionParams.isNonTrivial
             case _                  => true
           }.translate(e))
         .unNone

@@ -74,9 +74,9 @@ final case class ActionParams private (
   def failedTitle: String = s"$catalog ${metricName.metricRepr} failed"
   def succedTitle: String = s"$catalog ${metricName.metricRepr} succed"
 
-  val isCritical: Boolean = importance > Importance.High // Critical
-  val isNotice: Boolean   = importance > Importance.Medium // Hight + Critical
-  val nonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
+  val isCritical: Boolean   = importance > Importance.High // Critical
+  val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
+  val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 }
 
 object ActionParams {

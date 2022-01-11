@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.aws.{ses, sns}
+import com.github.chenharryhua.nanjin.aws.sns
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricReport
@@ -74,14 +74,6 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("emails compilation") {
-    sesEmail[IO]("abc@google.com", NonEmptyList.one("efg@tek.com")).withSubject("subject")
-    sesEmail("abc@google.com", NonEmptyList.of("efg@tek.com", "hij@amazon.com"), ses.fake[IO])
-      .withInterval(1.minute)
-      .withChunkSize(10)
-    snsEmail[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
-  }
-
   test("mail") {
     val mail =
       sesEmail[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
@@ -117,5 +109,15 @@ class ObserversTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
+  }
+
+  test("syntax") {
+    sesEmail[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
+      .withSubject("subject")
+      .withInterval(1.minute)
+      .withChunkSize(10)
+    snsEmail[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
+    logging[IO]
+    console[IO]
   }
 }

@@ -15,7 +15,7 @@ object logging {
   def apply[F[_]: Sync]: TextLogging[F] = new TextLogging[F](Translator.text[F])
 }
 
-final class TextLogging[F[_]: Sync] private[observers] (translator: Translator[F, String])
+final class TextLogging[F[_]: Sync](translator: Translator[F, String])
     extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextLogging[F]] {
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
