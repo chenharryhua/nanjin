@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import kantan.csv.CsvConfiguration.QuotePolicy
@@ -40,7 +41,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def withChunkSize(cs: Int): SaveSingleCsv[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleCsv[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration

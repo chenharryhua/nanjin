@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration
@@ -30,7 +31,7 @@ final class SaveSingleText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Str
   def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def withChunkSize(cs: Int): SaveSingleText[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleText[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Sync[F], show: Show[A]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration

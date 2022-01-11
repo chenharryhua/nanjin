@@ -13,6 +13,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 import org.apache.spark.sql.*
+import eu.timepit.refined.auto.*
 
 object SparkExtTestData {
   final case class Foo(a: Int, b: String)

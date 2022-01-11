@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.kernel.{Async, Sync}
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -106,16 +107,16 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
   object stream {
     private val hadoopConfiguration: Configuration = ss.sparkContext.hadoopConfiguration
 
-    def circe(pathStr: String, chunkSize: Int)(implicit
+    def circe(pathStr: String, chunkSize: ChunkSize)(implicit
       F: Sync[F],
       jdk: JsonDecoder[K],
       jdv: JsonDecoder[V]): Stream[F, NJConsumerRecord[K, V]] =
       loaders.stream.circe[F, NJConsumerRecord[K, V]](pathStr, hadoopConfiguration, chunkSize)
 
-    def jackson(pathStr: String, chunkSize: Int)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
+    def jackson(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
       loaders.stream.jackson[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration, chunkSize)
 
-    def avro(pathStr: String, chunkSize: Int)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+    def avro(pathStr: String, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
       loaders.stream.avro[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration, chunkSize)
   }
 }

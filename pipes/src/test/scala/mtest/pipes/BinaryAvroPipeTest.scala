@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.pipes.serde.{BinaryAvroSerialization, Gene
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData.*
   val gr = new GenericRecordCodec[IO, Tigger]

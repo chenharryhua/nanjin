@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
@@ -23,7 +24,7 @@ final class SaveSingleBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], 
   def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
 
-  def withChunkSize(cs: Int): SaveBinaryAvro[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveBinaryAvro[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration

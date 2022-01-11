@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
 

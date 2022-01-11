@@ -14,7 +14,7 @@ import mtest.spark.persist.{Tablet, TabletData}
 import org.apache.commons.net.PrintCommandListener
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 import java.io.PrintWriter
 import java.net.InetAddress
 

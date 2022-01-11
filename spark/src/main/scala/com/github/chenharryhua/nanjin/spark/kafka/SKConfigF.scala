@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Functor
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.defaultLoadParams
@@ -14,7 +15,7 @@ import scala.concurrent.duration.*
 
 @Lenses final private[kafka] case class NJLoadParams(
   bulkSize: Int,
-  chunkSize: Int,
+  chunkSize: ChunkSize,
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
@@ -24,12 +25,12 @@ import scala.concurrent.duration.*
 private[kafka] object NJLoadParams {
 
   val default: NJLoadParams = NJLoadParams(
-    bulkSize = defaultLoadParams.BulkSize,
-    chunkSize = defaultLoadParams.ChunkSize,
+    bulkSize = defaultLoadParams.bulkSize,
+    chunkSize = defaultLoadParams.chunkSize,
     interval = defaultLoadParams.Interval,
     recordsLimit = defaultLoadParams.RecordsLimit,
     timeLimit = defaultLoadParams.TimeLimit,
-    bufferSize = defaultLoadParams.BufferSize,
+    bufferSize = defaultLoadParams.bufferSize,
     idleTimeout = defaultLoadParams.IdleTimeout
   )
 }
@@ -65,7 +66,7 @@ private object SKConfigF {
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
   final case class WithLoadBulkSize[K](value: Int, cont: K) extends SKConfigF[K]
-  final case class WithLoadChunkSize[K](value: Int, cont: K) extends SKConfigF[K]
+  final case class WithLoadChunkSize[K](value: ChunkSize, cont: K) extends SKConfigF[K]
   final case class WithLoadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
@@ -127,7 +128,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
   def loadBufferSize(num: Int): SKConfig            = SKConfig(Fix(WithLoadBufferSize(num, value)))
   def loadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
-  def loadChunkSize(num: Int): SKConfig             = SKConfig(Fix(WithLoadChunkSize(num, value)))
+  def loadChunkSize(num: ChunkSize): SKConfig       = SKConfig(Fix(WithLoadChunkSize(num, value)))
 
   def startTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def startTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))

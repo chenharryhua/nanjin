@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
 import fs2.Stream
 import io.circe.Encoder as JsonEncoder
@@ -30,7 +31,7 @@ final class SaveSingleCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull
   def deflate(level: Int): SaveSingleCirce[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCirce[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def withChunkSize(cs: Int): SaveSingleCirce[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleCirce[F, A] = updateConfig(cfg.chunkSize(cs))
 
   def sink(implicit F: Sync[F], jsonEncoder: JsonEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration

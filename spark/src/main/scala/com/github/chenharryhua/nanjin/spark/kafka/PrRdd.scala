@@ -7,6 +7,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{Materializer, OverflowStrategy}
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.*
@@ -85,16 +86,16 @@ final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
   def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByChunkSize[F, K, V] =
     new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg, fs2Producer)
 
-  def withChunkSize(num: Int): UploadThrottleByChunkSize[F, K, V] =
+  def withChunkSize(num: ChunkSize): UploadThrottleByChunkSize[F, K, V] =
     new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg.loadChunkSize(num), fs2Producer)
 
   def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
     val params: SKParams = cfg.evalConfig
     rdd
-      .stream[F](params.loadParams.bulkSize)
+      .stream[F](params.loadParams.chunkSize)
       .interruptAfter(params.loadParams.timeLimit)
       .take(params.loadParams.recordsLimit)
-      .chunkN(params.loadParams.chunkSize)
+      .chunkN(params.loadParams.chunkSize.value)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
@@ -122,7 +123,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
       val params: SKParams           = cfg.evalConfig
-      rdd.stream[F](params.loadParams.bulkSize).toUnicastPublisher.map { p =>
+      rdd.stream[F](params.loadParams.chunkSize).toUnicastPublisher.map { p =>
         Source
           .fromPublisher(p)
           .take(params.loadParams.recordsLimit)

@@ -6,6 +6,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
@@ -115,9 +116,9 @@ final class JacksonDownloader[F[_], K, V](
   hadoop: Configuration,
   path: String,
   compression: Compression,
-  chunkSize: Int) {
+  chunkSize: ChunkSize) {
 
-  def withChunkSize(cs: Int): JacksonDownloader[F, K, V] =
+  def withChunkSize(cs: ChunkSize): JacksonDownloader[F, K, V] =
     new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression, cs)
 
   private def updateCompression(compression: Compression): JacksonDownloader[F, K, V] =

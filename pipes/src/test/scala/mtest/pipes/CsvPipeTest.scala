@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.pipes.serde.CsvSerialization
 import fs2.Stream
 import kantan.csv.CsvConfiguration
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 class CsvPipeTest extends AnyFunSuite {
   import TestData.*
   val ser = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc, 300)

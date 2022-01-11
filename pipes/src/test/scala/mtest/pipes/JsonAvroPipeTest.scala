@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.pipes.serde.{GenericRecordCodec, JacksonSe
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 class JsonAvroPipeTest extends AnyFunSuite {
   import TestData.*
   val gser = new GenericRecordCodec[IO, Tigger]
