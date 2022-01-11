@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.EmailAddr
+import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -27,7 +27,7 @@ object sesEmail {
       from = from,
       to = to,
       subject = None,
-      chunkSize = 60,
+      chunkSize = ChunkSize(60),
       interval = 60.minutes,
       Translator.html[F])
 
@@ -39,7 +39,12 @@ object sesEmail {
 object snsEmail {
 
   def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): NJSnsEmail[F] =
-    new NJSnsEmail[F](client = client, title = None, chunkSize = 60, interval = 60.minutes, Translator.html[F])
+    new NJSnsEmail[F](
+      client = client,
+      title = None,
+      chunkSize = ChunkSize(60),
+      interval = 60.minutes,
+      Translator.html[F])
 
   def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmail[F] = apply[F](sns(snsArn))
 }
@@ -49,20 +54,20 @@ final class NJSesEmail[F[_]: Async] private[observers] (
   from: EmailAddr,
   to: NonEmptyList[EmailAddr],
   subject: Option[Subject],
-  chunkSize: Int,
+  chunkSize: ChunkSize,
   interval: FiniteDuration,
   translator: Translator[F, Text.TypedTag[String]]
 ) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmail[F]] with all {
 
   private def copy(
     subject: Option[Subject] = subject,
-    chunkSize: Int = chunkSize,
+    chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     translator: Translator[F, Text.TypedTag[String]] = translator): NJSesEmail[F] =
     new NJSesEmail[F](client, from, to, subject, chunkSize, interval, translator)
 
   def withInterval(fd: FiniteDuration): NJSesEmail[F] = copy(interval = fd)
-  def withChunkSize(cs: Int): NJSesEmail[F]           = copy(chunkSize = cs)
+  def withChunkSize(cs: ChunkSize): NJSesEmail[F]     = copy(chunkSize = cs)
   def withSubject(sj: Subject): NJSesEmail[F]         = copy(subject = Some(sj))
 
   override def updateTranslator(
@@ -79,7 +84,7 @@ final class NJSesEmail[F[_]: Async] private[observers] (
             case _                  => true
           }.translate(e))
         .unNone
-        .groupWithin(chunkSize, interval)
+        .groupWithin(chunkSize.value, interval)
         .evalMap { events =>
           val mailBody: String =
             html(body(events.map(hr(_)).toList, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
@@ -94,20 +99,20 @@ final class NJSesEmail[F[_]: Async] private[observers] (
 final class NJSnsEmail[F[_]: Async] private[observers] (
   client: Resource[F, SimpleNotificationService[F]],
   title: Option[Title],
-  chunkSize: Int,
+  chunkSize: ChunkSize,
   interval: FiniteDuration,
   translator: Translator[F, Text.TypedTag[String]]
 ) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmail[F]] with all {
 
   private def copy(
     title: Option[Title] = title,
-    chunkSize: Int = chunkSize,
+    chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     translator: Translator[F, Text.TypedTag[String]] = translator): NJSnsEmail[F] =
     new NJSnsEmail[F](client, title, chunkSize, interval, translator)
 
   def withInterval(fd: FiniteDuration): NJSnsEmail[F] = copy(interval = fd)
-  def withChunkSize(cs: Int): NJSnsEmail[F]           = copy(chunkSize = cs)
+  def withChunkSize(cs: ChunkSize): NJSnsEmail[F]     = copy(chunkSize = cs)
   def withTitle(t: Title): NJSnsEmail[F]              = copy(title = Some(t))
 
   override def updateTranslator(
@@ -124,7 +129,7 @@ final class NJSnsEmail[F[_]: Async] private[observers] (
             case _                  => true
           }.translate(e))
         .unNone
-        .groupWithin(chunkSize, interval)
+        .groupWithin(chunkSize.value, interval)
         .evalMap { events =>
           val mailBody: String =
             html(

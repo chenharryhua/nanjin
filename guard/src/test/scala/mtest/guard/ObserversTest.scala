@@ -77,7 +77,9 @@ class ObserversTest extends AnyFunSuite {
   test("emails compilation") {
     sesEmail[IO]("abc@google.com", NonEmptyList.one("efg@tek.com")).withSubject("subject")
     sesEmail("abc@google.com", NonEmptyList.of("efg@tek.com", "hij@amazon.com"), ses.fake[IO])
-    snsEmail[IO](sns.fake[IO]).withTitle("title")
+      .withInterval(1.minute)
+      .withChunkSize(10)
+    snsEmail[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
   }
 
   test("mail") {
