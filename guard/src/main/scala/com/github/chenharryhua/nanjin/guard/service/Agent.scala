@@ -95,7 +95,9 @@ final class Agent[F[_]] private[service] (
   def meter(meterName: Span): NJMeter[F] =
     new NJMeter[F](
       metricName = DigestedName(agentParams.spans :+ meterName, serviceParams),
-      metricRegistry = metricRegistry)
+      metricRegistry = metricRegistry,
+      isCountAsError = false,
+      isCounting = false)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](

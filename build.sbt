@@ -44,7 +44,7 @@ val avro4s  = "4.0.12"
 
 // connect
 val hadoop  = "3.3.1"
-val akkaFtp = "3.0.3"
+val akkaFtp = "3.0.4"
 val http4s  = "1.0.0-M30"
 
 // misc
@@ -240,6 +240,7 @@ val refinedLib = Seq(
 ).map(_ % refined)
 
 val baseLib = Seq(
+  "org.typelevel" %% "squants"                     % "1.8.3",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
   "org.typelevel" %% "case-insensitive"            % "1.2.0",
   "io.scalaland" %% "chimney"                      % chimney,
