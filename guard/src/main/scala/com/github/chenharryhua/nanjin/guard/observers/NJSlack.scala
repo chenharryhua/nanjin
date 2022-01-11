@@ -24,7 +24,7 @@ object slack {
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 
-final class NJSlack[F[_]] private[observers] (
+final class NJSlack[F[_]](
   snsResource: Resource[F, SimpleNotificationService[F]],
   interval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
@@ -56,10 +56,10 @@ final class NJSlack[F[_]] private[observers] (
               sp.toZonedDateTime(ts),
               interval,
               sp.toZonedDateTime(ss.launchTime)) || rt.isShow
-          case ActionStart(ai)            => ai.isCritical
-          case ActionSucc(ai, _, _, _)    => ai.isCritical
-          case ActionRetry(ai, _, _, _)   => ai.isNotice
-          case ActionFail(ai, _, _, _, _) => ai.nonTrivial
+          case ActionStart(ai)            => ai.actionParams.isCritical
+          case ActionSucc(ai, _, _, _)    => ai.actionParams.isCritical
+          case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice
+          case ActionFail(ai, _, _, _, _) => ai.actionParams.isNonTrivial
           case _                          => true
         }.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
         .onFinalize { // publish good bye message to slack

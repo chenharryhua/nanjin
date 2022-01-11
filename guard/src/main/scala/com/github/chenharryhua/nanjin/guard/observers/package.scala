@@ -5,12 +5,23 @@ import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
+import eu.timepit.refined.api.{Refined, RefinedTypeOps}
+import eu.timepit.refined.boolean.And
+import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
+import eu.timepit.refined.collection.NonEmpty
+import eu.timepit.refined.string.{MatchesRegex, Trimmed}
 
 import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object observers {
+  type Title = Refined[String, NonEmpty And Trimmed]
+  object Title extends RefinedTypeOps[Title, String] with CatsRefinedTypeOpsSyntax
+
+  type Subject = Refined[String, NonEmpty And Trimmed]
+  object Subject extends RefinedTypeOps[Subject, String] with CatsRefinedTypeOpsSyntax
+
   def isShowMetrics(
     reportSchedule: Option[Either[FiniteDuration, CronExpr]],
     now: ZonedDateTime,

@@ -18,6 +18,9 @@ package object config {
   type Span = Refined[String, NonEmpty And Trimmed] // And Not[Contains['/']]]
   object Span extends RefinedTypeOps[Span, String] with CatsRefinedTypeOpsSyntax
 
+  type Brief = Refined[String, NonEmpty]
+  object Brief extends RefinedTypeOps[Brief, String] with CatsRefinedTypeOpsSyntax
+
   type HomePage      = Refined[String, Url]
   type QueueCapacity = Refined[Int, NonNegative]
   type Catalog       = Refined[String, Forall[LowerCase]]

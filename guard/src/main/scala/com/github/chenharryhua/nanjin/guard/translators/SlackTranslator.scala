@@ -47,11 +47,10 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(
               first = TextField("Up Time", fmt.format(evt.upTime)),
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
-            )
+            ),
+            MarkdownSection(evt.serviceParams.brief.value)
           )
-        ),
-        Attachment(color = infoColor, blocks = List(MarkdownSection(evt.serviceParams.brief)))
-      )
+        ))
     )
 
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): SlackApp = {
@@ -89,6 +88,7 @@ private[translators] object SlackTranslator extends all {
       case Importance.Medium   => (":information_source: Info", infoColor)
       case Importance.Low      => ("oops. should not happen", errorColor)
     }
+    val msg: Option[Section] = if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
     SlackApp(
       username = evt.serviceParams.taskParams.appName.value,
       attachments = List(
@@ -96,8 +96,8 @@ private[translators] object SlackTranslator extends all {
           color = color,
           blocks = List(
             MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"),
-            hostServiceSection(evt.serviceParams),
-            MarkdownSection(abbreviate(evt.message)))
+            hostServiceSection(evt.serviceParams)
+          ).appendedAll(msg)
         )
       )
     )
@@ -140,7 +140,7 @@ private[translators] object SlackTranslator extends all {
             metricsSection(evt.snapshot)
           )
         ),
-        Attachment(color = color, blocks = List(MarkdownSection(evt.serviceParams.brief)))
+        Attachment(color = color, blocks = List(MarkdownSection(evt.serviceParams.brief.value)))
       )
     )
   }

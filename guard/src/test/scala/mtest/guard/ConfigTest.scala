@@ -55,14 +55,14 @@ class ConfigTest extends AnyFunSuite {
     val as = service.eventStream { agent =>
       agent.notice.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.isNotice)
+    assert(as.actionInfo.actionParams.isNotice)
   }
 
   test("critical") {
     val as = service.eventStream { agent =>
       agent.critical.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.isCritical)
+    assert(as.actionInfo.actionParams.isCritical)
   }
   test("trivial") {
     val as = service.eventStream { agent =>

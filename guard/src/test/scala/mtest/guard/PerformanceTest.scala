@@ -30,7 +30,7 @@ import eu.timepit.refined.auto.*
   * 434k/s trivial
   */
 
-@Ignore
+//@Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
@@ -41,14 +41,8 @@ class PerformanceTest extends AnyFunSuite {
   test("critical") {
     var i = 0
     service.eventStream { ag =>
-      ag.span("c")
-        .critical
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .retry(IO(i += 1))
-        .run
-        .foreverM
-        .timeout(take)
-        .attempt
+      val ts = ag.span("c").critical.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical")
   }
@@ -56,15 +50,14 @@ class PerformanceTest extends AnyFunSuite {
   test("critical - notes") {
     var i = 0
     service.eventStream { ag =>
-      ag.span("cn")
+      val ts = ag
+        .span("cn")
         .critical
         .updateConfig(_.withoutTiming.withoutCounting)
         .retry(IO(i += 1))
         .withSuccNotes(_ => "ok")
         .run
-        .foreverM
-        .timeout(take)
-        .attempt
+      ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical - notes")
   }
@@ -72,16 +65,15 @@ class PerformanceTest extends AnyFunSuite {
   test("critical - expensive notes") {
     var i = 0
     service.eventStream { ag =>
-      ag.span("cen")
+      val ts = ag
+        .span("cen")
         .critical
         .updateConfig(_.withoutTiming.withoutCounting)
         .expensive
         .retry(IO(i += 1))
         .withSuccNotes(_ => "ok")
         .run
-        .foreverM
-        .timeout(take)
-        .attempt
+      ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical - expensive notes")
   }
@@ -89,14 +81,8 @@ class PerformanceTest extends AnyFunSuite {
   test("notice") {
     var i: Int = 0
     service.eventStream { ag =>
-      ag.span("nt")
-        .notice
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .retry(IO(i += 1))
-        .run
-        .foreverM
-        .timeout(take)
-        .attempt
+      val ts = ag.span("nt").notice.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} notice")
   }
@@ -104,14 +90,8 @@ class PerformanceTest extends AnyFunSuite {
   test("normal") {
     var i: Int = 0
     service.eventStream { ag =>
-      ag.span("n")
-        .normal
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .retry(IO(i += 1))
-        .run
-        .foreverM
-        .timeout(take)
-        .attempt
+      val ts = ag.span("n").normal.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} normal")
   }
@@ -119,15 +99,8 @@ class PerformanceTest extends AnyFunSuite {
   test("normal - expensive") {
     var i: Int = 0
     service.eventStream { ag =>
-      ag.span("ne")
-        .normal
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .expensive
-        .retry(IO(i += 1))
-        .run
-        .foreverM
-        .timeout(take)
-        .attempt
+      val ts = ag.span("ne").normal.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} - normal expensive")
   }
@@ -135,14 +108,8 @@ class PerformanceTest extends AnyFunSuite {
   test("trivial") {
     var i = 0
     service.eventStream { ag =>
-      ag.span("t")
-        .trivial
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .retry(IO(i += 1))
-        .run
-        .foreverM
-        .timeout(take)
-        .attempt
+      val ts = ag.span("t").trivial.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} trivial")
   }
