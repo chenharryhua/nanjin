@@ -7,7 +7,7 @@ import example.topics.fooTopic
 import io.circe.generic.auto._
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 import scala.concurrent.duration.*
 
 @DoNotDiscover

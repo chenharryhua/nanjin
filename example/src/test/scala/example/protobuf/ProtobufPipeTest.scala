@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.pipes.serde.{DelimitedProtoBufSerializatio
 import fs2.Stream
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 import scala.util.Random
 
 class ProtobufPipeTest extends AnyFunSuite {
