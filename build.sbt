@@ -190,7 +190,7 @@ val testLib = Seq(
   "org.scalatest" %% "scalatest"                              % scalatest       % Test,
   "com.github.julien-truffaut" %% "monocle-law"               % monocle         % Test,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0"         % Test,
-  "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC1"     % Test,
+  "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2"     % Test,
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26          % Test,
   "org.typelevel" %% "algebra-laws"                           % algebra         % Test,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "2.1.1"         % Test,
@@ -379,9 +379,9 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= Seq(
-      "org.tpolecat" %% "doobie-core"   % "1.0.0-RC1",
-      "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC1",
-      "org.tpolecat" %% "doobie-free"   % "1.0.0-RC1",
+      "org.tpolecat" %% "doobie-core"   % "1.0.0-RC2",
+      "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
+      "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
       "com.zaxxer"                      % "HikariCP" % "5.0.1"
     ) ++ baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib
   )
