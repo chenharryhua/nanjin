@@ -65,31 +65,27 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
 
-  def uploadByChunk: UploadThrottleByChunkSize[F, K, V] =
-    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
-
-  def uploadByBulk: UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaUpdater.unitProducer[K, V])
+  def fs2Upload: Fs2Upload[F, K, V]   = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
+  def akkaUpload: AkkaUpload[F, K, V] = new AkkaUpload[F, K, V](rdd, topic, cfg, akkaUpdater.unitProducer[K, V])
 }
 
-final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
+final class Fs2Upload[F[_], K, V] private[kafka] (
   rdd: RDD[NJProducerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
   fs2Producer: fs2Updater.Producer[F, K, V]
 ) extends Serializable {
 
-  def updateProducer(
-    f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): UploadThrottleByChunkSize[F, K, V] =
-    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
+  def updateProducer(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Upload[F, K, V] =
+    new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
-  def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByChunkSize[F, K, V] =
-    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg, fs2Producer)
+  def toTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] =
+    new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
 
-  def withChunkSize(num: ChunkSize): UploadThrottleByChunkSize[F, K, V] =
-    new UploadThrottleByChunkSize[F, K, V](rdd, topic, cfg.loadChunkSize(num), fs2Producer)
+  def withChunkSize(cs: ChunkSize): Fs2Upload[F, K, V] =
+    new Fs2Upload[F, K, V](rdd, topic, cfg.loadChunkSize(cs), fs2Producer)
 
-  def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
+  def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
     val params: SKParams = cfg.evalConfig
     rdd
       .stream[F](params.loadParams.chunkSize)
@@ -102,23 +98,26 @@ final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
   }
 }
 
-final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
+final class AkkaUpload[F[_], K, V] private[kafka] (
   rdd: RDD[NJProducerRecord[K, V]],
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
   akkaProducer: akkaUpdater.Producer[K, V]
 ) extends Serializable {
 
-  def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer.updateConfig(f))
+  def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaUpload[F, K, V] =
+    new AkkaUpload[F, K, V](rdd, topic, cfg, akkaProducer.updateConfig(f))
 
-  def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer)
+  def toTopic(topic: KafkaTopic[F, K, V]): AkkaUpload[F, K, V] =
+    new AkkaUpload[F, K, V](rdd, topic, cfg, akkaProducer)
 
-  def withThrottle(num: Information): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.loadThrottle(num), akkaProducer)
+  def withThrottle(bytes: Information): AkkaUpload[F, K, V] =
+    new AkkaUpload[F, K, V](rdd, topic, cfg.loadThrottle(bytes), akkaProducer)
 
-  def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
+  def withChunkSize(cs: ChunkSize): AkkaUpload[F, K, V] =
+    new AkkaUpload[F, K, V](rdd, topic, cfg.loadChunkSize(cs), akkaProducer)
+
+  def stream(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
       val params: SKParams           = cfg.evalConfig

@@ -17,6 +17,12 @@ class ExampleKafkaDirectStream extends AnyFunSuite {
     val path = "./data/example/foo/dstream"
     better.files.File(path).delete(true)
     val runner = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, "./data/example/foo/checkpoint", 2.seconds)
-    runner.signup(sparKafka.topic(fooTopic).dstream)(_.coalesce.circe(path)).stream.compile.drain.unsafeRunSync()
+    runner
+      .signup(sparKafka.topic(fooTopic).dstream)(_.coalesce.circe(path))
+      .stream
+      .interruptAfter(5.seconds)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

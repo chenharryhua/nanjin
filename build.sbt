@@ -425,7 +425,7 @@ lazy val example = (project in file("example"))
   .settings(commonSettings: _*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= testLib)
-  .settings(Test / PB.targets := Seq(scalapb.gen() -> (Test / sourceManaged).value))
+  .settings(Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
   (project in file("."))

@@ -60,7 +60,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def dumpToday(implicit F: Sync[F]): F[Unit] = withOneDay(LocalDate.now()).dump
 
   def replay(implicit ce: Async[F]): F[Unit] =
-    fromDisk.flatMap(_.prRdd.noMeta.uploadByChunk.run.map(_ => print(".")).compile.drain)
+    fromDisk.flatMap(_.prRdd.noMeta.fs2Upload.stream.map(_ => print(".")).compile.drain)
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.flatMap(_.count)
