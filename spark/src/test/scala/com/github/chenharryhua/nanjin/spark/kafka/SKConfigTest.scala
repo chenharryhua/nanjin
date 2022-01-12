@@ -1,15 +1,16 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import com.github.chenharryhua.nanjin.datetime.{sydneyTime, utcTime, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.datetime.{sydneyTime, utcTime, NJDateTimeRange, NJTimestamp}
 import org.apache.spark.streaming.kafka010.LocationStrategies
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.Kilobytes
 
 import java.time.{LocalDate, LocalDateTime}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class SKConfigTest extends AnyFunSuite {
-  val skc = SKConfig(TopicName("config.test"), sydneyTime).zoneId(utcTime)
+  val skc: SKConfig = SKConfig(TopicName("config.test"), sydneyTime).zoneId(utcTime)
   test("date-time parameters") {
     val d1 = NJTimestamp("10:00", sydneyTime)
     val d2 = NJTimestamp("11:00", sydneyTime)
@@ -45,9 +46,15 @@ class SKConfigTest extends AnyFunSuite {
 
   test("upload parameters") {
     val p =
-      skc.loadBulkSize(1).loadInterval(0.1.second).loadRecordsLimit(10).loadTimeLimit(1.minutes).evalConfig.loadParams
+      skc
+        .loadThrottle(Kilobytes(1))
+        .loadInterval(0.1.second)
+        .loadRecordsLimit(10)
+        .loadTimeLimit(1.minutes)
+        .evalConfig
+        .loadParams
 
-    assert(p.bulkSize == 1)
+    assert(p.throttle.toBytes.toInt == 1000)
     assert(p.interval == 100.millisecond)
     assert(p.recordsLimit == 10)
     assert(p.timeLimit == 60.second)

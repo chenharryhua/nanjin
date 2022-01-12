@@ -11,7 +11,7 @@ import mtest.spark
 import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.sparkSession
 import org.scalatest.funsuite.AnyFunSuite
-
+import squants.information.Bytes
 import java.time.Instant
 import scala.concurrent.duration._
 
@@ -53,13 +53,12 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       .noTimestamp
       .noPartition
       .noMeta
-      .withBufferSize(1)
       .withRecordsLimit(1000)
       .withTimeLimit(2.minutes)
 
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
-      _ <- pr.uploadByBulk.withBulkSize(1024).run(spark.akkaSystem).compile.drain
+      _ <- pr.uploadByBulk.withThrottle(Bytes(1024)).run(spark.akkaSystem).compile.drain
       _ <- pr.count.map(println)
       _ <- topic.fromKafka.flatMap(_.save.circe(circe).folder.run)
       _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(parquet).folder.run)
