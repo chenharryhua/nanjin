@@ -20,6 +20,7 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+import squants.information.Information
 
 import java.io.DataInputStream
 import scala.reflect.ClassTag
@@ -141,11 +142,11 @@ object loaders {
       pathStr: String,
       decoder: AvroDecoder[A],
       cfg: Configuration,
-      chunkSize: ChunkSize): Stream[F, A] = {
+      byteBuffer: Information): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val jk     = new JacksonSerialization[F](decoder.schema)
       val gr     = new GenericRecordCodec[F, A]
-      hadoop.byteSource(pathStr, chunkSize).through(jk.deserialize).through(gr.decode(decoder))
+      hadoop.byteSource(pathStr, byteBuffer).through(jk.deserialize).through(gr.decode(decoder))
     }
 
     def avro[F[_]: Sync, A](
@@ -158,10 +159,13 @@ object loaders {
       hadoop.avroSource(pathStr, decoder.schema, chunkSize).through(gr.decode(decoder))
     }
 
-    def circe[F[_]: Sync, A: JsonDecoder](pathStr: String, cfg: Configuration, chunkSize: ChunkSize): Stream[F, A] = {
+    def circe[F[_]: Sync, A: JsonDecoder](
+      pathStr: String,
+      cfg: Configuration,
+      byteBuffer: Information): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val cs     = new CirceSerialization[F, A]
-      hadoop.byteSource(pathStr, chunkSize).through(cs.deserialize)
+      hadoop.byteSource(pathStr, byteBuffer).through(cs.deserialize)
     }
   }
 }

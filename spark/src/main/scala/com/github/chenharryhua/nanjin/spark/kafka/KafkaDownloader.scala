@@ -14,6 +14,7 @@ import fs2.Stream
 import fs2.interop.reactivestreams.*
 import io.circe.Encoder as JsonEncoder
 import org.apache.hadoop.conf.Configuration
+import squants.information.Information
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -41,7 +42,7 @@ final class KafkaDownloader[F[_], K, V](
     new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, f(cfg), akkaConsumer)
 
   def withInterval(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadInterval(fd))
-  def withBulkSize(num: Int): KafkaDownloader[F, K, V]           = updateCfg(_.loadBulkSize(num))
+  def withThrottle(num: Information): KafkaDownloader[F, K, V]   = updateCfg(_.loadThrottle(num))
 
   def withRecordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadTimeLimit(fd))
@@ -57,14 +58,14 @@ final class KafkaDownloader[F[_], K, V](
           .updateConsumer(akkaConsumer.updates.run)
           .assign(kor.mapValues(_.from))
           .throttle(
-            params.loadParams.bulkSize,
+            params.loadParams.throttle.toBytes.toInt,
             params.loadParams.interval,
             cr => cr.serializedKeySize() + cr.serializedValueSize())
           .via(stages.takeUntilEnd(kor.mapValues(_.until)))
           .map(cr => NJConsumerRecord(topic.decoder(cr).optionalKeyValue))
           .idleTimeout(params.loadParams.idleTimeout)
           .runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem))
-          .toStreamBuffered(params.loadParams.bufferSize)
+          .toStreamBuffered(params.loadParams.chunkSize.value)
           .interruptAfter(params.loadParams.timeLimit)
           .take(params.loadParams.recordsLimit)
       }

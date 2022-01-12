@@ -17,6 +17,7 @@ import fs2.interop.reactivestreams.*
 import fs2.kafka.{ProducerRecords, ProducerResult, ProducerSettings as Fs2ProducerSettings}
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.spark.rdd.RDD
+import squants.information.Information
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -31,7 +32,6 @@ final class PrRdd[F[_], K, V] private[kafka] (
     new PrRdd[F, K, V](rdd, topic, f(cfg))
 
   def withInterval(ms: FiniteDuration): PrRdd[F, K, V]  = updateCfg(_.loadInterval(ms))
-  def withBufferSize(num: Int): PrRdd[F, K, V]          = updateCfg(_.loadBufferSize(num))
   def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.loadTimeLimit(fd))
 
@@ -97,7 +97,6 @@ final class UploadThrottleByChunkSize[F[_], K, V] private[kafka] (
       .take(params.loadParams.recordsLimit)
       .chunkN(params.loadParams.chunkSize.value)
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
-      .buffer(params.loadParams.bufferSize)
       .metered(params.loadParams.interval)
       .through(topic.fs2Channel.updateProducer(fs2Producer.updates.run).producerPipe)
   }
@@ -116,8 +115,8 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
   def toTopic(topic: KafkaTopic[F, K, V]): UploadThrottleByBulkSize[F, K, V] =
     new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg, akkaProducer)
 
-  def withBulkSize(num: Int): UploadThrottleByBulkSize[F, K, V] =
-    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.loadBulkSize(num), akkaProducer)
+  def withThrottle(num: Information): UploadThrottleByBulkSize[F, K, V] =
+    new UploadThrottleByBulkSize[F, K, V](rdd, topic, cfg.loadThrottle(num), akkaProducer)
 
   def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
@@ -129,10 +128,10 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
           .take(params.loadParams.recordsLimit)
           .takeWithin(params.loadParams.timeLimit)
           .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
-          .buffer(params.loadParams.bufferSize, OverflowStrategy.backpressure)
+          .buffer(params.loadParams.chunkSize.value, OverflowStrategy.backpressure)
           .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.updates.run).flexiFlow)
           .throttle(
-            params.loadParams.bulkSize,
+            params.loadParams.throttle.toBytes.toInt,
             params.loadParams.interval,
             {
               case ProducerMessage.Result(meta, _) => meta.serializedKeySize() + meta.serializedValueSize()
@@ -145,7 +144,7 @@ final class UploadThrottleByBulkSize[F[_], K, V] private[kafka] (
             }
           )
           .runWith(Sink.asPublisher(fanout = false))
-          .toStreamBuffered(params.loadParams.bufferSize)
+          .toStreamBuffered(params.loadParams.chunkSize.value)
       }
     }.flatten
 }

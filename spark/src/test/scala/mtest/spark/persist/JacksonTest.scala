@@ -7,6 +7,7 @@ import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
+import squants.information.InformationConversions.*
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
 
@@ -26,7 +27,7 @@ class JacksonTest extends AnyFunSuite {
     val r = loaders.jackson[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
     val t3 = loaders.stream
-      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 100)
+      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 100.bytes)
       .compile
       .toList
       .unsafeRunSync()

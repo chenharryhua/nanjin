@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.DigestedName
 
@@ -18,10 +17,9 @@ final class NJMeter[F[_]] private[guard] (
   def asError   = new NJMeter[F](metricName, metricRegistry, true, true)
   def withCount = new NJMeter[F](metricName, metricRegistry, false, true)
 
-  def unsafeMark(num: Long): Unit = meter.mark(num)
-  def mark(num: Long): F[Unit] =
-    for {
-      _ <- F.delay(unsafeMark(num))
-      _ <- F.delay(counter.inc(num)).whenA(isCounting)
-    } yield ()
+  def unsafeMark(num: Long): Unit = {
+    meter.mark(num)
+    if (isCounting) counter.inc(num)
+  }
+  def mark(num: Long): F[Unit] = F.delay(unsafeMark(num))
 }

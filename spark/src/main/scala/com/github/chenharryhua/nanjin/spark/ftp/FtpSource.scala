@@ -4,13 +4,7 @@ import akka.stream.Materializer
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.{
-  CirceSerialization,
-  CsvSerialization,
-  GenericRecordCodec,
-  JacksonSerialization,
-  TextSerialization
-}
+import com.github.chenharryhua.nanjin.pipes.serde.*
 import com.github.chenharryhua.nanjin.terminals.FtpDownloader
 import com.sksamuel.avro4s.Decoder as AvroDecoder
 import fs2.Stream
@@ -23,8 +17,8 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] = {
-    val pipe = new CsvSerialization[F, A](csvConfig, chunkSize)
-    downloader.download(pathStr).through(pipe.deserialize)
+    val pipe = new CsvSerialization[F, A](csvConfig)
+    downloader.download(pathStr).through(pipe.deserialize(chunkSize))
   }
 
   def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit

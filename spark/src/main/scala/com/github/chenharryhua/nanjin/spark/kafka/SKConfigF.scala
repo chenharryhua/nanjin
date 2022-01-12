@@ -4,34 +4,33 @@ import cats.Functor
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.defaultLoadParams
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
+import squants.information.{Information, Megabytes}
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 @Lenses final private[kafka] case class NJLoadParams(
-  bulkSize: Int,
+  throttle: Information, // maximum byte per interval
   chunkSize: ChunkSize,
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
-  bufferSize: Int,
   idleTimeout: FiniteDuration)
 
 private[kafka] object NJLoadParams {
 
   val default: NJLoadParams = NJLoadParams(
-    bulkSize = defaultLoadParams.bulkSize,
-    chunkSize = defaultLoadParams.chunkSize,
-    interval = defaultLoadParams.Interval,
-    recordsLimit = defaultLoadParams.RecordsLimit,
-    timeLimit = defaultLoadParams.TimeLimit,
-    bufferSize = defaultLoadParams.bufferSize,
-    idleTimeout = defaultLoadParams.IdleTimeout
+    throttle = Megabytes(1),
+    chunkSize = ChunkSize(1000),
+    interval = FiniteDuration(1, TimeUnit.SECONDS),
+    recordsLimit = Long.MaxValue,
+    timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS), // akka.actor.LightArrayRevolverScheduler.checkMaxDelay
+    idleTimeout = FiniteDuration(120, TimeUnit.SECONDS)
   )
 }
 
@@ -65,12 +64,11 @@ private object SKConfigF {
 
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
-  final case class WithLoadBulkSize[K](value: Int, cont: K) extends SKConfigF[K]
+  final case class WithLoadThrottle[K](value: Information, cont: K) extends SKConfigF[K]
   final case class WithLoadChunkSize[K](value: ChunkSize, cont: K) extends SKConfigF[K]
   final case class WithLoadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
-  final case class WithLoadBufferSize[K](value: Int, cont: K) extends SKConfigF[K]
   final case class WithIdleTimeout[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
 
   final case class WithStartTimeStr[K](value: String, cont: K) extends SKConfigF[K]
@@ -91,11 +89,10 @@ private object SKConfigF {
     case InitParams(t, z)    => SKParams(t, z)
     case WithTopicName(v, c) => SKParams.topicName.set(v)(c)
 
-    case WithLoadBulkSize(v, c)     => SKParams.loadParams.composeLens(NJLoadParams.bulkSize).set(v)(c)
+    case WithLoadThrottle(v, c)     => SKParams.loadParams.composeLens(NJLoadParams.throttle).set(v)(c)
     case WithLoadInterval(v, c)     => SKParams.loadParams.composeLens(NJLoadParams.interval).set(v)(c)
     case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
     case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
-    case WithLoadBufferSize(v, c)   => SKParams.loadParams.composeLens(NJLoadParams.bufferSize).set(v)(c)
     case WithLoadChunkSize(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.chunkSize).set(v)(c)
 
     case WithIdleTimeout(v, c) => SKParams.loadParams.composeLens(NJLoadParams.idleTimeout).set(v)(c)
@@ -122,11 +119,10 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def topicName(tn: String): SKConfig = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
-  def loadBulkSize(bs: Int): SKConfig               = SKConfig(Fix(WithLoadBulkSize(bs, value)))
+  def loadThrottle(bs: Information): SKConfig       = SKConfig(Fix(WithLoadThrottle(bs, value)))
   def loadInterval(fd: FiniteDuration): SKConfig    = SKConfig(Fix(WithLoadInterval(fd, value)))
   def loadRecordsLimit(num: Long): SKConfig         = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
   def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
-  def loadBufferSize(num: Int): SKConfig            = SKConfig(Fix(WithLoadBufferSize(num, value)))
   def loadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
   def loadChunkSize(num: ChunkSize): SKConfig       = SKConfig(Fix(WithLoadChunkSize(num, value)))
 

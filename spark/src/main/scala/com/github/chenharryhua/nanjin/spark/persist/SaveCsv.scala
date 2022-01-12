@@ -8,6 +8,7 @@ import kantan.csv.CsvConfiguration.QuotePolicy
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.Dataset
+import squants.information.Information
 
 final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
     extends Serializable {
@@ -41,7 +42,8 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
   def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def withChunkSize(cs: ChunkSize): SaveSingleCsv[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleCsv[F, A]    = updateConfig(cfg.chunkSize(cs))
+  def withByteBuffer(bb: Information): SaveSingleCsv[F, A] = updateConfig(cfg.byteBuffer(bb))
 
   def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
@@ -54,7 +56,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
     sma.checkAndRun(
       ds.rdd
         .stream[F](params.chunkSize)
-        .through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression, params.chunkSize)))
+        .through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression, params.byteBuffer)))
   }
 
 }

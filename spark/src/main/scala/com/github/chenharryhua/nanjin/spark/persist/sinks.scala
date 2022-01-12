@@ -15,6 +15,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import scalapb.GeneratedMessage
+import squants.information.Information
 
 object sinks {
 
@@ -80,9 +81,9 @@ object sinks {
     ss.map(_.show).through(pipe).through(compression).through(sink)
   }
 
-  def protobuf[F[_]: Async, A](path: String, cfg: Configuration, chunkSize: ChunkSize)(implicit
+  def protobuf[F[_]: Async, A](path: String, cfg: Configuration, byteBuffer: Information)(implicit
     enc: A <:< GeneratedMessage): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F](chunkSize).serialize
+    val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F].serialize(byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe).through(sink)
   }
@@ -92,8 +93,8 @@ object sinks {
     cfg: Configuration,
     csvConf: CsvConfiguration,
     compression: Pipe[F, Byte, Byte],
-    chunkSize: ChunkSize): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf, chunkSize).serialize
+    byteBuffer: Information): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize(byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe).through(compression).through(sink)
   }

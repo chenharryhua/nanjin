@@ -6,18 +6,26 @@ import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
+import squants.information.{Information, Kilobytes}
 
 @Lenses final private[persist] case class HoarderParams(
   format: NJFileFormat,
   outPath: String,
   saveMode: SaveMode,
   compression: Compression,
-  chunkSize: ChunkSize)
+  chunkSize: ChunkSize,
+  byteBuffer: Information)
 
 private[persist] object HoarderParams {
 
   def apply(outPath: String): HoarderParams =
-    HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, Compression.Uncompressed, ChunkSize(1024))
+    HoarderParams(
+      NJFileFormat.Unknown,
+      outPath,
+      SaveMode.Overwrite,
+      Compression.Uncompressed,
+      ChunkSize(1024),
+      Kilobytes(100))
 }
 
 sealed private[persist] trait HoarderConfigF[X]
@@ -30,7 +38,9 @@ private object HoarderConfigF {
   final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
+
   final case class WithChunkSize[K](value: ChunkSize, cont: K) extends HoarderConfigF[K]
+  final case class WithByteBuffer[K](value: Information, cont: K) extends HoarderConfigF[K]
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
@@ -40,6 +50,7 @@ private object HoarderConfigF {
       case WithFileFormat(v, c)  => HoarderParams.format.set(v)(c)
       case WithCompression(v, c) => HoarderParams.compression.set(v)(c)
       case WithChunkSize(v, c)   => HoarderParams.chunkSize.set(v)(c)
+      case WithByteBuffer(v, c)  => HoarderParams.byteBuffer.set(v)(c)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
@@ -66,8 +77,8 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def outputCompression(compression: Compression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
 
-  def chunkSize(cs: ChunkSize): HoarderConfig =
-    HoarderConfig(Fix(WithChunkSize(cs, value)))
+  def chunkSize(cs: ChunkSize): HoarderConfig    = HoarderConfig(Fix(WithChunkSize(cs, value)))
+  def byteBuffer(bb: Information): HoarderConfig = HoarderConfig(Fix(WithByteBuffer(bb, value)))
 }
 
 private[persist] object HoarderConfig {

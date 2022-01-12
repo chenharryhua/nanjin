@@ -6,8 +6,11 @@ import com.github.chenharryhua.nanjin.pipes.serde.{DelimitedProtoBufSerializatio
 import fs2.Stream
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
+import eu.timepit.refined.auto.*
+import squants.information.Kilobytes
 
 import scala.util.Random
+import com.github.chenharryhua.nanjin.common.ChunkSize
 
 class ProtobufPipeTest extends AnyFunSuite {
   val lions: List[Lion] =
@@ -15,9 +18,10 @@ class ProtobufPipeTest extends AnyFunSuite {
 
   test("delimited protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
-    val ser                    = new DelimitedProtoBufSerialization[IO](10)
 
-    assert(data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
+    val ser = new DelimitedProtoBufSerialization[IO]
+
+    assert(data.through(ser.serialize(Kilobytes(10))).through(ser.deserialize[Lion](ChunkSize(5))).compile.toList.unsafeRunSync() === lions)
   }
 
   test("protobuf identity") {

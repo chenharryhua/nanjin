@@ -14,6 +14,7 @@ import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter, AvroReadSu
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetWriter}
+import squants.information.Information
 
 import java.net.URI
 import scala.collection.mutable.ListBuffer
@@ -27,7 +28,7 @@ sealed trait NJHadoop[F[_]] {
   def dataFolders(pathStr: String): F[List[Path]]
 
   def byteSink(pathStr: String): Pipe[F, Byte, Unit]
-  def byteSource(pathStr: String, chunkSize: ChunkSize): Stream[F, Byte]
+  def byteSource(pathStr: String, byteBuffer: Information): Stream[F, Byte]
 
   def parquetSink(pathStr: String, schema: Schema, ccn: CompressionCodecName): Pipe[F, GenericRecord, Unit]
   def parquetSource(pathStr: String, schema: Schema): Stream[F, GenericRecord]
@@ -94,10 +95,10 @@ object NJHadoop {
         } yield res).drain
       }
 
-      override def byteSource(pathStr: String, chunkSize: ChunkSize): Stream[F, Byte] =
+      override def byteSource(pathStr: String, byteBuffer: Information): Stream[F, Byte] =
         for {
           is <- Stream.resource(fsInput(pathStr))
-          bt <- readInputStream[F](F.delay(is), chunkSize.value)
+          bt <- readInputStream[F](F.delay(is), byteBuffer.toBytes.toInt)
         } yield bt
 
       override def parquetSink(
