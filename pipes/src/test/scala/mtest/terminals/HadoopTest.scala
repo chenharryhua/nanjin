@@ -3,18 +3,17 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.Schema
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.*
 
 import scala.util.Random
-import eu.timepit.refined.auto.*
-
 object HadoopTestData {
 
   val pandaSchema: Schema = (new Schema.Parser).parse("""
@@ -53,7 +52,7 @@ object HadoopTestData {
 }
 
 class HadoopTest extends AnyFunSuite {
-  val hdp = NJHadoop[IO](new Configuration())
+  val hdp: NJHadoop[IO] = NJHadoop[IO](new Configuration())
 
   test("hadoop text write/read identity") {
     val pathStr    = "./data/test/devices/greeting.txt"
@@ -63,7 +62,7 @@ class HadoopTest extends AnyFunSuite {
 
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.byteSink(pathStr)).compile.drain >>
-      hdp.byteSource(pathStr, 100).through(fs2.text.utf8.decode).compile.toList
+      hdp.byteSource(pathStr, 100.kibibits).through(fs2.text.utf8.decode).compile.toList
     assert(action.unsafeRunSync().head == testString)
   }
 

@@ -1,22 +1,22 @@
 package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Stream}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+import squants.information.Information
 
-final class DelimitedProtoBufSerialization[F[_]](chunkSize: ChunkSize) extends Serializable {
+final class DelimitedProtoBufSerialization[F[_]](byteBuffer: Information) extends Serializable {
 
   def serialize[A](implicit cc: Async[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
-    readOutputStream[F](chunkSize.value) { os =>
+    readOutputStream[F](byteBuffer.toBytes.toInt) { os =>
       ss.map(_.writeDelimitedTo(os)).compile.drain
     }
   }
 
   def deserialize[A <: GeneratedMessage](implicit ce: Async[F], gmc: GeneratedMessageCompanion[A]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap { is =>
-      Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
+      Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, byteBuffer.toBytes.toInt)
     }
 }
 

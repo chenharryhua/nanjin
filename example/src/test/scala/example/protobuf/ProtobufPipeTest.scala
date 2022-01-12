@@ -7,6 +7,8 @@ import fs2.Stream
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
+import squants.information.Kilobytes
+
 import scala.util.Random
 
 class ProtobufPipeTest extends AnyFunSuite {
@@ -15,7 +17,8 @@ class ProtobufPipeTest extends AnyFunSuite {
 
   test("delimited protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
-    val ser                    = new DelimitedProtoBufSerialization[IO](10)
+
+    val ser = new DelimitedProtoBufSerialization[IO](Kilobytes(10))
 
     assert(data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
   }
