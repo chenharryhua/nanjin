@@ -119,7 +119,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def topicName(tn: String): SKConfig = SKConfig(Fix(WithTopicName(TopicName.unsafeFrom(tn), value)))
 
-  def loadThrottle(bs: Information): SKConfig       = SKConfig(Fix(WithLoadThrottle(bs, value)))
+  def loadThrottle(bytes: Information): SKConfig    = SKConfig(Fix(WithLoadThrottle(bytes, value)))
   def loadInterval(fd: FiniteDuration): SKConfig    = SKConfig(Fix(WithLoadInterval(fd, value)))
   def loadRecordsLimit(num: Long): SKConfig         = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
   def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
