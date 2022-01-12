@@ -17,7 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
 import java.io.PrintWriter
 import java.net.InetAddress
-
+import squants.information.Kilobytes
 class FtpTest extends AnyFunSuite {
   val cred = FtpCredentials.create("chenh", "test")
 
@@ -60,7 +60,7 @@ class FtpTest extends AnyFunSuite {
 
   test("csv") {
     val path = "tablet.csv"
-    val rst  = roosterSteam.through(sink.csv(path, 100)) >> source.csv[Tablet](path, 100)
+    val rst  = roosterSteam.through(sink.csv(path, Kilobytes(10))) >> source.csv[Tablet](path, 100)
     assert(rst.compile.toList.unsafeRunSync() == TabletData.data)
   }
 

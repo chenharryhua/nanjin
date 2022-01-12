@@ -12,7 +12,7 @@ import fs2.kafka.ProducerRecords
 import cats.effect.unsafe.implicits.global
 import io.circe.Codec
 import eu.timepit.refined.auto.*
-
+import squants.information.InformationConversions.*
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
   final case class Child2(a: Int, b: String)
@@ -101,11 +101,11 @@ class KafkaAvroTest extends AnyFunSuite {
     assert(avro == Set(en1, en2))
 
     val jackson =
-      sk.load.stream.jackson(jacksonPath, 100).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.jackson(jacksonPath, 100.bytes).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(jackson == Set(en1, en2))
 
     val circe =
-      sk.load.stream.circe(circePath, 100).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.circe(circePath, 100.bytes).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(circe == Set(en1, en2))
 
   }

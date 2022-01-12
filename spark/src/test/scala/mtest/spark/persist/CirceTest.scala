@@ -15,6 +15,7 @@ import org.apache.spark.rdd.RDD
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
+import squants.information.InformationConversions.*
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
 
@@ -46,7 +47,7 @@ class CirceTest extends AnyFunSuite {
     val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == t2.collect().toSet)
     val t3 = loaders.stream
-      .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration, 100)
+      .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration, 100.bytes)
       .compile
       .toList
       .unsafeRunSync()
