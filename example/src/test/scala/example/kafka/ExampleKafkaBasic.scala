@@ -19,7 +19,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
         NJProducerRecord(2, Foo(20, "b")),
         NJProducerRecord(3, Foo(30, "c")),
         NJProducerRecord(4, Foo(40, "d")))
-    sparKafka.topic(fooTopic).prRdd(producerRecords).fs2Upload.run.compile.drain.unsafeRunSync()
+    sparKafka.topic(fooTopic).prRdd(producerRecords).fs2Upload.stream.compile.drain.unsafeRunSync()
   }
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
@@ -45,7 +45,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
           .withTimeLimit(5.second) // upload last for 5 seconds
           .fs2Upload
           .withChunkSize(2) // upload 2 message every interval
-          .run
+          .stream
           .compile
           .drain)
       .unsafeRunSync()

@@ -85,7 +85,7 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
   def withChunkSize(cs: ChunkSize): Fs2Upload[F, K, V] =
     new Fs2Upload[F, K, V](rdd, topic, cfg.loadChunkSize(cs), fs2Producer)
 
-  def run(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
+  def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
     val params: SKParams = cfg.evalConfig
     rdd
       .stream[F](params.loadParams.chunkSize)
@@ -117,7 +117,7 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
   def withChunkSize(cs: ChunkSize): AkkaUpload[F, K, V] =
     new AkkaUpload[F, K, V](rdd, topic, cfg.loadChunkSize(cs), akkaProducer)
 
-  def run(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
+  def stream(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
       val params: SKParams           = cfg.evalConfig
