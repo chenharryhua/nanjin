@@ -10,22 +10,23 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Pipe
 import io.circe.Encoder as JsonEncoder
 import kantan.csv.{CsvConfiguration, RowEncoder}
+import squants.information.Information
 
 final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C, S]) {
 
-  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: ChunkSize)(implicit
+  def csv[A](pathStr: String, csvConfig: CsvConfiguration, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe = new CsvSerialization[F, A](csvConfig, chunkSize)
-    _.through(pipe.serialize).through(uploader.upload(pathStr))
+    val pipe = new CsvSerialization[F, A](csvConfig)
+    _.through(pipe.serialize(byteBuffer)).through(uploader.upload(pathStr))
   }
 
-  def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
+  def csv[A](pathStr: String, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] =
-    csv[A](pathStr, CsvConfiguration.rfc, chunkSize)
+    csv[A](pathStr, CsvConfiguration.rfc, byteBuffer)
 
   def json[A: JsonEncoder](pathStr: String, isKeepNull: Boolean = true)(implicit
     F: Async[F],

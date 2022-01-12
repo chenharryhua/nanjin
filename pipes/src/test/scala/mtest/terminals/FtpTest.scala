@@ -8,7 +8,7 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-
+import eu.timepit.refined.auto.*
 class FtpTest extends AnyFunSuite {
 
   val uploader   = FtpUploader[IO](ftpSettins)
@@ -23,7 +23,7 @@ class FtpTest extends AnyFunSuite {
 
   test("ftp should overwrite target file") {
     val action = ts.through(uploader.withChunkSize(100).upload(pathStr)).compile.drain >>
-      downloader.withBufferSize(100).download(pathStr).through(fs2.text.utf8.decode).compile.string
+      downloader.withChunkSize(100).download(pathStr).through(fs2.text.utf8.decode).compile.string
     val readback = action.unsafeRunSync()
     assert(readback == testString)
   }
