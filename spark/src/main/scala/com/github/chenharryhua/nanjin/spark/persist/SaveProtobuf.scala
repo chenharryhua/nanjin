@@ -7,6 +7,7 @@ import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
+import squants.information.Information
 
 final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
   def file: SaveSingleProtobuf[F, A]  = new SaveSingleProtobuf[F, A](rdd, cfg)
@@ -24,12 +25,13 @@ final class SaveSingleProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends
   def errorIfExists: SaveSingleProtobuf[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleProtobuf[F, A] = updateConfig(cfg.ignoreMode)
 
-  def withChunkSize(cs: ChunkSize): SaveSingleProtobuf[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleProtobuf[F, A]    = updateConfig(cfg.chunkSize(cs))
+  def withByteBuffer(bb: Information): SaveSingleProtobuf[F, A] = updateConfig(cfg.byteBuffer(bb))
 
   def sink(implicit F: Async[F], enc: A <:< GeneratedMessage): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
-    sma.checkAndRun(rdd.stream[F](params.chunkSize).through(sinks.protobuf(params.outPath, hc, params.chunkSize)))
+    sma.checkAndRun(rdd.stream[F](params.chunkSize).through(sinks.protobuf(params.outPath, hc, params.byteBuffer)))
   }
 }
 
