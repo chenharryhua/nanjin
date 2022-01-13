@@ -123,7 +123,7 @@ private[guard] object MetricSnapshot {
     serviceParams: ServiceParams,
     filter: MetricFilter): MetricSnapshot =
     MetricSnapshot(
-      counters(metricRegistry, filter) ++ meters(metricRegistry, filter),
+      counters(metricRegistry, filter),
       toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
       toText(
         metricRegistry,

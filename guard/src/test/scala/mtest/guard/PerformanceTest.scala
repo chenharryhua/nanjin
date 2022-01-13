@@ -30,10 +30,10 @@ import eu.timepit.refined.auto.*
   * 434k/s trivial
   */
 
-@Ignore
+//@Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
+    TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(30).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
 
   def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"

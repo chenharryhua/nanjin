@@ -102,7 +102,8 @@ final class Agent[F[_]] private[service] (
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
       metricName = DigestedName(agentParams.spans :+ histoName, serviceParams),
-      metricRegistry = metricRegistry
+      metricRegistry = metricRegistry,
+      isCounting = false
     )
 
   lazy val metrics: NJMetrics[F] =
