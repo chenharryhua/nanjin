@@ -4,6 +4,7 @@ import better.files.*
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -201,9 +202,21 @@ class ConcurrencyTest extends AnyFunSuite {
     val l = rooster.csv(root + "csv1.csv.deflate").file.deflate(5).sink
     val m = rooster.csv(root + "csv2.csv.gz").file.gzip.sink
 
-    val n = rooster.parquet(root + "parquet1.snappy.parquet").file.snappy.sink
-    val o = rooster.parquet(root + "parquet2.gz.parquet").file.gzip.sink
-    val p = rooster.parquet(root + "parquet3.uncompress.parquet").file.uncompress.sink
+    val n = rooster
+      .parquet(root + "parquet1.snappy.parquet")
+      .file
+      .updateBuilder(_.withCompressionCodec(CompressionCodecName.SNAPPY))
+      .sink
+    val o = rooster
+      .parquet(root + "parquet2.gz.parquet")
+      .file
+      .updateBuilder(_.withCompressionCodec(CompressionCodecName.GZIP))
+      .sink
+    val p = rooster
+      .parquet(root + "parquet3.uncompress.parquet")
+      .file
+      .updateBuilder(_.withCompressionCodec(CompressionCodecName.UNCOMPRESSED))
+      .sink
     a.concurrently(b)
       .concurrently(c)
       .concurrently(d)

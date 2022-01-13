@@ -2,12 +2,13 @@ package mtest.spark.kafka
 
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import mtest.spark.akkaSystem
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 import cats.effect.unsafe.implicits.global
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
 class KafkaDownloadTest extends AnyFunSuite {
   val topic = sparKafka.topic[Int, Int]("spark.kafka.download")
@@ -49,7 +50,15 @@ class KafkaDownloadTest extends AnyFunSuite {
   test("download - from #0 to less #2") {
     val path = root + "0less2.snappy.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 1200)
-    topic.withTimeRange(dr).download(akkaSystem).parquet(path).snappy.sink.compile.drain.unsafeRunSync()
+    topic
+      .withTimeRange(dr)
+      .download(akkaSystem)
+      .parquet(path)
+      .updateBuilder(_.withCompressionCodec(CompressionCodecName.SNAPPY))
+      .sink
+      .compile
+      .drain
+      .unsafeRunSync()
 
     val res      = topic.load.parquet(path).map(_.dataset.collect().map(_.value.get).toSet).unsafeRunSync()
     val expected = Set(rand + 1)
@@ -76,7 +85,15 @@ class KafkaDownloadTest extends AnyFunSuite {
   test("download - from #2.5 to #3.5") {
     val path = root + "between2535.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 2500).withEndTime(now + 3500)
-    topic.withTimeRange(dr).download(akkaSystem).parquet(path).uncompress.sink.compile.drain.unsafeRunSync()
+    topic
+      .withTimeRange(dr)
+      .download(akkaSystem)
+      .parquet(path)
+      .updateBuilder(_.withCompressionCodec(CompressionCodecName.UNCOMPRESSED))
+      .sink
+      .compile
+      .drain
+      .unsafeRunSync()
 
     val res      = topic.load.parquet(path).map(_.dataset.collect().map(_.value.get).toSet).unsafeRunSync()
     val expected = Set(rand + 3)

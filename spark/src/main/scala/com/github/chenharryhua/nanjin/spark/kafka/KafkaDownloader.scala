@@ -13,7 +13,13 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import fs2.interop.reactivestreams.*
 import io.circe.Encoder as JsonEncoder
+import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
+import org.apache.parquet.avro.AvroParquetWriter
+import org.apache.parquet.hadoop.ParquetFileWriter
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.HadoopOutputFile
 import squants.information.Information
 
 import scala.concurrent.duration.FiniteDuration
@@ -87,7 +93,16 @@ final class KafkaDownloader[F[_], K, V](
 
   def parquet(path: String)(implicit F: Async[F]): ParquetDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
-    new ParquetDownloader(stream, encoder, hadoop, path, Compression.Uncompressed)
+
+    val builder: AvroParquetWriter.Builder[GenericRecord] = AvroParquetWriter
+      .builder[GenericRecord](HadoopOutputFile.fromPath(new Path(path), hadoop))
+      .withDataModel(GenericData.get())
+      .withSchema(encoder.schema)
+      .withConf(hadoop)
+      .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+      .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+
+    new ParquetDownloader(stream, encoder, builder)
   }
 }
 
@@ -157,17 +172,12 @@ final class CirceDownloader[F[_], K, V](
 final class ParquetDownloader[F[_], K, V](
   stream: Stream[F, NJConsumerRecord[K, V]],
   encoder: AvroEncoder[NJConsumerRecord[K, V]],
-  hadoop: Configuration,
-  path: String,
-  compression: Compression) {
+  builder: AvroParquetWriter.Builder[GenericRecord]) {
 
-  private def updateCompression(compression: Compression): ParquetDownloader[F, K, V] =
-    new ParquetDownloader[F, K, V](stream, encoder, hadoop, path, compression)
-
-  def snappy: ParquetDownloader[F, K, V]     = updateCompression(Compression.Snappy)
-  def gzip: ParquetDownloader[F, K, V]       = updateCompression(Compression.Gzip)
-  def uncompress: ParquetDownloader[F, K, V] = updateCompression(Compression.Uncompressed)
+  def updateBuilder(f: AvroParquetWriter.Builder[GenericRecord] => AvroParquetWriter.Builder[GenericRecord])
+    : ParquetDownloader[F, K, V] =
+    new ParquetDownloader[F, K, V](stream, encoder, f(builder))
 
   def sink(implicit F: Sync[F]): Stream[F, Unit] =
-    stream.through(sinks.parquet(path, hadoop, encoder, compression.parquet))
+    stream.through(sinks.parquet(builder, encoder))
 }
