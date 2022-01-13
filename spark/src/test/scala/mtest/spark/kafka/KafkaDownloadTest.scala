@@ -26,7 +26,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     )                                                          // #6
   // format: on
 
-  topic.prRdd(data).fs2Upload.updateProducer(_.withClientId("kafka.download.test")).stream.compile.drain.unsafeRunSync()
+  topic.prRdd(data).upload.updateProducer(_.withClientId("kafka.download.test")).stream.compile.drain.unsafeRunSync()
 
   val root = "./data/test/spark/kafka/kafka_download/"
 
