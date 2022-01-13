@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.*
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJParquet}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.{Pipe, Stream}
 import io.circe.Encoder as JsonEncoder
@@ -13,7 +13,7 @@ import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.avro.AvroParquetWriter
 import scalapb.GeneratedMessage
 import squants.information.Information
 
@@ -53,12 +53,10 @@ object sinks {
   }
 
   def parquet[F[_]: Sync, A](
-    path: String,
-    cfg: Configuration,
-    encoder: AvroEncoder[A],
-    ccn: CompressionCodecName): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    builder: AvroParquetWriter.Builder[GenericRecord],
+    encoder: AvroEncoder[A]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
-    val sink: Pipe[F, GenericRecord, Unit] = NJHadoop[F](cfg).parquetSink(path, encoder.schema, ccn)
+    val sink: Pipe[F, GenericRecord, Unit] = new NJParquet[F].parquetSink(builder)
     ss.through(grc).through(sink)
   }
 
