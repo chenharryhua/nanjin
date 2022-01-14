@@ -173,7 +173,10 @@ object ServiceStatus extends instant {
 @JsonCodec
 sealed trait ServiceStopCause
 object ServiceStopCause {
-  implicit val showServiceStopCause: Show[ServiceStopCause] = cats.derived.semiauto.show[ServiceStopCause]
+  implicit val showServiceStopCause: Show[ServiceStopCause] = {
+    case Normally        => "normally exit"
+    case Abnormally(msg) => s"abnormally exit due to ${msg}"
+  }
   case object Normally extends ServiceStopCause
   final case class Abnormally(msg: String) extends ServiceStopCause
 }

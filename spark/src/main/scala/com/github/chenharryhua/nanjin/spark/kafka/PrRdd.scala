@@ -65,8 +65,9 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
 
-  def fs2Upload: Fs2Upload[F, K, V]   = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
-  def akkaUpload: AkkaUpload[F, K, V] = new AkkaUpload[F, K, V](rdd, topic, cfg, akkaUpdater.unitProducer[K, V])
+  def upload: Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
+  def upload(akkaSystem: ActorSystem): AkkaUpload[F, K, V] =
+    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg, akkaUpdater.unitProducer[K, V])
 }
 
 final class Fs2Upload[F[_], K, V] private[kafka] (
@@ -100,24 +101,25 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
 
 final class AkkaUpload[F[_], K, V] private[kafka] (
   rdd: RDD[NJProducerRecord[K, V]],
+  akkaSystem: ActorSystem,
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
   akkaProducer: akkaUpdater.Producer[K, V]
 ) extends Serializable {
 
   def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaUpload[F, K, V] =
-    new AkkaUpload[F, K, V](rdd, topic, cfg, akkaProducer.updateConfig(f))
+    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg, akkaProducer.updateConfig(f))
 
   def toTopic(topic: KafkaTopic[F, K, V]): AkkaUpload[F, K, V] =
-    new AkkaUpload[F, K, V](rdd, topic, cfg, akkaProducer)
+    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg, akkaProducer)
 
   def withThrottle(bytes: Information): AkkaUpload[F, K, V] =
-    new AkkaUpload[F, K, V](rdd, topic, cfg.loadThrottle(bytes), akkaProducer)
+    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg.loadThrottle(bytes), akkaProducer)
 
   def withChunkSize(cs: ChunkSize): AkkaUpload[F, K, V] =
-    new AkkaUpload[F, K, V](rdd, topic, cfg.loadChunkSize(cs), akkaProducer)
+    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg.loadChunkSize(cs), akkaProducer)
 
-  def stream(akkaSystem: ActorSystem)(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
+  def stream(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
       val params: SKParams           = cfg.evalConfig
@@ -139,7 +141,7 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
                   val meta: RecordMetadata = item.metadata
                   sum + meta.serializedKeySize() + meta.serializedKeySize()
                 }
-              case ProducerMessage.PassThroughResult(_) => 1000
+              case ProducerMessage.PassThroughResult(_) => 0
             }
           )
           .runWith(Sink.asPublisher(fanout = false))

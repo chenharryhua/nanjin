@@ -34,7 +34,8 @@ final class NJSlack[F[_]](
 
   def at(supporters: String): NJSlack[F] = {
     val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    updateTranslator(sp)
+    val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
+    updateTranslator(sp.andThen(st))
   }
 
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlack[F] =
