@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumed, KafkaStreamingProduced}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
-import fs2.kafka.ProducerRecord
+import fs2.kafka.{ProducerRecord, ProducerResult}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.streams.processor.RecordContext
@@ -84,6 +84,10 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   // for testing
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
     fs2Channel.producer.evalMap(_.produceOne_(topicName.value, k, v).flatten).compile.lastOrError
+
+  def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[Unit, K, V]] =
+    fs2Channel.producer.evalMap(_.produceOne(pr, ())).compile.lastOrError.flatten
+
 }
 
 final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {

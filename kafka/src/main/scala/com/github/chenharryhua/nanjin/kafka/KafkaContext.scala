@@ -7,7 +7,8 @@ import cats.syntax.functor.*
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson, SerdeOf}
+import io.circe.Json
 import monix.eval.Task as MTask
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -33,6 +34,15 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
+
+  final def jsonTopic(topicName: String): KafkaTopic[F, KJson[Json], KJson[Json]] =
+    topic(TopicDef[KJson[Json], KJson[Json]](TopicName.unsafeFrom(topicName)))
+
+  final def byteTopic(topicName: String): KafkaTopic[F, Array[Byte], Array[Byte]] =
+    topic(TopicDef[Array[Byte], Array[Byte]](TopicName.unsafeFrom(topicName)))
+
+  final def stringTopic(topicName: String): KafkaTopic[F, String, String] =
+    topic(TopicDef[String, String](TopicName.unsafeFrom(topicName)))
 
   final def store[K: SerdeOf, V: SerdeOf](storeName: String): NJStateStore[K, V] =
     NJStateStore[K, V](storeName, settings.schemaRegistrySettings, RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
