@@ -1,11 +1,15 @@
 package com.github.chenharryhua.nanjin.common
 
+import cats.Show
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.boolean.And
-import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
+import eu.timepit.refined.cats.*
 import eu.timepit.refined.collection.{MaxSize, NonEmpty}
 import eu.timepit.refined.string.{Trimmed, Uri}
 import eu.timepit.refined.types.net
+import io.circe.generic.JsonCodec
+import io.circe.generic.auto.*
+import io.circe.refined.*
 
 object database {
   type Username = String Refined And[NonEmpty, Trimmed]
@@ -25,4 +29,37 @@ object database {
 
   type Port = net.PortNumber
   final val Port = net.PortNumber
+
+  @JsonCodec final case class Postgres(
+    username: Username,
+    password: Password,
+    host: Host,
+    port: Port,
+    database: DatabaseName)
+
+  object Postgres {
+    implicit val showPostgres: Show[Postgres] = cats.derived.semiauto.show[Postgres]
+  }
+
+  @JsonCodec final case class Redshift(
+    username: Username,
+    password: Password,
+    host: Host,
+    port: Port,
+    database: DatabaseName)
+
+  object Redshift {
+    implicit val showPostgres: Show[Redshift] = cats.derived.semiauto.show[Redshift]
+  }
+
+  @JsonCodec final case class SqlServer(
+    username: Username,
+    password: Password,
+    host: Host,
+    port: Port,
+    database: DatabaseName)
+
+  object SqlServer {
+    implicit val showSqlServer: Show[SqlServer] = cats.derived.semiauto.show[SqlServer]
+  }
 }

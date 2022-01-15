@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.data.NonEmptyList
 import cats.effect.IO
+import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.sns
@@ -12,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
+import skunk.Session
 
 import scala.concurrent.duration.*
 
@@ -119,5 +121,26 @@ class ObserversTest extends AnyFunSuite {
     snsEmail[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
     logging[IO]
     console[IO]
+  }
+
+  test("postgres") {
+    import natchez.Trace.Implicits.noop
+    val session: Resource[IO, Session[IO]] =
+      Session.single[IO](
+        host = "localhost",
+        port = 5432,
+        user = "postgres",
+        database = "postgres",
+        password = Some("postgres"),
+        debug = true)
+
+    TaskGuard[IO]("postgres")
+      .service("postgres")
+      .eventStream(_.notice.run(IO(0)))
+      .evalTap(console[IO])
+      .through(postgres(session, "log"))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }
