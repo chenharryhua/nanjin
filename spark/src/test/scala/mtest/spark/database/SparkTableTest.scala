@@ -3,10 +3,11 @@ package mtest.spark.database
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.database.TableName
+import com.github.chenharryhua.nanjin.common.database.{Postgres, TableName}
 import com.github.chenharryhua.nanjin.common.transformers.*
-import com.github.chenharryhua.nanjin.datetime.instances.*
+import com.github.chenharryhua.nanjin.database.NJHikari
 import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.injection.*
@@ -25,7 +26,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.sql.Date
 import java.time.*
 import java.time.temporal.ChronoUnit
-import java.util.concurrent.TimeUnit
 import scala.util.Random
 final case class DomainObject(a: LocalDate, b: Date, c: ZonedDateTime, d: OffsetDateTime, e: Option[Instant])
 
@@ -71,7 +71,7 @@ class SparkTableTest extends AnyFunSuite {
 
   val dbData: DBTable = sample.transformInto[DBTable]
 
-  postgres.runQuery[IO, Int](DBTable.drop *> DBTable.create).unsafeRunSync()
+  NJHikari[Postgres].runQuery[IO, Int](postgres)(DBTable.drop *> DBTable.create).unsafeRunSync()
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable]))
