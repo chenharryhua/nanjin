@@ -8,6 +8,7 @@ import natchez.Trace
 import skunk.{SSL, Session}
 import skunk.util.Typer
 
+// https://github.com/tpolecat/skunk
 final case class SkunkSession private (
   postgres: Postgres,
   max: Int,

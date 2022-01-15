@@ -138,7 +138,7 @@ class ObserversTest extends AnyFunSuite {
       .service("postgres")
       .eventStream(_.notice.run(IO(0)))
       .evalTap(console[IO])
-      .through(postgres(session, "log"))
+      .through(postgres(session).withTableName("log"))
       .compile
       .drain
       .unsafeRunSync()
