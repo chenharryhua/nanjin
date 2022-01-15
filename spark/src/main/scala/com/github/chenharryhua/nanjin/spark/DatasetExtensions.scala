@@ -2,12 +2,12 @@ package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.kafka.{SKConfig, SparKafkaTopic}
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
+import com.zaxxer.hikari.HikariConfig
 import frameless.TypedEncoder
 import io.circe.Json
 import org.apache.avro.Schema
@@ -16,19 +16,18 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import java.time.ZoneId
 
-final class SparkDBContext[F[_]](val sparkSession: SparkSession, val dbSettings: DatabaseSettings)
-    extends Serializable {
+final class SparkDBContext[F[_]](val sparkSession: SparkSession, val hikariConfig: HikariConfig) extends Serializable {
 
   def dataframe(tableName: String): DataFrame =
-    sd.unloadDF(dbSettings.hikariConfig, TableName.unsafeFrom(tableName), None, sparkSession)
+    sd.unloadDF(hikariConfig, TableName.unsafeFrom(tableName), None, sparkSession)
 
   def genCaseClass(tableName: String): String  = dataframe(tableName).genCaseClass
   def genSchema(tableName: String): Schema     = dataframe(tableName).genSchema
   def genDatatype(tableName: String): DataType = dataframe(tableName).genDataType
 
   def table[A](tableDef: TableDef[A]): SparkDBTable[F, A] = {
-    val cfg = STConfig(dbSettings.database, tableDef.tableName)
-    new SparkDBTable[F, A](tableDef, dbSettings, cfg, sparkSession)
+    val cfg = STConfig(tableDef.tableName)
+    new SparkDBTable[F, A](tableDef, hikariConfig, cfg, sparkSession)
   }
 
   def table[A: AvroEncoder: AvroDecoder: SchemaFor: TypedEncoder](tableName: String): SparkDBTable[F, A] =

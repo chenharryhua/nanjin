@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.database.DatabaseSettings
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.database.{DbUploader, SparkDBTable}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
@@ -13,6 +12,7 @@ import com.github.chenharryhua.nanjin.spark.persist.{
   RddFileHoarder
 }
 import com.sksamuel.avro4s.Encoder as AvroEncoder
+import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
@@ -70,8 +70,8 @@ package object spark {
 
   implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {
 
-    def alongWith[F[_]](dbSettings: DatabaseSettings): SparkDBContext[F] =
-      new SparkDBContext[F](ss, dbSettings)
+    def alongWith[F[_]](hikariConfig: HikariConfig): SparkDBContext[F] =
+      new SparkDBContext[F](ss, hikariConfig)
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
       new SparKafkaContext[F](ss, ctx)

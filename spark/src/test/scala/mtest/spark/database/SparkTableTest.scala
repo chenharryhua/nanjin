@@ -96,7 +96,7 @@ class SparkTableTest extends AnyFunSuite {
     val pt = sparkDB.table[PartialDBTable]("sparktest")
     val ptd: TypedDataset[PartialDBTable] =
       pt.withQuery("select a,b from sparktest")
-        .withReplayPathBuilder((_, _) => root + "dbdump")
+        .withReplayPathBuilder(_ => root + "dbdump")
         .fromDB
         .map(_.repartition(1).typedDataset)
         .unsafeRunSync()

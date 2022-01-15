@@ -2,15 +2,19 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.database.{DatabaseName, TableName}
-import com.github.chenharryhua.nanjin.database.DatabaseSettings
+import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
+import com.zaxxer.hikari.HikariConfig
 import frameless.{TypedDataset, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
-final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettings, cfg: STConfig, ss: SparkSession)
+final class SparkDBTable[F[_], A](
+  val tableDef: TableDef[A],
+  hikariConfig: HikariConfig,
+  cfg: STConfig,
+  ss: SparkSession)
     extends Serializable {
 
   val tableName: TableName = tableDef.tableName
@@ -20,25 +24,25 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
   val params: STParams = cfg.evalConfig
 
   def withQuery(query: String): SparkDBTable[F, A] =
-    new SparkDBTable[F, A](tableDef, dbs, cfg.unloadQuery(query), ss)
+    new SparkDBTable[F, A](tableDef, hikariConfig, cfg.unloadQuery(query), ss)
 
-  def withReplayPathBuilder(f: (DatabaseName, TableName) => String): SparkDBTable[F, A] =
-    new SparkDBTable[F, A](tableDef, dbs, cfg.replayPathBuilder(f), ss)
+  def withReplayPathBuilder(f: TableName => String): SparkDBTable[F, A] =
+    new SparkDBTable[F, A](tableDef, hikariConfig, cfg.replayPathBuilder(f), ss)
 
   def fromDB(implicit F: Sync[F]): F[TableDS[F, A]] = F.blocking {
     val df: DataFrame =
-      sd.unloadDF(dbs.hikariConfig, tableDef.tableName, params.query.orElse(tableDef.unloadQuery), ss)
-    new TableDS[F, A](ate.normalizeDF(df), tableDef, dbs, cfg)
+      sd.unloadDF(hikariConfig, tableDef.tableName, params.query.orElse(tableDef.unloadQuery), ss)
+    new TableDS[F, A](ate.normalizeDF(df), tableDef, hikariConfig, cfg)
   }
 
   def fromDisk(implicit F: Sync[F]): F[TableDS[F, A]] =
-    F.blocking(new TableDS[F, A](loaders.objectFile(params.replayPath, ate, ss), tableDef, dbs, cfg))
+    F.blocking(new TableDS[F, A](loaders.objectFile(params.replayPath, ate, ss), tableDef, hikariConfig, cfg))
 
   def countDisk(implicit F: Sync[F]): F[Long] = fromDisk.map(_.dataset.count())
 
   def countDB(implicit F: Sync[F]): F[Long] =
     F.blocking(
-      sd.unloadDF(dbs.hikariConfig, tableDef.tableName, Some(s"select count(*) from ${tableDef.tableName.value}"), ss)
+      sd.unloadDF(hikariConfig, tableDef.tableName, Some(s"select count(*) from ${tableDef.tableName.value}"), ss)
         .as[Long](TypedExpressionEncoder[Long])
         .head())
 
@@ -46,14 +50,14 @@ final class SparkDBTable[F[_], A](val tableDef: TableDef[A], dbs: DatabaseSettin
     fromDB.flatMap(_.save.objectFile(params.replayPath).overwrite.run)
 
   def tableset(ds: Dataset[A]): TableDS[F, A] =
-    new TableDS[F, A](ate.normalize(ds), tableDef, dbs, cfg)
+    new TableDS[F, A](ate.normalize(ds), tableDef, hikariConfig, cfg)
 
   def tableset(tds: TypedDataset[A]): TableDS[F, A] =
-    new TableDS[F, A](ate.normalize(tds.dataset), tableDef, dbs, cfg)
+    new TableDS[F, A](ate.normalize(tds.dataset), tableDef, hikariConfig, cfg)
 
   def tableset(rdd: RDD[A]): TableDS[F, A] =
-    new TableDS[F, A](ate.normalize(rdd, ss), tableDef, dbs, cfg)
+    new TableDS[F, A](ate.normalize(rdd, ss), tableDef, hikariConfig, cfg)
 
-  def load: LoadTableFile[F, A] = new LoadTableFile[F, A](tableDef, dbs, cfg, ss)
+  def load: LoadTableFile[F, A] = new LoadTableFile[F, A](tableDef, hikariConfig, cfg, ss)
 
 }
