@@ -385,6 +385,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-core"   % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
+      "org.tpolecat" %% "skunk-core"    % "0.2.3",
       "com.zaxxer"                      % "HikariCP" % "5.0.1"
     ) ++ baseLib ++ fs2Lib ++ effectLib ++ monocleLib ++ testLib ++ logLib
   )
