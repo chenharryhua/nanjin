@@ -45,7 +45,7 @@ private[guard] object MetricParams {
   retry: NJRetryPolicy,
   queueCapacity: QueueCapacity,
   metric: MetricParams,
-  brief: Brief
+  brief: String
 ) {
   val metricName: DigestedName                    = DigestedName(serviceName, taskParams)
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
@@ -71,7 +71,7 @@ private[guard] object ServiceParams {
         durationTimeUnit = TimeUnit.MILLISECONDS,
         snapshotType = MetricSnapshotType.Regular
       ),
-      brief = Brief("no brief")
+      brief = "no brief"
     )
 }
 
@@ -93,7 +93,7 @@ private object ServiceConfigF {
 
   final case class WithSnapshotType[K](value: MetricSnapshotType, cont: K) extends ServiceConfigF[K]
 
-  final case class WithBrief[K](value: Brief, cont: K) extends ServiceConfigF[K]
+  final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   val algebra: Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -150,7 +150,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 
-  def withBrief(text: Brief): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
+  def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
 
   def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
 }

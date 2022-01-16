@@ -230,11 +230,12 @@ object Translator {
       override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] = fa.flatMap(f)
 
       override def tailRecM[A, B](a: A)(f: A => Translator[F, Either[A, B]]): Translator[F, B] = {
-        def mapper(a: Option[Either[A, B]]): Either[A, Option[B]] = a match {
-          case None           => Right(None)
-          case Some(Right(r)) => Right(Some(r))
-          case Some(Left(l))  => Left(l)
-        }
+        def mapper(oeab: Option[Either[A, B]]): Either[A, Option[B]] =
+          oeab match {
+            case None           => Right(None)
+            case Some(Right(r)) => Right(Some(r))
+            case Some(Left(l))  => Left(l)
+          }
 
         val serviceStart: Kleisli[OptionT[F, *], ServiceStart, B] =
           Kleisli((ss: ServiceStart) => OptionT(F.tailRecM(a)(x => f(x).serviceStart.run(ss).value.map(mapper))))

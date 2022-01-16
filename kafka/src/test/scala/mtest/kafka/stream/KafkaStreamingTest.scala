@@ -5,7 +5,7 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamingProduced
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingProduced, KafkaStreamsAbnormallyStopped}
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka.*
@@ -144,6 +144,6 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         .compile
         .toList
 
-    assertThrows[StreamsException](res.unsafeRunSync())
+    assertThrows[KafkaStreamsAbnormallyStopped.type](res.unsafeRunSync())
   }
 }
