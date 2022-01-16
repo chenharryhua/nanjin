@@ -13,7 +13,7 @@ import skunk.{Command, Session}
 
 object postgres {
   def apply[F[_]: Sync](session: Resource[F, Session[F]]): NJPostgres[F] =
-    new NJPostgres[F](session, Translator.json[F], TableName("event_stream"))
+    new NJPostgres[F](session, Translator.json[F], tableName = TableName("event_stream"))
 }
 
 final class NJPostgres[F[_]: Sync](
@@ -22,19 +22,18 @@ final class NJPostgres[F[_]: Sync](
   tableName: TableName)
     extends Pipe[F, NJEvent, Int] with UpdateTranslator[F, Json, NJPostgres[F]] {
 
-  def withTableName(tableName: TableName): NJPostgres[F] = new NJPostgres[F](session, translator, tableName)
+  def withTableName(tableName: TableName): NJPostgres[F] =
+    new NJPostgres[F](session, translator, tableName)
 
   override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): NJPostgres[F] =
     new NJPostgres[F](session, f(translator), tableName)
 
   def apply(events: Stream[F, NJEvent]): Stream[F, Int] = {
-    val cmd: Command[Json]          = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
-    val translated: Stream[F, Json] = events.evalMap(translator.translate).unNone
-
+    val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
     for {
       ss <- Stream.resource(session)
-      res <- ss.pipe(cmd)(translated)
-    } yield res match {
+      complete <- events.evalMap(translator.translate).unNone.through(ss.pipe(cmd))
+    } yield complete match {
       case Insert(count) => count
       case _             => 0
     }

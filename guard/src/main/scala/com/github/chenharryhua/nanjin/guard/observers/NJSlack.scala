@@ -15,10 +15,10 @@ import scala.concurrent.duration.FiniteDuration
 
 object slack {
   def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): NJSlack[F] =
-    new NJSlack[F](snsResource, None, Translator.slack[F])
+    new NJSlack[F](snsResource, None, None, Translator.slack[F])
 
   def apply[F[_]: Async](snsArn: SnsArn): NJSlack[F] =
-    new NJSlack[F](sns[F](snsArn), None, Translator.slack[F])
+    new NJSlack[F](sns[F](snsArn), None, None, Translator.slack[F])
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -26,20 +26,29 @@ object slack {
 
 final class NJSlack[F[_]](
   snsResource: Resource[F, SimpleNotificationService[F]],
+  supporters: Option[String],
   interval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
     extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, NJSlack[F]] {
 
-  def withInterval(fd: FiniteDuration): NJSlack[F] = new NJSlack[F](snsResource, Some(fd), translator)
+  def withInterval(fd: FiniteDuration): NJSlack[F] = new NJSlack[F](snsResource, supporters, Some(fd), translator)
 
+  /** supporters will be notified:
+    *
+    * ServicePanic
+    *
+    * ServiceStop
+    *
+    * ServiceTermination
+    */
   def at(supporters: String): NJSlack[F] = {
     val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
     val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    updateTranslator(sp.andThen(st))
+    new NJSlack[F](snsResource, Some(supporters), interval, sp.andThen(st)(translator))
   }
 
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlack[F] =
-    new NJSlack[F](snsResource, interval, f(translator))
+    new NJSlack[F](snsResource, supporters, interval, f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
@@ -64,14 +73,13 @@ final class NJSlack[F[_]](
           case _                          => true
         }.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
         .onFinalize { // publish good bye message to slack
+          val ts     = ":octagonal_sign: *Terminated Service(s)*"
+          val notice = List(MarkdownSection(supporters.fold(ts)(sp => s"$ts $sp")))
           for {
             services <- ref.get
             msg = SlackApp(
               username = "Service Termination Notice",
-              attachments = List(
-                Attachment(
-                  color = "#ffd79a",
-                  blocks = List(MarkdownSection(s":octagonal_sign: *Terminated Service(s)*")))) :::
+              attachments = List(Attachment(color = "#ffd79a", blocks = notice)) :::
                 services.toList.map(ss => Attachment(color = "#ffd79a", blocks = List(hostServiceSection(ss))))
             )
             _ <- sns.publish(msg.asJson.noSpaces).attempt.whenA(services.nonEmpty)

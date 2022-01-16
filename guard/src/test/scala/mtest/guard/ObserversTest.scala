@@ -67,8 +67,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
+      .interruptAfter(7.seconds)
       .through(slack[IO](sns.fake[IO]).at("@chenh"))
       .compile
       .drain
@@ -140,8 +141,9 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("postgres") {
-    import natchez.Trace.Implicits.noop
     import skunk.implicits.toStringOps
+    import natchez.Trace.Implicits.noop
+
     val session: Resource[IO, Session[IO]] =
       Session.single[IO](
         host = "localhost",
