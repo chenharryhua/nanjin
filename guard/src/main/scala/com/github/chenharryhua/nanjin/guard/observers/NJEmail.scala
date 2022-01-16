@@ -52,7 +52,8 @@ final class NJSesEmail[F[_]: Async](
   translator: Translator[F, Text.TypedTag[String]]
 ) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmail[F]] with all {
 
-  private def copy(
+  private[this] def copy(
+    client: Resource[F, SimpleEmailService[F]] = client,
     subject: Option[Subject] = subject,
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
@@ -62,6 +63,8 @@ final class NJSesEmail[F[_]: Async](
   def withInterval(fd: FiniteDuration): NJSesEmail[F] = copy(interval = fd)
   def withChunkSize(cs: ChunkSize): NJSesEmail[F]     = copy(chunkSize = cs)
   def withSubject(sj: Subject): NJSesEmail[F]         = copy(subject = Some(sj))
+
+  def withClient(client: Resource[F, SimpleEmailService[F]]): NJSesEmail[F] = copy(client = client)
 
   override def updateTranslator(
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSesEmail[F] =
@@ -97,7 +100,8 @@ final class NJSnsEmail[F[_]: Async](
   translator: Translator[F, Text.TypedTag[String]]
 ) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmail[F]] with all {
 
-  private def copy(
+  private[this] def copy(
+    client: Resource[F, SimpleNotificationService[F]] = client,
     title: Option[Title] = title,
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
