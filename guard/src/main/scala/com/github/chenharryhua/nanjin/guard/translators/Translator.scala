@@ -230,105 +230,44 @@ object Translator {
       override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] = fa.flatMap(f)
 
       override def tailRecM[A, B](a: A)(f: A => Translator[F, Either[A, B]]): Translator[F, B] = {
+        def mapper(a: Option[Either[A, B]]): Either[A, Option[B]] = a match {
+          case None           => Right(None)
+          case Some(Right(r)) => Right(Some(r))
+          case Some(Left(l))  => Left(l)
+        }
 
         val serviceStart: Kleisli[OptionT[F, *], ServiceStart, B] =
-          Kleisli((ss: ServiceStart) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).serviceStart.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: ServiceStart) => OptionT(F.tailRecM(a)(x => f(x).serviceStart.run(ss).value.map(mapper))))
 
         val servicePanic: Kleisli[OptionT[F, *], ServicePanic, B] =
-          Kleisli((ss: ServicePanic) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).servicePanic.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: ServicePanic) => OptionT(F.tailRecM(a)(x => f(x).servicePanic.run(ss).value.map(mapper))))
 
         val serviceStop: Kleisli[OptionT[F, *], ServiceStop, B] =
-          Kleisli((ss: ServiceStop) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).serviceStop.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: ServiceStop) => OptionT(F.tailRecM(a)(x => f(x).serviceStop.run(ss).value.map(mapper))))
 
         val metricsReport: Kleisli[OptionT[F, *], MetricReport, B] =
-          Kleisli((ss: MetricReport) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).metricReport.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: MetricReport) => OptionT(F.tailRecM(a)(x => f(x).metricReport.run(ss).value.map(mapper))))
 
         val metricsReset: Kleisli[OptionT[F, *], MetricReset, B] =
-          Kleisli((ss: MetricReset) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).metricReset.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: MetricReset) => OptionT(F.tailRecM(a)(x => f(x).metricReset.run(ss).value.map(mapper))))
 
         val instantAlert: Kleisli[OptionT[F, *], InstantAlert, B] =
-          Kleisli((ss: InstantAlert) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).instantAlert.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: InstantAlert) => OptionT(F.tailRecM(a)(x => f(x).instantAlert.run(ss).value.map(mapper))))
 
         val passThrough: Kleisli[OptionT[F, *], PassThrough, B] =
-          Kleisli((ss: PassThrough) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).passThrough.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: PassThrough) => OptionT(F.tailRecM(a)(x => f(x).passThrough.run(ss).value.map(mapper))))
 
         val actionStart: Kleisli[OptionT[F, *], ActionStart, B] =
-          Kleisli((ss: ActionStart) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).actionStart.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: ActionStart) => OptionT(F.tailRecM(a)(x => f(x).actionStart.run(ss).value.map(mapper))))
 
         val actionRetry: Kleisli[OptionT[F, *], ActionRetry, B] =
-          Kleisli((ss: ActionRetry) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).actionRetry.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: ActionRetry) => OptionT(F.tailRecM(a)(x => f(x).actionRetry.run(ss).value.map(mapper))))
 
         val actionFail: Kleisli[OptionT[F, *], ActionFail, B] =
-          Kleisli((ss: ActionFail) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).actionFail.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: ActionFail) => OptionT(F.tailRecM(a)(x => f(x).actionFail.run(ss).value.map(mapper))))
 
         val actionSucc: Kleisli[OptionT[F, *], ActionSucc, B] =
-          Kleisli((ss: ActionSucc) =>
-            OptionT(F.tailRecM(a)(x =>
-              f(x).actionSucc.run(ss).value.map[Either[A, Option[B]]] {
-                case None           => Right(None)
-                case Some(Right(r)) => Right(Some(r))
-                case Some(Left(l))  => Left(l)
-              })))
+          Kleisli((ss: ActionSucc) => OptionT(F.tailRecM(a)(x => f(x).actionSucc.run(ss).value.map(mapper))))
 
         Translator[F, B](
           serviceStart,
