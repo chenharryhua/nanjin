@@ -4,7 +4,7 @@ import cats.data.Reader
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsStoppedException, NJStateStore}
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsAbnormallyStopped, NJStateStore}
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
@@ -64,7 +64,7 @@ class InteractiveTest extends AnyFunSuite {
   test("detect stream stop") {
     val to1 =
       ctx.buildStreams(top).query.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
-    assertThrows[KafkaStreamsStoppedException](to1.compile.drain.unsafeRunSync())
+    to1.compile.drain.unsafeRunSync()
   }
 
   test("detect stream error") {
