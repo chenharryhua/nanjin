@@ -48,7 +48,7 @@ private[translators] object SlackTranslator extends all {
               first = TextField("Up Time", fmt.format(evt.upTime)),
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
             ),
-            MarkdownSection(evt.serviceParams.brief.value)
+            MarkdownSection(evt.serviceParams.brief)
           )
         ))
     )
@@ -140,7 +140,7 @@ private[translators] object SlackTranslator extends all {
             metricsSection(evt.snapshot)
           )
         ),
-        Attachment(color = color, blocks = List(MarkdownSection(evt.serviceParams.brief.value)))
+        Attachment(color = color, blocks = List(MarkdownSection(evt.serviceParams.brief)))
       )
     )
   }
