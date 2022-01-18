@@ -1,8 +1,6 @@
 package mtest
 
-import com.github.chenharryhua.nanjin.common.database._
-import com.github.chenharryhua.nanjin.database.Postgres
-
+import com.github.chenharryhua.nanjin.common.database.*
 package object database {
 
   val postgres: Postgres =

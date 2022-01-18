@@ -3,9 +3,9 @@ package mtest
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJLocalTime, NJLocalTimeRange}
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{Instant, LocalDateTime, LocalTime, ZonedDateTime}
+import java.time.{LocalDateTime, LocalTime}
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class NJLocalTimeTest extends AnyFunSuite {
   test("local time distance") {
