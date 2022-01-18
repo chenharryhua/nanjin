@@ -4,7 +4,7 @@ import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
 import cats.syntax.functor.*
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{DigestedName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{CountAction, DigestedName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Encoder
@@ -16,18 +16,21 @@ final class NJBroker[F[_]: Temporal] private[guard] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
-  isCountAsError: Boolean) {
+  isError: Boolean,
+  isCounting: CountAction) {
 
   private val publisher: InstantEventPublisher[F] = new InstantEventPublisher[F](channel, serviceParams)
 
-  private lazy val counter: Counter =
-    metricRegistry.counter(passThroughMRName(metricName, isCountAsError))
+  private lazy val counter: Counter = metricRegistry.counter(passThroughMRName(metricName, isError))
 
   def asError: NJBroker[F] =
-    new NJBroker[F](metricName, dispatcher, metricRegistry, channel, serviceParams, isCountAsError = true)
+    new NJBroker[F](metricName, dispatcher, metricRegistry, channel, serviceParams, isError = true, isCounting)
+
+  def withCounting: NJBroker[F] =
+    new NJBroker[F](metricName, dispatcher, metricRegistry, channel, serviceParams, isError, CountAction.Yes)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
-    publisher.passThrough(metricName, a.asJson, asError = isCountAsError).map(_ => counter.inc(1))
+    publisher.passThrough(metricName, a.asJson, asError = isError).map(_ => if (isCounting.value) counter.inc(1))
 
   def unsafePassThrough[A: Encoder](a: A): Unit = dispatcher.unsafeRunSync(passThrough(a))
 }

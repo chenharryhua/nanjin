@@ -29,7 +29,7 @@ private[guard] object AgentParams {
   def apply(serviceParams: ServiceParams): AgentParams = AgentParams(
     spans = Nil,
     importance = Importance.Medium,
-    isCounting = CountAction.Yes,
+    isCounting = CountAction.No,
     isTiming = TimeAction.Yes,
     isExpensive = ExpensiveAction.No,
     retry = ActionRetryParams(
