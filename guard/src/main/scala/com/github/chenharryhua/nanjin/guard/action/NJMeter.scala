@@ -14,8 +14,8 @@ final class NJMeter[F[_]] private[guard] (
   private lazy val meter: Meter     = metricRegistry.meter(meterMRName(metricName))
   private lazy val counter: Counter = metricRegistry.counter(counterMRName(metricName, isError))
 
-  def asError      = new NJMeter[F](metricName, metricRegistry, isError = true, isCounting)
-  def withCounting = new NJMeter[F](metricName, metricRegistry, isError, CountAction.Yes)
+  def asError: NJMeter[F]      = new NJMeter[F](metricName, metricRegistry, isError = true, isCounting)
+  def withCounting: NJMeter[F] = new NJMeter[F](metricName, metricRegistry, isError, CountAction.Yes)
 
   def unsafeMark(num: Long): Unit = {
     meter.mark(num)
