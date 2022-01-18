@@ -76,7 +76,8 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
-      isCountAsError = false)
+      isError = false,
+      isCounting = CountAction.No)
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
@@ -84,26 +85,27 @@ final class Agent[F[_]] private[service] (
       dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
-      serviceParams = agentParams.serviceParams)
+      serviceParams = agentParams.serviceParams,
+      isCounting = CountAction.No)
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(
       metricName = DigestedName(agentParams.spans :+ counterName, serviceParams),
       metricRegistry = metricRegistry,
-      isCountAsError = false)
+      isError = false)
 
   def meter(meterName: Span): NJMeter[F] =
     new NJMeter[F](
       metricName = DigestedName(agentParams.spans :+ meterName, serviceParams),
       metricRegistry = metricRegistry,
-      isCountAsError = false,
-      isCounting = false)
+      isError = false,
+      isCounting = CountAction.No)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
       metricName = DigestedName(agentParams.spans :+ histoName, serviceParams),
       metricRegistry = metricRegistry,
-      isCounting = false
+      isCounting = CountAction.No
     )
 
   lazy val metrics: NJMetrics[F] =
