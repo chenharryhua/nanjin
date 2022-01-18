@@ -3,18 +3,18 @@ package mtest
 import cats.Eq
 import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.AlternativeTests
-import cats.syntax.all._
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
-import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.datetime.instances._
+import cats.syntax.all.*
+import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
+import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 import java.sql.Timestamp
-import java.time._
-import scala.concurrent.duration._
+import java.time.*
+import scala.concurrent.duration.*
 import scala.util.Random
 
 class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {

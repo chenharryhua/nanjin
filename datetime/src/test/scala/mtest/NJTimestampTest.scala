@@ -1,15 +1,15 @@
 package mtest
 
-import cats.syntax.eq._
-import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.datetime.instances._
+import cats.syntax.eq.*
+import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
 
 import java.time.{LocalDateTime, LocalTime, ZoneId}
 
 class NJTimestampTest extends Properties("nj-timestamp properties") {
-  import ArbitaryData._
+  import ArbitaryData.*
 
   val timezone: ZoneId = utcTime
 

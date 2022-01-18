@@ -1,18 +1,18 @@
 package mtest
 
-import java.sql.{Date, Timestamp}
-import java.time._
-
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.{arbInstantJdk8, arbLocalDateTimeJdk8}
-import com.github.chenharryhua.nanjin.datetime._
-import com.github.chenharryhua.nanjin.datetime.instances._
-import com.github.chenharryhua.nanjin.common.transformers._
-import io.scalaland.chimney.dsl._
+import com.github.chenharryhua.nanjin.common.transformers.*
+import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.instances.*
+import io.scalaland.chimney.dsl.*
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.Properties
 
+import java.sql.{Date, Timestamp}
+import java.time.*
+
 class TransformersTest extends Properties("isomorphic chimney transformers") {
-  import ArbitaryData._
+  import ArbitaryData.*
   property("zoned-date-time") = forAll { (zd: ZonedDateTime) =>
     (zd.transformInto[Timestamp].transformInto[ZonedDateTime] == zd) &&
     (zd.transformInto[Instant].transformInto[ZonedDateTime] == zd)

@@ -5,7 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class DurationFormatterTest extends AnyFunSuite {
   val fmt = com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter

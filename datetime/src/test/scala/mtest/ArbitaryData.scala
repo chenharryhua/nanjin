@@ -1,11 +1,11 @@
 package mtest
 
-import java.sql.{Date, Timestamp}
-import java.time._
-
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
+import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
 import com.github.chenharryhua.nanjin.datetime.{newyorkTime, NJTimestamp}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
+
+import java.sql.{Date, Timestamp}
+import java.time.*
 
 object ArbitaryData {
   implicit val zoneId: ZoneId = newyorkTime
