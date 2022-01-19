@@ -31,7 +31,7 @@ class MetricsTest extends AnyFunSuite {
   test("full") {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Full))
-      .eventStream(ag => ag.span("one").run(IO(0)) >> IO.sleep(10.minutes))
+      .eventStream(ag => ag.span("one").updateConfig(_.withCounting).run(IO(0)) >> IO.sleep(10.minutes))
       .evalTap(console(Translator.text[IO]))
       .interruptAfter(5.seconds)
       .compile
