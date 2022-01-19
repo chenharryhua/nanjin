@@ -311,7 +311,7 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry-mtl" % "3.1.0",
-      "com.lihaoyi" %% "scalatags"           % "0.11.0",
+      "com.lihaoyi" %% "scalatags"           % "0.11.1",
       "org.tpolecat" %% "skunk-core"         % "0.2.3",
       "org.tpolecat" %% "skunk-circe"        % "0.2.3"
     ) ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
