@@ -221,7 +221,7 @@ val ftpLib = Seq(
 )
 
 val logLib = Seq(
-  "org.typelevel" %% "log4cats-slf4j" % "2.1.1",
+  "org.typelevel" %% "log4cats-slf4j" % "2.2.0",
   "org.slf4j"                         % "slf4j-api" % "1.7.33"
 )
 
@@ -269,7 +269,7 @@ lazy val common = (project in file("common"))
   .settings(
     libraryDependencies ++= Seq(
       "io.dropwizard.metrics"             % "metrics-core" % "4.2.7" % Provided,
-      "org.typelevel" %% "log4cats-slf4j" % "2.1.1"        % Provided) ++
+      "org.typelevel" %% "log4cats-slf4j" % "2.2.0"        % Provided) ++
       baseLib ++ testLib
   )
 
