@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.zaxxer.hikari.HikariConfig
 import io.circe.Decoder as JsonDecoder
 import kantan.csv.CsvConfiguration
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class LoadTableFile[F[_], A] private[database] (
   td: TableDef[A],
@@ -17,19 +17,19 @@ final class LoadTableFile[F[_], A] private[database] (
 
   def parquet(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.parquet[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.parquet[A](pathStr, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
   def avro(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.avro[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.avro[A](pathStr, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
   def circe(pathStr: String)(implicit ev: JsonDecoder[A], F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.circe[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.circe[A](pathStr, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
@@ -44,19 +44,19 @@ final class LoadTableFile[F[_], A] private[database] (
 
   def json(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.json[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.json[A](pathStr, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
   def jackson(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.jackson[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.jackson[A](pathStr, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
   def binAvro(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.binAvro[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.binAvro[A](pathStr, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 }
