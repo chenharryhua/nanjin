@@ -18,7 +18,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     * ----------------| |------ before beginning after ending
     *
     * ^ ^
-    * | | start end
+    * \| | start end
     */
 
   val topic: KafkaTopic[IO, Int, Int] = ctx.withGroupId("consumer-api-test").topic[Int, Int]("range.test")

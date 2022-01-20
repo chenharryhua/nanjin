@@ -21,7 +21,13 @@ class ProtobufPipeTest extends AnyFunSuite {
 
     val ser = new DelimitedProtoBufSerialization[IO]
 
-    assert(data.through(ser.serialize(Kilobytes(10))).through(ser.deserialize[Lion](ChunkSize(5))).compile.toList.unsafeRunSync() === lions)
+    assert(
+      data
+        .through(ser.serialize(Kilobytes(10)))
+        .through(ser.deserialize[Lion](ChunkSize(5)))
+        .compile
+        .toList
+        .unsafeRunSync() === lions)
   }
 
   test("protobuf identity") {
