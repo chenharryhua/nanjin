@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.Applicative
+import cats.data.Kleisli
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -23,16 +25,21 @@ final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration,
   def withQuote(char: Char): SaveCsv[F, A]         = updateCsvConfig(_.withQuote(char))
   def withCellSeparator(char: Char): SaveCsv[F, A] = updateCsvConfig(_.withCellSeparator(char))
 
-  def file: SaveSingleCsv[F, A]  = new SaveSingleCsv[F, A](ds, csvConfiguration, cfg)
+  def file(implicit F: Applicative[F]): SaveSingleCsv[F, A] =
+    new SaveSingleCsv[F, A](ds, csvConfiguration, cfg, Kleisli(_ => F.unit))
   def folder: SaveMultiCsv[F, A] = new SaveMultiCsv[F, A](ds, csvConfiguration, cfg)
 }
 
-final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
+final class SaveSingleCsv[F[_], A](
+  ds: Dataset[A],
+  csvConfiguration: CsvConfiguration,
+  cfg: HoarderConfig,
+  listener: Kleisli[F, A, Unit])
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveSingleCsv[F, A] =
-    new SaveSingleCsv[F, A](ds, csvConfiguration, cfg)
+    new SaveSingleCsv[F, A](ds, csvConfiguration, cfg, listener)
 
   def overwrite: SaveSingleCsv[F, A]      = updateConfig(cfg.overwriteMode)
   def errorIfExists: SaveSingleCsv[F, A]  = updateConfig(cfg.errorMode)
@@ -44,6 +51,8 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
 
   def withChunkSize(cs: ChunkSize): SaveSingleCsv[F, A]    = updateConfig(cfg.chunkSize(cs))
   def withByteBuffer(bb: Information): SaveSingleCsv[F, A] = updateConfig(cfg.byteBuffer(bb))
+  def withListener(f: A => F[Unit]): SaveSingleCsv[F, A] =
+    new SaveSingleCsv[F, A](ds, csvConfiguration, cfg, Kleisli(f))
 
   def sink(implicit F: Async[F], rowEncoder: RowEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
@@ -56,6 +65,7 @@ final class SaveSingleCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigur
     sma.checkAndRun(
       ds.rdd
         .stream[F](params.chunkSize)
+        .evalTap(listener.run)
         .through(sinks.csv(params.outPath, hc, csvConf, params.compression.fs2Compression, params.byteBuffer)))
   }
 

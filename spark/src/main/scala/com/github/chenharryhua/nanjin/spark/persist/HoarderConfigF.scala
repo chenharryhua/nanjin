@@ -24,8 +24,8 @@ private[persist] object HoarderParams {
       outPath,
       SaveMode.Overwrite,
       Compression.Uncompressed,
-      ChunkSize(1024),
-      Kilobytes(100))
+      ChunkSize(8192),
+      Kilobytes(1024))
 }
 
 sealed private[persist] trait HoarderConfigF[X]

@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.Applicative
+import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -14,7 +16,8 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
     new SaveAvro[F, A](rdd, encoder, cfg)
 
-  def file: SaveSingleAvro[F, A]  = new SaveSingleAvro[F, A](rdd, encoder, cfg)
+  def file(implicit F: Applicative[F]): SaveSingleAvro[F, A] =
+    new SaveSingleAvro[F, A](rdd, encoder, cfg, Kleisli(_ => F.unit))
   def folder: SaveMultiAvro[F, A] = new SaveMultiAvro[F, A](rdd, encoder, cfg)
 
   def deflate(level: Int): SaveAvro[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
@@ -24,31 +27,37 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   def uncompress: SaveAvro[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 }
 
-final class SaveSingleAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
+final class SaveSingleAvro[F[_], A](
+  rdd: RDD[A],
+  encoder: AvroEncoder[A],
+  cfg: HoarderConfig,
+  listener: Kleisli[F, A, Unit])
+    extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveSingleAvro[F, A] =
-    new SaveSingleAvro[F, A](rdd, encoder, cfg)
+    new SaveSingleAvro[F, A](rdd, encoder, cfg, listener)
 
   def overwrite: SaveSingleAvro[F, A]      = updateConfig(cfg.overwriteMode)
   def errorIfExists: SaveSingleAvro[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleAvro[F, A] = updateConfig(cfg.ignoreMode)
 
-  def withChunkSize(cs: ChunkSize): SaveSingleAvro[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleAvro[F, A]  = updateConfig(cfg.chunkSize(cs))
+  def withListener(f: A => F[Unit]): SaveSingleAvro[F, A] = new SaveSingleAvro[F, A](rdd, encoder, cfg, Kleisli(f))
 
   def sink(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val cf: CodecFactory      = params.compression.avro(hc)
-    sma.checkAndRun(rdd.stream[F](params.chunkSize).through(sinks.avro(params.outPath, hc, encoder, cf)))
+    sma.checkAndRun(
+      rdd.stream[F](params.chunkSize).evalTap(listener.run).through(sinks.avro(params.outPath, hc, encoder, cf)))
   }
 }
 
 final class SaveMultiAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateConfig(cfg: HoarderConfig): SaveMultiAvro[F, A] =
-    new SaveMultiAvro[F, A](rdd, encoder, cfg)
+  private def updateConfig(cfg: HoarderConfig): SaveMultiAvro[F, A] = new SaveMultiAvro[F, A](rdd, encoder, cfg)
 
   def append: SaveMultiAvro[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveMultiAvro[F, A]      = updateConfig(cfg.overwriteMode)
