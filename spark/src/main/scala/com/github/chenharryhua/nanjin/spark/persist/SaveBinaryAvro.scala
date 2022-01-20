@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.Applicative
+import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -9,28 +11,38 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
 
 final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
-  def file: SaveSingleBinaryAvro[F, A]  = new SaveSingleBinaryAvro[F, A](rdd, encoder, cfg)
+  def file(implicit F: Applicative[F]): SaveSingleBinaryAvro[F, A] =
+    new SaveSingleBinaryAvro[F, A](rdd, encoder, cfg, Kleisli(_ => F.unit))
   def folder: SaveMultiBinaryAvro[F, A] = new SaveMultiBinaryAvro[F, A](rdd, encoder, cfg)
 }
 
-final class SaveSingleBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+final class SaveSingleBinaryAvro[F[_], A](
+  rdd: RDD[A],
+  encoder: AvroEncoder[A],
+  cfg: HoarderConfig,
+  listener: Kleisli[F, A, Unit])
     extends Serializable {
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
-    new SaveBinaryAvro[F, A](rdd, encoder, cfg)
+  private def updateConfig(cfg: HoarderConfig): SaveSingleBinaryAvro[F, A] =
+    new SaveSingleBinaryAvro[F, A](rdd, encoder, cfg, listener)
 
-  def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.overwriteMode)
-  def errorIfExists: SaveBinaryAvro[F, A]  = updateConfig(cfg.errorMode)
-  def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
+  def overwrite: SaveSingleBinaryAvro[F, A]      = updateConfig(cfg.overwriteMode)
+  def errorIfExists: SaveSingleBinaryAvro[F, A]  = updateConfig(cfg.errorMode)
+  def ignoreIfExists: SaveSingleBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
 
-  def withChunkSize(cs: ChunkSize): SaveBinaryAvro[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleBinaryAvro[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withListener(f: A => F[Unit]): SaveSingleBinaryAvro[F, A] =
+    new SaveSingleBinaryAvro[F, A](rdd, encoder, cfg, Kleisli(f))
 
   def sink(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     sma.checkAndRun(
-      rdd.stream[F](params.chunkSize).through(sinks.binAvro(params.outPath, hc, encoder, params.chunkSize)))
+      rdd
+        .stream[F](params.chunkSize)
+        .evalTap(listener.run)
+        .through(sinks.binAvro(params.outPath, hc, encoder, params.chunkSize)))
   }
 }
 

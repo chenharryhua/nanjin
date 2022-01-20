@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.Applicative
+import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
@@ -12,14 +14,20 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true)
   def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, false)
 
-  def file: SaveSingleCirce[F, A]  = new SaveSingleCirce[F, A](rdd, cfg, isKeepNull)
+  def file(implicit F: Applicative[F]): SaveSingleCirce[F, A] =
+    new SaveSingleCirce[F, A](rdd, cfg, isKeepNull, Kleisli(_ => F.unit))
   def folder: SaveMultiCirce[F, A] = new SaveMultiCirce[F, A](rdd, cfg, isKeepNull)
 }
 
-final class SaveSingleCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean) extends Serializable {
+final class SaveSingleCirce[F[_], A](
+  rdd: RDD[A],
+  cfg: HoarderConfig,
+  isKeepNull: Boolean,
+  listener: Kleisli[F, A, Unit])
+    extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): SaveSingleCirce[F, A] =
-    new SaveSingleCirce[F, A](rdd, cfg, isKeepNull)
+    new SaveSingleCirce[F, A](rdd, cfg, isKeepNull, listener)
 
   val params: HoarderParams = cfg.evalConfig
 
@@ -31,7 +39,8 @@ final class SaveSingleCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull
   def deflate(level: Int): SaveSingleCirce[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCirce[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def withChunkSize(cs: ChunkSize): SaveSingleCirce[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withChunkSize(cs: ChunkSize): SaveSingleCirce[F, A]  = updateConfig(cfg.chunkSize(cs))
+  def withListener(f: A => F[Unit]): SaveSingleCirce[F, A] = new SaveSingleCirce[F, A](rdd, cfg, isKeepNull, Kleisli(f))
 
   def sink(implicit F: Sync[F], jsonEncoder: JsonEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
@@ -39,6 +48,7 @@ final class SaveSingleCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull
     sma.checkAndRun(
       rdd
         .stream[F](params.chunkSize)
+        .evalTap(listener.run)
         .through(sinks.circe(params.outPath, hc, isKeepNull, params.compression.fs2Compression)))
   }
 }
