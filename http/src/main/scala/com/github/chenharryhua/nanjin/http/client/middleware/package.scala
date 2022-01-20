@@ -8,6 +8,7 @@ import org.http4s.client.Client
 import org.http4s.client.middleware.*
 import org.http4s.client.middleware.RetryPolicy.{exponentialBackoff, isErrorOrRetriableStatus}
 import org.http4s.headers.`Set-Cookie`
+import squants.information.{Information, Kilobytes}
 
 import java.net.{CookieManager, CookieStore, HttpCookie, URI}
 import scala.concurrent.duration.FiniteDuration
@@ -25,7 +26,10 @@ package object middleware {
 
   def cookieJar[F[_]: Async](client: Client[F]): F[Client[F]] = CookieJar.impl[F](client)
 
-  def gzip[F[_]: Async](bufferSize: Int)(client: Client[F]): Client[F] = GZip[F](bufferSize)(client)
+  def gzip[F[_]: Async](bufferSize: Information)(client: Client[F]): Client[F] =
+    GZip[F](bufferSize.toBytes.toInt)(client)
+  def gzip[F[_]: Async](client: Client[F]): Client[F] =
+    GZip[F](Kilobytes(32).toBytes.toInt)(client)
 
   def forwardRedirect[F[_]: Concurrent](maxRedirects: Int)(client: Client[F]): Client[F] =
     FollowRedirect[F](maxRedirects)(client)

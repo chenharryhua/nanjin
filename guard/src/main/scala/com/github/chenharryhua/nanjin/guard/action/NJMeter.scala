@@ -8,14 +8,12 @@ import com.github.chenharryhua.nanjin.guard.config.{CountAction, DigestedName}
 final class NJMeter[F[_]] private[guard] (
   metricName: DigestedName,
   metricRegistry: MetricRegistry,
-  isError: Boolean,
   isCounting: CountAction)(implicit F: Sync[F]) {
 
   private lazy val meter: Meter     = metricRegistry.meter(meterMRName(metricName))
-  private lazy val counter: Counter = metricRegistry.counter(counterMRName(metricName, isError))
+  private lazy val counter: Counter = metricRegistry.counter(counterMRName(metricName, asError = false))
 
-  def asError: NJMeter[F]      = new NJMeter[F](metricName, metricRegistry, isError = true, isCounting)
-  def withCounting: NJMeter[F] = new NJMeter[F](metricName, metricRegistry, isError, CountAction.Yes)
+  def withCounting: NJMeter[F] = new NJMeter[F](metricName, metricRegistry, CountAction.Yes)
 
   def unsafeMark(num: Long): Unit = {
     meter.mark(num)
