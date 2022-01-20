@@ -1,7 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.NJFileFormat.*
+import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
+import fs2.Stream
 import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
@@ -23,6 +27,8 @@ sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
 // 4
   final def protobuf(path: String): SaveProtobuf[F, A] =
     new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf))
+
+  final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] = rdd.stream[F](chunkSize)
 }
 
 sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A]) extends RddFileHoarder[F, A](rdd) {

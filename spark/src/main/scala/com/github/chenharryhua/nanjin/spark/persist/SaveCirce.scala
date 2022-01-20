@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
-import fs2.Stream
+import fs2.{Pipe, Stream}
 import io.circe.Encoder as JsonEncoder
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.rdd.RDD
@@ -14,8 +13,7 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true)
   def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, false)
 
-  def file(implicit F: Applicative[F]): SaveSingleCirce[F, A] =
-    new SaveSingleCirce[F, A](rdd, cfg, isKeepNull, Kleisli(_ => F.unit))
+  def file: SaveSingleCirce[F, A]  = new SaveSingleCirce[F, A](rdd, cfg, isKeepNull, None)
   def folder: SaveMultiCirce[F, A] = new SaveMultiCirce[F, A](rdd, cfg, isKeepNull)
 }
 
@@ -23,7 +21,7 @@ final class SaveSingleCirce[F[_], A](
   rdd: RDD[A],
   cfg: HoarderConfig,
   isKeepNull: Boolean,
-  listener: Kleisli[F, A, Unit])
+  listener: Option[Kleisli[F, A, Unit]])
     extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): SaveSingleCirce[F, A] =
@@ -39,17 +37,18 @@ final class SaveSingleCirce[F[_], A](
   def deflate(level: Int): SaveSingleCirce[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
   def uncompress: SaveSingleCirce[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
 
-  def withChunkSize(cs: ChunkSize): SaveSingleCirce[F, A]  = updateConfig(cfg.chunkSize(cs))
-  def withListener(f: A => F[Unit]): SaveSingleCirce[F, A] = new SaveSingleCirce[F, A](rdd, cfg, isKeepNull, Kleisli(f))
+  def withChunkSize(cs: ChunkSize): SaveSingleCirce[F, A] = updateConfig(cfg.chunkSize(cs))
+  def withListener(f: A => F[Unit]): SaveSingleCirce[F, A] =
+    new SaveSingleCirce[F, A](rdd, cfg, isKeepNull, Some(Kleisli(f)))
 
   def sink(implicit F: Sync[F], jsonEncoder: JsonEncoder[A]): Stream[F, Unit] = {
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
-    sma.checkAndRun(
-      rdd
-        .stream[F](params.chunkSize)
-        .evalTap(listener.run)
-        .through(sinks.circe(params.outPath, hc, isKeepNull, params.compression.fs2Compression)))
+    val src: Stream[F, A]     = rdd.stream[F](params.chunkSize)
+    val tgt: Pipe[F, A, Unit] = sinks.circe(params.outPath, hc, isKeepNull, params.compression.fs2Compression)
+    val ss: Stream[F, Unit]   = listener.fold(src.through(tgt))(k => src.evalTap(k.run).through(tgt))
+
+    sma.checkAndRun(ss)
   }
 }
 

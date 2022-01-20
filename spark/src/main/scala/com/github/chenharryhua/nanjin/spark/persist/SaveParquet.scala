@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import fs2.Stream
+import fs2.{Pipe, Stream}
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -17,7 +16,7 @@ import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.apache.spark.sql.Dataset
 
 final class SaveParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
-  def file(implicit F: Applicative[F]): SaveSingleParquet[F, A] = {
+  def file: SaveSingleParquet[F, A] = {
     val params: HoarderParams    = cfg.evalConfig
     val hadoopCfg: Configuration = ds.sparkSession.sparkContext.hadoopConfiguration
     val builder: AvroParquetWriter.Builder[GenericRecord] = AvroParquetWriter
@@ -27,7 +26,7 @@ final class SaveParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: H
       .withConf(hadoopCfg)
       .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
       .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-    new SaveSingleParquet[F, A](ds, cfg, encoder, builder, Kleisli(_ => F.unit))
+    new SaveSingleParquet[F, A](ds, cfg, encoder, builder, None)
   }
   def folder: SaveMultiParquet[F, A] = new SaveMultiParquet[F, A](ds, cfg)
 }
@@ -37,7 +36,7 @@ final class SaveSingleParquet[F[_], A](
   cfg: HoarderConfig,
   encoder: AvroEncoder[A],
   builder: AvroParquetWriter.Builder[GenericRecord],
-  listener: Kleisli[F, A, Unit])
+  listener: Option[Kleisli[F, A, Unit]])
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
@@ -51,12 +50,16 @@ final class SaveSingleParquet[F[_], A](
 
   def withChunkSize(cs: ChunkSize): SaveSingleParquet[F, A] = updateConfig(cfg.chunkSize(cs))
   def withListener(f: A => F[Unit]): SaveSingleParquet[F, A] =
-    new SaveSingleParquet[F, A](ds, cfg, encoder, builder, Kleisli(f))
+    new SaveSingleParquet[F, A](ds, cfg, encoder, builder, Some(Kleisli(f)))
 
   def sink(implicit F: Sync[F]): Stream[F, Unit] = {
     val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
-    sma.checkAndRun(ds.rdd.stream[F](params.chunkSize).evalTap(listener.run).through(sinks.parquet(builder, encoder)))
+    val src: Stream[F, A]     = ds.rdd.stream[F](params.chunkSize)
+    val tgt: Pipe[F, A, Unit] = sinks.parquet(builder, encoder)
+    val ss: Stream[F, Unit]   = listener.fold(src.through(tgt))(k => src.evalTap(k.run).through(tgt))
+
+    sma.checkAndRun(ss)
   }
 }
 
