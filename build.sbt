@@ -10,8 +10,8 @@ val catsCore     = "2.7.0"
 val monocle      = "2.1.0"
 val catsEffect   = "3.3.4"
 val akka26       = "2.6.18"
-val confluent    = "6.2.2"
-val kafkaVersion = "6.2.2-ce"
+val confluent    = "7.0.1"
+val kafkaVersion = "7.0.1-ce"
 val avro         = "1.11.0"
 
 lazy val commonSettings = Seq(
@@ -164,7 +164,7 @@ val kafkaLib = Seq(
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   "com.typesafe.akka" %% "akka-stream-kafka"  % "3.0.0",
-  "com.github.fd4s" %% "fs2-kafka"            % "2.3.0"
+  "com.github.fd4s" %% "fs2-kafka"            % "3.0.0-M4"
 )
 
 val enumLib = Seq(
@@ -320,12 +320,7 @@ lazy val guard = (project in file("guard"))
 lazy val messages = (project in file("messages"))
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
-  .settings(
-    libraryDependencies ++= Seq(
-      compilerPlugin(("com.github.ghik" % "silencer-plugin" % "1.7.8").cross(CrossVersion.full)),
-      ("com.github.ghik"                % "silencer-lib"    % "1.7.8" % Provided).cross(CrossVersion.full)
-    ) ++ baseLib ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib
-  )
+  .settings(libraryDependencies ++= baseLib ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
   .dependsOn(common)

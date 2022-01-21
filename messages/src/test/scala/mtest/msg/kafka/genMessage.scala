@@ -51,7 +51,6 @@ object genMessage {
       timestamp <- Gen.posNum[Long]
       timestampType <- Gen.oneOf(
         List(TimestampType.CREATE_TIME, TimestampType.LOG_APPEND_TIME, TimestampType.NO_TIMESTAMP_TYPE))
-      checksum <- arbitrary[Long]
       sizeKey <- arbitrary[Int]
       sizeValue <- arbitrary[Int]
       key <- arbitrary[Int]
@@ -64,7 +63,6 @@ object genMessage {
       offset,
       timestamp,
       timestampType,
-      checksum,
       sizeKey,
       sizeValue,
       key,

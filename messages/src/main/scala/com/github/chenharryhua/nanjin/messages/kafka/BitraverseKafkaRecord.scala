@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.{Applicative, Bitraverse, Eval}
-import com.github.ghik.silencer.silent
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 
@@ -17,7 +16,6 @@ private[kafka] trait BitraverseKafkaRecord {
           cr.offset,
           cr.timestamp,
           cr.timestampType,
-          cr.checksum: @silent,
           cr.serializedKeySize,
           cr.serializedValueSize,
           k(cr.key),
