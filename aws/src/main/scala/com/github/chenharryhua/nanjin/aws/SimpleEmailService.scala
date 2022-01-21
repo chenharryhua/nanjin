@@ -13,7 +13,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 @JsonCodec
 final case class EmailContent(from: String, to: List[String], subject: String, body: String)
 
-trait SimpleEmailService[F[_]] {
+sealed trait SimpleEmailService[F[_]] {
   def send(txt: EmailContent): F[SendEmailResult]
 }
 
