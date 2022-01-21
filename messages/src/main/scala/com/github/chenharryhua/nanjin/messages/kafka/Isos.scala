@@ -77,7 +77,6 @@ private[kafka] trait Isos {
           .map(_ => TimestampType.CREATE_TIME)
           .orElse(fcr.timestamp.logAppendTime.map(_ => TimestampType.LOG_APPEND_TIME))
           .getOrElse(TimestampType.NO_TIMESTAMP_TYPE),
-        -1L, // ConsumerRecord.NULL_CHECKSUM,
         fcr.serializedKeySize.getOrElse(ConsumerRecord.NULL_SIZE),
         fcr.serializedValueSize.getOrElse(ConsumerRecord.NULL_SIZE),
         fcr.key,
