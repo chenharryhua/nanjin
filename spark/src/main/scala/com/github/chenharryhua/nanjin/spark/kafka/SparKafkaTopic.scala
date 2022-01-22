@@ -43,7 +43,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.timeRange(tr))
   def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.locationStrategy(ls))
 
-  val params: SKParams = cfg.evalConfig
+  val params: SKParams        = cfg.evalConfig
+  val segment: NJPath.Segment = NJPath.Segment.unsafeFrom(topicName.value)
 
   def rawKafka(implicit F: Sync[F]): F[RDD[NJConsumerRecordWithError[K, V]]] =
     sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss)
@@ -115,7 +116,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
           NJPath.Segment.unsafeFrom(fmt.format)))
 
   def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] =
-    sstream(identity[NJConsumerRecord[K, V]](_), ate)
+    sstream(identity[NJConsumerRecord[K, V]], ate)
 
   def jsonStream(implicit
     jek: JsonEncoder[K],
