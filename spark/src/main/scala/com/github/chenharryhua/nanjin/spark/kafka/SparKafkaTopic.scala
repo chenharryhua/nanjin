@@ -68,7 +68,13 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
   def download(akkaSystem: ActorSystem): KafkaDownloader[F, K, V] =
-    new KafkaDownloader[F, K, V](akkaSystem, topic, ss.sparkContext.hadoopConfiguration, cfg, akkaUpdater.unitConsumer)
+    new KafkaDownloader[F, K, V](
+      akkaSystem,
+      topic,
+      ss.sparkContext.hadoopConfiguration,
+      cfg,
+      akkaUpdater.unitConsumer,
+      None)
 
   /** rdd and dataset
     */
