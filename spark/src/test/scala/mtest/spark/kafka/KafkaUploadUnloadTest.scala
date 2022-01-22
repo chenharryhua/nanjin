@@ -6,19 +6,22 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.spark.kafka.{NJConsumerRecord, NJProducerRecord, SparKafkaTopic}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder
 import mtest.spark
 import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.sparkSession
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
+import eu.timepit.refined.auto.*
 import java.time.Instant
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class KafkaUploadUnloadTest extends AnyFunSuite {
 
   implicit val te: TypedEncoder[NJConsumerRecord[Int, Rooster]] = shapeless.cachedImplicit
-  val root: String                                              = "./data/test/spark/kafka/load/rooster/"
+
+  val root: NJPath = NJPath("./data/test/spark/kafka/load/rooster/")
 
   val rooster: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("spark.kafka.load.rooster"), Rooster.avroCodec)
@@ -30,13 +33,13 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
 
   test("kafka upload/unload") {
 
-    val circe   = root + "circe"
-    val parquet = root + "parquet"
-    val json    = root + "json"
-    val avro    = root + "avro"
-    val jackson = root + "jackson"
-    val avroBin = root + "avroBin"
-    val obj     = root + "objectFile"
+    val circe   = root / "circe"
+    val parquet = root / "parquet"
+    val json    = root / "json"
+    val avro    = root / "avro"
+    val jackson = root / "jackson"
+    val avroBin = root / "avroBin"
+    val obj     = root / "objectFile"
 
     val pr = topic
       .prRdd(RoosterData.data.zipWithIndex.map { case (x, i) =>
@@ -82,7 +85,10 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
     } yield {
       val spkJson =
         topic
-          .crDS(sparkSession.read.schema(NJConsumerRecord.ate(topic.topic.topicDef).sparkEncoder.schema).json(circe))
+          .crDS(
+            sparkSession.read
+              .schema(NJConsumerRecord.ate(topic.topic.topicDef).sparkEncoder.schema)
+              .json(circe.pathStr))
           .dataset
           .collect()
           .flatMap(_.value)
@@ -93,7 +99,7 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       assert(spkJson == RoosterData.expected)
 
       val spkParquet = // can be consumed by spark
-        topic.crDS(sparkSession.read.parquet(parquet)).dataset.collect().flatMap(_.value).toSet
+        topic.crDS(sparkSession.read.parquet(parquet.pathStr)).dataset.collect().flatMap(_.value).toSet
       assert(parquetds == RoosterData.expected)
       assert(spkParquet == RoosterData.expected)
 

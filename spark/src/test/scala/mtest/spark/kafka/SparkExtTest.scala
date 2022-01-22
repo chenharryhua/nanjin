@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.kafka.*
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto.*
@@ -76,10 +77,14 @@ class SparkExtTest extends AnyFunSuite {
     import sparkSession.implicits.*
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
-    rdd.save[IO](ate.avroCodec.avroEncoder).avro("./data/test/spark/sytax/rdd/avro").folder.run.unsafeRunSync()
-    rdd.save[IO].circe("./data/test/spark/sytax/rdd/circe").folder.run.unsafeRunSync()
+    rdd.save[IO](ate.avroCodec.avroEncoder).avro(NJPath("./data/test/spark/sytax/rdd/avro")).folder.run.unsafeRunSync()
+    rdd.save[IO].circe(NJPath("./data/test/spark/sytax/rdd/circe")).folder.run.unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
-    ds.save[IO](ate.avroCodec.avroEncoder).parquet("./data/test/spark/sytax/ds/parquet").folder.run.unsafeRunSync()
-    ds.save[IO].json("./data/test/spark/sytax/ds/json").run.unsafeRunSync()
+    ds.save[IO](ate.avroCodec.avroEncoder)
+      .parquet(NJPath("./data/test/spark/sytax/ds/parquet"))
+      .folder
+      .run
+      .unsafeRunSync()
+    ds.save[IO].json(NJPath("./data/test/spark/sytax/ds/json")).run.unsafeRunSync()
   }
 }

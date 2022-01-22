@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.kafka.{NJProducerRecord, SparKafkaTopic}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder
 import io.circe.Codec
 //import frameless.cats.implicits._
@@ -16,6 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
+import eu.timepit.refined.auto.*
 
 object DecimalTopicTestCase {
 
@@ -93,7 +95,7 @@ class DecimalTopicTest extends AnyFunSuite {
     loadData).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on circe") {
-    val path = "./data/test/spark/kafka/decimal.circe.json"
+    val path = NJPath("./data/test/spark/kafka/decimal.circe.json")
     stopic.fromKafka.flatMap(_.save.circe(path).file.sink.compile.drain).unsafeRunSync()
 
     val run = for {
