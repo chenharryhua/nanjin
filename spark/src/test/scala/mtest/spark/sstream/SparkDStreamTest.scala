@@ -60,10 +60,14 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
       .drain
       .unsafeRunSync()
 
-    val now = NJPath.Segment.unsafeFrom(NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime))
-    val j   = topic.load.jackson(jackson / now).unsafeRunSync().transform(_.distinct())
-    val a   = topic.load.avro(avro / now).map(_.transform(_.distinct())).unsafeRunSync()
-    val c   = topic.load.circe(circe / now).unsafeRunSync().transform(_.distinct())
+    val ts    = NJTimestamp.now()
+    val year  = NJPath.Segment.unsafeFrom(s"Year=${ts.yearStr(sydneyTime)}")
+    val month = NJPath.Segment.unsafeFrom(s"Month=${ts.monthStr(sydneyTime)}")
+    val day   = NJPath.Segment.unsafeFrom(s"Day=${ts.dayStr(sydneyTime)}")
+
+    val j = topic.load.jackson(jackson / year / month / day).unsafeRunSync().transform(_.distinct())
+    val a = topic.load.avro(avro / year / month / day).map(_.transform(_.distinct())).unsafeRunSync()
+    val c = topic.load.circe(circe / year / month / day).unsafeRunSync().transform(_.distinct())
 
     j.diff(a).show(truncate = false)
     c.diff(a).show(truncate = false)

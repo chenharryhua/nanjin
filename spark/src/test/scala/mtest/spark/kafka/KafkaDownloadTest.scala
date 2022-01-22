@@ -33,7 +33,7 @@ class KafkaDownloadTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/kafka/kafka_download/")
 
   test("download - whole topic") {
-    val path = root / "whole_topic/download.avro"
+    val path = root / "whole_topic" / "download.avro"
     val dr   = NJDateTimeRange(sydneyTime)
     topic.withTimeRange(dr).download(akkaSystem).avro(path).sink.compile.drain.unsafeRunSync()
     assert(topic.load.avro(path).map(_.dataset.count()).unsafeRunSync() >= 5)

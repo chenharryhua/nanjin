@@ -41,7 +41,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     val ss = sparKafka
       .topic(rooster)
       .sstream
-      .checkpoint("./data/test/checkpoint")
+      .checkpoint(NJPath("./data/test/checkpoint"))
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
       .filter(_ => true)
@@ -72,7 +72,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .topic(rooster)
       .sstream
       .ignoreDataLoss
-      .fileSink(path.pathStr)
+      .fileSink(path)
       .triggerEvery(500.millisecond)
       .json
       .parquet
@@ -105,7 +105,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .jsonStream
       .progressInterval(1000)
       .failOnDataLoss
-      .datePartitionSink(path.pathStr)
+      .datePartitionSink(path)
       .triggerEvery(1.seconds)
       .json // last one wins
       .showProgress
@@ -123,7 +123,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
-    val todayPath = path + "/" + ts
+    val todayPath = path.pathStr + "/" + ts
     assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
     sparKafka
       .topic(rooster)

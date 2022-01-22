@@ -9,7 +9,7 @@ import org.apache.hadoop.fs.Path
 
 import java.net.URI
 
-final case class NJPath private (root: Refined[String, Uri], segments: List[NJPath.Segment]) {
+final case class NJPath private (root: NJPath.Root, segments: List[NJPath.Segment]) {
 
   def /(seg: NJPath.Segment): NJPath = NJPath(root, segments.appended(seg))
 

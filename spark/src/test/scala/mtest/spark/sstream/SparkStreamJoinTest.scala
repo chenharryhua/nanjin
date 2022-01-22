@@ -71,7 +71,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
         fooDS.joinWith(barDS, fooDS("value.index") === barDS("index"), "inner").flatMap { case (foo, bar) =>
           foo.value.map(x => FooBar(bar.index, x.name, bar.age))
         }
-      }.fileSink(path.pathStr).triggerEvery(1.seconds).stream
+      }.fileSink(path).triggerEvery(1.seconds).stream
 
     ss.concurrently(sender.delayBy(3.seconds)).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
 

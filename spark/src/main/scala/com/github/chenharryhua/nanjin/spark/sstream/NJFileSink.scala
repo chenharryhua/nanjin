@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress, Trigger}
 
 import scala.concurrent.duration.FiniteDuration
 
-final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, path: String) extends NJStreamSink[F] {
+final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, path: NJPath) extends NJStreamSink[F] {
 
   override val params: SStreamParams = cfg.evalConfig
 
@@ -33,10 +34,10 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
       dsw
         .trigger(params.trigger)
         .format(params.fileFormat.format)
-        .queryName(params.queryName.getOrElse(path))
+        .queryName(params.queryName.getOrElse(path.pathStr))
         .outputMode(OutputMode.Append)
-        .option("path", path)
-        .option("checkpointLocation", params.checkpoint)
+        .option("path", path.pathStr)
+        .option("checkpointLocation", params.checkpoint.pathStr)
         .option("failOnDataLoss", params.dataLoss.value),
       params.progressInterval
     )
