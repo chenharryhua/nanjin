@@ -8,7 +8,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import eu.timepit.refined.auto.*
 
 class KafkaDownloadTest extends AnyFunSuite {
   val topic = sparKafka.topic[Int, Int]("spark.kafka.download")
@@ -28,17 +30,17 @@ class KafkaDownloadTest extends AnyFunSuite {
 
   topic.prRdd(data).upload.updateProducer(_.withClientId("kafka.download.test")).stream.compile.drain.unsafeRunSync()
 
-  val root = "./data/test/spark/kafka/kafka_download/"
+  val root = NJPath("./data/test/spark/kafka/kafka_download/")
 
   test("download - whole topic") {
-    val path = root + "whole_topic/download.avro"
+    val path = root / "whole_topic" / "download.avro"
     val dr   = NJDateTimeRange(sydneyTime)
     topic.withTimeRange(dr).download(akkaSystem).avro(path).sink.compile.drain.unsafeRunSync()
     assert(topic.load.avro(path).map(_.dataset.count()).unsafeRunSync() >= 5)
   }
 
   test("download - from #1 to #5") {
-    val path = root + "15.jackson.json"
+    val path = root / "15.jackson.json"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 5000)
     topic.withTimeRange(dr).download(akkaSystem).jackson(path).sink.compile.drain.unsafeRunSync()
 
@@ -48,7 +50,7 @@ class KafkaDownloadTest extends AnyFunSuite {
   }
 
   test("download - from #0 to less #2") {
-    val path = root + "0less2.snappy.parquet"
+    val path = root / "0less2.snappy.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 1200)
     topic
       .withTimeRange(dr)
@@ -65,7 +67,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     assert(res == expected)
   }
   test("download - from #0 to #2") {
-    val path = root + "02.bzip2.avro"
+    val path = root / "02.bzip2.avro"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now).withEndTime(now + 2000)
     topic.withTimeRange(dr).download(akkaSystem).avro(path).bzip2.sink.compile.drain.unsafeRunSync()
 
@@ -74,7 +76,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     assert(res == expected)
   }
   test("download - from #3 to #6") {
-    val path = root + "36.circe.json.gz"
+    val path = root / "36.circe.json.gz"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 3000)
     topic.withTimeRange(dr).download(akkaSystem).circe(path).gzip.sink.compile.drain.unsafeRunSync()
 
@@ -83,7 +85,7 @@ class KafkaDownloadTest extends AnyFunSuite {
     assert(res == expected)
   }
   test("download - from #2.5 to #3.5") {
-    val path = root + "between2535.parquet"
+    val path = root / "between2535.parquet"
     val dr   = NJDateTimeRange(sydneyTime).withStartTime(now + 2500).withEndTime(now + 3500)
     topic
       .withTimeRange(dr)

@@ -18,16 +18,16 @@ import scala.jdk.CollectionConverters.*
 
 sealed trait NJHadoop[F[_]] {
 
-  def delete(pathStr: String): F[Boolean]
-  def isExist(pathStr: String): F[Boolean]
-  def locatedFileStatus(pathStr: String): F[List[LocatedFileStatus]]
-  def dataFolders(pathStr: String): F[List[Path]]
+  def delete(path: NJPath): F[Boolean]
+  def isExist(path: NJPath): F[Boolean]
+  def locatedFileStatus(path: NJPath): F[List[LocatedFileStatus]]
+  def dataFolders(path: NJPath): F[List[Path]]
 
-  def byteSink(pathStr: String): Pipe[F, Byte, Unit]
-  def byteSource(pathStr: String, byteBuffer: Information): Stream[F, Byte]
+  def byteSink(path: NJPath): Pipe[F, Byte, Unit]
+  def byteSource(path: NJPath, byteBuffer: Information): Stream[F, Byte]
 
-  def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
-  def avroSource(pathStr: String, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord]
+  def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
+  def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord]
 }
 
 object NJHadoop {
@@ -37,35 +37,35 @@ object NJHadoop {
 
       /** Notes: do not close file-system.
         */
-      private def fileSystem(pathStr: String): Resource[F, FileSystem] =
-        Resource.make(F.blocking(FileSystem.get(new URI(pathStr), config)))(_ => F.pure(()))
+      private def fileSystem(uri: URI): Resource[F, FileSystem] =
+        Resource.make(F.blocking(FileSystem.get(uri, config)))(_ => F.pure(()))
 
-      private def fsOutput(pathStr: String): Resource[F, FSDataOutputStream] =
+      private def fsOutput(path: NJPath): Resource[F, FSDataOutputStream] =
         for {
-          fs <- fileSystem(pathStr)
-          rs <- Resource.make[F, FSDataOutputStream](F.blocking(fs.create(new Path(pathStr))))(r =>
+          fs <- fileSystem(path.uri)
+          rs <- Resource.make[F, FSDataOutputStream](F.blocking(fs.create(path.hadoopPath)))(r =>
             F.blocking(r.close()).attempt.void)
         } yield rs
 
-      private def fsInput(pathStr: String): Resource[F, FSDataInputStream] =
+      private def fsInput(path: NJPath): Resource[F, FSDataInputStream] =
         for {
-          fs <- fileSystem(pathStr)
-          rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(new Path(pathStr))))(r =>
+          fs <- fileSystem(path.uri)
+          rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(path.hadoopPath)))(r =>
             F.blocking(r.close()).attempt.void)
         } yield rs
 
       // disk operations
 
-      override def delete(pathStr: String): F[Boolean] =
-        fileSystem(pathStr).use(fs => F.blocking(fs.delete(new Path(pathStr), true)))
+      override def delete(path: NJPath): F[Boolean] =
+        fileSystem(path.uri).use(fs => F.blocking(fs.delete(path.hadoopPath, true)))
 
-      override def isExist(pathStr: String): F[Boolean] =
-        fileSystem(pathStr).use(fs => F.blocking(fs.exists(new Path(pathStr))))
+      override def isExist(path: NJPath): F[Boolean] =
+        fileSystem(path.uri).use(fs => F.blocking(fs.exists(path.hadoopPath)))
 
-      override def locatedFileStatus(pathStr: String): F[List[LocatedFileStatus]] =
-        fileSystem(pathStr).use { fs =>
+      override def locatedFileStatus(path: NJPath): F[List[LocatedFileStatus]] =
+        fileSystem(path.uri).use { fs =>
           F.blocking {
-            val ri = fs.listFiles(new Path(pathStr), true)
+            val ri = fs.listFiles(path.hadoopPath, true)
             val lb = ListBuffer.empty[LocatedFileStatus]
             while (ri.hasNext) lb.addOne(ri.next())
             lb.toList
@@ -73,10 +73,10 @@ object NJHadoop {
         }
 
       // folders which contain data files
-      override def dataFolders(pathStr: String): F[List[Path]] =
-        fileSystem(pathStr).use { fs =>
+      override def dataFolders(path: NJPath): F[List[Path]] =
+        fileSystem(path.uri).use { fs =>
           F.blocking {
-            val ri = fs.listFiles(new Path(pathStr), true)
+            val ri = fs.listFiles(path.hadoopPath, true)
             val lb = collection.mutable.Set.empty[Path]
             while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
             lb.toList.sortBy(_.toString)
@@ -85,20 +85,20 @@ object NJHadoop {
 
       // pipes and sinks
 
-      override def byteSink(pathStr: String): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
+      override def byteSink(path: NJPath): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
         for {
-          fs <- Stream.resource(fsOutput(pathStr))
+          fs <- Stream.resource(fsOutput(path))
           r <- ss.through(writeOutputStream[F](F.delay(fs)))
         } yield r
       }
 
-      override def byteSource(pathStr: String, byteBuffer: Information): Stream[F, Byte] =
+      override def byteSource(path: NJPath, byteBuffer: Information): Stream[F, Byte] =
         for {
-          is <- Stream.resource(fsInput(pathStr))
+          is <- Stream.resource(fsInput(path))
           bt <- readInputStream[F](F.delay(is), byteBuffer.toBytes.toInt)
         } yield bt
 
-      override def avroSink(pathStr: String, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+      override def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
@@ -112,13 +112,13 @@ object NJHadoop {
               Resource.make[F, DataFileWriter[GenericRecord]](
                 F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf)))(r =>
                 F.blocking(r.close()).attempt.void))
-            writer <- Stream.resource(fsOutput(pathStr)).map(os => dfw.create(schema, os))
+            writer <- Stream.resource(fsOutput(path)).map(os => dfw.create(schema, os))
             _ <- go(ss, writer).stream
           } yield ()
       }
 
-      override def avroSource(pathStr: String, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] = for {
-        is <- Stream.resource(fsInput(pathStr))
+      override def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] = for {
+        is <- Stream.resource(fsInput(path))
         dfs <- Stream.resource(
           Resource.make[F, DataFileStream[GenericRecord]](
             F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r =>

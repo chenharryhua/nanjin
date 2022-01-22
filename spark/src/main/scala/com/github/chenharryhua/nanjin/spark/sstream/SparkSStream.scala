@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{Dataset, Row}
@@ -11,7 +12,7 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   private def updateConfig(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
     new SparkSStream[F, A](dataset, f(cfg))
 
-  def checkpoint(cp: String): SparkSStream[F, A] = updateConfig(_.checkpoint(cp))
+  def checkpoint(cp: NJPath): SparkSStream[F, A] = updateConfig(_.checkpoint(cp))
   def failOnDataLoss: SparkSStream[F, A]         = updateConfig(_.dataLossFailure)
   def ignoreDataLoss: SparkSStream[F, A]         = updateConfig(_.dataLossIgnore)
 
@@ -37,13 +38,13 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   def consoleSink: NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dataset.writeStream, cfg)
 
-  def fileSink(path: String): NJFileSink[F, A] =
+  def fileSink(path: NJPath): NJFileSink[F, A] =
     new NJFileSink[F, A](dataset.writeStream, cfg, path)
 
   def memorySink(queryName: String): NJMemorySink[F, A] =
     new NJMemorySink[F, A](dataset.writeStream, cfg.queryName(queryName))
 
-  def datePartitionSink(path: String): NJFileSink[F, Row] = {
+  def datePartitionSink(path: NJPath): NJFileSink[F, Row] = {
     val year  = udf((ts: Long) => NJTimestamp(ts).yearStr(params.zoneId))
     val month = udf((ts: Long) => NJTimestamp(ts).monthStr(params.zoneId))
     val day   = udf((ts: Long) => NJTimestamp(ts).dayStr(params.zoneId))

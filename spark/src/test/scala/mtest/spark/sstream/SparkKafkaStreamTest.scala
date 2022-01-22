@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.spark.kafka.*
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder
 import mtest.spark.kafka.{ctx, sparKafka}
 import mtest.spark.persist.{Rooster, RoosterData}
@@ -19,10 +20,11 @@ import java.time.Instant
 import scala.concurrent.duration.*
 import scala.util.Random
 import eu.timepit.refined.auto.*
+
 @DoNotDiscover
 class SparkKafkaStreamTest extends AnyFunSuite {
 
-  val root = "./data/test/spark/sstream/"
+  val root = NJPath("./data/test/spark/sstream/")
 
   val roosterTopic: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec)
@@ -39,7 +41,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     val ss = sparKafka
       .topic(rooster)
       .sstream
-      .checkpoint("./data/test/checkpoint")
+      .checkpoint(NJPath("./data/test/checkpoint"))
       .map(x => x.newValue(x.value.map(_.index + 1)))
       .flatMap(x => x.value.map(_ => x))
       .filter(_ => true)
@@ -65,7 +67,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
   test("file sink avro - should be read back") {
     val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
 
-    val path = root + "fileSink"
+    val path = root / "fileSink"
     val ss = sparKafka
       .topic(rooster)
       .sstream
@@ -96,7 +98,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
   test("date partition sink json - should be read back") {
     val rooster = roosterTopic.withTopicName("sstream.datepartition.rooster").in(ctx)
 
-    val path = root + "date_partition"
+    val path = root / "date_partition"
 
     val ss = sparKafka
       .topic(rooster)
@@ -121,9 +123,14 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
-    val todayPath = path + "/" + ts
+    val todayPath = path.pathStr + "/" + ts
     assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
-    sparKafka.topic(rooster).load.json(todayPath).flatMap(_.count.map(println)).unsafeRunSync()
+    sparKafka
+      .topic(rooster)
+      .load
+      .json(NJPath(NJPath.Root.unsafeFrom(todayPath)))
+      .flatMap(_.count.map(println))
+      .unsafeRunSync()
   }
 
   test("memory sink - validate kafka timestamp") {

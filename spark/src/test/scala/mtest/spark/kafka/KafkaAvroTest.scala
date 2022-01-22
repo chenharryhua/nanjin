@@ -1,18 +1,20 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
-import cats.syntax.all._
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.spark.injection._
-import io.circe.generic.auto._
+import com.github.chenharryhua.nanjin.spark.injection.*
+import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
-import shapeless._
+import shapeless.*
 import fs2.kafka.ProducerRecord
 import fs2.kafka.ProducerRecords
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import io.circe.Codec
 import eu.timepit.refined.auto.*
 import squants.information.InformationConversions.*
+
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
   final case class Child2(a: Int, b: String)
@@ -64,7 +66,7 @@ class KafkaAvroTest extends AnyFunSuite {
           List(ProducerRecord(topicCO.topicName.value, 0, co1), ProducerRecord(topicCO.topicName.value, 1, co2))))
       .covary[IO]
       .through(topicCO.fs2Channel.updateProducer(_.withClientId("kafka.avro.test1")).producerPipe)
-    val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
+    val path = NJPath("./data/test/spark/kafka/coproduct/caseobject.avro")
     val sk   = sparKafka.topic(topicCO.topicDef)
 
     val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
@@ -82,9 +84,9 @@ class KafkaAvroTest extends AnyFunSuite {
           List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(topicEnum.fs2Channel.updateProducer(_.withClientId("kafka.avro.test2")).producerPipe)
-    val avroPath    = "./data/test/spark/kafka/coproduct/scalaenum.avro"
-    val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
-    val circePath   = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
+    val avroPath    = NJPath("./data/test/spark/kafka/coproduct/scalaenum.avro")
+    val jacksonPath = NJPath("./data/test/spark/kafka/coproduct/scalaenum.jackson.json")
+    val circePath   = NJPath("./data/test/spark/kafka/coproduct/scalaenum.circe.json")
     val sk          = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
@@ -118,7 +120,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .through(topicEnum.fs2Channel.updateProducer(_.withClientId("kafka.avro.test3")).producerPipe)
 
-    val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
+    val path = NJPath("./data/test/spark/kafka/coproduct/multi-scalaenum.avro")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
@@ -137,7 +139,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .through(topicEnum.fs2Channel.updateProducer(_.withClientId("kafka.avro.test4")).producerPipe)
 
-    val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
+    val path = NJPath("./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
@@ -154,7 +156,7 @@ class KafkaAvroTest extends AnyFunSuite {
           List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(topicEnum.fs2Channel.updateProducer(_.withClientId("kafka.avro.test5")).producerPipe)
-    val path = "./data/test/spark/kafka/coproduct/single-scalaenum.snappy.avro"
+    val path = NJPath("./data/test/spark/kafka/coproduct/single-scalaenum.snappy.avro")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>

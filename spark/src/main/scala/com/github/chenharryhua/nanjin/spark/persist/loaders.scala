@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerialization, GenericRecordCodec, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import fs2.Stream
 import io.circe.Decoder as JsonDecoder
@@ -28,17 +28,13 @@ import scala.util.Try
 
 object loaders {
 
-  def avro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalizeDF(ss.read.format("avro").load(pathStr))
+  def avro[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    ate.normalizeDF(ss.read.format("avro").load(path.pathStr))
 
-  def parquet[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalizeDF(ss.read.parquet(pathStr))
+  def parquet[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    ate.normalizeDF(ss.read.parquet(path.pathStr))
 
-  def csv[A](
-    pathStr: String,
-    ate: AvroTypedEncoder[A],
-    csvConfiguration: CsvConfiguration,
-    ss: SparkSession): Dataset[A] =
+  def csv[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession): Dataset[A] =
     ate.normalizeDF(
       ss.read
         .schema(ate.sparkSchema)
@@ -46,43 +42,43 @@ object loaders {
         .option("header", csvConfiguration.hasHeader)
         .option("quote", csvConfiguration.quote.toString)
         .option("charset", "UTF8")
-        .csv(pathStr))
+        .csv(path.pathStr))
 
-  def csv[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    csv[A](pathStr, ate, CsvConfiguration.rfc, ss)
+  def csv[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    csv[A](path, ate, CsvConfiguration.rfc, ss)
 
-  def json[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(pathStr))
+  def json[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(path.pathStr))
 
-  def objectFile[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalize(rdd.objectFile[A](pathStr, ss)(ate.classTag), ss)
+  def objectFile[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    ate.normalize(rdd.objectFile[A](path, ss)(ate.classTag), ss)
 
-  def circe[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession)(implicit dec: JsonDecoder[A]): Dataset[A] =
-    ate.normalize(rdd.circe[A](pathStr, ss)(ate.classTag, dec), ss)
+  def circe[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession)(implicit dec: JsonDecoder[A]): Dataset[A] =
+    ate.normalize(rdd.circe[A](path, ss)(ate.classTag, dec), ss)
 
-  def jackson[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalize(rdd.jackson[A](pathStr, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
+  def jackson[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    ate.normalize(rdd.jackson[A](path, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
-  def binAvro[A](pathStr: String, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalize(rdd.binAvro[A](pathStr, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
+  def binAvro[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    ate.normalize(rdd.binAvro[A](path, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
   object rdd {
 
-    def objectFile[A: ClassTag](pathStr: String, ss: SparkSession): RDD[A] =
-      ss.sparkContext.objectFile[A](pathStr)
+    def objectFile[A: ClassTag](path: NJPath, ss: SparkSession): RDD[A] =
+      ss.sparkContext.objectFile[A](path.pathStr)
 
-    def circe[A: ClassTag: JsonDecoder](pathStr: String, ss: SparkSession): RDD[A] =
+    def circe[A: ClassTag: JsonDecoder](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext
-        .textFile(pathStr)
+        .textFile(path.pathStr)
         .map(decode[A](_) match {
           case Left(ex) => throw ex
           case Right(r) => r
         })
 
-    def protobuf[A <: GeneratedMessage: ClassTag](pathStr: String, ss: SparkSession)(implicit
+    def protobuf[A <: GeneratedMessage: ClassTag](path: NJPath, ss: SparkSession)(implicit
       decoder: GeneratedMessageCompanion[A]): RDD[A] =
       ss.sparkContext
-        .binaryFiles(pathStr)
+        .binaryFiles(path.pathStr)
         .mapPartitions(_.flatMap { case (_, pds) =>
           val dis: DataInputStream = pds.open()
           val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).iterator
@@ -94,7 +90,7 @@ object loaders {
           }
         })
 
-    def avro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
+    def avro[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
       AvroJob.setInputKeySchema(job, decoder.schema)
@@ -102,16 +98,16 @@ object loaders {
 
       ss.sparkContext
         .newAPIHadoopFile(
-          pathStr,
+          path.pathStr,
           classOf[AvroKeyInputFormat[GenericRecord]],
           classOf[AvroKey[GenericRecord]],
           classOf[NullWritable])
         .map { case (gr, _) => decoder.decode(gr.datum()) }
     }
 
-    def binAvro[A: ClassTag](pathStr: String, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] =
+    def binAvro[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] =
       ss.sparkContext
-        .binaryFiles(pathStr)
+        .binaryFiles(path.pathStr)
         .mapPartitions(_.flatMap { case (_, pds) => // resource leak ???
           val dis: DataInputStream = pds.open()
           val itor: Iterator[A] =
@@ -124,9 +120,9 @@ object loaders {
           }
         })
 
-    def jackson[A: ClassTag](pathStr: String, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
+    def jackson[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
       val schema = decoder.schema
-      ss.sparkContext.textFile(pathStr).mapPartitions { strs =>
+      ss.sparkContext.textFile(path.pathStr).mapPartitions { strs =>
         val datumReader = new GenericDatumReader[GenericRecord](schema)
         strs.map { str =>
           val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
@@ -139,33 +135,30 @@ object loaders {
   object stream {
 
     def jackson[F[_]: Async, A](
-      pathStr: String,
+      path: NJPath,
       decoder: AvroDecoder[A],
       cfg: Configuration,
       byteBuffer: Information): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val jk     = new JacksonSerialization[F](decoder.schema)
       val gr     = new GenericRecordCodec[F, A]
-      hadoop.byteSource(pathStr, byteBuffer).through(jk.deserialize).through(gr.decode(decoder))
+      hadoop.byteSource(path, byteBuffer).through(jk.deserialize).through(gr.decode(decoder))
     }
 
     def avro[F[_]: Sync, A](
-      pathStr: String,
+      path: NJPath,
       decoder: AvroDecoder[A],
       cfg: Configuration,
       chunkSize: ChunkSize): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val gr     = new GenericRecordCodec[F, A]
-      hadoop.avroSource(pathStr, decoder.schema, chunkSize).through(gr.decode(decoder))
+      hadoop.avroSource(path, decoder.schema, chunkSize).through(gr.decode(decoder))
     }
 
-    def circe[F[_]: Sync, A: JsonDecoder](
-      pathStr: String,
-      cfg: Configuration,
-      byteBuffer: Information): Stream[F, A] = {
+    def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration, byteBuffer: Information): Stream[F, A] = {
       val hadoop = NJHadoop(cfg)
       val cs     = new CirceSerialization[F, A]
-      hadoop.byteSource(pathStr, byteBuffer).through(cs.deserialize)
+      hadoop.byteSource(path, byteBuffer).through(cs.deserialize)
     }
   }
 }

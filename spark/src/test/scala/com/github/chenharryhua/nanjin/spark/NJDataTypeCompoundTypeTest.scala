@@ -20,7 +20,7 @@ object NJDataTypeCompoundTypeTestData {
 }
 
 class NJDataTypeCompoundTypeTest extends AnyFunSuite {
-  import NJDataTypeCompoundTypeTestData._
+  import NJDataTypeCompoundTypeTestData.*
 
   val generator: Generator =
     Generator(Standard, avroScalaCustomTypes = Some(AvroScalaTypes(array = ScalaArray)))

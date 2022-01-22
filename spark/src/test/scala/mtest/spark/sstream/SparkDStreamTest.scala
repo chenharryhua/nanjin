@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto.*
@@ -15,13 +16,15 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration.*
+import eu.timepit.refined.auto.*
+
 @DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
   before(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.ERROR.entryName))
   after(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.WARN.entryName))
 
-  val root: String = "./data/test/spark/dstream/"
+  val root: NJPath = NJPath("./data/test/spark/dstream/")
 
 //  better.files.File(root).delete(true)
 
@@ -38,10 +41,10 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     .interruptAfter(10.seconds)
 
   test("dstream") {
-    val jackson    = root + "jackson/"
-    val circe      = root + "circe/"
-    val avro       = root + "avro/"
-    val checkpoint = root + "checkpont/"
+    val jackson    = root / "jackson"
+    val circe      = root / "circe"
+    val avro       = root / "avro"
+    val checkpoint = root / "checkpont"
 
     val runner: DStreamRunner[IO] = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
     sender
@@ -57,10 +60,14 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
       .drain
       .unsafeRunSync()
 
-    val now = NJTimestamp.now().`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
-    val j   = topic.load.jackson(jackson + now).unsafeRunSync().transform(_.distinct())
-    val a   = topic.load.avro(avro + now).map(_.transform(_.distinct())).unsafeRunSync()
-    val c   = topic.load.circe(circe + now).unsafeRunSync().transform(_.distinct())
+    val ts    = NJTimestamp.now()
+    val year  = NJPath.Segment.unsafeFrom(s"Year=${ts.yearStr(sydneyTime)}")
+    val month = NJPath.Segment.unsafeFrom(s"Month=${ts.monthStr(sydneyTime)}")
+    val day   = NJPath.Segment.unsafeFrom(s"Day=${ts.dayStr(sydneyTime)}")
+
+    val j = topic.load.jackson(jackson / year / month / day).unsafeRunSync().transform(_.distinct())
+    val a = topic.load.avro(avro / year / month / day).map(_.transform(_.distinct())).unsafeRunSync()
+    val c = topic.load.circe(circe / year / month / day).unsafeRunSync().transform(_.distinct())
 
     j.diff(a).show(truncate = false)
     c.diff(a).show(truncate = false)

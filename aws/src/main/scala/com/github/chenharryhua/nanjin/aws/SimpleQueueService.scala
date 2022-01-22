@@ -8,6 +8,7 @@ import akka.stream.scaladsl.Sink
 import cats.Applicative
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import fs2.Stream
@@ -36,18 +37,19 @@ object sqs {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
     }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
+  def apply[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize)(implicit
+    F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      qr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, bufferSize))) {
+      qr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, chunkSize))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield qr
 
   def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
-    apply[F](akkaSystem, 1024)
+    apply[F](akkaSystem, ChunkSize(1024))
 
-  final private class AwsSQS[F[_]](akkaSystem: ActorSystem, bufferSize: Int)(implicit F: Async[F])
+  final private class AwsSQS[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize)(implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
     implicit private val client: SqsAsyncClient =
@@ -63,7 +65,7 @@ object sqs {
           .map(MessageAction.Delete(_))
           .via(SqsAckFlow(sqs.value))
           .runWith(Sink.asPublisher(fanout = false))
-          .toStreamBuffered(bufferSize))
+          .toStreamBuffered(chunkSize.value))
 
     override protected val closeService: F[Unit] = F.blocking(client.close())
   }

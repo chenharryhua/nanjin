@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.database
 
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.database.TableName
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -11,8 +12,8 @@ import org.apache.spark.sql.SaveMode
   tableName: TableName,
   query: Option[String],
   dbSaveMode: SaveMode,
-  replayPathBuilder: TableName => String) {
-  val replayPath: String = replayPathBuilder(tableName)
+  replayPathBuilder: TableName => NJPath) {
+  val replayPath: NJPath = replayPathBuilder(tableName)
 }
 
 private[database] object STParams {
@@ -22,7 +23,7 @@ private[database] object STParams {
       tableName = tableName,
       None,
       dbSaveMode = SaveMode.ErrorIfExists,
-      replayPathBuilder = tn => s"./data/sparkDB/${tn.value}/replay/".replace(":", "_")
+      replayPathBuilder = tn => NJPath(NJPath.Root.unsafeFrom(s"./data/sparkDB/${tn.value}/replay/".replace(":", "_")))
     )
 }
 
@@ -35,7 +36,7 @@ private object STConfigF {
 
   final case class WithDbSaveMode[K](value: SaveMode, cont: K) extends STConfigF[K]
 
-  final case class WithReplayPathBuilder[K](value: TableName => String, cont: K) extends STConfigF[K]
+  final case class WithReplayPathBuilder[K](value: TableName => NJPath, cont: K) extends STConfigF[K]
 
   final case class WithQuery[K](value: String, cont: K) extends STConfigF[K]
   final case class WithTableName[K](value: TableName, count: K) extends STConfigF[K]
@@ -56,7 +57,7 @@ final private[database] case class STConfig(value: Fix[STConfigF]) extends AnyVa
 
   def saveMode(sm: SaveMode): STConfig = STConfig(Fix(WithDbSaveMode(sm, value)))
 
-  def replayPathBuilder(f: TableName => String): STConfig =
+  def replayPathBuilder(f: TableName => NJPath): STConfig =
     STConfig(Fix(WithReplayPathBuilder(f, value)))
 
   def unloadQuery(query: String): STConfig = STConfig(Fix(WithQuery(query, value)))

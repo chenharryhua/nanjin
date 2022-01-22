@@ -14,6 +14,8 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream}
+import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import org.apache.spark.rdd.RDD
@@ -68,7 +70,13 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
   def download(akkaSystem: ActorSystem): KafkaDownloader[F, K, V] =
-    new KafkaDownloader[F, K, V](akkaSystem, topic, ss.sparkContext.hadoopConfiguration, cfg, akkaUpdater.unitConsumer)
+    new KafkaDownloader[F, K, V](
+      akkaSystem,
+      topic,
+      ss.sparkContext.hadoopConfiguration,
+      cfg,
+      akkaUpdater.unitConsumer,
+      None)
 
   /** rdd and dataset
     */
@@ -102,7 +110,9 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, ss)(f),
       SStreamConfig(params.timeRange.zoneId).checkpointBuilder(fmt =>
-        s"./data/checkpoint/sstream/kafka/${topic.topicName.value}/${fmt.format}/"))
+        NJPath("./data/checkpoint/sstream/kafka") /
+          NJPath.Segment.unsafeFrom(topic.topicName.value) /
+          NJPath.Segment.unsafeFrom(fmt.format)))
 
   def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] =
     sstream(identity[NJConsumerRecord[K, V]](_), ate)

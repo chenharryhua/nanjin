@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.github.chenharryhua.nanjin.spark.persist.loaders
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import mtest.spark.kafka.sparKafka
@@ -16,6 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 import scala.util.Random
+import eu.timepit.refined.auto.*
 
 object StreamJoinTestData {
   implicit val ss: SparkSession = sparkSession
@@ -55,7 +57,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
   import StreamJoinTestData.*
   import sparkSession.implicits.*
   test("spark kafka stream-table join") {
-    val path = "./data/test/spark/sstream/stream-table-join"
+    val path = NJPath("./data/test/spark/sstream/stream-table-join")
     val sender =
       fooTopic
         .prRdd(fooData)

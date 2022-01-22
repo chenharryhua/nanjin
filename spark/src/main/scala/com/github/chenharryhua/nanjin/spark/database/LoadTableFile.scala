@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.database
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.zaxxer.hikari.HikariConfig
 import io.circe.Decoder as JsonDecoder
 import kantan.csv.CsvConfiguration
@@ -15,48 +16,48 @@ final class LoadTableFile[F[_], A] private[database] (
   ss: SparkSession) {
   private val ate: AvroTypedEncoder[A] = td.ate
 
-  def parquet(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def parquet(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds: Dataset[A] = loaders.parquet[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.parquet[A](path, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def avro(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def avro(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds: Dataset[A] = loaders.avro[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.avro[A](path, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def circe(pathStr: String)(implicit ev: JsonDecoder[A], F: Sync[F]): F[TableDS[F, A]] =
+  def circe(path: NJPath)(implicit ev: JsonDecoder[A], F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds: Dataset[A] = loaders.circe[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.circe[A](path, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def csv(pathStr: String, csvConfiguration: CsvConfiguration)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def csv(path: NJPath, csvConfiguration: CsvConfiguration)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.csv[A](pathStr, ate, csvConfiguration, ss)
+      val tds = loaders.csv[A](path, ate, csvConfiguration, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def csv(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
-    csv(pathStr, CsvConfiguration.rfc)
+  def csv(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
+    csv(path, CsvConfiguration.rfc)
 
-  def json(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def json(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds: Dataset[A] = loaders.json[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.json[A](path, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def jackson(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def jackson(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds: Dataset[A] = loaders.jackson[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.jackson[A](path, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def binAvro(pathStr: String)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def binAvro(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds: Dataset[A] = loaders.binAvro[A](pathStr, ate, ss)
+      val tds: Dataset[A] = loaders.binAvro[A](path, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 }

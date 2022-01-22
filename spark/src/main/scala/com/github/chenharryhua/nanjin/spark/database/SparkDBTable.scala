@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.zaxxer.hikari.HikariConfig
 import frameless.{TypedDataset, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
@@ -26,7 +27,7 @@ final class SparkDBTable[F[_], A](
   def withQuery(query: String): SparkDBTable[F, A] =
     new SparkDBTable[F, A](tableDef, hikariConfig, cfg.unloadQuery(query), ss)
 
-  def withReplayPathBuilder(f: TableName => String): SparkDBTable[F, A] =
+  def withReplayPathBuilder(f: TableName => NJPath): SparkDBTable[F, A] =
     new SparkDBTable[F, A](tableDef, hikariConfig, cfg.replayPathBuilder(f), ss)
 
   def fromDB(implicit F: Sync[F]): F[TableDS[F, A]] = F.blocking {

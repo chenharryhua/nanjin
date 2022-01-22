@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.sstream
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -11,19 +12,20 @@ import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import eu.timepit.refined.auto.*
 
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 @Lenses final private[sstream] case class SStreamParams private (
   zoneId: ZoneId,
   fileFormat: NJFileFormat,
-  checkpointBuilder: NJFileFormat => String,
+  checkpointBuilder: NJFileFormat => NJPath,
   dataLoss: NJFailOnDataLoss,
   outputMode: OutputMode,
   trigger: Trigger,
   progressInterval: FiniteDuration,
   queryName: Option[String]) {
-  val checkpoint: String = checkpointBuilder(fileFormat)
+  val checkpoint: NJPath = checkpointBuilder(fileFormat)
 }
 
 private[sstream] object SStreamParams {
@@ -32,7 +34,8 @@ private[sstream] object SStreamParams {
     SStreamParams(
       zoneId = zoneId,
       fileFormat = NJFileFormat.SparkJson,
-      checkpointBuilder = (fmt: NJFileFormat) => s"./data/checkpoint/sstream/${fmt.format}",
+      checkpointBuilder =
+        (fmt: NJFileFormat) => NJPath("./data/checkpoint/sstream") / NJPath.Segment.unsafeFrom(fmt.format),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
       trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES),
@@ -48,7 +51,7 @@ private object SStreamConfigF {
 
   final case class InitParams[K](zoneId: ZoneId) extends SStreamConfigF[K]
 
-  final case class WithCheckpointBuilder[K](f: NJFileFormat => String, cont: K) extends SStreamConfigF[K]
+  final case class WithCheckpointBuilder[K](f: NJFileFormat => NJPath, cont: K) extends SStreamConfigF[K]
 
   final case class WithFailOnDataLoss[K](isFail: Boolean, cont: K) extends SStreamConfigF[K]
   final case class WithOutputMode[K](value: OutputMode, cont: K) extends SStreamConfigF[K]
@@ -78,9 +81,9 @@ private object SStreamConfigF {
 final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
   import SStreamConfigF.*
 
-  def checkpointBuilder(f: NJFileFormat => String): SStreamConfig =
+  def checkpointBuilder(f: NJFileFormat => NJPath): SStreamConfig =
     SStreamConfig(Fix(WithCheckpointBuilder(f, value)))
-  def checkpoint(cp: String): SStreamConfig = checkpointBuilder(_ => cp)
+  def checkpoint(cp: NJPath): SStreamConfig = checkpointBuilder(_ => cp)
 
   def dataLossFailure: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = true, value)))
   def dataLossIgnore: SStreamConfig  = SStreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))

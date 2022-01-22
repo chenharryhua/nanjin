@@ -60,13 +60,9 @@ class SKConfigTest extends AnyFunSuite {
     assert(p.timeLimit == 60.second)
   }
   test("misc update") {
-    val p = skc
-      .topicName("config.update")
-      .locationStrategy(LocationStrategies.PreferBrokers)
-      .replayPathBuilder(_.value)
-      .evalConfig
+    val p = skc.topicName("config.update").locationStrategy(LocationStrategies.PreferBrokers).evalConfig
 
     assert(p.topicName.value == "config.update")
-    assert(p.replayPath == "config.update")
+    assert(p.replayPath.pathStr == "./data/sparKafka/config.update/replay/")
   }
 }

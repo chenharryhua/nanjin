@@ -2,7 +2,7 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.Schema
@@ -58,7 +58,7 @@ class HadoopTest extends AnyFunSuite {
   import HadoopTestData.*
 
   test("hadoop text write/read identity") {
-    val pathStr    = "./data/test/devices/greeting.txt"
+    val pathStr    = NJPath("./data/test/devices/") / "greeting.txt"
     val testString = s"hello hadoop ${Random.nextInt()}"
     val ts: Stream[IO, Byte] =
       Stream(testString).through(fs2.text.utf8.encode)
@@ -70,15 +70,16 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("snappy avro write/read") {
-    val pathStr = "./data/test/devices/panda.snappy.avro"
+    val pathStr = NJPath("./data/test/devices/panda.snappy.avro/")
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.snappyCodec)).compile.drain >>
       hdp.avroSource(pathStr, pandaSchema, 100).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
+
   test("deflate(6) avro write/read") {
-    val pathStr = "./data/test/devices/panda.deflate.avro"
+    val pathStr = NJPath("./data/test/devices/panda.deflate.avro")
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.deflateCodec(6))).compile.drain >>
@@ -87,7 +88,7 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("uncompressed avro write/read") {
-    val pathStr = "./data/test/devices/panda.uncompressed.avro"
+    val pathStr = NJPath("./data/test/devices/panda.uncompressed.avro")
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.nullCodec)).compile.drain >>
@@ -96,7 +97,7 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("dataFolders") {
-    val pathStr = "./data/test/devices"
+    val pathStr = NJPath("./data/test/devices")
     val folders = hdp.dataFolders(pathStr).unsafeRunSync()
     assert(folders.headOption.exists(_.toUri.getPath.contains("devices")))
   }
