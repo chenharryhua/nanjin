@@ -16,13 +16,8 @@ import java.time.ZoneId
 
 object SDParams {
 
-  private def pathBuilder(zoneId: ZoneId)(root: NJPath)(ts: NJTimestamp): NJPath = {
-    val year  = NJPath.Segment.unsafeFrom(s"Year=${ts.yearStr(zoneId)}")
-    val month = NJPath.Segment.unsafeFrom(s"Month=${ts.monthStr(zoneId)}")
-    val day   = NJPath.Segment.unsafeFrom(s"Day=${ts.dayStr(zoneId)}")
-
-    root / year / month / day
-  }
+  private def pathBuilder(zoneId: ZoneId)(root: NJPath)(ts: NJTimestamp): NJPath =
+    root / ts.atZone(zoneId).toLocalDate
 
   def apply(zoneId: ZoneId): SDParams =
     SDParams(zoneId = zoneId, pathBuilder = pathBuilder(zoneId))

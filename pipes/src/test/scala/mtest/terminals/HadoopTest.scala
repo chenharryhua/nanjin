@@ -70,7 +70,7 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("snappy avro write/read") {
-    val pathStr = NJPath("./data/test/devices/panda.snappy.avro/")
+    val pathStr = NJPath("./data/test/devices/panda.snappy.avro")
     val ts      = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.snappyCodec)).compile.drain >>
