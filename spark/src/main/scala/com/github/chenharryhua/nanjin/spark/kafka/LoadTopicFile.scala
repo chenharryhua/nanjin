@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.loaders
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Decoder
 import frameless.TypedEncoder
 import fs2.Stream
@@ -16,42 +17,42 @@ import squants.information.Information
 final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends Serializable {
 
-  def avro(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
+  def avro(path: NJPath)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
-      val tds = loaders.avro[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      val tds = loaders.avro[NJConsumerRecord[K, V]](path, ate, ss)
       new CrDS(tds, topic, cfg, tek, tev)
     }
 
-  def parquet(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
+  def parquet(path: NJPath)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
-      val tds = loaders.parquet[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      val tds = loaders.parquet[NJConsumerRecord[K, V]](path, ate, ss)
       new CrDS(tds, topic, cfg, tek, tev)
     }
 
-  def json(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
+  def json(path: NJPath)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
-      val tds = loaders.json[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      val tds = loaders.json[NJConsumerRecord[K, V]](path, ate, ss)
       new CrDS(tds, topic, cfg, tek, tev)
     }
 
-  def jackson(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
+  def jackson(path: NJPath)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
-      val tds = loaders.jackson[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      val tds = loaders.jackson[NJConsumerRecord[K, V]](path, ate, ss)
       new CrDS(tds, topic, cfg, tek, tev)
     }
 
-  def binAvro(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
+  def binAvro(path: NJPath)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
-      val tds = loaders.binAvro[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      val tds = loaders.binAvro[NJConsumerRecord[K, V]](path, ate, ss)
       new CrDS(tds, topic, cfg, tek, tev)
     }
 
-  def circe(pathStr: String)(implicit
+  def circe(path: NJPath)(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V],
     jdk: JsonDecoder[K],
@@ -59,14 +60,14 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
     F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
-      val tds = loaders.circe[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      val tds = loaders.circe[NJConsumerRecord[K, V]](path, ate, ss)
       new CrDS(tds, topic, cfg, tek, tev)
     }
 
-  def objectFile(pathStr: String)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
+  def objectFile(path: NJPath)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V], F: Sync[F]): F[CrDS[F, K, V]] =
     F.blocking {
       val ate = NJConsumerRecord.ate(topic.topicDef)
-      val tds = loaders.objectFile[NJConsumerRecord[K, V]](pathStr, ate, ss)
+      val tds = loaders.objectFile[NJConsumerRecord[K, V]](path, ate, ss)
       new CrDS(tds, topic, cfg, tek, tev)
     }
 
@@ -74,33 +75,33 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
 
   object rdd {
 
-    def avro(pathStr: String)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+    def avro(path: NJPath)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
       F.blocking {
-        val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](pathStr, decoder, ss)
+        val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](path, decoder, ss)
         new CrRdd[F, K, V](rdd, topic, cfg, ss)
       }
 
-    def jackson(pathStr: String)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+    def jackson(path: NJPath)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
       F.blocking {
-        val rdd = loaders.rdd.jackson[NJConsumerRecord[K, V]](pathStr, decoder, ss)
+        val rdd = loaders.rdd.jackson[NJConsumerRecord[K, V]](path, decoder, ss)
         new CrRdd[F, K, V](rdd, topic, cfg, ss)
       }
 
-    def binAvro(pathStr: String)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+    def binAvro(path: NJPath)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
       F.blocking {
-        val rdd = loaders.rdd.binAvro[NJConsumerRecord[K, V]](pathStr, decoder, ss)
+        val rdd = loaders.rdd.binAvro[NJConsumerRecord[K, V]](path, decoder, ss)
         new CrRdd[F, K, V](rdd, topic, cfg, ss)
       }
 
-    def circe(pathStr: String)(implicit ev: JsonDecoder[NJConsumerRecord[K, V]], F: Sync[F]): F[CrRdd[F, K, V]] =
+    def circe(path: NJPath)(implicit ev: JsonDecoder[NJConsumerRecord[K, V]], F: Sync[F]): F[CrRdd[F, K, V]] =
       F.blocking {
-        val rdd = loaders.rdd.circe[NJConsumerRecord[K, V]](pathStr, ss)
+        val rdd = loaders.rdd.circe[NJConsumerRecord[K, V]](path, ss)
         new CrRdd[F, K, V](rdd, topic, cfg, ss)
       }
 
-    def objectFile(pathStr: String)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+    def objectFile(path: NJPath)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
       F.blocking {
-        val rdd = loaders.rdd.objectFile[NJConsumerRecord[K, V]](pathStr, ss)
+        val rdd = loaders.rdd.objectFile[NJConsumerRecord[K, V]](path, ss)
         new CrRdd[F, K, V](rdd, topic, cfg, ss)
       }
   }
@@ -108,16 +109,16 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
   object stream {
     private val hadoopConfiguration: Configuration = ss.sparkContext.hadoopConfiguration
 
-    def circe(pathStr: String, byteBuffer: Information)(implicit
+    def circe(path: NJPath, byteBuffer: Information)(implicit
       F: Sync[F],
       jdk: JsonDecoder[K],
       jdv: JsonDecoder[V]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.circe[F, NJConsumerRecord[K, V]](pathStr, hadoopConfiguration, byteBuffer)
+      loaders.stream.circe[F, NJConsumerRecord[K, V]](path, hadoopConfiguration, byteBuffer)
 
-    def jackson(pathStr: String, byteBuffer: Information)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.jackson[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration, byteBuffer)
+    def jackson(path: NJPath, byteBuffer: Information)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.jackson[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, byteBuffer)
 
-    def avro(pathStr: String, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.avro[F, NJConsumerRecord[K, V]](pathStr, decoder, hadoopConfiguration, chunkSize)
+    def avro(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.avro[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, chunkSize)
   }
 }

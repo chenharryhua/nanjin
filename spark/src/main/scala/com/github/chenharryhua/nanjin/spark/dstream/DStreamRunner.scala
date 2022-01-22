@@ -4,7 +4,7 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.spark.SparkContext
@@ -15,7 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 
 final class DStreamRunner[F[_]] private (
   sparkContext: SparkContext,
-  checkpoint: String,
+  checkpoint: NJPath,
   batchDuration: Duration,
   streamings: List[Kleisli[F, StreamingContext, DStreamRunner.Mark]],
   freshStart: Boolean // true: delete checkpoint before start, false: keep checkpoint
@@ -33,7 +33,7 @@ final class DStreamRunner[F[_]] private (
   private def createContext(dispatcher: Dispatcher[F])(): StreamingContext = {
     val ssc = new StreamingContext(sparkContext, batchDuration)
     streamings.foreach(ksd => dispatcher.unsafeRunSync(ksd.run(ssc)))
-    ssc.checkpoint(checkpoint)
+    ssc.checkpoint(checkpoint.pathStr)
     ssc
   }
 
@@ -73,7 +73,7 @@ final class DStreamRunner[F[_]] private (
       dispatcher <- Dispatcher[F]
       _ <- Resource.eval(NJHadoop[F](sparkContext.hadoopConfiguration).delete(checkpoint).whenA(freshStart))
       sc <- Resource
-        .make(F.blocking(StreamingContext.getOrCreate(checkpoint, createContext(dispatcher))))(ssc =>
+        .make(F.blocking(StreamingContext.getOrCreate(checkpoint.uri.getPath, createContext(dispatcher))))(ssc =>
           F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
         .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
     } yield sc
@@ -94,7 +94,7 @@ object DStreamRunner {
 
   def apply[F[_]: Async](
     sparkContext: SparkContext,
-    checkpoint: String,
+    checkpoint: NJPath,
     batchDuration: FiniteDuration): DStreamRunner[F] =
     new DStreamRunner[F](sparkContext, checkpoint, Seconds(batchDuration.toSeconds), Nil, false)
 }

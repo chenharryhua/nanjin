@@ -4,6 +4,7 @@ import cats.Functor
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -38,9 +39,9 @@ private[kafka] object NJLoadParams {
   topicName: TopicName,
   timeRange: NJDateTimeRange,
   locationStrategy: LocationStrategy,
-  replayPathBuilder: TopicName => String,
+  replayPathBuilder: TopicName => NJPath,
   loadParams: NJLoadParams) {
-  val replayPath: String = replayPathBuilder(topicName)
+  val replayPath: NJPath = replayPathBuilder(topicName)
 }
 
 private[kafka] object SKParams {
@@ -50,7 +51,7 @@ private[kafka] object SKParams {
       topicName = topicName,
       timeRange = NJDateTimeRange(zoneId),
       locationStrategy = LocationStrategies.PreferConsistent,
-      replayPathBuilder = topicName => s"./data/sparKafka/${topicName.value}/replay/",
+      replayPathBuilder = topicName => NJPath(NJPath.Root.unsafeFrom(s"./data/sparKafka/${topicName.value}/replay/")),
       loadParams = NJLoadParams.default
     )
 }
@@ -83,7 +84,7 @@ private object SKConfigF {
 
   final case class WithLocationStrategy[K](value: LocationStrategy, cont: K) extends SKConfigF[K]
 
-  final case class WithReplayPathBuilder[K](value: TopicName => String, cont: K) extends SKConfigF[K]
+  final case class WithReplayPathBuilder[K](value: TopicName => NJPath, cont: K) extends SKConfigF[K]
 
   private val algebra: Algebra[SKConfigF, SKParams] = Algebra[SKConfigF, SKParams] {
     case InitParams(t, z)    => SKParams(t, z)
@@ -141,7 +142,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
 
   def locationStrategy(ls: LocationStrategy): SKConfig = SKConfig(Fix(WithLocationStrategy(ls, value)))
 
-  def replayPathBuilder(f: TopicName => String): SKConfig = SKConfig(Fix(WithReplayPathBuilder(f, value)))
+  def replayPathBuilder(f: TopicName => NJPath): SKConfig = SKConfig(Fix(WithReplayPathBuilder(f, value)))
 
   def evalConfig: SKParams = SKConfigF.evalConfig(this)
 }

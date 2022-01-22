@@ -30,6 +30,6 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
           .mode(params.saveMode)
           .option("compression", params.compression.name)
           .option("ignoreNullFields", !isKeepNull)
-          .json(params.outPath)
+          .json(params.outPath.pathStr)
       })
 }

@@ -10,13 +10,13 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.interop.reactivestreams.*
 import fs2.{Pipe, Stream}
 import io.circe.Encoder as JsonEncoder
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
@@ -83,12 +83,12 @@ final class KafkaDownloader[F[_], K, V](
     Stream.force(fstream)
   }
 
-  def avro(path: String)(implicit F: Async[F]): AvroDownloader[F, K, V] = {
+  def avro(path: NJPath)(implicit F: Async[F]): AvroDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
     new AvroDownloader(stream, encoder, hadoop, path, Compression.Uncompressed, listener)
   }
 
-  def jackson(path: String)(implicit F: Async[F]): JacksonDownloader[F, K, V] = {
+  def jackson(path: NJPath)(implicit F: Async[F]): JacksonDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
     new JacksonDownloader(
       stream,
@@ -100,14 +100,14 @@ final class KafkaDownloader[F[_], K, V](
       listener)
   }
 
-  def circe(path: String)(implicit F: Async[F]): CirceDownloader[F, K, V] =
+  def circe(path: NJPath)(implicit F: Async[F]): CirceDownloader[F, K, V] =
     new CirceDownloader[F, K, V](stream, hadoop, path, isKeepNull = true, Compression.Uncompressed, listener)
 
-  def parquet(path: String)(implicit F: Async[F]): ParquetDownloader[F, K, V] = {
+  def parquet(path: NJPath)(implicit F: Async[F]): ParquetDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
 
     val builder: AvroParquetWriter.Builder[GenericRecord] = AvroParquetWriter
-      .builder[GenericRecord](HadoopOutputFile.fromPath(new Path(path), hadoop))
+      .builder[GenericRecord](HadoopOutputFile.fromPath(path.hadoopPath, hadoop))
       .withDataModel(GenericData.get())
       .withSchema(encoder.schema)
       .withConf(hadoop)
@@ -122,7 +122,7 @@ final class AvroDownloader[F[_], K, V] private[kafka] (
   stream: Stream[F, NJConsumerRecord[K, V]],
   encoder: AvroEncoder[NJConsumerRecord[K, V]],
   hadoop: Configuration,
-  path: String,
+  path: NJPath,
   compression: Compression,
   listener: Option[Kleisli[F, NJConsumerRecord[K, V], Unit]]) {
 
@@ -145,7 +145,7 @@ final class JacksonDownloader[F[_], K, V] private[kafka] (
   stream: Stream[F, NJConsumerRecord[K, V]],
   encoder: AvroEncoder[NJConsumerRecord[K, V]],
   hadoop: Configuration,
-  path: String,
+  path: NJPath,
   compression: Compression,
   chunkSize: ChunkSize,
   listener: Option[Kleisli[F, NJConsumerRecord[K, V], Unit]]) {
@@ -171,7 +171,7 @@ final class JacksonDownloader[F[_], K, V] private[kafka] (
 final class CirceDownloader[F[_], K, V] private[kafka] (
   stream: Stream[F, NJConsumerRecord[K, V]],
   hadoop: Configuration,
-  path: String,
+  path: NJPath,
   isKeepNull: Boolean,
   compression: Compression,
   listener: Option[Kleisli[F, NJConsumerRecord[K, V], Unit]]) {

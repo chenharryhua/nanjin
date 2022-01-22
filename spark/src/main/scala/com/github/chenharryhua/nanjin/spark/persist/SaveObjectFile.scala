@@ -16,5 +16,5 @@ final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Ser
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptibleMany(rdd.saveAsObjectFile(params.outPath)))
+      .checkAndRun(F.interruptibleMany(rdd.saveAsObjectFile(params.outPath.pathStr)))
 }

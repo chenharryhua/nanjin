@@ -17,7 +17,9 @@ final case class NJPath private (root: Refined[String, Uri], segments: List[NJPa
     if (root.value.endsWith("/")) s"${root.value}${segments.map(_.value).mkString("/")}"
     else s"${root.value}/${segments.map(_.value).mkString("/")}")
 
-  def hadoopPath: Path = new Path(uri.getPath)
+  def pathStr: String = uri.getPath
+
+  def hadoopPath: Path = new Path(pathStr)
 }
 object NJPath {
   type Segment = Refined[String, And[And[NonEmpty, Trimmed], Not[Contains['/']]]]

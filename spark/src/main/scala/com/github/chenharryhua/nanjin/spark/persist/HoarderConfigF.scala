@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.{ChunkSize, NJFileFormat}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -10,7 +11,7 @@ import squants.information.{Information, Kilobytes}
 
 @Lenses final private[persist] case class HoarderParams(
   format: NJFileFormat,
-  outPath: String,
+  outPath: NJPath,
   saveMode: SaveMode,
   compression: Compression,
   chunkSize: ChunkSize,
@@ -18,7 +19,7 @@ import squants.information.{Information, Kilobytes}
 
 private[persist] object HoarderParams {
 
-  def apply(outPath: String): HoarderParams =
+  def apply(outPath: NJPath): HoarderParams =
     HoarderParams(
       NJFileFormat.Unknown,
       outPath,
@@ -33,9 +34,9 @@ sealed private[persist] trait HoarderConfigF[X]
 private object HoarderConfigF {
   implicit val functorHoarderConfigF: Functor[HoarderConfigF] = cats.derived.semiauto.functor[HoarderConfigF]
 
-  final case class InitParams[K](path: String) extends HoarderConfigF[K]
+  final case class InitParams[K](path: NJPath) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
-  final case class WithOutputPath[K](value: String, cont: K) extends HoarderConfigF[K]
+  final case class WithOutputPath[K](value: NJPath, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
 
@@ -68,7 +69,7 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def overwriteMode: HoarderConfig = saveMode(SaveMode.Overwrite)
   def appendMode: HoarderConfig    = saveMode(SaveMode.Append)
 
-  def outputPath(outPath: String): HoarderConfig =
+  def outputPath(outPath: NJPath): HoarderConfig =
     HoarderConfig(Fix(WithOutputPath(outPath, value)))
 
   def outputFormat(fmt: NJFileFormat): HoarderConfig =
@@ -83,6 +84,6 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
 
 private[persist] object HoarderConfig {
 
-  def apply(outPath: String): HoarderConfig =
+  def apply(outPath: NJPath): HoarderConfig =
     HoarderConfig(Fix(HoarderConfigF.InitParams[Fix[HoarderConfigF]](outPath)))
 }

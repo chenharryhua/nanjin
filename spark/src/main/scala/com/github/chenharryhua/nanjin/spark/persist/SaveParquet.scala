@@ -8,7 +8,6 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
@@ -20,7 +19,7 @@ final class SaveParquet[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A], cfg: H
     val params: HoarderParams    = cfg.evalConfig
     val hadoopCfg: Configuration = ds.sparkSession.sparkContext.hadoopConfiguration
     val builder: AvroParquetWriter.Builder[GenericRecord] = AvroParquetWriter
-      .builder[GenericRecord](HadoopOutputFile.fromPath(new Path(params.outPath), hadoopCfg))
+      .builder[GenericRecord](HadoopOutputFile.fromPath(params.outPath.hadoopPath, hadoopCfg))
       .withDataModel(GenericData.get())
       .withSchema(encoder.schema)
       .withConf(hadoopCfg)
@@ -84,6 +83,6 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extend
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptibleMany {
-        ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath)
+        ds.write.option("compression", params.compression.name).mode(params.saveMode).parquet(params.outPath.pathStr)
       })
 }

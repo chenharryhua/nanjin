@@ -101,6 +101,6 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
           .option("quote", csvConfiguration.quote.toString)
           .option("quoteAll", quoteAll)
           .option("charset", "UTF8")
-          .csv(params.outPath)
+          .csv(params.outPath.pathStr)
       })
 }
