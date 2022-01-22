@@ -29,11 +29,7 @@ final case class NJPath private (root: NJPath.Root, segments: List[NJPath.Segmen
     NJPath(root, segments ::: List(year, month, day, hour))
   }
 
-  def uri: URI = {
-    val r: String = if (root.value.endsWith("/")) root.value.dropRight(1) else root.value
-    val p: String = s"$r/${segments.map(_.value).mkString("/")}"
-    new URI(if (p.endsWith("/")) p.dropRight(1) else p)
-  }
+  def uri: URI = new URI(root.value + segments.map(g => s"/${g.value}").mkString).normalize()
 
   def pathStr: String = uri.toASCIIString
 
