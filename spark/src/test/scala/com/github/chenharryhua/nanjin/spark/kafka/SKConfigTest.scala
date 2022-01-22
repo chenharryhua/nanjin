@@ -63,6 +63,6 @@ class SKConfigTest extends AnyFunSuite {
     val p = skc.topicName("config.update").locationStrategy(LocationStrategies.PreferBrokers).evalConfig
 
     assert(p.topicName.value == "config.update")
-    assert(p.replayPath.pathStr == "./data/sparKafka/config.update/replay/")
+    assert(p.replayPath.pathStr == "data/sparKafka/config.update/replay/")
   }
 }

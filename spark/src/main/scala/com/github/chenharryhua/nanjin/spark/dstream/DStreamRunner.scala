@@ -73,7 +73,7 @@ final class DStreamRunner[F[_]] private (
       dispatcher <- Dispatcher[F]
       _ <- Resource.eval(NJHadoop[F](sparkContext.hadoopConfiguration).delete(checkpoint).whenA(freshStart))
       sc <- Resource
-        .make(F.blocking(StreamingContext.getOrCreate(checkpoint.uri.getPath, createContext(dispatcher))))(ssc =>
+        .make(F.blocking(StreamingContext.getOrCreate(checkpoint.pathStr, createContext(dispatcher))))(ssc =>
           F.blocking(ssc.stop(stopSparkContext = false, stopGracefully = true)))
         .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
     } yield sc
