@@ -1,16 +1,17 @@
 package mtest.spark.kafka
 
-import cats.syntax.all._
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import eu.timepit.refined.auto.*
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
-import cats.effect.IO
+
 object CopyData {
   final case class MyTestData(a: Int, b: String)
 }
 
 class CopyDataTest extends AnyFunSuite {
-  import CopyData._
+  import CopyData.*
   val src = ctx.topic[Int, MyTestData]("copy.src")
   val tgt = ctx.topic[Int, MyTestData]("copy.target")
 

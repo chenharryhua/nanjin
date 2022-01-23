@@ -16,7 +16,7 @@ import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
-
+import eu.timepit.refined.auto.*
 object SparKafkaTestData {
   final case class Duck(f: Int, g: String)
 
