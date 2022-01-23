@@ -3,6 +3,7 @@ package mtest.spark.sstream
 import better.files.*
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.PathRoot
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.spark.kafka.*
@@ -128,7 +129,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     sparKafka
       .topic(rooster)
       .load
-      .json(NJPath(NJPath.Root.unsafeFrom(todayPath)))
+      .json(NJPath(PathRoot.unsafeFrom(todayPath)))
       .flatMap(_.count.map(println))
       .unsafeRunSync()
   }
