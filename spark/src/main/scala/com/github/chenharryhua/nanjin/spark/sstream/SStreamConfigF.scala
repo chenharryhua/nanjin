@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.common.{NJFileFormat, PathSegment}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -12,7 +13,6 @@ import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import eu.timepit.refined.auto.*
 
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
@@ -34,8 +34,7 @@ private[sstream] object SStreamParams {
     SStreamParams(
       zoneId = zoneId,
       fileFormat = NJFileFormat.SparkJson,
-      checkpointBuilder =
-        (fmt: NJFileFormat) => NJPath("./data/checkpoint/sstream") / NJPath.Segment.unsafeFrom(fmt.format),
+      checkpointBuilder = (fmt: NJFileFormat) => NJPath("data/checkpoint/sstream") / PathSegment.unsafeFrom(fmt.format),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
       trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES),

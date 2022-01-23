@@ -5,8 +5,8 @@ import cats.Foldable
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
@@ -43,8 +43,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.timeRange(tr))
   def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.locationStrategy(ls))
 
-  val params: SKParams        = cfg.evalConfig
-  val segment: NJPath.Segment = NJPath.Segment.unsafeFrom(topicName.value)
+  val params: SKParams     = cfg.evalConfig
+  val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
 
   def rawKafka(implicit F: Sync[F]): F[RDD[NJConsumerRecordWithError[K, V]]] =
     sk.kafkaBatch(topic, params.timeRange, params.locationStrategy, ss)
@@ -111,9 +111,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     new SparkSStream[F, A](
       sk.kafkaSStream[F, K, V, A](topic, ate, ss)(f),
       SStreamConfig(params.timeRange.zoneId).checkpointBuilder(fmt =>
-        NJPath("./data/checkpoint/sstream/kafka") /
-          NJPath.Segment.unsafeFrom(topic.topicName.value) /
-          NJPath.Segment.unsafeFrom(fmt.format)))
+        NJPath("./data/checkpoint/sstream/kafka") / segment / PathSegment.unsafeFrom(fmt.format)))
 
   def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] =
     sstream(identity[NJConsumerRecord[K, V]], ate)

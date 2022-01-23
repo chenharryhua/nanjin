@@ -40,8 +40,8 @@ final case class SparkSettings private (conf: SparkConf, logLevel: NJLogLevel)
     spk
   }
 
-  def sessionResource[F[_]: Sync]: Resource[F, SparkSession] =
-    Resource.make(Sync[F].blocking(unsafeSession))(spk => Sync[F].blocking(spk.close()))
+  def sessionResource[F[_]](implicit F: Sync[F]): Resource[F, SparkSession] =
+    Resource.make(F.blocking(unsafeSession))(spk => F.blocking(spk.close()))
 
   def sessionStream[F[_]: Sync]: Stream[F, SparkSession] = Stream.resource(sessionResource)
 }

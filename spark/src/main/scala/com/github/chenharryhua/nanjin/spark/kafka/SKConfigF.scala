@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.{ChunkSize, PathSegment}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -51,7 +52,7 @@ private[kafka] object SKParams {
       topicName = topicName,
       timeRange = NJDateTimeRange(zoneId),
       locationStrategy = LocationStrategies.PreferConsistent,
-      replayPathBuilder = topicName => NJPath(NJPath.Root.unsafeFrom(s"./data/sparKafka/${topicName.value}/replay/")),
+      replayPathBuilder = topicName => NJPath("data/sparKafka") / PathSegment.unsafeFrom(topicName.value) / "replay",
       loadParams = NJLoadParams.default
     )
 }

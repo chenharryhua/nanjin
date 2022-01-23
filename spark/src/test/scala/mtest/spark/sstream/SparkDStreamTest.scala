@@ -3,7 +3,7 @@ package mtest.spark.sstream
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.NJLogLevel
+import com.github.chenharryhua.nanjin.common.{NJLogLevel, PathSegment}
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
@@ -61,9 +61,9 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
       .unsafeRunSync()
 
     val ts    = NJTimestamp.now()
-    val year  = NJPath.Segment.unsafeFrom(s"Year=${ts.yearStr(sydneyTime)}")
-    val month = NJPath.Segment.unsafeFrom(s"Month=${ts.monthStr(sydneyTime)}")
-    val day   = NJPath.Segment.unsafeFrom(s"Day=${ts.dayStr(sydneyTime)}")
+    val year  = PathSegment.unsafeFrom(s"Year=${ts.yearStr(sydneyTime)}")
+    val month = PathSegment.unsafeFrom(s"Month=${ts.monthStr(sydneyTime)}")
+    val day   = PathSegment.unsafeFrom(s"Day=${ts.dayStr(sydneyTime)}")
 
     val j = topic.load.jackson(jackson / year / month / day).unsafeRunSync().transform(_.distinct())
     val a = topic.load.avro(avro / year / month / day).map(_.transform(_.distinct())).unsafeRunSync()

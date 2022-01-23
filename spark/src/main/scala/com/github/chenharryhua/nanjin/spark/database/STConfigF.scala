@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.Functor
+import com.github.chenharryhua.nanjin.common.PathSegment
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
@@ -23,7 +25,7 @@ private[database] object STParams {
       tableName = tableName,
       None,
       dbSaveMode = SaveMode.ErrorIfExists,
-      replayPathBuilder = tn => NJPath(NJPath.Root.unsafeFrom(s"./data/sparkDB/${tn.value}/replay/".replace(":", "_")))
+      replayPathBuilder = tn => NJPath("data/sparkDB") / PathSegment.unsafeFrom(tn.value) / "replay"
     )
 }
 
