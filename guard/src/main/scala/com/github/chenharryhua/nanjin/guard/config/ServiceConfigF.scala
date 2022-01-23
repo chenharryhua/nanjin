@@ -6,11 +6,8 @@ import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}
 import eu.timepit.refined.api.Refined
-import eu.timepit.refined.boolean.And
 import eu.timepit.refined.cats.*
-import eu.timepit.refined.collection.NonEmpty
 import eu.timepit.refined.refineMV
-import eu.timepit.refined.string.Trimmed
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
@@ -82,7 +79,7 @@ private object ServiceConfigF {
 
   final case class InitParams[K](serviceName: ServiceName, taskParams: TaskParams) extends ServiceConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
-  final case class WithServiceName[K](value: Refined[String, NonEmpty And Trimmed], cont: K) extends ServiceConfigF[K]
+  final case class WithServiceName[K](value: ServiceName, cont: K) extends ServiceConfigF[K]
   final case class WithQueueCapacity[K](value: QueueCapacity, cont: K) extends ServiceConfigF[K]
 
   final case class WithReportSchedule[K](value: Option[Either[FiniteDuration, CronExpr]], cont: K)

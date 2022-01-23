@@ -1,21 +1,22 @@
 package com.github.chenharryhua.nanjin.guard
 
+import com.github.chenharryhua.nanjin.common.NameConstraint
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.boolean.And
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.char.LowerCase
-import eu.timepit.refined.collection.{Forall, NonEmpty}
+import eu.timepit.refined.collection.Forall
 import eu.timepit.refined.numeric.NonNegative
-import eu.timepit.refined.string.{Trimmed, Url}
+import eu.timepit.refined.string.Url
 
 package object config {
-  type ServiceName = Refined[String, NonEmpty And Trimmed]
+
+  type ServiceName = Refined[String, NameConstraint]
   object ServiceName extends RefinedTypeOps[ServiceName, String] with CatsRefinedTypeOpsSyntax
 
-  type AppName = Refined[String, NonEmpty And Trimmed]
+  type AppName = Refined[String, NameConstraint]
   object AppName extends RefinedTypeOps[AppName, String] with CatsRefinedTypeOpsSyntax
 
-  type Span = Refined[String, NonEmpty And Trimmed] // And Not[Contains['/']]]
+  type Span = Refined[String, NameConstraint]
   object Span extends RefinedTypeOps[Span, String] with CatsRefinedTypeOpsSyntax
 
   type HomePage      = Refined[String, Url]
