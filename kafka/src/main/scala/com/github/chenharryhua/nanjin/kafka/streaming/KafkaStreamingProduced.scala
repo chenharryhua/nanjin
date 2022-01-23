@@ -16,7 +16,7 @@ final class KafkaStreamingProduced[F[_], K, V] private[kafka] (
   val serdeKey: Serde[K]   = keySerde
   val topicName: TopicName = topic.topicName
 
-  def withTopicName(topicName: String): KafkaStreamingProduced[F, K, V] =
+  def withTopicName(topicName: TopicName): KafkaStreamingProduced[F, K, V] =
     new KafkaStreamingProduced[F, K, V](topic.withTopicName(topicName), produced, topicNameExtractor)
 
   def withTopicNameExtractor(topicNameExtractor: TopicNameExtractor[K, V]): KafkaStreamingProduced[F, K, V] =

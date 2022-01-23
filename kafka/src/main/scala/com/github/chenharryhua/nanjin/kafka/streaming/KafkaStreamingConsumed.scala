@@ -19,7 +19,7 @@ final class KafkaStreamingConsumed[F[_], K, V] private[kafka] (topic: KafkaTopic
   val serdeKey: Serde[K]   = keySerde
   val topicName: TopicName = topic.topicName
 
-  def withTopicName(topicName: String): KafkaStreamingConsumed[F, K, V] =
+  def withTopicName(topicName: TopicName): KafkaStreamingConsumed[F, K, V] =
     new KafkaStreamingConsumed[F, K, V](topic.withTopicName(topicName), consumed)
 
   private def update(consumed: Consumed[K, V]) = new KafkaStreamingConsumed[F, K, V](topic, consumed)
