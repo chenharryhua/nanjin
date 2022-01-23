@@ -28,7 +28,7 @@ private[spark] object saveRDD {
     utils
       .genericRecordPair(rdd, encoder)
       .saveAsNewAPIHadoopFile(
-        path.uri.getPath,
+        path.pathStr,
         classOf[AvroKey[GenericRecord]],
         classOf[NullWritable],
         classOf[NJAvroKeyOutputFormat],
@@ -49,7 +49,7 @@ private[spark] object saveRDD {
     rdd
       .map(x => (NullWritable.get(), bytesWritable(x)))
       .saveAsNewAPIHadoopFile(
-        path.uri.getPath,
+        path.pathStr,
         classOf[NullWritable],
         classOf[BytesWritable],
         classOf[NJBinaryOutputFormat],
@@ -63,12 +63,7 @@ private[spark] object saveRDD {
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     rdd
       .map(x => (NullWritable.get(), new Text(encode(x).noSpaces)))
-      .saveAsNewAPIHadoopFile(
-        path.uri.getPath,
-        classOf[NullWritable],
-        classOf[Text],
-        classOf[NJTextOutputFormat],
-        config)
+      .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 
   def jackson[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: Compression): Unit = {
@@ -79,7 +74,7 @@ private[spark] object saveRDD {
     utils
       .genericRecordPair(rdd, encoder)
       .saveAsNewAPIHadoopFile(
-        path.uri.getPath,
+        path.pathStr,
         classOf[AvroKey[GenericRecord]],
         classOf[NullWritable],
         classOf[NJJacksonKeyOutputFormat],
@@ -99,7 +94,7 @@ private[spark] object saveRDD {
     rdd
       .map(x => (NullWritable.get(), bytesWritable(x)))
       .saveAsNewAPIHadoopFile(
-        path.uri.getPath,
+        path.pathStr,
         classOf[NullWritable],
         classOf[BytesWritable],
         classOf[NJBinaryOutputFormat],
@@ -112,11 +107,6 @@ private[spark] object saveRDD {
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     rdd
       .map(a => (NullWritable.get(), new Text(a.show)))
-      .saveAsNewAPIHadoopFile(
-        path.uri.getPath,
-        classOf[NullWritable],
-        classOf[Text],
-        classOf[NJTextOutputFormat],
-        config)
+      .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 }

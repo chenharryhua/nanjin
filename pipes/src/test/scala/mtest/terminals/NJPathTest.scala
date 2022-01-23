@@ -12,6 +12,7 @@ class NJPathTest extends AnyFunSuite {
     val r2: NJPath = NJPath("./data/abc/") / "efg"
     assert(r2.pathStr == "data/abc/efg")
   }
+
   test("local absolute") {
     val r1: NJPath = NJPath("/data/abc") / "efg"
     assert(r1.pathStr == "/data/abc/efg")
@@ -50,5 +51,6 @@ class NJPathTest extends AnyFunSuite {
     assertDoesNotCompile(""" NJPath("s3a://bucket/") / " a" """)
     assertDoesNotCompile(""" NJPath("s3a://bucket/") / "b " """)
     assertDoesNotCompile(""" NJPath("s3a://bucket/") / "a/b" """)
+
   }
 }

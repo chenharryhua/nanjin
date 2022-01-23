@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import cats.Show
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.boolean.{And, Not}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
-import eu.timepit.refined.collection.{Contains, NonEmpty}
-import eu.timepit.refined.string.{Trimmed, Uri}
+import eu.timepit.refined.string.{MatchesRegex, Uri}
 import org.apache.hadoop.fs.Path
 
 import java.net.URI
@@ -34,13 +33,18 @@ final case class NJPath private (root: NJPath.Root, segments: List[NJPath.Segmen
   def pathStr: String = uri.toASCIIString
 
   def hadoopPath: Path = new Path(uri)
+
+  override def toString: String = pathStr
 }
 object NJPath {
-  type Segment = Refined[String, And[And[NonEmpty, Trimmed], Not[Contains['/']]]]
+  type Segment = Refined[String, MatchesRegex["^[a-zA-Z0-9_.-=]+$"]]
   object Segment extends RefinedTypeOps[Segment, String] with CatsRefinedTypeOpsSyntax
 
   type Root = Refined[String, Uri]
   object Root extends RefinedTypeOps[Root, String] with CatsRefinedTypeOpsSyntax
 
   def apply(root: Refined[String, Uri]): NJPath = NJPath(root, Nil)
+
+  implicit val showNJPath: Show[NJPath] = _.pathStr
+
 }
