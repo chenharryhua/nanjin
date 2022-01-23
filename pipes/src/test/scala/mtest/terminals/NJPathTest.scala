@@ -30,14 +30,14 @@ class NJPathTest extends AnyFunSuite {
     assert(r1.pathStr == "s3a://bucket/folder")
     val r2: NJPath = NJPath("s3a://bucket/folder/") / "abc"
     assert(r2.pathStr == "s3a://bucket/folder/abc")
-    val r3: NJPath = NJPath("s3a://bucket/folder") / "abc" / "efg"
-    assert(r3.pathStr == "s3a://bucket/folder/abc/efg")
+    val r3: NJPath = NJPath("s3a://bucket/folder") / "a_b_c" / "efg.json"
+    assert(r3.pathStr == "s3a://bucket/folder/a_b_c/efg.json")
   }
   test("local date") {
     val r1: NJPath = NJPath("s3a://bucket")
     val ld         = LocalDate.of(2020, 1, 1)
-    val r2: NJPath = r1 / ld / "abc.json"
-    assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/abc.json")
+    val r2: NJPath = r1 / ld / "deflate-1"
+    assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/deflate-1")
   }
   test("zoned date time") {
     val r1: NJPath = NJPath("s3a://bucket")

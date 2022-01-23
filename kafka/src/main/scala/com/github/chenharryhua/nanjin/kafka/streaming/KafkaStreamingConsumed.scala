@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.Reader
 import cats.syntax.eq.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, RegisteredKeyValueSerdePair}
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.Topology
@@ -19,7 +19,7 @@ final class KafkaStreamingConsumed[F[_], K, V] private[kafka] (topic: KafkaTopic
   val serdeKey: Serde[K]   = keySerde
   val topicName: TopicName = topic.topicName
 
-  def withTopicName(topicName: String): KafkaStreamingConsumed[F, K, V] =
+  def withTopicName(topicName: TopicName): KafkaStreamingConsumed[F, K, V] =
     new KafkaStreamingConsumed[F, K, V](topic.withTopicName(topicName), consumed)
 
   private def update(consumed: Consumed[K, V]) = new KafkaStreamingConsumed[F, K, V](topic, consumed)
@@ -42,8 +42,8 @@ final class KafkaStreamingConsumed[F[_], K, V] private[kafka] (topic: KafkaTopic
   val stateSerdes: StateSerdes[K, V] =
     new StateSerdes[K, V](topic.topicName.value, keySerde, valueSerde)
 
-  def asStateStore(storeName: String): NJStateStore[K, V] = {
-    require(storeName =!= topic.topicName.value, "should provide a name other than the topic name")
+  def asStateStore(storeName: StoreName): NJStateStore[K, V] = {
+    require(storeName.value =!= topic.topicName.value, "should provide a name other than the topic name")
     NJStateStore[K, V](storeName, RegisteredKeyValueSerdePair(keySerde, valueSerde))
   }
 

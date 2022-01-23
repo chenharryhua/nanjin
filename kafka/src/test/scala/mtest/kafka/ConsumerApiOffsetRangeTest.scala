@@ -3,7 +3,8 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{darwinTime, NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka._
+import com.github.chenharryhua.nanjin.kafka.*
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata

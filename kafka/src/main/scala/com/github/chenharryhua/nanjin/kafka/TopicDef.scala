@@ -12,8 +12,7 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: String): TopicDef[K, V] =
-    new TopicDef[K, V](TopicName.unsafeFrom(tn), rawSerdes)
+  def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, rawSerdes)
 
   val avroKeyEncoder: AvroEncoder[K] = rawSerdes.keySerde.avroCodec.avroEncoder
   val avroKeyDecoder: AvroDecoder[K] = rawSerdes.keySerde.avroCodec.avroDecoder

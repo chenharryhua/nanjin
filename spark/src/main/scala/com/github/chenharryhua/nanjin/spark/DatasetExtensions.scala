@@ -46,15 +46,15 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
     topic[K, V](kt.topicDef)
 
-  def topic[K: SerdeOf, V: SerdeOf](topicName: String): SparKafkaTopic[F, K, V] =
-    topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
+  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): SparKafkaTopic[F, K, V] =
+    topic[K, V](TopicDef[K, V](topicName))
 
-  def byteTopic(topicName: String): SparKafkaTopic[F, Array[Byte], Array[Byte]] =
+  def byteTopic(topicName: TopicName): SparKafkaTopic[F, Array[Byte], Array[Byte]] =
     topic[Array[Byte], Array[Byte]](topicName)
 
-  def stringTopic(topicName: String): SparKafkaTopic[F, String, String] =
+  def stringTopic(topicName: TopicName): SparKafkaTopic[F, String, String] =
     topic[String, String](topicName)
 
-  def jsonTopic(topicName: String): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
+  def jsonTopic(topicName: TopicName): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
     topic[KJson[Json], KJson[Json]](topicName)
 }

@@ -6,6 +6,7 @@ import frameless.TypedDataset
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
+import eu.timepit.refined.auto.*
 
 object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)

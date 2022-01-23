@@ -8,6 +8,7 @@ import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
+import eu.timepit.refined.auto.*
 
 class AdminApiTest extends AnyFunSuite {
   val topic  = ctx.topic[Int, Int]("admin")

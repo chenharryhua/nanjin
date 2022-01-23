@@ -18,6 +18,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration.*
+import eu.timepit.refined.auto.*
+
 object KafkaStreamingData {
 
   case class StreamOne(name: String, size: Int)

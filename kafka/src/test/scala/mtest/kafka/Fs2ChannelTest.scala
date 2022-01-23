@@ -13,6 +13,7 @@ import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import eu.timepit.refined.auto.*
 
 class Fs2ChannelTest extends AnyFunSuite {
   val backblaze_smart = TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))
