@@ -19,6 +19,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class TransformerTest extends AnyFunSuite {

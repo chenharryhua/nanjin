@@ -26,7 +26,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   // need to reconstruct codec when working in spark
   @transient lazy val codec: KeyValueCodecPair[K, V] =
-    topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName.value)
+    topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName)
 
   @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)

@@ -3,7 +3,8 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{darwinTime, NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka._
+import com.github.chenharryhua.nanjin.kafka.*
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
@@ -17,8 +18,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     * ---------------100-------200-------300-------> Time
     * ----------------| |------ before beginning after ending
     *
-    * ^ ^
-    * \| | start end
+    * ^ ^ \| | start end
     */
 
   val topic: KafkaTopic[IO, Int, Int] = ctx.withGroupId("consumer-api-test").topic[Int, Int]("range.test")

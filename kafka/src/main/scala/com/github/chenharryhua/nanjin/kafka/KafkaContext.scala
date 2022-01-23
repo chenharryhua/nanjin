@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.functor.*
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson, SerdeOf}
 import io.circe.Json
@@ -32,19 +32,19 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef, this)
 
-  final def topic[K: SerdeOf, V: SerdeOf](topicName: String): KafkaTopic[F, K, V] =
-    topic[K, V](TopicDef[K, V](TopicName.unsafeFrom(topicName)))
+  final def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): KafkaTopic[F, K, V] =
+    topic[K, V](TopicDef[K, V](topicName))
 
-  final def jsonTopic(topicName: String): KafkaTopic[F, KJson[Json], KJson[Json]] =
-    topic(TopicDef[KJson[Json], KJson[Json]](TopicName.unsafeFrom(topicName)))
+  final def jsonTopic(topicName: TopicName): KafkaTopic[F, KJson[Json], KJson[Json]] =
+    topic(TopicDef[KJson[Json], KJson[Json]](topicName))
 
-  final def byteTopic(topicName: String): KafkaTopic[F, Array[Byte], Array[Byte]] =
-    topic(TopicDef[Array[Byte], Array[Byte]](TopicName.unsafeFrom(topicName)))
+  final def byteTopic(topicName: TopicName): KafkaTopic[F, Array[Byte], Array[Byte]] =
+    topic(TopicDef[Array[Byte], Array[Byte]](topicName))
 
-  final def stringTopic(topicName: String): KafkaTopic[F, String, String] =
-    topic(TopicDef[String, String](TopicName.unsafeFrom(topicName)))
+  final def stringTopic(topicName: TopicName): KafkaTopic[F, String, String] =
+    topic(TopicDef[String, String](topicName))
 
-  final def store[K: SerdeOf, V: SerdeOf](storeName: String): NJStateStore[K, V] =
+  final def store[K: SerdeOf, V: SerdeOf](storeName: StoreName): NJStateStore[K, V] =
     NJStateStore[K, V](storeName, settings.schemaRegistrySettings, RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
 
   final def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =

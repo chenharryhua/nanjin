@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import mtest.kafka.ctx
 import org.scalatest.funsuite.AnyFunSuite
+import eu.timepit.refined.auto.*
 
 class KafkaTopicCodecTest extends AnyFunSuite {
   val topic = ctx.topic[Int, Int]("na")

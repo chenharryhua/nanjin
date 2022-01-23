@@ -37,7 +37,7 @@ final case class NJPath private (root: NJPath.Root, segments: List[NJPath.Segmen
   override def toString: String = pathStr
 }
 object NJPath {
-  type Segment = Refined[String, MatchesRegex["^[a-zA-Z0-9_.-=]+$"]]
+  type Segment = Refined[String, MatchesRegex["^[a-zA-Z0-9_.=\\-]+$"]]
   object Segment extends RefinedTypeOps[Segment, String] with CatsRefinedTypeOpsSyntax
 
   type Root = Refined[String, Uri]

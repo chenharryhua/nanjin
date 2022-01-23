@@ -6,6 +6,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import cats.effect.Temporal
+import eu.timepit.refined.auto.*
 
 package object kafka {
   import akka.actor.ActorSystem

@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, SchemaRe
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.function.At.at
 import org.scalatest.funsuite.AnyFunSuite
+import eu.timepit.refined.auto.*
 
 class SchemaRegistryTest extends AnyFunSuite {
   val topicName: TopicName = TopicName("nyc_yellow_taxi_trip_data")
@@ -22,7 +23,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   }
 
   test("incompatiable") {
-    val other = ctx.topic[String, String](topicName.value)
+    val other = ctx.topic[String, String](topicName)
     val res   = other.schemaRegistry.testCompatibility.unsafeRunSync()
     assert(!res.isCompatible)
   }

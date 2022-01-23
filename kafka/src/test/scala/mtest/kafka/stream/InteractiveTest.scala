@@ -20,6 +20,7 @@ import scala.jdk.CollectionConverters.*
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.*
 import scala.util.Random
+import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {

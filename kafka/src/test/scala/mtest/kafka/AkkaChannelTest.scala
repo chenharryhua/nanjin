@@ -13,6 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.LocalDateTime
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import eu.timepit.refined.auto.*
 
 class AkkaChannelTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, String] = ctx.topic[Int, String]("akka.consumer.test")
