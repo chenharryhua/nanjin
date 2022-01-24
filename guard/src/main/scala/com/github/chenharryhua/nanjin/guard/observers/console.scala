@@ -21,8 +21,12 @@ final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit
 
   override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextConsole[F] =
     new TextConsole[F](f(translator))
+
   private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
   override def apply(event: NJEvent): F[Unit] =
-    translator.translate(event).flatMap(_.traverse(evt => C.println(s"${event.zonedDateTime.format(fmt)} $evt")).void)
+    translator
+      .translate(event)
+      .flatMap(_.traverse(evt => C.println(s"${event.zonedDateTime.format(fmt)} Console $evt")).void)
   def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
 }

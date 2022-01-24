@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.{MetricReport, PassThrough, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.logging
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import io.circe.Decoder
 import io.circe.generic.auto.*
@@ -21,7 +22,7 @@ import scala.util.Random
 final case class PassThroughObject(a: Int, b: String)
 
 class PassThroughTest extends AnyFunSuite {
-  val guard = TaskGuard[IO]("test").service("pass-throught")
+  val guard: ServiceGuard[IO] = TaskGuard[IO]("test").service("pass-throught")
   test("pass-through") {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
       List.range(0, 9).traverse(n => action.broker("pt").asError.passThrough(PassThroughObject(n, "a")))
@@ -66,7 +67,8 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("03.counter.[counter][0135a608].error") == 3)
+    assert(
+      last.asInstanceOf[MetricReport].snapshot.counterMap("03.counter.[pass-throught/counter][0135a608].error") == 3)
   }
 
   test("alert") {
@@ -80,7 +82,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[oops][a32b945e].error") == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[pass-throught/oops][a32b945e].error") == 1)
   }
 
   test("meter") {
@@ -123,5 +125,4 @@ class PassThroughTest extends AnyFunSuite {
       }
     }.compile.drain.timeout(1.second).unsafeRunSync()
   }
-
 }
