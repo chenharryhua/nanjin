@@ -17,14 +17,9 @@ private[guard] object Digested {
 
   implicit val showDigestedName: Show[Digested] = _.metricRepr
 
-  def apply(spans: List[Span], serviceParams: ServiceParams): Digested = {
-    val nel: NonEmptyList[Span] = spans match {
-      case Nil          => NonEmptyList.of(Span("root"))
-      case head :: tail => NonEmptyList(head, tail)
-    }
-    val digest: String =
-      digestSpans(NonEmptyList.of(serviceParams.taskParams.appName, serviceParams.serviceName) ::: nel)
-    new Digested(nel, digest)
+  def apply(spans: NonEmptyList[Span], serviceParams: ServiceParams): Digested = {
+    val digest: String = digestSpans(NonEmptyList.one(serviceParams.taskParams.appName) ::: spans)
+    new Digested(spans, digest)
   }
 
   def apply(serviceName: ServiceName, taskParams: TaskParams): Digested = {

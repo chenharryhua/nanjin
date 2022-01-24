@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
+import cats.data.NonEmptyList
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import eu.timepit.refined.cats.*
@@ -14,7 +15,7 @@ import monocle.macros.Lenses
 import scala.concurrent.duration.*
 
 @Lenses @JsonCodec final case class AgentParams private (
-  spans: List[Span],
+  spans: NonEmptyList[Span],
   importance: Importance,
   isCounting: CountAction, // if counting the action?
   isTiming: TimeAction, // if timing the action?
@@ -27,7 +28,7 @@ private[guard] object AgentParams {
   implicit val showAgentParams: Show[AgentParams] = cats.derived.semiauto.show[AgentParams]
 
   def apply(serviceParams: ServiceParams): AgentParams = AgentParams(
-    spans = Nil,
+    spans = NonEmptyList.one(serviceParams.serviceName),
     importance = Importance.Medium,
     isCounting = CountAction.No,
     isTiming = TimeAction.Yes,
@@ -69,7 +70,7 @@ private object AgentConfigF {
       case WithMaxRetries(v, c)  => AgentParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
       case WithCapDelay(v, c)    => AgentParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
       case WithImportance(v, c)  => AgentParams.importance.set(v)(c)
-      case WithSpan(v, c)        => AgentParams.spans.modify(_.appended(v))(c)
+      case WithSpan(v, c)        => AgentParams.spans.modify(_.append(v))(c)
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
       case WithCatalog(v, c)     => AgentParams.catalog.set(v)(c)
