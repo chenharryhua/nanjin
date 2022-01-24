@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, Histogram, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{CountAction, DigestedName}
+import com.github.chenharryhua.nanjin.guard.config.{CountAction, Digested}
 
 final class NJHistogram[F[_]] private[guard] (
-  metricName: DigestedName,
+  metricName: Digested,
   metricRegistry: MetricRegistry,
   isCounting: CountAction)(implicit F: Sync[F]) {
   private lazy val histo: Histogram = metricRegistry.histogram(histogramMRName(metricName))

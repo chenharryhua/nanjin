@@ -7,12 +7,12 @@ import cats.syntax.functor.*
 import cats.syntax.show.*
 import cats.syntax.traverse.*
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{CountAction, DigestedName, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{CountAction, Digested, Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 
 final class NJAlert[F[_]: Temporal] private[guard] (
-  metricName: DigestedName,
+  metricName: Digested,
   dispatcher: Dispatcher[F],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],

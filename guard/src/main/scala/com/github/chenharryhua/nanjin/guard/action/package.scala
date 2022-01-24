@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance}
 package object action {
 
   /** 01 - 09: Errors
@@ -14,7 +14,7 @@ package object action {
     * only counters are periodically reset
     */
 
-  private[action] def alertMRName(name: DigestedName, importance: Importance): String =
+  private[action] def alertMRName(name: Digested, importance: Importance): String =
     importance match {
       case Importance.Critical => s"01.alert.${name.metricRepr}.error"
       case Importance.High     => s"10.alert.${name.metricRepr}.warn"
@@ -22,14 +22,14 @@ package object action {
       case Importance.Low      => s"21.alert.${name.metricRepr}.debug"
     }
 
-  private[action] def passThroughMRName(name: DigestedName, asError: Boolean): String =
+  private[action] def passThroughMRName(name: Digested, asError: Boolean): String =
     if (asError) s"02.passThrough.${name.metricRepr}.error" else s"22.passThrough.${name.metricRepr}"
 
-  private[action] def counterMRName(name: DigestedName, asError: Boolean): String =
+  private[action] def counterMRName(name: Digested, asError: Boolean): String =
     if (asError) s"03.counter.${name.metricRepr}.error" else s"23.counter.${name.metricRepr}"
 
-  private[action] def meterMRName(name: DigestedName): String     = s"24.meter.${name.metricRepr}"
-  private[action] def histogramMRName(name: DigestedName): String = s"25.histogram.${name.metricRepr}"
+  private[action] def meterMRName(name: Digested): String     = s"24.meter.${name.metricRepr}"
+  private[action] def histogramMRName(name: Digested): String = s"25.histogram.${name.metricRepr}"
 
   private[action] def actionFailMRName(ap: ActionParams): String  = s"04.${ap.catalog}.${ap.metricName.metricRepr}.fail"
   private[action] def actionSuccMRName(ap: ActionParams): String  = s"28.${ap.catalog}.${ap.metricName.metricRepr}.succ"

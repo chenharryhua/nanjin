@@ -4,14 +4,14 @@ import cats.effect.kernel.Temporal
 import cats.effect.std.Dispatcher
 import cats.syntax.functor.*
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{CountAction, DigestedName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{CountAction, Digested, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax.*
 
 final class NJBroker[F[_]: Temporal] private[guard] (
-  metricName: DigestedName,
+  metricName: Digested,
   dispatcher: Dispatcher[F],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, DigestedName, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
@@ -16,7 +16,7 @@ import java.util.UUID
 sealed trait NJEvent {
   def timestamp: Instant // event timestamp - when the event occurs
   def serviceParams: ServiceParams
-  def metricName: DigestedName
+  def metricName: Digested
 
   final def zoneId: ZoneId               = serviceParams.taskParams.zoneId
   final def zonedDateTime: ZonedDateTime = timestamp.atZone(zoneId)
@@ -33,7 +33,7 @@ object NJEvent {
 sealed trait ServiceEvent extends NJEvent {
   def serviceStatus: ServiceStatus
 
-  final override def metricName: DigestedName = serviceParams.metricName
+  final override def metricName: Digested = serviceParams.metricName
 
   final def uuid: UUID       = serviceStatus.uuid
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
@@ -83,7 +83,7 @@ sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
 
   final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
-  final override def metricName: DigestedName     = actionInfo.actionParams.metricName
+  final override def metricName: Digested         = actionInfo.actionParams.metricName
 
   final def actionParams: ActionParams = actionInfo.actionParams
   final def launchTime: Instant        = actionInfo.launchTime
@@ -120,7 +120,7 @@ final case class ActionSucc(
 sealed trait InstantEvent extends NJEvent
 
 final case class InstantAlert(
-  metricName: DigestedName,
+  metricName: Digested,
   timestamp: Instant,
   importance: Importance,
   serviceParams: ServiceParams,
@@ -128,7 +128,7 @@ final case class InstantAlert(
 ) extends InstantEvent
 
 final case class PassThrough(
-  metricName: DigestedName,
+  metricName: Digested,
   asError: Boolean, // the payload json represent an error
   timestamp: Instant,
   serviceParams: ServiceParams,

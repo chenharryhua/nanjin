@@ -29,7 +29,7 @@ final class Agent[F[_]] private[service] (
   val agentParams: AgentParams     = agentConfig.evalConfig
   val serviceParams: ServiceParams = agentParams.serviceParams
   val zoneId: ZoneId               = agentParams.serviceParams.taskParams.zoneId
-  val digestedName: DigestedName   = DigestedName(agentParams.spans, agentParams.serviceParams)
+  val digestedName: Digested       = Digested(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, ongoings, dispatcher, lastCounters, f(agentConfig))
@@ -71,7 +71,7 @@ final class Agent[F[_]] private[service] (
 
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
-      metricName = DigestedName(agentParams.spans :+ brokerName, serviceParams),
+      metricName = Digested(agentParams.spans :+ brokerName, serviceParams),
       dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -81,7 +81,7 @@ final class Agent[F[_]] private[service] (
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
-      metricName = DigestedName(agentParams.spans :+ alertName, serviceParams),
+      metricName = Digested(agentParams.spans :+ alertName, serviceParams),
       dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -90,19 +90,19 @@ final class Agent[F[_]] private[service] (
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(
-      metricName = DigestedName(agentParams.spans :+ counterName, serviceParams),
+      metricName = Digested(agentParams.spans :+ counterName, serviceParams),
       metricRegistry = metricRegistry,
       isError = false)
 
   def meter(meterName: Span): NJMeter[F] =
     new NJMeter[F](
-      metricName = DigestedName(agentParams.spans :+ meterName, serviceParams),
+      metricName = Digested(agentParams.spans :+ meterName, serviceParams),
       metricRegistry = metricRegistry,
       isCounting = CountAction.No)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
-      metricName = DigestedName(agentParams.spans :+ histoName, serviceParams),
+      metricName = Digested(agentParams.spans :+ histoName, serviceParams),
       metricRegistry = metricRegistry,
       isCounting = CountAction.No
     )
