@@ -44,7 +44,7 @@ private[guard] object MetricParams {
   metric: MetricParams,
   brief: String
 ) {
-  val metricName: DigestedName                    = DigestedName(serviceName, taskParams)
+  val metricName: Digested                        = Digested(serviceName, taskParams)
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
   def toLocalDate(ts: Instant): LocalDate         = toZonedDateTime(ts).toLocalDate

@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.DigestedName
+import com.github.chenharryhua.nanjin.guard.config.Digested
 
-final class NJCounter[F[_]] private[guard] (metricName: DigestedName, metricRegistry: MetricRegistry, isError: Boolean)(
+final class NJCounter[F[_]] private[guard] (metricName: Digested, metricRegistry: MetricRegistry, isError: Boolean)(
   implicit F: Sync[F]) {
 
   private lazy val counter: Counter = metricRegistry.counter(counterMRName(metricName, isError))

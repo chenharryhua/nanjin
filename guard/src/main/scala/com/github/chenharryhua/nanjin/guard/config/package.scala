@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.data.NonEmptyList
+import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
 import com.github.chenharryhua.nanjin.common.NameConstraint
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
@@ -23,4 +25,7 @@ package object config {
   type QueueCapacity = Refined[Int, NonNegative]
   type Catalog       = Refined[String, Forall[LowerCase]]
   type MaxRetry      = Refined[Int, NonNegative]
+
+  def digestSpans(spans: NonEmptyList[Span]): String =
+    DigestUtils.sha1Hex(spans.toList.map(_.value).mkString("/")).take(8)
 }

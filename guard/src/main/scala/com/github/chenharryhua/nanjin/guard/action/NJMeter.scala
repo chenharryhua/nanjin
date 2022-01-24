@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{CountAction, DigestedName}
+import com.github.chenharryhua.nanjin.guard.config.{CountAction, Digested}
 
 // counter can be reset, meter can't
 final class NJMeter[F[_]] private[guard] (
-  metricName: DigestedName,
+  metricName: Digested,
   metricRegistry: MetricRegistry,
   isCounting: CountAction)(implicit F: Sync[F]) {
 

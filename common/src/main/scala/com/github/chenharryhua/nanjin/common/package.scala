@@ -21,5 +21,5 @@ package object common {
   type PathRoot = Refined[String, Uri]
   object PathRoot extends RefinedTypeOps[PathRoot, String] with CatsRefinedTypeOpsSyntax
 
-  type NameConstraint = NonEmpty And Trimmed And Not[Contains['/']]
+  type NameConstraint = NonEmpty And Trimmed
 }
