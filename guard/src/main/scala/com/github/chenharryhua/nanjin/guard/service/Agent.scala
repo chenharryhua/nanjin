@@ -125,7 +125,7 @@ final class Agent[F[_]] private[service] (
   def max(retries: MaxRetry): Agent[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    span(Span("nonStop"))
+    span(Span("nj-nonStop"))
       .max(retries = refineMV(0))
       .cheap
       .updateConfig(_.withoutTiming.withoutCounting.withLowImportance)
