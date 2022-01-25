@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Show
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.*
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJParquet, NJPath}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
@@ -29,25 +28,21 @@ object sinks {
     ss.through(grc).through(sink)
   }
 
-  def binAvro[F[_]: Sync, A](
-    path: NJPath,
-    cfg: Configuration,
-    encoder: AvroEncoder[A],
-    chunkSize: ChunkSize): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
-    val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerialization[F](encoder.schema).serialize(chunkSize)
-    val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
-    ss.through(grc).through(pipe).through(sink)
+  def binAvro[F[_]: Sync, A](path: NJPath, cfg: Configuration, encoder: AvroEncoder[A]): Pipe[F, A, Unit] = {
+    (ss: Stream[F, A]) =>
+      val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
+      val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerialization[F](encoder.schema).serialize
+      val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
+      ss.through(grc).through(pipe).through(sink)
   }
 
   def jackson[F[_]: Sync, A](
     path: NJPath,
     cfg: Configuration,
     encoder: AvroEncoder[A],
-    compression: Pipe[F, Byte, Byte],
-    chunkSize: ChunkSize): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
+    compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
-    val pipe: Pipe[F, GenericRecord, Byte] = new JacksonSerialization[F](encoder.schema).serialize(chunkSize)
+    val pipe: Pipe[F, GenericRecord, Byte] = new JacksonSerialization[F](encoder.schema).serialize
     val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
     ss.through(grc).through(pipe).through(compression).through(sink)
   }

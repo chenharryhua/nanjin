@@ -37,7 +37,7 @@ final class SaveSingleBinaryAvro[F[_], A](
     val hc: Configuration     = rdd.sparkContext.hadoopConfiguration
     val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val src: Stream[F, A]     = rdd.stream[F](params.chunkSize)
-    val tgt: Pipe[F, A, Unit] = sinks.binAvro(params.outPath, hc, encoder, params.chunkSize)
+    val tgt: Pipe[F, A, Unit] = sinks.binAvro(params.outPath, hc, encoder)
     val ss: Stream[F, Unit]   = listener.fold(src.through(tgt))(k => src.evalTap(k.run).through(tgt))
 
     sma.checkAndRun(ss)

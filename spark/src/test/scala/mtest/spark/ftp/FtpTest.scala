@@ -53,7 +53,7 @@ class FtpTest extends AnyFunSuite {
 
   test("jackson") {
     val path = "tablet.jackson.json"
-    val rst = roosterSteam.through(sink.jackson(path, Tablet.avroCodec.avroEncoder, 100)) >> source
+    val rst = roosterSteam.through(sink.jackson(path, Tablet.avroCodec.avroEncoder)) >> source
       .jackson[Tablet](path, Tablet.avroCodec.avroDecoder)
     assert(rst.compile.toList.unsafeRunSync() == TabletData.data)
   }

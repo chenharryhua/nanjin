@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Printer
@@ -39,22 +38,18 @@ final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
   def prettyJson: Pipe[F, GenericRecord, String]  = toJsonStr(true)
   def compactJson: Pipe[F, GenericRecord, String] = toJsonStr(false)
 
-  def serialize(chunkSize: ChunkSize): Pipe[F, GenericRecord, Byte] = {
+  def serialize: Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     val splitter    = "\n".getBytes()
     (sfgr: Stream[F, GenericRecord]) =>
-      sfgr
-        .chunkN(chunkSize.value)
-        .map { grs =>
-          val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
-          val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
-          grs.foreach(gr => datumWriter.write(gr, encoder))
-          encoder.flush()
-          baos.close()
-          baos.toByteArray
-        }
-        .intersperse(splitter)
-        .flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
+      sfgr.chunks.map { grs =>
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
+        grs.foreach(gr => datumWriter.write(gr, encoder))
+        encoder.flush()
+        baos.close()
+        baos.toByteArray
+      }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
   def deserialize(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>

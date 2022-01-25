@@ -3,22 +3,24 @@ package mtest.pipes
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.serde.{GenericRecordCodec, JacksonSerialization}
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
+import org.apache.avro.file.CodecFactory
+import org.apache.hadoop.conf.Configuration
 class JsonAvroPipeTest extends AnyFunSuite {
   import TestData.*
-  val gser = new GenericRecordCodec[IO, Tigger]
-  val ser  = new JacksonSerialization[IO](AvroSchema[Tigger])
+  val gser                     = new GenericRecordCodec[IO, Tigger]
+  val ser                      = new JacksonSerialization[IO](AvroSchema[Tigger])
+  val data: Stream[IO, Tigger] = Stream.emits(tiggers)
 
   test("json-avro identity") {
-    val data: Stream[IO, Tigger] = Stream.emits(tiggers)
-
     assert(
       data
         .through(gser.encode(Tigger.avroEncoder))
-        .through(ser.serialize(100))
+        .through(ser.serialize)
         .through(ser.deserialize)
         .through(gser.decode(Tigger.avroDecoder))
         .compile
@@ -26,16 +28,66 @@ class JsonAvroPipeTest extends AnyFunSuite {
         .unsafeRunSync() === tiggers)
   }
   test("jackson-compact-string size") {
-    val data: Stream[IO, Tigger] = Stream.emits(tiggers)
-
     assert(
       data.through(gser.encode(Tigger.avroEncoder)).through(ser.compactJson).compile.toList.unsafeRunSync().size == 10)
   }
   test("jackson-pretty-string size") {
-    val data: Stream[IO, Tigger] = Stream.emits(tiggers)
-
     assert(
       data.through(gser.encode(Tigger.avroEncoder)).through(ser.prettyJson).compile.toList.unsafeRunSync().size == 10)
   }
 
+  test("write/read identity snappy codec") {
+    val hd   = NJHadoop[IO](new Configuration())
+    val path = NJPath("data/pipe/snappy-codec.avro")
+    val write = data
+      .through(gser.encode(Tigger.avroEncoder))
+      .through(hd.avroSink(path, AvroSchema[Tigger], CodecFactory.snappyCodec()))
+    val read = hd.avroSource(path, AvroSchema[Tigger], 100).through(gser.decode(Tigger.avroDecoder))
+    val run  = write.compile.drain >> read.compile.toList
+    assert(run.unsafeRunSync() === tiggers)
+  }
+
+  test("write/read identity null codec") {
+    val hd   = NJHadoop[IO](new Configuration())
+    val path = NJPath("data/pipe/null-codec.avro")
+    val write = data
+      .through(gser.encode(Tigger.avroEncoder))
+      .through(hd.avroSink(path, AvroSchema[Tigger], CodecFactory.nullCodec()))
+    val read = hd.avroSource(path, AvroSchema[Tigger], 100).through(gser.decode(Tigger.avroDecoder))
+    val run  = write.compile.drain >> read.compile.toList
+    assert(run.unsafeRunSync() === tiggers)
+  }
+
+  test("write/read identity deflate codec") {
+    val hd   = NJHadoop[IO](new Configuration())
+    val path = NJPath("data/pipe/deflate-codec.avro")
+    val write = data
+      .through(gser.encode(Tigger.avroEncoder))
+      .through(hd.avroSink(path, AvroSchema[Tigger], CodecFactory.deflateCodec(1)))
+    val read = hd.avroSource(path, AvroSchema[Tigger], 100).through(gser.decode(Tigger.avroDecoder))
+    val run  = write.compile.drain >> read.compile.toList
+    assert(run.unsafeRunSync() === tiggers)
+  }
+
+  test("write/read identity bzip codec") {
+    val hd   = NJHadoop[IO](new Configuration())
+    val path = NJPath("data/pipe/bzip-codec.avro")
+    val write = data
+      .through(gser.encode(Tigger.avroEncoder))
+      .through(hd.avroSink(path, AvroSchema[Tigger], CodecFactory.bzip2Codec()))
+    val read = hd.avroSource(path, AvroSchema[Tigger], 100).through(gser.decode(Tigger.avroDecoder))
+    val run  = write.compile.drain >> read.compile.toList
+    assert(run.unsafeRunSync() === tiggers)
+  }
+
+  ignore("write/read identity xz codec") {
+    val hd   = NJHadoop[IO](new Configuration())
+    val path = NJPath("data/pipe/xz-codec.avro")
+    val write = data
+      .through(gser.encode(Tigger.avroEncoder))
+      .through(hd.avroSink(path, AvroSchema[Tigger], CodecFactory.xzCodec(1)))
+    val read = hd.avroSource(path, AvroSchema[Tigger], 100).through(gser.decode(Tigger.avroDecoder))
+    val run  = write.compile.drain >> read.compile.toList
+    assert(run.unsafeRunSync() === tiggers)
+  }
 }

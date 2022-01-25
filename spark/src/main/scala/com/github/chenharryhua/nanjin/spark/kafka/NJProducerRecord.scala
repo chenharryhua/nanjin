@@ -5,9 +5,11 @@ import cats.Bifunctor
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
 import fs2.kafka.ProducerRecord as Fs2ProducerRecord
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.scalaland.chimney.dsl.*
 import monocle.Optional
 import monocle.macros.Lenses
 import monocle.std.option.some
@@ -52,15 +54,8 @@ final case class NJProducerRecord[K, V](
     }
   }
 
-  @SuppressWarnings(Array("AsInstanceOf"))
-  def toProducerRecord(topicName: String): ProducerRecord[K, V] = {
-    val p = partition.map(x => java.lang.Integer.valueOf(x)).orNull
-    val t = timestamp.map(x => java.lang.Long.valueOf(x)).orNull
-    val k = key.getOrElse(null.asInstanceOf[K])
-    val v = value.getOrElse(null.asInstanceOf[V])
-
-    new ProducerRecord[K, V](topicName, p, t, k, v)
-  }
+  def toProducerRecord(topicName: String): ProducerRecord[K, V] =
+    toFs2ProducerRecord(topicName).transformInto[ProducerRecord[K, V]]
 }
 
 object NJProducerRecord {

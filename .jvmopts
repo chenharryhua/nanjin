@@ -2,3 +2,4 @@
 -Xmx12G
 -Xss8M
 -XX:MaxMetaspaceSize=1G
+-XX:+UseG1GC
