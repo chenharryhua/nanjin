@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.Eval
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import fs2.{Pipe, Pull, Stream}
@@ -26,10 +25,9 @@ final class NJParquet[F[_]](implicit F: Sync[F]) {
   }
 
   // input path may not exist when eval builder
-  def parquetSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]]): Stream[F, GenericRecord] =
+  def parquetSource(builder: F[AvroParquetReader.Builder[GenericRecord]]): Stream[F, GenericRecord] =
     for {
-      reader <- Stream.resource(
-        Resource.make(F.blocking(builder.value.build()))(r => F.blocking(r.close()).attempt.void))
+      reader <- Stream.resource(Resource.make(builder.map(_.build()))(r => F.blocking(r.close()).attempt.void))
       gr <- Stream.repeatEval(F.delay(Option(reader.read()))).unNoneTerminate
     } yield gr
 }

@@ -1,18 +1,16 @@
 package mtest.terminals
 
-import cats.Eval
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.{NJParquet, NJPath}
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
 import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.scalatest.funsuite.AnyFunSuite
-import cats.effect.unsafe.implicits.global
-import eu.timepit.refined.auto.*
 
 class ParquetTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -30,7 +28,7 @@ class ParquetTest extends AnyFunSuite {
       .withConf(cfg)
       .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
 
-    val rb = Eval.later(
+    val rb = IO(
       AvroParquetReader
         .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
         .withDataModel(GenericData.get()))
@@ -53,7 +51,7 @@ class ParquetTest extends AnyFunSuite {
       .withConf(cfg)
       .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
 
-    val rb = Eval.later(
+    val rb = IO(
       AvroParquetReader
         .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
         .withDataModel(GenericData.get()))
@@ -75,7 +73,7 @@ class ParquetTest extends AnyFunSuite {
       .withConf(cfg)
       .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
 
-    val rb = Eval.later(
+    val rb = IO(
       AvroParquetReader
         .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
         .withDataModel(GenericData.get()))
