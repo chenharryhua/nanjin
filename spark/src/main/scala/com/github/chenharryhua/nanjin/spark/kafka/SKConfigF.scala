@@ -10,7 +10,7 @@ import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
-import squants.information.{Gigabytes, Information}
+import squants.information.{Gigabytes, Information, Megabytes}
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
@@ -19,6 +19,7 @@ import scala.concurrent.duration.*
 @Lenses final private[kafka] case class NJLoadParams(
   throttle: Information, // maximum byte per interval
   chunkSize: ChunkSize,
+  bufferSize: Information,
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
@@ -29,6 +30,7 @@ private[kafka] object NJLoadParams {
   val default: NJLoadParams = NJLoadParams(
     throttle = Gigabytes(1), // akka maximum 1gb/second
     chunkSize = ChunkSize(1000),
+    bufferSize = Megabytes(1),
     interval = FiniteDuration(1, TimeUnit.SECONDS),
     recordsLimit = Long.MaxValue,
     timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS), // akka.actor.LightArrayRevolverScheduler.checkMaxDelay
@@ -68,6 +70,7 @@ private object SKConfigF {
 
   final case class WithLoadThrottle[K](value: Information, cont: K) extends SKConfigF[K]
   final case class WithLoadChunkSize[K](value: ChunkSize, cont: K) extends SKConfigF[K]
+  final case class WithBufferSize[K](value: Information, cont: K) extends SKConfigF[K]
   final case class WithLoadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
@@ -96,6 +99,7 @@ private object SKConfigF {
     case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
     case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
     case WithLoadChunkSize(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.chunkSize).set(v)(c)
+    case WithBufferSize(v, c)       => SKParams.loadParams.composeLens(NJLoadParams.bufferSize).set(v)(c)
 
     case WithIdleTimeout(v, c) => SKParams.loadParams.composeLens(NJLoadParams.idleTimeout).set(v)(c)
 
@@ -127,6 +131,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
   def loadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
   def loadChunkSize(num: ChunkSize): SKConfig       = SKConfig(Fix(WithLoadChunkSize(num, value)))
+  def loadBufferSize(bs: Information): SKConfig     = SKConfig(Fix(WithBufferSize(bs, value)))
 
   def startTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def startTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
