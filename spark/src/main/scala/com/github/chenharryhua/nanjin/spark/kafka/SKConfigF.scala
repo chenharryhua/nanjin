@@ -10,7 +10,7 @@ import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
-import squants.information.{Information, Megabytes}
+import squants.information.{Gigabytes, Information}
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
@@ -27,7 +27,7 @@ import scala.concurrent.duration.*
 private[kafka] object NJLoadParams {
 
   val default: NJLoadParams = NJLoadParams(
-    throttle = Megabytes(1),
+    throttle = Gigabytes(1), // akka maximum 1gb/second
     chunkSize = ChunkSize(1000),
     interval = FiniteDuration(1, TimeUnit.SECONDS),
     recordsLimit = Long.MaxValue,
