@@ -6,14 +6,15 @@ import cats.kernel.PartialOrder
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaConsumerRecordTransformer
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.*
 import frameless.TypedEncoder
 import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
 import io.circe.generic.auto.*
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
+import io.scalaland.chimney.dsl.*
 import monocle.Optional
 import monocle.macros.Lenses
 import monocle.std.option.some
@@ -71,7 +72,7 @@ object NJConsumerRecord {
     NJConsumerRecord(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)
 
   def apply[K, V](cr: Fs2ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
-    apply(toConsumerRecord.transform(cr))
+    apply(cr.transformInto[ConsumerRecord[Option[K], Option[V]]])
 
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
