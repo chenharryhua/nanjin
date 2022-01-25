@@ -7,7 +7,6 @@ import akka.stream.scaladsl.Sink
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -90,14 +89,7 @@ final class KafkaDownloader[F[_], K, V](
 
   def jackson(path: NJPath)(implicit F: Async[F]): JacksonDownloader[F, K, V] = {
     val encoder: AvroEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder
-    new JacksonDownloader(
-      stream,
-      encoder,
-      hadoop,
-      path,
-      Compression.Uncompressed,
-      cfg.evalConfig.loadParams.chunkSize,
-      listener)
+    new JacksonDownloader(stream, encoder, hadoop, path, Compression.Uncompressed, listener)
   }
 
   def circe(path: NJPath)(implicit F: Async[F]): CirceDownloader[F, K, V] =
@@ -147,22 +139,17 @@ final class JacksonDownloader[F[_], K, V] private[kafka] (
   hadoop: Configuration,
   path: NJPath,
   compression: Compression,
-  chunkSize: ChunkSize,
   listener: Option[Kleisli[F, NJConsumerRecord[K, V], Unit]]) {
 
-  def withChunkSize(cs: ChunkSize): JacksonDownloader[F, K, V] =
-    new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression, cs, listener)
-
   private def updateCompression(compression: Compression): JacksonDownloader[F, K, V] =
-    new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression, chunkSize, listener)
+    new JacksonDownloader[F, K, V](stream, encoder, hadoop, path, compression, listener)
 
   def deflate(level: Int): JacksonDownloader[F, K, V] = updateCompression(Compression.Deflate(level))
   def gzip: JacksonDownloader[F, K, V]                = updateCompression(Compression.Gzip)
   def uncompress: JacksonDownloader[F, K, V]          = updateCompression(Compression.Uncompressed)
 
   def sink(implicit F: Sync[F]): Stream[F, Unit] = {
-    val tgt: Pipe[F, NJConsumerRecord[K, V], Unit] =
-      sinks.jackson(path, hadoop, encoder, compression.fs2Compression, chunkSize)
+    val tgt: Pipe[F, NJConsumerRecord[K, V], Unit] = sinks.jackson(path, hadoop, encoder, compression.fs2Compression)
 
     listener.fold(stream.through(tgt))(k => stream.evalTap(k.run).through(tgt))
   }

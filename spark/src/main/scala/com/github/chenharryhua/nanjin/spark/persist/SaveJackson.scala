@@ -44,7 +44,7 @@ final class SaveSingleJackson[F[_], A](
 
     val src: Stream[F, A] = rdd.stream[F](params.chunkSize)
     val tgt: Pipe[F, A, Unit] =
-      sinks.jackson(params.outPath, hc, encoder, params.compression.fs2Compression, params.chunkSize)
+      sinks.jackson(params.outPath, hc, encoder, params.compression.fs2Compression)
     val ss: Stream[F, Unit] = listener.fold(src.through(tgt))(k => src.evalTap(k.run).through(tgt))
 
     sma.checkAndRun(ss)

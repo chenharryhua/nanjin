@@ -60,7 +60,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .showProgress
 
     val upload =
-      sparKafka.topic(rooster).prRdd(data).withInterval(0.5.seconds).upload.withChunkSize(1).stream.delayBy(2.second)
+      sparKafka.topic(rooster).prRdd(data).withInterval(0.5.seconds).upload.stream.delayBy(2.second)
 
     ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }
@@ -88,7 +88,6 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .withTimeLimit(2.minute)
       .withRecordsLimit(10)
       .upload
-      .withChunkSize(10)
       .stream
       .delayBy(3.second)
 
@@ -148,7 +147,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .stream
 
     val upload =
-      sparKafka.topic(rooster).prRdd(data).withInterval(1.second).upload.withChunkSize(6).stream.delayBy(3.second)
+      sparKafka.topic(rooster).prRdd(data).withInterval(1.second).upload.stream.delayBy(3.second)
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     import sparkSession.implicits.*
     val now = Instant.now().getEpochSecond * 1000 // to millisecond

@@ -18,7 +18,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     assert(
       data
         .through(gr.encode(Tigger.avroEncoder))
-        .through(ba.serialize(100))
+        .through(ba.serialize)
         .through(ba.deserialize)
         .through(gr.decode(Tigger.avroDecoder))
         .compile

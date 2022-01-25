@@ -8,6 +8,7 @@ import akka.stream.{Materializer, OverflowStrategy}
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.*
@@ -80,11 +81,9 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
   def updateProducer(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Upload[F, K, V] =
     new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
-  def toTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] =
-    new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
-
-  def withChunkSize(cs: ChunkSize): Fs2Upload[F, K, V] =
-    new Fs2Upload[F, K, V](rdd, topic, cfg.loadChunkSize(cs), fs2Producer)
+  def toTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
+  def toTopic(tn: TopicName): Fs2Upload[F, K, V] =
+    new Fs2Upload[F, K, V](rdd, topic.withTopicName(tn), cfg, fs2Producer)
 
   def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
     val params: SKParams = cfg.evalConfig
@@ -92,7 +91,7 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
       .stream[F](params.loadParams.chunkSize)
       .interruptAfter(params.loadParams.timeLimit)
       .take(params.loadParams.recordsLimit)
-      .chunkN(params.loadParams.chunkSize.value)
+      .chunks
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .metered(params.loadParams.interval)
       .through(topic.fs2Channel.updateProducer(fs2Producer.updates.run).producerPipe)

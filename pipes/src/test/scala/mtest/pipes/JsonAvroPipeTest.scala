@@ -18,7 +18,7 @@ class JsonAvroPipeTest extends AnyFunSuite {
     assert(
       data
         .through(gser.encode(Tigger.avroEncoder))
-        .through(ser.serialize(100))
+        .through(ser.serialize)
         .through(ser.deserialize)
         .through(gser.decode(Tigger.avroDecoder))
         .compile
