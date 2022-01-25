@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
-import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{DatasetAvroFileHoarder, HoarderConfig}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.zaxxer.hikari.HikariConfig
 import frameless.TypedDataset
 import org.apache.spark.sql.Dataset
@@ -32,7 +33,7 @@ final class TableDS[F[_], A] private[database] (
   def upload: DbUploader[F, A] =
     new DbUploader[F, A](dataset, hikariConfig, cfg)
 
-  def save: DatasetAvroFileHoarder[F, A] =
-    new DatasetAvroFileHoarder[F, A](dataset, tableDef.ate.avroCodec.avroEncoder)
+  def save(path: NJPath): DatasetAvroFileHoarder[F, A] =
+    new DatasetAvroFileHoarder[F, A](dataset, tableDef.ate.avroCodec.avroEncoder, HoarderConfig(path))
 
 }

@@ -110,11 +110,11 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
 
     def circe(
       path: NJPath)(implicit F: Sync[F], jdk: JsonDecoder[K], jdv: JsonDecoder[V]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.circe[F, NJConsumerRecord[K, V]](path, hadoopConfiguration, params.loadParams.bufferSize)
+      loaders.stream.circe[F, NJConsumerRecord[K, V]](path, hadoopConfiguration, params.loadParams.byteBuffer)
 
     def jackson(path: NJPath)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
       loaders.stream
-        .jackson[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, params.loadParams.bufferSize)
+        .jackson[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, params.loadParams.byteBuffer)
 
     def avro(path: NJPath)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
       loaders.stream.avro[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, params.loadParams.chunkSize)

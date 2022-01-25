@@ -5,12 +5,8 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.database.{DbUploader, SparkDBTable}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
-import com.github.chenharryhua.nanjin.spark.persist.{
-  DatasetAvroFileHoarder,
-  DatasetFileHoarder,
-  RddAvroFileHoarder,
-  RddFileHoarder
-}
+import com.github.chenharryhua.nanjin.spark.persist.*
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
@@ -38,10 +34,10 @@ package object spark {
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
 
-    def save[F[_]]: RddFileHoarder[F, A] = new RddFileHoarder[F, A](rdd)
+    def save[F[_]](path: NJPath): RddFileHoarder[F, A] = new RddFileHoarder[F, A](rdd, HoarderConfig(path))
 
-    def save[F[_]](encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
-      new RddAvroFileHoarder[F, A](rdd, encoder)
+    def save[F[_]](path: NJPath, encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
+      new RddAvroFileHoarder[F, A](rdd, encoder, HoarderConfig(path))
 
   }
 
@@ -54,10 +50,10 @@ package object spark {
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(ds).upload
 
-    def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](ds)
+    def save[F[_]](path: NJPath): DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](ds, HoarderConfig(path))
 
-    def save[F[_]](encoder: AvroEncoder[A]): DatasetAvroFileHoarder[F, A] =
-      new DatasetAvroFileHoarder[F, A](ds, encoder)
+    def save[F[_]](path: NJPath, encoder: AvroEncoder[A]): DatasetAvroFileHoarder[F, A] =
+      new DatasetAvroFileHoarder[F, A](ds, encoder, HoarderConfig(path))
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {

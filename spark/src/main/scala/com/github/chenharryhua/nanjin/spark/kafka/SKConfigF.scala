@@ -19,7 +19,7 @@ import scala.concurrent.duration.*
 @Lenses final private[kafka] case class NJLoadParams(
   throttle: Information, // maximum byte per interval
   chunkSize: ChunkSize,
-  bufferSize: Information,
+  byteBuffer: Information,
   interval: FiniteDuration,
   recordsLimit: Long,
   timeLimit: FiniteDuration,
@@ -30,7 +30,7 @@ private[kafka] object NJLoadParams {
   val default: NJLoadParams = NJLoadParams(
     throttle = Gigabytes(1), // akka maximum 1gb/second
     chunkSize = ChunkSize(1000),
-    bufferSize = Megabytes(1),
+    byteBuffer = Megabytes(1),
     interval = FiniteDuration(1, TimeUnit.SECONDS),
     recordsLimit = Long.MaxValue,
     timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS), // akka.actor.LightArrayRevolverScheduler.checkMaxDelay
@@ -99,7 +99,7 @@ private object SKConfigF {
     case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
     case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
     case WithLoadChunkSize(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.chunkSize).set(v)(c)
-    case WithBufferSize(v, c)       => SKParams.loadParams.composeLens(NJLoadParams.bufferSize).set(v)(c)
+    case WithBufferSize(v, c)       => SKParams.loadParams.composeLens(NJLoadParams.byteBuffer).set(v)(c)
 
     case WithIdleTimeout(v, c) => SKParams.loadParams.composeLens(NJLoadParams.idleTimeout).set(v)(c)
 
@@ -131,7 +131,7 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
   def loadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
   def loadChunkSize(num: ChunkSize): SKConfig       = SKConfig(Fix(WithLoadChunkSize(num, value)))
-  def loadBufferSize(bs: Information): SKConfig     = SKConfig(Fix(WithBufferSize(bs, value)))
+  def loadByteBuffer(bb: Information): SKConfig     = SKConfig(Fix(WithBufferSize(bb, value)))
 
   def startTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def startTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))

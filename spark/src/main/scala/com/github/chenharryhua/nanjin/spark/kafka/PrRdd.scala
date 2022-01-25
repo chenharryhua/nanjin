@@ -12,7 +12,8 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import fs2.Stream
 import fs2.interop.reactivestreams.*
 import fs2.kafka.{ProducerRecords, ProducerResult, ProducerSettings as Fs2ProducerSettings}
@@ -27,6 +28,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
   topic: KafkaTopic[F, K, V],
   cfg: SKConfig
 ) extends Serializable {
+
+  val params: SKParams = cfg.evalConfig
 
   // config
   private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
@@ -63,8 +66,11 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
-  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
+  def save(path: NJPath): RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](
+      rdd,
+      NJProducerRecord.avroCodec(topic.topicDef).avroEncoder,
+      HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
 
   def upload: Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
   def upload(akkaSystem: ActorSystem): AkkaUpload[F, K, V] =

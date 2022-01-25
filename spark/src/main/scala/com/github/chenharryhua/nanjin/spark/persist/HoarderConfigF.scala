@@ -57,7 +57,7 @@ private object HoarderConfigF {
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
 }
 
-final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
+final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   import HoarderConfigF.*
   val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
@@ -82,7 +82,7 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def byteBuffer(bb: Information): HoarderConfig = HoarderConfig(Fix(WithByteBuffer(bb, value)))
 }
 
-private[persist] object HoarderConfig {
+private[spark] object HoarderConfig {
 
   def apply(outPath: NJPath): HoarderConfig =
     HoarderConfig(Fix(HoarderConfigF.InitParams[Fix[HoarderConfigF]](outPath)))
