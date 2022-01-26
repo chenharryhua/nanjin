@@ -7,10 +7,10 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl.*
 import mtest.spark.kafka.{ctx, sparKafka}
-import mtest.spark.persist.{Rooster, RoosterData}
 import org.apache.spark.sql.types.*
 import org.scalatest.funsuite.AnyFunSuite
 

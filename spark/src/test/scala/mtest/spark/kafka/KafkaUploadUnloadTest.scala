@@ -6,14 +6,15 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.spark.kafka.{NJConsumerRecord, NJProducerRecord, SparKafkaTopic}
+import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder
 import mtest.spark
-import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.sparkSession
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
 import eu.timepit.refined.auto.*
+
 import java.time.Instant
 import scala.concurrent.duration.*
 
@@ -63,13 +64,13 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- pr.upload(spark.akkaSystem).withThrottle(Bytes(1024)).stream.compile.drain
       _ <- pr.count.map(println)
-      _ <- topic.fromKafka.flatMap(_.save.circe(circe).folder.run)
-      _ <- topic.fromKafka.flatMap(_.crDS.save.parquet(parquet).folder.run)
-      _ <- topic.fromKafka.flatMap(_.crDS.save.json(json).run)
-      _ <- topic.fromKafka.flatMap(_.save.avro(avro).folder.run)
-      _ <- topic.fromKafka.flatMap(_.save.jackson(jackson).folder.run)
-      _ <- topic.fromKafka.flatMap(_.save.binAvro(avroBin).folder.run)
-      _ <- topic.fromKafka.flatMap(_.save.objectFile(obj).run)
+      _ <- topic.fromKafka.flatMap(_.save(circe).circe.folder.run)
+      _ <- topic.fromKafka.flatMap(_.crDS.save(parquet).parquet.folder.run)
+      _ <- topic.fromKafka.flatMap(_.crDS.save(json).json.run)
+      _ <- topic.fromKafka.flatMap(_.save(avro).avro.folder.run)
+      _ <- topic.fromKafka.flatMap(_.save(jackson).jackson.folder.run)
+      _ <- topic.fromKafka.flatMap(_.save(avroBin).binAvro.folder.run)
+      _ <- topic.fromKafka.flatMap(_.save(obj).objectFile.run)
       circeds <- topic.load.circe(circe).map(_.dataset.collect().flatMap(_.value).toSet)
       circerdd <- topic.load.rdd.circe(circe).map(_.rdd.flatMap(_.value).collect().toSet)
       parquetds <- topic.load.parquet(parquet).map(_.dataset.collect().flatMap(_.value).toSet)
