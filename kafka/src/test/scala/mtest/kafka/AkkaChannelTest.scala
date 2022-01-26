@@ -31,7 +31,7 @@ class AkkaChannelTest extends AnyFunSuite {
   data.compile.drain.unsafeRunSync()
 
   val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
-    topic.akkaChannel(akkaSystem).updateCommitter(_.withParallelism(10).withParallelism(10)).updateBufferSize(64)
+    topic.akkaChannel(akkaSystem).updateCommitter(_.withParallelism(10).withParallelism(10))
 
   test("akka stream committableSink") {
     import org.apache.kafka.clients.producer.ProducerRecord
@@ -81,7 +81,8 @@ class AkkaChannelTest extends AnyFunSuite {
   }
 
   test("fs2 stream") {
-    akkaChannel.stream
+    akkaChannel
+      .stream(64)
       .map(x => topic.decoder(x).decodeValue.record.value())
       .interruptAfter(3.seconds)
       .compile

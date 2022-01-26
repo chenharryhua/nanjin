@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.kafka.{ProducerMessage, ProducerSettings as AkkaProducerSettings}
-import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.{Materializer, OverflowStrategy}
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
@@ -90,8 +90,9 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
   def withRecordsLimit(num: Long): Fs2Upload[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): Fs2Upload[F, K, V] = updateCfg(_.loadTimeLimit(fd))
 
-  def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
-    val params: SKParams = cfg.evalConfig
+  val params: SKParams = cfg.evalConfig
+
+  def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
     rdd
       .stream[F](params.loadParams.chunkSize)
       .interruptAfter(params.loadParams.timeLimit)
@@ -100,7 +101,6 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .metered(params.loadParams.interval)
       .through(topic.fs2Channel.updateProducer(fs2Producer.updates.run).producerPipe)
-  }
 }
 
 final class AkkaUpload[F[_], K, V] private[kafka] (
@@ -128,17 +128,19 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
 
   def withThrottle(bytes: Information): AkkaUpload[F, K, V] = updateCfg(_.loadThrottle(bytes))
 
+  val params: SKParams = cfg.evalConfig
+
   def stream(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
-      val params: SKParams           = cfg.evalConfig
+
       rdd.stream[F](params.loadParams.chunkSize).toUnicastPublisher.map { p =>
         Source
           .fromPublisher(p)
           .take(params.loadParams.recordsLimit)
           .takeWithin(params.loadParams.timeLimit)
-          .grouped(params.loadParams.chunkSize.value)
-          .map(m => ProducerMessage.multi(m.map(_.toProducerRecord(topic.topicName.value))))
+          .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
+          .buffer(params.loadParams.chunkSize.value, OverflowStrategy.backpressure)
           .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.updates.run).flexiFlow)
           .throttle(
             params.loadParams.throttle.toBytes.toInt,
