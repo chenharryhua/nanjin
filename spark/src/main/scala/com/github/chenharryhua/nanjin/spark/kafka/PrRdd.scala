@@ -140,7 +140,6 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
           .take(params.loadParams.recordsLimit)
           .takeWithin(params.loadParams.timeLimit)
           .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
-          .buffer(params.loadParams.chunkSize.value, OverflowStrategy.backpressure)
           .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.updates.run).flexiFlow)
           .throttle(
             params.loadParams.throttle.toBytes.toInt,
@@ -155,6 +154,7 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
               case ProducerMessage.PassThroughResult(_) => 0
             }
           )
+          .buffer(params.loadParams.chunkSize.value, OverflowStrategy.backpressure)
           .runWith(Sink.asPublisher(fanout = false))
           .toStreamBuffered(params.loadParams.chunkSize.value)
       }

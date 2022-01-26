@@ -57,8 +57,6 @@ class KafkaUploadUnloadTest extends AnyFunSuite {
       .noTimestamp
       .noPartition
       .noMeta
-      .withRecordsLimit(1000)
-      .withTimeLimit(2.minutes)
 
     val run = for {
       _ <- rooster.in(ctx).admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
