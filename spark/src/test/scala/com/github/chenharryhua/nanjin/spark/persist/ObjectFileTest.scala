@@ -1,4 +1,4 @@
-package mtest.spark.persist
+package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -14,8 +14,8 @@ class ObjectFileTest extends AnyFunSuite {
   import TabletData.*
   test("object file identity") {
     val path  = NJPath("./data/test/spark/persist/object/tablet.obj")
-    val saver = new RddFileHoarder[IO, Tablet](ds.rdd)
-    saver.objectFile(path).errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    val saver = new RddFileHoarder[IO, Tablet](ds.rdd, HoarderConfig(path))
+    saver.objectFile.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val t = loaders.rdd.objectFile[Tablet](path, sparkSession).collect().toSet
     assert(data.toSet == t)
   }

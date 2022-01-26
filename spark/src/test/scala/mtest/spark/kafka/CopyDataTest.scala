@@ -36,7 +36,7 @@ class CopyDataTest extends AnyFunSuite {
   test("sparKafka pipeTo should copy data from source to target") {
     val rst = for {
       _ <- prepareData
-      _ <- sparKafka.topic(src.topicDef).fromKafka.flatMap(_.prRdd.upload.toTopic(tgt).stream.compile.drain)
+      _ <- sparKafka.topic(src.topicDef).fromKafka.flatMap(_.prRdd.upload.withTopic(tgt).stream.compile.drain)
       srcData <- sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect())
       tgtData <- sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect())
     } yield {

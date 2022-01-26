@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import better.files.*
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.spark.persist.SaveModeAware
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import org.apache.hadoop.conf.Configuration

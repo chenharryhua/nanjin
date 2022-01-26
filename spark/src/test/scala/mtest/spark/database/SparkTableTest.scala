@@ -124,11 +124,11 @@ class SparkTableTest extends AnyFunSuite {
 
   val tb: SparkDBTable[IO, DBTable] = sparkDB.table(table)
 
-  val saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save).unsafeRunSync()
+  def saver(path: NJPath): DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save(path)).unsafeRunSync()
 
   test("save avro") {
-    val avro = saver.avro(root / "single.raw.avro").file.sink.compile.drain >>
-      saver.avro(root / "multi.raw.avro").folder.run
+    val avro = saver(root / "single.raw.avro").avro.file.sink.compile.drain >>
+      saver(root / "multi.raw.avro").avro.folder.run
     avro.unsafeRunSync()
     val shead = tb.load.avro(root / "single.raw.avro").map(_.dataset.collect().head).unsafeRunSync()
     assert(shead == dbData)
@@ -137,28 +137,28 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save bin avro") {
-    val avro = saver.binAvro(root / "single.binary.avro").file.sink.compile.drain
+    val avro = saver(root / "single.binary.avro").binAvro.file.sink.compile.drain
     avro.unsafeRunSync()
     val head = tb.load.binAvro(root / "single.binary.avro").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
   }
 
   test("save jackson") {
-    val avro = saver.jackson(root / "single.jackson.json").file.sink.compile.drain
+    val avro = saver(root / "single.jackson.json").jackson.file.sink.compile.drain
     avro.unsafeRunSync()
     val head = tb.load.jackson(root / "single.jackson.json").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
   }
 
   test("save parquet") {
-    val parquet = saver.parquet(root / "multi.parquet").folder.run
+    val parquet = saver(root / "multi.parquet").parquet.folder.run
     parquet.unsafeRunSync()
     val head = tb.load.parquet(root / "multi.parquet").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
   }
   test("save circe") {
-    val circe = saver.circe(root / "multi.circe.json").folder.run >>
-      saver.circe(root / "single.circe.json").file.sink.compile.drain
+    val circe = saver(root / "multi.circe.json").circe.folder.run >>
+      saver(root / "single.circe.json").circe.file.sink.compile.drain
     circe.unsafeRunSync()
     val mhead = tb.load.circe(root / "multi.circe.json").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
@@ -167,8 +167,8 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save csv") {
-    val csv = saver.csv(root / "multi.csv").folder.run >>
-      saver.csv(root / "single.csv").file.sink.compile.drain
+    val csv = saver(root / "multi.csv").csv.folder.run >>
+      saver(root / "single.csv").csv.file.sink.compile.drain
     csv.unsafeRunSync()
     val mhead = tb.load.csv(root / "multi.csv").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
@@ -176,7 +176,7 @@ class SparkTableTest extends AnyFunSuite {
     assert(shead.unsafeRunSync() == dbData)
   }
   test("save spark json") {
-    val json = saver.json(root / "spark.json").run
+    val json = saver(root / "spark.json").json.run
     json.unsafeRunSync()
     val head = tb.load.json(root / "spark.json").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)

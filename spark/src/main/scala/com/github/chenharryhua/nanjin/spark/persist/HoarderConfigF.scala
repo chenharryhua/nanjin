@@ -2,12 +2,13 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.{ChunkSize, NJFileFormat}
+import com.github.chenharryhua.nanjin.spark
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
-import squants.information.{Information, Kilobytes}
+import squants.information.Information
 
 @Lenses final private[persist] case class HoarderParams(
   format: NJFileFormat,
@@ -25,8 +26,8 @@ private[persist] object HoarderParams {
       outPath,
       SaveMode.Overwrite,
       Compression.Uncompressed,
-      ChunkSize(8192),
-      Kilobytes(1024))
+      spark.chunkSize,
+      spark.byteBuffer)
 }
 
 sealed private[persist] trait HoarderConfigF[X]
@@ -57,7 +58,7 @@ private object HoarderConfigF {
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
 }
 
-final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
+final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   import HoarderConfigF.*
   val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
@@ -82,7 +83,7 @@ final private[persist] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def byteBuffer(bb: Information): HoarderConfig = HoarderConfig(Fix(WithByteBuffer(bb, value)))
 }
 
-private[persist] object HoarderConfig {
+private[spark] object HoarderConfig {
 
   def apply(outPath: NJPath): HoarderConfig =
     HoarderConfig(Fix(HoarderConfigF.InitParams[Fix[HoarderConfigF]](outPath)))

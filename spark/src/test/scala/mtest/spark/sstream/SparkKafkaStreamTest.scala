@@ -7,10 +7,10 @@ import com.github.chenharryhua.nanjin.common.PathRoot
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.spark.kafka.*
+import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder
 import mtest.spark.kafka.{ctx, sparKafka}
-import mtest.spark.persist.{Rooster, RoosterData}
 import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.streaming.Trigger

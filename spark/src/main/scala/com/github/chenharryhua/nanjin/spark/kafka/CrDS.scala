@@ -6,8 +6,10 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{DatasetAvroFileHoarder, HoarderConfig}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
+import fs2.Stream
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
 
@@ -41,7 +43,7 @@ final class CrDS[F[_], K, V] private[kafka] (
   def union(other: CrDS[F, K, V]): CrDS[F, K, V] = transform(_.union(other.dataset))
   def repartition(num: Int): CrDS[F, K, V]       = transform(_.repartition(num))
 
-  def normalize: CrDS[F, K, V] = transform(ate.normalize(_))
+  def normalize: CrDS[F, K, V] = transform(ate.normalize)
 
   def replicate(num: Int): CrDS[F, K, V] =
     transform(ds => (1 until num).foldLeft(ds) { case (r, _) => r.union(ds) })
@@ -66,8 +68,18 @@ final class CrDS[F[_], K, V] private[kafka] (
   }
 
   // transition
-  def save: DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder)
+  def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
+    dataset.stream[F](params.loadParams.chunkSize)
+  }
+
+  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
+    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](
+      dataset,
+      ate.avroCodec.avroEncoder,
+      HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
+  }
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
 

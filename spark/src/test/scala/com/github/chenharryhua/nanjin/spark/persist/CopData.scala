@@ -1,4 +1,4 @@
-package mtest.spark.persist
+package com.github.chenharryhua.nanjin.spark.persist
 
 import frameless.TypedDataset
 import mtest.spark.*

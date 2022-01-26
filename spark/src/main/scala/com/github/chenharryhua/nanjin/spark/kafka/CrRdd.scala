@@ -6,8 +6,10 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedDataset, TypedEncoder}
+import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -65,8 +67,18 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
 
-  def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)
+  def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
+    rdd.stream[F](params.loadParams.chunkSize)
+  }
+
+  def save(path: NJPath): RddAvroFileHoarder[F, NJConsumerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
+    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](
+      rdd,
+      codec.avroEncoder,
+      HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
+  }
 
   // statistics
   def stats: Statistics[F] =

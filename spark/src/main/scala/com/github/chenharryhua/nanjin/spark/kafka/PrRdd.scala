@@ -12,7 +12,8 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, fs2Updater, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import fs2.Stream
 import fs2.interop.reactivestreams.*
 import fs2.kafka.{ProducerRecords, ProducerResult, ProducerSettings as Fs2ProducerSettings}
@@ -63,8 +64,13 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
-  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, NJProducerRecord.avroCodec(topic.topicDef).avroEncoder)
+  def save(path: NJPath): RddAvroFileHoarder[F, NJProducerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](
+      rdd,
+      NJProducerRecord.avroCodec(topic.topicDef).avroEncoder,
+      HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
+  }
 
   def upload: Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Updater.unitProducer[F, K, V])
   def upload(akkaSystem: ActorSystem): AkkaUpload[F, K, V] =
@@ -81,9 +87,17 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
   def updateProducer(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Upload[F, K, V] =
     new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
-  def toTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
-  def toTopic(tn: TopicName): Fs2Upload[F, K, V] =
+  def withTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
+  def withTopic(tn: TopicName): Fs2Upload[F, K, V] =
     new Fs2Upload[F, K, V](rdd, topic.withTopicName(tn), cfg, fs2Producer)
+
+  private def updateCfg(f: SKConfig => SKConfig): Fs2Upload[F, K, V] =
+    new Fs2Upload[F, K, V](rdd, topic, f(cfg), fs2Producer)
+
+  def withChunkSize(cs: ChunkSize): Fs2Upload[F, K, V]      = updateCfg(_.loadChunkSize(cs))
+  def withRecordsLimit(num: Long): Fs2Upload[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
+  def withTimeLimit(fd: FiniteDuration): Fs2Upload[F, K, V] = updateCfg(_.loadTimeLimit(fd))
+  def withInterval(fd: FiniteDuration): Fs2Upload[F, K, V]  = updateCfg(_.loadInterval(fd))
 
   def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
     val params: SKParams = cfg.evalConfig
@@ -112,11 +126,17 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
   def toTopic(topic: KafkaTopic[F, K, V]): AkkaUpload[F, K, V] =
     new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg, akkaProducer)
 
-  def withThrottle(bytes: Information): AkkaUpload[F, K, V] =
-    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg.loadThrottle(bytes), akkaProducer)
+  private def updateCfg(f: SKConfig => SKConfig): AkkaUpload[F, K, V] =
+    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, f(cfg), akkaProducer)
 
-  def withChunkSize(cs: ChunkSize): AkkaUpload[F, K, V] =
-    new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg.loadChunkSize(cs), akkaProducer)
+  def withThrottle(bytes: Information): AkkaUpload[F, K, V] = updateCfg(_.loadThrottle(bytes))
+
+  def withChunkSize(cs: ChunkSize): AkkaUpload[F, K, V] = updateCfg(_.loadChunkSize(cs))
+
+  def withInterval(fd: FiniteDuration): AkkaUpload[F, K, V] = updateCfg(_.loadInterval(fd))
+
+  def withRecordsLimit(num: Long): AkkaUpload[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
+  def withTimeLimit(fd: FiniteDuration): AkkaUpload[F, K, V] = updateCfg(_.loadTimeLimit(fd))
 
   def stream(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
@@ -127,8 +147,8 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
           .fromPublisher(p)
           .take(params.loadParams.recordsLimit)
           .takeWithin(params.loadParams.timeLimit)
-          .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
-          .buffer(params.loadParams.chunkSize.value, OverflowStrategy.backpressure)
+          .grouped(params.loadParams.chunkSize.value)
+          .map(m => ProducerMessage.multi(m.map(_.toProducerRecord(topic.topicName.value))))
           .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.updates.run).flexiFlow)
           .throttle(
             params.loadParams.throttle.toBytes.toInt,

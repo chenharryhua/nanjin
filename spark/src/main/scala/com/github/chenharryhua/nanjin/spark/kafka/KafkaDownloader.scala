@@ -7,6 +7,7 @@ import akka.stream.scaladsl.Sink
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, stages, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.{sinks, Compression}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -53,6 +54,8 @@ final class KafkaDownloader[F[_], K, V](
 
   def withRecordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadTimeLimit(fd))
+
+  def withChunkSize(cs: ChunkSize): KafkaDownloader[F, K, V] = updateCfg(_.loadChunkSize(cs))
 
   def withIdleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadIdleTimeout(fd))
 
