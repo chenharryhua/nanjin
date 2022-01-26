@@ -29,14 +29,6 @@ final class PrRdd[F[_], K, V] private[kafka] (
   cfg: SKConfig
 ) extends Serializable {
 
-  // config
-  private def updateCfg(f: SKConfig => SKConfig): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, f(cfg))
-
-  def withInterval(ms: FiniteDuration): PrRdd[F, K, V]  = updateCfg(_.loadInterval(ms))
-  def withRecordsLimit(num: Long): PrRdd[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
-  def withTimeLimit(fd: FiniteDuration): PrRdd[F, K, V] = updateCfg(_.loadTimeLimit(fd))
-
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](f(rdd), topic, cfg)
@@ -88,19 +80,19 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
     new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
   def withTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
-  def withTopic(tn: TopicName): Fs2Upload[F, K, V] =
-    new Fs2Upload[F, K, V](rdd, topic.withTopicName(tn), cfg, fs2Producer)
+  def withTopic(tn: TopicName): Fs2Upload[F, K, V]              = withTopic(topic.withTopicName(tn))
 
   private def updateCfg(f: SKConfig => SKConfig): Fs2Upload[F, K, V] =
     new Fs2Upload[F, K, V](rdd, topic, f(cfg), fs2Producer)
 
+  def withInterval(fd: FiniteDuration): Fs2Upload[F, K, V]  = updateCfg(_.loadInterval(fd))
   def withChunkSize(cs: ChunkSize): Fs2Upload[F, K, V]      = updateCfg(_.loadChunkSize(cs))
   def withRecordsLimit(num: Long): Fs2Upload[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): Fs2Upload[F, K, V] = updateCfg(_.loadTimeLimit(fd))
-  def withInterval(fd: FiniteDuration): Fs2Upload[F, K, V]  = updateCfg(_.loadInterval(fd))
 
-  def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
-    val params: SKParams = cfg.evalConfig
+  val params: SKParams = cfg.evalConfig
+
+  def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] =
     rdd
       .stream[F](params.loadParams.chunkSize)
       .interruptAfter(params.loadParams.timeLimit)
@@ -109,7 +101,6 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
       .map(chk => ProducerRecords(chk.map(_.toFs2ProducerRecord(topic.topicName.value))))
       .metered(params.loadParams.interval)
       .through(topic.fs2Channel.updateProducer(fs2Producer.updates.run).producerPipe)
-  }
 }
 
 final class AkkaUpload[F[_], K, V] private[kafka] (
@@ -123,32 +114,33 @@ final class AkkaUpload[F[_], K, V] private[kafka] (
   def updateProducer(f: AkkaProducerSettings[K, V] => AkkaProducerSettings[K, V]): AkkaUpload[F, K, V] =
     new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg, akkaProducer.updateConfig(f))
 
-  def toTopic(topic: KafkaTopic[F, K, V]): AkkaUpload[F, K, V] =
+  def withTopic(topic: KafkaTopic[F, K, V]): AkkaUpload[F, K, V] =
     new AkkaUpload[F, K, V](rdd, akkaSystem, topic, cfg, akkaProducer)
+  def withTopic(tn: TopicName): AkkaUpload[F, K, V] = withTopic(topic.withTopicName(tn))
 
   private def updateCfg(f: SKConfig => SKConfig): AkkaUpload[F, K, V] =
     new AkkaUpload[F, K, V](rdd, akkaSystem, topic, f(cfg), akkaProducer)
 
-  def withThrottle(bytes: Information): AkkaUpload[F, K, V] = updateCfg(_.loadThrottle(bytes))
-
-  def withChunkSize(cs: ChunkSize): AkkaUpload[F, K, V] = updateCfg(_.loadChunkSize(cs))
-
-  def withInterval(fd: FiniteDuration): AkkaUpload[F, K, V] = updateCfg(_.loadInterval(fd))
-
+  def withInterval(fd: FiniteDuration): AkkaUpload[F, K, V]  = updateCfg(_.loadInterval(fd))
+  def withChunkSize(cs: ChunkSize): AkkaUpload[F, K, V]      = updateCfg(_.loadChunkSize(cs))
   def withRecordsLimit(num: Long): AkkaUpload[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): AkkaUpload[F, K, V] = updateCfg(_.loadTimeLimit(fd))
+
+  def withThrottle(bytes: Information): AkkaUpload[F, K, V] = updateCfg(_.loadThrottle(bytes))
+
+  val params: SKParams = cfg.evalConfig
 
   def stream(implicit F: Async[F]): Stream[F, ProducerMessage.Results[K, V, NotUsed]] =
     Stream.resource {
       implicit val mat: Materializer = Materializer(akkaSystem)
-      val params: SKParams           = cfg.evalConfig
+
       rdd.stream[F](params.loadParams.chunkSize).toUnicastPublisher.map { p =>
         Source
           .fromPublisher(p)
           .take(params.loadParams.recordsLimit)
           .takeWithin(params.loadParams.timeLimit)
-          .grouped(params.loadParams.chunkSize.value)
-          .map(m => ProducerMessage.multi(m.map(_.toProducerRecord(topic.topicName.value))))
+          .map(m => ProducerMessage.single(m.toProducerRecord(topic.topicName.value)))
+          .buffer(params.loadParams.chunkSize.value, OverflowStrategy.backpressure)
           .via(topic.akkaChannel(akkaSystem).updateProducer(akkaProducer.updates.run).flexiFlow)
           .throttle(
             params.loadParams.throttle.toBytes.toInt,

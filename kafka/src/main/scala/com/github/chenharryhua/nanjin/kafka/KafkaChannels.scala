@@ -6,6 +6,7 @@ import akka.{Done, NotUsed}
 import cats.data.NonEmptyList
 import cats.effect.kernel.*
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
@@ -115,8 +116,7 @@ object KafkaChannels {
     kcs: KafkaConsumerSettings,
     csUpdater: akkaUpdater.Consumer,
     psUpdater: akkaUpdater.Producer[K, V],
-    ctUpdater: akkaUpdater.Committer,
-    bufferSize: Int) {
+    ctUpdater: akkaUpdater.Committer) {
     import akka.kafka.*
     import akka.kafka.ConsumerMessage.CommittableMessage
     import akka.kafka.ProducerMessage.Envelope
@@ -127,16 +127,13 @@ object KafkaChannels {
     // settings
     def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
       : AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater.updateConfig(f), psUpdater, ctUpdater, bufferSize)
+      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater.updateConfig(f), psUpdater, ctUpdater)
 
     def updateProducer(f: ProducerSettings[K, V] => ProducerSettings[K, V]): AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater.updateConfig(f), ctUpdater, bufferSize)
+      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater.updateConfig(f), ctUpdater)
 
     def updateCommitter(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
-      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater.updateConfig(f), bufferSize)
-
-    def updateBufferSize(bufferSize: Int) =
-      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater, bufferSize)
+      new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater.updateConfig(f))
 
     def producerSettings: ProducerSettings[K, V] =
       psUpdater.updates.run(
@@ -180,9 +177,9 @@ object KafkaChannels {
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-    def stream(implicit F: Async[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
+    def stream(chunkSize: ChunkSize)(implicit F: Async[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
       Stream.suspend(
-        source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStreamBuffered[F](bufferSize))
+        source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStreamBuffered[F](chunkSize.value))
 
     val transactionalSource: Source[ConsumerMessage.TransactionalMessage[K, V], Consumer.Control] =
       Transactional.source(consumerSettings, Subscriptions.topics(topicName.value)).map(decoder(_).decode)

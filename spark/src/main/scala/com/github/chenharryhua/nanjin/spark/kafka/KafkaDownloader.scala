@@ -62,8 +62,9 @@ final class KafkaDownloader[F[_], K, V](
   def withListener(f: NJConsumerRecord[K, V] => F[Unit]): KafkaDownloader[F, K, V] =
     new KafkaDownloader[F, K, V](akkaSystem, topic, hadoop, cfg, akkaConsumer, Some(Kleisli(f)))
 
+  val params: SKParams = cfg.evalConfig
+
   private def stream(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] = {
-    val params: SKParams = cfg.evalConfig
     val fstream: F[Stream[F, NJConsumerRecord[K, V]]] =
       topic.shortLiveConsumer.use(_.offsetRangeFor(params.timeRange).map(_.flatten)).map { kor =>
         topic
