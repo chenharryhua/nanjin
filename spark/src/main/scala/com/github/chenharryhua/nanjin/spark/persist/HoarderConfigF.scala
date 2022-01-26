@@ -2,12 +2,13 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.{ChunkSize, NJFileFormat}
+import com.github.chenharryhua.nanjin.spark
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
-import squants.information.{Information, Kilobytes}
+import squants.information.Information
 
 @Lenses final private[persist] case class HoarderParams(
   format: NJFileFormat,
@@ -25,8 +26,8 @@ private[persist] object HoarderParams {
       outPath,
       SaveMode.Overwrite,
       Compression.Uncompressed,
-      ChunkSize(8192),
-      Kilobytes(1024))
+      spark.chunkSize,
+      spark.byteBuffer)
 }
 
 sealed private[persist] trait HoarderConfigF[X]

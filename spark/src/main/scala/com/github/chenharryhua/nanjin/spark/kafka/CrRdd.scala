@@ -21,8 +21,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   protected val codec: AvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
 
-  val params: SKParams = cfg.evalConfig
-
   // transforms
   def transform(f: RDD[NJConsumerRecord[K, V]] => RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](f(rdd), topic, cfg, ss)
@@ -68,11 +66,13 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
 
-  def save(path: NJPath): RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+  def save(path: NJPath): RddAvroFileHoarder[F, NJConsumerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
     new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](
       rdd,
       codec.avroEncoder,
       HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
+  }
 
   // statistics
   def stats: Statistics[F] =

@@ -14,6 +14,7 @@ import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import squants.information.{Information, Megabytes}
 
 import scala.reflect.ClassTag
 
@@ -22,6 +23,9 @@ package object spark {
   object injection extends InjectionInstances
 
   private[spark] val SparkDatetimeConversionConstant: Int = 1000
+
+  private[spark] val chunkSize: ChunkSize    = ChunkSize(1000)
+  private[spark] val byteBuffer: Information = Megabytes(1)
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 

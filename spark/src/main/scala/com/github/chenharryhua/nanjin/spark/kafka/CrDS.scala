@@ -20,8 +20,6 @@ final class CrDS[F[_], K, V] private[kafka] (
   tev: TypedEncoder[V])
     extends Serializable {
 
-  val params: SKParams = cfg.evalConfig
-
   val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.ate(topic.topicDef)(tek, tev)
 
   def typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
@@ -44,7 +42,7 @@ final class CrDS[F[_], K, V] private[kafka] (
   def union(other: CrDS[F, K, V]): CrDS[F, K, V] = transform(_.union(other.dataset))
   def repartition(num: Int): CrDS[F, K, V]       = transform(_.repartition(num))
 
-  def normalize: CrDS[F, K, V] = transform(ate.normalize(_))
+  def normalize: CrDS[F, K, V] = transform(ate.normalize)
 
   def replicate(num: Int): CrDS[F, K, V] =
     transform(ds => (1 until num).foldLeft(ds) { case (r, _) => r.union(ds) })
@@ -69,11 +67,13 @@ final class CrDS[F[_], K, V] private[kafka] (
   }
 
   // transition
-  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] = {
+    val params: SKParams = cfg.evalConfig
     new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](
       dataset,
       ate.avroCodec.avroEncoder,
       HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
+  }
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
 

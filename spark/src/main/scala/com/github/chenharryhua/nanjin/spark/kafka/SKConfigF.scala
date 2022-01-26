@@ -4,13 +4,14 @@ import cats.Functor
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{ChunkSize, PathSegment}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.spark
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.streaming.kafka010.{LocationStrategies, LocationStrategy}
-import squants.information.{Gigabytes, Information, Megabytes}
+import squants.information.{Gigabytes, Information}
 
 import java.time.{LocalDate, LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
@@ -29,8 +30,8 @@ private[kafka] object NJLoadParams {
 
   val default: NJLoadParams = NJLoadParams(
     throttle = Gigabytes(1), // akka maximum 1gb/second
-    chunkSize = ChunkSize(1000),
-    byteBuffer = Megabytes(1),
+    chunkSize = spark.chunkSize,
+    byteBuffer = spark.byteBuffer,
     interval = FiniteDuration(1, TimeUnit.SECONDS),
     recordsLimit = Long.MaxValue,
     timeLimit = FiniteDuration(21474835, TimeUnit.SECONDS), // akka.actor.LightArrayRevolverScheduler.checkMaxDelay
