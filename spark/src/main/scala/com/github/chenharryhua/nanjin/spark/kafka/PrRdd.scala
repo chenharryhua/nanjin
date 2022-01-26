@@ -87,9 +87,17 @@ final class Fs2Upload[F[_], K, V] private[kafka] (
   def updateProducer(f: Fs2ProducerSettings[F, K, V] => Fs2ProducerSettings[F, K, V]): Fs2Upload[F, K, V] =
     new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer.updateConfig(f))
 
-  def toTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
-  def toTopic(tn: TopicName): Fs2Upload[F, K, V] =
+  def withTopic(topic: KafkaTopic[F, K, V]): Fs2Upload[F, K, V] = new Fs2Upload[F, K, V](rdd, topic, cfg, fs2Producer)
+  def withTopic(tn: TopicName): Fs2Upload[F, K, V] =
     new Fs2Upload[F, K, V](rdd, topic.withTopicName(tn), cfg, fs2Producer)
+
+  private def updateCfg(f: SKConfig => SKConfig): Fs2Upload[F, K, V] =
+    new Fs2Upload[F, K, V](rdd, topic, f(cfg), fs2Producer)
+
+  def withChunkSize(cs: ChunkSize): Fs2Upload[F, K, V]      = updateCfg(_.loadChunkSize(cs))
+  def withRecordsLimit(num: Long): Fs2Upload[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
+  def withTimeLimit(fd: FiniteDuration): Fs2Upload[F, K, V] = updateCfg(_.loadTimeLimit(fd))
+  def withInterval(fd: FiniteDuration): Fs2Upload[F, K, V]  = updateCfg(_.loadInterval(fd))
 
   def stream(implicit ce: Async[F]): Stream[F, ProducerResult[Unit, K, V]] = {
     val params: SKParams = cfg.evalConfig
