@@ -364,7 +364,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= Seq(
       "io.netty"                               % "netty-all"  % "4.1.73.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC26" % Test) ++
+      "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC29" % Test) ++
       sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
       akkaLib ++ ftpLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
   )
