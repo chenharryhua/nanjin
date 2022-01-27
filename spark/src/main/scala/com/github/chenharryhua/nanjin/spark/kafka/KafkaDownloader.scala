@@ -55,7 +55,7 @@ final class KafkaDownloader[F[_], K, V](
   def withRecordsLimit(num: Long): KafkaDownloader[F, K, V]       = updateCfg(_.loadRecordsLimit(num))
   def withTimeLimit(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadTimeLimit(fd))
 
-  def withChunkSize(cs: ChunkSize): KafkaDownloader[F, K, V] = updateCfg(_.loadChunkSize(cs))
+  def withChunkSize(cs: ChunkSize): KafkaDownloader[F, K, V] = updateCfg(_.withChunkSize(cs))
 
   def withIdleTimeout(fd: FiniteDuration): KafkaDownloader[F, K, V] = updateCfg(_.loadIdleTimeout(fd))
 

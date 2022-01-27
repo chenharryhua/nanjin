@@ -6,7 +6,7 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
+import com.github.chenharryhua.nanjin.common.{ChunkSize, PathSegment, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
@@ -18,7 +18,7 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import fs2.Stream
-import fs2.kafka.{ProducerRecords, ProducerResult}
+import fs2.kafka.ProducerResult
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -44,6 +44,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.timeRangeOneDay(ld))
   def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.timeRange(tr))
   def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.locationStrategy(ls))
+  def withChunkSize(cs: ChunkSize): SparKafkaTopic[F, K, V]               = updateConfig(_.withChunkSize(cs))
 
   val params: SKParams     = cfg.evalConfig
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)

@@ -1,7 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.kernel.Sync
+import akka.NotUsed
+import akka.kafka.ProducerMessage.{multi, Envelope}
+import akka.stream.scaladsl.Source
+import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
@@ -9,6 +13,7 @@ import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import fs2.Stream
+import fs2.interop.reactivestreams.StreamOps
 import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
 
@@ -17,6 +22,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
   codec: AvroCodec[NJProducerRecord[K, V]],
   cfg: SKConfig
 ) extends Serializable {
+
+  val params: SKParams = cfg.evalConfig
 
   // transform
   def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
@@ -45,17 +52,23 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
-  val params: SKParams = cfg.evalConfig
-
   def save(path: NJPath): RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](
       rdd,
       codec.avroEncoder,
       HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
 
+  // source
+  def withChunkSize(cs: ChunkSize): PrRdd[F, K, V] = new PrRdd[F, K, V](rdd, codec, cfg.withChunkSize(cs))
+
   def stream(implicit F: Sync[F]): Stream[F, NJProducerRecord[K, V]] = rdd.stream[F](params.loadParams.chunkSize)
 
   def producerRecords(topicName: TopicName)(implicit F: Sync[F]): Stream[F, ProducerRecords[Unit, K, V]] =
     stream.chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
+  def producerMessages(topicName: TopicName)(implicit
+    F: Async[F]): Resource[F, Source[Envelope[K, V, NotUsed], NotUsed]] =
+    stream.chunks.toUnicastPublisher.map { publisher =>
+      Source.fromPublisher(publisher).map(ms => multi(ms.map(_.toProducerRecord(topicName)).toVector))
+    }
 }

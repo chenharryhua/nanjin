@@ -16,6 +16,10 @@ object console {
   def apply[F[_]: Console: Monad]: TextConsole[F] = new TextConsole[F](Translator.text[F])
 }
 
+object simple {
+  def apply[F[_]: Console: Monad]: TextConsole[F] = new TextConsole[F](Translator.simpleText[F])
+}
+
 final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
     extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
 

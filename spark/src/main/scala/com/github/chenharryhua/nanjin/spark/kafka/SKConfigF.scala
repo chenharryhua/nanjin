@@ -70,8 +70,8 @@ private object SKConfigF {
   final case class WithTopicName[K](value: TopicName, cont: K) extends SKConfigF[K]
 
   final case class WithLoadThrottle[K](value: Information, cont: K) extends SKConfigF[K]
-  final case class WithLoadChunkSize[K](value: ChunkSize, cont: K) extends SKConfigF[K]
-  final case class WithBufferSize[K](value: Information, cont: K) extends SKConfigF[K]
+  final case class WithChunkSize[K](value: ChunkSize, cont: K) extends SKConfigF[K]
+  final case class WithByteBuffer[K](value: Information, cont: K) extends SKConfigF[K]
   final case class WithLoadInterval[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
   final case class WithLoadRecordsLimit[K](value: Long, cont: K) extends SKConfigF[K]
   final case class WithLoadTimeLimit[K](value: FiniteDuration, cont: K) extends SKConfigF[K]
@@ -99,8 +99,8 @@ private object SKConfigF {
     case WithLoadInterval(v, c)     => SKParams.loadParams.composeLens(NJLoadParams.interval).set(v)(c)
     case WithLoadRecordsLimit(v, c) => SKParams.loadParams.composeLens(NJLoadParams.recordsLimit).set(v)(c)
     case WithLoadTimeLimit(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.timeLimit).set(v)(c)
-    case WithLoadChunkSize(v, c)    => SKParams.loadParams.composeLens(NJLoadParams.chunkSize).set(v)(c)
-    case WithBufferSize(v, c)       => SKParams.loadParams.composeLens(NJLoadParams.byteBuffer).set(v)(c)
+    case WithChunkSize(v, c)        => SKParams.loadParams.composeLens(NJLoadParams.chunkSize).set(v)(c)
+    case WithByteBuffer(v, c)       => SKParams.loadParams.composeLens(NJLoadParams.byteBuffer).set(v)(c)
 
     case WithIdleTimeout(v, c) => SKParams.loadParams.composeLens(NJLoadParams.idleTimeout).set(v)(c)
 
@@ -131,8 +131,8 @@ final private[kafka] case class SKConfig private (value: Fix[SKConfigF]) extends
   def loadRecordsLimit(num: Long): SKConfig         = SKConfig(Fix(WithLoadRecordsLimit(num, value)))
   def loadTimeLimit(fd: FiniteDuration): SKConfig   = SKConfig(Fix(WithLoadTimeLimit(fd, value)))
   def loadIdleTimeout(fd: FiniteDuration): SKConfig = SKConfig(Fix(WithIdleTimeout(fd, value)))
-  def loadChunkSize(num: ChunkSize): SKConfig       = SKConfig(Fix(WithLoadChunkSize(num, value)))
-  def loadByteBuffer(bb: Information): SKConfig     = SKConfig(Fix(WithBufferSize(bb, value)))
+  def withChunkSize(num: ChunkSize): SKConfig       = SKConfig(Fix(WithChunkSize(num, value)))
+  def withByteBuffer(bb: Information): SKConfig     = SKConfig(Fix(WithByteBuffer(bb, value)))
 
   def startTime(s: String): SKConfig                  = SKConfig(Fix(WithStartTimeStr(s, value)))
   def startTime(s: LocalDateTime): SKConfig           = SKConfig(Fix(WithStartTime(s, value)))
