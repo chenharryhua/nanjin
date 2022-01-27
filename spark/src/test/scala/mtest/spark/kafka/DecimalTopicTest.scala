@@ -88,7 +88,12 @@ class DecimalTopicTest extends AnyFunSuite {
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
   val loadData =
-    stopic.prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data))).upload.stream.compile.drain
+    stopic
+      .prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data)))
+      .producerRecords(stopic.topicName)
+      .through(stopic.topic.fs2Channel.producerPipe)
+      .compile
+      .drain
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
     topic.schemaRegistry.register >>

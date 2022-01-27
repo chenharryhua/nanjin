@@ -11,6 +11,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import eu.timepit.refined.auto.*
+import fs2.kafka.ProducerRecords
 
 class KafkaDownloadTest extends AnyFunSuite {
   val topic = sparKafka.topic[Int, Int]("spark.kafka.download")
@@ -28,7 +29,15 @@ class KafkaDownloadTest extends AnyFunSuite {
     )                                                          // #6
   // format: on
 
-  topic.prRdd(data).upload.updateProducer(_.withClientId("kafka.download.test")).stream.compile.drain.unsafeRunSync()
+  topic
+    .prRdd(data)
+    .stream
+    .chunks
+    .map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topic.topicName))))
+    .through(topic.topic.fs2Channel.producerPipe)
+    .compile
+    .drain
+    .unsafeRunSync()
 
   val root = NJPath("./data/test/spark/kafka/kafka_download/")
 

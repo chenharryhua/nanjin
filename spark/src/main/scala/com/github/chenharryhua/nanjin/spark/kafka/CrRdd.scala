@@ -65,7 +65,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), topic, cfg, tek, tev)
   }
 
-  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), topic, cfg)
+  def prRdd: PrRdd[F, K, V] =
+    new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(topic.topicDef), cfg)
 
   def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] = {
     val params: SKParams = cfg.evalConfig

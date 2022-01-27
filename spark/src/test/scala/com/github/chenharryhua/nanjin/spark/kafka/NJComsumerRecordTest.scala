@@ -2,13 +2,11 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.derived.auto.eq.*
 import cats.kernel.laws.discipline.PartialOrderTests
-import cats.laws.discipline.{BifunctorTests, BitraverseTests}
+import cats.laws.discipline.BifunctorTests
 import cats.tests.CatsSuite
+import eu.timepit.refined.auto.*
 import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-
-import scala.util.Random
-import cats.effect.unsafe.implicits.global
 
 object NJComsumerRecordTestData {
   implicit val ocogen = Cogen[NJConsumerRecord[Int, Int]]((o: NJConsumerRecord[Int, Int]) => o.offset)
@@ -37,7 +35,7 @@ object NJComsumerRecordTestData {
 }
 
 class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
-  import NJComsumerRecordTestData._
+  import NJComsumerRecordTestData.*
 
   // partial ordered
   checkAll("OptionalKV", PartialOrderTests[NJConsumerRecord[Int, Int]].partialOrder)
@@ -49,7 +47,7 @@ class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
 }
 
 class NJComsumerRecordProp extends Properties("ConsumerRecord") {
-  import NJComsumerRecordTestData._
+  import NJComsumerRecordTestData.*
   import org.scalacheck.Prop.forAll
 
   property("fs2.producer.record.conversion") = forAll { (op: NJProducerRecord[Int, Int]) =>

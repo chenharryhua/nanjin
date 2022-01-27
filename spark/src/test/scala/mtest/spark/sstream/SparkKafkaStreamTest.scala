@@ -60,7 +60,13 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .showProgress
 
     val upload =
-      sparKafka.topic(rooster).prRdd(data).upload.withInterval(0.5.seconds).stream.delayBy(2.second)
+      sparKafka
+        .topic(rooster)
+        .prRdd(data)
+        .producerRecords(rooster.topicName)
+        .through(rooster.fs2Channel.producerPipe)
+        .metered(0.2.seconds)
+        .delayBy(2.second)
 
     ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }
@@ -84,11 +90,10 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     val upload = sparKafka
       .topic(rooster)
       .prRdd(data)
-      .upload
-      .withInterval(0.1.second)
-      .withTimeLimit(2.minute)
-      .withRecordsLimit(10)
-      .stream
+      .producerRecords(rooster.topicName)
+      .metered(0.1.second)
+      .interruptAfter(2.minute)
+      .take(10)
       .delayBy(3.second)
 
     (ss.concurrently(upload).interruptAfter(6.seconds).compile.drain >>
@@ -115,10 +120,9 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .topic(rooster)
         .prRdd(data)
         .replicate(5)
-        .upload
-        .withInterval(0.5.seconds)
-        .updateProducer(_.withClientId("spark.kafka.streaming.test"))
-        .stream
+        .producerRecords(rooster.topicName)
+        .metered(0.5.seconds)
+        .through(rooster.fs2Channel.producerPipe)
         .delayBy(1.second)
         .debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
@@ -147,7 +151,13 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .stream
 
     val upload =
-      sparKafka.topic(rooster).prRdd(data).upload.withInterval(1.second).stream.delayBy(3.second)
+      sparKafka
+        .topic(rooster)
+        .prRdd(data)
+        .producerRecords(rooster.topicName)
+        .metered(1.second)
+        .through(rooster.fs2Channel.producerPipe)
+        .delayBy(3.second)
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     import sparkSession.implicits.*
     val now = Instant.now().getEpochSecond * 1000 // to millisecond

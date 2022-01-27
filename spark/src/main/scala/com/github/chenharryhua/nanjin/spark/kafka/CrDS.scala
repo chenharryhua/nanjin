@@ -83,7 +83,8 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
 
-  def prRdd: PrRdd[F, K, V] = new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), topic, cfg)
+  def prRdd: PrRdd[F, K, V] =
+    new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(topic.topicDef), cfg)
 
   // statistics
   def stats: Statistics[F] =

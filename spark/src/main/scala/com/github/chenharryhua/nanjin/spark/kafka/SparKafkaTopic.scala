@@ -17,6 +17,8 @@ import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
+import fs2.Stream
+import fs2.kafka.{ProducerRecords, ProducerResult}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -62,8 +64,15 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   def dumpToday(implicit F: Sync[F]): F[Unit] = withOneDay(LocalDate.now()).dump
 
-  def replay(implicit ce: Async[F]): F[Unit] =
-    fromDisk.flatMap(_.prRdd.noMeta.upload.stream.map(_ => print(".")).compile.drain)
+  def replay(listener: ProducerResult[Unit, K, V] => F[Unit])(implicit F: Async[F]): F[Unit] =
+    Stream
+      .force(
+        fromDisk.map(
+          _.prRdd.noMeta.producerRecords(topicName).through(topic.fs2Channel.producerPipe).evalMap(listener)))
+      .compile
+      .drain
+
+  def replay(implicit F: Async[F]): F[Unit] = replay(_ => F.unit)
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.flatMap(_.count)
@@ -88,7 +97,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     new CrDS(ate.normalizeDF(df), topic, cfg, tek, tev)
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic, cfg)
+    new PrRdd[F, K, V](rdd, NJProducerRecord.avroCodec(topic.topicDef), cfg)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     prRdd(ss.sparkContext.parallelize(list.toList))

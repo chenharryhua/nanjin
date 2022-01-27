@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import alleycats.Empty
 import cats.Bifunctor
 import cats.implicits.toShow
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
@@ -44,8 +45,9 @@ final case class NJProducerRecord[K, V](
     NJProducerRecord.value.modify((_: Option[V]).map(f))(this)
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toFs2ProducerRecord(topicName: String): Fs2ProducerRecord[K, V] = {
-    val pr = Fs2ProducerRecord(topicName, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
+  def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {
+    val pr =
+      Fs2ProducerRecord(topicName.value, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
     (partition, timestamp) match {
       case (None, None)       => pr
       case (Some(p), None)    => pr.withPartition(p)
@@ -54,7 +56,7 @@ final case class NJProducerRecord[K, V](
     }
   }
 
-  def toProducerRecord(topicName: String): ProducerRecord[K, V] =
+  def toProducerRecord(topicName: TopicName): ProducerRecord[K, V] =
     toFs2ProducerRecord(topicName).transformInto[ProducerRecord[K, V]]
 }
 
