@@ -54,11 +54,9 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def save(path: NJPath): RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder, HoarderConfig(path))
 
-  def stream(cs: ChunkSize)(implicit F: Sync[F]): Stream[F, NJProducerRecord[K, V]] = rdd.stream[F](cs)
-
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, ProducerRecords[Unit, K, V]] =
-    stream(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
+    rdd.stream[F](chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
   def producerMessages(topicName: TopicName, chunkSize: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
     rdd.source.grouped(chunkSize.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))

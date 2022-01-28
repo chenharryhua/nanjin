@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{DatasetAvroFileHoarder, HoarderConfig}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
-import fs2.Stream
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
 
@@ -71,10 +70,8 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   // transition
 
-  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] = {
-    val params: SKParams = cfg.evalConfig
+  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
     new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder, HoarderConfig(path))
-  }
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
 
