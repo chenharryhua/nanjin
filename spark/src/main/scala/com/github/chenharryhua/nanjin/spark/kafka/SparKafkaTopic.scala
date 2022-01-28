@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import akka.actor.ActorSystem
 import cats.Foldable
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.common.{ChunkSize, PathSegment, UpdateConfig}
+import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{akkaUpdater, KafkaTopic}
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
@@ -44,7 +43,6 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.timeRangeOneDay(ld))
   def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.timeRange(tr))
   def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.locationStrategy(ls))
-  def withChunkSize(cs: ChunkSize): SparKafkaTopic[F, K, V]               = updateConfig(_.withChunkSize(cs))
 
   val params: SKParams     = cfg.evalConfig
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
@@ -69,7 +67,7 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     Stream
       .force(
         fromDisk.map(
-          _.prRdd.noMeta.producerRecords(topicName).through(topic.fs2Channel.producerPipe).evalMap(listener)))
+          _.prRdd.noMeta.producerRecords(topicName, 1000).through(topic.fs2Channel.producerPipe).evalMap(listener)))
       .compile
       .drain
 
@@ -79,15 +77,6 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.flatMap(_.count)
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
-
-  def download(akkaSystem: ActorSystem): KafkaDownloader[F, K, V] =
-    new KafkaDownloader[F, K, V](
-      akkaSystem,
-      topic,
-      ss.sparkContext.hadoopConfiguration,
-      cfg,
-      akkaUpdater.unitConsumer,
-      None)
 
   /** rdd and dataset
     */

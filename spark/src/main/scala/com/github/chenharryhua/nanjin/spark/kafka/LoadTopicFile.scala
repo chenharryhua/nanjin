@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.kernel.{Async, Sync}
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -11,6 +12,7 @@ import fs2.Stream
 import io.circe.Decoder as JsonDecoder
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.SparkSession
+import squants.information.Information
 
 final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
     extends Serializable {
@@ -106,17 +108,17 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
 
   object stream {
     private val hadoopConfiguration: Configuration = ss.sparkContext.hadoopConfiguration
-    private val params: SKParams                   = cfg.evalConfig
 
-    def circe(
-      path: NJPath)(implicit F: Sync[F], jdk: JsonDecoder[K], jdv: JsonDecoder[V]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.circe[F, NJConsumerRecord[K, V]](path, hadoopConfiguration, params.loadParams.byteBuffer)
+    def circe(path: NJPath, byteBuffer: Information)(implicit
+      F: Sync[F],
+      jdk: JsonDecoder[K],
+      jdv: JsonDecoder[V]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.circe[F, NJConsumerRecord[K, V]](path, hadoopConfiguration, byteBuffer)
 
-    def jackson(path: NJPath)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream
-        .jackson[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, params.loadParams.byteBuffer)
+    def jackson(path: NJPath, byteBuffer: Information)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.jackson[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, byteBuffer)
 
-    def avro(path: NJPath)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.avro[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, params.loadParams.chunkSize)
+    def avro(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
+      loaders.stream.avro[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, chunkSize)
   }
 }

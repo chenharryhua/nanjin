@@ -67,18 +67,13 @@ final class CrDS[F[_], K, V] private[kafka] (
     new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
   }
 
+  val params: SKParams = cfg.evalConfig
+
   // transition
-  def stream(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] = {
-    val params: SKParams = cfg.evalConfig
-    dataset.stream[F](params.loadParams.chunkSize)
-  }
 
   def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] = {
     val params: SKParams = cfg.evalConfig
-    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](
-      dataset,
-      ate.avroCodec.avroEncoder,
-      HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
+    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder, HoarderConfig(path))
   }
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)

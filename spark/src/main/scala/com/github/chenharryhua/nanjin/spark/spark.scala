@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin
 
+import akka.NotUsed
+import akka.stream.scaladsl.Source
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
@@ -14,7 +16,6 @@ import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
-import squants.information.{Information, Megabytes}
 
 import scala.reflect.ClassTag
 
@@ -24,9 +25,6 @@ package object spark {
 
   private[spark] val SparkDatetimeConversionConstant: Int = 1000
 
-  private[spark] val chunkSize: ChunkSize    = ChunkSize(1000)
-  private[spark] val byteBuffer: Information = Megabytes(1)
-
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 
     def dismissNulls(implicit ev: ClassTag[A]): RDD[A] = rdd.flatMap(Option(_))
@@ -34,6 +32,8 @@ package object spark {
 
     def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
       Stream.fromIterator(rdd.toLocalIterator, chunkSize.value)
+
+    def source: Source[A, NotUsed] = Source.fromIterator(() => rdd.toLocalIterator)
 
     def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
@@ -48,6 +48,7 @@ package object spark {
   implicit final class DatasetExt[A](ds: Dataset[A]) extends Serializable {
 
     def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] = ds.rdd.stream[F](chunkSize)
+    def source: Source[A, NotUsed]                             = ds.rdd.source
 
     def dismissNulls: Dataset[A] = ds.flatMap(Option(_))(ds.encoder)
     def numOfNulls: Long         = ds.except(dismissNulls).count()

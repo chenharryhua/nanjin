@@ -53,22 +53,14 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
   def save(path: NJPath): RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](
-      rdd,
-      codec.avroEncoder,
-      HoarderConfig(path).chunkSize(params.loadParams.chunkSize).byteBuffer(params.loadParams.byteBuffer))
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder, HoarderConfig(path))
 
-  // source
-  def withChunkSize(cs: ChunkSize): PrRdd[F, K, V] = new PrRdd[F, K, V](rdd, codec, cfg.withChunkSize(cs))
+  def stream(cs: ChunkSize)(implicit F: Sync[F]): Stream[F, NJProducerRecord[K, V]] = rdd.stream[F](cs)
 
-  def stream(implicit F: Sync[F]): Stream[F, NJProducerRecord[K, V]] = rdd.stream[F](params.loadParams.chunkSize)
+  def producerRecords(topicName: TopicName, cs: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, ProducerRecords[Unit, K, V]] =
+    stream(cs).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
-  def producerRecords(topicName: TopicName)(implicit F: Sync[F]): Stream[F, ProducerRecords[Unit, K, V]] =
-    stream.chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
-
-  def producerMessages(topicName: TopicName)(implicit
-    F: Async[F]): Resource[F, Source[Envelope[K, V, NotUsed], NotUsed]] =
-    stream.chunks.toUnicastPublisher.map { publisher =>
-      Source.fromPublisher(publisher).map(ms => multi(ms.map(_.toProducerRecord(topicName)).toVector))
-    }
+  def producerMessages(topicName: TopicName, cs: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
+    rdd.source.grouped(cs.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))
 }
