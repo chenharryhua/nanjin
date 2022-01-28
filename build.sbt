@@ -8,7 +8,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 val algebra      = "2.7.0"
 val catsCore     = "2.7.0"
 val monocle      = "2.1.0"
-val catsEffect   = "3.3.4"
+val catsEffect   = "3.3.5"
 val akka26       = "2.6.18"
 val confluent    = "7.0.1"
 val kafkaVersion = "7.0.1-ce"
@@ -95,8 +95,8 @@ val kantanLib = Seq(
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.8",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.19.3",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.19.3",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.19.4",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.19.4",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
