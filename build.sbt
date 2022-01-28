@@ -95,8 +95,8 @@ val kantanLib = Seq(
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.8",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.19.3",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.19.3",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.19.4",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.19.4",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
