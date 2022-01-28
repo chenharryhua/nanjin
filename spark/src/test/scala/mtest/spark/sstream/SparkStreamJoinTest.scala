@@ -61,7 +61,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
     val sender =
       fooTopic
         .prRdd(fooData)
-        .producerRecords(fooTopic.topicName)
+        .producerRecords(fooTopic.topicName, 1)
         .through(fooTopic.topic.fs2Channel.producerPipe)
         .metered(0.5.seconds)
 

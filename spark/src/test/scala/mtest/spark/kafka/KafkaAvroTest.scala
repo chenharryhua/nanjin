@@ -99,15 +99,15 @@ class KafkaAvroTest extends AnyFunSuite {
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
     val avro =
-      sk.load.stream.avro(avroPath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.avro(avroPath, 100).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(avro == Set(en1, en2))
 
     val jackson =
-      sk.load.stream.jackson(jacksonPath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.jackson(jacksonPath, 1.kb).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(jackson == Set(en1, en2))
 
     val circe =
-      sk.load.stream.circe(circePath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.circe(circePath, 100.kb).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(circe == Set(en1, en2))
 
   }

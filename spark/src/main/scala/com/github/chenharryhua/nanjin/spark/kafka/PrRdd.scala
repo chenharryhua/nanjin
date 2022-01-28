@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import akka.NotUsed
 import akka.kafka.ProducerMessage.{multi, Envelope}
 import akka.stream.scaladsl.Source
-import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import fs2.Stream
-import fs2.interop.reactivestreams.StreamOps
 import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
 
@@ -57,10 +56,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def stream(cs: ChunkSize)(implicit F: Sync[F]): Stream[F, NJProducerRecord[K, V]] = rdd.stream[F](cs)
 
-  def producerRecords(topicName: TopicName, cs: ChunkSize)(implicit
+  def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, ProducerRecords[Unit, K, V]] =
-    stream(cs).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
+    stream(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
-  def producerMessages(topicName: TopicName, cs: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
-    rdd.source.grouped(cs.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))
+  def producerMessages(topicName: TopicName, chunkSize: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
+    rdd.source.grouped(chunkSize.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))
 }

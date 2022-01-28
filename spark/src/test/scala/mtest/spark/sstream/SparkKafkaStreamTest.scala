@@ -63,7 +63,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       sparKafka
         .topic(rooster)
         .prRdd(data)
-        .producerRecords(rooster.topicName)
+        .producerRecords(rooster.topicName, 1)
         .through(rooster.fs2Channel.producerPipe)
         .metered(0.2.seconds)
         .delayBy(2.second)
@@ -90,7 +90,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     val upload = sparKafka
       .topic(rooster)
       .prRdd(data)
-      .producerRecords(rooster.topicName)
+      .producerRecords(rooster.topicName, 1)
       .metered(0.1.second)
       .interruptAfter(2.minute)
       .take(10)
@@ -120,7 +120,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .topic(rooster)
         .prRdd(data)
         .replicate(5)
-        .producerRecords(rooster.topicName)
+        .producerRecords(rooster.topicName, 1)
         .metered(0.5.seconds)
         .through(rooster.fs2Channel.producerPipe)
         .delayBy(1.second)
@@ -154,7 +154,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       sparKafka
         .topic(rooster)
         .prRdd(data)
-        .producerRecords(rooster.topicName)
+        .producerRecords(rooster.topicName, 1)
         .metered(1.second)
         .through(rooster.fs2Channel.producerPipe)
         .delayBy(3.second)
