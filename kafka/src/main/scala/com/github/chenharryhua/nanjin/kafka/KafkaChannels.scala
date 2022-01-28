@@ -1,21 +1,20 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import akka.actor.ActorSystem
-import akka.stream.Materializer
 import akka.{Done, NotUsed}
 import cats.data.NonEmptyList
 import cats.effect.kernel.*
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
-import fs2.interop.reactivestreams.*
 import fs2.kafka.KafkaByteConsumerRecord
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
+
+import scala.concurrent.Future
 
 object KafkaChannels {
 
@@ -151,21 +150,17 @@ object KafkaChannels {
     @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
       topic.decoder[G](cr)
 
-    // sinks
+    // flow
     def flexiFlow[P]: Flow[Envelope[K, V, P], ProducerMessage.Results[K, V, P], NotUsed] =
       Producer.flexiFlow[K, V, P](producerSettings)
 
-    def committableSink(implicit F: Async[F]): Sink[Envelope[K, V, ConsumerMessage.Committable], F[Done]] =
-      Producer.committableSink(producerSettings, committerSettings).mapMaterializedValue(f => F.fromFuture(F.pure(f)))
-
-    def plainSink(implicit F: Async[F]): Sink[ProducerRecord[K, V], F[Done]] =
-      Producer.plainSink(producerSettings).mapMaterializedValue(f => F.fromFuture(F.pure(f)))
-
-    def commitSink(implicit F: Async[F]): Sink[ConsumerMessage.Committable, F[Done]] =
-      Committer.sink(committerSettings).mapMaterializedValue(f => F.fromFuture(F.pure(f)))
+    // sinks
+    def committableSink: Sink[Envelope[K, V, ConsumerMessage.Committable], Future[Done]] =
+      Producer.committableSink(producerSettings, committerSettings)
+    def plainSink: Sink[ProducerRecord[K, V], Future[Done]]         = Producer.plainSink(producerSettings)
+    def commitSink: Sink[ConsumerMessage.Committable, Future[Done]] = Committer.sink(committerSettings)
 
     // sources
-
     def assign(tps: KafkaTopicPartition[KafkaOffset]): Source[KafkaByteConsumerRecord, Consumer.Control] =
       if (tps.isEmpty)
         Source.empty.mapMaterializedValue(_ => Consumer.NoopControl)
@@ -176,10 +171,6 @@ object KafkaChannels {
 
     val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
       Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
-
-    def stream(chunkSize: ChunkSize)(implicit F: Async[F]): Stream[F, CommittableMessage[Array[Byte], Array[Byte]]] =
-      Stream.suspend(
-        source.runWith(Sink.asPublisher(fanout = false))(Materializer(akkaSystem)).toStreamBuffered[F](chunkSize.value))
 
     val transactionalSource: Source[ConsumerMessage.TransactionalMessage[K, V], Consumer.Control] =
       Transactional.source(consumerSettings, Subscriptions.topics(topicName.value)).map(decoder(_).decode)

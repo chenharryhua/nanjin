@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.event.*
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.event.*
 
 private[translators] object SimpleTextTranslator {
 
@@ -10,19 +10,15 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service (Re)Started
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
-       |Time Zone: ${evt.serviceParams.taskParams.zoneId}
-       |Host: ${evt.serviceParams.taskParams.hostName}
        |""".stripMargin
 
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): String =
     s"""
        |Service Panic
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
-       |Up Time: ${fmt.format(evt.upTime)}
-       |Policy: ${evt.serviceParams.retry.policy[F].show}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Cause: ${evt.error.message}
        |""".stripMargin
 
@@ -30,16 +26,17 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service Stopped
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
+       |Cause: ${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
     s"""
        |${evt.reportType.show}
        |Service: ${evt.metricName.metricRepr}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
-       |Host: ${evt.serviceParams.taskParams.hostName}
        |${evt.snapshot.show}
        |""".stripMargin
 
@@ -47,7 +44,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.resetType.show}
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |${evt.snapshot.show}
        |""".stripMargin
@@ -56,7 +53,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Pass Through
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Message: ${evt.value.noSpaces}
        |""".stripMargin
 
@@ -64,7 +61,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service Alert
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Alert: ${evt.message}
        |""".stripMargin
 
@@ -72,23 +69,25 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.actionInfo.actionParams.startTitle}
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
     s"""
        |${evt.actionInfo.actionParams.retryTitle}
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Took so far: ${fmt.format(evt.took)}
+       |Cause: ${evt.error.message}
        |""".stripMargin
 
   private def actionFailed[F[_]: Applicative](evt: ActionFail): String =
     s"""
        |${evt.actionInfo.actionParams.failedTitle}
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Took: ${fmt.format(evt.took)}
+       |Notes: ${evt.notes.value}
        |Cause: ${evt.error.stackTrace}
        |""".stripMargin
 
@@ -96,8 +95,9 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.actionInfo.actionParams.succedTitle}
        |Service: ${evt.metricName.metricRepr}
-       |Host: ${evt.serviceParams.taskParams.hostName}
+       |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Took: ${fmt.format(evt.took)}
+       |Notes: ${evt.notes.value}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

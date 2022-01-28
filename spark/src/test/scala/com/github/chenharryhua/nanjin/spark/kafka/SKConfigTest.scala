@@ -44,21 +44,6 @@ class SKConfigTest extends AnyFunSuite {
     assert(p3.evalConfig.timeRange.zoneId == sydneyTime)
   }
 
-  test("upload parameters") {
-    val p =
-      skc
-        .loadThrottle(Kilobytes(1))
-        .loadInterval(0.1.second)
-        .loadRecordsLimit(10)
-        .loadTimeLimit(1.minutes)
-        .evalConfig
-        .loadParams
-
-    assert(p.throttle.toBytes.toInt == 1000)
-    assert(p.interval == 100.millisecond)
-    assert(p.recordsLimit == 10)
-    assert(p.timeLimit == 60.second)
-  }
   test("misc update") {
     val p = skc.topicName("config.update").locationStrategy(LocationStrategies.PreferBrokers).evalConfig
 

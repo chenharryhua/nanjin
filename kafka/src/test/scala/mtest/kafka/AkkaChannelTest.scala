@@ -35,39 +35,43 @@ class AkkaChannelTest extends AnyFunSuite {
 
   test("akka stream committableSink") {
     import org.apache.kafka.clients.producer.ProducerRecord
-    val run = akkaChannel.source
-      .map(m => topic.decoder(m).nullableDecode)
-      .map(m =>
-        ProducerMessage
-          .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
-      .take(2)
-      .runWith(akkaChannel.committableSink)
+    val run = IO.fromFuture(
+      IO(
+        akkaChannel.source
+          .map(m => topic.decoder(m).nullableDecode)
+          .map(m =>
+            ProducerMessage
+              .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
+          .take(2)
+          .runWith(akkaChannel.committableSink)))
 
     run.unsafeRunSync()
   }
   test("akka stream flexiFlow/commitSink") {
     import org.apache.kafka.clients.producer.ProducerRecord
-    val run = akkaChannel.source
-      .map(m => topic.decoder(m).nullableDecode)
-      .map(m =>
-        ProducerMessage.single(
-          new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()),
-          m.committableOffset))
-      .via(akkaChannel.flexiFlow)
-      .map(_.passThrough)
-      .take(2)
-      .runWith(akkaChannel.commitSink)
+    val run = IO.fromFuture(
+      IO(
+        akkaChannel.source
+          .map(m => topic.decoder(m).nullableDecode)
+          .map(m =>
+            ProducerMessage
+              .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
+          .via(akkaChannel.flexiFlow)
+          .map(_.passThrough)
+          .take(2)
+          .runWith(akkaChannel.commitSink)))
 
     run.unsafeRunSync()
   }
 
   test("akka stream plainSink") {
-    val run = akkaChannel.source
-      .map(m => topic.decoder(m).nullableDecode)
-      .map(m =>
-        new org.apache.kafka.clients.producer.ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()))
-      .take(2)
-      .runWith(akkaChannel.plainSink)
+    val run = IO.fromFuture(
+      IO(akkaChannel.source
+        .map(m => topic.decoder(m).nullableDecode)
+        .map(m =>
+          new org.apache.kafka.clients.producer.ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()))
+        .take(2)
+        .runWith(akkaChannel.plainSink)))
     run.unsafeRunSync()
   }
   test("akka source error") {
@@ -78,16 +82,6 @@ class AkkaChannelTest extends AnyFunSuite {
         .runWith(Sink.ignore)
 
     assertThrows[Exception](Await.result(run, 10.seconds))
-  }
-
-  test("fs2 stream") {
-    akkaChannel
-      .stream(64)
-      .map(x => topic.decoder(x).decodeValue.record.value())
-      .interruptAfter(3.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
   }
 
   test("assignment") {

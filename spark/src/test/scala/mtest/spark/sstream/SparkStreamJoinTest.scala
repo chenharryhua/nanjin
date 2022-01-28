@@ -61,10 +61,9 @@ class SparkStreamJoinTest extends AnyFunSuite {
     val sender =
       fooTopic
         .prRdd(fooData)
-        .withInterval(0.5.seconds)
-        .upload
-        .updateProducer(_.withClientId("spark.kafka.stream.join.test"))
-        .stream
+        .producerRecords(fooTopic.topicName, 1)
+        .through(fooTopic.topic.fs2Channel.producerPipe)
+        .metered(0.5.seconds)
 
     val ss: Stream[IO, StreamingQueryProgress] =
       fooTopic.sstream.transform { fooDS =>
