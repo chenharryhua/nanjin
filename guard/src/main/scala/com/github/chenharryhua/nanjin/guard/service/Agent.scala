@@ -15,6 +15,7 @@ import fs2.Stream
 import fs2.concurrent.Channel
 
 import java.time.ZoneId
+import scala.concurrent.Future
 
 final class Agent[F[_]] private[service] (
   metricRegistry: MetricRegistry,
@@ -68,6 +69,10 @@ final class Agent[F[_]] private[service] (
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
+
+  def retryFuture[A, B](f: A => Future[B]): NJRetry[F, A, B]  = retry((a: A) => F.fromFuture(F.delay(f(a))))
+  def retryFuture[B](future: F[Future[B]]): NJRetryUnit[F, B] = retry(F.fromFuture(future))
+  def runFuture[B](future: F[Future[B]]): F[B]                = retryFuture(future).run
 
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
