@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -121,8 +121,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     jdk: JsonDecoder[K],
     jdv: JsonDecoder[V]): SparkSStream[F, NJConsumerRecord[KJson[K], KJson[V]]] = {
     import com.github.chenharryhua.nanjin.spark.injection.kjsonInjection
-    val ack: AvroCodec[KJson[K]]             = AvroCodec[KJson[K]]
-    val acv: AvroCodec[KJson[V]]             = AvroCodec[KJson[V]]
+    val ack: NJAvroCodec[KJson[K]]           = NJAvroCodec[KJson[K]]
+    val acv: NJAvroCodec[KJson[V]]           = NJAvroCodec[KJson[V]]
     implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
     implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
 

@@ -69,8 +69,8 @@ object KJson {
     new SerdeOf[KJson[A]] {
       private val cachedCodec: Codec[KJson[A]] = avroKJsonCodec[A]
 
-      override val avroCodec: AvroCodec[KJson[A]] =
-        AvroCodec(cachedCodec.schemaFor, cachedCodec, cachedCodec)
+      override val avroCodec: NJAvroCodec[KJson[A]] =
+        NJAvroCodec(cachedCodec.schemaFor, cachedCodec, cachedCodec)
 
       override val serializer: Serializer[KJson[A]] =
         new Serializer[KJson[A]] with Serializable {

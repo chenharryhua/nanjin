@@ -7,7 +7,7 @@ import cats.syntax.functor.*
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec, SerdeOf}
 import io.circe.Json
 import monix.eval.Task as MTask
 import org.apache.kafka.common.serialization.Serde
@@ -25,9 +25,9 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
   final def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
 
-  final def asKey[K](avro: AvroCodec[K]): Serde[K] =
+  final def asKey[K](avro: NJAvroCodec[K]): Serde[K] =
     SerdeOf[K](avro).asKey(settings.schemaRegistrySettings.config).serde
-  final def asValue[V](avro: AvroCodec[V]): Serde[V] =
+  final def asValue[V](avro: NJAvroCodec[V]): Serde[V] =
     SerdeOf[V](avro).asValue(settings.schemaRegistrySettings.config).serde
 
   final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef, this)

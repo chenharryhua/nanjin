@@ -3,15 +3,15 @@ package mtest.kafka
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
 
 class KafkaTopicTest extends AnyFunSuite {
   val t1 = ctx.topic[Int, Int]("topic")
   val t2 = TopicDef[Int, Int](TopicName("topic")).in(ctx)
-  val t3 = TopicDef[Int, Int](TopicName("topic"), AvroCodec[Int]).in(ctx)
-  val t4 = TopicDef[Int, Int](TopicName("topic"), AvroCodec[Int], AvroCodec[Int]).in(ctx)
+  val t3 = TopicDef[Int, Int](TopicName("topic"), NJAvroCodec[Int]).in(ctx)
+  val t4 = TopicDef[Int, Int](TopicName("topic"), NJAvroCodec[Int], NJAvroCodec[Int]).in(ctx)
   test("equality") {
     assert(t1.topicDef.eqv(t2.topicDef))
     assert(t1.topicDef.eqv(t3.topicDef))

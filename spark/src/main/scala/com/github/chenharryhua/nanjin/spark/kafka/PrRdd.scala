@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -18,7 +18,7 @@ import org.apache.spark.rdd.RDD
 
 final class PrRdd[F[_], K, V] private[kafka] (
   val rdd: RDD[NJProducerRecord[K, V]],
-  codec: AvroCodec[NJProducerRecord[K, V]],
+  codec: NJAvroCodec[NJProducerRecord[K, V]],
   cfg: SKConfig
 ) extends Serializable {
 

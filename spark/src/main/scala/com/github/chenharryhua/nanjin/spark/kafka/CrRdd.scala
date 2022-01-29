@@ -5,7 +5,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedDataset, TypedEncoder}
@@ -19,7 +19,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   ss: SparkSession)
     extends Serializable {
 
-  protected val codec: AvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
+  protected val codec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
 
   // transforms
   def transform(f: RDD[NJConsumerRecord[K, V]] => RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =

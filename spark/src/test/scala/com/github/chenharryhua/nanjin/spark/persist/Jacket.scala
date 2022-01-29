@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.kernel.Order
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
@@ -26,7 +26,7 @@ final case class Jacket(a: Int, p: Pocket.Value, neck: KJson[Neck])
 
 object Jacket {
   implicit val te: TypedEncoder[Jacket] = shapeless.cachedImplicit
-  val avroCodec: AvroCodec[Jacket]      = AvroCodec[Jacket]
+  val avroCodec: NJAvroCodec[Jacket]    = NJAvroCodec[Jacket]
   val ate: AvroTypedEncoder[Jacket]     = AvroTypedEncoder(avroCodec)
   val circe: Codec[Jacket]              = io.circe.generic.semiauto.deriveCodec[Jacket]
 }

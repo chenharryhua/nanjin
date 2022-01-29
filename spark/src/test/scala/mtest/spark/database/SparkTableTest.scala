@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.transformers.*
 import com.github.chenharryhua.nanjin.database.NJHikari
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
@@ -58,7 +58,7 @@ class SparkTableTest extends AnyFunSuite {
 
   implicit val ss: SparkSession = sparkSession
 
-  val codec: AvroCodec[DBTable]                  = AvroCodec[DBTable]
+  val codec: NJAvroCodec[DBTable]                = NJAvroCodec[DBTable]
   implicit val te: TypedEncoder[DBTable]         = shapeless.cachedImplicit
   implicit val te2: TypedEncoder[PartialDBTable] = shapeless.cachedImplicit
   implicit val re: RowEncoder[DBTable]           = shapeless.cachedImplicit
@@ -106,7 +106,7 @@ class SparkTableTest extends AnyFunSuite {
         .map(_.repartition(1).typedDataset)
         .unsafeRunSync()
     val pt2: TableDef[PartialDBTable] =
-      TableDef[PartialDBTable](TableName("sparktest"), AvroCodec[PartialDBTable], "select a,b from sparktest")
+      TableDef[PartialDBTable](TableName("sparktest"), NJAvroCodec[PartialDBTable], "select a,b from sparktest")
 
     val ptd2: TypedDataset[PartialDBTable] = sparkDB.table(pt2).fromDB.map(_.typedDataset).unsafeRunSync()
 

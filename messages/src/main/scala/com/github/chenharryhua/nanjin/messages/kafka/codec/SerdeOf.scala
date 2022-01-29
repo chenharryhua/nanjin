@@ -43,7 +43,7 @@ sealed abstract class RegisteredSerde[A](
 }
 
 trait SerdeOf[A] extends Serde[A] with Serializable {
-  def avroCodec: AvroCodec[A]
+  def avroCodec: NJAvroCodec[A]
 
   final def asKey(props: Map[String, String]): RegisteredSerde[A] =
     new RegisteredSerde(KeyValueTag.Key, this, props) {}
@@ -55,13 +55,13 @@ trait SerdeOf[A] extends Serde[A] with Serializable {
 private[codec] trait LowerPriority {
 
   implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: SerdeOf[A] =
-    SerdeOf(AvroCodec[A])
+    SerdeOf(NJAvroCodec[A])
 }
 
 object SerdeOf extends LowerPriority {
   def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
 
-  def apply[A](codec: AvroCodec[A]): SerdeOf[A] =
+  def apply[A](codec: NJAvroCodec[A]): SerdeOf[A] =
     new SerdeOf[A] {
 
       override val serializer: Serializer[A] =
@@ -104,12 +104,12 @@ object SerdeOf extends LowerPriority {
               case Some(value) => avroCodec.avroDecoder.decode(deSer.deserialize(topic, value))
             }
         }
-      override val avroCodec: AvroCodec[A] = codec
+      override val avroCodec: NJAvroCodec[A] = codec
     }
 
   implicit object IntPrimitiveSerde extends SerdeOf[Int] {
 
-    override val avroCodec: AvroCodec[Int] = AvroCodec[Int]
+    override val avroCodec: NJAvroCodec[Int] = NJAvroCodec[Int]
 
     override val serializer: Serializer[Int] =
       new Serializer[Int] with Serializable {
@@ -130,7 +130,7 @@ object SerdeOf extends LowerPriority {
 
   implicit object LongPrimitiveSerde extends SerdeOf[Long] {
 
-    override val avroCodec: AvroCodec[Long] = AvroCodec[Long]
+    override val avroCodec: NJAvroCodec[Long] = NJAvroCodec[Long]
 
     override val serializer: Serializer[Long] =
       new Serializer[Long] with Serializable {
@@ -151,7 +151,7 @@ object SerdeOf extends LowerPriority {
 
   implicit object StringPrimitiveSerde extends SerdeOf[String] {
 
-    override val avroCodec: AvroCodec[String] = AvroCodec[String]
+    override val avroCodec: NJAvroCodec[String] = NJAvroCodec[String]
 
     override val serializer: Serializer[String] =
       new Serializer[String] with Serializable {
@@ -172,7 +172,7 @@ object SerdeOf extends LowerPriority {
 
   implicit object DoublePrimitiveSerde extends SerdeOf[Double] {
 
-    override val avroCodec: AvroCodec[Double] = AvroCodec[Double]
+    override val avroCodec: NJAvroCodec[Double] = NJAvroCodec[Double]
 
     override val serializer: Serializer[Double] =
       new Serializer[Double] with Serializable {
@@ -193,7 +193,7 @@ object SerdeOf extends LowerPriority {
 
   implicit object FloatPrimitiveSerde extends SerdeOf[Float] {
 
-    override val avroCodec: AvroCodec[Float] = AvroCodec[Float]
+    override val avroCodec: NJAvroCodec[Float] = NJAvroCodec[Float]
 
     override val serializer: Serializer[Float] =
       new Serializer[Float] with Serializable {
@@ -214,7 +214,7 @@ object SerdeOf extends LowerPriority {
 
   implicit object ByteArrayPrimitiveSerde extends SerdeOf[Array[Byte]] {
 
-    override val avroCodec: AvroCodec[Array[Byte]] = AvroCodec[Array[Byte]]
+    override val avroCodec: NJAvroCodec[Array[Byte]] = NJAvroCodec[Array[Byte]]
 
     override val serializer: Serializer[Array[Byte]] =
       new Serializer[Array[Byte]] with Serializable {

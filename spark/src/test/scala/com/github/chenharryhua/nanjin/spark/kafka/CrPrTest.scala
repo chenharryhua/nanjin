@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl.*
@@ -39,10 +39,10 @@ class CrPrTest extends AnyFunSuite {
   val roosterATE = NJConsumerRecord.ate(rooster)
 
   val roosterLike =
-    TopicDef[Long, RoosterLike](TopicName("roosterLike"), AvroCodec[RoosterLike])
+    TopicDef[Long, RoosterLike](TopicName("roosterLike"), NJAvroCodec[RoosterLike])
 
   val roosterLike2 =
-    TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), AvroCodec[RoosterLike2])
+    TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), NJAvroCodec[RoosterLike2])
 
   val crRdd: CrRdd[IO, Long, Rooster] = sparKafka
     .topic(rooster)

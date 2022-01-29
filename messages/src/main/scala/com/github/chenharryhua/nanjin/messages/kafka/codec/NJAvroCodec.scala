@@ -13,7 +13,7 @@ import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
 import scala.util.Try
 
-final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[A], avroEncoder: AvroEncoder[A]) {
+final case class NJAvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[A], avroEncoder: AvroEncoder[A]) {
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
@@ -24,7 +24,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
     * empty namespace is not allowed
     */
   @throws[Exception]
-  def withNamespace(namespace: String): AvroCodec[A] = {
+  def withNamespace(namespace: String): NJAvroCodec[A] = {
     type Namespace = MatchesRegex["^[a-zA-Z0-9_.]+$"]
     val res = for {
       ns <- refineV[Namespace](namespace)
@@ -33,7 +33,7 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
         .map(x => root.namespace.string.set(ns.value)(x))
         .map(_.noSpaces)
         .leftMap(_.getMessage())
-      ac <- AvroCodec.build[A](AvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder)
+      ac <- NJAvroCodec.build[A](NJAvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder)
     } yield ac
     res match {
       case Left(ex)  => sys.error(s"$ex, input namespace: $namespace")
@@ -41,13 +41,13 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
     }
   }
 
-  def withoutNamespace: AvroCodec[A] = {
+  def withoutNamespace: NJAvroCodec[A] = {
     val res = for {
       json <- parser
         .parse(schema.toString)
         .toOption
         .flatMap(_.hcursor.downField("namespace").delete.top.map(_.noSpaces))
-      ac <- AvroCodec.build[A](AvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder).toOption
+      ac <- NJAvroCodec.build[A](NJAvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder).toOption
     } yield ac
     res.getOrElse(this)
   }
@@ -62,10 +62,10 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
     * @return
     */
   @throws[Exception]
-  def child[B](jsonPath: JsonPath)(implicit dec: AvroDecoder[B], enc: AvroEncoder[B]): AvroCodec[B] = {
+  def child[B](jsonPath: JsonPath)(implicit dec: AvroDecoder[B], enc: AvroEncoder[B]): NJAvroCodec[B] = {
     val oa = for {
       json <- at(jsonPath)
-      ac <- AvroCodec.build[B](AvroCodec.toSchemaFor[B](json.noSpaces), dec, enc)
+      ac <- NJAvroCodec.build[B](NJAvroCodec.toSchemaFor[B](json.noSpaces), dec, enc)
     } yield ac
     oa match {
       case Left(ex)  => sys.error(ex)
@@ -76,12 +76,12 @@ final case class AvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[
 
 /** left - error right - AvroCodec both - (warnings, AvroCodec)
   */
-object AvroCodec {
+object NJAvroCodec {
 
   private def build[A](
     schemaFor: SchemaFor[A],
     decoder: AvroDecoder[A],
-    encoder: AvroEncoder[A]): Either[String, AvroCodec[A]] =
+    encoder: AvroEncoder[A]): Either[String, NJAvroCodec[A]] =
     for {
       d <-
         Either
@@ -91,7 +91,7 @@ object AvroCodec {
         Either
           .catchNonFatal(EncoderHelpers.buildWithSchema(encoder, schemaFor))
           .leftMap(_ => "avro4s decline encode schema change")
-    } yield AvroCodec(schemaFor, d, e)
+    } yield NJAvroCodec(schemaFor, d, e)
 
   @throws[SchemaParseException]
   private def toSchemaFor[A](jsonStr: String): SchemaFor[A] = SchemaFor[A](toSchema(jsonStr))
@@ -99,7 +99,8 @@ object AvroCodec {
   @throws[SchemaParseException]
   def toSchema(jsonStr: String): Schema = (new Schema.Parser).parse(jsonStr)
 
-  def apply[A](input: Schema)(implicit decoder: AvroDecoder[A], encoder: AvroEncoder[A]): Ior[String, AvroCodec[A]] = {
+  def apply[A](
+    input: Schema)(implicit decoder: AvroDecoder[A], encoder: AvroEncoder[A]): Ior[String, NJAvroCodec[A]] = {
     val inferred: Schema = encoder.schema
 
     if (SchemaCompatibility.schemaNameEquals(inferred, input)) {
@@ -116,28 +117,28 @@ object AvroCodec {
           Some("write-read incompatiable.")
         else None
 
-      val compat: Option[String]            = rwCompat |+| wrCompat
-      val esa: Either[String, AvroCodec[A]] = build(SchemaFor[A](input), decoder, encoder)
+      val compat: Option[String]              = rwCompat |+| wrCompat
+      val esa: Either[String, NJAvroCodec[A]] = build(SchemaFor[A](input), decoder, encoder)
       Ior.fromEither(esa).flatMap { w =>
-        compat.fold[Ior[String, AvroCodec[A]]](Ior.right(w))(warn => Ior.both(warn, w))
+        compat.fold[Ior[String, NJAvroCodec[A]]](Ior.right(w))(warn => Ior.both(warn, w))
       }
     } else
       Ior.left("schema name is different")
   }
 
-  def apply[A: AvroDecoder: AvroEncoder](schemaText: String): Ior[String, AvroCodec[A]] = {
-    val codec: Either[String, Ior[String, AvroCodec[A]]] =
+  def apply[A: AvroDecoder: AvroEncoder](schemaText: String): Ior[String, NJAvroCodec[A]] = {
+    val codec: Either[String, Ior[String, NJAvroCodec[A]]] =
       Try(toSchema(schemaText)).flatMap(s => Try(apply(s))).toEither.leftMap(_.getMessage)
     Ior.fromEither(codec).flatten
   }
 
   @throws[Exception]
-  def unsafe[A: AvroDecoder: AvroEncoder](schemaText: String): AvroCodec[A] =
+  def unsafe[A: AvroDecoder: AvroEncoder](schemaText: String): NJAvroCodec[A] =
     apply[A](schemaText).toEither match {
       case Right(r) => r
       case Left(ex) => sys.error(ex)
     }
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor]: AvroCodec[A] =
-    AvroCodec(SchemaFor[A], AvroDecoder[A], AvroEncoder[A])
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor]: NJAvroCodec[A] =
+    NJAvroCodec(SchemaFor[A], AvroDecoder[A], AvroEncoder[A])
 }
