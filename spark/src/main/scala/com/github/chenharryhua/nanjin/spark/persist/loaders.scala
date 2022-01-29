@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerialization, GenericRecordCodec, JacksonSerialization}
+import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerialization, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
@@ -10,6 +10,7 @@ import fs2.Stream
 import io.circe.Decoder as JsonDecoder
 import io.circe.parser.decode
 import kantan.csv.CsvConfiguration
+import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.mapred.AvroKey
@@ -121,9 +122,9 @@ object loaders {
         })
 
     def jackson[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
-      val schema = decoder.schema
+      val schema: Schema = decoder.schema
       ss.sparkContext.textFile(path.pathStr).mapPartitions { strs =>
-        val datumReader = new GenericDatumReader[GenericRecord](schema)
+        val datumReader: GenericDatumReader[GenericRecord] = new GenericDatumReader[GenericRecord](schema)
         strs.map { str =>
           val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
           decoder.decode(datumReader.read(null, jsonDecoder))
@@ -139,26 +140,20 @@ object loaders {
       decoder: AvroDecoder[A],
       cfg: Configuration,
       byteBuffer: Information): Stream[F, A] = {
-      val hadoop = NJHadoop(cfg)
-      val jk     = new JacksonSerialization[F](decoder.schema)
-      val gr     = new GenericRecordCodec[F, A]
-      hadoop.byteSource(path, byteBuffer).through(jk.deserialize).through(gr.decode(decoder))
+      val jk: JacksonSerialization[F] = new JacksonSerialization[F](decoder.schema)
+      NJHadoop(cfg).byteSource(path, byteBuffer).through(jk.deserialize).map(decoder.decode)
     }
 
     def avro[F[_]: Sync, A](
       path: NJPath,
       decoder: AvroDecoder[A],
       cfg: Configuration,
-      chunkSize: ChunkSize): Stream[F, A] = {
-      val hadoop = NJHadoop(cfg)
-      val gr     = new GenericRecordCodec[F, A]
-      hadoop.avroSource(path, decoder.schema, chunkSize).through(gr.decode(decoder))
-    }
+      chunkSize: ChunkSize): Stream[F, A] =
+      NJHadoop(cfg).avroSource(path, decoder.schema, chunkSize).map(decoder.decode)
 
     def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration, byteBuffer: Information): Stream[F, A] = {
-      val hadoop = NJHadoop(cfg)
-      val cs     = new CirceSerialization[F, A]
-      hadoop.byteSource(path, byteBuffer).through(cs.deserialize)
+      val cs: CirceSerialization[F, A] = new CirceSerialization[F, A]
+      NJHadoop(cfg).byteSource(path, byteBuffer).through(cs.deserialize)
     }
   }
 }

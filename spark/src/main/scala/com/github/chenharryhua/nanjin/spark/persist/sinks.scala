@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.pipes.serde.*
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJParquet, NJPath}
-import com.sksamuel.avro4s.Encoder as AvroEncoder
+import com.sksamuel.avro4s.{Encoder as AvroEncoder, ToRecord}
 import fs2.{Pipe, Stream}
 import io.circe.Encoder as JsonEncoder
 import kantan.csv.{CsvConfiguration, RowEncoder}
@@ -23,17 +23,17 @@ object sinks {
     cfg: Configuration,
     encoder: AvroEncoder[A],
     cf: CodecFactory): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
+    val toRec: ToRecord[A]                 = ToRecord(encoder)
     val sink: Pipe[F, GenericRecord, Unit] = NJHadoop[F](cfg).avroSink(path, encoder.schema, cf)
-    ss.through(grc).through(sink)
+    ss.map(toRec.to).through(sink)
   }
 
   def binAvro[F[_]: Sync, A](path: NJPath, cfg: Configuration, encoder: AvroEncoder[A]): Pipe[F, A, Unit] = {
     (ss: Stream[F, A]) =>
-      val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
+      val toRec: ToRecord[A]                 = ToRecord(encoder)
       val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerialization[F](encoder.schema).serialize
       val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
-      ss.through(grc).through(pipe).through(sink)
+      ss.map(toRec.to).through(pipe.andThen(sink))
   }
 
   def jackson[F[_]: Sync, A](
@@ -41,18 +41,18 @@ object sinks {
     cfg: Configuration,
     encoder: AvroEncoder[A],
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
+    val toRec: ToRecord[A]                 = ToRecord(encoder)
     val pipe: Pipe[F, GenericRecord, Byte] = new JacksonSerialization[F](encoder.schema).serialize
     val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
-    ss.through(grc).through(pipe).through(compression).through(sink)
+    ss.map(toRec.to).through(pipe.andThen(compression).andThen(sink))
   }
 
   def parquet[F[_]: Sync, A](
     builder: AvroParquetWriter.Builder[GenericRecord],
     encoder: AvroEncoder[A]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val grc: Pipe[F, A, GenericRecord]     = new GenericRecordCodec[F, A].encode(encoder)
+    val toRec: ToRecord[A]                 = ToRecord(encoder)
     val sink: Pipe[F, GenericRecord, Unit] = new NJParquet[F].parquetSink(builder)
-    ss.through(grc).through(sink)
+    ss.map(toRec.to).through(sink)
   }
 
   def circe[F[_]: Sync, A: JsonEncoder](
@@ -62,7 +62,7 @@ object sinks {
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val pipe: Pipe[F, A, Byte]    = new CirceSerialization[F, A].serialize(isKeepNull)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
-    ss.through(pipe).through(compression).through(sink)
+    ss.through(pipe.andThen(compression).andThen(sink))
   }
 
   def text[F[_]: Sync, A: Show](
@@ -71,14 +71,14 @@ object sinks {
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val pipe: Pipe[F, String, Byte] = new TextSerialization[F].serialize
     val sink: Pipe[F, Byte, Unit]   = NJHadoop[F](cfg).byteSink(path)
-    ss.map(_.show).through(pipe).through(compression).through(sink)
+    ss.map(_.show).through(pipe.andThen(compression).andThen(sink))
   }
 
   def protobuf[F[_]: Async, A](path: NJPath, cfg: Configuration, byteBuffer: Information)(implicit
     enc: A <:< GeneratedMessage): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerialization[F].serialize(byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
-    ss.through(pipe).through(sink)
+    ss.through(pipe.andThen(sink))
   }
 
   def csv[F[_]: Async, A: RowEncoder](
@@ -89,6 +89,6 @@ object sinks {
     byteBuffer: Information): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize(byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
-    ss.through(pipe).through(compression).through(sink)
+    ss.through(pipe.andThen(compression).andThen(sink))
   }
 }

@@ -2,7 +2,14 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
 import cats.syntax.all.*
-import com.sksamuel.avro4s.{Decoder as AvroDecoder, DecoderHelpers, Encoder as AvroEncoder, EncoderHelpers, SchemaFor}
+import com.sksamuel.avro4s.{
+  Decoder as AvroDecoder,
+  DecoderHelpers,
+  Encoder as AvroEncoder,
+  EncoderHelpers,
+  SchemaFor,
+  ToRecord
+}
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
 import io.circe.optics.JsonPath
@@ -16,6 +23,8 @@ import scala.util.Try
 final case class NJAvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[A], avroEncoder: AvroEncoder[A]) {
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
+
+  val toRecrod: ToRecord[A] = ToRecord(avroEncoder)
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *
