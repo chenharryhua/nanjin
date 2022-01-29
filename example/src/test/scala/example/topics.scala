@@ -4,7 +4,7 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import frameless.TypedEncoder
 import io.circe.Codec
-import eu.timepit.refined.auto.* 
+import eu.timepit.refined.auto.*
 final case class Foo(a: Int, b: String)
 
 object Foo {
