@@ -78,13 +78,16 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
+  val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
+  val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
+
   /** rdd and dataset
     */
   def crRdd(rdd: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, topic, cfg, ss)
+    new CrRdd[F, K, V](rdd, avroKeyCodec, avroValCodec, cfg, ss)
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
-    new CrDS(ate.normalizeDF(df), topic, cfg, tek, tev)
+    new CrDS(ate.normalizeDF(df), cfg, avroKeyCodec, avroValCodec, tek, tev)
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, NJProducerRecord.avroCodec(topic.topicDef), cfg)

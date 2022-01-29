@@ -92,7 +92,13 @@ class SparKafkaTest extends AnyFunSuite {
     val t = ctx.topic[String, Int]("tmp")
 
     val birst =
-      sparKafka.topic(src).crRdd(ds.rdd).bimap(_.toString, _ + 1)(t).rdd.collect().toSet
+      sparKafka
+        .topic(src)
+        .crRdd(ds.rdd)
+        .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
+        .rdd
+        .collect()
+        .toSet
     assert(birst.flatMap(_.value) == Set(2, 3, 5))
   }
 
@@ -112,7 +118,7 @@ class SparKafkaTest extends AnyFunSuite {
         .topic(src)
         .crRdd(ds.rdd)
         .timeRange
-        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(t)
+        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(NJAvroCodec[Int], NJAvroCodec[Int])
         .rdd
         .collect()
         .toSet

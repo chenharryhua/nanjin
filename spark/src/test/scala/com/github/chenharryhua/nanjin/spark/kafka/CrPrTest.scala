@@ -67,18 +67,21 @@ class CrPrTest extends AnyFunSuite {
 
   val crDS: CrDS[IO, Long, Rooster]   = crRdd.crDS.partitionOf(0)
   val prRdd: PrRdd[IO, Long, Rooster] = crRdd.prRdd.partitionOf(0)
+  val topic                           = roosterLike.in(ctx)
+  val ack                             = topic.topicDef.rawSerdes.keySerde.avroCodec
+  val acv                             = topic.topicDef.rawSerdes.keySerde.avroCodec
 
   test("bimap") {
     val cr = crDS
       .repartition(1)
       .crRdd
-      .bimap(identity, RoosterLike(_))(roosterLike.in(ctx))
+      .bimap(identity, RoosterLike(_))(ack, NJAvroCodec[RoosterLike])
       .rdd
       .collect()
       .flatMap(_.value)
       .toSet
 
-    val ds = crDS.bimap(identity, RoosterLike(_))(roosterLike.in(ctx)).dataset
+    val ds = crDS.bimap(identity, RoosterLike(_))(ack, NJAvroCodec[RoosterLike]).dataset
     val d  = ds.collect().flatMap(_.value).toSet
 
     crRdd.rdd.take(3).foreach(println)
@@ -89,9 +92,14 @@ class CrPrTest extends AnyFunSuite {
 
   test("map") {
     val cr =
-      crRdd.map(x => x.newValue(x.value.map(RoosterLike(_))))(roosterLike.in(ctx)).rdd.collect().flatMap(_.value).toSet
+      crRdd
+        .map(x => x.newValue(x.value.map(RoosterLike(_))))(ack, NJAvroCodec[RoosterLike])
+        .rdd
+        .collect()
+        .flatMap(_.value)
+        .toSet
 
-    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(roosterLike.in(ctx)).dataset
+    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(ack, NJAvroCodec[RoosterLike]).dataset
     val d  = ds.collect().flatMap(_.value).toSet
     assert(ds.schema == expectSchema)
     assert(cr == d)
@@ -100,11 +108,11 @@ class CrPrTest extends AnyFunSuite {
   test("flatMap") {
     val cr = crRdd.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
-    }(roosterLike2.in(ctx)).rdd.collect().flatMap(_.value).toSet
+    }(ack, NJAvroCodec[RoosterLike2]).rdd.collect().flatMap(_.value).toSet
 
     val d = crDS.flatMap { x =>
       x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
-    }(roosterLike2.in(ctx)).dataset.collect().flatMap(_.value).toSet
+    }(ack, NJAvroCodec[RoosterLike2]).dataset.collect().flatMap(_.value).toSet
 
     assert(cr == d)
   }
