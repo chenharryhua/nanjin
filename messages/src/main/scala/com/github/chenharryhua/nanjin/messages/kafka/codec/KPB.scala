@@ -110,7 +110,7 @@ object KPB {
             }
         }
 
-      override val avroCodec: AvroCodec[KPB[A]] = {
+      override val avroCodec: NJAvroCodec[KPB[A]] = {
         val kpbCodec: Codec[KPB[A]] = new Codec[KPB[A]] {
           override def decode(value: Any): KPB[A] = value match {
             case ab: Array[Byte] => KPB(ev.parseFrom(ab))
@@ -119,7 +119,7 @@ object KPB {
           override def encode(value: KPB[A]): Array[Byte] = value.value.toByteArray
           override def schemaFor: SchemaFor[KPB[A]]       = SchemaFor[Array[Byte]].forType[KPB[A]]
         }
-        AvroCodec[KPB[A]](kpbCodec.schemaFor, kpbCodec, kpbCodec)
+        NJAvroCodec[KPB[A]](kpbCodec.schemaFor, kpbCodec, kpbCodec)
       }
     }
 }

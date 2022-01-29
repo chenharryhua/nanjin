@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
@@ -32,7 +32,7 @@ object CoproductCop {
 final case class CoCop(index: Int, cop: CaseObjectCop)
 
 object CoCop {
-  val avroCodec: AvroCodec[CoCop] = AvroCodec[CoCop]
+  val avroCodec: NJAvroCodec[CoCop] = NJAvroCodec[CoCop]
 
   implicit val circe: Codec[CoCop] = deriveCodec[CoCop]
 
@@ -43,7 +43,7 @@ object CoCop {
 final case class EmCop(index: Int, cop: EnumCoproduct.Value)
 
 object EmCop {
-  val avroCodec: AvroCodec[EmCop]      = AvroCodec[EmCop]
+  val avroCodec: NJAvroCodec[EmCop]    = NJAvroCodec[EmCop]
   implicit val te: TypedEncoder[EmCop] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[EmCop]     = AvroTypedEncoder(te, avroCodec)
   implicit val circe: Codec[EmCop]     = deriveCodec[EmCop]
@@ -55,8 +55,8 @@ object EmCop {
 final case class CpCop(index: Int, cop: CoproductCop.Cop)
 
 object CpCop {
-  val avroCodec: AvroCodec[CpCop]  = AvroCodec[CpCop]
-  implicit val circe: Codec[CpCop] = deriveCodec[CpCop]
+  val avroCodec: NJAvroCodec[CpCop] = NJAvroCodec[CpCop]
+  implicit val circe: Codec[CpCop]  = deriveCodec[CpCop]
 
   // won't compile
   // implicit val te: TypedEncoder[CpCop] = shapeless.cachedImplicit

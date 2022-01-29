@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -18,7 +18,7 @@ import org.apache.spark.rdd.RDD
 
 final class PrRdd[F[_], K, V] private[kafka] (
   val rdd: RDD[NJProducerRecord[K, V]],
-  codec: AvroCodec[NJProducerRecord[K, V]],
+  codec: NJAvroCodec[NJProducerRecord[K, V]],
   cfg: SKConfig
 ) extends Serializable {
 
@@ -54,11 +54,9 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def save(path: NJPath): RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder, HoarderConfig(path))
 
-  def stream(cs: ChunkSize)(implicit F: Sync[F]): Stream[F, NJProducerRecord[K, V]] = rdd.stream[F](cs)
-
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, ProducerRecords[Unit, K, V]] =
-    stream(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
+    rdd.stream[F](chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
   def producerMessages(topicName: TopicName, chunkSize: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
     rdd.source.grouped(chunkSize.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))

@@ -4,7 +4,7 @@ import cats.Show
 import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 
 final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
@@ -37,7 +37,7 @@ object TopicDef {
         x.schemaForKey.schema == y.schemaForKey.schema &&
         x.schemaForVal.schema == y.schemaForVal.schema
 
-  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valSchema: AvroCodec[V]): TopicDef[K, V] = {
+  def apply[K, V](topicName: TopicName, keySchema: NJAvroCodec[K], valSchema: NJAvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf(keySchema)
     val sv = SerdeOf(valSchema)
     new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
@@ -49,7 +49,7 @@ object TopicDef {
     new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
   }
 
-  def apply[K: SerdeOf, V](topicName: TopicName, valSchema: AvroCodec[V]): TopicDef[K, V] = {
+  def apply[K: SerdeOf, V](topicName: TopicName, valSchema: NJAvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf[K]
     val sv = SerdeOf(valSchema)
     new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))

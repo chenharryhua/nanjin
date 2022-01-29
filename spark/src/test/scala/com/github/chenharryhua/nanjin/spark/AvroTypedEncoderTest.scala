@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -53,7 +53,7 @@ object AvroTypedEncoderTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val codec: AvroCodec[Lion]               = AvroCodec[Lion](schemaText).right.get
+  val codec: NJAvroCodec[Lion]             = NJAvroCodec[Lion](schemaText).right.get
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[Lion]          = AvroTypedEncoder[Lion](codec)
 

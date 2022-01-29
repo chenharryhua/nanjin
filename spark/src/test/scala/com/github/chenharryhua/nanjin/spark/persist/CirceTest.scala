@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -205,7 +205,7 @@ class CirceTest extends AnyFunSuite {
     val rdd: RDD[Int] = RoosterData.rdd.map(_.index)
     val expected      = rdd.collect().toSet
     rdd.save[IO](path).circe.file.sink.compile.drain.unsafeRunSync()
-    val t = loaders.circe[Int](path, AvroTypedEncoder[Int](AvroCodec[Int]), sparkSession).collect().toSet
+    val t = loaders.circe[Int](path, AvroTypedEncoder[Int](NJAvroCodec[Int]), sparkSession).collect().toSet
     assert(expected == t)
   }
 }

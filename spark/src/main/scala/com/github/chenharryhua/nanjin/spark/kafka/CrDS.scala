@@ -4,30 +4,30 @@ import cats.Eq
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{DatasetAvroFileHoarder, HoarderConfig}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
-import fs2.Stream
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
 
 final class CrDS[F[_], K, V] private[kafka] (
   val dataset: Dataset[NJConsumerRecord[K, V]],
-  topic: KafkaTopic[F, K, V],
   cfg: SKConfig,
+  ack: NJAvroCodec[K],
+  acv: NJAvroCodec[V],
   tek: TypedEncoder[K],
   tev: TypedEncoder[V])
     extends Serializable {
 
-  val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.ate(topic.topicDef)(tek, tev)
+  val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.ate(ack, acv)(tek, tev)
 
   def typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
   // transforms
   def transform(f: Dataset[NJConsumerRecord[K, V]] => Dataset[NJConsumerRecord[K, V]]): CrDS[F, K, V] =
-    new CrDS[F, K, V](dataset.transform(f), topic, cfg, tek, tev)
+    new CrDS[F, K, V](dataset.transform(f), cfg, ack, acv, tek, tev)
 
   def partitionOf(num: Int): CrDS[F, K, V] = transform(_.filter(col("partition") === num))
 
@@ -49,37 +49,39 @@ final class CrDS[F[_], K, V] private[kafka] (
     transform(ds => (1 until num).foldLeft(ds) { case (r, _) => r.union(ds) })
 
   // maps
-  def bimap[K2, V2](k: K => K2, v: V => V2)(
-    other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(other.topicDef)
-    new CrDS[F, K2, V2](dataset.map(_.bimap(k, v))(ate.sparkEncoder), other, cfg, k2, v2).normalize
+  def bimap[K2, V2](k: K => K2, v: V => V2)(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2])(implicit
+    k2: TypedEncoder[K2],
+    v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(ack2, acv2)
+    new CrDS[F, K2, V2](dataset.map(_.bimap(k, v))(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
 
-  def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
-    other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(other.topicDef)
-    new CrDS[F, K2, V2](dataset.map(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
+  def map[K2, V2](
+    f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2])(implicit
+    k2: TypedEncoder[K2],
+    v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(ack2, acv2)
+    new CrDS[F, K2, V2](dataset.map(f)(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
 
   def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
-    other: KafkaTopic[F, K2, V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(other.topicDef)
-    new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), other, cfg, k2, v2).normalize
+    ack2: NJAvroCodec[K2],
+    acv2: NJAvroCodec[V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(ack2, acv2)
+    new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
 
   val params: SKParams = cfg.evalConfig
 
   // transition
 
-  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] = {
-    val params: SKParams = cfg.evalConfig
+  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
     new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder, HoarderConfig(path))
-  }
 
-  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, topic, cfg, dataset.sparkSession)
+  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, ack, acv, cfg, dataset.sparkSession)
 
   def prRdd: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(topic.topicDef), cfg)
+    new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(ack, acv), cfg)
 
   // statistics
   def stats: Statistics[F] =

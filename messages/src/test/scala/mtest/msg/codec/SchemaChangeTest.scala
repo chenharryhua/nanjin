@@ -1,6 +1,6 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import io.circe.optics.JsonPath.root
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
@@ -51,14 +51,14 @@ object SchemaChangeTestData {
 }
         """
 
-  val oldSchema: Schema           = AvroCodec.toSchema(schema)
-  val codec: AvroCodec[UnderTest] = AvroCodec[UnderTest](schema).right.get
+  val oldSchema: Schema             = NJAvroCodec.toSchema(schema)
+  val codec: NJAvroCodec[UnderTest] = NJAvroCodec[UnderTest](schema).right.get
 }
 
 class SchemaChangeTest extends AnyFunSuite {
   import SchemaChangeTestData._
   test("change namespace") {
-    val newCodec: AvroCodec[UnderTest] = codec.withNamespace("mtest.avro.SchemaChangeTestData")
+    val newCodec: NJAvroCodec[UnderTest] = codec.withNamespace("mtest.avro.SchemaChangeTestData")
 
     val data = UnderTest(1, Coproduct(Nest(1)))
     val en   = newCodec.avroEncoder.encode(data)
@@ -67,9 +67,9 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("namespace different should throw exception") {
-    val newCodec: AvroCodec[UnderTest] = codec.withNamespace("mtest.avro.SchemaChangeTestData")
-    val data                           = UnderTest(1, Coproduct(Nest(1)))
-    val en                             = codec.avroEncoder.encode(data)
+    val newCodec: NJAvroCodec[UnderTest] = codec.withNamespace("mtest.avro.SchemaChangeTestData")
+    val data                             = UnderTest(1, Coproduct(Nest(1)))
+    val en                               = codec.avroEncoder.encode(data)
     assertThrows[Exception](newCodec.avroDecoder.decode(en))
   }
   test("empty namespace is not allowed") {
@@ -83,7 +83,7 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("child schema") {
-    val schema = AvroCodec.toSchema("""{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}""")
+    val schema = NJAvroCodec.toSchema("""{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}""")
     val child  = codec.child[Nest2](root.fields.index(1).`type`.index(1))
     assert(child.schema == schema)
     val data = Nest2("abc")
@@ -94,14 +94,14 @@ class SchemaChangeTest extends AnyFunSuite {
   val schemaWithoutNamespace =
     """{"type":"record","name":"UnderTest","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}]}]}"""
 
-  val expected: Schema = AvroCodec.toSchema(schemaWithoutNamespace)
+  val expected: Schema = NJAvroCodec.toSchema(schemaWithoutNamespace)
 
   test("remove namespace from schema") {
     assert(codec.withoutNamespace.schema == expected)
   }
 
   test("remove namespace from non-namespace schema") {
-    val codec: AvroCodec[UnderTest] = AvroCodec[UnderTest](schemaWithoutNamespace).right.get
+    val codec: NJAvroCodec[UnderTest] = NJAvroCodec[UnderTest](schemaWithoutNamespace).right.get
     assert(codec.withoutNamespace.schema == expected)
   }
 

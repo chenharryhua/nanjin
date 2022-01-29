@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
@@ -10,7 +10,7 @@ import org.apache.spark.sql.types.*
 
 import scala.reflect.ClassTag
 
-final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedEncoder: TypedEncoder[A])
+final class AvroTypedEncoder[A] private (val avroCodec: NJAvroCodec[A], val typedEncoder: TypedEncoder[A])
     extends Serializable {
 
   private val avroStructType: StructType =
@@ -44,10 +44,10 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedE
 
 object AvroTypedEncoder {
 
-  def apply[A](te: TypedEncoder[A], ac: AvroCodec[A]): AvroTypedEncoder[A] =
+  def apply[A](te: TypedEncoder[A], ac: NJAvroCodec[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](ac, te)
 
-  def apply[A](ac: AvroCodec[A])(implicit te: TypedEncoder[A]): AvroTypedEncoder[A] =
+  def apply[A](ac: NJAvroCodec[A])(implicit te: TypedEncoder[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](ac, te)
 
   def apply[A](implicit
@@ -55,5 +55,5 @@ object AvroTypedEncoder {
     dec: AvroDecoder[A],
     enc: AvroEncoder[A],
     te: TypedEncoder[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](AvroCodec[A](sf, dec, enc), te)
+    new AvroTypedEncoder[A](NJAvroCodec[A](sf, dec, enc), te)
 }

@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.sksamuel.avro4s.SchemaFor
@@ -26,9 +26,9 @@ object SparKafkaTestData {
   val data: HasDuck =
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 
-  implicit val hasDuckEncoder: AvroCodec[HasDuck] = AvroCodec[HasDuck]
-  implicit val intCodec: AvroCodec[Int]           = AvroCodec[Int]
-  implicit val stringCodec: AvroCodec[String]     = AvroCodec[String]
+  implicit val hasDuckEncoder: NJAvroCodec[HasDuck] = NJAvroCodec[HasDuck]
+  implicit val intCodec: NJAvroCodec[Int]           = NJAvroCodec[Int]
+  implicit val stringCodec: NJAvroCodec[String]     = NJAvroCodec[String]
 
   println(SchemaFor[HasDuck].schema)
 }
@@ -92,7 +92,13 @@ class SparKafkaTest extends AnyFunSuite {
     val t = ctx.topic[String, Int]("tmp")
 
     val birst =
-      sparKafka.topic(src).crRdd(ds.rdd).bimap(_.toString, _ + 1)(t).rdd.collect().toSet
+      sparKafka
+        .topic(src)
+        .crRdd(ds.rdd)
+        .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
+        .rdd
+        .collect()
+        .toSet
     assert(birst.flatMap(_.value) == Set(2, 3, 5))
   }
 
@@ -112,7 +118,7 @@ class SparKafkaTest extends AnyFunSuite {
         .topic(src)
         .crRdd(ds.rdd)
         .timeRange
-        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(t)
+        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(NJAvroCodec[Int], NJAvroCodec[Int])
         .rdd
         .collect()
         .toSet

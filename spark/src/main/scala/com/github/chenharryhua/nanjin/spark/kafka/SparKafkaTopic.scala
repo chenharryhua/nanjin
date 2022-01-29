@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -78,13 +78,16 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, ss)
 
+  val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
+  val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
+
   /** rdd and dataset
     */
   def crRdd(rdd: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](rdd, topic, cfg, ss)
+    new CrRdd[F, K, V](rdd, avroKeyCodec, avroValCodec, cfg, ss)
 
   def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
-    new CrDS(ate.normalizeDF(df), topic, cfg, tek, tev)
+    new CrDS(ate.normalizeDF(df), cfg, avroKeyCodec, avroValCodec, tek, tev)
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, NJProducerRecord.avroCodec(topic.topicDef), cfg)
@@ -121,8 +124,8 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
     jdk: JsonDecoder[K],
     jdv: JsonDecoder[V]): SparkSStream[F, NJConsumerRecord[KJson[K], KJson[V]]] = {
     import com.github.chenharryhua.nanjin.spark.injection.kjsonInjection
-    val ack: AvroCodec[KJson[K]]             = AvroCodec[KJson[K]]
-    val acv: AvroCodec[KJson[V]]             = AvroCodec[KJson[V]]
+    val ack: NJAvroCodec[KJson[K]]           = NJAvroCodec[KJson[K]]
+    val acv: NJAvroCodec[KJson[V]]           = NJAvroCodec[KJson[V]]
     implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
     implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
 

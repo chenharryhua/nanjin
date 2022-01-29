@@ -6,7 +6,7 @@ import cats.kernel.PartialOrder
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaConsumerRecordTransformer
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.*
@@ -74,7 +74,7 @@ object NJConsumerRecord {
   def apply[K, V](cr: Fs2ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     apply(cr.transformInto[ConsumerRecord[Option[K], Option[V]]])
 
-  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
+  def avroCodec[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V]): NJAvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
@@ -84,13 +84,13 @@ object NJConsumerRecord {
     val s: SchemaFor[NJConsumerRecord[K, V]] = cachedImplicit
     val d: Decoder[NJConsumerRecord[K, V]]   = cachedImplicit
     val e: Encoder[NJConsumerRecord[K, V]]   = cachedImplicit
-    AvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+    NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
-  def avroCodec[K, V](topicDef: TopicDef[K, V]): AvroCodec[NJConsumerRecord[K, V]] =
+  def avroCodec[K, V](topicDef: TopicDef[K, V]): NJAvroCodec[NJConsumerRecord[K, V]] =
     avroCodec(topicDef.rawSerdes.keySerde.avroCodec, topicDef.rawSerdes.valSerde.avroCodec)
 
-  def ate[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
+  def ate[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V])(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
     val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit

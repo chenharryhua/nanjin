@@ -4,27 +4,26 @@ import cats.Eq
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 final class CrRdd[F[_], K, V] private[kafka] (
   val rdd: RDD[NJConsumerRecord[K, V]],
-  topic: KafkaTopic[F, K, V],
+  ack: NJAvroCodec[K],
+  acv: NJAvroCodec[V],
   cfg: SKConfig,
   ss: SparkSession)
     extends Serializable {
 
-  protected val codec: AvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
+  protected val codec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
 
   // transforms
   def transform(f: RDD[NJConsumerRecord[K, V]] => RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](f(rdd), topic, cfg, ss)
+    new CrRdd[F, K, V](f(rdd), ack, acv, cfg, ss)
 
   def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))
 
@@ -48,25 +47,27 @@ final class CrRdd[F[_], K, V] private[kafka] (
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
   // maps
-  def bimap[K2, V2](k: K => K2, v: V => V2)(other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), other, cfg, ss).normalize
+  def bimap[K2, V2](k: K => K2, v: V => V2)(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), ack2, acv2, cfg, ss).normalize
 
   def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
-    other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(f), other, cfg, ss).normalize
+    ack2: NJAvroCodec[K2],
+    acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](rdd.map(f), ack2, acv2, cfg, ss).normalize
 
   def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
-    other: KafkaTopic[F, K2, V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.flatMap(f), other, cfg, ss).normalize
+    ack2: NJAvroCodec[K2],
+    acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] =
+    new CrRdd[F, K2, V2](rdd.flatMap(f), ack2, acv2, cfg, ss).normalize
 
   // transition
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = NJConsumerRecord.ate(topic.topicDef)
-    new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), topic, cfg, tek, tev)
+    val ate = NJConsumerRecord.ate(ack, acv)
+    new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), cfg, ack, acv, tek, tev)
   }
 
   def prRdd: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(topic.topicDef), cfg)
+    new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(ack, acv), cfg)
 
   val params: SKParams = cfg.evalConfig
 

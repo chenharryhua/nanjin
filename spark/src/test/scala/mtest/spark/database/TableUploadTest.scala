@@ -3,7 +3,7 @@ package mtest.spark.database
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.database.TableName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.database.{SparkDBTable, TableDef}
 import frameless.{TypedDataset, TypedEncoder}
@@ -20,7 +20,7 @@ object TableUploadTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val codec: AvroCodec[Beaver] = AvroCodec[Beaver](
+  val codec: NJAvroCodec[Beaver] = NJAvroCodec[Beaver](
     """
       |{
       |  "type": "record",

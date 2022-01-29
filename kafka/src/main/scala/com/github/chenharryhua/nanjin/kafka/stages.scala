@@ -3,53 +3,15 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.stream.*
 import akka.stream.ActorAttributes.SupervisionStrategy
 import akka.stream.Supervision.Decider
-import akka.stream.scaladsl.{Flow, Sink}
+import akka.stream.scaladsl.Flow
 import akka.stream.stage.*
-import akka.{Done, NotUsed}
-import cats.effect.kernel.{Async, Deferred}
-import cats.effect.std.Dispatcher
-import cats.syntax.all.*
+import akka.NotUsed
 import fs2.kafka.KafkaByteConsumerRecord
 import org.apache.kafka.common.TopicPartition
 
 import scala.util.control.NonFatal
 
 object stages {
-
-  /** Notes:
-    *
-    * similar to akka.stream.scaladsl.Sink.ignore: A Sink that will consume the stream and discard the elements. it's
-    * materialized to '''F[Done]'''instead of '''Future[Done]'''
-    */
-  final private class IgnoreSink[F[_]: Async](dispatcher: Dispatcher[F])
-      extends GraphStageWithMaterializedValue[SinkShape[Any], F[Done]] {
-
-    val in: Inlet[Any]        = Inlet[Any]("Ignore.in")
-    val shape: SinkShape[Any] = SinkShape(in)
-
-    override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, F[Done]) = {
-      val promise = Deferred.unsafe[F, Either[Throwable, Done]]
-      val logic = new GraphStageLogic(shape) with InHandler {
-
-        override def preStart(): Unit = pull(in)
-        override def onPush(): Unit   = pull(in)
-
-        override def onUpstreamFinish(): Unit = {
-          super.onUpstreamFinish()
-          dispatcher.unsafeRunSync(promise.complete(Right(Done)).void)
-        }
-
-        override def onUpstreamFailure(ex: Throwable): Unit = {
-          super.onUpstreamFailure(ex)
-          dispatcher.unsafeRunSync(promise.complete(Left(ex)).void)
-        }
-        setHandler(in, this)
-      }
-
-      (logic, promise.get.rethrow)
-    }
-  }
-  def ignore[F[_]: Async](dispatcher: Dispatcher[F]): Sink[Any, F[Done]] = Sink.fromGraph(new IgnoreSink[F](dispatcher))
 
   /** Notes:
     *
