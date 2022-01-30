@@ -87,22 +87,22 @@ object NJHadoop {
 
       override def byteSink(path: NJPath): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
         for {
-          fs <- Stream.resource(fsOutput(path))
-          r <- ss.through(writeOutputStream[F](F.delay(fs)))
+          fsOut <- Stream.resource(fsOutput(path))
+          r <- ss.through(writeOutputStream[F](F.blocking(fsOut)))
         } yield r
       }
 
       override def byteSource(path: NJPath, byteBuffer: Information): Stream[F, Byte] =
         for {
-          is <- Stream.resource(fsInput(path))
-          bt <- readInputStream[F](F.delay(is), byteBuffer.toBytes.toInt)
+          fsIn <- Stream.resource(fsInput(path))
+          bt <- readInputStream[F](F.blocking(fsIn), byteBuffer.toBytes.toInt)
         } yield bt
 
       override def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.delay(writer.append(gr)))) >> go(tl, writer)
+              Pull.eval(hl.traverse(gr => F.blocking(writer.append(gr)))) >> go(tl, writer)
             case None => Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
 
@@ -123,7 +123,7 @@ object NJHadoop {
           Resource.make[F, DataFileStream[GenericRecord]](
             F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r =>
             F.blocking(r.close()).attempt.void))
-        gr <- Stream.fromIterator(dfs.iterator().asScala, chunkSize.value)
+        gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
       } yield gr
     }
 }
