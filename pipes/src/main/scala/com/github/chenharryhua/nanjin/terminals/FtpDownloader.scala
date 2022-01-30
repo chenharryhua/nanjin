@@ -11,14 +11,9 @@ import fs2.interop.reactivestreams.PublisherOps
 import net.schmizz.sshj.SSHClient
 import org.apache.commons.net.ftp.{FTPClient, FTPSClient}
 
-sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](
-  ftpApi: FtpApi[C, S],
-  settings: S,
-  chunkSize: ChunkSize) {
+sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S) {
 
-  final def withChunkSize(cs: ChunkSize): FtpDownloader[F, C, S] = new FtpDownloader[F, C, S](ftpApi, settings, cs) {}
-
-  final def download(pathStr: String)(implicit F: Async[F], mat: Materializer): Stream[F, Byte] =
+  final def download(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, Byte] =
     Stream.suspend {
       for {
         bs <- ftpApi
@@ -33,12 +28,12 @@ sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](
 object FtpDownloader {
 
   def apply[F[_]](settings: FtpSettings): FtpDownloader[F, FTPClient, FtpSettings] =
-    new FtpDownloader[F, FTPClient, FtpSettings](Ftp, settings, ChunkSize(1024)) {}
+    new FtpDownloader[F, FTPClient, FtpSettings](Ftp, settings) {}
 
   def apply[F[_]](settings: SftpSettings): FtpDownloader[F, SSHClient, SftpSettings] =
-    new FtpDownloader[F, SSHClient, SftpSettings](Sftp, settings, ChunkSize(1024)) {}
+    new FtpDownloader[F, SSHClient, SftpSettings](Sftp, settings) {}
 
   def apply[F[_]](settings: FtpsSettings): FtpDownloader[F, FTPSClient, FtpsSettings] =
-    new FtpDownloader[F, FTPSClient, FtpsSettings](Ftps, settings, ChunkSize(1024)) {}
+    new FtpDownloader[F, FTPSClient, FtpsSettings](Ftps, settings) {}
 
 }

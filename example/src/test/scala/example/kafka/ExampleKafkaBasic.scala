@@ -21,7 +21,14 @@ class ExampleKafkaBasic extends AnyFunSuite {
         NJProducerRecord(2, Foo(20, "b")),
         NJProducerRecord(3, Foo(30, "c")),
         NJProducerRecord(4, Foo(40, "d")))
-    sparKafka.topic(fooTopic).prRdd(producerRecords).upload.stream.compile.drain.unsafeRunSync()
+    sparKafka
+      .topic(fooTopic)
+      .prRdd(producerRecords)
+      .producerRecords(fooTopic.topicName, 100)
+      .through(fooTopic.fs2Channel.producerPipe)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
@@ -36,20 +43,12 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("persist messages to local disk and then load data back into kafka") {
     val path = NJPath("./data/example/foo.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).folder.run).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save(path).circe.folder.run).unsafeRunSync()
     sparKafka
       .topic(fooTopic)
       .load
       .circe(path)
-      .flatMap(
-        _.prRdd
-          .withInterval(1.second) // interval of sending messages
-          .withTimeLimit(5.second) // upload last for 5 seconds
-          .upload
-          .withChunkSize(2) // upload 2 message every interval
-          .stream
-          .compile
-          .drain)
+      .flatMap(_.prRdd.producerRecords(fooTopic.topicName, 2).through(fooTopic.fs2Channel.producerPipe).compile.drain)
       .unsafeRunSync()
   }
 }
