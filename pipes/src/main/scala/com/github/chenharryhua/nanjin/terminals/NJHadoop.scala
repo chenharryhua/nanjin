@@ -101,9 +101,8 @@ object NJHadoop {
       override def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
-            case Some((hl, tl)) =>
-              Pull.eval(hl.traverse(gr => F.blocking(writer.append(gr)))) >> go(tl, writer)
-            case None => Pull.eval(F.blocking(writer.close())) >> Pull.done
+            case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
+            case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
           }
 
         (ss: Stream[F, GenericRecord]) =>

@@ -11,10 +11,8 @@ final class NJParquet[F[_]](implicit F: Sync[F]) {
   def parquetSink(builder: AvroParquetWriter.Builder[GenericRecord]): Pipe[F, GenericRecord, Unit] = {
     def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
       grs.pull.uncons.flatMap {
-        case Some((hl, tl)) =>
-          Pull.eval(hl.traverse(gr => F.blocking(writer.write(gr)))) >> go(tl, writer)
-        case None =>
-          Pull.eval(F.blocking(writer.close())) >> Pull.done
+        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.write))) >> go(tl, writer)
+        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
       }
 
     (ss: Stream[F, GenericRecord]) =>
