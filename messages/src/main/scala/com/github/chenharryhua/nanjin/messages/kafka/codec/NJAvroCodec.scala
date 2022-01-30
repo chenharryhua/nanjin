@@ -2,13 +2,23 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
 import cats.syntax.all.*
-import com.sksamuel.avro4s.{Decoder as AvroDecoder, DecoderHelpers, Encoder as AvroEncoder, EncoderHelpers, SchemaFor}
+import com.sksamuel.avro4s.{
+  Decoder as AvroDecoder,
+  DecoderHelpers,
+  Encoder as AvroEncoder,
+  EncoderHelpers,
+  FromRecord,
+  Record,
+  SchemaFor,
+  ToRecord
+}
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
 import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath.*
 import io.circe.{parser, Json}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
+import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
 import scala.util.Try
@@ -16,6 +26,12 @@ import scala.util.Try
 final case class NJAvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[A], avroEncoder: AvroEncoder[A]) {
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
+
+  private[this] val toRec: ToRecord[A]     = ToRecord(avroEncoder)
+  private[this] val fromRec: FromRecord[A] = FromRecord(avroDecoder)
+
+  def toRecord(a: A): Record           = toRec.to(a)
+  def fromRecord(ir: IndexedRecord): A = fromRec.from(ir)
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *

@@ -12,7 +12,7 @@ final class NJParquet[F[_]](implicit F: Sync[F]) {
     def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
       grs.pull.uncons.flatMap {
         case Some((hl, tl)) =>
-          Pull.eval(hl.traverse(gr => F.delay(writer.write(gr)))) >> go(tl, writer)
+          Pull.eval(hl.traverse(gr => F.blocking(writer.write(gr)))) >> go(tl, writer)
         case None =>
           Pull.eval(F.blocking(writer.close())) >> Pull.done
       }

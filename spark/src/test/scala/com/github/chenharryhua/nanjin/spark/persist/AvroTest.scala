@@ -2,8 +2,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.GenericRecordCodec
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import mtest.spark.*
 import org.apache.spark.sql.SaveMode
@@ -13,13 +11,12 @@ import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
-  val hadoop: NJHadoop[IO]                = NJHadoop[IO](sparkSession.sparkContext.hadoopConfiguration)
-  val gr: GenericRecordCodec[IO, Rooster] = new GenericRecordCodec[IO, Rooster]()
+  val hadoop: NJHadoop[IO] = NJHadoop[IO](sparkSession.sparkContext.hadoopConfiguration)
 
   def singleAvro(path: NJPath): Set[Rooster] =
     hadoop
       .avroSource(path, Rooster.avroCodec.schema, 100)
-      .through(gr.decode(Rooster.avroCodec.avroDecoder))
+      .map(Rooster.avroCodec.avroDecoder.decode)
       .compile
       .toList
       .unsafeRunSync()
