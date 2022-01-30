@@ -31,7 +31,7 @@ package object spark {
     def numOfNulls(implicit ev: ClassTag[A]): Long     = rdd.subtract(dismissNulls).count()
 
     def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
-      Stream.fromIterator(rdd.toLocalIterator, chunkSize.value)
+      Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
 
     def source: Source[A, NotUsed] = Source.fromIterator(() => rdd.toLocalIterator)
 

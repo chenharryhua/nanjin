@@ -7,6 +7,8 @@ import com.sksamuel.avro4s.{
   DecoderHelpers,
   Encoder as AvroEncoder,
   EncoderHelpers,
+  FromRecord,
+  Record,
   SchemaFor,
   ToRecord
 }
@@ -16,6 +18,7 @@ import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath.*
 import io.circe.{parser, Json}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
+import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
 import scala.util.Try
@@ -24,7 +27,11 @@ final case class NJAvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecode
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
-  val toRecrod: ToRecord[A] = ToRecord(avroEncoder)
+  private[this] val toRec: ToRecord[A]     = ToRecord(avroEncoder)
+  private[this] val fromRec: FromRecord[A] = FromRecord(avroDecoder)
+
+  def toRecord(a: A): Record           = toRec.to(a)
+  def fromRecord(ir: IndexedRecord): A = fromRec.from(ir)
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *

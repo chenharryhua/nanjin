@@ -35,6 +35,9 @@ final class SparKafkaTopic[F[_], K, V](val topic: KafkaTopic[F, K, V], cfg: SKCo
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
     NJConsumerRecord.ate(topic.topicDef)
 
+  val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
+  val prCodec: NJAvroCodec[NJProducerRecord[K, V]] = NJProducerRecord.avroCodec(topic.topicDef)
+
   override def updateConfig(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](topic, f(cfg), ss)
 
