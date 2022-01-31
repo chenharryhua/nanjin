@@ -122,12 +122,13 @@ object NJHadoop {
           } yield ()
       }
 
-      override def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] = for {
-        is <- Stream.resource(fsInput(path))
-        dfs <- Stream.resource(
-          Resource.make[F, DataFileStream[GenericRecord]](
-            F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close())))
-        gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
-      } yield gr
+      override def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
+        for {
+          is <- Stream.resource(fsInput(path))
+          dfs <- Stream.resource(
+            Resource.make[F, DataFileStream[GenericRecord]](
+              F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close())))
+          gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
+        } yield gr
     }
 }
