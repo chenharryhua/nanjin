@@ -60,10 +60,9 @@ private class ParquetSource[GenericRecord](builder: Eval[AvroParquetReader.Build
       setHandler(
         out,
         new OutHandler {
-          override def onDownstreamFinish(cause: Throwable): Unit = {
-            super.onDownstreamFinish(cause)
-            reader.close()
-          }
+          override def onDownstreamFinish(cause: Throwable): Unit =
+            try reader.close()
+            finally super.onDownstreamFinish(cause)
 
           override def onPull(): Unit = {
             val record = reader.read()
@@ -71,7 +70,6 @@ private class ParquetSource[GenericRecord](builder: Eval[AvroParquetReader.Build
           }
         }
       )
-      override def postStop(): Unit = reader.close()
     }
   override val shape: SourceShape[GenericRecord] = SourceShape.of(out)
 }
@@ -93,17 +91,20 @@ private class ParquetSink(builder: AvroParquetWriter.Builder[GenericRecord])
       setHandler(
         in,
         new InHandler {
-          override def onUpstreamFinish(): Unit = {
-            super.onUpstreamFinish()
-            try writer.close()
-            finally promise.complete(Success(Done))
-          }
+          override def onUpstreamFinish(): Unit =
+            try {
+              writer.close()
+              promise.complete(Success(Done))
+            } catch {
+              case ex: Throwable => promise.complete(Failure(ex))
+            } finally super.onUpstreamFinish()
 
-          override def onUpstreamFailure(ex: Throwable): Unit = {
-            super.onUpstreamFailure(ex)
+          override def onUpstreamFailure(ex: Throwable): Unit =
             try writer.close()
-            finally promise.complete(Failure(ex))
-          }
+            finally {
+              super.onUpstreamFailure(ex)
+              promise.complete(Failure(ex))
+            }
 
           override def onPush(): Unit = {
             val gr: GenericRecord = grab(in)
