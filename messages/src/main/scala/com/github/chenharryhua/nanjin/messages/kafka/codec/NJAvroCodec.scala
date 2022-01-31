@@ -30,8 +30,8 @@ final case class NJAvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecode
   private[this] val toRec: ToRecord[A]     = ToRecord(avroEncoder)
   private[this] val fromRec: FromRecord[A] = FromRecord(avroDecoder)
 
-  def toRecord(a: A): Record           = toRec.to(a)
-  def fromRecord(ir: IndexedRecord): A = fromRec.from(ir)
+  @inline def toRecord(a: A): Record           = toRec.to(a)
+  @inline def fromRecord(ir: IndexedRecord): A = fromRec.from(ir)
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *

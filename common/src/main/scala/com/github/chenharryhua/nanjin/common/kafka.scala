@@ -9,8 +9,8 @@ object kafka {
 
   object TopicName extends RefinedTypeOps[TopicName, String] with CatsRefinedTypeOpsSyntax
 
-  type StoreName = String Refined MatchesRegex["""^[a-zA-Z0-9_.\-]+$"""]
+  type StoreName = TopicName
 
-  object StoreName extends RefinedTypeOps[StoreName, String] with CatsRefinedTypeOpsSyntax
+  object StoreName extends RefinedTypeOps[TopicName, String] with CatsRefinedTypeOpsSyntax
 
 }

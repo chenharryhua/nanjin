@@ -1,5 +1,7 @@
 package mtest.terminals
 
+import akka.stream.Materializer
+import akka.stream.scaladsl.{Sink, Source}
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.{NJParquet, NJPath}
@@ -11,10 +13,10 @@ import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.scalatest.funsuite.AnyFunSuite
+import cats.Eval
 
 class ParquetTest extends AnyFunSuite {
   import HadoopTestData.*
-  val pq = new NJParquet[IO]()
 
   test("snappy parquet write/read") {
     import HadoopTestData.*
@@ -34,8 +36,8 @@ class ParquetTest extends AnyFunSuite {
         .withDataModel(GenericData.get()))
 
     val action = hdp.delete(pathStr) >>
-      ts.through(pq.parquetSink(wb)).compile.drain >>
-      pq.parquetSource(rb).compile.toList
+      ts.through(NJParquet.fs2Sink(wb)).compile.drain >>
+      NJParquet.fs2Source(rb).compile.toList
 
     assert(action.unsafeRunSync() == pandas)
   }
@@ -57,8 +59,8 @@ class ParquetTest extends AnyFunSuite {
         .withDataModel(GenericData.get()))
 
     val action = hdp.delete(pathStr) >>
-      ts.through(pq.parquetSink(wb)).compile.drain >>
-      pq.parquetSource(rb).compile.toList
+      ts.through(NJParquet.fs2Sink(wb)).compile.drain >>
+      NJParquet.fs2Source(rb).compile.toList
 
     assert(action.unsafeRunSync() == pandas)
   }
@@ -79,8 +81,31 @@ class ParquetTest extends AnyFunSuite {
         .withDataModel(GenericData.get()))
 
     val action =
-      hdp.delete(pathStr) >> ts.through(pq.parquetSink(wb)).compile.drain >> pq.parquetSource(rb).compile.toList
+      hdp.delete(pathStr) >> ts.through(NJParquet.fs2Sink(wb)).compile.drain >> NJParquet.fs2Source(rb).compile.toList
 
     assert(action.unsafeRunSync() == pandas)
+  }
+
+  implicit val mat: Materializer = Materializer(akkaSystem)
+  test("uncompressed parquet write/read akka") {
+    val pathStr = NJPath("./data/test/devices/akka/panda.uncompressed.parquet")
+    val ts      = Source(pandas)
+    val wb = AvroParquetWriter
+      .builder[GenericRecord](HadoopOutputFile.fromPath(pathStr.hadoopPath, cfg))
+      .withSchema(pandaSchema)
+      .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+      .withDataModel(GenericData.get())
+      .withConf(cfg)
+      .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+
+    val rb = Eval.later(
+      AvroParquetReader
+        .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
+        .withDataModel(GenericData.get()))
+
+    val write = IO.fromFuture(IO(ts.runWith(NJParquet.akkaSink(wb))))
+    val read  = IO.fromFuture(IO(NJParquet.akkaSource(rb).runFold(List.empty[GenericRecord])(_.appended(_))))
+    val rst   = (hdp.delete(pathStr) >> write >> read).unsafeRunSync()
+    assert(rst == pandas)
   }
 }

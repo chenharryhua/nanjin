@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Resource, Sync}
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -11,6 +10,7 @@ import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericR
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
 import squants.information.Information
+import squants.information.InformationConversions.InformationConversions
 
 import java.net.URI
 import scala.collection.mutable.ListBuffer
@@ -25,9 +25,12 @@ sealed trait NJHadoop[F[_]] {
 
   def byteSink(path: NJPath): Pipe[F, Byte, Unit]
   def byteSource(path: NJPath, byteBuffer: Information): Stream[F, Byte]
+  def byteSource(path: NJPath): Stream[F, Byte]
 
   def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
   def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord]
+
+  def akka: AkkaHadoop
 }
 
 object NJHadoop {
@@ -43,16 +46,16 @@ object NJHadoop {
       private def fsOutput(path: NJPath): Resource[F, FSDataOutputStream] =
         for {
           fs <- fileSystem(path.uri)
-          rs <- Resource.make[F, FSDataOutputStream](F.blocking(fs.create(path.hadoopPath)))(r =>
-            F.blocking(r.close()).attempt.void)
+          rs <- Resource.make[F, FSDataOutputStream](F.blocking(fs.create(path.hadoopPath)))(r => F.blocking(r.close()))
         } yield rs
 
       private def fsInput(path: NJPath): Resource[F, FSDataInputStream] =
         for {
           fs <- fileSystem(path.uri)
-          rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(path.hadoopPath)))(r =>
-            F.blocking(r.close()).attempt.void)
+          rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(path.hadoopPath)))(r => F.blocking(r.close()))
         } yield rs
+
+      override val akka: AkkaHadoop = new AkkaHadoop(config)
 
       // disk operations
 
@@ -98,7 +101,10 @@ object NJHadoop {
           bt <- readInputStream[F](F.blocking(fsIn), byteBuffer.toBytes.toInt)
         } yield bt
 
-      override def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+      // best performance
+      override def byteSource(path: NJPath): Stream[F, Byte] = byteSource(path, 20.kb)
+
+      override def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
@@ -109,20 +115,20 @@ object NJHadoop {
           for {
             dfw <- Stream.resource(
               Resource.make[F, DataFileWriter[GenericRecord]](
-                F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf)))(r =>
-                F.blocking(r.close()).attempt.void))
+                F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
+                F.blocking(r.close())))
             writer <- Stream.resource(fsOutput(path)).map(os => dfw.create(schema, os))
             _ <- go(ss, writer).stream
           } yield ()
       }
 
-      override def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] = for {
-        is <- Stream.resource(fsInput(path))
-        dfs <- Stream.resource(
-          Resource.make[F, DataFileStream[GenericRecord]](
-            F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r =>
-            F.blocking(r.close()).attempt.void))
-        gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
-      } yield gr
+      override def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
+        for {
+          is <- Stream.resource(fsInput(path))
+          dfs <- Stream.resource(
+            Resource.make[F, DataFileStream[GenericRecord]](
+              F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close())))
+          gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
+        } yield gr
     }
 }

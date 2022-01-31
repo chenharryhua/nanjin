@@ -1,5 +1,7 @@
 package mtest.terminals
 
+import akka.stream.Materializer
+import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
@@ -93,6 +95,16 @@ class HadoopTest extends AnyFunSuite {
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.nullCodec)).compile.drain >>
       hdp.avroSource(pathStr, pandaSchema, 100).compile.toList
+    assert(action.unsafeRunSync() == pandas)
+  }
+
+  test("uncompressed avro write/read akka") {
+    val pathStr                    = NJPath("./data/test/devices/akka/panda.uncompressed.avro")
+    val ts                         = Source(pandas)
+    implicit val mat: Materializer = Materializer(akkaSystem)
+    val action = hdp.delete(pathStr) >>
+      IO.fromFuture(IO(ts.runWith(hdp.akka.avroSink(pathStr, pandaSchema, CodecFactory.nullCodec)))) >>
+      IO.fromFuture(IO(hdp.akka.avroSource(pathStr, pandaSchema).runFold(List.empty[GenericRecord])(_.appended(_))))
     assert(action.unsafeRunSync() == pandas)
   }
 
