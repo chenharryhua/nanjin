@@ -15,7 +15,6 @@ import squants.information.Information
 import java.io.{InputStream, OutputStream}
 import java.net.URI
 import scala.concurrent.{Future, Promise}
-import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success}
 
 final class AkkaHadoop(config: Configuration) {
