@@ -12,7 +12,13 @@ import akka.stream.{
   SourceShape,
   SubscriptionWithCancelException
 }
-import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
+import akka.stream.stage.{
+  GraphStageLogic,
+  GraphStageLogicWithLogging,
+  GraphStageWithMaterializedValue,
+  InHandler,
+  OutHandler
+}
 import cats.Eval
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.functor.*
@@ -54,7 +60,7 @@ object NJParquet {
     Sink.fromGraph(new ParquetSink(builder))
 }
 
-private class ParquetSource[GenericRecord](builder: Eval[AvroParquetReader.Builder[GenericRecord]])
+private class ParquetSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]])
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
 
   private val out: Outlet[GenericRecord] = Outlet("akka.parquet.source")
@@ -63,7 +69,8 @@ private class ParquetSource[GenericRecord](builder: Eval[AvroParquetReader.Build
 
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
-    val logic = new GraphStageLogic(shape) {
+    val logic = new GraphStageLogicWithLogging(shape) {
+      override protected val logSource: Class[ParquetSource] = classOf[ParquetSource]
       setHandler(
         out,
         new OutHandler {
@@ -110,7 +117,8 @@ private class ParquetSink(builder: AvroParquetWriter.Builder[GenericRecord])
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
-    val logic = new GraphStageLogic(shape) {
+    val logic = new GraphStageLogicWithLogging(shape) {
+      override protected val logSource: Class[ParquetSink] = classOf[ParquetSink]
       setHandler(
         in,
         new InHandler {

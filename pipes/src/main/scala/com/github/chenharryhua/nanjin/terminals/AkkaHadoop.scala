@@ -12,7 +12,13 @@ import akka.stream.{
   SubscriptionWithCancelException
 }
 import akka.stream.scaladsl.{Sink, Source, StreamConverters}
-import akka.stream.stage.{GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
+import akka.stream.stage.{
+  GraphStageLogic,
+  GraphStageLogicWithLogging,
+  GraphStageWithMaterializedValue,
+  InHandler,
+  OutHandler
+}
 import akka.util.ByteString
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
@@ -52,7 +58,8 @@ private class AvroSource(is: InputStream, schema: Schema)
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
-    val logic = new GraphStageLogic(shape) {
+    val logic = new GraphStageLogicWithLogging(shape) {
+      override protected val logSource: Class[AvroSource] = classOf[AvroSource]
       setHandler(
         out,
         new OutHandler {
@@ -101,7 +108,9 @@ private class AvroSink(os: OutputStream, schema: Schema, codecFactory: CodecFact
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
-    val logic = new GraphStageLogic(shape) {
+    val logic = new GraphStageLogicWithLogging(shape) {
+      override protected val logSource: Class[AvroSink] = classOf[AvroSink]
+
       setHandler(
         in,
         new InHandler {
