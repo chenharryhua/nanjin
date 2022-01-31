@@ -95,8 +95,12 @@ private class ParquetSink(builder: AvroParquetWriter.Builder[GenericRecord])
         new InHandler {
           override def onUpstreamFinish(): Unit = {
             super.onUpstreamFinish()
-            try writer.close()
-            finally promise.complete(Success(Done))
+            try {
+              writer.close()
+              promise.complete(Success(Done))
+            } catch {
+              case ex: Throwable => promise.complete(Failure(ex))
+            }
           }
 
           override def onUpstreamFailure(ex: Throwable): Unit = {

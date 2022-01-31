@@ -61,14 +61,21 @@ private class AvroSink(os: OutputStream, schema: Schema, codecFactory: CodecFact
         new InHandler {
           override def onUpstreamFinish(): Unit = {
             super.onUpstreamFinish()
-            try writer.close()
-            finally promise.complete(Success(Done))
+            try {
+              writer.close()
+              os.close()
+              promise.complete(Success(Done))
+            } catch {
+              case ex: Throwable => promise.complete(Failure(ex))
+            }
           }
 
           override def onUpstreamFailure(ex: Throwable): Unit = {
             super.onUpstreamFailure(ex)
-            try writer.close()
-            finally promise.complete(Failure(ex))
+            try {
+              writer.close()
+              os.close()
+            } finally promise.complete(Failure(ex))
           }
 
           override def onPush(): Unit = {
