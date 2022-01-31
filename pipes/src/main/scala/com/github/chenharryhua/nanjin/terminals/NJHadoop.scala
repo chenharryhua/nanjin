@@ -104,7 +104,7 @@ object NJHadoop {
       // best performance
       override def byteSource(path: NJPath): Stream[F, Byte] = byteSource(path, 20.kb)
 
-      override def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+      override def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
           grs.pull.uncons.flatMap {
             case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
@@ -115,7 +115,7 @@ object NJHadoop {
           for {
             dfw <- Stream.resource(
               Resource.make[F, DataFileWriter[GenericRecord]](
-                F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf)))(r =>
+                F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
                 F.blocking(r.close())))
             writer <- Stream.resource(fsOutput(path)).map(os => dfw.create(schema, os))
             _ <- go(ss, writer).stream

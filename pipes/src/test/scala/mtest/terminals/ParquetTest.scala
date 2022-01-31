@@ -105,7 +105,7 @@ class ParquetTest extends AnyFunSuite {
 
     val write = IO.fromFuture(IO(ts.runWith(NJParquet.akkaSink(wb))))
     val read  = IO.fromFuture(IO(NJParquet.akkaSource(rb).runFold(List.empty[GenericRecord])(_.appended(_))))
-    val rst   = (write >> read).unsafeRunSync()
+    val rst   = (hdp.delete(pathStr) >> write >> read).unsafeRunSync()
     assert(rst == pandas)
   }
 }
