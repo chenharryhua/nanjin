@@ -10,6 +10,7 @@ import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericR
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
 import squants.information.Information
+import squants.information.InformationConversions.InformationConversions
 
 import java.net.URI
 import scala.collection.mutable.ListBuffer
@@ -24,9 +25,12 @@ sealed trait NJHadoop[F[_]] {
 
   def byteSink(path: NJPath): Pipe[F, Byte, Unit]
   def byteSource(path: NJPath, byteBuffer: Information): Stream[F, Byte]
+  def byteSource(path: NJPath): Stream[F, Byte]
 
   def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
   def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord]
+
+  def akka: AkkaHadoop
 }
 
 object NJHadoop {
@@ -50,6 +54,8 @@ object NJHadoop {
           fs <- fileSystem(path.uri)
           rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(path.hadoopPath)))(r => F.blocking(r.close()))
         } yield rs
+
+      override val akka: AkkaHadoop = new AkkaHadoop(config)
 
       // disk operations
 
@@ -94,6 +100,9 @@ object NJHadoop {
           fsIn <- Stream.resource(fsInput(path))
           bt <- readInputStream[F](F.blocking(fsIn), byteBuffer.toBytes.toInt)
         } yield bt
+
+      // best performance
+      override def byteSource(path: NJPath): Stream[F, Byte] = byteSource(path, 20.kb)
 
       override def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
