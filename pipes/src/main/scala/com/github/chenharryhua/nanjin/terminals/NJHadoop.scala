@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Resource, Sync}
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -43,15 +42,13 @@ object NJHadoop {
       private def fsOutput(path: NJPath): Resource[F, FSDataOutputStream] =
         for {
           fs <- fileSystem(path.uri)
-          rs <- Resource.make[F, FSDataOutputStream](F.blocking(fs.create(path.hadoopPath)))(r =>
-            F.blocking(r.close()).attempt.void)
+          rs <- Resource.make[F, FSDataOutputStream](F.blocking(fs.create(path.hadoopPath)))(r => F.blocking(r.close()))
         } yield rs
 
       private def fsInput(path: NJPath): Resource[F, FSDataInputStream] =
         for {
           fs <- fileSystem(path.uri)
-          rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(path.hadoopPath)))(r =>
-            F.blocking(r.close()).attempt.void)
+          rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(path.hadoopPath)))(r => F.blocking(r.close()))
         } yield rs
 
       // disk operations
@@ -110,7 +107,7 @@ object NJHadoop {
             dfw <- Stream.resource(
               Resource.make[F, DataFileWriter[GenericRecord]](
                 F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(cf)))(r =>
-                F.blocking(r.close()).attempt.void))
+                F.blocking(r.close())))
             writer <- Stream.resource(fsOutput(path)).map(os => dfw.create(schema, os))
             _ <- go(ss, writer).stream
           } yield ()
@@ -120,8 +117,7 @@ object NJHadoop {
         is <- Stream.resource(fsInput(path))
         dfs <- Stream.resource(
           Resource.make[F, DataFileStream[GenericRecord]](
-            F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r =>
-            F.blocking(r.close()).attempt.void))
+            F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close())))
         gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
       } yield gr
     }

@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.syntax.eq.*
-import com.github.chenharryhua.nanjin.common.kafka.StoreName
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, SerdeOf}
 import com.sksamuel.avro4s.SchemaFor
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 final case class RawKeyValueSerdePair[K, V](keySerde: SerdeOf[K], valSerde: SerdeOf[V]) {
-  def register(srs: SchemaRegistrySettings, name: StoreName): KeyValueCodecPair[K, V] =
+  def register(srs: SchemaRegistrySettings, name: TopicName): KeyValueCodecPair[K, V] =
     KeyValueCodecPair(keySerde.asKey(srs.config).codec(name.value), valSerde.asValue(srs.config).codec(name.value))
 }
 
