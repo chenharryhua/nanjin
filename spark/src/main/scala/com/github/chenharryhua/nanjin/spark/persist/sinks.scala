@@ -31,7 +31,7 @@ object sinks {
   def binAvro[F[_]: Sync, A](path: NJPath, cfg: Configuration, encoder: AvroEncoder[A]): Pipe[F, A, Unit] = {
     (ss: Stream[F, A]) =>
       val toRec: ToRecord[A]                 = ToRecord(encoder)
-      val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerialization[F](encoder.schema).serialize
+      val pipe: Pipe[F, GenericRecord, Byte] = new BinaryAvroSerde[F](encoder.schema).serialize
       val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
       ss.map(toRec.to).through(pipe.andThen(sink))
   }
@@ -60,7 +60,7 @@ object sinks {
     cfg: Configuration,
     isKeepNull: Boolean,
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = new CirceSerialization[F, A].serialize(isKeepNull)
+    val pipe: Pipe[F, A, Byte]    = CirceSerde.serialize[F, A](isKeepNull)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe.andThen(compression).andThen(sink))
   }

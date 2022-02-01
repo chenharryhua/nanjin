@@ -27,12 +27,14 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     mat: Materializer): Stream[F, A] =
     csv[A](pathStr, CsvConfiguration.rfc, chunkSize)
 
-  def json[A: JsonDecoder](pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, A] = {
-    val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize)
-  }
+  def json[A: JsonDecoder](pathStr: String, chunkSize: ChunkSize)(implicit
+    F: Async[F],
+    mat: Materializer): Stream[F, A] =
+    downloader.download(pathStr, chunkSize).through(CirceSerde.deserialize[F, A])
 
-  def jackson[A](pathStr: String, chunkSize: ChunkSize, dec: AvroDecoder[A])(implicit F: Async[F], mat: Materializer): Stream[F, A] = {
+  def jackson[A](pathStr: String, chunkSize: ChunkSize, dec: AvroDecoder[A])(implicit
+    F: Async[F],
+    mat: Materializer): Stream[F, A] = {
     val pipe: JacksonSerialization[F] = new JacksonSerialization[F](dec.schema)
     downloader.download(pathStr, chunkSize).through(pipe.deserialize).map(dec.decode)
   }

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerialization, JacksonSerialization}
+import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
@@ -151,9 +151,7 @@ object loaders {
       chunkSize: ChunkSize): Stream[F, A] =
       NJHadoop(cfg).avroSource(path, decoder.schema, chunkSize).map(decoder.decode)
 
-    def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration, byteBuffer: Information): Stream[F, A] = {
-      val cs: CirceSerialization[F, A] = new CirceSerialization[F, A]
-      NJHadoop(cfg).byteSource(path, byteBuffer).through(cs.deserialize)
-    }
+    def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration, byteBuffer: Information): Stream[F, A] =
+      NJHadoop(cfg).byteSource(path, byteBuffer).through(CirceSerde.deserialize[F, A])
   }
 }

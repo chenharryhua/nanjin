@@ -29,10 +29,8 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
 
   def json[A: JsonEncoder](pathStr: String, isKeepNull: Boolean = true)(implicit
     F: Async[F],
-    mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
-    _.through(pipe.serialize(isKeepNull)).through(uploader.upload(pathStr))
-  }
+    mat: Materializer): Pipe[F, A, IOResult] =
+    _.through(CirceSerde.serialize[F, A](isKeepNull)).through(uploader.upload(pathStr))
 
   def jackson[A](pathStr: String, enc: AvroEncoder[A])(implicit
     F: Async[F],

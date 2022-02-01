@@ -2,7 +2,7 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerialization
+import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
 import eu.timepit.refined.auto.*
@@ -14,7 +14,7 @@ import squants.information.InformationConversions.*
 class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData.*
   val encoder: ToRecord[Tigger] = ToRecord[Tigger](Tigger.avroEncoder)
-  val ba                        = new BinaryAvroSerialization[IO](AvroSchema[Tigger])
+  val ba                        = new BinaryAvroSerde[IO](AvroSchema[Tigger])
   val data: Stream[IO, Tigger]  = Stream.emits(tiggers)
 
   test("binary-json identity") {
