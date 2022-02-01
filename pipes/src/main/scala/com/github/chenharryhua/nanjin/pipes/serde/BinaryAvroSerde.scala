@@ -9,9 +9,9 @@ import org.apache.avro.io.{BinaryEncoder, DecoderFactory, EncoderFactory}
 
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
-final class BinaryAvroSerde(schema: Schema) extends Serializable {
+object BinaryAvroSerde {
 
-  def serialize[F[_]]: Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
+  def serialize[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     ss.chunks.flatMap { grs =>
       val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
@@ -23,7 +23,7 @@ final class BinaryAvroSerde(schema: Schema) extends Serializable {
     }
   }
 
-  def deserialize[F[_]](implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+  def deserialize[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap { is =>
       val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
       val datumReader = new GenericDatumReader[GenericRecord](schema)
