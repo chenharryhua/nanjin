@@ -69,7 +69,7 @@ object sinks {
     path: NJPath,
     cfg: Configuration,
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, String, Byte] = new TextSerde[F].serialize
+    val pipe: Pipe[F, String, Byte] = TextSerde.serialize[F]
     val sink: Pipe[F, Byte, Unit]   = NJHadoop[F](cfg).byteSink(path)
     ss.map(_.show).through(pipe.andThen(compression).andThen(sink))
   }

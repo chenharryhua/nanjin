@@ -55,7 +55,7 @@ object NJHadoop {
           rs <- Resource.make[F, FSDataInputStream](F.blocking(fs.open(path.hadoopPath)))(r => F.blocking(r.close()))
         } yield rs
 
-      override val akka: AkkaHadoop = new AkkaHadoop(config)
+      override val akka: AkkaHadoop = AkkaHadoop(config)
 
       // disk operations
 

@@ -158,7 +158,7 @@ object loaders {
 
   object source {
     def avro[A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Source[A, Future[IOResult]] =
-      new AkkaHadoop(cfg).avroSource(path, decoder.schema).map(decoder.decode)
+      AkkaHadoop(cfg).avroSource(path, decoder.schema).map(decoder.decode)
 
   }
 }

@@ -8,11 +8,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class TextTest extends AnyFunSuite {
   import TestData.*
-  val ser: TextSerde[IO]       = new TextSerde[IO]
   val expected: List[String]   = tiggers.map(_.toString)
   val data: Stream[IO, String] = Stream.emits(expected)
 
   test("text identity") {
-    assert(data.through(ser.serialize).through(ser.deserialize).compile.toList.unsafeRunSync() === expected)
+    assert(data.through(TextSerde.serialize).through(TextSerde.deserialize).compile.toList.unsafeRunSync() === expected)
   }
 }

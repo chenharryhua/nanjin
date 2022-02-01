@@ -31,7 +31,7 @@ import java.io.{InputStream, OutputStream}
 import java.net.URI
 import scala.concurrent.{Future, Promise}
 
-final class AkkaHadoop(config: Configuration) {
+final class AkkaHadoop private (config: Configuration) {
   private def fileSystem(uri: URI): FileSystem           = FileSystem.get(uri, config)
   private def fsOutput(path: NJPath): FSDataOutputStream = fileSystem(path.uri).create(path.hadoopPath)
   private def fsInput(path: NJPath): FSDataInputStream   = fileSystem(path.uri).open(path.hadoopPath)
@@ -48,6 +48,9 @@ final class AkkaHadoop(config: Configuration) {
     Source.fromGraph(new AvroSource(fsInput(path), schema))
   def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Sink[GenericRecord, Future[IOResult]] =
     Sink.fromGraph(new AvroSink(fsOutput(path), schema, codecFactory))
+}
+object AkkaHadoop {
+  def apply(cfg: Configuration): AkkaHadoop = new AkkaHadoop(cfg)
 }
 
 private class AvroSource(is: InputStream, schema: Schema)

@@ -8,11 +8,15 @@ import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
 class JavaObjectPipeTest extends AnyFunSuite {
   import TestData.*
-  val ser = new JavaObjectSerde[IO, Tiger]
-
   test("java object identity") {
     val data: Stream[IO, Tiger] = Stream.emits(tiggers)
 
-    assert(data.through(ser.serialize).through(ser.deserialize).compile.toList.unsafeRunSync() === tiggers)
+    assert(
+      data
+        .through(JavaObjectSerde.serialize)
+        .through(JavaObjectSerde.deserialize)
+        .compile
+        .toList
+        .unsafeRunSync() === tiggers)
   }
 }

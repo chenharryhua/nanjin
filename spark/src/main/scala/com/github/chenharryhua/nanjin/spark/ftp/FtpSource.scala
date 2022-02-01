@@ -32,13 +32,9 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
 
   def jackson[A](pathStr: String, chunkSize: ChunkSize, dec: AvroDecoder[A])(implicit
     F: Async[F],
-    mat: Materializer): Stream[F, A] = {
-    val pipe: JacksonSerde[F] = new JacksonSerde[F](dec.schema)
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize).map(dec.decode)
-  }
+    mat: Materializer): Stream[F, A] =
+    downloader.download(pathStr, chunkSize).through(JacksonSerde.deserialize(dec.schema)).map(dec.decode)
 
-  def text(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, String] = {
-    val pipe: TextSerde[F] = new TextSerde[F]
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize)
-  }
+  def text(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, String] =
+    downloader.download(pathStr, chunkSize).through(TextSerde.deserialize)
 }

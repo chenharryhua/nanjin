@@ -7,9 +7,9 @@ import fs2.{Pipe, Pull, Stream}
 
 import java.io.*
 
-final class JavaObjectSerde[F[_], A] extends Serializable {
+object JavaObjectSerde {
 
-  def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
+  def serialize[F[_], A]: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     ss.chunks.flatMap { as =>
       val bos = new ByteArrayOutputStream()
       val oos = new ObjectOutputStream(bos)
@@ -23,7 +23,7 @@ final class JavaObjectSerde[F[_], A] extends Serializable {
   /** rely on EOFException.. not sure it is the right way
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  private def pullAll(ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
+  private def pullAll[F[_], A](ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
         F.delay(try Some(ois.readObject().asInstanceOf[A])
@@ -33,14 +33,13 @@ final class JavaObjectSerde[F[_], A] extends Serializable {
         case None    => Pull.eval(F.blocking(ois.close())) >> Pull.pure(None)
       }
 
-  private def readInputStream(is: InputStream)(implicit F: Sync[F]): Stream[F, A] =
+  private def readInputStream[F[_], A](is: InputStream)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      ois <- Stream.resource(
-        Resource.make(F.blocking(new ObjectInputStream(is)))(r => F.blocking(r.close()).attempt.void))
-      a <- Pull.loop(pullAll)(ois).void.stream
+      ois <- Stream.resource(Resource.make(F.blocking(new ObjectInputStream(is)))(r => F.blocking(r.close())))
+      a <- Pull.loop(pullAll[F, A])(ois).void.stream
     } yield a
 
-  def deserialize(implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
-    ss.through(toInputStream).flatMap(readInputStream)
+  def deserialize[F[_], A](implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
+    ss.through(toInputStream[F]).flatMap(readInputStream[F, A])
   }
 }

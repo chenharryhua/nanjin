@@ -33,13 +33,10 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
   def jackson[A](pathStr: String, enc: AvroEncoder[A])(implicit
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe: JacksonSerde[F] = new JacksonSerde[F](enc.schema)
-    val toRec: ToRecord[A]    = ToRecord(enc)
-    _.map(toRec.to).through(pipe.serialize).through(uploader.upload(pathStr))
+    val toRec: ToRecord[A] = ToRecord(enc)
+    _.map(toRec.to).through(JacksonSerde.serialize[F](enc.schema)).through(uploader.upload(pathStr))
   }
 
-  def text(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, String, IOResult] = {
-    val pipe: TextSerde[F] = new TextSerde[F]
-    _.through(pipe.serialize).through(uploader.upload(pathStr))
-  }
+  def text(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, String, IOResult] =
+    _.through(TextSerde.serialize).through(uploader.upload(pathStr))
 }
