@@ -12,9 +12,9 @@ import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
-final class JacksonSerde[F[_]](schema: Schema) extends Serializable {
+object JacksonSerde {
 
-  private def toJsonStr(isPretty: Boolean): Pipe[F, GenericRecord, String] = {
+  private def toJsonStr[F[_]](schema: Schema, isPretty: Boolean): Pipe[F, GenericRecord, String] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     val objMapper   = new ObjectMapper()
 
@@ -35,10 +35,10 @@ final class JacksonSerde[F[_]](schema: Schema) extends Serializable {
     })
   }
 
-  def prettyJson: Pipe[F, GenericRecord, String]  = toJsonStr(true)
-  def compactJson: Pipe[F, GenericRecord, String] = toJsonStr(false)
+  def prettyJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String]  = toJsonStr[F](schema, isPretty = true)
+  def compactJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String] = toJsonStr[F](schema, isPretty = false)
 
-  def serialize: Pipe[F, GenericRecord, Byte] = {
+  def serialize[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     val splitter    = "\n".getBytes()
     (sfgr: Stream[F, GenericRecord]) =>
@@ -52,7 +52,7 @@ final class JacksonSerde[F[_]](schema: Schema) extends Serializable {
       }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
-  def deserialize(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+  def deserialize[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap { is =>
       val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
       val datumReader = new GenericDatumReader[GenericRecord](schema)

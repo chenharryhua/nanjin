@@ -13,17 +13,17 @@ import squants.information.InformationConversions.*
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData.*
-  val encoder: ToRecord[Tigger] = ToRecord[Tigger](Tigger.avroEncoder)
-  val data: Stream[IO, Tigger]  = Stream.emits(tiggers)
+  val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
+  val data: Stream[IO, Tiger]  = Stream.emits(tiggers)
 
   test("binary-json identity") {
 
     assert(
       data
         .map(encoder.to)
-        .through(BinaryAvroSerde.serialize[IO](AvroSchema[Tigger]))
-        .through(BinaryAvroSerde.deserialize[IO](AvroSchema[Tigger]))
-        .map(Tigger.avroDecoder.decode)
+        .through(BinaryAvroSerde.serialize[IO](AvroSchema[Tiger]))
+        .through(BinaryAvroSerde.deserialize[IO](AvroSchema[Tiger]))
+        .map(Tiger.avroDecoder.decode)
         .compile
         .toList
         .unsafeRunSync() === tiggers)
@@ -33,11 +33,11 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/bin-avro.avro")
     val write =
-      data.map(encoder.to).through(BinaryAvroSerde.serialize[IO](AvroSchema[Tigger])).through(hd.byteSink(path))
+      data.map(encoder.to).through(BinaryAvroSerde.serialize[IO](AvroSchema[Tiger])).through(hd.byteSink(path))
     val read = hd
       .byteSource(path, 100.kb)
-      .through(BinaryAvroSerde.deserialize[IO](AvroSchema[Tigger]))
-      .map(Tigger.avroDecoder.decode)
+      .through(BinaryAvroSerde.deserialize[IO](AvroSchema[Tiger]))
+      .map(Tiger.avroDecoder.decode)
     val run = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tiggers)
   }

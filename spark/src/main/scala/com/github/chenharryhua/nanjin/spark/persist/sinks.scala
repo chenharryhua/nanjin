@@ -42,7 +42,7 @@ object sinks {
     encoder: AvroEncoder[A],
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val toRec: ToRecord[A]                 = ToRecord(encoder)
-    val pipe: Pipe[F, GenericRecord, Byte] = new JacksonSerde[F](encoder.schema).serialize
+    val pipe: Pipe[F, GenericRecord, Byte] = JacksonSerde.serialize[F](encoder.schema)
     val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
     ss.map(toRec.to).through(pipe.andThen(compression).andThen(sink))
   }
@@ -76,7 +76,7 @@ object sinks {
 
   def protobuf[F[_]: Async, A](path: NJPath, cfg: Configuration, byteBuffer: Information)(implicit
     enc: A <:< GeneratedMessage): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = new DelimitedProtoBufSerde[F].serialize(byteBuffer)
+    val pipe: Pipe[F, A, Byte]    = DelimitedProtoBufSerde.serialize[F, A](byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe.andThen(sink))
   }

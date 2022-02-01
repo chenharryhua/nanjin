@@ -19,12 +19,10 @@ class ProtobufPipeTest extends AnyFunSuite {
   test("delimited protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
 
-    val ser = new DelimitedProtoBufSerde[IO]
-
     assert(
       data
-        .through(ser.serialize(Kilobytes(10)))
-        .through(ser.deserialize[Lion](ChunkSize(5)))
+        .through(DelimitedProtoBufSerde.serialize[IO, Lion](Kilobytes(10)))
+        .through(DelimitedProtoBufSerde.deserialize[IO, Lion](ChunkSize(5)))
         .compile
         .toList
         .unsafeRunSync() === lions)
@@ -33,9 +31,13 @@ class ProtobufPipeTest extends AnyFunSuite {
   test("protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
 
-    val ser = new ProtoBufSerde[IO]
-
-    assert(data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
+    assert(
+      data
+        .through(ProtoBufSerde.serialize[IO, Lion])
+        .through(ProtoBufSerde.deserialize[IO, Lion])
+        .compile
+        .toList
+        .unsafeRunSync() === lions)
   }
 
 }

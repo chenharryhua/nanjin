@@ -142,10 +142,8 @@ object loaders {
       path: NJPath,
       decoder: AvroDecoder[A],
       cfg: Configuration,
-      byteBuffer: Information): Stream[F, A] = {
-      val jk: JacksonSerde[F] = new JacksonSerde[F](decoder.schema)
-      NJHadoop(cfg).byteSource(path, byteBuffer).through(jk.deserialize).map(decoder.decode)
-    }
+      byteBuffer: Information): Stream[F, A] =
+      NJHadoop(cfg).byteSource(path, byteBuffer).through(JacksonSerde.deserialize(decoder.schema)).map(decoder.decode)
 
     def avro[F[_]: Sync, A](
       path: NJPath,
