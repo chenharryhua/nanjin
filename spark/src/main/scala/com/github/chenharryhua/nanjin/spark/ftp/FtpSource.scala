@@ -16,10 +16,8 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
   def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
     F: Async[F],
-    mat: Materializer): Stream[F, A] = {
-    val pipe = new CsvSerialization[F, A](csvConfig)
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize(chunkSize))
-  }
+    mat: Materializer): Stream[F, A] =
+    downloader.download(pathStr, chunkSize).through(CsvSerde.deserialize[F, A](csvConfig, chunkSize))
 
   def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],

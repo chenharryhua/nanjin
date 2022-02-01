@@ -1,10 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import akka.stream.IOResult
+import akka.stream.scaladsl.Source
 import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerialization}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{AkkaHadoop, NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import fs2.Stream
 import io.circe.Decoder as JsonDecoder
@@ -24,6 +26,7 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.Information
 
 import java.io.DataInputStream
+import scala.concurrent.Future
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -153,5 +156,11 @@ object loaders {
 
     def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration, byteBuffer: Information): Stream[F, A] =
       NJHadoop(cfg).byteSource(path, byteBuffer).through(CirceSerde.deserialize[F, A])
+  }
+
+  object source {
+    def avro[A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Source[A, Future[IOResult]] =
+      new AkkaHadoop(cfg).avroSource(path, decoder.schema).map(decoder.decode)
+
   }
 }

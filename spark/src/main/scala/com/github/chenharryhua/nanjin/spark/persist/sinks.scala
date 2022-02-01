@@ -87,7 +87,7 @@ object sinks {
     csvConf: CsvConfiguration,
     compression: Pipe[F, Byte, Byte],
     byteBuffer: Information): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = new CsvSerialization[F, A](csvConf).serialize(byteBuffer)
+    val pipe: Pipe[F, A, Byte]    = CsvSerde.serialize[F, A](csvConf, byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe.andThen(compression).andThen(sink))
   }

@@ -16,10 +16,8 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
   def csv[A](pathStr: String, csvConfig: CsvConfiguration, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
     F: Async[F],
-    mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe: CsvSerialization[F, A] = new CsvSerialization[F, A](csvConfig)
-    _.through(pipe.serialize(byteBuffer)).through(uploader.upload(pathStr))
-  }
+    mat: Materializer): Pipe[F, A, IOResult] =
+    _.through(CsvSerde.serialize[F, A](csvConfig, byteBuffer)).through(uploader.upload(pathStr))
 
   def csv[A](pathStr: String, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
