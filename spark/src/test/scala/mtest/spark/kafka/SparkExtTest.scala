@@ -77,10 +77,10 @@ class SparkExtTest extends AnyFunSuite {
     import sparkSession.implicits.*
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
-    rdd.save[IO](NJPath("./data/test/spark/sytax/rdd/avro"),ate.avroCodec.avroEncoder).avro.folder.run.unsafeRunSync()
+    rdd.save[IO](NJPath("./data/test/spark/sytax/rdd/avro"), ate.avroCodec.avroEncoder).avro.folder.run.unsafeRunSync()
     rdd.save[IO](NJPath("./data/test/spark/sytax/rdd/circe")).circe.folder.run.unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
-    ds.save[IO](NJPath("./data/test/spark/sytax/ds/parquet"),ate.avroCodec.avroEncoder)
+    ds.save[IO](NJPath("./data/test/spark/sytax/ds/parquet"), ate.avroCodec.avroEncoder)
       .parquet
       .folder
       .run
