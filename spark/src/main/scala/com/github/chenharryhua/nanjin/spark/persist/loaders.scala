@@ -4,7 +4,7 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.Source
 import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerialization}
+import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.{AkkaHadoop, NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
@@ -143,7 +143,7 @@ object loaders {
       decoder: AvroDecoder[A],
       cfg: Configuration,
       byteBuffer: Information): Stream[F, A] = {
-      val jk: JacksonSerialization[F] = new JacksonSerialization[F](decoder.schema)
+      val jk: JacksonSerde[F] = new JacksonSerde[F](decoder.schema)
       NJHadoop(cfg).byteSource(path, byteBuffer).through(jk.deserialize).map(decoder.decode)
     }
 

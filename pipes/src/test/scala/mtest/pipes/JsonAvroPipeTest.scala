@@ -2,7 +2,7 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.JacksonSerialization
+import com.github.chenharryhua.nanjin.pipes.serde.JacksonSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
 import fs2.Stream
@@ -13,7 +13,7 @@ import org.apache.hadoop.conf.Configuration
 class JsonAvroPipeTest extends AnyFunSuite {
   import TestData.*
   val encoder: ToRecord[Tigger] = ToRecord[Tigger](Tigger.avroEncoder)
-  val ser                       = new JacksonSerialization[IO](AvroSchema[Tigger])
+  val ser                       = new JacksonSerde[IO](AvroSchema[Tigger])
   val data: Stream[IO, Tigger]  = Stream.emits(tiggers)
 
   test("json-avro identity") {

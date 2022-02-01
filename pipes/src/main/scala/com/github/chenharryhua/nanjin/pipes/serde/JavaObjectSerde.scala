@@ -7,7 +7,7 @@ import fs2.{Pipe, Pull, Stream}
 
 import java.io.*
 
-final class JavaObjectSerialization[F[_], A] extends Serializable {
+final class JavaObjectSerde[F[_], A] extends Serializable {
 
   def serialize: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     ss.chunks.flatMap { as =>

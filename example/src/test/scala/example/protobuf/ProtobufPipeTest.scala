@@ -2,7 +2,7 @@ package example.protobuf
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.{DelimitedProtoBufSerialization, ProtoBufSerialization}
+import com.github.chenharryhua.nanjin.pipes.serde.{DelimitedProtoBufSerde, ProtoBufSerde}
 import fs2.Stream
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
@@ -19,7 +19,7 @@ class ProtobufPipeTest extends AnyFunSuite {
   test("delimited protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
 
-    val ser = new DelimitedProtoBufSerialization[IO]
+    val ser = new DelimitedProtoBufSerde[IO]
 
     assert(
       data
@@ -33,7 +33,7 @@ class ProtobufPipeTest extends AnyFunSuite {
   test("protobuf identity") {
     val data: Stream[IO, Lion] = Stream.emits(lions)
 
-    val ser = new ProtoBufSerialization[IO]
+    val ser = new ProtoBufSerde[IO]
 
     assert(data.through(ser.serialize).through(ser.deserialize[Lion]).compile.toList.unsafeRunSync() === lions)
   }

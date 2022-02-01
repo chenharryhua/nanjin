@@ -7,7 +7,7 @@ import fs2.{Pipe, Stream}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.Information
 
-final class DelimitedProtoBufSerialization[F[_]] extends Serializable {
+final class DelimitedProtoBufSerde[F[_]] extends Serializable {
 
   def serialize[A](byteBuffer: Information)(implicit cc: Async[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = {
     (ss: Stream[F, A]) =>
@@ -23,7 +23,7 @@ final class DelimitedProtoBufSerialization[F[_]] extends Serializable {
     }
 }
 
-final class ProtoBufSerialization[F[_]] extends Serializable {
+final class ProtoBufSerde[F[_]] extends Serializable {
 
   def serialize[A](implicit ev: A <:< GeneratedMessage): Pipe[F, A, Array[Byte]] =
     _.map(_.toByteArray)

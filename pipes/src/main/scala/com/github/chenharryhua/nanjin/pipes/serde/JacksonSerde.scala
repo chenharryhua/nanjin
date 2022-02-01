@@ -12,7 +12,7 @@ import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
-final class JacksonSerialization[F[_]](schema: Schema) extends Serializable {
+final class JacksonSerde[F[_]](schema: Schema) extends Serializable {
 
   private def toJsonStr(isPretty: Boolean): Pipe[F, GenericRecord, String] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
