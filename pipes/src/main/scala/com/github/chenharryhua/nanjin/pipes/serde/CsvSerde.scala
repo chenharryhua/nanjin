@@ -10,7 +10,7 @@ import squants.information.Information
 object CsvSerde {
   import kantan.csv.ops.*
 
-  def serialize[F[_], A](conf: CsvConfiguration, byteBuffer: Information)(implicit
+  def serPipe[F[_], A](conf: CsvConfiguration, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
     F: Async[F]): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](byteBuffer.toBytes.toInt) { os =>
@@ -24,7 +24,7 @@ object CsvSerde {
     }
   }
 
-  def deserialize[F[_], A](conf: CsvConfiguration, chunkSize: ChunkSize)(implicit
+  def deserPipe[F[_], A](conf: CsvConfiguration, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
     F: Async[F]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>

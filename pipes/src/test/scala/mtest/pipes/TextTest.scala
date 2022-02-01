@@ -12,6 +12,6 @@ class TextTest extends AnyFunSuite {
   val data: Stream[IO, String] = Stream.emits(expected)
 
   test("text identity") {
-    assert(data.through(TextSerde.serialize).through(TextSerde.deserialize).compile.toList.unsafeRunSync() === expected)
+    assert(data.through(TextSerde.serPipe).through(TextSerde.deserPipe).compile.toList.unsafeRunSync() === expected)
   }
 }

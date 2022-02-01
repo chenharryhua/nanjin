@@ -38,7 +38,7 @@ object JacksonSerde {
   def prettyJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String]  = toJsonStr[F](schema, isPretty = true)
   def compactJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String] = toJsonStr[F](schema, isPretty = false)
 
-  def serialize[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
+  def serPipe[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     val splitter    = "\n".getBytes()
     (sfgr: Stream[F, GenericRecord]) =>
@@ -52,7 +52,7 @@ object JacksonSerde {
       }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
-  def deserialize[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+  def deserPipe[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap { is =>
       val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
       val datumReader = new GenericDatumReader[GenericRecord](schema)

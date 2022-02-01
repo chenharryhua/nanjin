@@ -9,7 +9,7 @@ import java.io.*
 
 object JavaObjectSerde {
 
-  def serialize[F[_], A]: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
+  def serPipe[F[_], A]: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     ss.chunks.flatMap { as =>
       val bos = new ByteArrayOutputStream()
       val oos = new ObjectOutputStream(bos)
@@ -39,7 +39,7 @@ object JavaObjectSerde {
       a <- Pull.loop(pullAll[F, A])(ois).void.stream
     } yield a
 
-  def deserialize[F[_], A](implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
+  def deserPipe[F[_], A](implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream[F]).flatMap(readInputStream[F, A])
   }
 }

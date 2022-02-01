@@ -31,7 +31,7 @@ object sinks {
   def binAvro[F[_]: Sync, A](path: NJPath, cfg: Configuration, encoder: AvroEncoder[A]): Pipe[F, A, Unit] = {
     (ss: Stream[F, A]) =>
       val toRec: ToRecord[A]                 = ToRecord(encoder)
-      val pipe: Pipe[F, GenericRecord, Byte] = BinaryAvroSerde.serialize[F](encoder.schema)
+      val pipe: Pipe[F, GenericRecord, Byte] = BinaryAvroSerde.serPipe[F](encoder.schema)
       val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
       ss.map(toRec.to).through(pipe.andThen(sink))
   }
@@ -42,7 +42,7 @@ object sinks {
     encoder: AvroEncoder[A],
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val toRec: ToRecord[A]                 = ToRecord(encoder)
-    val pipe: Pipe[F, GenericRecord, Byte] = JacksonSerde.serialize[F](encoder.schema)
+    val pipe: Pipe[F, GenericRecord, Byte] = JacksonSerde.serPipe[F](encoder.schema)
     val sink: Pipe[F, Byte, Unit]          = NJHadoop[F](cfg).byteSink(path)
     ss.map(toRec.to).through(pipe.andThen(compression).andThen(sink))
   }
@@ -60,7 +60,7 @@ object sinks {
     cfg: Configuration,
     isKeepNull: Boolean,
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = CirceSerde.serialize[F, A](isKeepNull)
+    val pipe: Pipe[F, A, Byte]    = CirceSerde.serPipe[F, A](isKeepNull)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe.andThen(compression).andThen(sink))
   }
@@ -69,14 +69,14 @@ object sinks {
     path: NJPath,
     cfg: Configuration,
     compression: Pipe[F, Byte, Byte]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, String, Byte] = TextSerde.serialize[F]
+    val pipe: Pipe[F, String, Byte] = TextSerde.serPipe[F]
     val sink: Pipe[F, Byte, Unit]   = NJHadoop[F](cfg).byteSink(path)
     ss.map(_.show).through(pipe.andThen(compression).andThen(sink))
   }
 
   def protobuf[F[_]: Async, A](path: NJPath, cfg: Configuration, byteBuffer: Information)(implicit
     enc: A <:< GeneratedMessage): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = DelimitedProtoBufSerde.serialize[F, A](byteBuffer)
+    val pipe: Pipe[F, A, Byte]    = DelimitedProtoBufSerde.serPipe[F, A](byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe.andThen(sink))
   }
@@ -87,7 +87,7 @@ object sinks {
     csvConf: CsvConfiguration,
     compression: Pipe[F, Byte, Byte],
     byteBuffer: Information): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    val pipe: Pipe[F, A, Byte]    = CsvSerde.serialize[F, A](csvConf, byteBuffer)
+    val pipe: Pipe[F, A, Byte]    = CsvSerde.serPipe[F, A](csvConf, byteBuffer)
     val sink: Pipe[F, Byte, Unit] = NJHadoop[F](cfg).byteSink(path)
     ss.through(pipe.andThen(compression).andThen(sink))
   }

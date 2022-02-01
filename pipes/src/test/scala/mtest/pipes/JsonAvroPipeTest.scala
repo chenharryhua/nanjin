@@ -20,8 +20,8 @@ class JsonAvroPipeTest extends AnyFunSuite {
     assert(
       data
         .map(encoder.to)
-        .through(JacksonSerde.serialize(schema))
-        .through(JacksonSerde.deserialize(schema))
+        .through(JacksonSerde.serPipe(schema))
+        .through(JacksonSerde.deserPipe(schema))
         .map(Tiger.avroDecoder.decode)
         .compile
         .toList

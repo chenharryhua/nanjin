@@ -6,12 +6,12 @@ import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 
 object CirceSerde {
 
-  def serialize[F[_], A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Pipe[F, A, Byte] = {
+  def serPipe[F[_], A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Pipe[F, A, Byte] = {
     def encode(a: A): Json = if (isKeepNull) enc(a) else enc(a).deepDropNullValues
     (ss: Stream[F, A]) => ss.map(encode(_).noSpaces).intersperse("\n").through(utf8.encode)
   }
 
-  def deserialize[F[_], A](implicit ev: RaiseThrowable[F], dec: JsonDecoder[A]): Pipe[F, Byte, A] =
+  def deserPipe[F[_], A](implicit ev: RaiseThrowable[F], dec: JsonDecoder[A]): Pipe[F, Byte, A] =
     (ss: Stream[F, Byte]) => ss.through(utf8.decode).through(lines).filter(_.trim.nonEmpty).map(decode[A]).rethrow
 
 }

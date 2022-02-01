@@ -11,7 +11,7 @@ import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
 object BinaryAvroSerde {
 
-  def serialize[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
+  def serPipe[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     ss.chunks.flatMap { grs =>
       val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
@@ -23,7 +23,7 @@ object BinaryAvroSerde {
     }
   }
 
-  def deserialize[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+  def deserPipe[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap { is =>
       val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
       val datumReader = new GenericDatumReader[GenericRecord](schema)

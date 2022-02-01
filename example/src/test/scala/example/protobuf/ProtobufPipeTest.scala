@@ -21,8 +21,8 @@ class ProtobufPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(DelimitedProtoBufSerde.serialize[IO, Lion](Kilobytes(10)))
-        .through(DelimitedProtoBufSerde.deserialize[IO, Lion](ChunkSize(5)))
+        .through(DelimitedProtoBufSerde.serPipe[IO, Lion](Kilobytes(10)))
+        .through(DelimitedProtoBufSerde.deserPipe[IO, Lion](ChunkSize(5)))
         .compile
         .toList
         .unsafeRunSync() === lions)
@@ -33,8 +33,8 @@ class ProtobufPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(ProtoBufSerde.serialize[IO, Lion])
-        .through(ProtoBufSerde.deserialize[IO, Lion])
+        .through(ProtoBufSerde.serPipe[IO, Lion])
+        .through(ProtoBufSerde.deserPipe[IO, Lion])
         .compile
         .toList
         .unsafeRunSync() === lions)

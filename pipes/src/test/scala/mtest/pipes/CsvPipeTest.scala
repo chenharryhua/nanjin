@@ -20,8 +20,8 @@ class CsvPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(CsvSerde.serialize[IO, Tiger](CsvConfiguration.rfc, 300.kb))
-        .through(CsvSerde.deserialize[IO, Tiger](CsvConfiguration.rfc, 5))
+        .through(CsvSerde.serPipe[IO, Tiger](CsvConfiguration.rfc, 300.kb))
+        .through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 5))
         .compile
         .toList
         .unsafeRunSync() === tiggers)
@@ -30,8 +30,8 @@ class CsvPipeTest extends AnyFunSuite {
   test("write/read identity csv") {
     val hd    = NJHadoop[IO](new Configuration())
     val path  = NJPath("data/pipe/csv.csv")
-    val write = data.through(CsvSerde.serialize[IO, Tiger](CsvConfiguration.rfc, 2.kb)).through(hd.byteSink(path))
-    val read  = hd.byteSource(path, 1.kb).through(CsvSerde.deserialize[IO, Tiger](CsvConfiguration.rfc, 1))
+    val write = data.through(CsvSerde.serPipe[IO, Tiger](CsvConfiguration.rfc, 2.kb)).through(hd.byteSink(path))
+    val read  = hd.byteSource(path, 1.kb).through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 1))
     val run   = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tiggers)
   }

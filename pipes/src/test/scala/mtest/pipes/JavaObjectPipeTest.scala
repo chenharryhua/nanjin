@@ -13,8 +13,8 @@ class JavaObjectPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(JavaObjectSerde.serialize)
-        .through(JavaObjectSerde.deserialize)
+        .through(JavaObjectSerde.serPipe)
+        .through(JavaObjectSerde.deserPipe)
         .compile
         .toList
         .unsafeRunSync() === tiggers)

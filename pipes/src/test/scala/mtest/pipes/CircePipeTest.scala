@@ -14,8 +14,8 @@ class CircePipeTest extends AnyFunSuite {
   test("circe identity - remove null") {
     assert(
       data
-        .through(CirceSerde.serialize[IO, Tiger](isKeepNull = false))
-        .through(CirceSerde.deserialize[IO, Tiger])
+        .through(CirceSerde.serPipe[IO, Tiger](isKeepNull = false))
+        .through(CirceSerde.deserPipe[IO, Tiger])
         .compile
         .toList
         .unsafeRunSync() === tiggers)
@@ -23,8 +23,8 @@ class CircePipeTest extends AnyFunSuite {
   test("circe identity - keep null") {
     assert(
       data
-        .through(CirceSerde.serialize[IO, Tiger](isKeepNull = true))
-        .through(CirceSerde.deserialize[IO, Tiger])
+        .through(CirceSerde.serPipe[IO, Tiger](isKeepNull = true))
+        .through(CirceSerde.deserPipe[IO, Tiger])
         .compile
         .toList
         .unsafeRunSync() === tiggers)
