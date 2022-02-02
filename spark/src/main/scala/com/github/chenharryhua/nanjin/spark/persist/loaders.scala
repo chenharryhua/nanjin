@@ -1,10 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import akka.stream.IOResult
+import akka.stream.scaladsl.Source
+import cats.Eval
+import cats.syntax.functor.*
 import cats.effect.kernel.{Async, Sync}
-import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerialization, JacksonSerialization}
+import com.github.chenharryhua.nanjin.common.{ChunkSize, PathRoot, PathSegment}
+import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{AkkaHadoop, NJHadoop, NJParquet, NJPath}
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import fs2.Stream
 import io.circe.Decoder as JsonDecoder
@@ -18,12 +22,14 @@ import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
+import org.apache.parquet.avro.AvroParquetReader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.Information
 
 import java.io.DataInputStream
+import scala.concurrent.Future
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -140,20 +146,58 @@ object loaders {
       decoder: AvroDecoder[A],
       cfg: Configuration,
       byteBuffer: Information): Stream[F, A] = {
-      val jk: JacksonSerialization[F] = new JacksonSerialization[F](decoder.schema)
-      NJHadoop(cfg).byteSource(path, byteBuffer).through(jk.deserialize).map(decoder.decode)
+      val hdp: NJHadoop[F] = NJHadoop[F](cfg)
+      val fsa: F[Stream[F, A]] = hdp
+        .locatedFileStatus(path)
+        .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
+          ss ++ hdp
+            .byteSource(NJPath(lfs.getPath), byteBuffer)
+            .through(JacksonSerde.deserPipe(decoder.schema))
+            .map(decoder.decode)
+            .handleErrorWith(_ => Stream.empty)
+        })
+      Stream.force(fsa)
     }
 
     def avro[F[_]: Sync, A](
       path: NJPath,
       decoder: AvroDecoder[A],
       cfg: Configuration,
-      chunkSize: ChunkSize): Stream[F, A] =
-      NJHadoop(cfg).avroSource(path, decoder.schema, chunkSize).map(decoder.decode)
+      chunkSize: ChunkSize): Stream[F, A] = {
+      val hdp: NJHadoop[F] = NJHadoop[F](cfg)
+      val fsa: F[Stream[F, A]] = hdp
+        .locatedFileStatus(path)
+        .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
+          ss ++ hdp
+            .avroSource(NJPath(lfs.getPath), decoder.schema, chunkSize)
+            .map(decoder.decode)
+            .handleErrorWith(_ => Stream.empty)
+        })
+      Stream.force(fsa)
+    }
 
     def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration, byteBuffer: Information): Stream[F, A] = {
-      val cs: CirceSerialization[F, A] = new CirceSerialization[F, A]
-      NJHadoop(cfg).byteSource(path, byteBuffer).through(cs.deserialize)
+      val hdp: NJHadoop[F] = NJHadoop[F](cfg)
+      val fsa: F[Stream[F, A]] = hdp
+        .locatedFileStatus(path)
+        .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
+          ss ++ hdp
+            .byteSource(NJPath(lfs.getPath), byteBuffer)
+            .through(CirceSerde.deserPipe[F, A])
+            .handleErrorWith(_ => Stream.empty)
+        })
+      Stream.force(fsa)
     }
+  }
+
+  object source {
+    def avro[A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Source[A, Future[IOResult]] =
+      AkkaHadoop(cfg).avroSource(path, decoder.schema).map(decoder.decode)
+
+    def parquet[A](
+      builder: Eval[AvroParquetReader.Builder[GenericRecord]],
+      decoder: AvroDecoder[A]): Source[A, Future[IOResult]] =
+      NJParquet.akkaSource(builder).map(decoder.decode)
+
   }
 }

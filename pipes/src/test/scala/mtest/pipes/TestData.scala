@@ -7,16 +7,16 @@ import kantan.csv.{RowDecoder, RowEncoder}
 import scala.util.Random
 
 object TestData {
-  case class Tigger(id: Int, zooName: Option[String])
+  case class Tiger(id: Int, zooName: Option[String])
 
-  object Tigger {
-    implicit val re: RowEncoder[Tigger] = shapeless.cachedImplicit
-    implicit val rd: RowDecoder[Tigger] = shapeless.cachedImplicit
-    val avroEncoder: Encoder[Tigger]    = Encoder[Tigger]
-    val avroDecoder: Decoder[Tigger]    = Decoder[Tigger]
+  object Tiger {
+    implicit val re: RowEncoder[Tiger] = shapeless.cachedImplicit
+    implicit val rd: RowDecoder[Tiger] = shapeless.cachedImplicit
+    val avroEncoder: Encoder[Tiger]    = Encoder[Tiger]
+    val avroDecoder: Decoder[Tiger]    = Decoder[Tiger]
   }
 
-  val tiggers: List[Tigger] =
-    (1 to 10).map(x => Tigger(Random.nextInt(), if (Random.nextBoolean()) Some("ChengDu Zoo") else None)).toList
+  val tiggers: List[Tiger] =
+    (1 to 10).map(x => Tiger(Random.nextInt(), if (Random.nextBoolean()) Some("ChengDu Zoo") else None)).toList
 
 }

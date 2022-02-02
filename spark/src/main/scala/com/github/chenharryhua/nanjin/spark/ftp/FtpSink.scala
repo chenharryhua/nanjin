@@ -16,10 +16,8 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
   def csv[A](pathStr: String, csvConfig: CsvConfiguration, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
     F: Async[F],
-    mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe: CsvSerialization[F, A] = new CsvSerialization[F, A](csvConfig)
-    _.through(pipe.serialize(byteBuffer)).through(uploader.upload(pathStr))
-  }
+    mat: Materializer): Pipe[F, A, IOResult] =
+    _.through(CsvSerde.serPipe[F, A](csvConfig, byteBuffer)).through(uploader.upload(pathStr))
 
   def csv[A](pathStr: String, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
@@ -29,21 +27,16 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
 
   def json[A: JsonEncoder](pathStr: String, isKeepNull: Boolean = true)(implicit
     F: Async[F],
-    mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
-    _.through(pipe.serialize(isKeepNull)).through(uploader.upload(pathStr))
-  }
+    mat: Materializer): Pipe[F, A, IOResult] =
+    _.through(CirceSerde.serPipe[F, A](isKeepNull)).through(uploader.upload(pathStr))
 
   def jackson[A](pathStr: String, enc: AvroEncoder[A])(implicit
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] = {
-    val pipe: JacksonSerialization[F] = new JacksonSerialization[F](enc.schema)
-    val toRec: ToRecord[A]            = ToRecord(enc)
-    _.map(toRec.to).through(pipe.serialize).through(uploader.upload(pathStr))
+    val toRec: ToRecord[A] = ToRecord(enc)
+    _.map(toRec.to).through(JacksonSerde.serPipe[F](enc.schema)).through(uploader.upload(pathStr))
   }
 
-  def text(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, String, IOResult] = {
-    val pipe: TextSerialization[F] = new TextSerialization[F]
-    _.through(pipe.serialize).through(uploader.upload(pathStr))
-  }
+  def text(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, String, IOResult] =
+    _.through(TextSerde.serPipe).through(uploader.upload(pathStr))
 }

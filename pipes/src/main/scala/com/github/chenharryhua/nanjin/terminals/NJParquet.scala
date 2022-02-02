@@ -1,9 +1,24 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.{ActorAttributes, Attributes, Inlet, Outlet, SinkShape, SourceShape}
-import akka.stream.stage.{GraphStage, GraphStageLogic, GraphStageWithMaterializedValue, InHandler, OutHandler}
+import akka.stream.{
+  ActorAttributes,
+  Attributes,
+  IOOperationIncompleteException,
+  IOResult,
+  Inlet,
+  Outlet,
+  SinkShape,
+  SourceShape,
+  SubscriptionWithCancelException
+}
+import akka.stream.stage.{
+  GraphStageLogic,
+  GraphStageLogicWithLogging,
+  GraphStageWithMaterializedValue,
+  InHandler,
+  OutHandler
+}
 import cats.Eval
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.functor.*
@@ -13,7 +28,6 @@ import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
 import org.apache.parquet.hadoop.{ParquetReader, ParquetWriter}
 
 import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
 
 object NJParquet {
   // input path may not exist when eval builder
@@ -39,75 +53,99 @@ object NJParquet {
       } yield ()
   }
 
-  def akkaSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]]): Source[GenericRecord, NotUsed] =
+  def akkaSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]]): Source[GenericRecord, Future[IOResult]] =
     Source.fromGraph(new ParquetSource(builder))
 
-  def akkaSink(builder: AvroParquetWriter.Builder[GenericRecord]): Sink[GenericRecord, Future[Done]] =
+  def akkaSink(builder: AvroParquetWriter.Builder[GenericRecord]): Sink[GenericRecord, Future[IOResult]] =
     Sink.fromGraph(new ParquetSink(builder))
 }
 
-private class ParquetSource[GenericRecord](builder: Eval[AvroParquetReader.Builder[GenericRecord]])
-    extends GraphStage[SourceShape[GenericRecord]] {
+private class ParquetSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]])
+    extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
 
   private val out: Outlet[GenericRecord] = Outlet("akka.parquet.source")
 
   override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
 
-  private val reader: ParquetReader[GenericRecord] = builder.value.build()
-
-  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-    new GraphStageLogic(shape) {
+  override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
+    val promise: Promise[IOResult] = Promise[IOResult]()
+    val logic = new GraphStageLogicWithLogging(shape) {
+      override protected val logSource: Class[ParquetSource] = classOf[ParquetSource]
       setHandler(
         out,
         new OutHandler {
+          private var count: Long = 0
+
+          private val reader: ParquetReader[GenericRecord] = builder.value.build()
+
           override def onDownstreamFinish(cause: Throwable): Unit =
-            try reader.close()
-            finally super.onDownstreamFinish(cause)
+            try {
+              super.onDownstreamFinish(cause)
+              reader.close()
+              cause match {
+                case _: SubscriptionWithCancelException.NonFailureCancellation =>
+                  promise.success(IOResult(count))
+                case ex: Throwable =>
+                  promise.failure(new IOOperationIncompleteException("parquet.source", count, ex))
+              }
+            } catch {
+              case ex: Throwable => promise.failure(ex)
+            }
 
           override def onPull(): Unit = {
             val record = reader.read()
+            count += 1
             Option(record).fold(complete(out))(push(out, _))
           }
         }
       )
     }
+    (logic, promise.future)
+  }
+
   override val shape: SourceShape[GenericRecord] = SourceShape.of(out)
 }
 
 private class ParquetSink(builder: AvroParquetWriter.Builder[GenericRecord])
-    extends GraphStageWithMaterializedValue[SinkShape[GenericRecord], Future[Done]] {
+    extends GraphStageWithMaterializedValue[SinkShape[GenericRecord], Future[IOResult]] {
 
   private val in: Inlet[GenericRecord] = Inlet("akka.parquet.sink")
-
-  private val writer: ParquetWriter[GenericRecord] = builder.build()
 
   override val shape: SinkShape[GenericRecord] = SinkShape.of(in)
 
   override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
 
-  override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[Done]) = {
-    val promise = Promise[Done]()
-    val logic = new GraphStageLogic(shape) {
+  override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
+    val promise: Promise[IOResult] = Promise[IOResult]()
+    val logic = new GraphStageLogicWithLogging(shape) {
+      override protected val logSource: Class[ParquetSink] = classOf[ParquetSink]
       setHandler(
         in,
         new InHandler {
+          private var count: Long = 0
+
+          private val writer: ParquetWriter[GenericRecord] = builder.build()
+
           override def onUpstreamFinish(): Unit =
             try {
+              super.onUpstreamFinish()
               writer.close()
-              promise.complete(Success(Done))
+              promise.success(IOResult(count))
             } catch {
-              case ex: Throwable => promise.complete(Failure(ex))
-            } finally super.onUpstreamFinish()
-
-          override def onUpstreamFailure(ex: Throwable): Unit =
-            try writer.close()
-            finally {
-              super.onUpstreamFailure(ex)
-              promise.complete(Failure(ex))
+              case ex: Throwable => promise.failure(ex)
             }
 
+          override def onUpstreamFailure(ex: Throwable): Unit =
+            try {
+              super.onUpstreamFailure(ex)
+              writer.close()
+              promise.failure(new IOOperationIncompleteException("parquet.sink", count, ex))
+            } catch {
+              case ex: Throwable => promise.failure(ex)
+            }
           override def onPush(): Unit = {
             val gr: GenericRecord = grab(in)
+            count += 1
             writer.write(gr)
             pull(in)
           }

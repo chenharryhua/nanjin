@@ -7,27 +7,27 @@ import fs2.{Pipe, Stream}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.Information
 
-final class DelimitedProtoBufSerialization[F[_]] extends Serializable {
+object DelimitedProtoBufSerde {
 
-  def serialize[A](byteBuffer: Information)(implicit cc: Async[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = {
+  def serPipe[F[_], A](byteBuffer: Information)(implicit cc: Async[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = {
     (ss: Stream[F, A]) =>
       readOutputStream[F](byteBuffer.toBytes.toInt) { os =>
         ss.map(_.writeDelimitedTo(os)).compile.drain
       }
   }
 
-  def deserialize[A <: GeneratedMessage](
+  def deserPipe[F[_], A <: GeneratedMessage](
     chunkSize: ChunkSize)(implicit ce: Async[F], gmc: GeneratedMessageCompanion[A]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap { is =>
       Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
     }
 }
 
-final class ProtoBufSerialization[F[_]] extends Serializable {
+object ProtoBufSerde {
 
-  def serialize[A](implicit ev: A <:< GeneratedMessage): Pipe[F, A, Array[Byte]] =
+  def serPipe[F[_], A](implicit ev: A <:< GeneratedMessage): Pipe[F, A, Array[Byte]] =
     _.map(_.toByteArray)
 
-  def deserialize[A <: GeneratedMessage](implicit gmc: GeneratedMessageCompanion[A]): Pipe[F, Array[Byte], A] =
+  def deserPipe[F[_], A <: GeneratedMessage](implicit gmc: GeneratedMessageCompanion[A]): Pipe[F, Array[Byte], A] =
     _.map(gmc.parseFrom)
 }

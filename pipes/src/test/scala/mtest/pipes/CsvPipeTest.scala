@@ -2,7 +2,7 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.CsvSerialization
+import com.github.chenharryhua.nanjin.pipes.serde.CsvSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.AvroSchema
 import eu.timepit.refined.auto.*
@@ -15,18 +15,23 @@ import squants.information.InformationConversions.*
 
 class CsvPipeTest extends AnyFunSuite {
   import TestData.*
-  val ser                      = new CsvSerialization[IO, Tigger](CsvConfiguration.rfc)
-  val data: Stream[IO, Tigger] = Stream.emits(tiggers)
+  val data: Stream[IO, Tiger] = Stream.emits(tiggers)
   test("csv identity") {
 
-    assert(data.through(ser.serialize(300.kb)).through(ser.deserialize(5)).compile.toList.unsafeRunSync() === tiggers)
+    assert(
+      data
+        .through(CsvSerde.serPipe[IO, Tiger](CsvConfiguration.rfc, 300.kb))
+        .through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 5))
+        .compile
+        .toList
+        .unsafeRunSync() === tiggers)
   }
 
   test("write/read identity csv") {
     val hd    = NJHadoop[IO](new Configuration())
     val path  = NJPath("data/pipe/csv.csv")
-    val write = data.through(ser.serialize(2.kb)).through(hd.byteSink(path))
-    val read  = hd.byteSource(path, 1.kb).through(ser.deserialize(1))
+    val write = data.through(CsvSerde.serPipe[IO, Tiger](CsvConfiguration.rfc, 2.kb)).through(hd.byteSink(path))
+    val read  = hd.byteSource(path, 1.kb).through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 1))
     val run   = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tiggers)
   }

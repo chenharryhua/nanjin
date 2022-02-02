@@ -40,6 +40,7 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 object NJPath {
 
   def apply(root: PathRoot): NJPath = NJPath(root, Nil)
+  def apply(hp: Path): NJPath       = NJPath(PathRoot.unsafeFrom(hp.toString))
 
   implicit val showNJPath: Show[NJPath] = _.pathStr
 

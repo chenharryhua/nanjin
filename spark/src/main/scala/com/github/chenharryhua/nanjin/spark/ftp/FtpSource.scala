@@ -16,10 +16,8 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
   def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
     F: Async[F],
-    mat: Materializer): Stream[F, A] = {
-    val pipe = new CsvSerialization[F, A](csvConfig)
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize(chunkSize))
-  }
+    mat: Materializer): Stream[F, A] =
+    downloader.download(pathStr, chunkSize).through(CsvSerde.deserPipe[F, A](csvConfig, chunkSize))
 
   def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
@@ -27,18 +25,16 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     mat: Materializer): Stream[F, A] =
     csv[A](pathStr, CsvConfiguration.rfc, chunkSize)
 
-  def json[A: JsonDecoder](pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, A] = {
-    val pipe: CirceSerialization[F, A] = new CirceSerialization[F, A]
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize)
-  }
+  def json[A: JsonDecoder](pathStr: String, chunkSize: ChunkSize)(implicit
+    F: Async[F],
+    mat: Materializer): Stream[F, A] =
+    downloader.download(pathStr, chunkSize).through(CirceSerde.deserPipe[F, A])
 
-  def jackson[A](pathStr: String, chunkSize: ChunkSize, dec: AvroDecoder[A])(implicit F: Async[F], mat: Materializer): Stream[F, A] = {
-    val pipe: JacksonSerialization[F] = new JacksonSerialization[F](dec.schema)
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize).map(dec.decode)
-  }
+  def jackson[A](pathStr: String, chunkSize: ChunkSize, dec: AvroDecoder[A])(implicit
+    F: Async[F],
+    mat: Materializer): Stream[F, A] =
+    downloader.download(pathStr, chunkSize).through(JacksonSerde.deserPipe(dec.schema)).map(dec.decode)
 
-  def text(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, String] = {
-    val pipe: TextSerialization[F] = new TextSerialization[F]
-    downloader.download(pathStr, chunkSize).through(pipe.deserialize)
-  }
+  def text(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, String] =
+    downloader.download(pathStr, chunkSize).through(TextSerde.deserPipe)
 }
