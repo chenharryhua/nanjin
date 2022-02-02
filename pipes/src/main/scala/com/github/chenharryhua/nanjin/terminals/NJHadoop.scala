@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -22,6 +23,7 @@ sealed trait NJHadoop[F[_]] {
   def isExist(path: NJPath): F[Boolean]
   def locatedFileStatus(path: NJPath): F[List[LocatedFileStatus]]
   def dataFolders(path: NJPath): F[List[Path]]
+  def filesIn(path: NJPath): F[List[LocatedFileStatus]]
 
   def byteSink(path: NJPath): Pipe[F, Byte, Unit]
   def byteSource(path: NJPath, byteBuffer: Information): Stream[F, Byte]
@@ -74,6 +76,9 @@ object NJHadoop {
             lb.toList
           }
         }
+
+      override def filesIn(path: NJPath): F[List[LocatedFileStatus]] =
+        locatedFileStatus(path).map(_.filter(_.isFile).sortBy(lfs => (lfs.getModificationTime, lfs.getPath.getName)))
 
       // folders which contain data files
       override def dataFolders(path: NJPath): F[List[Path]] =

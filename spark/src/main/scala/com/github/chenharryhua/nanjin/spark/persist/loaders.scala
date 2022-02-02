@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.spark.persist
 import akka.stream.IOResult
 import akka.stream.scaladsl.Source
 import cats.Eval
-import cats.syntax.functor.*
 import cats.effect.kernel.{Async, Sync}
-import com.github.chenharryhua.nanjin.common.{ChunkSize, PathRoot, PathSegment}
+import cats.syntax.functor.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.{AkkaHadoop, NJHadoop, NJParquet, NJPath}
@@ -26,7 +26,6 @@ import org.apache.parquet.avro.AvroParquetReader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
-import squants.information.Information
 
 import java.io.DataInputStream
 import scala.concurrent.Future
@@ -144,8 +143,8 @@ object loaders {
     def jackson[F[_]: Async, A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
-        .locatedFileStatus(path)
-        .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
+        .filesIn(path)
+        .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
           ss ++ hdp
             .byteSource(NJPath(lfs.getPath))
             .through(JacksonSerde.deserPipe(decoder.schema))
@@ -162,8 +161,8 @@ object loaders {
       chunkSize: ChunkSize): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
-        .locatedFileStatus(path)
-        .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
+        .filesIn(path)
+        .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
           ss ++ hdp
             .avroSource(NJPath(lfs.getPath), decoder.schema, chunkSize)
             .map(decoder.decode)
@@ -175,8 +174,8 @@ object loaders {
     def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
-        .locatedFileStatus(path)
-        .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
+        .filesIn(path)
+        .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
           ss ++ hdp
             .byteSource(NJPath(lfs.getPath))
             .through(CirceSerde.deserPipe[F, A])

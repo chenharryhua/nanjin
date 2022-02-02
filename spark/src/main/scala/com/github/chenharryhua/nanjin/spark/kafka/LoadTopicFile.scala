@@ -129,15 +129,13 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
     def parquet(path: NJPath)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
       Stream.force(
         NJHadoop[F](hadoopConfiguration)
-          .locatedFileStatus(path)
-          .map(_.filter(_.isFile)
-            .foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (stm, lfs) =>
-              val builder: AvroParquetReader.Builder[GenericRecord] =
-                AvroParquetReader
-                  .builder[GenericRecord](HadoopInputFile.fromPath(lfs.getPath, hadoopConfiguration))
-                  .withDataModel(GenericData.get())
-              stm ++ NJParquet.fs2Source[F](builder).handleErrorWith(_ => Stream.empty)
-            }
-            .map(decoder.decode)))
+          .filesIn(path)
+          .map(_.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (stm, lfs) =>
+            val builder: AvroParquetReader.Builder[GenericRecord] =
+              AvroParquetReader
+                .builder[GenericRecord](HadoopInputFile.fromPath(lfs.getPath, hadoopConfiguration))
+                .withDataModel(GenericData.get())
+            stm ++ NJParquet.fs2Source[F](builder).handleErrorWith(_ => Stream.empty)
+          }.map(decoder.decode)))
   }
 }
