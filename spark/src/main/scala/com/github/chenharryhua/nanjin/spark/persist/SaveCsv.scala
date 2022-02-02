@@ -43,9 +43,9 @@ final class SaveSingleCsv[F[_], A](
   def errorIfExists: SaveSingleCsv[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleCsv[F, A] = updateConfig(cfg.ignoreMode)
 
-  def gzip: SaveSingleCsv[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def gzip: SaveSingleCsv[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveSingleCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveSingleCsv[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def withChunkSize(cs: ChunkSize): SaveSingleCsv[F, A]    = updateConfig(cfg.chunkSize(cs))
   def withByteBuffer(bb: Information): SaveSingleCsv[F, A] = updateConfig(cfg.byteBuffer(bb))
@@ -81,10 +81,10 @@ final class SaveMultiCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfigura
   def errorIfExists: SaveMultiCsv[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveMultiCsv[F, A] = updateConfig(cfg.ignoreMode)
 
-  def bzip2: SaveMultiCsv[F, A]               = updateConfig(cfg.outputCompression(Compression.Bzip2))
-  def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def bzip2: SaveMultiCsv[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
+  def gzip: SaveMultiCsv[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveMultiCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveMultiCsv[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)

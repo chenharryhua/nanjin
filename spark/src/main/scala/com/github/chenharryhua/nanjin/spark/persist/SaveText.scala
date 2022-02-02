@@ -33,9 +33,9 @@ final class SaveSingleText[F[_], A](
   def errorIfExists: SaveSingleText[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleText[F, A] = updateConfig(cfg.ignoreMode)
 
-  def gzip: SaveSingleText[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def gzip: SaveSingleText[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveSingleText[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveSingleText[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def withChunkSize(cs: ChunkSize): SaveSingleText[F, A]  = updateConfig(cfg.chunkSize(cs))
   def withListener(f: A => F[Unit]): SaveSingleText[F, A] = new SaveSingleText[F, A](rdd, cfg, suffix, Some(Kleisli(f)))
@@ -62,10 +62,10 @@ final class SaveMultiText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: Stri
   def errorIfExists: SaveMultiText[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveMultiText[F, A] = updateConfig(cfg.ignoreMode)
 
-  def bzip2: SaveMultiText[F, A]               = updateConfig(cfg.outputCompression(Compression.Bzip2))
-  def gzip: SaveMultiText[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveMultiText[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveMultiText[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def bzip2: SaveMultiText[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
+  def gzip: SaveMultiText[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveMultiText[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveMultiText[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F], show: Show[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

@@ -78,7 +78,7 @@ object NJHadoop {
         }
 
       override def filesIn(path: NJPath): F[List[LocatedFileStatus]] =
-        locatedFileStatus(path).map(_.filter(_.isFile).sortBy(lfs => (lfs.getModificationTime, lfs.getPath.getName)))
+        locatedFileStatus(path).map(_.filter(_.isFile).sortBy(_.getModificationTime))
 
       // folders which contain data files
       override def dataFolders(path: NJPath): F[List[Path]] =

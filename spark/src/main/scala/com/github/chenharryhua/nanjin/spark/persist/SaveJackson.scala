@@ -30,9 +30,9 @@ final class SaveSingleJackson[F[_], A](
   def errorIfExists: SaveSingleJackson[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleJackson[F, A] = updateConfig(cfg.ignoreMode)
 
-  def gzip: SaveSingleJackson[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveSingleJackson[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveSingleJackson[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def gzip: SaveSingleJackson[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveSingleJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveSingleJackson[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def withChunkSize(cs: ChunkSize): SaveSingleJackson[F, A] = updateConfig(cfg.chunkSize(cs))
   def withListener(f: A => F[Unit]): SaveSingleJackson[F, A] =
@@ -62,10 +62,10 @@ final class SaveMultiJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg:
   def errorIfExists: SaveMultiJackson[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveMultiJackson[F, A] = updateConfig(cfg.ignoreMode)
 
-  def bzip2: SaveMultiJackson[F, A]               = updateConfig(cfg.outputCompression(Compression.Bzip2))
-  def gzip: SaveMultiJackson[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveMultiJackson[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveMultiJackson[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def bzip2: SaveMultiJackson[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
+  def gzip: SaveMultiJackson[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveMultiJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveMultiJackson[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
