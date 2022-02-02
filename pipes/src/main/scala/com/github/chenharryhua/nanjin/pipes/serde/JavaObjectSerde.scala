@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.pipes.serde
 
+import akka.NotUsed
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
 import cats.effect.kernel.{Async, Resource, Sync}
-import cats.syntax.all.*
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
@@ -42,4 +44,15 @@ object JavaObjectSerde {
   def deserPipe[F[_], A](implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream[F]).flatMap(readInputStream[F, A])
   }
+
+  def serFlow[A]: Flow[A, ByteString, NotUsed] = Flow[A].map { a =>
+    val bos = new ByteArrayOutputStream()
+    val oos = new ObjectOutputStream(bos)
+    oos.writeObject(a)
+    oos.close()
+    bos.close()
+    ByteString(bos.toByteArray)
+  }
+
+  def deserFlow[A] = Flow[ByteString]
 }

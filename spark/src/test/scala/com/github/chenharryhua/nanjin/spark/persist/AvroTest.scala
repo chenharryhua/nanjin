@@ -35,6 +35,13 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
+    val s = loaders.stream
+      .avro[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 100)
+      .compile
+      .toList
+      .unsafeRunSync()
+      .toSet
+    assert(RoosterData.expected == s)
   }
 
   test("datetime read/write identity - multi.snappy") {

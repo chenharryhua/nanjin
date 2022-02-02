@@ -86,6 +86,13 @@ class CirceTest extends AnyFunSuite {
     bee(path).circe.dropNull.folder.run.unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path, sparkSession)
     assert(t.collect().map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
+    val s = loaders.stream
+      .circe[IO, Bee](path, sparkSession.sparkContext.hadoopConfiguration, 100.bytes)
+      .compile
+      .toList
+      .unsafeRunSync()
+      .toSet
+    assert(BeeData.bees.map(_.toWasp).toSet == s.map(_.toWasp))
   }
 
   test("circe bee byte-array rdd read/write identity single gz") {

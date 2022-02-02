@@ -24,6 +24,13 @@ class JacksonTest extends AnyFunSuite {
     rooster(path).jackson.folder.errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
+    val s = loaders.stream
+      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 10.kb)
+      .compile
+      .toList
+      .unsafeRunSync()
+      .toSet
+    assert(s == RoosterData.expected)
   }
 
   test("datetime read/write identity - single") {
