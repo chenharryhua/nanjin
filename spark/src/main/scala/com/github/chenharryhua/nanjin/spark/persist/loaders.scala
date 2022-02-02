@@ -141,17 +141,13 @@ object loaders {
 
   object stream {
 
-    def jackson[F[_]: Async, A](
-      path: NJPath,
-      decoder: AvroDecoder[A],
-      cfg: Configuration,
-      byteBuffer: Information): Stream[F, A] = {
+    def jackson[F[_]: Async, A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
         .locatedFileStatus(path)
         .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
           ss ++ hdp
-            .byteSource(NJPath(lfs.getPath), byteBuffer)
+            .byteSource(NJPath(lfs.getPath))
             .through(JacksonSerde.deserPipe(decoder.schema))
             .map(decoder.decode)
             .handleErrorWith(_ => Stream.empty)
@@ -176,13 +172,13 @@ object loaders {
       Stream.force(fsa)
     }
 
-    def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration, byteBuffer: Information): Stream[F, A] = {
+    def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
         .locatedFileStatus(path)
         .map(_.filter(_.isFile).foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
           ss ++ hdp
-            .byteSource(NJPath(lfs.getPath), byteBuffer)
+            .byteSource(NJPath(lfs.getPath))
             .through(CirceSerde.deserPipe[F, A])
             .handleErrorWith(_ => Stream.empty)
         })

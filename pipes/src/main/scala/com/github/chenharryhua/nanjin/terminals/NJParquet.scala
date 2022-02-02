@@ -38,6 +38,10 @@ object NJParquet {
       gr <- Stream.repeatEval(F.delay(Option(reader.read()))).unNoneTerminate
     } yield gr
 
+  def fs2Source[F[_]](builder: AvroParquetReader.Builder[GenericRecord])(implicit
+    F: Sync[F]): Stream[F, GenericRecord] =
+    fs2Source[F](F.pure(builder))
+
   def fs2Sink[F[_]](builder: AvroParquetWriter.Builder[GenericRecord])(implicit
     F: Sync[F]): Pipe[F, GenericRecord, Unit] = {
     def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
@@ -55,6 +59,9 @@ object NJParquet {
 
   def akkaSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]]): Source[GenericRecord, Future[IOResult]] =
     Source.fromGraph(new ParquetSource(builder))
+
+  def akkaSource(builder: AvroParquetReader.Builder[GenericRecord]): Source[GenericRecord, Future[IOResult]] =
+    akkaSource(Eval.now(builder))
 
   def akkaSink(builder: AvroParquetWriter.Builder[GenericRecord]): Sink[GenericRecord, Future[IOResult]] =
     Sink.fromGraph(new ParquetSink(builder))

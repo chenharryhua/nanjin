@@ -67,8 +67,8 @@ class HadoopTest extends AnyFunSuite {
 
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.byteSink(pathStr)).compile.drain >>
-      hdp.byteSource(pathStr, 100.kibibits).through(fs2.text.utf8.decode).compile.toList
-    assert(action.unsafeRunSync().head == testString)
+      hdp.byteSource(pathStr, 3.bytes).through(fs2.text.utf8.decode).compile.toList
+    assert(action.unsafeRunSync().mkString == testString)
   }
 
   test("snappy avro write/read") {
