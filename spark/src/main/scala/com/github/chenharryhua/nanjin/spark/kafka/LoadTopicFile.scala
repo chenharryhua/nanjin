@@ -14,7 +14,8 @@ import fs2.Stream
 import io.circe.Decoder as JsonDecoder
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
-import org.apache.parquet.avro.AvroParquetReader
+import org.apache.parquet.avro.{AvroParquetReader, AvroReadSupport}
+import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.spark.sql.SparkSession
 
@@ -131,11 +132,13 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
         NJHadoop[F](hadoopConfiguration)
           .filesIn(path)
           .map(_.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (stm, lfs) =>
-            val builder: AvroParquetReader.Builder[GenericRecord] =
+            val reader: ParquetReader[GenericRecord] =
               AvroParquetReader
                 .builder[GenericRecord](HadoopInputFile.fromPath(lfs.getPath, hadoopConfiguration))
                 .withDataModel(GenericData.get())
-            stm ++ NJParquet.fs2Source[F](builder).handleErrorWith(_ => Stream.empty)
+                .set(AvroReadSupport.READ_INT96_AS_FIXED, "true")
+                .build()
+            stm ++ NJParquet.fs2Source[F](reader).handleErrorWith(_ => Stream.empty)
           }.map(decoder.decode)))
   }
 }

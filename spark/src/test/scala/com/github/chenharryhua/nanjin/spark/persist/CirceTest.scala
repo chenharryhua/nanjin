@@ -46,7 +46,7 @@ class CirceTest extends AnyFunSuite {
     val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == t2.collect().toSet)
     val t3 = loaders.stream
-      .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration, 100.bytes)
+      .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration)
       .compile
       .toList
       .unsafeRunSync()
@@ -87,7 +87,7 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Bee](path, sparkSession)
     assert(t.collect().map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
     val s = loaders.stream
-      .circe[IO, Bee](path, sparkSession.sparkContext.hadoopConfiguration, 100.bytes)
+      .circe[IO, Bee](path, sparkSession.sparkContext.hadoopConfiguration)
       .compile
       .toList
       .unsafeRunSync()

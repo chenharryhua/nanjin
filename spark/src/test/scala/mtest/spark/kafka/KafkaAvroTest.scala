@@ -1,19 +1,17 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.spark.injection.*
+import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
+import fs2.kafka.{ProducerRecord, ProducerRecords}
+import io.circe.Codec
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.*
-import fs2.kafka.ProducerRecord
-import fs2.kafka.ProducerRecords
-import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.NJPath
-import io.circe.Codec
-import eu.timepit.refined.auto.*
-import squants.information.InformationConversions.*
 
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
@@ -57,7 +55,7 @@ object KafkaAvroTestData {
 }
 
 class KafkaAvroTest extends AnyFunSuite {
-  import KafkaAvroTestData._
+  import KafkaAvroTestData.*
 
   test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
     val data = fs2
@@ -103,11 +101,11 @@ class KafkaAvroTest extends AnyFunSuite {
     assert(avro == Set(en1, en2))
 
     val jackson =
-      sk.load.stream.jackson(jacksonPath, 1.kb).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.jackson(jacksonPath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(jackson == Set(en1, en2))
 
     val circe =
-      sk.load.stream.circe(circePath, 100.kb).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
+      sk.load.stream.circe(circePath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
     assert(circe == Set(en1, en2))
 
   }

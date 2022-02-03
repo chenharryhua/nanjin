@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import akka.stream.IOResult
 import akka.stream.scaladsl.Source
-import cats.Eval
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.terminals.{AkkaHadoop, NJHadoop, NJParquet, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{AkkaHadoop, NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import fs2.Stream
 import io.circe.Decoder as JsonDecoder
@@ -22,7 +21,6 @@ import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
-import org.apache.parquet.avro.AvroParquetReader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -76,10 +74,10 @@ object loaders {
     def circe[A: ClassTag: JsonDecoder](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext
         .textFile(path.pathStr)
-        .map(decode[A](_) match {
+        .mapPartitions(_.map(decode[A](_) match {
           case Left(ex) => throw ex
           case Right(r) => r
-        })
+        }))
 
     def protobuf[A <: GeneratedMessage: ClassTag](path: NJPath, ss: SparkSession)(implicit
       decoder: GeneratedMessageCompanion[A]): RDD[A] =
@@ -188,11 +186,6 @@ object loaders {
   object source {
     def avro[A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Source[A, Future[IOResult]] =
       AkkaHadoop(cfg).avroSource(path, decoder.schema).map(decoder.decode)
-
-    def parquet[A](
-      builder: Eval[AvroParquetReader.Builder[GenericRecord]],
-      decoder: AvroDecoder[A]): Source[A, Future[IOResult]] =
-      NJParquet.akkaSource(builder).map(decoder.decode)
 
   }
 }

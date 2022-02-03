@@ -2,14 +2,12 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, DatasetAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
-import frameless.TypedDataset
+import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class ParquetTest extends AnyFunSuite {

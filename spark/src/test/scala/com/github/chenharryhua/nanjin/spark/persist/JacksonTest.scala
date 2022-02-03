@@ -2,13 +2,11 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
-import squants.information.InformationConversions.*
 
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
@@ -25,7 +23,7 @@ class JacksonTest extends AnyFunSuite {
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
     val s = loaders.stream
-      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 10.kb)
+      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration)
       .compile
       .toList
       .unsafeRunSync()
@@ -39,11 +37,7 @@ class JacksonTest extends AnyFunSuite {
     val r = loaders.jackson[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
     val t3 = loaders.stream
-      .jackson[IO, Rooster](
-        path,
-        Rooster.avroCodec.avroDecoder,
-        sparkSession.sparkContext.hadoopConfiguration,
-        100.bytes)
+      .jackson[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration)
       .compile
       .toList
       .unsafeRunSync()
