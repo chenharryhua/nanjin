@@ -136,7 +136,6 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
               AvroParquetReader
                 .builder[GenericRecord](HadoopInputFile.fromPath(lfs.getPath, hadoopConfiguration))
                 .withDataModel(GenericData.get())
-                .set(AvroReadSupport.READ_INT96_AS_FIXED, "true")
                 .build()
             stm ++ NJParquet.fs2Source[F](reader).handleErrorWith(_ => Stream.empty)
           }.map(decoder.decode)))
