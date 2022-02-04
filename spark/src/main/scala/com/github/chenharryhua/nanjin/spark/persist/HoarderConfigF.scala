@@ -13,7 +13,7 @@ import squants.information.{Information, Megabytes}
   format: NJFileFormat,
   outPath: NJPath,
   saveMode: SaveMode,
-  compression: Compression,
+  compression: NJCompression,
   chunkSize: ChunkSize,
   byteBuffer: Information)
 
@@ -24,7 +24,7 @@ private[persist] object HoarderParams {
       NJFileFormat.Unknown,
       outPath,
       SaveMode.Overwrite,
-      Compression.Uncompressed,
+      NJCompression.Uncompressed,
       ChunkSize(1000),
       Megabytes(1))
 }
@@ -38,7 +38,7 @@ private object HoarderConfigF {
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithOutputPath[K](value: NJPath, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
-  final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
+  final case class WithCompression[K](value: NJCompression, cont: K) extends HoarderConfigF[K]
 
   final case class WithChunkSize[K](value: ChunkSize, cont: K) extends HoarderConfigF[K]
   final case class WithByteBuffer[K](value: Information, cont: K) extends HoarderConfigF[K]
@@ -75,7 +75,7 @@ final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def outputFormat(fmt: NJFileFormat): HoarderConfig =
     HoarderConfig(Fix(WithFileFormat(fmt, value)))
 
-  def outputCompression(compression: Compression): HoarderConfig =
+  def outputCompression(compression: NJCompression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
 
   def chunkSize(cs: ChunkSize): HoarderConfig    = HoarderConfig(Fix(WithChunkSize(cs, value)))

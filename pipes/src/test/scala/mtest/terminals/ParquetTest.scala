@@ -1,7 +1,8 @@
 package mtest.terminals
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Source
+import cats.Eval
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.{NJParquet, NJPath}
@@ -13,7 +14,6 @@ import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.scalatest.funsuite.AnyFunSuite
-import cats.Eval
 
 class ParquetTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -33,10 +33,11 @@ class ParquetTest extends AnyFunSuite {
     val rb = IO(
       AvroParquetReader
         .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
-        .withDataModel(GenericData.get()))
+        .withDataModel(GenericData.get())
+        .build())
 
     val action = hdp.delete(pathStr) >>
-      ts.through(NJParquet.fs2Sink(wb)).compile.drain >>
+      ts.through(NJParquet.fs2Sink(wb.build())).compile.drain >>
       NJParquet.fs2Source(rb).compile.toList
 
     assert(action.unsafeRunSync() == pandas)
@@ -56,10 +57,11 @@ class ParquetTest extends AnyFunSuite {
     val rb = IO(
       AvroParquetReader
         .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
-        .withDataModel(GenericData.get()))
+        .withDataModel(GenericData.get())
+        .build())
 
     val action = hdp.delete(pathStr) >>
-      ts.through(NJParquet.fs2Sink(wb)).compile.drain >>
+      ts.through(NJParquet.fs2Sink(wb.build())).compile.drain >>
       NJParquet.fs2Source(rb).compile.toList
 
     assert(action.unsafeRunSync() == pandas)
@@ -78,10 +80,14 @@ class ParquetTest extends AnyFunSuite {
     val rb = IO(
       AvroParquetReader
         .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
-        .withDataModel(GenericData.get()))
+        .withDataModel(GenericData.get())
+        .build())
 
     val action =
-      hdp.delete(pathStr) >> ts.through(NJParquet.fs2Sink(wb)).compile.drain >> NJParquet.fs2Source(rb).compile.toList
+      hdp.delete(pathStr) >> ts.through(NJParquet.fs2Sink(wb.build())).compile.drain >> NJParquet
+        .fs2Source(rb)
+        .compile
+        .toList
 
     assert(action.unsafeRunSync() == pandas)
   }
@@ -101,9 +107,10 @@ class ParquetTest extends AnyFunSuite {
     val rb = Eval.later(
       AvroParquetReader
         .builder[GenericRecord](HadoopInputFile.fromPath(pathStr.hadoopPath, cfg))
-        .withDataModel(GenericData.get()))
+        .withDataModel(GenericData.get())
+        .build())
 
-    val write = IO.fromFuture(IO(ts.runWith(NJParquet.akkaSink(wb))))
+    val write = IO.fromFuture(IO(ts.runWith(NJParquet.akkaSink(wb.build()))))
     val read  = IO.fromFuture(IO(NJParquet.akkaSource(rb).runFold(List.empty[GenericRecord])(_.appended(_))))
     val rst   = (hdp.delete(pathStr) >> write >> read).unsafeRunSync()
     assert(rst == pandas)

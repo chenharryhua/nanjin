@@ -170,8 +170,8 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     assert(ate.normalize(rdd, sparkSession).collect().toList.flatten == data.flatten)
   }
 
-  test("not support") {
-    assertThrows[Exception](AvroTypedEncoder[List[Int]])
+  test("primitive type") {
+    assert(AvroTypedEncoder[List[Int]].sparkSchema.head.name == "value")
   }
 
   test("other primitive types") {

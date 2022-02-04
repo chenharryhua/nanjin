@@ -20,7 +20,7 @@ import java.io.ByteArrayOutputStream
 
 private[spark] object saveRDD {
 
-  def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: Compression): Unit = {
+  def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compression.avro(config)
     val job = Job.getInstance(config)
@@ -56,7 +56,7 @@ private[spark] object saveRDD {
         config)
   }
 
-  def circe[A: JsonEncoder](rdd: RDD[A], path: NJPath, compression: Compression, isKeepNull: Boolean): Unit = {
+  def circe[A: JsonEncoder](rdd: RDD[A], path: NJPath, compression: NJCompression, isKeepNull: Boolean): Unit = {
     val encode: A => Json = a => if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Circe.suffix)
@@ -66,7 +66,7 @@ private[spark] object saveRDD {
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 
-  def jackson[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: Compression): Unit = {
+  def jackson[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     val job = Job.getInstance(config)
@@ -101,7 +101,7 @@ private[spark] object saveRDD {
         config)
   }
 
-  def text[A: Show](rdd: RDD[A], path: NJPath, compression: Compression, suffix: String): Unit = {
+  def text[A: Show](rdd: RDD[A], path: NJPath, compression: NJCompression, suffix: String): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, suffix)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))

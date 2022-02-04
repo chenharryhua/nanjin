@@ -1,66 +1,52 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import akka.stream.*
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.{
-  ActorAttributes,
-  Attributes,
-  IOOperationIncompleteException,
-  IOResult,
-  Inlet,
-  Outlet,
-  SinkShape,
-  SourceShape,
-  SubscriptionWithCancelException
-}
-import akka.stream.stage.{
-  GraphStageLogic,
-  GraphStageLogicWithLogging,
-  GraphStageWithMaterializedValue,
-  InHandler,
-  OutHandler
-}
+import akka.stream.stage.*
 import cats.Eval
-import cats.effect.kernel.{Resource, Sync}
-import cats.syntax.functor.*
+import cats.effect.kernel.Sync
 import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.generic.GenericRecord
-import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
 import org.apache.parquet.hadoop.{ParquetReader, ParquetWriter}
 
 import scala.concurrent.{Future, Promise}
 
 object NJParquet {
   // input path may not exist when eval builder
-  def fs2Source[F[_]](builder: F[AvroParquetReader.Builder[GenericRecord]])(implicit
-    F: Sync[F]): Stream[F, GenericRecord] =
+  def fs2Source[F[_]](reader: F[ParquetReader[GenericRecord]])(implicit F: Sync[F]): Stream[F, GenericRecord] =
     for {
-      reader <- Stream.resource(Resource.make(builder.map(_.build()))(r => F.blocking(r.close())))
-      gr <- Stream.repeatEval(F.delay(Option(reader.read()))).unNoneTerminate
+      rd <- Stream.bracket(reader)(r => F.blocking(r.close()))
+      gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
-  def fs2Sink[F[_]](builder: AvroParquetWriter.Builder[GenericRecord])(implicit
-    F: Sync[F]): Pipe[F, GenericRecord, Unit] = {
-    def go(grs: Stream[F, GenericRecord], writer: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
+  def fs2Source[F[_]](reader: ParquetReader[GenericRecord])(implicit F: Sync[F]): Stream[F, GenericRecord] =
+    fs2Source[F](F.pure(reader))
+
+  def fs2Sink[F[_]](writer: ParquetWriter[GenericRecord])(implicit F: Sync[F]): Pipe[F, GenericRecord, Unit] = {
+    def go(grs: Stream[F, GenericRecord], pw: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
       grs.pull.uncons.flatMap {
-        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.write))) >> go(tl, writer)
-        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
+        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(pw.write))) >> go(tl, pw)
+        case None           => Pull.done
       }
 
     (ss: Stream[F, GenericRecord]) =>
       for {
-        writer <- Stream.resource(Resource.make(F.blocking(builder.build()))(r => F.blocking(r.close())))
-        _ <- go(ss, writer).stream
+        pw <- Stream.bracket(F.pure(writer))(r => F.blocking(r.close()))
+        _ <- go(ss, pw).stream
       } yield ()
   }
 
-  def akkaSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]]): Source[GenericRecord, Future[IOResult]] =
-    Source.fromGraph(new ParquetSource(builder))
+  def akkaSource(reader: Eval[ParquetReader[GenericRecord]]): Source[GenericRecord, Future[IOResult]] =
+    Source.fromGraph(new ParquetSource(reader))
 
-  def akkaSink(builder: AvroParquetWriter.Builder[GenericRecord]): Sink[GenericRecord, Future[IOResult]] =
-    Sink.fromGraph(new ParquetSink(builder))
+  def akkaSource(reader: ParquetReader[GenericRecord]): Source[GenericRecord, Future[IOResult]] =
+    akkaSource(Eval.now(reader))
+
+  def akkaSink(writer: ParquetWriter[GenericRecord]): Sink[GenericRecord, Future[IOResult]] =
+    Sink.fromGraph(new ParquetSink(writer))
 }
 
-private class ParquetSource(builder: Eval[AvroParquetReader.Builder[GenericRecord]])
+private class ParquetSource(parquetReader: Eval[ParquetReader[GenericRecord]])
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
 
   private val out: Outlet[GenericRecord] = Outlet("akka.parquet.source")
@@ -76,7 +62,7 @@ private class ParquetSource(builder: Eval[AvroParquetReader.Builder[GenericRecor
         new OutHandler {
           private var count: Long = 0
 
-          private val reader: ParquetReader[GenericRecord] = builder.value.build()
+          private val reader: ParquetReader[GenericRecord] = parquetReader.value
 
           override def onDownstreamFinish(cause: Throwable): Unit =
             try {
@@ -106,7 +92,7 @@ private class ParquetSource(builder: Eval[AvroParquetReader.Builder[GenericRecor
   override val shape: SourceShape[GenericRecord] = SourceShape.of(out)
 }
 
-private class ParquetSink(builder: AvroParquetWriter.Builder[GenericRecord])
+private class ParquetSink(writer: ParquetWriter[GenericRecord])
     extends GraphStageWithMaterializedValue[SinkShape[GenericRecord], Future[IOResult]] {
 
   private val in: Inlet[GenericRecord] = Inlet("akka.parquet.sink")
@@ -123,8 +109,6 @@ private class ParquetSink(builder: AvroParquetWriter.Builder[GenericRecord])
         in,
         new InHandler {
           private var count: Long = 0
-
-          private val writer: ParquetWriter[GenericRecord] = builder.build()
 
           override def onUpstreamFinish(): Unit =
             try {

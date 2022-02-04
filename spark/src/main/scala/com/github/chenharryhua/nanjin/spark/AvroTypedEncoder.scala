@@ -16,15 +16,7 @@ final class AvroTypedEncoder[A] private (val avroCodec: NJAvroCodec[A], val type
   private val avroStructType: StructType =
     SchemaConverters.toSqlType(avroCodec.schema).dataType match {
       case st: StructType => st
-      case _: StringType  => TypedExpressionEncoder[String].schema
-      case _: IntegerType => TypedExpressionEncoder[Int].schema
-      case _: LongType    => TypedExpressionEncoder[Long].schema
-      case _: FloatType   => TypedExpressionEncoder[Float].schema
-      case _: DoubleType  => TypedExpressionEncoder[Double].schema
-      case _: BinaryType  => TypedExpressionEncoder[Array[Byte]].schema
-      case _: DecimalType => TypedExpressionEncoder[BigDecimal].schema
-      case _: BooleanType => TypedExpressionEncoder[Boolean].schema
-      case ex             => sys.error(s"not support yet $ex")
+      case primitive      => StructType(Array(StructField("value", primitive)))
     }
 
   val classTag: ClassTag[A] = typedEncoder.classTag

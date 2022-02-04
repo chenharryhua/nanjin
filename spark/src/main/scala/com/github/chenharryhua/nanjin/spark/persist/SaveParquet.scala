@@ -52,13 +52,9 @@ final class SaveSingleParquet[F[_], A](
     new SaveSingleParquet[F, A](ds, cfg, encoder, builder, Some(Kleisli(f)))
 
   def sink(implicit F: Sync[F]): Stream[F, Unit] = {
-    val hc: Configuration     = ds.sparkSession.sparkContext.hadoopConfiguration
-    val sma: SaveModeAware[F] = new SaveModeAware[F](params.saveMode, params.outPath, hc)
     val src: Stream[F, A]     = ds.rdd.stream[F](params.chunkSize)
     val tgt: Pipe[F, A, Unit] = sinks.parquet(builder, encoder)
-    val ss: Stream[F, Unit]   = listener.fold(src.through(tgt))(k => src.evalTap(k.run).through(tgt))
-
-    sma.checkAndRun(ss)
+    listener.fold(src.through(tgt))(k => src.evalTap(k.run).through(tgt))
   }
 }
 
@@ -74,11 +70,11 @@ final class SaveMultiParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extend
   def errorIfExists: SaveMultiParquet[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveMultiParquet[F, A] = updateConfig(cfg.ignoreMode)
 
-  def zstd(level: Int): SaveMultiParquet[F, A] = updateConfig(cfg.outputCompression(Compression.Zstandard(level)))
-  def lz4: SaveMultiParquet[F, A]              = updateConfig(cfg.outputCompression(Compression.Lz4))
-  def snappy: SaveMultiParquet[F, A]           = updateConfig(cfg.outputCompression(Compression.Snappy))
-  def gzip: SaveMultiParquet[F, A]             = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def uncompress: SaveMultiParquet[F, A]       = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def zstd(level: Int): SaveMultiParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
+  def lz4: SaveMultiParquet[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Lz4))
+  def snappy: SaveMultiParquet[F, A]           = updateConfig(cfg.outputCompression(NJCompression.Snappy))
+  def gzip: SaveMultiParquet[F, A]             = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def uncompress: SaveMultiParquet[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)

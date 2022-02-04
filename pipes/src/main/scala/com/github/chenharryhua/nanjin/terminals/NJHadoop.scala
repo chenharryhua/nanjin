@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -22,6 +23,7 @@ sealed trait NJHadoop[F[_]] {
   def isExist(path: NJPath): F[Boolean]
   def locatedFileStatus(path: NJPath): F[List[LocatedFileStatus]]
   def dataFolders(path: NJPath): F[List[Path]]
+  def filesIn(path: NJPath): F[List[LocatedFileStatus]]
 
   def byteSink(path: NJPath): Pipe[F, Byte, Unit]
   def byteSource(path: NJPath, byteBuffer: Information): Stream[F, Byte]
@@ -75,6 +77,9 @@ object NJHadoop {
           }
         }
 
+      override def filesIn(path: NJPath): F[List[LocatedFileStatus]] =
+        locatedFileStatus(path).map(_.filter(_.isFile).sortBy(_.getModificationTime))
+
       // folders which contain data files
       override def dataFolders(path: NJPath): F[List[Path]] =
         fileSystem(path.uri).use { fs =>
@@ -102,7 +107,7 @@ object NJHadoop {
         } yield bt
 
       // best performance
-      override def byteSource(path: NJPath): Stream[F, Byte] = byteSource(path, 20.kb)
+      override def byteSource(path: NJPath): Stream[F, Byte] = byteSource(path, 8192.bytes)
 
       override def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] = {
         def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =

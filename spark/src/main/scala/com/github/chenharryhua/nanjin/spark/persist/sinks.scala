@@ -51,7 +51,7 @@ object sinks {
     builder: AvroParquetWriter.Builder[GenericRecord],
     encoder: AvroEncoder[A]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
     val toRec: ToRecord[A]                 = ToRecord(encoder)
-    val sink: Pipe[F, GenericRecord, Unit] = NJParquet.fs2Sink[F](builder)
+    val sink: Pipe[F, GenericRecord, Unit] = NJParquet.fs2Sink[F](builder.build())
     ss.map(toRec.to).through(sink)
   }
 

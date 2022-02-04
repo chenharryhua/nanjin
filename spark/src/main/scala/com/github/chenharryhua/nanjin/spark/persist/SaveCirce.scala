@@ -33,9 +33,9 @@ final class SaveSingleCirce[F[_], A](
   def errorIfExists: SaveSingleCirce[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveSingleCirce[F, A] = updateConfig(cfg.ignoreMode)
 
-  def gzip: SaveSingleCirce[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveSingleCirce[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveSingleCirce[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def gzip: SaveSingleCirce[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveSingleCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveSingleCirce[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def withChunkSize(cs: ChunkSize): SaveSingleCirce[F, A] = updateConfig(cfg.chunkSize(cs))
   def withListener(f: A => F[Unit]): SaveSingleCirce[F, A] =
@@ -65,10 +65,10 @@ final class SaveMultiCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull:
 
 //  def snappy: SaveMultiCirce[F, A]              = updateConfig(cfg.withCompression(Compression.Snappy))
 //  def lz4: SaveMultiCirce[F, A]                 = updateConfig(cfg.withCompression(Compression.Lz4))
-  def bzip2: SaveMultiCirce[F, A]               = updateConfig(cfg.outputCompression(Compression.Bzip2))
-  def gzip: SaveMultiCirce[F, A]                = updateConfig(cfg.outputCompression(Compression.Gzip))
-  def deflate(level: Int): SaveMultiCirce[F, A] = updateConfig(cfg.outputCompression(Compression.Deflate(level)))
-  def uncompress: SaveMultiCirce[F, A]          = updateConfig(cfg.outputCompression(Compression.Uncompressed))
+  def bzip2: SaveMultiCirce[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
+  def gzip: SaveMultiCirce[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def deflate(level: Int): SaveMultiCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def uncompress: SaveMultiCirce[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F], je: JsonEncoder[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

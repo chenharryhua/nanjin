@@ -58,7 +58,7 @@ object JacksonSerde {
       val datumReader = new GenericDatumReader[GenericRecord](schema)
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
-          .functionKInstance(F.delay(try Some(datumReader.read(null, jsonDecoder))
+          .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
           catch { case _: EOFException => None }))
           .flatMap {
             case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
