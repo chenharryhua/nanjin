@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.pipes.serde
 import akka.NotUsed
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
-import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.kernel.{Async, Sync}
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
 
@@ -37,7 +37,7 @@ object JavaObjectSerde {
 
   private def readInputStream[F[_], A](is: InputStream)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      ois <- Stream.resource(Resource.make(F.blocking(new ObjectInputStream(is)))(r => F.blocking(r.close())))
+      ois <- Stream.bracket(F.blocking(new ObjectInputStream(is)))(r => F.blocking(r.close()))
       a <- Pull.loop(pullAll[F, A])(ois).void.stream
     } yield a
 
@@ -54,5 +54,4 @@ object JavaObjectSerde {
     ByteString(bos.toByteArray)
   }
 
-  def deserFlow[A] = Flow[ByteString]
 }
