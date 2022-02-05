@@ -60,8 +60,8 @@ object KafkaSummary {
        |distance:      ${ks.offset_distance}
        |count:         ${ks.records_count}
        |gap:           ${ks.count_distance_gap} (${if (ks.count_distance_gap == 0) "perfect"
-    else if (ks.count_distance_gap < 0) "probably lost data or its a compact topic"
-    else "duplicates in the dataset"})
+      else if (ks.count_distance_gap < 0) "probably lost data or its a compact topic"
+      else "duplicates in the dataset"})
        |first TS:      ${ks.start_ts} not necessarily of the first offset)
        |last TS:       ${ks.end_ts} not necessarily of the last offset)
        |period:        ${ks.period}

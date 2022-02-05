@@ -48,14 +48,14 @@ class FtpTest extends AnyFunSuite {
 
   test("json") {
     val path = "tablet.json"
-    val rst  = roosterSteam.through(sink.json(path)) >> source.json[Tablet](path,10)
+    val rst  = roosterSteam.through(sink.json(path)) >> source.json[Tablet](path, 10)
     assert(rst.compile.toList.unsafeRunSync() == TabletData.data)
   }
 
   test("jackson") {
     val path = "tablet.jackson.json"
     val rst = roosterSteam.through(sink.jackson(path, Tablet.avroCodec.avroEncoder)) >> source
-      .jackson[Tablet](path,10, Tablet.avroCodec.avroDecoder)
+      .jackson[Tablet](path, 10, Tablet.avroCodec.avroDecoder)
     assert(rst.compile.toList.unsafeRunSync() == TabletData.data)
   }
 
@@ -67,7 +67,7 @@ class FtpTest extends AnyFunSuite {
 
   test("text") {
     val path = "tablet.text"
-    val rst  = roosterSteam.map(_.toString).through(sink.text(path)) >> source.text(path,10)
+    val rst  = roosterSteam.map(_.toString).through(sink.text(path)) >> source.text(path, 10)
     rst.take(3).compile.toList.unsafeRunSync().foreach(println)
   }
 

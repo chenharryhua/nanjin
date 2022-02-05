@@ -58,7 +58,7 @@ private[translators] object SlackTranslator extends all {
       case None => "the service was stopped" // never happen
       case Some(fd) =>
         s"restart of which takes place in *${fmt.format(fd)}*, at ${localTimestampStr(
-          evt.timestamp.plus(fd.toJava).atZone(evt.zoneId))}," +
+            evt.timestamp.plus(fd.toJava).atZone(evt.zoneId))}," +
           " meanwhile the service is dysfunctional."
     }
 
