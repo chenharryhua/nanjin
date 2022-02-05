@@ -75,7 +75,7 @@ package object translators {
         down.upcommingRestart match {
           case Some(ts) =>
             s"${down.cause} occured at ${localTimestampStr(
-              down.crashAt.atZone(zoneId))}. restart is scheduled at ${localTimestampStr(ts.atZone(zoneId))}"
+                down.crashAt.atZone(zoneId))}. restart is scheduled at ${localTimestampStr(ts.atZone(zoneId))}"
           case None => down.cause
         }
     )
