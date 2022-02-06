@@ -141,13 +141,9 @@ object loaders {
     def jackson[F[_]: Async, A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
-        .filesIn(path)
+        .hadoopInputFiles(path)
         .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
-          ss ++ hdp
-            .byteSource(NJPath(lfs.getPath))
-            .through(JacksonSerde.deserPipe(decoder.schema))
-            .map(decoder.decode)
-            .handleErrorWith(_ => Stream.empty)
+          ss ++ hdp.byteSource(NJPath(lfs.getPath)).through(JacksonSerde.deserPipe(decoder.schema)).map(decoder.decode)
         })
       Stream.force(fsa)
     }
@@ -159,12 +155,9 @@ object loaders {
       chunkSize: ChunkSize): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
-        .filesIn(path)
+        .hadoopInputFiles(path)
         .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
-          ss ++ hdp
-            .avroSource(NJPath(lfs.getPath), decoder.schema, chunkSize)
-            .map(decoder.decode)
-            .handleErrorWith(_ => Stream.empty)
+          ss ++ hdp.avroSource(NJPath(lfs.getPath), decoder.schema, chunkSize).map(decoder.decode)
         })
       Stream.force(fsa)
     }
@@ -172,12 +165,9 @@ object loaders {
     def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration): Stream[F, A] = {
       val hdp: NJHadoop[F] = NJHadoop[F](cfg)
       val fsa: F[Stream[F, A]] = hdp
-        .filesIn(path)
+        .hadoopInputFiles(path)
         .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
-          ss ++ hdp
-            .byteSource(NJPath(lfs.getPath))
-            .through(CirceSerde.deserPipe[F, A])
-            .handleErrorWith(_ => Stream.empty)
+          ss ++ hdp.byteSource(NJPath(lfs.getPath)).through(CirceSerde.deserPipe[F, A])
         })
       Stream.force(fsa)
     }

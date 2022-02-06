@@ -28,5 +28,5 @@ object CsvSerde {
     dec: RowDecoder[A],
     F: Async[F]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>
-      Stream.fromIterator[F](is.asCsvReader[A](conf).iterator, chunkSize.value).rethrow)
+      Stream.fromBlockingIterator[F](is.asCsvReader[A](conf).iterator, chunkSize.value).rethrow)
 }

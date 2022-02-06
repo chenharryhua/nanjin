@@ -3,6 +3,7 @@ package mtest.terminals
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import cats.effect.IO
+import cats.syntax.all.*
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
@@ -67,7 +68,7 @@ class HadoopTest extends AnyFunSuite {
 
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.byteSink(pathStr)).compile.drain >>
-      hdp.byteSource(pathStr, 3.bytes).through(fs2.text.utf8.decode).compile.toList
+      hdp.byteSource(pathStr).through(fs2.text.utf8.decode).compile.toList
     assert(action.unsafeRunSync().mkString == testString)
   }
 
@@ -112,5 +113,10 @@ class HadoopTest extends AnyFunSuite {
     val pathStr = NJPath("./data/test/devices")
     val folders = hdp.dataFolders(pathStr).unsafeRunSync()
     assert(folders.headOption.exists(_.toUri.getPath.contains("devices")))
+  }
+
+  test("hadoop input files") {
+    val path = NJPath("data/test/devices")
+    hdp.hadoopInputFiles(path).flatMap(_.traverse(x => IO.println(x.toString))).unsafeRunSync()
   }
 }
