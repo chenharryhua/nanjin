@@ -13,7 +13,7 @@ import scala.concurrent.Await
 
 class TextTest extends AnyFunSuite {
   import TestData.*
-  val expected: List[String] = tiggers.map(_.toString)
+  val expected: List[String] = tigers.map(_.toString)
 
   test("fs2 text identity") {
     val data: Stream[IO, String] = Stream.emits(expected)

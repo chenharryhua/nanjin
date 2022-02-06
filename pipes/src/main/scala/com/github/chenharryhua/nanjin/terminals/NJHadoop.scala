@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.Sync
+import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Pull, Stream}
@@ -9,144 +10,132 @@ import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
+import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile, HiddenFileFilter}
 
-import java.net.URI
+import java.io.{InputStream, OutputStream}
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.*
 
-sealed trait NJHadoop[F[_]] {
-
-  def delete(path: NJPath): F[Boolean]
-  def isExist(path: NJPath): F[Boolean]
-  def locatedFileStatus(path: NJPath): F[List[LocatedFileStatus]]
-  def dataFolders(path: NJPath): F[List[Path]]
-  def hadoopInputFiles(path: NJPath): F[List[HadoopInputFile]]
-
-  def byteSink(path: NJPath): Pipe[F, Byte, Unit]
-  def byteSink(output: HadoopOutputFile): Pipe[F, Byte, Unit]
-
-  def byteSource(path: NJPath): Stream[F, Byte]
-  def byteSource(path: HadoopInputFile): Stream[F, Byte]
-
-  def avroSink(path: NJPath, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
-  def avroSink(path: HadoopOutputFile, schema: Schema, cf: CodecFactory): Pipe[F, GenericRecord, Unit]
-
-  def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord]
-  def avroSource(path: HadoopInputFile, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord]
-
-  def akka: AkkaHadoop
-}
-
 object NJHadoop {
 
-  def apply[F[_]](config: Configuration)(implicit F: Sync[F]): NJHadoop[F] =
-    new NJHadoop[F] with Serializable {
+  def apply[F[_]: Sync](config: Configuration): NJHadoop[F] = new NJHadoop[F](config)
+}
 
-      /** Notes: do not close file-system.
-        */
-      private def fileSystem(uri: URI): Resource[F, FileSystem] =
-        Resource.make(F.blocking(FileSystem.get(uri, config)))(_ => F.pure(()))
+final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) {
 
-      override val akka: AkkaHadoop = AkkaHadoop(config)
+  val akka: AkkaHadoop = AkkaHadoop(config)
 
-      // disk operations
+  // disk operations
 
-      override def delete(path: NJPath): F[Boolean] =
-        fileSystem(path.uri).use(fs => F.blocking(fs.delete(path.hadoopPath, true)))
+  def delete(path: NJPath): F[Boolean] = F.blocking {
+    val fs = path.hadoopPath.getFileSystem(config)
+    fs.delete(path.hadoopPath, true)
+  }
 
-      override def isExist(path: NJPath): F[Boolean] =
-        fileSystem(path.uri).use(fs => F.blocking(fs.exists(path.hadoopPath)))
+  def isExist(path: NJPath): F[Boolean] = F.blocking {
+    val fs = path.hadoopPath.getFileSystem(config)
+    fs.exists(path.hadoopPath)
+  }
 
-      override def locatedFileStatus(path: NJPath): F[List[LocatedFileStatus]] =
-        fileSystem(path.uri).use { fs =>
-          F.blocking {
-            val ri = fs.listFiles(path.hadoopPath, true)
-            val lb = ListBuffer.empty[LocatedFileStatus]
-            while (ri.hasNext) lb.addOne(ri.next())
-            lb.toList
-          }
-        }
+  def locatedFileStatus(path: NJPath): F[List[LocatedFileStatus]] = F.blocking {
+    val fs = path.hadoopPath.getFileSystem(config)
+    val ri = fs.listFiles(path.hadoopPath, true)
+    val lb = ListBuffer.empty[LocatedFileStatus]
+    while (ri.hasNext) lb.addOne(ri.next())
+    lb.toList
+  }
 
-      // folders which contain data files
-      override def dataFolders(path: NJPath): F[List[Path]] =
-        fileSystem(path.uri).use { fs =>
-          F.blocking {
-            val ri = fs.listFiles(path.hadoopPath, true)
-            val lb = collection.mutable.Set.empty[Path]
-            while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
-            lb.toList.sortBy(_.toString)
-          }
-        }
+  // folders which contain data files
+  def dataFolders(path: NJPath): F[List[Path]] = F.blocking {
+    val fs = path.hadoopPath.getFileSystem(config)
+    val ri = fs.listFiles(path.hadoopPath, true)
+    val lb = collection.mutable.Set.empty[Path]
+    while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
+    lb.toList.sortBy(_.toString)
+  }
 
-      def hadoopInputFiles(path: NJPath): F[List[HadoopInputFile]] = F.blocking {
-        val fs: FileSystem   = path.hadoopPath.getFileSystem(config)
-        val stat: FileStatus = fs.getFileStatus(path.hadoopPath)
-        if (stat.isFile)
-          List(HadoopInputFile.fromStatus(stat, config))
-        else
-          fs.listStatus(path.hadoopPath, HiddenFileFilter.INSTANCE)
-            .filter(_.isFile)
-            .sortBy(_.getModificationTime)
-            .map(HadoopInputFile.fromStatus(_, config))
-            .toList
+  def hadoopInputFiles[A: Ordering](path: NJPath, sort: FileStatus => A): F[List[HadoopInputFile]] = F.blocking {
+    val fs: FileSystem   = path.hadoopPath.getFileSystem(config)
+    val stat: FileStatus = fs.getFileStatus(path.hadoopPath)
+    if (stat.isFile)
+      List(HadoopInputFile.fromStatus(stat, config))
+    else
+      fs.listStatus(path.hadoopPath, HiddenFileFilter.INSTANCE)
+        .filter(_.isFile)
+        .sortBy(sort(_))
+        .map(HadoopInputFile.fromStatus(_, config))
+        .toList
+  }
+  def hadoopInputFilesByTime(path: NJPath): F[List[HadoopInputFile]] = hadoopInputFiles(path, _.getModificationTime)
+  def hadoopInputFilesByName(path: NJPath): F[List[HadoopInputFile]] = hadoopInputFiles(path, _.getPath.getName)
+
+  // byte
+
+  def byteSink(path: NJPath): Pipe[F, Byte, Unit] = byteSink(path, None)
+
+  def byteSink(path: NJPath, compress: Option[ConfigurableCodec]): Pipe[F, Byte, Unit] =
+    byteSink(HadoopOutputFile.fromPath(path.hadoopPath, config), compress)
+
+  def byteSink(output: HadoopOutputFile, compress: Option[ConfigurableCodec]): Pipe[F, Byte, Unit] = {
+    def compressOutputStream(stream: OutputStream): OutputStream =
+      compress.fold(stream) { codec =>
+        codec.setConf(config)
+        codec.createOutputStream(stream)
       }
 
-      // pipes and sinks
+    (ss: Stream[F, Byte]) =>
+      Stream
+        .bracket(F.blocking(output.createOrOverwrite(output.defaultBlockSize())))(r => F.blocking(r.close()))
+        .map(compressOutputStream)
+        .flatMap(out => ss.through(writeOutputStream(F.pure(out))))
+  }
 
-      override def byteSink(path: NJPath): Pipe[F, Byte, Unit] =
-        byteSink(HadoopOutputFile.fromPath(path.hadoopPath, config))
+  def byteSource(input: F[HadoopInputFile]): Stream[F, Byte] =
+    for {
+      hif <- Stream.eval(input)
+      is: InputStream <- Stream.bracket(F.blocking(hif.newStream()))(r => F.blocking(r.close()))
+      compressed: F[InputStream] = Option(new CompressionCodecFactory(config).getCodec(hif.getPath)).fold(F.pure(is))(
+        c => F.blocking(c.createInputStream(is)))
+      byte <- readInputStream[F](compressed, chunkSize = 8192, closeAfterUse = true)
+    } yield byte
 
-      override def byteSink(output: HadoopOutputFile): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
-        Stream
-          .bracket(F.blocking(output.createOrOverwrite(output.defaultBlockSize())))(r => F.blocking(r.close()))
-          .flatMap(out => ss.through(writeOutputStream(F.pure(out))))
+  def byteSource(path: NJPath): Stream[F, Byte] =
+    byteSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)))
+
+  // avro
+
+  def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] =
+    avroSink(HadoopOutputFile.fromPath(path.hadoopPath, config), schema, codecFactory)
+
+  def avroSink(output: HadoopOutputFile, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] = {
+    def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
+      grs.pull.uncons.flatMap {
+        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
+        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
       }
 
-      override def byteSource(input: HadoopInputFile): Stream[F, Byte] =
-        Stream
-          .bracket(F.blocking(input.newStream()))(r => F.blocking(r.close()))
-          .flatMap(in => readInputStream[F](F.pure(in), 8192))
+    (ss: Stream[F, GenericRecord]) =>
+      for {
+        dfw <- Stream.bracket[F, DataFileWriter[GenericRecord]](
+          F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
+          F.blocking(r.close()))
+        os <- Stream.bracket(F.blocking(output.createOrOverwrite(output.defaultBlockSize())))(r =>
+          F.blocking(r.close()))
+        writer <- Stream.bracket(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
+        _ <- go(ss, writer).stream
+      } yield ()
+  }
 
-      override def byteSource(path: NJPath): Stream[F, Byte] =
-        byteSource(HadoopInputFile.fromPath(path.hadoopPath, config))
+  def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
+    avroSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), schema, chunkSize)
 
-      override def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] =
-        avroSink(HadoopOutputFile.fromPath(path.hadoopPath, config), schema, codecFactory)
+  def avroSource(input: F[HadoopInputFile], schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
+    for {
+      is <- Stream.bracket(input.map(_.newStream()))(r => F.blocking(r.close()))
+      dfs <- Stream.bracket[F, DataFileStream[GenericRecord]](
+        F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
+      gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
+    } yield gr
 
-      override def avroSink(
-        output: HadoopOutputFile,
-        schema: Schema,
-        codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] = {
-        def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
-          grs.pull.uncons.flatMap {
-            case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
-            case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
-          }
-
-        (ss: Stream[F, GenericRecord]) =>
-          for {
-            dfw <- Stream.bracket[F, DataFileWriter[GenericRecord]](
-              F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
-              F.blocking(r.close()))
-            os <- Stream.bracket(F.blocking(output.createOrOverwrite(output.defaultBlockSize())))(r =>
-              F.blocking(r.close()))
-            writer <- Stream.bracket(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
-            _ <- go(ss, writer).stream
-          } yield ()
-
-      }
-
-      override def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
-        avroSource(HadoopInputFile.fromPath(path.hadoopPath, config), schema, chunkSize)
-
-      override def avroSource(input: HadoopInputFile, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
-        for {
-          is <- Stream.bracket(F.blocking(input.newStream()))(r => F.blocking(r.close()))
-          dfs <- Stream.bracket[F, DataFileStream[GenericRecord]](
-            F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
-          gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
-        } yield gr
-
-    }
 }

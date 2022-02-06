@@ -1,15 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import akka.stream.IOResult
-import akka.stream.scaladsl.Source
-import cats.effect.kernel.{Async, Sync}
 import cats.syntax.functor.*
-import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, JacksonSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.terminals.{AkkaHadoop, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
-import fs2.Stream
 import io.circe.Decoder as JsonDecoder
 import io.circe.parser.decode
 import kantan.csv.CsvConfiguration
@@ -18,7 +12,6 @@ import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
@@ -26,7 +19,6 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.io.DataInputStream
-import scala.concurrent.Future
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -134,48 +126,5 @@ object loaders {
         }
       }
     }
-  }
-
-  object stream {
-
-    def jackson[F[_]: Async, A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Stream[F, A] = {
-      val hdp: NJHadoop[F] = NJHadoop[F](cfg)
-      val fsa: F[Stream[F, A]] = hdp
-        .hadoopInputFiles(path)
-        .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
-          ss ++ hdp.byteSource(NJPath(lfs.getPath)).through(JacksonSerde.deserPipe(decoder.schema)).map(decoder.decode)
-        })
-      Stream.force(fsa)
-    }
-
-    def avro[F[_]: Sync, A](
-      path: NJPath,
-      decoder: AvroDecoder[A],
-      cfg: Configuration,
-      chunkSize: ChunkSize): Stream[F, A] = {
-      val hdp: NJHadoop[F] = NJHadoop[F](cfg)
-      val fsa: F[Stream[F, A]] = hdp
-        .hadoopInputFiles(path)
-        .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
-          ss ++ hdp.avroSource(NJPath(lfs.getPath), decoder.schema, chunkSize).map(decoder.decode)
-        })
-      Stream.force(fsa)
-    }
-
-    def circe[F[_]: Sync, A: JsonDecoder](path: NJPath, cfg: Configuration): Stream[F, A] = {
-      val hdp: NJHadoop[F] = NJHadoop[F](cfg)
-      val fsa: F[Stream[F, A]] = hdp
-        .hadoopInputFiles(path)
-        .map(_.foldLeft(Stream.empty.covaryAll[F, A]) { case (ss, lfs) =>
-          ss ++ hdp.byteSource(NJPath(lfs.getPath)).through(CirceSerde.deserPipe[F, A])
-        })
-      Stream.force(fsa)
-    }
-  }
-
-  object source {
-    def avro[A](path: NJPath, decoder: AvroDecoder[A], cfg: Configuration): Source[A, Future[IOResult]] =
-      AkkaHadoop(cfg).avroSource(path, decoder.schema).map(decoder.decode)
-
   }
 }

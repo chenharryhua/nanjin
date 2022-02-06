@@ -13,7 +13,7 @@ import squants.information.InformationConversions.*
 
 class CsvPipeTest extends AnyFunSuite {
   import TestData.*
-  val data: Stream[IO, Tiger] = Stream.emits(tiggers)
+  val data: Stream[IO, Tiger] = Stream.emits(tigers)
   test("csv identity") {
 
     assert(
@@ -22,7 +22,7 @@ class CsvPipeTest extends AnyFunSuite {
         .through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 5))
         .compile
         .toList
-        .unsafeRunSync() === tiggers)
+        .unsafeRunSync() === tigers)
   }
 
   test("write/read identity csv") {
@@ -31,6 +31,6 @@ class CsvPipeTest extends AnyFunSuite {
     val write = data.through(CsvSerde.serPipe[IO, Tiger](CsvConfiguration.rfc, 2.kb)).through(hd.byteSink(path))
     val read  = hd.byteSource(path).through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 1))
     val run   = hd.delete(path) >> write.compile.drain >> read.compile.toList
-    assert(run.unsafeRunSync() === tiggers)
+    assert(run.unsafeRunSync() === tigers)
   }
 }

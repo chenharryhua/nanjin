@@ -9,7 +9,7 @@ import eu.timepit.refined.auto.*
 class JavaObjectPipeTest extends AnyFunSuite {
   import TestData.*
   test("java object identity") {
-    val data: Stream[IO, Tiger] = Stream.emits(tiggers)
+    val data: Stream[IO, Tiger] = Stream.emits(tigers)
 
     assert(
       data
@@ -17,6 +17,6 @@ class JavaObjectPipeTest extends AnyFunSuite {
         .through(JavaObjectSerde.deserPipe)
         .compile
         .toList
-        .unsafeRunSync() === tiggers)
+        .unsafeRunSync() === tigers)
   }
 }

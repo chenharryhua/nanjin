@@ -16,7 +16,7 @@ object TestData {
     val avroDecoder: Decoder[Tiger]    = Decoder[Tiger]
   }
 
-  val tiggers: List[Tiger] =
+  val tigers: List[Tiger] =
     (1 to 10).map(x => Tiger(Random.nextInt(), if (Random.nextBoolean()) Some("ChengDu Zoo") else None)).toList
 
 }
