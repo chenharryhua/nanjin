@@ -1,22 +1,14 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.kernel.{Async, Sync}
-import cats.syntax.functor.*
-import com.github.chenharryhua.nanjin.common.ChunkSize
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.loaders
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJParquet, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Decoder
 import frameless.TypedEncoder
-import fs2.Stream
 import io.circe.Decoder as JsonDecoder
-import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.hadoop.conf.Configuration
-import org.apache.parquet.avro.AvroParquetReader
-import org.apache.parquet.hadoop.ParquetReader
-import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.spark.sql.SparkSession
 
 final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], cfg: SKConfig, ss: SparkSession)
@@ -112,32 +104,5 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
         val rdd = loaders.rdd.objectFile[NJConsumerRecord[K, V]](path, ss)
         new CrRdd[F, K, V](rdd, ack, acv, cfg, ss)
       }
-  }
-
-  object stream {
-    private val hadoopConfiguration: Configuration = ss.sparkContext.hadoopConfiguration
-
-    def circe(
-      path: NJPath)(implicit F: Sync[F], jdk: JsonDecoder[K], jdv: JsonDecoder[V]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.circe[F, NJConsumerRecord[K, V]](path, hadoopConfiguration)
-
-    def jackson(path: NJPath)(implicit F: Async[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.jackson[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration)
-
-    def avro(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-      loaders.stream.avro[F, NJConsumerRecord[K, V]](path, decoder, hadoopConfiguration, chunkSize)
-
-    def parquet(path: NJPath)(implicit F: Sync[F]): Stream[F, NJConsumerRecord[K, V]] =
-      Stream.force(
-        NJHadoop[F](hadoopConfiguration)
-          .hadoopInputFiles(path)
-          .map(_.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (stm, lfs) =>
-            val reader: ParquetReader[GenericRecord] =
-              AvroParquetReader
-                .builder[GenericRecord](HadoopInputFile.fromPath(lfs.getPath, hadoopConfiguration))
-                .withDataModel(GenericData.get())
-                .build()
-            stm ++ NJParquet.fs2Source[F](reader)
-          }.map(decoder.decode)))
   }
 }

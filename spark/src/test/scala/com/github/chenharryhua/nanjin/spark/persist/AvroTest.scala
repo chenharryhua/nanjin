@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.spark.*
 import mtest.spark.*
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
@@ -11,7 +12,7 @@ import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
-  val hadoop: NJHadoop[IO] = NJHadoop[IO](sparkSession.sparkContext.hadoopConfiguration)
+  val hadoop: NJHadoop[IO] = sparkSession.hadoop[IO]
 
   def singleAvro(path: NJPath): Set[Rooster] =
     hadoop
@@ -35,13 +36,6 @@ class AvroTest extends AnyFunSuite {
     val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
-    val s = loaders.stream
-      .avro[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 100)
-      .compile
-      .toList
-      .unsafeRunSync()
-      .toSet
-    assert(RoosterData.expected == s)
   }
 
   test("datetime read/write identity - multi.snappy") {
@@ -89,14 +83,6 @@ class AvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t)
     assert(RoosterData.expected == singleAvro(path))
 
-    val t3 = loaders.stream
-      .avro[IO, Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession.sparkContext.hadoopConfiguration, 100)
-      .compile
-      .toList
-      .unsafeRunSync()
-      .toSet
-
-    assert(RoosterData.expected == t3)
   }
 
   test("datetime read/write identity - single.snappy") {

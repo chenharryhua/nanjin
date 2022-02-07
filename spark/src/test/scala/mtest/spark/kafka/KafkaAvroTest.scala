@@ -96,18 +96,6 @@ class KafkaAvroTest extends AnyFunSuite {
       sk.load.rdd.avro(avroPath).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
-    val avro =
-      sk.load.stream.avro(avroPath, 100).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
-    assert(avro == Set(en1, en2))
-
-    val jackson =
-      sk.load.stream.jackson(jacksonPath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
-    assert(jackson == Set(en1, en2))
-
-    val circe =
-      sk.load.stream.circe(circePath).mapFilter(_.value).compile.toList.unsafeRunSync().toSet
-    assert(circe == Set(en1, en2))
-
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {

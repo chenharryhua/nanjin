@@ -96,12 +96,12 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
       hif <- Stream.eval(input)
       is: InputStream <- Stream.bracket(F.blocking(hif.newStream()))(r => F.blocking(r.close()))
       compressed: F[InputStream] = Option(new CompressionCodecFactory(config).getCodec(hif.getPath)).fold(F.pure(is))(
-        c => F.blocking(c.createInputStream(is)))
+        factory => F.blocking(factory.createInputStream(is)))
       byte <- readInputStream[F](compressed, chunkSize = 8192, closeAfterUse = true)
     } yield byte
 
-  def byteSource(path: NJPath): Stream[F, Byte] =
-    byteSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)))
+  def byteSource(input: HadoopInputFile): Stream[F, Byte] = byteSource(F.pure(input))
+  def byteSource(path: NJPath): Stream[F, Byte] = byteSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)))
 
   // avro
 
@@ -129,6 +129,9 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
 
   def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
     avroSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), schema, chunkSize)
+
+  def avroSource(input: HadoopInputFile, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
+    avroSource(F.pure(input), schema, chunkSize)
 
   def avroSource(input: F[HadoopInputFile], schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
     for {

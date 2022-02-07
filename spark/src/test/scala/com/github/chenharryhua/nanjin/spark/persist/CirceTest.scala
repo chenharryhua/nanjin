@@ -45,13 +45,6 @@ class CirceTest extends AnyFunSuite {
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == t2.collect().toSet)
-    val t3 = loaders.stream
-      .circe[IO, Rooster](path, sparkSession.sparkContext.hadoopConfiguration)
-      .compile
-      .toList
-      .unsafeRunSync()
-      .toSet
-    assert(RoosterData.expected == t3)
   }
 
   test("circe rooster rdd read/write identity single.gzip") {
@@ -86,13 +79,6 @@ class CirceTest extends AnyFunSuite {
     bee(path).circe.dropNull.folder.run.unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path, sparkSession)
     assert(t.collect().map(_.toWasp).toSet === BeeData.bees.map(_.toWasp).toSet)
-    val s = loaders.stream
-      .circe[IO, Bee](path, sparkSession.sparkContext.hadoopConfiguration)
-      .compile
-      .toList
-      .unsafeRunSync()
-      .toSet
-    assert(BeeData.bees.map(_.toWasp).toSet == s.map(_.toWasp))
   }
 
   test("circe bee byte-array rdd read/write identity single gz") {
