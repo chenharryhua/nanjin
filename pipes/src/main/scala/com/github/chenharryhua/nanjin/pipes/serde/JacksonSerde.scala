@@ -40,7 +40,7 @@ object JacksonSerde {
 
   def serPipe[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
-    val splitter    = "\n".getBytes()
+    val splitter    = SEPERATOR.getBytes()
     (sfgr: Stream[F, GenericRecord]) =>
       sfgr.chunks.map { grs =>
         val baos: ByteArrayOutputStream = new ByteArrayOutputStream()

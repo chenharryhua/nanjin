@@ -14,7 +14,7 @@ import squants.information.InformationConversions.*
 class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
-  val data: Stream[IO, Tiger]  = Stream.emits(tiggers)
+  val data: Stream[IO, Tiger]  = Stream.emits(tigers)
 
   test("binary-json identity") {
 
@@ -26,7 +26,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
         .map(Tiger.avroDecoder.decode)
         .compile
         .toList
-        .unsafeRunSync() === tiggers)
+        .unsafeRunSync() === tigers)
   }
 
   test("write/read identity") {
@@ -34,11 +34,9 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     val path = NJPath("data/pipe/bin-avro.avro")
     val write =
       data.map(encoder.to).through(BinaryAvroSerde.serPipe[IO](AvroSchema[Tiger])).through(hd.byteSink(path))
-    val read = hd
-      .byteSource(path, 100.kb)
-      .through(BinaryAvroSerde.deserPipe[IO](AvroSchema[Tiger]))
-      .map(Tiger.avroDecoder.decode)
-    val run = write.compile.drain >> read.compile.toList
-    assert(run.unsafeRunSync() === tiggers)
+    val read =
+      hd.byteSource(path).through(BinaryAvroSerde.deserPipe[IO](AvroSchema[Tiger])).map(Tiger.avroDecoder.decode)
+    val run = hd.delete(path) >> write.compile.drain >> read.compile.toList
+    assert(run.unsafeRunSync() === tigers)
   }
 }

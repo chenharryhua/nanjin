@@ -40,7 +40,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] = {
     val zoneId = ZoneId.of(sparkSession.conf.get("spark.sql.session.timeZone"))
-    new SparKafkaTopic[F, K, V](topicDef.in[F](kafkaContext), SKConfig(topicDef.topicName, zoneId), sparkSession)
+    new SparKafkaTopic[F, K, V](sparkSession, topicDef.in[F](kafkaContext), SKConfig(topicDef.topicName, zoneId))
   }
 
   def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =

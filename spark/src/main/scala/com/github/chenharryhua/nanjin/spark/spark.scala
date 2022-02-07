@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.database.{DbUploader, SparkDBTable}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.*
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
@@ -79,6 +79,8 @@ package object spark {
 
     def topic[F[_], K, V](topic: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
       new SparKafkaContext[F](ss, topic.context).topic(topic)
+
+    def hadoop[F[_]: Sync]: NJHadoop[F] = NJHadoop[F](ss.sparkContext.hadoopConfiguration)
 
   }
 }

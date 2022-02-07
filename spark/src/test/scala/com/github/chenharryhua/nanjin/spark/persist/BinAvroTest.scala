@@ -2,12 +2,14 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddAvroFileHoarder}
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerde
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
@@ -18,22 +20,28 @@ class BinAvroTest extends AnyFunSuite {
       Rooster.avroCodec.avroEncoder,
       HoarderConfig(path))
 
-  test("binary avro - multi file") {
+  val hdp = sparkSession.hadoop[IO]
+
+  test("binary avro - uncompressed") {
     val path = NJPath("./data/test/spark/persist/bin_avro/multi.bin.avro")
     saver(path).binAvro.folder.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == t)
-  }
-
-  test("binary avro - single file") {
-    val path = NJPath("./data/test/spark/persist/bin_avro/single.bin.avro")
-
-    saver(path).binAvro.file.sink.compile.drain.unsafeRunSync()
-    val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
-    val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
-    assert(RoosterData.expected == r)
-    assert(RoosterData.expected == t)
+    val r2 = fs2.Stream
+      .force(
+        hdp
+          .hadoopInputFilesByName(path)
+          .map(is =>
+            hdp
+              .byteSource(is, None)
+              .through(BinaryAvroSerde.deserPipe(Rooster.schema))
+              .map(Rooster.avroCodec.fromRecord)))
+      .compile
+      .toList
+      .unsafeRunSync()
+      .toSet
+    assert(RoosterData.expected == r2)
   }
 }

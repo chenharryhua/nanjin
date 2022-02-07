@@ -9,14 +9,16 @@ import fs2.{Pipe, Stream}
 object TextSerde {
 
   def serPipe[F[_]]: Pipe[F, String, Byte] =
-    (ss: Stream[F, String]) => ss.intersperse("\n").through(utf8.encode)
+    (ss: Stream[F, String]) => ss.intersperse(SEPERATOR).through(utf8.encode)
 
   def deserPipe[F[_]]: Pipe[F, Byte, String] =
     (ss: Stream[F, Byte]) => ss.through(utf8.decode).through(lines)
 
   def serFlow: Flow[String, ByteString, NotUsed] =
-    Flow[String].map(ByteString.fromString).intersperse(ByteString("\r\n"))
+    Flow[String].map(ByteString.fromString).intersperse(ByteString(SEPERATOR))
 
   def deserFlow: Flow[ByteString, String, NotUsed] =
-    Flow[ByteString].via(Framing.delimiter(ByteString("\r\n"), Int.MaxValue, allowTruncation = true)).map(_.utf8String)
+    Flow[ByteString]
+      .via(Framing.delimiter(ByteString(SEPERATOR), Int.MaxValue, allowTruncation = true))
+      .map(_.utf8String)
 }
