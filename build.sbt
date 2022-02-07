@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.8"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.13.12-SNAPSHOT"
+ThisBuild / version            := "0.13.13-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val algebra      = "2.7.0"
