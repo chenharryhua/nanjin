@@ -24,7 +24,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("binary avro - uncompressed") {
     val path = NJPath("./data/test/spark/persist/bin_avro/multi.bin.avro")
-    saver(path).binAvro.folder.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    saver(path).binAvro.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val r = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
@@ -32,7 +32,7 @@ class BinAvroTest extends AnyFunSuite {
     val r2 = fs2.Stream
       .force(
         hdp
-          .hadoopInputFilesByName(path)
+          .inputFilesByName(path)
           .map(is =>
             hdp
               .byteSource(is, None)

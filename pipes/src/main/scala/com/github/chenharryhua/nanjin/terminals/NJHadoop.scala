@@ -55,7 +55,7 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
     lb.toList.sortBy(_.toString)
   }
 
-  def hadoopInputFiles[A: Ordering](path: NJPath, sort: FileStatus => A): F[List[HadoopInputFile]] = F.blocking {
+  def inputFiles[A: Ordering](path: NJPath, sort: FileStatus => A): F[List[HadoopInputFile]] = F.blocking {
     val fs: FileSystem   = path.hadoopPath.getFileSystem(config)
     val stat: FileStatus = fs.getFileStatus(path.hadoopPath)
     if (stat.isFile)
@@ -67,8 +67,8 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
         .map(HadoopInputFile.fromStatus(_, config))
         .toList
   }
-  def hadoopInputFilesByTime(path: NJPath): F[List[HadoopInputFile]] = hadoopInputFiles(path, _.getModificationTime)
-  def hadoopInputFilesByName(path: NJPath): F[List[HadoopInputFile]] = hadoopInputFiles(path, _.getPath.getName)
+  def inputFilesByTime(path: NJPath): F[List[HadoopInputFile]] = inputFiles(path, _.getModificationTime)
+  def inputFilesByName(path: NJPath): F[List[HadoopInputFile]] = inputFiles(path, _.getPath.getName)
 
   // byte sink
 
@@ -126,7 +126,7 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
   def byteSource(path: NJPath, codec: ConfigurableCodec): Stream[F, Byte] =
     byteSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), Some(codec))
 
-  // avro
+  // avro sink
   def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] =
     avroSink(HadoopOutputFile.fromPath(path.hadoopPath, config), schema, codecFactory)
 
@@ -149,11 +149,17 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
       } yield ()
   }
 
+  // avro source
   def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
     avroSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), schema, chunkSize)
 
   def avroSource(input: HadoopInputFile, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
     avroSource(F.pure(input), schema, chunkSize)
+
+  def avroSource(inputs: List[HadoopInputFile], schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
+    inputs.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (ss, hif) =>
+      ss ++ avroSource(F.pure(hif), schema, chunkSize)
+    }
 
   def avroSource(input: F[HadoopInputFile], schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
     for {

@@ -20,6 +20,7 @@ import frameless.TypedEncoder
 import fs2.kafka.ProducerResult
 import fs2.{Pipe, RaiseThrowable, Stream}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
+import org.apache.avro.generic.GenericRecord
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.streaming.StreamingContext
@@ -52,7 +53,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     }
 
     object jackson {
-      def toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
+      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
         _.mapChunks(_.map(crCodec.toRecord)).through(JacksonSerde.serPipe[F](crCodec.schema))
 
       def fromBytes(implicit F: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
@@ -60,16 +61,21 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     }
 
     object binAvro {
-      def toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
+      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
         _.mapChunks(_.map(crCodec.toRecord)).through(BinaryAvroSerde.serPipe[F](crCodec.schema))
       def fromBytes(implicit F: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
         BinaryAvroSerde.deserPipe[F](crCodec.schema).andThen(_.mapChunks(_.map(crCodec.fromRecord)))
     }
 
     object javaObj {
-      def toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] = JavaObjectSerde.serPipe[F, NJConsumerRecord[K, V]]
+      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] = JavaObjectSerde.serPipe[F, NJConsumerRecord[K, V]]
       def fromBytes(implicit ce: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
         JavaObjectSerde.deserPipe[F, NJConsumerRecord[K, V]]
+    }
+
+    object genericRecord {
+      val toRecord: Pipe[F, NJConsumerRecord[K, V], GenericRecord]   = _.mapChunks(_.map(crCodec.toRecord))
+      val fromRecord: Pipe[F, GenericRecord, NJConsumerRecord[K, V]] = _.mapChunks(_.map(crCodec.fromRecord))
     }
   }
 

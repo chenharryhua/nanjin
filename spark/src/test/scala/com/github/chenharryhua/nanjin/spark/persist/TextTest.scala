@@ -14,41 +14,30 @@ class TextTest extends AnyFunSuite {
   test("tablet") {
     val path  = NJPath("./data/test/spark/persist/text/tablet/show-case-class")
     val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.folder.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    saver.text.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
   }
   test("tablet - with new suffix") {
     val path  = NJPath("./data/test/spark/persist/text/tablet/new-suffix")
     val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.withSuffix(".text").folder.uncompress.run.unsafeRunSync()
-  }
-  test("tablet - single gzip") {
-    val path  = NJPath("./data/test/spark/persist/text/tablet/tablet.txt.gz")
-    val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.file.gzip.sink.compile.drain.unsafeRunSync()
-  }
-
-  test("tablet - single deflate") {
-    val path  = NJPath("./data/test/spark/persist/text/tablet/tablet.txt.deflate")
-    val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.file.deflate(1).sink.compile.drain.unsafeRunSync()
+    saver.text.withSuffix(".text").uncompress.run.unsafeRunSync()
   }
 
   test("tablet - deflate, compress-1") {
     val path  = NJPath("./data/test/spark/persist/text/tablet/deflate")
     val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.folder.deflate(5).run.unsafeRunSync()
+    saver.text.deflate(5).run.unsafeRunSync()
   }
 
   test("tablet - gzip, compress-2") {
     val path  = NJPath("./data/test/spark/persist/text/tablet/gzip")
     val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.folder.gzip.run.unsafeRunSync()
+    saver.text.gzip.run.unsafeRunSync()
   }
 
   test("tablet - bzip2, compress-3") {
     val path  = NJPath("./data/test/spark/persist/text/tablet/bzip2")
     val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.folder.bzip2.run.unsafeRunSync()
+    saver.text.bzip2.run.unsafeRunSync()
   }
 
   test("tablet - append") {
@@ -57,7 +46,7 @@ class TextTest extends AnyFunSuite {
       try sparkSession.read.text(path.pathStr).count()
       catch { case _: Throwable => 0 }
     val saver = new RddFileHoarder[IO, Tablet](rdd, HoarderConfig(path))
-    saver.text.folder.append.run.unsafeRunSync()
+    saver.text.append.run.unsafeRunSync()
     val t2 = sparkSession.read.text(path.pathStr).count()
 
     assert((t1 + rdd.count()) == t2)
