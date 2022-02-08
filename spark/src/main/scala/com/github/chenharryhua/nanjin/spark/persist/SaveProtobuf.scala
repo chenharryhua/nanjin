@@ -18,5 +18,5 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Seria
 
   def run(implicit F: Sync[F], enc: A <:< GeneratedMessage): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptibleMany(saveRDD.protobuf(rdd, params.outPath)))
+      .checkAndRun(F.interruptibleMany(saveRDD.protobuf(rdd, params.outPath, params.compression)))
 }

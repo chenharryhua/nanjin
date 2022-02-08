@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
@@ -20,9 +19,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
-import java.io.{DataInputStream, InputStream}
+import java.io.InputStream
 import scala.reflect.ClassTag
-import scala.util.Try
 
 object loaders {
 
@@ -77,13 +75,19 @@ object loaders {
       decoder: GeneratedMessageCompanion[A]): RDD[A] =
       ss.sparkContext
         .binaryFiles(path.pathStr)
-        .mapPartitions(_.flatMap { case (_, pds) =>
-          val dis: DataInputStream = pds.open()
-          val itor: Iterator[A]    = decoder.streamFromDelimitedInput(dis).iterator
+        .mapPartitions(_.flatMap { case (sp, pds) =>
+          val factory: CompressionCodecFactory = new CompressionCodecFactory(pds.getConfiguration)
+          val codec: Option[CompressionCodec]  = Option(factory.getCodec(new Path(sp)))
+          val is: InputStream                  = pds.open()
+          val decompressed: InputStream        = codec.fold(is)(_.createInputStream(is))
+          val itor: Iterator[A]                = decoder.streamFromDelimitedInput(decompressed).iterator
           new Iterator[A] {
             override def hasNext: Boolean =
-              if (itor.hasNext) true else { Try(dis.close()); false }
-
+              if (itor.hasNext) true
+              else {
+                decompressed.close()
+                false
+              }
             override def next(): A = itor.next()
           }
         })

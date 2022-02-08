@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
-import org.apache.hadoop.io.compress.GzipCodec
+import org.apache.hadoop.io.compress.{BZip2Codec, GzipCodec}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
@@ -76,13 +76,42 @@ class BinAvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
-  test("reverse read/write") {
+  test("reverse read/write gzip") {
     val path = NJPath("./data/test/spark/persist/bin_avro/reverse.bin.avro.gz")
     RoosterData.rdd
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
       .through(hdp.byteSink(path, new GzipCodec))
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    assert(RoosterData.expected == t1)
+  }
+  test("reverse read/write bzip2") {
+    val path = NJPath("./data/test/spark/persist/bin_avro/reverse.bin.avro.bz2")
+    RoosterData.rdd
+      .stream[IO](100)
+      .map(Rooster.avroCodec.toRecord)
+      .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
+      .through(hdp.byteSink(path, new BZip2Codec()))
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    assert(RoosterData.expected == t1)
+  }
+
+  test("reverse read/write uncompress") {
+    val path = NJPath("./data/test/spark/persist/bin_avro/reverse.uncompress.bin.avro")
+    RoosterData.rdd
+      .stream[IO](100)
+      .map(Rooster.avroCodec.toRecord)
+      .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
+      .through(hdp.byteSink(path))
       .compile
       .drain
       .unsafeRunSync()

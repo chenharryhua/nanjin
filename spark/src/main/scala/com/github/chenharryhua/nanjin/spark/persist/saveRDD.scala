@@ -18,7 +18,7 @@ import scalapb.GeneratedMessage
 
 import java.io.ByteArrayOutputStream
 
-private[spark] object saveRDD {
+object saveRDD {
 
   def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
@@ -82,7 +82,7 @@ private[spark] object saveRDD {
         job.getConfiguration)
   }
 
-  def protobuf[A](rdd: RDD[A], path: NJPath)(implicit enc: A <:< GeneratedMessage): Unit = {
+  def protobuf[A](rdd: RDD[A], path: NJPath, compression: NJCompression)(implicit enc: A <:< GeneratedMessage): Unit = {
     def bytesWritable(a: A): BytesWritable = {
       val os: ByteArrayOutputStream = new ByteArrayOutputStream()
       enc(a).writeDelimitedTo(os)
@@ -91,6 +91,7 @@ private[spark] object saveRDD {
     }
 
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     config.set(NJBinaryOutputFormat.suffix, NJFileFormat.ProtoBuf.suffix)
     rdd
       .map(x => (NullWritable.get(), bytesWritable(x)))

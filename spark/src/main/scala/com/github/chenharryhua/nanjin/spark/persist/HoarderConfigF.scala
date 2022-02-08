@@ -1,32 +1,23 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.common.{ChunkSize, NJFileFormat}
+import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.macros.Lenses
 import org.apache.spark.sql.SaveMode
-import squants.information.{Information, Megabytes}
 
 @Lenses final private[persist] case class HoarderParams(
   format: NJFileFormat,
   outPath: NJPath,
   saveMode: SaveMode,
-  compression: NJCompression,
-  chunkSize: ChunkSize,
-  byteBuffer: Information)
+  compression: NJCompression)
 
 private[persist] object HoarderParams {
 
   def apply(outPath: NJPath): HoarderParams =
-    HoarderParams(
-      NJFileFormat.Unknown,
-      outPath,
-      SaveMode.Overwrite,
-      NJCompression.Uncompressed,
-      ChunkSize(1000),
-      Megabytes(1))
+    HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, NJCompression.Uncompressed)
 }
 
 sealed private[persist] trait HoarderConfigF[X]
@@ -40,9 +31,6 @@ private object HoarderConfigF {
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: NJCompression, cont: K) extends HoarderConfigF[K]
 
-  final case class WithChunkSize[K](value: ChunkSize, cont: K) extends HoarderConfigF[K]
-  final case class WithByteBuffer[K](value: Information, cont: K) extends HoarderConfigF[K]
-
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
       case InitParams(v)         => HoarderParams(v)
@@ -50,8 +38,6 @@ private object HoarderConfigF {
       case WithOutputPath(v, c)  => HoarderParams.outPath.set(v)(c)
       case WithFileFormat(v, c)  => HoarderParams.format.set(v)(c)
       case WithCompression(v, c) => HoarderParams.compression.set(v)(c)
-      case WithChunkSize(v, c)   => HoarderParams.chunkSize.set(v)(c)
-      case WithByteBuffer(v, c)  => HoarderParams.byteBuffer.set(v)(c)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
@@ -78,8 +64,6 @@ final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def outputCompression(compression: NJCompression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
 
-  def chunkSize(cs: ChunkSize): HoarderConfig    = HoarderConfig(Fix(WithChunkSize(cs, value)))
-  def byteBuffer(bb: Information): HoarderConfig = HoarderConfig(Fix(WithByteBuffer(bb, value)))
 }
 
 private[spark] object HoarderConfig {
