@@ -12,13 +12,15 @@ import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.NullWritable
+import org.apache.hadoop.io.compress.{CompressionCodec, CompressionCodecFactory}
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
-import java.io.DataInputStream
+import java.io.{DataInputStream, InputStream}
 import scala.reflect.ClassTag
 import scala.util.Try
 
@@ -104,14 +106,19 @@ object loaders {
     def binAvro[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] =
       ss.sparkContext
         .binaryFiles(path.pathStr)
-        .mapPartitions(_.flatMap { case (_, pds) => // resource leak ???
-          val dis: DataInputStream = pds.open()
-          val itor: Iterator[A] =
-            AvroInputStream.binary[A](decoder).from(dis).build(decoder.schema).iterator
+        .mapPartitions(_.flatMap { case (sp, pds) => // resource leak ???
+          val factory: CompressionCodecFactory = new CompressionCodecFactory(pds.getConfiguration)
+          val codec: Option[CompressionCodec]  = Option(factory.getCodec(new Path(sp)))
+          val is: InputStream                  = pds.open()
+          val compressed: InputStream          = codec.fold(is)(_.createInputStream(is))
+          val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(compressed).build(decoder.schema).iterator
           new Iterator[A] {
             override def hasNext: Boolean =
-              if (itor.hasNext) true else { Try(dis.close()); false }
-
+              if (itor.hasNext) true
+              else {
+                compressed.close()
+                false
+              }
             override def next(): A = itor.next()
           }
         })

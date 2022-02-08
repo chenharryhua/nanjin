@@ -35,7 +35,7 @@ private[spark] object saveRDD {
         job.getConfiguration)
   }
 
-  def binAvro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A]): Unit = {
+  def binAvro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     def bytesWritable(a: A): BytesWritable = {
       val os  = new ByteArrayOutputStream()
       val aos = AvroOutputStream.binary(encoder).to(os).build()
@@ -45,6 +45,7 @@ private[spark] object saveRDD {
       new BytesWritable(os.toByteArray)
     }
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     config.set(NJBinaryOutputFormat.suffix, NJFileFormat.BinaryAvro.suffix)
     rdd
       .map(x => (NullWritable.get(), bytesWritable(x)))

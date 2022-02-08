@@ -2,11 +2,14 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
+import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.hadoop.mapred.InvalidJobConfException
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat.{getCompressOutput, getOutputCompressorClass}
 import org.apache.hadoop.mapreduce.security.TokenCache
 import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext}
+import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.DataOutputStream
 
@@ -20,12 +23,24 @@ final class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWri
   }
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[NullWritable, BytesWritable] = {
-    val conf: Configuration         = job.getConfiguration
-    val suffix: String              = s"-${utils.uuidStr(job)}${conf.get(NJBinaryOutputFormat.suffix, "")}"
-    val file: Path                  = getDefaultWorkFile(job, suffix)
-    val fs: FileSystem              = file.getFileSystem(conf)
-    val fileOut: FSDataOutputStream = fs.create(file, false)
-    new NJBinaryRecordWriter(fileOut)
+    val conf: Configuration   = job.getConfiguration
+    val suffix: String        = s"-${utils.uuidStr(job)}${conf.get(NJBinaryOutputFormat.suffix, "")}"
+    val isCompressed: Boolean = getCompressOutput(job)
+    if (isCompressed) {
+      val codecClass: Class[? <: CompressionCodec] =
+        getOutputCompressorClass(job, classOf[GzipCodec])
+      val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
+      val file: Path                  = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
+      val fs: FileSystem              = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream = fs.create(file, false)
+      val out: DataOutputStream       = new DataOutputStream(codec.createOutputStream(fileOut))
+      new NJBinaryRecordWriter(out)
+    } else {
+      val file: Path                  = getDefaultWorkFile(job, suffix)
+      val fs: FileSystem              = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream = fs.create(file, false)
+      new NJBinaryRecordWriter(fileOut)
+    }
   }
 }
 

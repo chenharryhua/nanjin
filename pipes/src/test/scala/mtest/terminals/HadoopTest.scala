@@ -3,8 +3,9 @@ package mtest.terminals
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import cats.effect.IO
-import cats.syntax.all.*
 import cats.effect.unsafe.implicits.global
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -12,6 +13,7 @@ import org.apache.avro.Schema
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.compress.DeflateCodec
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.InformationConversions.*
 
@@ -96,6 +98,27 @@ class HadoopTest extends AnyFunSuite {
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avroSink(pathStr, pandaSchema, CodecFactory.nullCodec)).compile.drain >>
       hdp.avroSource(pathStr, pandaSchema, 100).compile.toList
+    assert(action.unsafeRunSync() == pandas)
+  }
+
+  test("deflate binary avro write/read") {
+    val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate")
+    val ts      = Stream.emits(pandas).covary[IO]
+    val action = hdp.delete(pathStr) >>
+      ts.through(BinaryAvroSerde.serPipe(pandaSchema))
+        .through(hdp.byteSink(pathStr, new DeflateCodec()))
+        .compile
+        .drain >>
+      hdp.byteSource(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+    assert(action.unsafeRunSync() == pandas)
+  }
+
+  test("uncompressed binary avro write/read") {
+    val pathStr = NJPath("./data/test/devices/panda.uncompressed.binary.avro")
+    val ts      = Stream.emits(pandas).covary[IO]
+    val action = hdp.delete(pathStr) >>
+      ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(hdp.byteSink(pathStr)).compile.drain >>
+      hdp.byteSource(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
