@@ -10,7 +10,7 @@ import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
-import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.apache.hadoop.io.compress.{CompressionCodec, CompressionCodecFactory}
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile, HiddenFileFilter}
 
 import java.io.{InputStream, OutputStream}
@@ -72,11 +72,10 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
 
   // byte sink
 
-  def byteSink(output: HadoopOutputFile, compress: Option[ConfigurableCodec]): Pipe[F, Byte, Unit] = {
-    def compressOutputStream(stream: OutputStream): OutputStream =
-      compress.fold(stream) { codec =>
-        codec.setConf(config)
-        codec.createOutputStream(stream)
+  def byteSink(output: HadoopOutputFile, compress: Option[CompressionCodec]): Pipe[F, Byte, Unit] = {
+    def compressOutputStream(os: OutputStream): OutputStream =
+      compress.fold(os) { codec =>
+        new CompressionCodecFactory(config).getCodecByClassName(codec.getClass.getName).createOutputStream(os)
       }
 
     (ss: Stream[F, Byte]) =>
@@ -86,47 +85,43 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
         .flatMap(out => ss.through(writeOutputStream(F.pure(out))))
   }
 
-  def byteSink(path: NJPath): Pipe[F, Byte, Unit] =
-    byteSink(HadoopOutputFile.fromPath(path.hadoopPath, config), None)
-
-  def byteSink(path: NJPath, compress: ConfigurableCodec): Pipe[F, Byte, Unit] =
-    byteSink(HadoopOutputFile.fromPath(path.hadoopPath, config), Some(compress))
+  def byteSink(path: NJPath, compress: Option[CompressionCodec]): Pipe[F, Byte, Unit] =
+    byteSink(HadoopOutputFile.fromPath(path.hadoopPath, config), compress)
+  def byteSink(path: NJPath): Pipe[F, Byte, Unit]                             = byteSink(path, None)
+  def byteSink(path: NJPath, compress: CompressionCodec): Pipe[F, Byte, Unit] = byteSink(path, Some(compress))
 
   // byte source
-  def byteSource(input: F[HadoopInputFile], codec: Option[ConfigurableCodec]): Stream[F, Byte] =
+
+  def byteSource(input: F[HadoopInputFile], codec: Option[CompressionCodec]): Stream[F, Byte] =
     for {
       hif <- Stream.eval(input)
       is: InputStream <- Stream.bracket(F.blocking(hif.newStream()))(r => F.blocking(r.close()))
-      compressed: F[InputStream] = codec match {
-        case Some(factory) =>
-          F.blocking {
-            factory.setConf(config)
-            factory.createInputStream(is)
-          }
-        case None =>
-          Option(new CompressionCodecFactory(config).getCodec(hif.getPath)) match {
-            case Some(factory) => F.blocking(factory.createInputStream(is))
-            case None          => F.delay(is)
-          }
+      compressed: F[InputStream] = {
+        val factory = new CompressionCodecFactory(config)
+        codec match {
+          case Some(cc) => F.blocking(factory.getCodecByClassName(cc.getClass.getName).createInputStream(is))
+          case None =>
+            Option(factory.getCodec(hif.getPath)) match {
+              case Some(cc) => F.blocking(cc.createInputStream(is))
+              case None     => F.pure(is)
+            }
+        }
       }
       byte <- readInputStream[F](compressed, chunkSize = 8192, closeAfterUse = true)
     } yield byte
 
-  def byteSource(inputs: List[HadoopInputFile], codec: Option[ConfigurableCodec]): Stream[F, Byte] =
-    inputs.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (ss, hif) =>
-      ss ++ byteSource(F.pure(hif), codec)
-    }
+  def byteSource(input: HadoopInputFile, codec: Option[CompressionCodec]): Stream[F, Byte] =
+    byteSource(F.pure(input), codec)
+  def byteSource(input: HadoopInputFile, codec: CompressionCodec): Stream[F, Byte] = byteSource(input, Some(codec))
+  def byteSource(input: HadoopInputFile): Stream[F, Byte]                          = byteSource(input, None)
 
-  def byteSource(input: HadoopInputFile, codec: Option[ConfigurableCodec]): Stream[F, Byte] =
-    byteSource(F.delay(input), codec)
-
-  def byteSource(path: NJPath): Stream[F, Byte] =
-    byteSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), None)
-
-  def byteSource(path: NJPath, codec: ConfigurableCodec): Stream[F, Byte] =
-    byteSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), Some(codec))
+  def byteSource(path: NJPath, codec: Option[CompressionCodec]): Stream[F, Byte] =
+    byteSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), codec)
+  def byteSource(path: NJPath, codec: CompressionCodec): Stream[F, Byte] = byteSource(path, Some(codec))
+  def byteSource(path: NJPath): Stream[F, Byte]                          = byteSource(path, None)
 
   // avro sink
+
   def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Pipe[F, GenericRecord, Unit] =
     avroSink(HadoopOutputFile.fromPath(path.hadoopPath, config), schema, codecFactory)
 
@@ -150,6 +145,7 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
   }
 
   // avro source
+
   def avroSource(path: NJPath, schema: Schema, chunkSize: ChunkSize): Stream[F, GenericRecord] =
     avroSource(F.delay(HadoopInputFile.fromPath(path.hadoopPath, config)), schema, chunkSize)
 

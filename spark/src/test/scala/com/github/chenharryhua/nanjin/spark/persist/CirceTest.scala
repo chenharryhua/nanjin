@@ -8,29 +8,36 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import com.github.chenharryhua.nanjin.pipes.serde.CirceSerde
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.injection.*
-import com.github.chenharryhua.nanjin.terminals.{ConfigurableCodec, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.generic.auto.*
 import mtest.spark.*
-import org.apache.hadoop.io.compress.{DeflateCodec, GzipCodec}
+import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.*
 
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
 
   def rooster(path: NJPath) = new RddFileHoarder[IO, Rooster](RoosterData.ds.rdd, HoarderConfig(path))
   val hdp                   = sparkSession.hadoop[IO]
-  def loadRoosters(path: NJPath, codec: Option[ConfigurableCodec]) = {
+  def loadRoosters(path: NJPath, codec: Option[CompressionCodec]) = {
     val rst =
-      hdp.inputFilesByName(path).map(hdp.byteSource(_, None).through(CirceSerde.deserPipe[IO, Rooster]))
+      hdp
+        .inputFilesByName(path)
+        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
+          ss ++ hdp.byteSource(hif, codec).through(CirceSerde.deserPipe[IO, Rooster])
+        })
     fs2.Stream.force(rst).compile.toList
   }
   def loadBees(path: NJPath) = {
     val rst =
-      hdp.inputFilesByName(path).map(hdp.byteSource(_, None).through(CirceSerde.deserPipe[IO, Bee]))
+      hdp
+        .inputFilesByName(path)
+        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (ss, hif) =>
+          hdp.byteSource(hif, None).through(CirceSerde.deserPipe[IO, Bee])
+        })
     fs2.Stream.force(rst).compile.toList
   }
 

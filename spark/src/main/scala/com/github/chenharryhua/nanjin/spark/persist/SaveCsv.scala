@@ -5,7 +5,7 @@ import kantan.csv.CsvConfiguration
 import kantan.csv.CsvConfiguration.QuotePolicy
 import org.apache.spark.sql.Dataset
 
-final class SaveCsv[F[_], A](ds: Dataset[A], csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
+final class SaveCsv[F[_], A](ds: Dataset[A], val csvConfiguration: CsvConfiguration, cfg: HoarderConfig)
     extends Serializable {
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveCsv[F, A] =

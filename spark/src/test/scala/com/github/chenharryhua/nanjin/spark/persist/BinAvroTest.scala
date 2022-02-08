@@ -7,10 +7,10 @@ import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
+import fs2.Stream
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
 
@@ -34,10 +34,12 @@ class BinAvroTest extends AnyFunSuite {
         hdp
           .inputFilesByName(path)
           .map(is =>
-            hdp
-              .byteSource(is, None)
-              .through(BinaryAvroSerde.deserPipe(Rooster.schema))
-              .map(Rooster.avroCodec.fromRecord)))
+            is.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
+              ss ++ hdp
+                .byteSource(hif)
+                .through(BinaryAvroSerde.deserPipe(Rooster.schema))
+                .map(Rooster.avroCodec.fromRecord)
+            }))
       .compile
       .toList
       .unsafeRunSync()
