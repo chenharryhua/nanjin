@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
+import org.apache.hadoop.io.compress.GzipCodec
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
@@ -75,4 +76,18 @@ class BinAvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
+  test("reverse read/write") {
+    val path = NJPath("./data/test/spark/persist/bin_avro/reverse.bin.avro.gz")
+    RoosterData.rdd
+      .stream[IO](100)
+      .map(Rooster.avroCodec.toRecord)
+      .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
+      .through(hdp.byteSink(path, new GzipCodec))
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    assert(RoosterData.expected == t1)
+  }
 }

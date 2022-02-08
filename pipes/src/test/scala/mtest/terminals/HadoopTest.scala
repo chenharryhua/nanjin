@@ -113,6 +113,18 @@ class HadoopTest extends AnyFunSuite {
     assert(action.unsafeRunSync() == pandas)
   }
 
+  test("extension voilation") {
+    val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate2")
+    val ts      = Stream.emits(pandas).covary[IO]
+    val action = hdp.delete(pathStr) >>
+      ts.through(BinaryAvroSerde.serPipe(pandaSchema))
+        .through(hdp.byteSink(pathStr, new DeflateCodec()))
+        .compile
+        .drain >>
+      hdp.byteSource(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+    assertThrows[Exception](action.unsafeRunSync())
+  }
+
   test("uncompressed binary avro write/read") {
     val pathStr = NJPath("./data/test/devices/panda.uncompressed.binary.avro")
     val ts      = Stream.emits(pandas).covary[IO]

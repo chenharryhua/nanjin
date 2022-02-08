@@ -110,13 +110,13 @@ object loaders {
           val factory: CompressionCodecFactory = new CompressionCodecFactory(pds.getConfiguration)
           val codec: Option[CompressionCodec]  = Option(factory.getCodec(new Path(sp)))
           val is: InputStream                  = pds.open()
-          val compressed: InputStream          = codec.fold(is)(_.createInputStream(is))
-          val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(compressed).build(decoder.schema).iterator
+          val decompressed: InputStream        = codec.fold(is)(_.createInputStream(is))
+          val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(decompressed).build(decoder.schema).iterator
           new Iterator[A] {
             override def hasNext: Boolean =
               if (itor.hasNext) true
               else {
-                compressed.close()
+                decompressed.close()
                 false
               }
             override def next(): A = itor.next()

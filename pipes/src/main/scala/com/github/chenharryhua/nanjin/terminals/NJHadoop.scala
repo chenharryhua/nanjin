@@ -75,7 +75,13 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
   def byteSink(output: HadoopOutputFile, compress: Option[CompressionCodec]): Pipe[F, Byte, Unit] = {
     def compressOutputStream(os: OutputStream): OutputStream =
       compress.fold(os) { codec =>
-        new CompressionCodecFactory(config).getCodecByClassName(codec.getClass.getName).createOutputStream(os)
+        val factory       = new CompressionCodecFactory(config)
+        val compressCodec = factory.getCodecByClassName(codec.getClass.getName)
+        require( // extension consistency check
+          factory.getCodec(new Path(output.getPath)) == compressCodec,
+          s"${output.getPath} should have extension ${codec.getDefaultExtension}"
+        )
+        compressCodec.createOutputStream(os)
       }
 
     (ss: Stream[F, Byte]) =>
