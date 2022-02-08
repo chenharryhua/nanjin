@@ -6,11 +6,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingProduced, KafkaStreamsAbnormallyStopped}
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka.*
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.errors.StreamsException
 import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
@@ -18,7 +18,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration.*
-import eu.timepit.refined.auto.*
 
 object KafkaStreamingData {
 
@@ -70,7 +69,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   before(sendT2Data.compile.drain.unsafeRunSync())
 
-  test("stream-table join") {
+  ignore("stream-table join") {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable

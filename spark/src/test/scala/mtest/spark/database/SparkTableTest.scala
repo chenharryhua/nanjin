@@ -12,13 +12,15 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import doobie.implicits.*
+import eu.timepit.refined.auto.*
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
+import kantan.csv.RowEncoder
 import kantan.csv.generic.*
 import kantan.csv.java8.*
-import kantan.csv.{CsvConfiguration, RowEncoder}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
@@ -27,8 +29,6 @@ import java.sql.Date
 import java.time.*
 import java.time.temporal.ChronoUnit
 import scala.util.Random
-import com.github.chenharryhua.nanjin.terminals.NJPath
-import eu.timepit.refined.auto.*
 
 final case class DomainObject(a: LocalDate, b: Date, c: ZonedDateTime, d: OffsetDateTime, e: Option[Instant])
 
@@ -127,53 +127,37 @@ class SparkTableTest extends AnyFunSuite {
   def saver(path: NJPath): DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save(path)).unsafeRunSync()
 
   test("save avro") {
-    val avro = saver(root / "single.raw.avro").avro.file.sink.compile.drain >>
-      saver(root / "multi.raw.avro").avro.folder.run
+    val avro = saver(root / "multi.raw.avro").avro.run
     avro.unsafeRunSync()
-    val shead = tb.load.avro(root / "single.raw.avro").map(_.dataset.collect().head).unsafeRunSync()
-    assert(shead == dbData)
     val mhead = tb.load.avro(root / "multi.raw.avro").map(_.dataset.collect().head).unsafeRunSync()
     assert(mhead == dbData)
   }
 
   test("save bin avro") {
-    val avro = saver(root / "single.binary.avro").binAvro.file.sink.compile.drain
+    val avro = saver(root / "binary.avro").binAvro.run
     avro.unsafeRunSync()
-    val head = tb.load.binAvro(root / "single.binary.avro").map(_.dataset.collect().head)
-    assert(head.unsafeRunSync() == dbData)
-  }
-
-  test("save jackson") {
-    val avro = saver(root / "single.jackson.json").jackson.file.sink.compile.drain
-    avro.unsafeRunSync()
-    val head = tb.load.jackson(root / "single.jackson.json").map(_.dataset.collect().head)
+    val head = tb.load.binAvro(root / "binary.avro").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
   }
 
   test("save parquet") {
-    val parquet = saver(root / "multi.parquet").parquet.folder.run
+    val parquet = saver(root / "multi.parquet").parquet.run
     parquet.unsafeRunSync()
     val head = tb.load.parquet(root / "multi.parquet").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
   }
   test("save circe") {
-    val circe = saver(root / "multi.circe.json").circe.folder.run >>
-      saver(root / "single.circe.json").circe.file.sink.compile.drain
+    val circe = saver(root / "multi.circe.json").circe.run
     circe.unsafeRunSync()
     val mhead = tb.load.circe(root / "multi.circe.json").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
-    val shead = tb.load.circe(root / "single.circe.json").map(_.dataset.collect().head)
-    assert(shead.unsafeRunSync() == dbData)
   }
 
   test("save csv") {
-    val csv = saver(root / "multi.csv").csv.folder.run >>
-      saver(root / "single.csv").csv.file.sink.compile.drain
+    val csv = saver(root / "multi.csv").csv.run
     csv.unsafeRunSync()
     val mhead = tb.load.csv(root / "multi.csv").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
-    val shead = tb.load.csv(root / "single.csv", CsvConfiguration.rfc).map(_.dataset.collect().head)
-    assert(shead.unsafeRunSync() == dbData)
   }
   test("save spark json") {
     val json = saver(root / "spark.json").json.run

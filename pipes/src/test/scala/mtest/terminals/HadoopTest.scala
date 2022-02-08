@@ -3,8 +3,9 @@ package mtest.terminals
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import cats.effect.IO
-import cats.syntax.all.*
 import cats.effect.unsafe.implicits.global
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -12,6 +13,7 @@ import org.apache.avro.Schema
 import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.compress.DeflateCodec
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.InformationConversions.*
 
@@ -99,6 +101,39 @@ class HadoopTest extends AnyFunSuite {
     assert(action.unsafeRunSync() == pandas)
   }
 
+  test("deflate binary avro write/read") {
+    val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate")
+    val ts      = Stream.emits(pandas).covary[IO]
+    val action = hdp.delete(pathStr) >>
+      ts.through(BinaryAvroSerde.serPipe(pandaSchema))
+        .through(hdp.byteSink(pathStr, new DeflateCodec()))
+        .compile
+        .drain >>
+      hdp.byteSource(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+    assert(action.unsafeRunSync() == pandas)
+  }
+
+  test("extension voilation") {
+    val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate2")
+    val ts      = Stream.emits(pandas).covary[IO]
+    val action = hdp.delete(pathStr) >>
+      ts.through(BinaryAvroSerde.serPipe(pandaSchema))
+        .through(hdp.byteSink(pathStr, new DeflateCodec()))
+        .compile
+        .drain >>
+      hdp.byteSource(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+    assertThrows[Exception](action.unsafeRunSync())
+  }
+
+  test("uncompressed binary avro write/read") {
+    val pathStr = NJPath("./data/test/devices/panda.uncompressed.binary.avro")
+    val ts      = Stream.emits(pandas).covary[IO]
+    val action = hdp.delete(pathStr) >>
+      ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(hdp.byteSink(pathStr)).compile.drain >>
+      hdp.byteSource(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+    assert(action.unsafeRunSync() == pandas)
+  }
+
   test("uncompressed avro write/read akka") {
     val pathStr                    = NJPath("./data/test/devices/akka/panda.uncompressed.avro")
     val ts                         = Source(pandas)
@@ -117,6 +152,6 @@ class HadoopTest extends AnyFunSuite {
 
   test("hadoop input files") {
     val path = NJPath("data/test/devices")
-    hdp.hadoopInputFilesByName(path).flatMap(_.traverse(x => IO.println(x.toString))).unsafeRunSync()
+    hdp.inputFilesByName(path).flatMap(_.traverse(x => IO.println(x.toString))).unsafeRunSync()
   }
 }
