@@ -154,7 +154,7 @@ val testLib = Seq(
   "org.typelevel" %% "algebra-laws"                           % algebra,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "3.0.0",
   "com.github.pathikrit" %% "better-files"                    % "3.9.1",
-  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.35"
+  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.36"
 ).map(_ % Test)
 
 val kafkaLib = Seq(
@@ -222,7 +222,7 @@ val ftpLib = Seq(
 
 val logLib = Seq(
   "org.typelevel" %% "log4cats-slf4j" % "2.2.0",
-  "org.slf4j"                         % "slf4j-api" % "1.7.35"
+  "org.slf4j"                         % "slf4j-api" % "1.7.36"
 )
 
 val http4sLib = Seq(
