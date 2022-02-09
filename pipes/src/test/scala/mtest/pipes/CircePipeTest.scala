@@ -49,7 +49,7 @@ class CircePipeTest extends AnyFunSuite {
     val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
     data
       .through(CirceSerde.serPipe(true))
-      .through(hd.bytes.withCodec(new GzipCodec).sink(path))
+      .through(hd.bytes.withCompressionCodec(new GzipCodec).sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -62,7 +62,7 @@ class CircePipeTest extends AnyFunSuite {
     val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
     data
       .through(CirceSerde.serPipe(true))
-      .through(hd.bytes.withCodec(new SnappyCodec()).sink(path))
+      .through(hd.bytes.withCompressionCodec(new SnappyCodec()).sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -75,7 +75,7 @@ class CircePipeTest extends AnyFunSuite {
     val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
     data
       .through(CirceSerde.serPipe(true))
-      .through(hd.bytes.withCodec(new BZip2Codec).sink(path))
+      .through(hd.bytes.withCompressionCodec(new BZip2Codec).sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -88,7 +88,7 @@ class CircePipeTest extends AnyFunSuite {
     val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
     data
       .through(CirceSerde.serPipe(true))
-      .through(hd.bytes.withCodec(new Lz4Codec).sink(path))
+      .through(hd.bytes.withCompressionCodec(new Lz4Codec).sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -101,7 +101,7 @@ class CircePipeTest extends AnyFunSuite {
     val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
     data
       .through(CirceSerde.serPipe(true))
-      .through(hd.bytes.withCodec(new DeflateCodec).sink(path))
+      .through(hd.bytes.withCompressionCodec(new DeflateCodec).sink(path))
       .compile
       .drain
       .unsafeRunSync()

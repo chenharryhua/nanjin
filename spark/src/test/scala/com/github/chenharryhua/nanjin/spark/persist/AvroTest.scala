@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.github.chenharryhua.nanjin.spark.*
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
@@ -16,7 +16,8 @@ class AvroTest extends AnyFunSuite {
 
   def singleAvro(path: NJPath): Set[Rooster] =
     hadoop
-      .avroSource(path, Rooster.avroCodec.schema, 100)
+      .avro(Rooster.avroCodec.schema)
+      .source(path)
       .map(Rooster.avroCodec.avroDecoder.decode)
       .compile
       .toList
@@ -33,7 +34,10 @@ class AvroTest extends AnyFunSuite {
     val rst =
       hadoop
         .inputFilesByName(path)
-        .map(hadoop.avroSource(_, Rooster.schema, 100).map(Rooster.avroCodec.avroDecoder.decode))
+        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, p) =>
+          ss ++ hadoop.avro(Rooster.schema).source(p).map(Rooster.avroCodec.avroDecoder.decode)
+        })
+
     fs2.Stream.force(rst).compile.toList
   }
 

@@ -17,9 +17,14 @@ import scala.concurrent.Future
 final class NJBytes[F[_]] private (
   cfg: Configuration,
   compressionCodec: Option[CompressionCodec],
+  blockSizeHint: Long,
   chunkSize: ChunkSize)(implicit F: Sync[F]) {
-  def withCodec(codec: CompressionCodec) = new NJBytes[F](cfg, Some(codec), chunkSize)
-  def withChunkSize(cs: ChunkSize)       = new NJBytes[F](cfg, compressionCodec, cs)
+  def withCompressionCodec(codec: CompressionCodec): NJBytes[F] =
+    new NJBytes[F](cfg, Some(codec), blockSizeHint, chunkSize)
+  def withCompressionCodec(codec: Option[CompressionCodec]): NJBytes[F] =
+    new NJBytes[F](cfg, codec, blockSizeHint, chunkSize)
+  def withChunkSize(cs: ChunkSize): NJBytes[F]  = new NJBytes[F](cfg, compressionCodec, blockSizeHint, cs)
+  def withBlockSizeHint(size: Long): NJBytes[F] = new NJBytes[F](cfg, compressionCodec, size, chunkSize)
 
   def source(path: NJPath): Stream[F, Byte] =
     for {
@@ -47,14 +52,14 @@ final class NJBytes[F[_]] private (
         val compressCodec = factory.getCodecByClassName(codec.getClass.getName)
         require( // extension consistency check
           factory.getCodec(new Path(output.getPath)) == compressCodec,
-          s"${output.getPath} should have extension ${codec.getDefaultExtension}"
+          s"${path.pathStr} should have extension ${codec.getDefaultExtension}"
         )
         compressCodec.createOutputStream(os)
       }
 
     (ss: Stream[F, Byte]) =>
       Stream
-        .bracket(F.blocking(output.createOrOverwrite(output.defaultBlockSize())))(r => F.blocking(r.close()))
+        .bracket(F.blocking(output.createOrOverwrite(blockSizeHint)))(r => F.blocking(r.close()))
         .map(compressOutputStream)
         .flatMap(out => ss.through(writeOutputStream(F.pure(out))))
   }
@@ -64,10 +69,10 @@ final class NJBytes[F[_]] private (
       StreamConverters.fromInputStream(() => path.hadoopInputFile(cfg).newStream())
 
     def sink(path: NJPath): Sink[ByteString, Future[IOResult]] =
-      StreamConverters.fromOutputStream(() => path.hadoopOutputFile(cfg).createOrOverwrite(-1))
+      StreamConverters.fromOutputStream(() => path.hadoopOutputFile(cfg).createOrOverwrite(blockSizeHint))
   }
 }
 
 object NJBytes {
-  def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] = new NJBytes[F](cfg, None, ChunkSize(8192))
+  def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] = new NJBytes[F](cfg, None, -1L, ChunkSize(8192))
 }

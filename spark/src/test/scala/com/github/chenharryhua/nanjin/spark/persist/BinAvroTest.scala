@@ -22,12 +22,16 @@ class BinAvroTest extends AnyFunSuite {
       HoarderConfig(path)).binAvro.overwrite
 
   def loadRooster(path: NJPath) = fs2.Stream
-    .force(hdp
-      .inputFilesByName(path)
-      .map(is =>
-        is.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
-          ss ++ hdp.byteSource(hif).through(BinaryAvroSerde.deserPipe(Rooster.schema)).map(Rooster.avroCodec.fromRecord)
-        }))
+    .force(
+      hdp
+        .inputFilesByName(path)
+        .map(is =>
+          is.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
+            ss ++ hdp.bytes
+              .source(hif)
+              .through(BinaryAvroSerde.deserPipe(Rooster.schema))
+              .map(Rooster.avroCodec.fromRecord)
+          }))
     .compile
     .toList
     .map(_.toSet)
@@ -82,7 +86,7 @@ class BinAvroTest extends AnyFunSuite {
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
-      .through(hdp.byteSink(path, new GzipCodec))
+      .through(hdp.bytes.withCompressionCodec(new GzipCodec()).sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -96,7 +100,7 @@ class BinAvroTest extends AnyFunSuite {
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
-      .through(hdp.byteSink(path, new BZip2Codec()))
+      .through(hdp.bytes.withCompressionCodec(new BZip2Codec()).sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -111,7 +115,7 @@ class BinAvroTest extends AnyFunSuite {
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
-      .through(hdp.byteSink(path))
+      .through(hdp.bytes.sink(path))
       .compile
       .drain
       .unsafeRunSync()

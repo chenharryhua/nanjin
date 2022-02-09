@@ -25,7 +25,7 @@ class CsvTest extends AnyFunSuite {
       hdp
         .inputFilesByName(path)
         .map(_.foldLeft(Stream.empty.covaryAll[IO, Tablet]) { case (ss, hip) =>
-          ss ++ hdp.byteSource(hip).through(CsvSerde.deserPipe[IO, Tablet](cfg, 100))
+          ss ++ hdp.bytes.source(hip).through(CsvSerde.deserPipe[IO, Tablet](cfg, 100))
         }))
     .compile
     .toList
