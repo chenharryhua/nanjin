@@ -23,7 +23,7 @@ class CsvTest extends AnyFunSuite {
   def loadTablet(path: NJPath, cfg: CsvConfiguration) = Stream
     .force(
       hdp
-        .inputFilesByName(path)
+        .filesByName(path)
         .map(_.foldLeft(Stream.empty.covaryAll[IO, Tablet]) { case (ss, hip) =>
           ss ++ hdp.bytes.source(hip).through(CsvSerde.deserPipe[IO, Tablet](cfg, 100))
         }))

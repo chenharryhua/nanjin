@@ -38,10 +38,9 @@ final class NJAvro[F[_]] private (
   codecFactory: CodecFactory,
   blockSizeHint: Long,
   chunkSize: ChunkSize)(implicit F: Sync[F]) {
-  def withCodecFactory(codecFactory: CodecFactory): NJAvro[F] =
-    new NJAvro[F](cfg, schema, codecFactory, blockSizeHint, chunkSize)
-  def withChunSize(cs: ChunkSize): NJAvro[F]   = new NJAvro[F](cfg, schema, codecFactory, blockSizeHint, cs)
-  def withBlockSizeHint(size: Long): NJAvro[F] = new NJAvro[F](cfg, schema, codecFactory, size, chunkSize)
+  def withCodecFactory(cf: CodecFactory): NJAvro[F] = new NJAvro[F](cfg, schema, cf, blockSizeHint, chunkSize)
+  def withChunSize(cs: ChunkSize): NJAvro[F]        = new NJAvro[F](cfg, schema, codecFactory, blockSizeHint, cs)
+  def withBlockSizeHint(bsh: Long): NJAvro[F]       = new NJAvro[F](cfg, schema, codecFactory, bsh, chunkSize)
 
   def sink(path: NJPath): Pipe[F, GenericRecord, Unit] = {
     def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
@@ -83,7 +82,7 @@ final class NJAvro[F[_]] private (
 
 object NJAvro {
   def apply[F[_]: Sync](schema: Schema, cfg: Configuration): NJAvro[F] =
-    new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), -1L, ChunkSize(1000))
+    new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BlockSizeHint, ChunkSize(1000))
 }
 
 private class AkkaAvroSource(is: InputStream, schema: Schema)

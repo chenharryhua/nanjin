@@ -149,6 +149,6 @@ class HadoopTest extends AnyFunSuite {
 
   test("hadoop input files") {
     val path = NJPath("data/test/devices")
-    hdp.inputFilesByName(path).flatMap(_.traverse(x => IO.println(x.toString))).unsafeRunSync()
+    hdp.filesByName(path).flatMap(_.traverse(x => IO.println(x.toString))).unsafeRunSync()
   }
 }

@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import mtest.spark.*
@@ -11,6 +12,19 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class ParquetTest extends AnyFunSuite {
   import RoosterData.*
+  val hdp = sparkSession.hadoop[IO]
+
+  def loadRooster(path: NJPath) =
+    fs2.Stream
+      .force(
+        hdp
+          .filesByName(path)
+          .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, p) =>
+            ss ++ hdp.parquet(Rooster.schema).source(p).map(Rooster.avroCodec.fromRecord)
+          }))
+      .compile
+      .toList
+      .map(_.toSet)
 
   test("datetime read/write identity multi.uncompressed") {
     val path  = NJPath("./data/test/spark/persist/parquet/rooster/multi.uncompressed.parquet")

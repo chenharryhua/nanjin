@@ -4,12 +4,12 @@ import akka.stream.IOResult
 import akka.stream.scaladsl.{Sink, Source, StreamConverters}
 import akka.util.ByteString
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.{CompressionCodec, CompressionCodecFactory}
+import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
 import scala.concurrent.Future
@@ -18,13 +18,12 @@ final class NJBytes[F[_]] private (
   cfg: Configuration,
   compressionCodec: Option[CompressionCodec],
   blockSizeHint: Long,
-  chunkSize: ChunkSize)(implicit F: Sync[F]) {
-  def withCompressionCodec(codec: CompressionCodec): NJBytes[F] =
-    new NJBytes[F](cfg, Some(codec), blockSizeHint, chunkSize)
-  def withCompressionCodec(codec: Option[CompressionCodec]): NJBytes[F] =
-    new NJBytes[F](cfg, codec, blockSizeHint, chunkSize)
-  def withChunkSize(cs: ChunkSize): NJBytes[F]  = new NJBytes[F](cfg, compressionCodec, blockSizeHint, cs)
-  def withBlockSizeHint(size: Long): NJBytes[F] = new NJBytes[F](cfg, compressionCodec, size, chunkSize)
+  bufferSize: Information)(implicit F: Sync[F]) {
+  def withCompressionCodec(cc: CompressionCodec): NJBytes[F] = new NJBytes[F](cfg, Some(cc), blockSizeHint, bufferSize)
+  def withCompressionCodec(occ: Option[CompressionCodec]): NJBytes[F] =
+    new NJBytes[F](cfg, occ, blockSizeHint, bufferSize)
+  def withBufferSize(bs: Information): NJBytes[F] = new NJBytes[F](cfg, compressionCodec, blockSizeHint, bs)
+  def withBlockSizeHint(bsh: Long): NJBytes[F]    = new NJBytes[F](cfg, compressionCodec, bsh, bufferSize)
 
   def source(path: NJPath): Stream[F, Byte] =
     for {
@@ -41,7 +40,7 @@ final class NJBytes[F[_]] private (
             }
         }
       }
-      byte <- readInputStream[F](compressed, chunkSize = chunkSize.value, closeAfterUse = true)
+      byte <- readInputStream[F](compressed, chunkSize = bufferSize.toBytes.toInt, closeAfterUse = true)
     } yield byte
 
   def sink(path: NJPath): Pipe[F, Byte, Unit] = {
@@ -74,5 +73,5 @@ final class NJBytes[F[_]] private (
 }
 
 object NJBytes {
-  def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] = new NJBytes[F](cfg, None, -1L, ChunkSize(8192))
+  def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] = new NJBytes[F](cfg, None, BlockSizeHint, Bytes(8192))
 }

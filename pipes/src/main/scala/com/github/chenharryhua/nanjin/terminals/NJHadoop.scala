@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
-import org.apache.parquet.hadoop.util.{HadoopInputFile, HiddenFileFilter}
+import org.apache.parquet.hadoop.util.HiddenFileFilter
 
 import scala.collection.mutable.ListBuffer
 
@@ -44,7 +44,7 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
     lb.toList.map(NJPath(_)).sortBy(_.toString)
   }
 
-  def inputFiles[A: Ordering](path: NJPath, sort: FileStatus => A): F[List[NJPath]] = F.blocking {
+  def filesIn[A: Ordering](path: NJPath, sorting: FileStatus => A): F[List[NJPath]] = F.blocking {
     val fs: FileSystem   = path.hadoopPath.getFileSystem(config)
     val stat: FileStatus = fs.getFileStatus(path.hadoopPath)
     if (stat.isFile)
@@ -52,12 +52,12 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
     else
       fs.listStatus(path.hadoopPath, HiddenFileFilter.INSTANCE)
         .filter(_.isFile)
-        .sortBy(sort(_))
+        .sortBy(sorting)
         .map(s => NJPath(s.getPath))
         .toList
   }
-  def inputFilesByTime(path: NJPath): F[List[NJPath]] = inputFiles(path, _.getModificationTime)
-  def inputFilesByName(path: NJPath): F[List[NJPath]] = inputFiles(path, _.getPath.getName)
+  def filesByTime(path: NJPath): F[List[NJPath]] = filesIn(path, _.getModificationTime)
+  def filesByName(path: NJPath): F[List[NJPath]] = filesIn(path, _.getPath.getName)
 
   def bytes: NJBytes[F]                     = NJBytes[F](config)
   def avro(schema: Schema): NJAvro[F]       = NJAvro[F](schema, config)

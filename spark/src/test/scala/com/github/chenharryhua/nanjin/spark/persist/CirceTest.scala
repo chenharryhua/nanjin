@@ -25,7 +25,7 @@ class CirceTest extends AnyFunSuite {
   def loadRoosters(path: NJPath, codec: Option[CompressionCodec]) = {
     val rst =
       hdp
-        .inputFilesByName(path)
+        .filesByName(path)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
           ss ++ hdp.bytes.withCompressionCodec(codec).source(hif).through(CirceSerde.deserPipe[IO, Rooster])
         })
@@ -34,7 +34,7 @@ class CirceTest extends AnyFunSuite {
   def loadBees(path: NJPath) = {
     val rst =
       hdp
-        .inputFilesByName(path)
+        .filesByName(path)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (ss, hif) =>
           hdp.bytes.source(hif).through(CirceSerde.deserPipe[IO, Bee])
         })

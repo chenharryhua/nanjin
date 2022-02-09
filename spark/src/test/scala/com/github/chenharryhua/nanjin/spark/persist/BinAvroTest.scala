@@ -24,7 +24,7 @@ class BinAvroTest extends AnyFunSuite {
   def loadRooster(path: NJPath) = fs2.Stream
     .force(
       hdp
-        .inputFilesByName(path)
+        .filesByName(path)
         .map(is =>
           is.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
             ss ++ hdp.bytes
