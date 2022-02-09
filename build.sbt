@@ -154,7 +154,7 @@ val testLib = Seq(
   "org.typelevel" %% "algebra-laws"                           % algebra,
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "3.0.0",
   "com.github.pathikrit" %% "better-files"                    % "3.9.1",
-  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.35"
+  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.36"
 ).map(_ % Test)
 
 val kafkaLib = Seq(
@@ -222,7 +222,7 @@ val ftpLib = Seq(
 
 val logLib = Seq(
   "org.typelevel" %% "log4cats-slf4j" % "2.2.0",
-  "org.slf4j"                         % "slf4j-api" % "1.7.35"
+  "org.slf4j"                         % "slf4j-api" % "1.7.36"
 )
 
 val http4sLib = Seq(
@@ -363,7 +363,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "io.netty"                               % "netty-all"  % "4.1.73.Final",
+      "io.netty"                               % "netty-all"  % "4.1.74.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0-RC30" % Test) ++
       sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
       akkaLib ++ ftpLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
