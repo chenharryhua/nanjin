@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Show
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import eu.timepit.refined.api.Refined
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
+import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 
 import java.net.URI
 import java.time.{LocalDate, ZonedDateTime}
@@ -35,12 +37,16 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
   lazy val hadoopPath: Path = new Path(uri)
 
+  def hadoopOutputFile(cfg: Configuration): HadoopOutputFile = HadoopOutputFile.fromPath(hadoopPath, cfg)
+  def hadoopInputFile(cfg: Configuration): HadoopInputFile   = HadoopInputFile.fromPath(hadoopPath, cfg)
+
   override lazy val toString: String = pathStr
 }
 object NJPath {
 
   def apply(root: PathRoot): NJPath = NJPath(root, Nil)
   def apply(hp: Path): NJPath       = NJPath(PathRoot.unsafeFrom(hp.toString))
+  def apply(uri: URI): NJPath       = NJPath(PathRoot.unsafeFrom(uri.toASCIIString))
 
   implicit val showNJPath: Show[NJPath] = _.pathStr
 

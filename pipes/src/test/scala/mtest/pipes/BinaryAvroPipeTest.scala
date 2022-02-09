@@ -33,9 +33,9 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/bin-avro.avro")
     val write =
-      data.map(encoder.to).through(BinaryAvroSerde.serPipe[IO](AvroSchema[Tiger])).through(hd.byteSink(path))
+      data.map(encoder.to).through(BinaryAvroSerde.serPipe[IO](AvroSchema[Tiger])).through(hd.bytes.sink(path))
     val read =
-      hd.byteSource(path).through(BinaryAvroSerde.deserPipe[IO](AvroSchema[Tiger])).map(Tiger.avroDecoder.decode)
+      hd.bytes.source(path).through(BinaryAvroSerde.deserPipe[IO](AvroSchema[Tiger])).map(Tiger.avroDecoder.decode)
     val run = hd.delete(path) >> write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }
