@@ -1,5 +1,13 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.stage.{
+  GraphStageLogic,
+  GraphStageLogicWithLogging,
+  GraphStageWithMaterializedValue,
+  InHandler,
+  OutHandler
+}
 import akka.stream.{
   ActorAttributes,
   Attributes,
@@ -11,49 +19,73 @@ import akka.stream.{
   SourceShape,
   SubscriptionWithCancelException
 }
-import akka.stream.scaladsl.{Sink, Source, StreamConverters}
-import akka.stream.stage.{
-  GraphStageLogic,
-  GraphStageLogicWithLogging,
-  GraphStageWithMaterializedValue,
-  InHandler,
-  OutHandler
-}
-import akka.util.ByteString
+import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
+import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataInputStream, FSDataOutputStream, FileSystem}
-import squants.information.Information
+import org.apache.parquet.hadoop.util.HadoopOutputFile
 
 import java.io.{InputStream, OutputStream}
-import java.net.URI
 import scala.concurrent.{Future, Promise}
+import scala.jdk.CollectionConverters.*
 
-final class AkkaHadoop private (config: Configuration) {
-  private def fileSystem(uri: URI): FileSystem           = FileSystem.get(uri, config)
-  private def fsOutput(path: NJPath): FSDataOutputStream = fileSystem(path.uri).create(path.hadoopPath)
-  private def fsInput(path: NJPath): FSDataInputStream   = fileSystem(path.uri).open(path.hadoopPath)
+final class NJAvro[F[_]] private (
+  cfg: Configuration,
+  schema: Schema,
+  codecFactory: CodecFactory,
+  blockSizeHint: Long,
+  chunkSize: ChunkSize)(implicit F: Sync[F]) {
+  def withCodecFactory(cf: CodecFactory): NJAvro[F] = new NJAvro[F](cfg, schema, cf, blockSizeHint, chunkSize)
+  def withChunSize(cs: ChunkSize): NJAvro[F]        = new NJAvro[F](cfg, schema, codecFactory, blockSizeHint, cs)
+  def withBlockSizeHint(bsh: Long): NJAvro[F]       = new NJAvro[F](cfg, schema, codecFactory, bsh, chunkSize)
 
-  def byteSource(path: NJPath, byteBuffer: Information): Source[ByteString, Future[IOResult]] =
-    StreamConverters.fromInputStream(() => fsInput(path), byteBuffer.toBytes.toInt)
-  def byteSource(path: NJPath): Source[ByteString, Future[IOResult]] =
-    StreamConverters.fromInputStream(() => fsInput(path))
+  def sink(path: NJPath): Pipe[F, GenericRecord, Unit] = {
+    def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
+      grs.pull.uncons.flatMap {
+        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
+        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
+      }
 
-  def byteSink(path: NJPath): Sink[ByteString, Future[IOResult]] =
-    StreamConverters.fromOutputStream(() => fsOutput(path))
+    val output: HadoopOutputFile = path.hadoopOutputFile(cfg)
 
-  def avroSource(path: NJPath, schema: Schema): Source[GenericRecord, Future[IOResult]] =
-    Source.fromGraph(new AvroSource(fsInput(path), schema))
-  def avroSink(path: NJPath, schema: Schema, codecFactory: CodecFactory): Sink[GenericRecord, Future[IOResult]] =
-    Sink.fromGraph(new AvroSink(fsOutput(path), schema, codecFactory))
+    (ss: Stream[F, GenericRecord]) =>
+      for {
+        dfw <- Stream.bracket[F, DataFileWriter[GenericRecord]](
+          F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
+          F.blocking(r.close()))
+        os <- Stream.bracket(F.blocking(output.createOrOverwrite(blockSizeHint)))(r => F.blocking(r.close()))
+        writer <- Stream.bracket(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
+        _ <- go(ss, writer).stream
+      } yield ()
+  }
+
+  def source(path: NJPath): Stream[F, GenericRecord] =
+    for {
+      is <- Stream.bracket(F.blocking(path.hadoopInputFile(cfg).newStream()))(r => F.blocking(r.close()))
+      dfs <- Stream.bracket[F, DataFileStream[GenericRecord]](
+        F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
+      gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
+    } yield gr
+
+  object akka {
+    def source(path: NJPath): Source[GenericRecord, Future[IOResult]] =
+      Source.fromGraph(new AkkaAvroSource(path.hadoopInputFile(cfg).newStream(), schema))
+
+    def sink(path: NJPath): Sink[GenericRecord, Future[IOResult]] =
+      Sink.fromGraph(
+        new AkkaAvroSink(path.hadoopOutputFile(cfg).createOrOverwrite(blockSizeHint), schema, codecFactory))
+  }
 }
-object AkkaHadoop {
-  def apply(cfg: Configuration): AkkaHadoop = new AkkaHadoop(cfg)
+
+object NJAvro {
+  def apply[F[_]: Sync](schema: Schema, cfg: Configuration): NJAvro[F] =
+    new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BlockSizeHint, ChunkSize(1000))
 }
 
-private class AvroSource(is: InputStream, schema: Schema)
+private class AkkaAvroSource(is: InputStream, schema: Schema)
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
   private val out: Outlet[GenericRecord] = Outlet("akka.avro.source")
 
@@ -62,7 +94,7 @@ private class AvroSource(is: InputStream, schema: Schema)
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
-      override protected val logSource: Class[AvroSource] = classOf[AvroSource]
+      override protected val logSource: Class[AkkaAvroSource] = classOf[AkkaAvroSource]
       setHandler(
         out,
         new OutHandler {
@@ -100,7 +132,7 @@ private class AvroSource(is: InputStream, schema: Schema)
   override val shape: SourceShape[GenericRecord] = SourceShape.of(out)
 }
 
-private class AvroSink(os: OutputStream, schema: Schema, codecFactory: CodecFactory)
+private class AkkaAvroSink(os: OutputStream, schema: Schema, codecFactory: CodecFactory)
     extends GraphStageWithMaterializedValue[SinkShape[GenericRecord], Future[IOResult]] {
 
   private val in: Inlet[GenericRecord] = Inlet("akka.avro.sink")
@@ -112,7 +144,7 @@ private class AvroSink(os: OutputStream, schema: Schema, codecFactory: CodecFact
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
-      override protected val logSource: Class[AvroSink] = classOf[AvroSink]
+      override protected val logSource: Class[AkkaAvroSink] = classOf[AkkaAvroSink]
 
       setHandler(
         in,

@@ -38,50 +38,70 @@ class CircePipeTest extends AnyFunSuite {
   test("read/write test uncompressed") {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/circe.json")
-    val rst  = hd.byteSource(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
-    data.through(CirceSerde.serPipe(true)).through(hd.byteSink(path)).compile.drain.unsafeRunSync()
+    val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
+    data.through(CirceSerde.serPipe(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
   test("read/write test gzip") {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/circe.json.gz")
-    val rst  = hd.byteSource(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
-    data.through(CirceSerde.serPipe(true)).through(hd.byteSink(path, (new GzipCodec()))).compile.drain.unsafeRunSync()
+    val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
+    data
+      .through(CirceSerde.serPipe(true))
+      .through(hd.bytes.withCompressionCodec(new GzipCodec).sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
   test("read/write test snappy") {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/circe.json.snappy")
-    val rst  = hd.byteSource(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
-    data.through(CirceSerde.serPipe(true)).through(hd.byteSink(path, (new SnappyCodec()))).compile.drain.unsafeRunSync()
+    val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
+    data
+      .through(CirceSerde.serPipe(true))
+      .through(hd.bytes.withCompressionCodec(new SnappyCodec()).sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
   test("read/write bzip2") {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/circe.json.bz2")
-    val rst  = hd.byteSource(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
-    data.through(CirceSerde.serPipe(true)).through(hd.byteSink(path, (new BZip2Codec()))).compile.drain.unsafeRunSync()
+    val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
+    data
+      .through(CirceSerde.serPipe(true))
+      .through(hd.bytes.withCompressionCodec(new BZip2Codec).sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
   test("read/write lz4") {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/circe.json.lz4")
-    val rst  = hd.byteSource(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
-    data.through(CirceSerde.serPipe(true)).through(hd.byteSink(path, (new Lz4Codec()))).compile.drain.unsafeRunSync()
+    val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
+    data
+      .through(CirceSerde.serPipe(true))
+      .through(hd.bytes.withCompressionCodec(new Lz4Codec).sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
   test("read/write deflate") {
     val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/circe.json.deflate")
-    val rst  = hd.byteSource(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
+    val rst  = hd.bytes.source(path).through(CirceSerde.deserPipe[IO, Tiger]).compile.toList
     data
       .through(CirceSerde.serPipe(true))
-      .through(hd.byteSink(path, (new DeflateCodec())))
+      .through(hd.bytes.withCompressionCodec(new DeflateCodec).sink(path))
       .compile
       .drain
       .unsafeRunSync()

@@ -3,26 +3,36 @@ package com.github.chenharryhua.nanjin.terminals
 import akka.stream.*
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.stage.*
-import cats.Eval
+import cats.data.Reader
 import cats.effect.kernel.Sync
 import fs2.{Pipe, Pull, Stream}
-import org.apache.avro.generic.GenericRecord
-import org.apache.parquet.hadoop.{ParquetReader, ParquetWriter}
+import org.apache.avro.Schema
+import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.hadoop.conf.Configuration
+import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
+import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader, ParquetWriter}
 
 import scala.concurrent.{Future, Promise}
 
-object NJParquet {
-  // input path may not exist when eval builder
-  def fs2Source[F[_]](reader: F[ParquetReader[GenericRecord]])(implicit F: Sync[F]): Stream[F, GenericRecord] =
+final class NJParquet[F[_]] private (
+  readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]],
+  writeBuilder: Reader[NJPath, AvroParquetWriter.Builder[GenericRecord]])(implicit F: Sync[F]) {
+  def updateReader(f: ParquetReader.Builder[GenericRecord] => ParquetReader.Builder[GenericRecord]): NJParquet[F] =
+    new NJParquet(readBuilder.map(f), writeBuilder)
+
+  def updateWriter(
+    f: AvroParquetWriter.Builder[GenericRecord] => AvroParquetWriter.Builder[GenericRecord]): NJParquet[F] =
+    new NJParquet(readBuilder, writeBuilder.map(f))
+
+  def source(path: NJPath): Stream[F, GenericRecord] =
     for {
-      rd <- Stream.bracket(reader)(r => F.blocking(r.close()))
+      rd <- Stream.bracket(F.pure(readBuilder.run(path).build()))(r => F.blocking(r.close()))
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
-  def fs2Source[F[_]](reader: ParquetReader[GenericRecord])(implicit F: Sync[F]): Stream[F, GenericRecord] =
-    fs2Source[F](F.pure(reader))
-
-  def fs2Sink[F[_]](writer: ParquetWriter[GenericRecord])(implicit F: Sync[F]): Pipe[F, GenericRecord, Unit] = {
+  def sink(path: NJPath): Pipe[F, GenericRecord, Unit] = {
     def go(grs: Stream[F, GenericRecord], pw: ParquetWriter[GenericRecord]): Pull[F, Unit, Unit] =
       grs.pull.uncons.flatMap {
         case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(pw.write))) >> go(tl, pw)
@@ -31,22 +41,40 @@ object NJParquet {
 
     (ss: Stream[F, GenericRecord]) =>
       for {
-        pw <- Stream.bracket(F.pure(writer))(r => F.blocking(r.close()))
+        pw <- Stream.bracket(F.pure(writeBuilder.run(path).build()))(r => F.blocking(r.close()))
         _ <- go(ss, pw).stream
       } yield ()
   }
 
-  def akkaSource(reader: Eval[ParquetReader[GenericRecord]]): Source[GenericRecord, Future[IOResult]] =
-    Source.fromGraph(new ParquetSource(reader))
+  object akka {
+    def source(path: NJPath): Source[GenericRecord, Future[IOResult]] =
+      Source.fromGraph(new AkkaParquetSource(readBuilder.run(path).build()))
 
-  def akkaSource(reader: ParquetReader[GenericRecord]): Source[GenericRecord, Future[IOResult]] =
-    akkaSource(Eval.now(reader))
-
-  def akkaSink(writer: ParquetWriter[GenericRecord]): Sink[GenericRecord, Future[IOResult]] =
-    Sink.fromGraph(new ParquetSink(writer))
+    def sink(path: NJPath): Sink[GenericRecord, Future[IOResult]] =
+      Sink.fromGraph(new AkkaParquetSink(writeBuilder.run(path).build()))
+  }
 }
 
-private class ParquetSource(parquetReader: Eval[ParquetReader[GenericRecord]])
+object NJParquet {
+  def apply[F[_]: Sync](schema: Schema, cfg: Configuration): NJParquet[F] =
+    new NJParquet[F](
+      readBuilder = Reader((path: NJPath) =>
+        AvroParquetReader
+          .builder[GenericRecord](HadoopInputFile.fromPath(path.hadoopPath, cfg))
+          .withDataModel(GenericData.get())
+          .withConf(cfg)),
+      writeBuilder = Reader((path: NJPath) =>
+        AvroParquetWriter
+          .builder[GenericRecord](HadoopOutputFile.fromPath(path.hadoopPath, cfg))
+          .withDataModel(GenericData.get())
+          .withConf(cfg)
+          .withSchema(schema)
+          .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+          .withWriteMode(ParquetFileWriter.Mode.OVERWRITE))
+    )
+}
+
+private class AkkaParquetSource(reader: ParquetReader[GenericRecord])
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
 
   private val out: Outlet[GenericRecord] = Outlet("akka.parquet.source")
@@ -56,13 +84,11 @@ private class ParquetSource(parquetReader: Eval[ParquetReader[GenericRecord]])
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
-      override protected val logSource: Class[ParquetSource] = classOf[ParquetSource]
+      override protected val logSource: Class[AkkaParquetSource] = classOf[AkkaParquetSource]
       setHandler(
         out,
         new OutHandler {
           private var count: Long = 0
-
-          private val reader: ParquetReader[GenericRecord] = parquetReader.value
 
           override def onDownstreamFinish(cause: Throwable): Unit =
             try {
@@ -92,7 +118,7 @@ private class ParquetSource(parquetReader: Eval[ParquetReader[GenericRecord]])
   override val shape: SourceShape[GenericRecord] = SourceShape.of(out)
 }
 
-private class ParquetSink(writer: ParquetWriter[GenericRecord])
+private class AkkaParquetSink(writer: ParquetWriter[GenericRecord])
     extends GraphStageWithMaterializedValue[SinkShape[GenericRecord], Future[IOResult]] {
 
   private val in: Inlet[GenericRecord] = Inlet("akka.parquet.sink")
@@ -104,7 +130,7 @@ private class ParquetSink(writer: ParquetWriter[GenericRecord])
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
-      override protected val logSource: Class[ParquetSink] = classOf[ParquetSink]
+      override protected val logSource: Class[AkkaParquetSink] = classOf[AkkaParquetSink]
       setHandler(
         in,
         new InHandler {
