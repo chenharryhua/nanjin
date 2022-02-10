@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder}
 import io.circe.{Encoder as JsonEncoder, Json}
+import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.AvroJob
@@ -109,6 +110,16 @@ object saveRDD {
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     rdd
       .map(a => (NullWritable.get(), new Text(a.show)))
+      .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
+  }
+
+  def csv[A](rdd: RDD[A], path: NJPath, compression: NJCompression, csvConfiguration: CsvConfiguration)(implicit
+    enc: HeaderEncoder[A]): Unit = {
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    config.set(NJTextOutputFormat.suffix, NJFileFormat.Csv.suffix)
+    CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
+    rdd
+      .mapPartitions(new KantanCsv[A](enc, csvConfiguration, _))
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 }

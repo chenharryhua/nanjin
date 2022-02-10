@@ -26,8 +26,10 @@ class CsvPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity csv") {
-    val hd   = NJHadoop[IO](new Configuration())
-    val path = NJPath("data/pipe/csv.csv")
+    val hd     = NJHadoop[IO](new Configuration())
+    val path   = NJPath("data/pipe/csv.csv")
+    val tigers = List(Tiger(1, Some("a|b")), Tiger(2, Some("a'b")), Tiger(3, None), Tiger(4, Some("a||'b")))
+    val data   = Stream.emits(tigers).covaryAll[IO, Tiger]
     val rfc = CsvConfiguration.rfc
       .withHeader("a", "b", "c")
       .withCellSeparator('|')

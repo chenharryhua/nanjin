@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.CsvSerde
+import com.github.chenharryhua.nanjin.pipes.serde.{CirceSerde, CsvSerde}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.github.chenharryhua.nanjin.spark.*
 import eu.timepit.refined.auto.*
@@ -94,5 +94,40 @@ class CsvTest extends AnyFunSuite {
     saver(path).withHeader.withCellSeparator('|').withQuote('*').quoteAll.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
     assert(data.toSet == t.collect().toSet)
+  }
+
+  test("kantan csv") {
+    val path = NJPath("./data/test/spark/persist/csv/tablet/kantan.csv")
+    val rfc  = CsvConfiguration.rfc.withoutHeader.withCellSeparator('|').withQuote('"').quoteAll
+    hdp.delete(path).unsafeRunSync()
+    saveRDD.csv(rdd.repartition(3), path, NJCompression.Uncompressed, rfc)
+    val t = Stream
+      .force(
+        hdp
+          .filesByName(path)
+          .map(_.foldLeft(Stream.empty.covaryAll[IO, Tablet]) { case (ss, p) =>
+            ss ++ hdp.bytes.source(p).through(CsvSerde.deserPipe[IO, Tablet](rfc, 100))
+          }))
+      .compile
+      .toList
+
+    assert(data.toSet == t.unsafeRunSync().toSet)
+  }
+  test("kantan csv gzip") {
+    val path = NJPath("./data/test/spark/persist/csv/tablet/kantan.csv.gzip")
+    val rfc  = CsvConfiguration.rfc.withoutHeader.withCellSeparator('|').withQuote('"').quoteAll
+    hdp.delete(path).unsafeRunSync()
+    saveRDD.csv(rdd.repartition(3), path, NJCompression.Gzip, rfc)
+    val t = Stream
+      .force(
+        hdp
+          .filesByName(path)
+          .map(_.foldLeft(Stream.empty.covaryAll[IO, Tablet]) { case (ss, p) =>
+            ss ++ hdp.bytes.source(p).through(CsvSerde.deserPipe[IO, Tablet](rfc, 100))
+          }))
+      .compile
+      .toList
+
+    assert(data.toSet == t.unsafeRunSync().toSet)
   }
 }
