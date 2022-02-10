@@ -113,13 +113,17 @@ object saveRDD {
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 
-  def kantanCsv[A](rdd: RDD[A], path: NJPath, compression: NJCompression, csvConfiguration: CsvConfiguration)(implicit
-    enc: HeaderEncoder[A]): Unit = {
+  def kantanCsv[A](
+    rdd: RDD[A],
+    path: NJPath,
+    compression: NJCompression,
+    csvConfiguration: CsvConfiguration,
+    encoder: HeaderEncoder[A]): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     rdd
-      .mapPartitions(new KantanCsv[A](enc, csvConfiguration, _), preservesPartitioning = true)
+      .mapPartitions(new KantanCsv[A](encoder, csvConfiguration, _), preservesPartitioning = true)
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 }
