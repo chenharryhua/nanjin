@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import com.github.chenharryhua.nanjin.pipes.serde.NEWLINE_BYTES_SEPERATOR
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
@@ -11,7 +12,6 @@ import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext
 import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.DataOutputStream
-import java.nio.charset.StandardCharsets
 
 final class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
 
@@ -47,11 +47,10 @@ object NJTextOutputFormat {
 }
 
 final class NJTextRecordWriter(out: DataOutputStream) extends RecordWriter[NullWritable, Text] {
-  private val NEWLINE: Array[Byte] = "\n".getBytes(StandardCharsets.UTF_8)
 
   override def write(key: NullWritable, value: Text): Unit = {
     out.write(value.getBytes, 0, value.getLength)
-    out.write(NEWLINE)
+    out.write(NEWLINE_BYTES_SEPERATOR)
   }
 
   override def close(context: TaskAttemptContext): Unit = out.close()

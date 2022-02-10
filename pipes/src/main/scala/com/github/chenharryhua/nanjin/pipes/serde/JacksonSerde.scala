@@ -40,7 +40,6 @@ object JacksonSerde {
 
   def serPipe[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
-    val splitter    = SEPERATOR.getBytes()
     (sfgr: Stream[F, GenericRecord]) =>
       sfgr.chunks.map { grs =>
         val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
@@ -49,7 +48,7 @@ object JacksonSerde {
         encoder.flush()
         baos.close()
         baos.toByteArray
-      }.intersperse(splitter).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
+      }.intersperse(NEWLINE_BYTES_SEPERATOR).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
   def deserPipe[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
