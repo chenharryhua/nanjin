@@ -100,7 +100,7 @@ class CsvTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/persist/csv/tablet/kantan.csv")
     val rfc  = CsvConfiguration.rfc.withoutHeader.withCellSeparator('|').withQuote('"').quoteAll
     hdp.delete(path).unsafeRunSync()
-    saveRDD.csv(rdd.repartition(3), path, NJCompression.Uncompressed, rfc)
+    saveRDD.kantanCsv(rdd.repartition(3), path, NJCompression.Uncompressed, rfc)
     val t = Stream
       .force(
         hdp
@@ -113,11 +113,12 @@ class CsvTest extends AnyFunSuite {
 
     assert(data.toSet == t.unsafeRunSync().toSet)
   }
+
   test("kantan csv gzip") {
     val path = NJPath("./data/test/spark/persist/csv/tablet/kantan.csv.gzip")
-    val rfc  = CsvConfiguration.rfc.withoutHeader.withCellSeparator('|').withQuote('"').quoteAll
+    val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|').withQuote('"').quoteAll
     hdp.delete(path).unsafeRunSync()
-    saveRDD.csv(rdd.repartition(3), path, NJCompression.Gzip, rfc)
+    saveRDD.kantanCsv(rdd.repartition(3), path, NJCompression.Gzip, rfc)
     val t = Stream
       .force(
         hdp

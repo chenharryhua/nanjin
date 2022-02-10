@@ -44,7 +44,7 @@ sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], c
 final class DatasetFileHoarder[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends RddFileHoarder[F, A](ds.rdd, cfg) {
 
   // 1
-  def csv: SaveCsv[F, A] = new SaveCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Csv))
+  def csv: SaveKantanCsv[F, A] = new SaveKantanCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Kantan))
 
   // 2
   def json: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg.outputFormat(SparkJson), isKeepNull = true)
@@ -57,7 +57,7 @@ final class DatasetAvroFileHoarder[F[_], A](ds: Dataset[A], encoder: AvroEncoder
     extends RddAvroFileHoarder[F, A](ds.rdd, encoder, cfg) {
 
   // 1
-  def csv: SaveCsv[F, A] = new SaveCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Csv))
+  def csv: SaveKantanCsv[F, A] = new SaveKantanCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Kantan))
 
   // 2
   def json: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg.outputFormat(SparkJson), isKeepNull = true)

@@ -22,8 +22,9 @@ object NJFileFormat
   case object Jackson extends NJFileFormat(1, "json", "jackson")
   case object Circe extends NJFileFormat(2, "json", "circe")
   case object Text extends NJFileFormat(3, "txt", "plain")
-  case object Csv extends NJFileFormat(4, "csv", "kantan")
+  case object Kantan extends NJFileFormat(4, "csv", "kantan")
   case object SparkJson extends NJFileFormat(5, "json", "spark")
+  case object SparkCsv extends NJFileFormat(6, format = "csv", alias = "spark")
 
   // binary
   case object Parquet extends NJFileFormat(11, "parquet", "apache")
@@ -37,7 +38,7 @@ object NJFileFormat
   type Circe      = Circe.type
   type SparkJson  = SparkJson.type
   type Text       = Text.type
-  type Csv        = Csv.type
+  type Kantan     = Kantan.type
   type Parquet    = Parquet.type
   type Avro       = Avro.type
   type BinaryAvro = BinaryAvro.type
@@ -46,7 +47,7 @@ object NJFileFormat
 
   type JsonFamily = Jackson :+: Circe :+: SparkJson :+: CNil
 
-  type TextFamily = Jackson :+: Circe :+: Text :+: Csv :+: SparkJson :+: CNil
+  type TextFamily = Jackson :+: Circe :+: Text :+: Kantan :+: SparkJson :+: CNil
 
   type BinaryFamily =
     Parquet :+: Avro :+: BinaryAvro :+: JavaObject :+: ProtoBuf :+: CNil

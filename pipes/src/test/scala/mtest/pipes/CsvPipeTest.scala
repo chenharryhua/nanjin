@@ -41,4 +41,16 @@ class CsvPipeTest extends AnyFunSuite {
     val run  = hd.delete(path) >> write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }
+
+  test("write/read identity csv implicit header") {
+    val hd     = NJHadoop[IO](new Configuration())
+    val path   = NJPath("data/pipe/csv.csv")
+    val tigers = List(Tiger(1, Some("a|b")), Tiger(2, Some("a'b")), Tiger(3, None), Tiger(4, Some("a||'b")))
+    val data   = Stream.emits(tigers).covaryAll[IO, Tiger]
+    val rfc    = CsvConfiguration.rfc.withHeader
+    val write  = data.through(CsvSerde.serPipe[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
+    val read   = hd.bytes.source(path).through(CsvSerde.deserPipe[IO, Tiger](rfc, 1))
+    val run    = hd.delete(path) >> write.compile.drain >> read.compile.toList
+    assert(run.unsafeRunSync() === tigers)
+  }
 }
