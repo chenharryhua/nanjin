@@ -26,11 +26,17 @@ class CsvPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity csv") {
-    val hd    = NJHadoop[IO](new Configuration())
-    val path  = NJPath("data/pipe/csv.csv")
-    val write = data.through(CsvSerde.serPipe[IO, Tiger](CsvConfiguration.rfc, 2.kb)).through(hd.bytes.sink(path))
-    val read  = hd.bytes.source(path).through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 1))
-    val run   = hd.delete(path) >> write.compile.drain >> read.compile.toList
+    val hd   = NJHadoop[IO](new Configuration())
+    val path = NJPath("data/pipe/csv.csv")
+    val rfc = CsvConfiguration.rfc
+      .withHeader("a", "b", "c")
+      .withCellSeparator('|')
+      .withQuote('\'')
+      .withQuotePolicy(CsvConfiguration.QuotePolicy.Always)
+    val write =
+      data.through(CsvSerde.serPipe[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
+    val read = hd.bytes.source(path).through(CsvSerde.deserPipe[IO, Tiger](rfc, 1))
+    val run  = hd.delete(path) >> write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }
 }

@@ -8,7 +8,7 @@ object CirceSerde {
 
   def serPipe[F[_], A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Pipe[F, A, Byte] = {
     def encode(a: A): Json = if (isKeepNull) enc(a) else enc(a).deepDropNullValues
-    (ss: Stream[F, A]) => ss.mapChunks(_.map(encode(_).noSpaces)).intersperse(SEPERATOR).through(utf8.encode)
+    (ss: Stream[F, A]) => ss.mapChunks(_.map(encode(_).noSpaces)).intersperse(NEWLINE_SEPERATOR).through(utf8.encode)
   }
 
   def deserPipe[F[_], A](implicit ev: RaiseThrowable[F], dec: JsonDecoder[A]): Pipe[F, Byte, A] =

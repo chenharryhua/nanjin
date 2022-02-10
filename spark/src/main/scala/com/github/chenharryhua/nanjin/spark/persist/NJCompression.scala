@@ -1,9 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.kernel.Sync
-import fs2.{compression, Pipe}
-import fs2.compression.DeflateParams
-import fs2.compression.DeflateParams.Level
 import org.apache.avro.file.{CodecFactory, DataFileConstants}
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
@@ -49,29 +45,6 @@ sealed trait NJCompression extends Serializable {
     case NJCompression.Brotli       => CompressionCodecName.BROTLI
     case NJCompression.Zstandard(_) => CompressionCodecName.ZSTD
     case c                          => throw new Exception(s"not support $c in parquet")
-  }
-
-  final def fs2Compression[F[_]: Sync]: Pipe[F, Byte, Byte] = {
-    val cps: compression.Compression[F] = fs2.compression.Compression[F]
-    this match {
-      case NJCompression.Uncompressed => identity
-      case NJCompression.Gzip         => cps.gzip()
-      case NJCompression.Deflate(level) =>
-        val lvl: Level = level match {
-          case 0 => Level.ZERO
-          case 1 => Level.ONE
-          case 2 => Level.TWO
-          case 3 => Level.THREE
-          case 4 => Level.FOUR
-          case 5 => Level.FIVE
-          case 6 => Level.SIX
-          case 7 => Level.SEVEN
-          case 8 => Level.EIGHT
-          case 9 => Level.NINE
-        }
-        cps.deflate(DeflateParams(level = lvl))
-      case c => throw new Exception(s"fs2 Stream does not support codec: $c")
-    }
   }
 }
 

@@ -27,13 +27,12 @@ final class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWri
     val suffix: String        = s"-${utils.uuidStr(job)}${conf.get(NJBinaryOutputFormat.suffix, "")}"
     val isCompressed: Boolean = getCompressOutput(job)
     if (isCompressed) {
-      val codecClass: Class[? <: CompressionCodec] =
-        getOutputCompressorClass(job, classOf[GzipCodec])
-      val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
-      val file: Path                  = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
-      val fs: FileSystem              = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream = fs.create(file, false)
-      val out: DataOutputStream       = new DataOutputStream(codec.createOutputStream(fileOut))
+      val codecClass: Class[? <: CompressionCodec] = getOutputCompressorClass(job, classOf[GzipCodec])
+      val codec: CompressionCodec                  = ReflectionUtils.newInstance(codecClass, conf)
+      val file: Path                               = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
+      val fs: FileSystem                           = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream              = fs.create(file, false)
+      val out: DataOutputStream                    = new DataOutputStream(codec.createOutputStream(fileOut))
       new NJBinaryRecordWriter(out)
     } else {
       val file: Path                  = getDefaultWorkFile(job, suffix)

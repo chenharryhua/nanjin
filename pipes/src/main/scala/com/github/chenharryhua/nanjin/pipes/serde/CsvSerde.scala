@@ -4,14 +4,14 @@ import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
-import kantan.csv.{CsvConfiguration, CsvWriter, RowDecoder, RowEncoder}
+import kantan.csv.{CsvConfiguration, CsvWriter, HeaderDecoder, HeaderEncoder}
 import squants.information.Information
 
 object CsvSerde {
   import kantan.csv.ops.*
 
   def serPipe[F[_], A](conf: CsvConfiguration, byteBuffer: Information)(implicit
-    enc: RowEncoder[A],
+    enc: HeaderEncoder[A],
     F: Async[F]): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](byteBuffer.toBytes.toInt) { os =>
       def go(as: Stream[F, A], cw: CsvWriter[A]): Pull[F, Unit, Unit] =
@@ -20,12 +20,12 @@ object CsvSerde {
             Pull.eval(F.delay(hl.foldLeft(cw) { case (w, item) => w.write(item) })).flatMap(go(tl, _))
           case None => Pull.eval(F.blocking(cw.close())) >> Pull.done
         }
-      go(ss, os.asCsvWriter(conf)).stream.compile.drain
+      go(ss, os.asCsvWriter[A](conf)).stream.compile.drain
     }
   }
 
   def deserPipe[F[_], A](conf: CsvConfiguration, chunkSize: ChunkSize)(implicit
-    dec: RowDecoder[A],
+    dec: HeaderDecoder[A],
     F: Async[F]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>
       Stream.fromBlockingIterator[F](is.asCsvReader[A](conf).iterator, chunkSize.value).rethrow)
