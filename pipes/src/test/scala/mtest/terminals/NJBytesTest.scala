@@ -4,7 +4,7 @@ import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.pipes.serde.{BinaryAvroSerde, TextSerde}
+import com.github.chenharryhua.nanjin.pipes.serde.{BinaryAvroSerde, CirceSerde, TextSerde}
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -73,12 +73,14 @@ class NJBytesTest extends AnyFunSuite {
   test("deflate text write/read akka") {
     val pathStr = NJPath("./data/test/devices/akka.txt.deflate")
     hdp.delete(pathStr).unsafeRunSync()
-    val ts   = Source(List("string1", "string2", "string3")).via(TextSerde.serFlow)
+    val ts   = Source(List("string1", "string2", "string3")).via(TextSerde.akka.toByteString)
     val src  = hdp.bytes.akka.source(pathStr)
     val sink = hdp.bytes.withCompressionCodec(new DeflateCodec()).akka.sink(pathStr)
     IO.fromFuture(IO(ts.runWith(sink))).unsafeRunSync()
     val action =
-      IO.fromFuture(IO(src.via(TextSerde.deserFlow).runFold(List.empty[String]) { case (ss, i) => ss.appended(i) }))
+      IO.fromFuture(IO(src.via(TextSerde.akka.fromByteString).runFold(List.empty[String]) { case (ss, i) =>
+        ss.appended(i)
+      }))
 
     assert(action.unsafeRunSync() == List("string1", "string2", "string3"))
   }
@@ -89,8 +91,8 @@ class NJBytesTest extends AnyFunSuite {
     val ts   = Stream.emits(pandas).covary[IO]
     val src  = hdp.bytes.source(pathStr)
     val sink = hdp.bytes.withCompressionCodec(new DeflateCodec()).sink(pathStr)
-    ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(sink).compile.drain.unsafeRunSync()
-    val action = src.through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+    ts.through(BinaryAvroSerde.toBytes(pandaSchema)).through(sink).compile.drain.unsafeRunSync()
+    val action = src.through(BinaryAvroSerde.fromBytes(pandaSchema)).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
@@ -99,7 +101,7 @@ class NJBytesTest extends AnyFunSuite {
     hdp.delete(pathStr).unsafeRunSync()
     val ts     = Stream.emits(pandas).covary[IO]
     val sink   = hdp.bytes.withCompressionCodec(new DeflateCodec()).sink(pathStr)
-    val action = ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(sink).compile.drain
+    val action = ts.through(BinaryAvroSerde.toBytes(pandaSchema)).through(sink).compile.drain
     assertThrows[Exception](action.unsafeRunSync())
   }
 
@@ -109,8 +111,8 @@ class NJBytesTest extends AnyFunSuite {
     val ts   = Stream.emits(pandas).covary[IO]
     val sink = hdp.bytes.sink(pathStr)
     val src  = hdp.bytes.source(pathStr)
-    ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(sink).compile.drain.unsafeRunSync()
-    val action = src.through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+    ts.through(BinaryAvroSerde.toBytes(pandaSchema)).through(sink).compile.drain.unsafeRunSync()
+    val action = src.through(BinaryAvroSerde.fromBytes(pandaSchema)).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
@@ -123,5 +125,30 @@ class NJBytesTest extends AnyFunSuite {
   test("hadoop input files") {
     val path = NJPath("data/test/devices")
     hdp.filesByName(path).flatMap(_.traverse(x => IO.println(x.toString))).unsafeRunSync()
+  }
+
+  test("circe write/read") {
+    val pathStr = NJPath("./data/test/devices/circe.json")
+    hdp.delete(pathStr).unsafeRunSync()
+    val data = Set(1, 2, 3)
+    val ts   = Stream.emits(data.toList).covary[IO]
+    val sink = hdp.bytes.sink(pathStr)
+    val src  = hdp.bytes.source(pathStr)
+    ts.through(CirceSerde.toBytes(true)).through(sink).compile.drain.unsafeRunSync()
+    val action = src.through(CirceSerde.fromBytes[IO, Int]).compile.toList
+    assert(action.unsafeRunSync().toSet == data)
+  }
+
+  test("circe write/read akka") {
+    val pathStr = NJPath("./data/test/devices/akka.circe.json")
+    val data    = Set(1, 2, 3)
+    hdp.delete(pathStr).unsafeRunSync()
+    val ts   = Source(data)
+    val sink = hdp.bytes.akka.sink(pathStr)
+    val src  = hdp.bytes.akka.source(pathStr)
+    IO.fromFuture(IO(ts.via(CirceSerde.akka.toByteString(true)).runWith(sink))).unsafeRunSync()
+    val action =
+      IO.fromFuture(IO(src.via(CirceSerde.akka.fromByteString[Int]).runFold(Set.empty[Int]) { case (ss, i) => ss + i }))
+    assert(action.unsafeRunSync() == data)
   }
 }

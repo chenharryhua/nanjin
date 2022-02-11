@@ -20,8 +20,8 @@ class CsvPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(CsvSerde.serPipe[IO, Tiger](CsvConfiguration.rfc, 300.kb))
-        .through(CsvSerde.deserPipe[IO, Tiger](CsvConfiguration.rfc, 5))
+        .through(CsvSerde.toBytes[IO, Tiger](CsvConfiguration.rfc, 300.kb))
+        .through(CsvSerde.fromBytes[IO, Tiger](CsvConfiguration.rfc, 5))
         .compile
         .toList
         .unsafeRunSync() === tigers)
@@ -38,8 +38,8 @@ class CsvPipeTest extends AnyFunSuite {
       .withQuote('\'')
       .withQuotePolicy(CsvConfiguration.QuotePolicy.Always)
     val write =
-      data.through(CsvSerde.serPipe[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
-    val read = hd.bytes.source(path).through(CsvSerde.deserPipe[IO, Tiger](rfc, 1))
+      data.through(CsvSerde.toBytes[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
+    val read = hd.bytes.source(path).through(CsvSerde.fromBytes[IO, Tiger](rfc, 1))
     val run  = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }
@@ -50,8 +50,8 @@ class CsvPipeTest extends AnyFunSuite {
     val tigers = List(Tiger(1, Some("a|b")), Tiger(2, Some("a'b")), Tiger(3, None), Tiger(4, Some("a||'b")))
     val data   = Stream.emits(tigers).covaryAll[IO, Tiger]
     val rfc    = CsvConfiguration.rfc.withoutHeader
-    val write  = data.through(CsvSerde.serPipe[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
-    val read   = hd.bytes.source(path).through(CsvSerde.deserPipe[IO, Tiger](rfc, 1))
+    val write  = data.through(CsvSerde.toBytes[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
+    val read   = hd.bytes.source(path).through(CsvSerde.fromBytes[IO, Tiger](rfc, 1))
     val run    = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }

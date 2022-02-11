@@ -17,7 +17,7 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] =
-    downloader.download(pathStr, chunkSize).through(CsvSerde.deserPipe[F, A](csvConfig, chunkSize))
+    downloader.download(pathStr, chunkSize).through(CsvSerde.fromBytes[F, A](csvConfig, chunkSize))
 
   def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
@@ -28,13 +28,13 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
   def json[A: JsonDecoder](pathStr: String, chunkSize: ChunkSize)(implicit
     F: Async[F],
     mat: Materializer): Stream[F, A] =
-    downloader.download(pathStr, chunkSize).through(CirceSerde.deserPipe[F, A])
+    downloader.download(pathStr, chunkSize).through(CirceSerde.fromBytes[F, A])
 
   def jackson[A](pathStr: String, chunkSize: ChunkSize, dec: AvroDecoder[A])(implicit
     F: Async[F],
     mat: Materializer): Stream[F, A] =
-    downloader.download(pathStr, chunkSize).through(JacksonSerde.deserPipe(dec.schema)).map(dec.decode)
+    downloader.download(pathStr, chunkSize).through(JacksonSerde.fromBytes(dec.schema)).map(dec.decode)
 
   def text(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, String] =
-    downloader.download(pathStr, chunkSize).through(TextSerde.deserPipe)
+    downloader.download(pathStr, chunkSize).through(TextSerde.fromBytes)
 }

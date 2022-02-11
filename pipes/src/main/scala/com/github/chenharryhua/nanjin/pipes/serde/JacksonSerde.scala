@@ -1,5 +1,8 @@
 package com.github.chenharryhua.nanjin.pipes.serde
 
+import akka.NotUsed
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
 import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.io.toInputStream
@@ -38,7 +41,7 @@ object JacksonSerde {
   def prettyJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String]  = toJsonStr[F](schema, isPretty = true)
   def compactJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String] = toJsonStr[F](schema, isPretty = false)
 
-  def serPipe[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
+  def toBytes[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     (sfgr: Stream[F, GenericRecord]) =>
       sfgr.chunks.map { grs =>
@@ -51,7 +54,7 @@ object JacksonSerde {
       }.intersperse(NEWLINE_BYTES_SEPERATOR).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
-  def deserPipe[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+  def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream).flatMap { is =>
       val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
       val datumReader = new GenericDatumReader[GenericRecord](schema)
@@ -64,6 +67,20 @@ object JacksonSerde {
             case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
           }
       Pull.loop(pullAll)(is).void.stream
+    }
+  }
+
+  object akka {
+    def toByteString(schema: Schema): Flow[GenericRecord, ByteString, NotUsed] = {
+      val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+      Flow[GenericRecord].map { gr =>
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
+        datumWriter.write(gr, encoder)
+        encoder.flush()
+        baos.close()
+        ByteString.fromArray(baos.toByteArray)
+      }.intersperse(ByteString(NEWLINE_SEPERATOR))
     }
   }
 }

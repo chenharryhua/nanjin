@@ -29,7 +29,7 @@ class BinAvroTest extends AnyFunSuite {
           is.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
             ss ++ hdp.bytes
               .source(hif)
-              .through(BinaryAvroSerde.deserPipe(Rooster.schema))
+              .through(BinaryAvroSerde.fromBytes(Rooster.schema))
               .map(Rooster.avroCodec.fromRecord)
           }))
     .compile
@@ -85,7 +85,7 @@ class BinAvroTest extends AnyFunSuite {
     RoosterData.rdd
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
-      .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
+      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.withCompressionCodec(new GzipCodec()).sink(path))
       .compile
       .drain
@@ -99,7 +99,7 @@ class BinAvroTest extends AnyFunSuite {
     RoosterData.rdd
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
-      .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
+      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.withCompressionCodec(new BZip2Codec()).sink(path))
       .compile
       .drain
@@ -114,7 +114,7 @@ class BinAvroTest extends AnyFunSuite {
     RoosterData.rdd
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
-      .through(BinaryAvroSerde.serPipe[IO](Rooster.schema))
+      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.sink(path))
       .compile
       .drain

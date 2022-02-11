@@ -27,7 +27,7 @@ class CirceTest extends AnyFunSuite {
       hdp
         .filesByName(path)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
-          ss ++ hdp.bytes.withCompressionCodec(codec).source(hif).through(CirceSerde.deserPipe[IO, Rooster])
+          ss ++ hdp.bytes.withCompressionCodec(codec).source(hif).through(CirceSerde.fromBytes[IO, Rooster])
         })
     fs2.Stream.force(rst).compile.toList
   }
@@ -36,7 +36,7 @@ class CirceTest extends AnyFunSuite {
       hdp
         .filesByName(path)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (ss, hif) =>
-          hdp.bytes.source(hif).through(CirceSerde.deserPipe[IO, Bee])
+          hdp.bytes.source(hif).through(CirceSerde.fromBytes[IO, Bee])
         })
     fs2.Stream.force(rst).compile.toList
   }
