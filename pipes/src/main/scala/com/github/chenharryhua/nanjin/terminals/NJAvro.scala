@@ -72,12 +72,13 @@ object NJAvro {
 
 private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
+
   private val out: Outlet[GenericRecord] = Outlet("akka.avro.source")
 
   override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
-    val is: SeekableInputStream    = path.hadoopInputFile(cfg).newStream()
+    val sis: SeekableInputStream   = path.hadoopInputFile(cfg).newStream()
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
       override protected val logSource: Class[AkkaAvroSource] = classOf[AkkaAvroSource]
@@ -87,13 +88,13 @@ private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)
           private var count: Long = 0
 
           private val reader: DataFileStream[GenericRecord] =
-            new DataFileStream(is, new GenericDatumReader[GenericRecord](schema))
+            new DataFileStream(sis, new GenericDatumReader[GenericRecord](schema))
 
           override def onDownstreamFinish(cause: Throwable): Unit =
             try {
               super.onDownstreamFinish(cause)
               reader.close()
-              is.close()
+              sis.close()
               cause match {
                 case _: SubscriptionWithCancelException.NonFailureCancellation =>
                   promise.success(IOResult(count))
