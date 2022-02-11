@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.zaxxer.hikari.HikariConfig
 import io.circe.Decoder as JsonDecoder
-import kantan.csv.CsvConfiguration
+import kantan.csv.{CsvConfiguration, RowDecoder}
 import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class LoadTableFile[F[_], A] private[database] (
@@ -34,13 +34,13 @@ final class LoadTableFile[F[_], A] private[database] (
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def csv(path: NJPath, csvConfiguration: CsvConfiguration)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def csv(path: NJPath, csvConfiguration: CsvConfiguration)(implicit F: Sync[F], dec: RowDecoder[A]): F[TableDS[F, A]] =
     F.blocking {
       val tds = loaders.csv[A](path, ate, csvConfiguration, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def csv(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
+  def csv(path: NJPath)(implicit F: Sync[F], dec: RowDecoder[A]): F[TableDS[F, A]] =
     csv(path, CsvConfiguration.rfc)
 
   def json(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =

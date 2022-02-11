@@ -9,7 +9,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.generic.*
 import kantan.csv.java8.*
-import kantan.csv.{CsvConfiguration, HeaderDecoder, HeaderEncoder}
+import kantan.csv.{CsvConfiguration, HeaderEncoder, RowDecoder}
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -19,9 +19,9 @@ class CsvTest extends AnyFunSuite {
   import TabletData.*
 
   implicit val encoderTablet: HeaderEncoder[Tablet] = shapeless.cachedImplicit
-  implicit val decoderTablet: HeaderDecoder[Tablet] = shapeless.cachedImplicit
+  implicit val decoderTablet: RowDecoder[Tablet]    = shapeless.cachedImplicit
 
-  def saver(path: NJPath) = new DatasetFileHoarder[IO, Tablet](ds, HoarderConfig(path)).csv
+  def saver(path: NJPath) = new DatasetFileHoarder[IO, Tablet](ds.repartition(3), HoarderConfig(path)).csv
 
   val hdp = sparkSession.hadoop[IO]
 
@@ -81,7 +81,7 @@ class CsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
 
-  test("tablet read/write identity with-header/multi") {
+  test("tablet read/write identity with-header") {
     val path = NJPath("./data/test/spark/persist/csv/tablet/tablet_header_multi.csv")
     val s    = saver(path).withHeader("x", "y", "z")
     s.run.unsafeRunSync()
@@ -90,7 +90,7 @@ class CsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
 
-  test("tablet read/write identity with-header-delimiter/multi") {
+  test("tablet read/write identity with-header-delimiter") {
     val path = NJPath("./data/test/spark/persist/csv/tablet/tablet_header_delimit_multi.csv")
     val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
     val s    = saver(path).updateCsvConfig(_ => rfc)
@@ -100,7 +100,7 @@ class CsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
 
-  test("tablet read/write identity with-header-delimiter-quote/multi") {
+  test("tablet read/write identity with-header-delimiter-quote") {
     val path = NJPath("./data/test/spark/persist/csv/tablet/tablet_header_delimit_quote_multi.csv")
     val s    = saver(path).withHeader.withCellSeparator('|').withQuote('*').quoteAll
     s.run.unsafeRunSync()

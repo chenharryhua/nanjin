@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import com.github.chenharryhua.nanjin.pipes.serde.CsvSerde
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import io.circe.Decoder as JsonDecoder
 import io.circe.parser.decode
-import kantan.csv.CsvConfiguration
+import kantan.csv.{CsvConfiguration, RowDecoder}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
@@ -30,17 +31,11 @@ object loaders {
   def parquet[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.parquet(path.pathStr))
 
-  def csv[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession): Dataset[A] =
-    ate.normalizeDF(
-      ss.read
-        .schema(ate.sparkSchema)
-        .option("sep", csvConfiguration.cellSeparator.toString)
-        .option("header", csvConfiguration.hasHeader)
-        .option("quote", csvConfiguration.quote.toString)
-        .option("charset", "UTF8")
-        .csv(path.pathStr))
+  def csv[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession)(implicit
+    dec: RowDecoder[A]): Dataset[A] =
+    ate.normalize(rdd.csv(path, csvConfiguration, ss)(ate.classTag, dec), ss)
 
-  def csv[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+  def csv[A: RowDecoder](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     csv[A](path, ate, CsvConfiguration.rfc, ss)
 
   def json[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
@@ -62,6 +57,13 @@ object loaders {
 
     def objectFile[A: ClassTag](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext.objectFile[A](path.pathStr)
+
+    def csv[A: ClassTag](path: NJPath, csvConfiguration: CsvConfiguration, ss: SparkSession)(implicit
+      dec: RowDecoder[A]): RDD[A] =
+      ss.sparkContext.textFile(path.pathStr).mapPartitions { rows =>
+        val itor = if (csvConfiguration.hasHeader) rows.drop(1) else rows
+        itor.map(CsvSerde.rowDecode(_, csvConfiguration))
+      }
 
     def circe[A: ClassTag: JsonDecoder](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext

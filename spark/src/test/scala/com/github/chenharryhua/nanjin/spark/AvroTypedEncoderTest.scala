@@ -121,13 +121,15 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
-  test("loaded csv should be normalized") {
-    val path = root / "csv"
-    ds.write.mode(SaveMode.Overwrite).csv(path.pathStr)
-    val r = loaders.csv[Lion](path, ate, sparkSession)
-    assert(r.collect().toSet == expected.toSet)
-    assert(r.schema == expectedSchema)
-  }
+
+//  test("loaded csv should be normalized") {
+//    val path = root / "csv"
+//    ds.write.mode(SaveMode.Overwrite).csv(path.pathStr)
+//    val r = loaders.csv[Lion](path, ate, sparkSession)
+//    assert(r.collect().toSet == expected.toSet)
+//    assert(r.schema == expectedSchema)
+//  }
+
   test("loaded avro should be normalized") {
     val path = root / "avro"
     ds.write.format("avro").mode(SaveMode.Overwrite).save(path.pathStr)

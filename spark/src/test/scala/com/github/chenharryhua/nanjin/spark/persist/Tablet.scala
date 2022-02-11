@@ -16,7 +16,7 @@ import mtest.spark.*
 import java.time.temporal.ChronoUnit
 import scala.util.Random
 
-final case class Tablet(a: Int, b: Long, c: Float, d: LocalDate, e: Instant)
+final case class Tablet(a: Int, b: Long, c: Float, d: LocalDate, e: Instant, f: String)
 
 object Tablet {
   val avroCodec: NJAvroCodec[Tablet]    = NJAvroCodec[Tablet]
@@ -35,7 +35,8 @@ object TabletData {
         Random.nextLong(),
         Random.nextFloat(),
         LocalDate.now,
-        Instant.now.truncatedTo(ChronoUnit.MILLIS)))
+        Instant.now.truncatedTo(ChronoUnit.MILLIS),
+        """a_"b?c\n*\r'|,"""))
 
   val rdd: RDD[Tablet]    = sparkSession.sparkContext.parallelize(data)
   val ds: Dataset[Tablet] = Tablet.ate.normalize(rdd, sparkSession)

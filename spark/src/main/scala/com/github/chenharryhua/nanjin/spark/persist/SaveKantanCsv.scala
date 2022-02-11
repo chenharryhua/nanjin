@@ -1,14 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.pipes.serde.{CsvSerde, NEWLINE_SEPERATOR}
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import monocle.macros.GenLens
-import org.apache.commons.lang.{CharUtils, StringUtils, UnhandledException}
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.sql.Dataset
-
-import java.io.{IOException, StringWriter, Writer}
 
 final class SaveKantanCsv[F[_], A](
   ds: Dataset[A],
@@ -64,42 +62,6 @@ final class SaveKantanCsv[F[_], A](
 private class KantanCsvIterator[A](enc: HeaderEncoder[A], conf: CsvConfiguration, iter: Iterator[A])
     extends Iterator[(NullWritable, Text)] {
 
-  private val CSV_SEARCH_CHARS: Array[Char] = Array[Char](conf.cellSeparator, conf.quote, CharUtils.CR, CharUtils.LF)
-
-  // copy from StringEscapeUtils
-  @throws[IOException]
-  private def escapeCsv(out: Writer, str: String): Unit = {
-    val q = conf.quote.toInt
-    if (StringUtils.containsNone(str, CSV_SEARCH_CHARS)) {
-      if (str != null) out.write(str)
-    } else {
-      out.write(q)
-      for (i <- 0 until str.length) {
-        val c = str.charAt(i)
-        if (c == conf.quote) out.write(q) // escape double quote
-        out.write(c.toInt)
-      }
-      out.write(q)
-    }
-  }
-
-  private def escapeCsv(str: String): String =
-    if (StringUtils.containsNone(str, CSV_SEARCH_CHARS))
-      str
-    else
-      try {
-        val writer = new StringWriter
-        escapeCsv(writer, str)
-        writer.toString
-      } catch { case ioe: IOException => throw new UnhandledException(ioe) }
-
-  private def escape(str: String): String =
-    if (conf.quotePolicy == CsvConfiguration.QuotePolicy.Always) {
-      conf.quote.toString + str + conf.quote.toString
-    } else {
-      escapeCsv(str)
-    }
-
   private[this] val nullWritable: NullWritable = NullWritable.get()
 
   private val headerText: Option[(NullWritable, Text)] = {
@@ -108,13 +70,12 @@ private class KantanCsvIterator[A](enc: HeaderEncoder[A], conf: CsvConfiguration
       case Header.Implicit         => enc.header
       case Header.Explicit(header) => Some(header)
     }
-    headerStrs.map(hs => (nullWritable, new Text(hs.map(escape).mkString(conf.cellSeparator.toString))))
+    headerStrs.map(hs => (nullWritable, new Text(hs.mkString(conf.cellSeparator.toString) + NEWLINE_SEPERATOR)))
   }
 
   private[this] var isFirstTimeAccess: Boolean = true
 
-  private[this] def nextText(): Text =
-    new Text(enc.rowEncoder.encode(iter.next()).map(escape).mkString(conf.cellSeparator.toString))
+  private[this] def nextText(): Text = new Text(CsvSerde.rowEncode(iter.next(), conf)(enc.rowEncoder))
 
   override def hasNext: Boolean = iter.hasNext
 
