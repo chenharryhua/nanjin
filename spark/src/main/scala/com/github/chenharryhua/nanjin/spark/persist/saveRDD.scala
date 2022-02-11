@@ -5,7 +5,7 @@ import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.pipes.serde.NEWLINE_SEPERATOR
 import com.github.chenharryhua.nanjin.terminals.NJPath
-import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder}
+import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
 import io.circe.{Encoder as JsonEncoder, Json}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.avro.generic.GenericRecord
@@ -21,20 +21,24 @@ import scalapb.GeneratedMessage
 import java.io.ByteArrayOutputStream
 
 private[spark] object saveRDD {
+  private def genericRecordPair[A](rdd: RDD[A], enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] =
+    rdd.mapPartitions { rcds =>
+      val to = ToRecord[A](enc)
+      rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
+    }
 
   def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compression.avro(config)
     val job = Job.getInstance(config)
     AvroJob.setOutputKeySchema(job, encoder.schema)
-    utils
-      .genericRecordPair(rdd, encoder)
-      .saveAsNewAPIHadoopFile(
-        path.pathStr,
-        classOf[AvroKey[GenericRecord]],
-        classOf[NullWritable],
-        classOf[NJAvroKeyOutputFormat],
-        job.getConfiguration)
+
+    genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile(
+      path.pathStr,
+      classOf[AvroKey[GenericRecord]],
+      classOf[NullWritable],
+      classOf[NJAvroKeyOutputFormat],
+      job.getConfiguration)
   }
 
   def binAvro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
@@ -74,14 +78,12 @@ private[spark] object saveRDD {
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     val job = Job.getInstance(config)
     AvroJob.setOutputKeySchema(job, encoder.schema)
-    utils
-      .genericRecordPair(rdd, encoder)
-      .saveAsNewAPIHadoopFile(
-        path.pathStr,
-        classOf[AvroKey[GenericRecord]],
-        classOf[NullWritable],
-        classOf[NJJacksonKeyOutputFormat],
-        job.getConfiguration)
+    genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile(
+      path.pathStr,
+      classOf[AvroKey[GenericRecord]],
+      classOf[NullWritable],
+      classOf[NJJacksonKeyOutputFormat],
+      job.getConfiguration)
   }
 
   def protobuf[A](rdd: RDD[A], path: NJPath, compression: NJCompression)(implicit enc: A <:< GeneratedMessage): Unit = {
