@@ -19,7 +19,7 @@ import scalapb.GeneratedMessage
 
 import java.io.ByteArrayOutputStream
 
-object saveRDD {
+private[spark] object saveRDD {
 
   def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
@@ -123,7 +123,7 @@ object saveRDD {
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     rdd
-      .mapPartitions(new KantanCsv[A](encoder, csvConfiguration, _), preservesPartitioning = true)
+      .mapPartitions(new KantanCsvIterator[A](encoder, csvConfiguration, _), preservesPartitioning = true)
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 }
