@@ -1,6 +1,5 @@
 package mtest.terminals
 
-import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -20,10 +19,10 @@ class ParquetTest extends AnyFunSuite {
     import HadoopTestData.*
     val path = NJPath("./data/test/devices/builder/panda.snappy.parquet")
     val ts   = Stream.emits(pandas).covary[IO]
-
-    val action = hdp.delete(path) >>
+    hdp.delete(path).unsafeRunSync()
+    val action =
       ts.through(parquet.updateWriter(_.withCompressionCodec(CompressionCodecName.SNAPPY)).sink(path)).compile.drain >>
-      parquet.source(path).compile.toList
+        parquet.source(path).compile.toList
 
     assert(action.unsafeRunSync() == pandas)
   }
@@ -31,29 +30,33 @@ class ParquetTest extends AnyFunSuite {
   test("gzip parquet write/read") {
     val path = NJPath("./data/test/devices/panda.gzip.parquet")
     val ts   = Stream.emits(pandas).covary[IO]
+    hdp.delete(path).unsafeRunSync()
 
-    val action = hdp.delete(path) >>
+    val action =
       ts.through(parquet.updateWriter(_.withCompressionCodec(CompressionCodecName.GZIP)).sink(path)).compile.drain >>
-      parquet.source(path).compile.toList
+        parquet.source(path).compile.toList
 
     assert(action.unsafeRunSync() == pandas)
   }
   test("uncompressed parquet write/read") {
     val path = NJPath("./data/test/devices/panda.uncompressed.parquet")
+    hdp.delete(path).unsafeRunSync()
     val ts   = Stream.emits(pandas).covary[IO]
-    val action =
-      hdp.delete(path) >> ts.through(parquet.sink(path)).compile.drain >> parquet.source(path).compile.toList
-
+    val src  = parquet.source(path)
+    val sink = parquet.sink(path)
+    ts.through(sink).compile.drain.unsafeRunSync()
+    val action = src.compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
-  implicit val mat: Materializer = Materializer(akkaSystem)
   test("uncompressed parquet write/read akka") {
-    val path  = NJPath("./data/test/devices/akka/panda.uncompressed.parquet")
-    val ts    = Source(pandas)
-    val write = IO.fromFuture(IO(ts.runWith(parquet.akka.sink(path))))
-    val read  = IO.fromFuture(IO(parquet.akka.source(path).runFold(List.empty[GenericRecord])(_.appended(_))))
-    val rst   = (hdp.delete(path) >> write >> read).unsafeRunSync()
+    val path = NJPath("./data/test/devices/akka/panda.uncompressed.parquet")
+    hdp.delete(path).unsafeRunSync()
+    val sink = parquet.akka.sink(path)
+    val src  = parquet.akka.source(path)
+    val ts   = Source(pandas)
+    IO.fromFuture(IO(ts.runWith(sink))).unsafeRunSync()
+    val rst = IO.fromFuture(IO(src.runFold(List.empty[GenericRecord])(_.appended(_)))).unsafeRunSync()
     assert(rst == pandas)
   }
 }

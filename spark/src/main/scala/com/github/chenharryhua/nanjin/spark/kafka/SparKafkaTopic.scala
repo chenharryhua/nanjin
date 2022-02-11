@@ -44,33 +44,33 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     object circe {
       def toBytes(
         isKeepNull: Boolean)(implicit jk: JsonEncoder[K], jv: JsonEncoder[V]): Pipe[F, NJConsumerRecord[K, V], Byte] =
-        CirceSerde.serPipe[F, NJConsumerRecord[K, V]](isKeepNull)
+        CirceSerde.toBytes[F, NJConsumerRecord[K, V]](isKeepNull)
       def fromBytes(implicit
         F: RaiseThrowable[F],
         jk: JsonDecoder[K],
         jv: JsonDecoder[V]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        CirceSerde.deserPipe[F, NJConsumerRecord[K, V]]
+        CirceSerde.fromBytes[F, NJConsumerRecord[K, V]]
     }
 
     object jackson {
       val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
-        _.mapChunks(_.map(crCodec.toRecord)).through(JacksonSerde.serPipe[F](crCodec.schema))
+        _.mapChunks(_.map(crCodec.toRecord)).through(JacksonSerde.toBytes[F](crCodec.schema))
 
       def fromBytes(implicit F: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        JacksonSerde.deserPipe[F](crCodec.schema).andThen(_.mapChunks(_.map(crCodec.fromRecord)))
+        JacksonSerde.fromBytes[F](crCodec.schema).andThen(_.mapChunks(_.map(crCodec.fromRecord)))
     }
 
     object binAvro {
       val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
-        _.mapChunks(_.map(crCodec.toRecord)).through(BinaryAvroSerde.serPipe[F](crCodec.schema))
+        _.mapChunks(_.map(crCodec.toRecord)).through(BinaryAvroSerde.toBytes[F](crCodec.schema))
       def fromBytes(implicit F: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        BinaryAvroSerde.deserPipe[F](crCodec.schema).andThen(_.mapChunks(_.map(crCodec.fromRecord)))
+        BinaryAvroSerde.fromBytes[F](crCodec.schema).andThen(_.mapChunks(_.map(crCodec.fromRecord)))
     }
 
     object javaObj {
-      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] = JavaObjectSerde.serPipe[F, NJConsumerRecord[K, V]]
+      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] = JavaObjectSerde.toBytes[F, NJConsumerRecord[K, V]]
       def fromBytes(implicit ce: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        JavaObjectSerde.deserPipe[F, NJConsumerRecord[K, V]]
+        JavaObjectSerde.fromBytes[F, NJConsumerRecord[K, V]]
     }
 
     object genericRecord {

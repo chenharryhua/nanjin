@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat.*
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
-import kantan.csv.CsvConfiguration
+import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 
@@ -44,7 +44,8 @@ sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], c
 final class DatasetFileHoarder[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends RddFileHoarder[F, A](ds.rdd, cfg) {
 
   // 1
-  def csv: SaveCsv[F, A] = new SaveCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Csv))
+  def csv(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
+    new SaveKantanCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Kantan), encoder)
 
   // 2
   def json: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg.outputFormat(SparkJson), isKeepNull = true)
@@ -57,7 +58,8 @@ final class DatasetAvroFileHoarder[F[_], A](ds: Dataset[A], encoder: AvroEncoder
     extends RddAvroFileHoarder[F, A](ds.rdd, encoder, cfg) {
 
   // 1
-  def csv: SaveCsv[F, A] = new SaveCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Csv))
+  def csv(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
+    new SaveKantanCsv[F, A](ds, CsvConfiguration.rfc, cfg.outputFormat(Kantan), encoder)
 
   // 2
   def json: SaveSparkJson[F, A] = new SaveSparkJson[F, A](ds, cfg.outputFormat(SparkJson), isKeepNull = true)

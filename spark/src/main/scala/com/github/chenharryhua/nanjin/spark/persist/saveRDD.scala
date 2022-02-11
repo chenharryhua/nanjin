@@ -3,9 +3,11 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Show
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.pipes.serde.NEWLINE_SEPERATOR
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder}
 import io.circe.{Encoder as JsonEncoder, Json}
+import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.AvroJob
@@ -18,7 +20,7 @@ import scalapb.GeneratedMessage
 
 import java.io.ByteArrayOutputStream
 
-object saveRDD {
+private[spark] object saveRDD {
 
   def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
@@ -63,7 +65,7 @@ object saveRDD {
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Circe.suffix)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     rdd
-      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces)))
+      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces + NEWLINE_SEPERATOR)))
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 
@@ -108,7 +110,21 @@ object saveRDD {
     config.set(NJTextOutputFormat.suffix, suffix)
     CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
     rdd
-      .map(a => (NullWritable.get(), new Text(a.show)))
+      .map(a => (NullWritable.get(), new Text(a.show + NEWLINE_SEPERATOR)))
+      .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
+  }
+
+  def kantanCsv[A](
+    rdd: RDD[A],
+    path: NJPath,
+    compression: NJCompression,
+    csvConfiguration: CsvConfiguration,
+    encoder: HeaderEncoder[A]): Unit = {
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
+    CompressionCodecs.setCodecConfiguration(config, CompressionCodecs.getCodecClassName(compression.name))
+    rdd
+      .mapPartitions(iter => new KantanCsvIterator[A](encoder, csvConfiguration, iter), preservesPartitioning = true)
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 }

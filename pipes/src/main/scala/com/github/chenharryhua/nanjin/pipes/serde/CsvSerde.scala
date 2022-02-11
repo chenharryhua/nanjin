@@ -4,13 +4,16 @@ import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
-import kantan.csv.{CsvConfiguration, CsvWriter, HeaderDecoder, HeaderEncoder}
+import kantan.csv.*
+import kantan.csv.engine.{ReaderEngine, WriterEngine}
 import squants.information.Information
+
+import java.io.{StringReader, StringWriter}
 
 object CsvSerde {
   import kantan.csv.ops.*
 
-  def serPipe[F[_], A](conf: CsvConfiguration, byteBuffer: Information)(implicit
+  def toBytes[F[_], A](conf: CsvConfiguration, byteBuffer: Information)(implicit
     enc: HeaderEncoder[A],
     F: Async[F]): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     readOutputStream[F](byteBuffer.toBytes.toInt) { os =>
@@ -24,9 +27,30 @@ object CsvSerde {
     }
   }
 
-  def deserPipe[F[_], A](conf: CsvConfiguration, chunkSize: ChunkSize)(implicit
+  def fromBytes[F[_], A](conf: CsvConfiguration, chunkSize: ChunkSize)(implicit
     dec: HeaderDecoder[A],
     F: Async[F]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>
       Stream.fromBlockingIterator[F](is.asCsvReader[A](conf).iterator, chunkSize.value).rethrow)
+
+  def rowDecode[A](rowStr: String, csvConfiguration: CsvConfiguration)(implicit dec: RowDecoder[A]): A = {
+    val sr: StringReader = new StringReader(rowStr)
+    val engine           = ReaderEngine.internalCsvReaderEngine.readerFor(sr, csvConfiguration)
+    try
+      dec.decode(engine.toIndexedSeq.flatMap {
+        case Left(value)  => throw value
+        case Right(value) => value
+      }) match {
+        case Left(value)  => throw value
+        case Right(value) => value
+      }
+    finally engine.close()
+  }
+
+  def rowEncode[A](a: A, csvConfiguration: CsvConfiguration)(implicit enc: RowEncoder[A]): String = {
+    val sw: StringWriter = new StringWriter
+    val engine           = WriterEngine.internalCsvWriterEngine.writerFor(sw, csvConfiguration).write(enc.encode(a))
+    try sw.toString
+    finally engine.close()
+  }
 }

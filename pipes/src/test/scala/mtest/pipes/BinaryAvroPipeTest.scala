@@ -15,14 +15,14 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)
-
+  val hd                       = NJHadoop[IO](new Configuration())
   test("binary-json identity") {
 
     assert(
       data
         .map(encoder.to)
-        .through(BinaryAvroSerde.serPipe[IO](AvroSchema[Tiger]))
-        .through(BinaryAvroSerde.deserPipe[IO](AvroSchema[Tiger]))
+        .through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger]))
+        .through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.avroDecoder.decode)
         .compile
         .toList
@@ -30,13 +30,13 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity") {
-    val hd   = NJHadoop[IO](new Configuration())
     val path = NJPath("data/pipe/bin-avro.avro")
+    hd.delete(path).unsafeRunSync()
     val write =
-      data.map(encoder.to).through(BinaryAvroSerde.serPipe[IO](AvroSchema[Tiger])).through(hd.bytes.sink(path))
+      data.map(encoder.to).through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger])).through(hd.bytes.sink(path))
     val read =
-      hd.bytes.source(path).through(BinaryAvroSerde.deserPipe[IO](AvroSchema[Tiger])).map(Tiger.avroDecoder.decode)
-    val run = hd.delete(path) >> write.compile.drain >> read.compile.toList
+      hd.bytes.source(path).through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger])).map(Tiger.avroDecoder.decode)
+    val run = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }
 }

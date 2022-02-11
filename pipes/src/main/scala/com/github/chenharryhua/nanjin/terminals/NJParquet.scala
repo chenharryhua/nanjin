@@ -28,7 +28,7 @@ final class NJParquet[F[_]] private (
 
   def source(path: NJPath): Stream[F, GenericRecord] =
     for {
-      rd <- Stream.bracket(F.pure(readBuilder.run(path).build()))(r => F.blocking(r.close()))
+      rd <- Stream.bracket(F.delay(readBuilder.run(path).build()))(r => F.blocking(r.close()))
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
@@ -48,7 +48,7 @@ final class NJParquet[F[_]] private (
 
   object akka {
     def source(path: NJPath): Source[GenericRecord, Future[IOResult]] =
-      Source.fromGraph(new AkkaParquetSource(readBuilder.run(path).build()))
+      Source.fromGraph(new AkkaParquetSource(readBuilder, path))
 
     def sink(path: NJPath): Sink[GenericRecord, Future[IOResult]] =
       Sink.fromGraph(new AkkaParquetSink(writeBuilder.run(path).build()))
@@ -74,7 +74,7 @@ object NJParquet {
     )
 }
 
-private class AkkaParquetSource(reader: ParquetReader[GenericRecord])
+private class AkkaParquetSource(readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]], path: NJPath)
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
 
   private val out: Outlet[GenericRecord] = Outlet("akka.parquet.source")
@@ -82,7 +82,8 @@ private class AkkaParquetSource(reader: ParquetReader[GenericRecord])
   override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
-    val promise: Promise[IOResult] = Promise[IOResult]()
+    val reader: ParquetReader[GenericRecord] = readBuilder.run(path).build()
+    val promise: Promise[IOResult]           = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
       override protected val logSource: Class[AkkaParquetSource] = classOf[AkkaParquetSource]
       setHandler(

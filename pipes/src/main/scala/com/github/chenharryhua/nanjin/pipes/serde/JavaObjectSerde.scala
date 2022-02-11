@@ -11,7 +11,7 @@ import java.io.*
 
 object JavaObjectSerde {
 
-  def serPipe[F[_], A]: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
+  def toBytes[F[_], A]: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     ss.chunks.flatMap { as =>
       val bos = new ByteArrayOutputStream()
       val oos = new ObjectOutputStream(bos)
@@ -41,17 +41,19 @@ object JavaObjectSerde {
       a <- Pull.loop(pullAll[F, A])(ois).void.stream
     } yield a
 
-  def deserPipe[F[_], A](implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
+  def fromBytes[F[_], A](implicit ce: Async[F]): Pipe[F, Byte, A] = { (ss: Stream[F, Byte]) =>
     ss.through(toInputStream[F]).flatMap(readInputStream[F, A])
   }
 
-  def serFlow[A]: Flow[A, ByteString, NotUsed] = Flow[A].map { a =>
-    val bos = new ByteArrayOutputStream()
-    val oos = new ObjectOutputStream(bos)
-    oos.writeObject(a)
-    oos.close()
-    bos.close()
-    ByteString(bos.toByteArray)
-  }
+  object akka {
 
+    def toByteString[A]: Flow[A, ByteString, NotUsed] = Flow[A].map { a =>
+      val bos = new ByteArrayOutputStream()
+      val oos = new ObjectOutputStream(bos)
+      oos.writeObject(a)
+      oos.close()
+      bos.close()
+      ByteString(bos.toByteArray)
+    }
+  }
 }
