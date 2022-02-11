@@ -1,5 +1,6 @@
 package mtest.pipes
 
+import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import cats.effect.IO
@@ -8,6 +9,7 @@ import com.github.chenharryhua.nanjin.pipes.serde.TextSerde
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import mtest.terminals.akkaSystem
+
 import scala.concurrent.duration.*
 import scala.concurrent.Await
 
@@ -21,10 +23,9 @@ class TextTest extends AnyFunSuite {
   }
 
   test("akka text identity") {
-    val src          = Source(expected)
-    implicit val mat = Materializer(akkaSystem)
-    val rst          = src.via(TextSerde.serFlow).via(TextSerde.deserFlow).runFold(List.empty[String])(_.appended(_))
+    val src: Source[String, NotUsed] = Source(expected)
+    implicit val mat: Materializer   = Materializer(akkaSystem)
+    val rst = src.via(TextSerde.serFlow).via(TextSerde.deserFlow).runFold(List.empty[String])(_.appended(_))
     assert(Await.result(rst, 1.minute) === expected)
   }
-
 }

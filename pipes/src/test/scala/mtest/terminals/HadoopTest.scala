@@ -63,20 +63,22 @@ class HadoopTest extends AnyFunSuite {
   import HadoopTestData.*
 
   test("hadoop text write/read identity") {
-    val pathStr    = NJPath("./data/test/devices/") / "greeting.txt"
+    val pathStr = NJPath("./data/test/devices/") / "greeting.txt"
+    hdp.delete(pathStr).unsafeRunSync()
     val testString = s"hello hadoop ${Random.nextInt()}"
     val ts: Stream[IO, Byte] =
       Stream(testString).through(fs2.text.utf8.encode)
 
-    val action = hdp.delete(pathStr) >>
+    val action =
       ts.through(hdp.bytes.sink(pathStr)).compile.drain >>
-      hdp.bytes.source(pathStr).through(fs2.text.utf8.decode).compile.toList
+        hdp.bytes.source(pathStr).through(fs2.text.utf8.decode).compile.toList
     assert(action.unsafeRunSync().mkString == testString)
   }
 
   test("snappy avro write/read") {
     val pathStr = NJPath("./data/test/devices/panda.snappy.avro")
-    val ts      = Stream.emits(pandas).covary[IO]
+    hdp.delete(pathStr).unsafeRunSync()
+    val ts = Stream.emits(pandas).covary[IO]
     val action = hdp.delete(pathStr) >>
       ts.through(hdp.avro(pandaSchema).withCodecFactory(CodecFactory.snappyCodec).sink(pathStr)).compile.drain >>
       hdp.avro(pandaSchema).source(pathStr).compile.toList
@@ -85,58 +87,66 @@ class HadoopTest extends AnyFunSuite {
 
   test("deflate(6) avro write/read") {
     val pathStr = NJPath("./data/test/devices/panda.deflate.avro")
-    val ts      = Stream.emits(pandas).covary[IO]
-    val action = hdp.delete(pathStr) >>
+    hdp.delete(pathStr).unsafeRunSync()
+    val ts = Stream.emits(pandas).covary[IO]
+    val action =
       ts.through(hdp.avro(pandaSchema).withCodecFactory(CodecFactory.deflateCodec(6)).sink(pathStr)).compile.drain >>
-      hdp.avro(pandaSchema).source(pathStr).compile.toList
+        hdp.avro(pandaSchema).source(pathStr).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
   test("uncompressed avro write/read") {
     val pathStr = NJPath("./data/test/devices/panda.uncompressed.avro")
-    val ts      = Stream.emits(pandas).covary[IO]
-    val action = hdp.delete(pathStr) >>
+    hdp.delete(pathStr).unsafeRunSync()
+    val ts = Stream.emits(pandas).covary[IO]
+    val action =
       ts.through(hdp.avro(pandaSchema).sink(pathStr)).compile.drain >>
-      hdp.avro(pandaSchema).source(pathStr).compile.toList
+        hdp.avro(pandaSchema).source(pathStr).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
   test("deflate binary avro write/read") {
     val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate")
-    val ts      = Stream.emits(pandas).covary[IO]
-    val bytes   = hdp.bytes.withCompressionCodec(new DeflateCodec())
-    val action = hdp.delete(pathStr) >>
+    hdp.delete(pathStr).unsafeRunSync()
+    val ts    = Stream.emits(pandas).covary[IO]
+    val bytes = hdp.bytes.withCompressionCodec(new DeflateCodec())
+    val action =
       ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(bytes.sink(pathStr)).compile.drain >>
-      bytes.source(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+        bytes.source(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
   test("extension voilation") {
     val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate2")
-    val ts      = Stream.emits(pandas).covary[IO]
-    val bytes   = hdp.bytes.withCompressionCodec(new DeflateCodec())
-    val action  = ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(bytes.sink(pathStr)).compile.drain
+    hdp.delete(pathStr).unsafeRunSync()
+    val ts     = Stream.emits(pandas).covary[IO]
+    val bytes  = hdp.bytes.withCompressionCodec(new DeflateCodec())
+    val action = ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(bytes.sink(pathStr)).compile.drain
     assertThrows[Exception](action.unsafeRunSync())
   }
 
   test("uncompressed binary avro write/read") {
     val pathStr = NJPath("./data/test/devices/panda.uncompressed.binary.avro")
-    val ts      = Stream.emits(pandas).covary[IO]
-    val bytes   = hdp.bytes
-    val action = hdp.delete(pathStr) >>
+    hdp.delete(pathStr).unsafeRunSync()
+    val ts    = Stream.emits(pandas).covary[IO]
+    val bytes = hdp.bytes
+    val action =
       ts.through(BinaryAvroSerde.serPipe(pandaSchema)).through(bytes.sink(pathStr)).compile.drain >>
-      bytes.source(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
+        bytes.source(pathStr).through(BinaryAvroSerde.deserPipe(pandaSchema)).compile.toList
     assert(action.unsafeRunSync() == pandas)
   }
 
   test("uncompressed avro write/read akka") {
-    val pathStr                    = NJPath("./data/test/devices/akka/panda.uncompressed.avro")
+    val pathStr = NJPath("./data/test/devices/akka/panda.uncompressed.avro")
+    hdp.delete(pathStr).unsafeRunSync()
     val ts                         = Source(pandas)
     val avro                       = hdp.avro(pandaSchema).withCodecFactory(CodecFactory.nullCodec())
+    val sink                       = avro.akka.sink(pathStr)
+    val src                        = avro.akka.source(pathStr)
     implicit val mat: Materializer = Materializer(akkaSystem)
-    val action = hdp.delete(pathStr) >>
-      IO.fromFuture(IO(ts.runWith(avro.akka.sink(pathStr)))) >>
-      IO.fromFuture(IO(avro.akka.source(pathStr).runFold(List.empty[GenericRecord])(_.appended(_))))
+    val action =
+      IO.fromFuture(IO(ts.runWith(sink))) >>
+        IO.fromFuture(IO(src.runFold(List.empty[GenericRecord])(_.appended(_))))
 
     assert(action.unsafeRunSync() == pandas)
   }

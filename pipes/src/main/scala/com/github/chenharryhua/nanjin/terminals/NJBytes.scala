@@ -27,7 +27,7 @@ final class NJBytes[F[_]] private (
 
   def source(path: NJPath): Stream[F, Byte] =
     for {
-      hif <- Stream(path.hadoopInputFile(cfg))
+      hif <- Stream.eval(F.delay(path.hadoopInputFile(cfg))) // lazying it
       is: InputStream <- Stream.bracket(F.blocking(hif.newStream()))(r => F.blocking(r.close()))
       compressed: F[InputStream] = {
         val factory = new CompressionCodecFactory(cfg)

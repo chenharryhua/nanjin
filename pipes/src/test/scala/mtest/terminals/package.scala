@@ -1,21 +1,19 @@
 package mtest
 
-import java.io.PrintWriter
-import java.net.InetAddress
-
 import akka.actor.ActorSystem
-import akka.stream.alpakka.ftp.FtpCredentials.NonAnonFtpCredentials
+import akka.stream.Materializer
 import akka.stream.alpakka.ftp.{FtpCredentials, FtpSettings}
-import cats.effect.IO
 import org.apache.commons.net.PrintCommandListener
 import org.apache.commons.net.ftp.FTPClient
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import cats.effect.Temporal
+import java.io.PrintWriter
+import java.net.InetAddress
 
 package object terminals {
 
   val akkaSystem: ActorSystem = ActorSystem("nj-devices")
+
+  implicit val mat: Materializer = Materializer(akkaSystem)
 
   val cred = FtpCredentials.create("chenh", "test")
 

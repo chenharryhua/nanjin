@@ -1,24 +1,8 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.stage.{
-  GraphStageLogic,
-  GraphStageLogicWithLogging,
-  GraphStageWithMaterializedValue,
-  InHandler,
-  OutHandler
-}
-import akka.stream.{
-  ActorAttributes,
-  Attributes,
-  IOOperationIncompleteException,
-  IOResult,
-  Inlet,
-  Outlet,
-  SinkShape,
-  SourceShape,
-  SubscriptionWithCancelException
-}
+import akka.stream.stage.*
+import akka.stream.*
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{Pipe, Pull, Stream}
@@ -27,8 +11,9 @@ import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.hadoop.util.HadoopOutputFile
+import org.apache.parquet.io.SeekableInputStream
 
-import java.io.{InputStream, OutputStream}
+import java.io.OutputStream
 import scala.concurrent.{Future, Promise}
 import scala.jdk.CollectionConverters.*
 
@@ -72,7 +57,7 @@ final class NJAvro[F[_]] private (
 
   object akka {
     def source(path: NJPath): Source[GenericRecord, Future[IOResult]] =
-      Source.fromGraph(new AkkaAvroSource(path.hadoopInputFile(cfg).newStream(), schema))
+      Source.fromGraph(new AkkaAvroSource(path, schema, cfg))
 
     def sink(path: NJPath): Sink[GenericRecord, Future[IOResult]] =
       Sink.fromGraph(
@@ -85,13 +70,14 @@ object NJAvro {
     new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BlockSizeHint, ChunkSize(1000))
 }
 
-private class AkkaAvroSource(is: InputStream, schema: Schema)
+private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
   private val out: Outlet[GenericRecord] = Outlet("akka.avro.source")
 
   override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
+    val is: SeekableInputStream    = path.hadoopInputFile(cfg).newStream()
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
       override protected val logSource: Class[AkkaAvroSource] = classOf[AkkaAvroSource]

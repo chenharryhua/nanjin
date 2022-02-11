@@ -37,7 +37,8 @@ class JsonAvroPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity snappy codec") {
-    val path  = NJPath("data/pipe/snappy-codec.avro")
+    val path = NJPath("data/pipe/snappy-codec.avro")
+    hd.delete(path).unsafeRunSync()
     val write = data.map(encoder.to).through(hd.avro(schema).sink(path))
     val read  = avro.source(path).map(Tiger.avroDecoder.decode)
     val run   = write.compile.drain >> read.compile.toList
@@ -45,7 +46,8 @@ class JsonAvroPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity null codec") {
-    val path  = NJPath("data/pipe/null-codec.avro")
+    val path = NJPath("data/pipe/null-codec.avro")
+    hd.delete(path).unsafeRunSync()
     val write = data.map(encoder.to).through(avro.sink(path))
     val read  = avro.source(path).map(Tiger.avroDecoder.decode)
     val run   = write.compile.drain >> read.compile.toList
@@ -53,7 +55,8 @@ class JsonAvroPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity deflate codec") {
-    val path  = NJPath("data/pipe/deflate-codec.avro")
+    val path = NJPath("data/pipe/deflate-codec.avro")
+    hd.delete(path).unsafeRunSync()
     val write = data.map(encoder.to).through(avro.withCodecFactory(CodecFactory.deflateCodec(1)).sink(path))
     val read  = avro.source(path).map(Tiger.avroDecoder.decode)
     val run   = write.compile.drain >> read.compile.toList
@@ -61,7 +64,8 @@ class JsonAvroPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity bzip codec") {
-    val path  = NJPath("data/pipe/bzip-codec.avro")
+    val path = NJPath("data/pipe/bzip-codec.avro")
+    hd.delete(path).unsafeRunSync()
     val write = data.map(encoder.to).through(avro.withCodecFactory(CodecFactory.bzip2Codec()).sink(path))
     val read  = avro.source(path).map(Tiger.avroDecoder.decode)
     val run   = write.compile.drain >> read.compile.toList
@@ -69,8 +73,8 @@ class JsonAvroPipeTest extends AnyFunSuite {
   }
 
   ignore("write/read identity xz codec") {
-    val hd    = NJHadoop[IO](new Configuration())
-    val path  = NJPath("data/pipe/xz-codec.avro")
+    val path = NJPath("data/pipe/xz-codec.avro")
+    hd.delete(path).unsafeRunSync()
     val write = data.map(encoder.to).through(avro.withCodecFactory(CodecFactory.xzCodec(1)).sink(path))
     val read  = avro.source(path).map(Tiger.avroDecoder.decode)
     val run   = write.compile.drain >> read.compile.toList
