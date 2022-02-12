@@ -9,7 +9,6 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.compress.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class CircePipeTest extends AnyFunSuite {
@@ -75,12 +74,7 @@ class CircePipeTest extends AnyFunSuite {
     val path = NJPath("data/pipe/circe.json.gz")
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
-    data
-      .through(CirceSerde.toBytes(true))
-      .through(hd.bytes.withCompressionCodec(new GzipCodec).sink(path))
-      .compile
-      .drain
-      .unsafeRunSync()
+    data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
@@ -88,12 +82,7 @@ class CircePipeTest extends AnyFunSuite {
     val path = NJPath("data/pipe/circe.json.snappy")
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
-    data
-      .through(CirceSerde.toBytes(true))
-      .through(hd.bytes.withCompressionCodec(new SnappyCodec()).sink(path))
-      .compile
-      .drain
-      .unsafeRunSync()
+    data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
@@ -101,12 +90,7 @@ class CircePipeTest extends AnyFunSuite {
     val path = NJPath("data/pipe/circe.json.bz2")
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
-    data
-      .through(CirceSerde.toBytes(true))
-      .through(hd.bytes.withCompressionCodec(new BZip2Codec).sink(path))
-      .compile
-      .drain
-      .unsafeRunSync()
+    data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
@@ -114,12 +98,7 @@ class CircePipeTest extends AnyFunSuite {
     val path = NJPath("data/pipe/circe.json.lz4")
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
-    data
-      .through(CirceSerde.toBytes(true))
-      .through(hd.bytes.withCompressionCodec(new Lz4Codec).sink(path))
-      .compile
-      .drain
-      .unsafeRunSync()
+    data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 
@@ -127,12 +106,7 @@ class CircePipeTest extends AnyFunSuite {
     val path = NJPath("data/pipe/circe.json.deflate")
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
-    data
-      .through(CirceSerde.toBytes(true))
-      .through(hd.bytes.withCompressionCodec(new DeflateCodec).sink(path))
-      .compile
-      .drain
-      .unsafeRunSync()
+    data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
     assert(rst.unsafeRunSync() == tigers)
   }
 }

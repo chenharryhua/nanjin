@@ -3,60 +3,71 @@ package mtest.terminals
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{NJParquet, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.GenericRecord
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 class ParquetTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val parquet = hdp.parquet(pandaSchema)
+  val parquet: NJParquet[IO] = hdp.parquet(pandaSchema)
 
-  test("snappy parquet write/read") {
-    import HadoopTestData.*
-    val path = NJPath("./data/test/devices/builder/panda.snappy.parquet")
-    val ts   = Stream.emits(pandas).covary[IO]
+  def fs2(path: NJPath, name: CompressionCodecName, data: Set[GenericRecord]): Assertion = {
+    val ts = Stream.emits(data.toList).covary[IO]
     hdp.delete(path).unsafeRunSync()
     val action =
-      ts.through(parquet.updateWriter(_.withCompressionCodec(CompressionCodecName.SNAPPY)).sink(path)).compile.drain >>
+      ts.through(parquet.updateWriter(_.withCompressionCodec(name)).sink(path)).compile.drain >>
         parquet.source(path).compile.toList
-
-    assert(action.unsafeRunSync() == pandas)
+    assert(action.unsafeRunSync().toSet == data)
   }
-
-  test("gzip parquet write/read") {
-    val path = NJPath("./data/test/devices/panda.gzip.parquet")
-    val ts   = Stream.emits(pandas).covary[IO]
+  def akka(path: NJPath, name: CompressionCodecName, data: Set[GenericRecord]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-
-    val action =
-      ts.through(parquet.updateWriter(_.withCompressionCodec(CompressionCodecName.GZIP)).sink(path)).compile.drain >>
-        parquet.source(path).compile.toList
-
-    assert(action.unsafeRunSync() == pandas)
-  }
-  test("uncompressed parquet write/read") {
-    val path = NJPath("./data/test/devices/panda.uncompressed.parquet")
-    hdp.delete(path).unsafeRunSync()
-    val ts   = Stream.emits(pandas).covary[IO]
-    val src  = parquet.source(path)
-    val sink = parquet.sink(path)
-    ts.through(sink).compile.drain.unsafeRunSync()
-    val action = src.compile.toList
-    assert(action.unsafeRunSync() == pandas)
-  }
-
-  test("uncompressed parquet write/read akka") {
-    val path = NJPath("./data/test/devices/akka/panda.uncompressed.parquet")
-    hdp.delete(path).unsafeRunSync()
-    val sink = parquet.akka.sink(path)
+    val sink = parquet.updateWriter(_.withCompressionCodec(name)).akka.sink(path)
     val src  = parquet.akka.source(path)
-    val ts   = Source(pandas)
-    IO.fromFuture(IO(ts.runWith(sink))).unsafeRunSync()
-    val rst = IO.fromFuture(IO(src.runFold(List.empty[GenericRecord])(_.appended(_)))).unsafeRunSync()
-    assert(rst == pandas)
+    val ts   = Source(data)
+    val rst  = IO.fromFuture(IO(ts.runWith(sink))) >> IO.fromFuture(IO(src.runFold(Set.empty[GenericRecord])(_ + _)))
+    assert(rst.unsafeRunSync() == data)
   }
+
+  val akkaRoot: NJPath = NJPath("./data/test/pipes/parquet/akka")
+  val fs2Root: NJPath  = NJPath("./data/test/pipes/parquet/fs2")
+
+  test("parquet snappy") {
+    fs2(fs2Root / "panda.snappy.parquet", CompressionCodecName.SNAPPY, pandaSet)
+    akka(akkaRoot / "panda.snappy.parquet", CompressionCodecName.SNAPPY, pandaSet)
+  }
+  test("parquet gzip") {
+    fs2(fs2Root / "panda.gzip.parquet", CompressionCodecName.GZIP, pandaSet)
+    akka(akkaRoot / "panda.gzip.parquet", CompressionCodecName.GZIP, pandaSet)
+  }
+
+  test("uncompressed parquet") {
+    fs2(fs2Root / "panda.uncompressed.parquet", CompressionCodecName.UNCOMPRESSED, pandaSet)
+    akka(akkaRoot / "panda.uncompressed.parquet", CompressionCodecName.UNCOMPRESSED, pandaSet)
+  }
+
+  test("LZ4 parquet") {
+    fs2(fs2Root / "panda.LZ4.parquet", CompressionCodecName.LZ4, pandaSet)
+    akka(akkaRoot / "panda.LZ4.parquet", CompressionCodecName.LZ4, pandaSet)
+  }
+
+  test("ZSTD parquet") {
+    fs2(fs2Root / "panda.ZSTD.parquet", CompressionCodecName.ZSTD, pandaSet)
+    akka(akkaRoot / "panda.ZSTD.parquet", CompressionCodecName.ZSTD, pandaSet)
+  }
+
+  ignore("LZO parquet") {
+    fs2(fs2Root / "panda.LZO.parquet", CompressionCodecName.LZO, pandaSet)
+    akka(akkaRoot / "panda.LZO.parquet", CompressionCodecName.LZO, pandaSet)
+  }
+
+  ignore("BROTLI parquet") {
+    fs2(fs2Root / "panda.BROTLI.parquet", CompressionCodecName.BROTLI, pandaSet)
+    akka(akkaRoot / "panda.BROTLI.parquet", CompressionCodecName.BROTLI, pandaSet)
+  }
+
 }

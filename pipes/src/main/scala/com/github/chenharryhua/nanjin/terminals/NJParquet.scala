@@ -28,7 +28,7 @@ final class NJParquet[F[_]] private (
 
   def source(path: NJPath): Stream[F, GenericRecord] =
     for {
-      rd <- Stream.bracket(F.delay(readBuilder.run(path).build()))(r => F.blocking(r.close()))
+      rd <- Stream.bracket(F.blocking(readBuilder.run(path).build()))(r => F.blocking(r.close()))
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
@@ -41,7 +41,7 @@ final class NJParquet[F[_]] private (
 
     (ss: Stream[F, GenericRecord]) =>
       for {
-        pw <- Stream.bracket(F.pure(writeBuilder.run(path).build()))(r => F.blocking(r.close()))
+        pw <- Stream.bracket(F.blocking(writeBuilder.run(path).build()))(r => F.blocking(r.close()))
         _ <- go(ss, pw).stream
       } yield ()
   }
@@ -51,7 +51,7 @@ final class NJParquet[F[_]] private (
       Source.fromGraph(new AkkaParquetSource(readBuilder, path))
 
     def sink(path: NJPath): Sink[GenericRecord, Future[IOResult]] =
-      Sink.fromGraph(new AkkaParquetSink(writeBuilder.run(path).build()))
+      Sink.fromGraph(new AkkaParquetSink(writeBuilder, path))
   }
 }
 
@@ -82,8 +82,8 @@ private class AkkaParquetSource(readBuilder: Reader[NJPath, ParquetReader.Builde
   override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
-    val reader: ParquetReader[GenericRecord] = readBuilder.run(path).build()
-    val promise: Promise[IOResult]           = Promise[IOResult]()
+
+    val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
       override protected val logSource: Class[AkkaParquetSource] = classOf[AkkaParquetSource]
       setHandler(
@@ -91,10 +91,12 @@ private class AkkaParquetSource(readBuilder: Reader[NJPath, ParquetReader.Builde
         new OutHandler {
           private var count: Long = 0
 
+          private val reader: ParquetReader[GenericRecord] = readBuilder.run(path).build()
+
           override def onDownstreamFinish(cause: Throwable): Unit =
             try {
               super.onDownstreamFinish(cause)
-              reader.close()
+              reader.close() // close exception is a failure
               cause match {
                 case _: SubscriptionWithCancelException.NonFailureCancellation =>
                   promise.success(IOResult(count))
@@ -119,7 +121,7 @@ private class AkkaParquetSource(readBuilder: Reader[NJPath, ParquetReader.Builde
   override val shape: SourceShape[GenericRecord] = SourceShape.of(out)
 }
 
-private class AkkaParquetSink(writer: ParquetWriter[GenericRecord])
+private class AkkaParquetSink(writeBuilder: Reader[NJPath, AvroParquetWriter.Builder[GenericRecord]], path: NJPath)
     extends GraphStageWithMaterializedValue[SinkShape[GenericRecord], Future[IOResult]] {
 
   private val in: Inlet[GenericRecord] = Inlet("akka.parquet.sink")
@@ -136,6 +138,8 @@ private class AkkaParquetSink(writer: ParquetWriter[GenericRecord])
         in,
         new InHandler {
           private var count: Long = 0
+
+          private val writer: ParquetWriter[GenericRecord] = writeBuilder.run(path).build()
 
           override def onUpstreamFinish(): Unit =
             try {

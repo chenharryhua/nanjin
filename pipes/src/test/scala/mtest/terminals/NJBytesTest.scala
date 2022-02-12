@@ -2,153 +2,70 @@ package mtest.terminals
 
 import akka.stream.scaladsl.Source
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.pipes.serde.{BinaryAvroSerde, CirceSerde, TextSerde}
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
-import eu.timepit.refined.auto.*
-import fs2.Stream
-import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericRecord}
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.compress.DeflateCodec
+import com.github.chenharryhua.nanjin.pipes.serde.CirceSerde
+import com.github.chenharryhua.nanjin.terminals.NJPath
+import mtest.terminals.HadoopTestData.hdp
 import org.scalatest.funsuite.AnyFunSuite
-
-import scala.util.Random
-object HadoopTestData {
-
-  val pandaSchema: Schema = (new Schema.Parser).parse("""
-                                                        |{
-                                                        |  "type": "record",
-                                                        |  "name": "Panda",
-                                                        |  "namespace": "mtest.HadoopTestData",
-                                                        |  "fields": [
-                                                        |    {
-                                                        |      "name": "name",
-                                                        |      "type": "string"
-                                                        |    },
-                                                        |    {
-                                                        |      "name": "age",
-                                                        |      "type": "int"
-                                                        |    },
-                                                        |    {
-                                                        |      "name": "id",
-                                                        |      "type": "int"
-                                                        |    }
-                                                        |  ]
-                                                        |}
-                                                        |""".stripMargin)
-
-  val youngPanda = new GenericData.Record(pandaSchema)
-  youngPanda.put("name", "zhouzhou")
-  youngPanda.put("age", 8)
-  youngPanda.put("id", Random.nextInt())
-
-  val prettyPanda = new GenericData.Record(pandaSchema)
-  prettyPanda.put("name", "fanfan")
-  prettyPanda.put("age", 8)
-  prettyPanda.put("id", Random.nextInt())
-
-  val pandas: List[GenericRecord] = List(youngPanda, prettyPanda)
-
-  val cfg               = new Configuration()
-  val hdp: NJHadoop[IO] = NJHadoop[IO](cfg)
-}
+import eu.timepit.refined.auto.*
+import cats.effect.unsafe.implicits.global
+import fs2.Stream
+import mtest.pipes.TestData.Tiger
+import io.circe.generic.auto.*
+import mtest.pipes.TestData
+import org.scalatest.Assertion
 
 class NJBytesTest extends AnyFunSuite {
-  import HadoopTestData.*
-
-  test("hadoop text write/read identity") {
-    val pathStr = NJPath("./data/test/devices/") / "greeting.txt"
-    hdp.delete(pathStr).unsafeRunSync()
-    val testString           = s"hello hadoop ${Random.nextInt()}"
-    val ts: Stream[IO, Byte] = Stream(testString).through(fs2.text.utf8.encode)
-    val sink                 = hdp.bytes.sink(pathStr)
-    val src                  = hdp.bytes.source(pathStr)
-    ts.through(sink).compile.drain.unsafeRunSync()
-    val action = src.through(fs2.text.utf8.decode).compile.toList
-    assert(action.unsafeRunSync().mkString == testString)
-  }
-
-  test("deflate text write/read akka") {
-    val pathStr = NJPath("./data/test/devices/akka.txt.deflate")
-    hdp.delete(pathStr).unsafeRunSync()
-    val ts   = Source(List("string1", "string2", "string3")).via(TextSerde.akka.toByteString)
-    val src  = hdp.bytes.akka.source(pathStr)
-    val sink = hdp.bytes.withCompressionCodec(new DeflateCodec()).akka.sink(pathStr)
-    IO.fromFuture(IO(ts.runWith(sink))).unsafeRunSync()
-    val action =
-      IO.fromFuture(IO(src.via(TextSerde.akka.fromByteString).runFold(List.empty[String]) { case (ss, i) =>
-        ss.appended(i)
+  def akka(path: NJPath, data: Set[Tiger]): Assertion = {
+    hdp.delete(path).unsafeRunSync()
+    val ts   = Source(data)
+    val sink = hdp.bytes.akka.sink(path)
+    val src  = hdp.bytes.akka.source(path)
+    val action = IO.fromFuture(IO(ts.via(CirceSerde.akka.toByteString(true)).runWith(sink))) >>
+      IO.fromFuture(IO(src.via(CirceSerde.akka.fromByteString[Tiger]).runFold(Set.empty[Tiger]) { case (ss, i) =>
+        ss + i
       }))
-
-    assert(action.unsafeRunSync() == List("string1", "string2", "string3"))
+    assert(action.unsafeRunSync() == data)
   }
 
-  test("deflate binary avro write/read") {
-    val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate")
-    hdp.delete(pathStr).unsafeRunSync()
-    val ts   = Stream.emits(pandas).covary[IO]
-    val src  = hdp.bytes.source(pathStr)
-    val sink = hdp.bytes.withCompressionCodec(new DeflateCodec()).sink(pathStr)
-    ts.through(BinaryAvroSerde.toBytes(pandaSchema)).through(sink).compile.drain.unsafeRunSync()
-    val action = src.through(BinaryAvroSerde.fromBytes(pandaSchema)).compile.toList
-    assert(action.unsafeRunSync() == pandas)
-  }
-
-  test("extension voilation") {
-    val pathStr = NJPath("./data/test/devices/panda.binary.avro.deflate2")
-    hdp.delete(pathStr).unsafeRunSync()
-    val ts     = Stream.emits(pandas).covary[IO]
-    val sink   = hdp.bytes.withCompressionCodec(new DeflateCodec()).sink(pathStr)
-    val action = ts.through(BinaryAvroSerde.toBytes(pandaSchema)).through(sink).compile.drain
-    assertThrows[Exception](action.unsafeRunSync())
-  }
-
-  test("uncompressed binary avro write/read") {
-    val pathStr = NJPath("./data/test/devices/panda.uncompressed.binary.avro")
-    hdp.delete(pathStr).unsafeRunSync()
-    val ts   = Stream.emits(pandas).covary[IO]
-    val sink = hdp.bytes.sink(pathStr)
-    val src  = hdp.bytes.source(pathStr)
-    ts.through(BinaryAvroSerde.toBytes(pandaSchema)).through(sink).compile.drain.unsafeRunSync()
-    val action = src.through(BinaryAvroSerde.fromBytes(pandaSchema)).compile.toList
-    assert(action.unsafeRunSync() == pandas)
-  }
-
-  test("dataFolders") {
-    val pathStr = NJPath("./data/test/devices")
-    val folders = hdp.dataFolders(pathStr).unsafeRunSync()
-    assert(folders.headOption.exists(_.pathStr.contains("devices")))
-  }
-
-  test("hadoop input files") {
-    val path = NJPath("data/test/devices")
-    hdp.filesByName(path).flatMap(_.traverse(x => IO.println(x.toString))).unsafeRunSync()
-  }
-
-  test("circe write/read") {
-    val pathStr = NJPath("./data/test/devices/circe.json")
-    hdp.delete(pathStr).unsafeRunSync()
-    val data = Set(1, 2, 3)
+  def fs2(path: NJPath, data: Set[Tiger]): Assertion = {
+    hdp.delete(path).unsafeRunSync()
     val ts   = Stream.emits(data.toList).covary[IO]
-    val sink = hdp.bytes.sink(pathStr)
-    val src  = hdp.bytes.source(pathStr)
-    ts.through(CirceSerde.toBytes(true)).through(sink).compile.drain.unsafeRunSync()
-    val action = src.through(CirceSerde.fromBytes[IO, Int]).compile.toList
+    val sink = hdp.bytes.sink(path)
+    val src  = hdp.bytes.source(path)
+    val action = ts.through(CirceSerde.toBytes(true)).through(sink).compile.drain >>
+      src.through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
+  val akkaRoot: NJPath = NJPath("./data/test/pipes/bytes/akka")
+  val fs2Root: NJPath  = NJPath("./data/test/pipes/bytes/fs2")
 
-  test("circe write/read akka") {
-    val pathStr = NJPath("./data/test/devices/akka.circe.json")
-    val data    = Set(1, 2, 3)
-    hdp.delete(pathStr).unsafeRunSync()
-    val ts   = Source(data)
-    val sink = hdp.bytes.akka.sink(pathStr)
-    val src  = hdp.bytes.akka.source(pathStr)
-    IO.fromFuture(IO(ts.via(CirceSerde.akka.toByteString(true)).runWith(sink))).unsafeRunSync()
-    val action =
-      IO.fromFuture(IO(src.via(CirceSerde.akka.fromByteString[Int]).runFold(Set.empty[Int]) { case (ss, i) => ss + i }))
-    assert(action.unsafeRunSync() == data)
+  test("uncompressed") {
+    akka(akkaRoot / "tiger.json", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json", TestData.tigerSet)
+  }
+
+  test("gzip") {
+    akka(akkaRoot / "tiger.json.gz", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json.gz", TestData.tigerSet)
+  }
+  test("xz") {
+    akka(akkaRoot / "tiger.json.xz", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json.xz", TestData.tigerSet)
+  }
+  test("snappy") {
+    akka(akkaRoot / "tiger.json.snappy", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json.snappy", TestData.tigerSet)
+  }
+  test("bzip2") {
+    akka(akkaRoot / "tiger.json.bz2", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json.bz2", TestData.tigerSet)
+  }
+  test("lz4") {
+    akka(akkaRoot / "tiger.json.lz4", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json.lz4", TestData.tigerSet)
+  }
+  test("deflate") {
+    akka(akkaRoot / "tiger.json.deflate", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json.deflate", TestData.tigerSet)
   }
 }

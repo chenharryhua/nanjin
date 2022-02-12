@@ -19,4 +19,5 @@ object TestData {
   val tigers: List[Tiger] =
     (1 to 10).map(x => Tiger(Random.nextInt(), if (Random.nextBoolean()) Some("ChengDu Zoo") else None)).toList
 
+  val tigerSet: Set[Tiger] = tigers.toSet
 }
