@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
-import org.apache.hadoop.io.compress.{BZip2Codec, GzipCodec}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
@@ -86,7 +85,7 @@ class BinAvroTest extends AnyFunSuite {
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.withCompressionCodec(new GzipCodec()).sink(path))
+      .through(hdp.bytes.sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -100,7 +99,7 @@ class BinAvroTest extends AnyFunSuite {
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.withCompressionCodec(new BZip2Codec()).sink(path))
+      .through(hdp.bytes.sink(path))
       .compile
       .drain
       .unsafeRunSync()

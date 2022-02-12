@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
-import fs2.Stream
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
@@ -56,18 +55,6 @@ object HadoopTestData {
 
 class NJHadoopTest extends AnyFunSuite {
   import HadoopTestData.*
-
-  test("hadoop text write/read identity") {
-    val pathStr = NJPath("./data/test/devices/") / "greeting.txt"
-    hdp.delete(pathStr).unsafeRunSync()
-    val testString           = s"hello hadoop ${Random.nextInt()}"
-    val ts: Stream[IO, Byte] = Stream(testString).through(fs2.text.utf8.encode)
-    val sink                 = hdp.bytes.sink(pathStr)
-    val src                  = hdp.bytes.source(pathStr)
-    ts.through(sink).compile.drain.unsafeRunSync()
-    val action = src.through(fs2.text.utf8.decode).compile.toList
-    assert(action.unsafeRunSync().mkString == testString)
-  }
 
   test("dataFolders") {
     val pathStr = NJPath("./data/test/devices")

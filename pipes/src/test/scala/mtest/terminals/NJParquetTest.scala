@@ -11,7 +11,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
-class ParquetTest extends AnyFunSuite {
+class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*
 
   val parquet: NJParquet[IO] = hdp.parquet(pandaSchema)

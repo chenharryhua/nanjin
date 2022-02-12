@@ -11,7 +11,7 @@ import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
-class AvroTest extends AnyFunSuite {
+class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
 
   val avro: NJAvro[IO] = hdp.avro(pandaSchema)
