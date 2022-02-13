@@ -125,7 +125,7 @@ private[spark] object saveRDD {
       .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
   }
 
-  def kantanCsv[A](
+  def csv[A](
     rdd: RDD[A],
     path: NJPath,
     compression: NJCompression,

@@ -35,7 +35,7 @@ final class SaveKantanCsv[F[_], A](
 
   lazy val csvConfiguration: CsvConfiguration =
     GenLens[CsvConfiguration](_.header).modify {
-      case Header.Implicit => Header.Explicit(ds.schema.fields.map(_.name).toSeq)
+      case Header.Implicit => Header.Explicit(encoder.header.getOrElse(ds.schema.fields.map(_.name).toSeq))
       case others          => others
     }(csvCfg)
 
@@ -55,7 +55,7 @@ final class SaveKantanCsv[F[_], A](
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptibleMany {
-        saveRDD.kantanCsv[A](ds.rdd, params.outPath, params.compression, csvConfiguration, encoder)
+        saveRDD.csv[A](ds.rdd, params.outPath, params.compression, csvConfiguration, encoder)
       })
 }
 

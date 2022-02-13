@@ -10,18 +10,22 @@ import java.io.{InputStream, OutputStream}
 package object terminals {
   val BlockSizeHint: Long = -1
 
-  def inputStream(path: NJPath, cfg: Configuration): InputStream = {
-    val is: InputStream = path.hadoopInputFile(cfg).newStream()
-    Option(new CompressionCodecFactory(cfg).getCodec(path.hadoopPath)) match {
+  def inputStream(path: NJPath, configuration: Configuration): InputStream = {
+    val is: InputStream = path.hadoopInputFile(configuration).newStream()
+    Option(new CompressionCodecFactory(configuration).getCodec(path.hadoopPath)) match {
       case Some(cc) => cc.createInputStream(is)
       case None     => is
     }
   }
 
-  def outputStream(path: NJPath, cfg: Configuration, cl: CompressionLevel, blockSizeHint: Long): OutputStream = {
-    ZlibFactory.setCompressionLevel(cfg, cl)
-    val os: OutputStream = path.hadoopOutputFile(cfg).createOrOverwrite(blockSizeHint)
-    Option(new CompressionCodecFactory(cfg).getCodec(path.hadoopPath)) match {
+  def outputStream(
+    path: NJPath,
+    configuration: Configuration,
+    compressionLevel: CompressionLevel,
+    blockSizeHint: Long): OutputStream = {
+    ZlibFactory.setCompressionLevel(configuration, compressionLevel)
+    val os: OutputStream = path.hadoopOutputFile(configuration).createOrOverwrite(blockSizeHint)
+    Option(new CompressionCodecFactory(configuration).getCodec(path.hadoopPath)) match {
       case Some(cc) => cc.createOutputStream(os)
       case None     => os
     }
