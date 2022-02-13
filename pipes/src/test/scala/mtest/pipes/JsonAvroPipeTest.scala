@@ -64,7 +64,7 @@ class JsonAvroPipeTest extends AnyFunSuite {
   }
 
   test("write/read identity bzip codec") {
-    val path = NJPath("data/pipe/bzip-codec.avro")
+    val path = NJPath("data/pipe/bzip2-codec.avro")
     hd.delete(path).unsafeRunSync()
     val write = data.map(encoder.to).through(avro.withCodecFactory(CodecFactory.bzip2Codec()).sink(path))
     val read  = avro.source(path).map(Tiger.avroDecoder.decode)
@@ -72,7 +72,7 @@ class JsonAvroPipeTest extends AnyFunSuite {
     assert(run.unsafeRunSync() === tigers)
   }
 
-  ignore("write/read identity xz codec") {
+  test("write/read identity xz codec") {
     val path = NJPath("data/pipe/xz-codec.avro")
     hd.delete(path).unsafeRunSync()
     val write = data.map(encoder.to).through(avro.withCodecFactory(CodecFactory.xzCodec(1)).sink(path))

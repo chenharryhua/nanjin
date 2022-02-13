@@ -13,7 +13,6 @@ import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.generic.auto.*
 import mtest.spark.*
-import org.apache.hadoop.io.compress.{CompressionCodec, DeflateCodec, GzipCodec}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -22,12 +21,12 @@ class CirceTest extends AnyFunSuite {
 
   def rooster(path: NJPath) = new RddFileHoarder[IO, Rooster](RoosterData.ds.rdd, HoarderConfig(path))
   val hdp                   = sparkSession.hadoop[IO]
-  def loadRoosters(path: NJPath, codec: Option[CompressionCodec]) = {
+  def loadRoosters(path: NJPath) = {
     val rst =
       hdp
         .filesByName(path)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
-          ss ++ hdp.bytes.withCompressionCodec(codec).source(hif).through(CirceSerde.fromBytes[IO, Rooster])
+          ss ++ hdp.bytes.source(hif).through(CirceSerde.fromBytes[IO, Rooster])
         })
     fs2.Stream.force(rst).compile.toList
   }
@@ -48,7 +47,7 @@ class CirceTest extends AnyFunSuite {
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == t2.collect().toSet)
-    val t3 = loadRoosters(path, Some(new GzipCodec())).unsafeRunSync().toSet
+    val t3 = loadRoosters(path).unsafeRunSync().toSet
     assert(RoosterData.expected == t3)
   }
 
@@ -59,7 +58,18 @@ class CirceTest extends AnyFunSuite {
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
     assert(RoosterData.expected == t2.collect().toSet)
-    val t3 = loadRoosters(path, Some(new DeflateCodec())).unsafeRunSync().toSet
+    val t3 = loadRoosters(path).unsafeRunSync().toSet
+    assert(RoosterData.expected == t3)
+  }
+
+  test("circe rooster rdd read/write identity multi.lz4") {
+    val path = NJPath("./data/test/spark/persist/circe/rooster/multi.lz4")
+    rooster(path).circe.lz4.run.unsafeRunSync()
+    val t = loaders.rdd.circe[Rooster](path, sparkSession)
+    assert(RoosterData.expected == t.collect().toSet)
+    val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
+    assert(RoosterData.expected == t2.collect().toSet)
+    val t3 = loadRoosters(path).unsafeRunSync().toSet
     assert(RoosterData.expected == t3)
   }
 

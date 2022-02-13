@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
-import org.apache.hadoop.io.compress.{BZip2Codec, GzipCodec}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
@@ -59,6 +58,18 @@ class BinAvroTest extends AnyFunSuite {
     val t3 = loadRooster(path).unsafeRunSync()
     assert(RoosterData.expected == t3)
   }
+
+  test("binary avro - snappy") {
+    val path = NJPath("./data/test/spark/persist/bin_avro/bin.avro.lz4")
+    saver(path).lz4.run.unsafeRunSync()
+    val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    val t2 = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
+    assert(RoosterData.expected == t1)
+    assert(RoosterData.expected == t2)
+    val t3 = loadRooster(path).unsafeRunSync()
+    assert(RoosterData.expected == t3)
+  }
+
   test("binary avro - bzip2") {
     val path = NJPath("./data/test/spark/persist/bin_avro/bin.avro.bzip2")
     saver(path).bzip2.run.unsafeRunSync()
@@ -86,7 +97,7 @@ class BinAvroTest extends AnyFunSuite {
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.withCompressionCodec(new GzipCodec()).sink(path))
+      .through(hdp.bytes.sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -100,7 +111,7 @@ class BinAvroTest extends AnyFunSuite {
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.withCompressionCodec(new BZip2Codec()).sink(path))
+      .through(hdp.bytes.sink(path))
       .compile
       .drain
       .unsafeRunSync()

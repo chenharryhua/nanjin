@@ -18,8 +18,9 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
   def errorIfExists: SaveCirce[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveCirce[F, A] = updateConfig(cfg.ignoreMode)
 
-//  def snappy: SaveMultiCirce[F, A]              = updateConfig(cfg.withCompression(Compression.Snappy))
-//  def lz4: SaveMultiCirce[F, A]                 = updateConfig(cfg.withCompression(Compression.Lz4))
+  // def snappy: SaveCirce[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
+  // def zstd(level: Int): SaveCirce[F, A]    = updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
+  def lz4: SaveCirce[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def bzip2: SaveCirce[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
   def gzip: SaveCirce[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def deflate(level: Int): SaveCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
