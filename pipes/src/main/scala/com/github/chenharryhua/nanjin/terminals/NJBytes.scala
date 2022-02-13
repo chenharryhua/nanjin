@@ -8,20 +8,23 @@ import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.CompressionCodecFactory
-import org.apache.hadoop.io.compress.zlib.{ZlibCompressor, ZlibFactory}
+import org.apache.hadoop.io.compress.zlib.ZlibFactory
+import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
 import scala.concurrent.Future
+import io.scalaland.enumz.Enum
 
 final class NJBytes[F[_]] private (
   cfg: Configuration,
   blockSizeHint: Long,
   bufferSize: Information,
-  compressLevel: ZlibCompressor.CompressionLevel)(implicit F: Sync[F]) {
-  def withBufferSize(bs: Information): NJBytes[F]               = new NJBytes[F](cfg, blockSizeHint, bs, compressLevel)
-  def withBlockSizeHint(bsh: Long): NJBytes[F]                  = new NJBytes[F](cfg, bsh, bufferSize, compressLevel)
-  def withCompressionLevel(cl: ZlibCompressor.CompressionLevel) = new NJBytes[F](cfg, blockSizeHint, bufferSize, cl)
+  compressLevel: CompressionLevel)(implicit F: Sync[F]) {
+  def withBufferSize(bs: Information): NJBytes[F]  = new NJBytes[F](cfg, blockSizeHint, bs, compressLevel)
+  def withBlockSizeHint(bsh: Long): NJBytes[F]     = new NJBytes[F](cfg, bsh, bufferSize, compressLevel)
+  def withCompressionLevel(cl: CompressionLevel)   = new NJBytes[F](cfg, blockSizeHint, bufferSize, cl)
+  def withCompressionLevel(level: Int): NJBytes[F] = withCompressionLevel(Enum[CompressionLevel].withIndex(level))
 
   private def inputStream(path: NJPath): InputStream = {
     val is: InputStream = path.hadoopInputFile(cfg).newStream()
@@ -63,5 +66,5 @@ final class NJBytes[F[_]] private (
 
 object NJBytes {
   def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] =
-    new NJBytes[F](cfg, BlockSizeHint, Bytes(8192), ZlibCompressor.CompressionLevel.DEFAULT_COMPRESSION)
+    new NJBytes[F](cfg, BlockSizeHint, Bytes(8192), CompressionLevel.DEFAULT_COMPRESSION)
 }

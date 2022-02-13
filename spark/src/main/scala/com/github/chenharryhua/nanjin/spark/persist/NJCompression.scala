@@ -1,16 +1,22 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import com.hadoop.compression.lzo.LzoCodec
+import io.scalaland.enumz.Enum
 import org.apache.avro.file.DataFileConstants
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.compress.*
+import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
+import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.spark.sql.catalyst.util.CompressionCodecs
 
 sealed trait NJCompression extends Serializable {
   def name: String
 
-  final def setAvroHadoopConfig(conf: Configuration): Unit = this match {
+  final def avro(conf: Configuration): Unit = this match {
     case NJCompression.Uncompressed =>
       conf.set(FileOutputFormat.COMPRESS, "false")
       conf.set(AvroJob.CONF_OUTPUT_CODEC, DataFileConstants.NULL_CODEC)
@@ -28,7 +34,7 @@ sealed trait NJCompression extends Serializable {
       conf.set(FileOutputFormat.COMPRESS, "true")
       conf.set(AvroJob.CONF_OUTPUT_CODEC, DataFileConstants.XZ_CODEC)
       conf.set(AvroOutputFormat.XZ_LEVEL_KEY, v.toString)
-    case c => throw new Exception(s"not support $c in avro")
+    case c => sys.error(s"not support $c in avro")
   }
 
   final def parquet: CompressionCodecName = this match {
@@ -39,7 +45,26 @@ sealed trait NJCompression extends Serializable {
     case NJCompression.Lzo          => CompressionCodecName.LZO
     case NJCompression.Brotli       => CompressionCodecName.BROTLI
     case NJCompression.Zstandard(_) => CompressionCodecName.ZSTD
-    case c                          => throw new Exception(s"not support $c in parquet")
+    case c                          => sys.error(s"not support $c in parquet")
+  }
+
+  final def set(config: Configuration): Unit = {
+    val ecl: Enum[CompressionLevel] = Enum[CompressionLevel]
+    this match {
+      case NJCompression.Uncompressed => CompressionCodecs.setCodecConfiguration(config, null)
+      case NJCompression.Snappy       => CompressionCodecs.setCodecConfiguration(config, classOf[SnappyCodec].getName)
+      case NJCompression.Bzip2        => CompressionCodecs.setCodecConfiguration(config, classOf[BZip2Codec].getName)
+      case NJCompression.Gzip         => CompressionCodecs.setCodecConfiguration(config, classOf[GzipCodec].getName)
+      case NJCompression.Lz4          => CompressionCodecs.setCodecConfiguration(config, classOf[Lz4Codec].getName)
+      case NJCompression.Lzo          => CompressionCodecs.setCodecConfiguration(config, classOf[LzoCodec].getName)
+      case NJCompression.Deflate(level) =>
+        ZlibFactory.setCompressionLevel(config, ecl.withIndex(level))
+        CompressionCodecs.setCodecConfiguration(config, classOf[DeflateCodec].getName)
+      case NJCompression.Zstandard(level) =>
+        ZlibFactory.setCompressionLevel(config, ecl.withIndex(level))
+        CompressionCodecs.setCodecConfiguration(config, classOf[ZStandardCodec].getName)
+      case cc => sys.error(s"${cc.name} is not supported")
+    }
   }
 }
 
