@@ -5,7 +5,7 @@ import akka.stream.scaladsl.{Sink, Source, StreamConverters}
 import akka.util.ByteString
 import cats.effect.kernel.Sync
 import fs2.io.{readInputStream, writeOutputStream}
-import fs2.{Pipe, Stream}
+import fs2.{INothing, Pipe, Stream}
 import io.scalaland.enumz.Enum
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -29,7 +29,7 @@ final class NJBytes[F[_]] private (
       byte <- readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = false) // avoid double close
     } yield byte
 
-  def sink(path: NJPath): Pipe[F, Byte, Unit] = { (ss: Stream[F, Byte]) =>
+  def sink(path: NJPath): Pipe[F, Byte, INothing] = { (ss: Stream[F, Byte]) =>
     Stream
       .bracket(F.blocking(outputStream(path, configuration, compressLevel, blockSizeHint)))(r => F.blocking(r.close()))
       .flatMap(os => ss.through(writeOutputStream(F.pure(os), closeAfterUse = false))) // avoid double close

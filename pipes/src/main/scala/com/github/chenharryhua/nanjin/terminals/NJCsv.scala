@@ -6,7 +6,7 @@ import akka.stream.stage.*
 import cats.effect.kernel.Sync
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{Pipe, Stream}
+import fs2.{INothing, Pipe, Stream}
 import io.scalaland.enumz.Enum
 import kantan.csv.*
 import kantan.csv.CsvConfiguration.Header
@@ -32,33 +32,34 @@ final class NJCsv[F[_]] private (
     new NJCsv[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
   def withCompressionLevel(level: Int): NJCsv[F] = withCompressionLevel(Enum[CompressionLevel].withIndex(level))
 
-  private val modify: CsvConfiguration => CsvConfiguration = GenLens[CsvConfiguration](_.header).modify {
-    case Header.Implicit => Header.Explicit(List("unable to infer header", "this is a place holder"))
-    case other           => other
-  }
+  private def modify(cfg: CsvConfiguration, header: Option[Seq[String]]): CsvConfiguration =
+    GenLens[CsvConfiguration](_.header).modify {
+      case Header.Implicit =>
+        Header.Explicit(header.getOrElse(List("unable to infer header", "this is a place holder")))
+      case other => other
+    }(cfg)
 
   def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Stream[F, A] =
     for {
       is <- Stream.bracket(F.blocking(inputStream(path, configuration)))(r => F.blocking(r.close()))
-      a <- Stream.fromBlockingIterator(is.asCsvReader[A](modify(csvConfiguration)).iterator, chunkSize.value).rethrow
+      a <- Stream.fromBlockingIterator(is.asCsvReader[A](csvConfiguration).iterator, chunkSize.value).rethrow
     } yield a
 
-  def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, Unit] = { (ss: Stream[F, A]) =>
-    for {
-      writer <- Stream.bracket(
-        F.blocking(
-          outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](modify(csvConfiguration))))(
-        r => F.blocking(r.close()))
-      x <- ss.chunks.foreach(c => F.blocking(c.map(writer.write)).void)
-    } yield x
+  def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, INothing] = { (ss: Stream[F, A]) =>
+    Stream
+      .bracket(
+        F.blocking(outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](
+          modify(csvConfiguration, enc.header))))(r => F.blocking(r.close()))
+      .flatMap(writer => ss.chunks.foreach(c => F.blocking(c.map(writer.write)).void))
   }
 
   object akka {
     def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Source[A, Future[IOResult]] =
-      Source.fromGraph(new AkkaCsvSource[A](path, modify(csvConfiguration), configuration))
+      Source.fromGraph(new AkkaCsvSource[A](path, csvConfiguration, configuration))
 
     def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Sink[A, Future[IOResult]] =
-      Sink.fromGraph(new AkkaCsvSink[A](path, modify(csvConfiguration), configuration, blockSizeHint, compressLevel))
+      Sink.fromGraph(
+        new AkkaCsvSink[A](path, modify(csvConfiguration, enc.header), configuration, blockSizeHint, compressLevel))
   }
 }
 object NJCsv {

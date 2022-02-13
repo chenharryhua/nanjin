@@ -327,7 +327,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(
-    libraryDependencies ++=
+    libraryDependencies ++= Seq("org.tukaani" % "xz" % "1.9") ++
       kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++
         serdeLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
   )
