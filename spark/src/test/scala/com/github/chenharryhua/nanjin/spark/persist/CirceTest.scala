@@ -62,6 +62,17 @@ class CirceTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
+  test("circe rooster rdd read/write identity multi.lz4") {
+    val path = NJPath("./data/test/spark/persist/circe/rooster/multi.lz4")
+    rooster(path).circe.lz4.run.unsafeRunSync()
+    val t = loaders.rdd.circe[Rooster](path, sparkSession)
+    assert(RoosterData.expected == t.collect().toSet)
+    val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
+    assert(RoosterData.expected == t2.collect().toSet)
+    val t3 = loadRoosters(path).unsafeRunSync().toSet
+    assert(RoosterData.expected == t3)
+  }
+
   def bee(path: NJPath) =
     new RddAvroFileHoarder[IO, Bee](BeeData.rdd.repartition(1), Bee.avroCodec.avroEncoder, HoarderConfig(path))
 
