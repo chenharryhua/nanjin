@@ -74,7 +74,7 @@ class CsvTest extends AnyFunSuite {
 
   test("tablet read/write identity multi.bzip2") {
     val path = NJPath("./data/test/spark/persist/csv/tablet/bzip2.deflate")
-    val s    = saver(path).bzip2
+    val s    = saver(path).bzip2.withHeader
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, sparkSession)
     assert(data.toSet == t.collect().toSet)
@@ -92,7 +92,7 @@ class CsvTest extends AnyFunSuite {
 
   test("tablet read/write identity with-header-delimiter") {
     val path = NJPath("./data/test/spark/persist/csv/tablet/tablet_header_delimit_multi.csv")
-    val rfc  = CsvConfiguration.rfc.withHeader.withCellSeparator('|')
+    val rfc  = CsvConfiguration.rfc.withCellSeparator('|')
     val s    = saver(path).updateCsvConfig(_ => rfc)
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, rfc, sparkSession)
