@@ -8,27 +8,37 @@ import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.apache.hadoop.io.compress.zlib.{ZlibCompressor, ZlibFactory}
 import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
 import scala.concurrent.Future
 
-final class NJBytes[F[_]] private (cfg: Configuration, blockSizeHint: Long, bufferSize: Information)(implicit
-  F: Sync[F]) {
-  def withBufferSize(bs: Information): NJBytes[F] = new NJBytes[F](cfg, blockSizeHint, bs)
-  def withBlockSizeHint(bsh: Long): NJBytes[F]    = new NJBytes[F](cfg, bsh, bufferSize)
+final class NJBytes[F[_]] private (
+  cfg: Configuration,
+  blockSizeHint: Long,
+  bufferSize: Information,
+  compressLevel: ZlibCompressor.CompressionLevel)(implicit F: Sync[F]) {
+  def withBufferSize(bs: Information): NJBytes[F]               = new NJBytes[F](cfg, blockSizeHint, bs, compressLevel)
+  def withBlockSizeHint(bsh: Long): NJBytes[F]                  = new NJBytes[F](cfg, bsh, bufferSize, compressLevel)
+  def withCompressionLevel(cl: ZlibCompressor.CompressionLevel) = new NJBytes[F](cfg, blockSizeHint, bufferSize, cl)
 
-  private def inputStream(path: NJPath): InputStream =
+  private def inputStream(path: NJPath): InputStream = {
+    val is: InputStream = path.hadoopInputFile(cfg).newStream()
     Option(new CompressionCodecFactory(cfg).getCodec(path.hadoopPath)) match {
-      case Some(cc) => cc.createInputStream(path.hadoopInputFile(cfg).newStream())
-      case None     => path.hadoopInputFile(cfg).newStream()
+      case Some(cc) => cc.createInputStream(is)
+      case None     => is
     }
+  }
 
-  private def outputStream(path: NJPath): OutputStream =
+  private def outputStream(path: NJPath): OutputStream = {
+    ZlibFactory.setCompressionLevel(cfg, compressLevel)
+    val os: OutputStream = path.hadoopOutputFile(cfg).createOrOverwrite(blockSizeHint)
     Option(new CompressionCodecFactory(cfg).getCodec(path.hadoopPath)) match {
-      case Some(cc) => cc.createOutputStream(path.hadoopOutputFile(cfg).createOrOverwrite(blockSizeHint))
-      case None     => path.hadoopOutputFile(cfg).createOrOverwrite(blockSizeHint)
+      case Some(cc) => cc.createOutputStream(os)
+      case None     => os
     }
+  }
 
   def source(path: NJPath): Stream[F, Byte] =
     for {
@@ -52,5 +62,6 @@ final class NJBytes[F[_]] private (cfg: Configuration, blockSizeHint: Long, buff
 }
 
 object NJBytes {
-  def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] = new NJBytes[F](cfg, BlockSizeHint, Bytes(8192))
+  def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] =
+    new NJBytes[F](cfg, BlockSizeHint, Bytes(8192), ZlibCompressor.CompressionLevel.DEFAULT_COMPRESSION)
 }

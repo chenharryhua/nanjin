@@ -23,14 +23,14 @@ import java.io.ByteArrayOutputStream
 private[spark] object saveRDD {
   private def genericRecordPair[A](rdd: RDD[A], enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] =
     rdd.mapPartitions { rcds =>
-      val to = ToRecord[A](enc)
+      val to: ToRecord[A] = ToRecord[A](enc)
       rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
     }
 
   def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    compression.avro(config)
-    val job = Job.getInstance(config)
+    compression.setAvroHadoopConfig(config)
+    val job: Job = Job.getInstance(config)
     AvroJob.setOutputKeySchema(job, encoder.schema)
 
     genericRecordPair(rdd, encoder).saveAsNewAPIHadoopFile(

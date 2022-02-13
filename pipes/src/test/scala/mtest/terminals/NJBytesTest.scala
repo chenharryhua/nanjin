@@ -12,6 +12,7 @@ import fs2.Stream
 import mtest.pipes.TestData.Tiger
 import io.circe.generic.auto.*
 import mtest.pipes.TestData
+import org.apache.hadoop.io.compress.zlib.ZlibCompressor
 import org.scalatest.Assertion
 
 class NJBytesTest extends AnyFunSuite {
@@ -30,7 +31,7 @@ class NJBytesTest extends AnyFunSuite {
   def fs2(path: NJPath, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts   = Stream.emits(data.toList).covary[IO]
-    val sink = hdp.bytes.sink(path)
+    val sink = hdp.bytes.withCompressionLevel(ZlibCompressor.CompressionLevel.BEST_SPEED).sink(path)
     val src  = hdp.bytes.source(path)
     val action = ts.through(CirceSerde.toBytes(true)).through(sink).compile.drain >>
       src.through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
@@ -48,10 +49,6 @@ class NJBytesTest extends AnyFunSuite {
     akka(akkaRoot / "tiger.json.gz", TestData.tigerSet)
     fs2(fs2Root / "tiger.json.gz", TestData.tigerSet)
   }
-  test("xz") {
-    akka(akkaRoot / "tiger.json.xz", TestData.tigerSet)
-    fs2(fs2Root / "tiger.json.xz", TestData.tigerSet)
-  }
   test("snappy") {
     akka(akkaRoot / "tiger.json.snappy", TestData.tigerSet)
     fs2(fs2Root / "tiger.json.snappy", TestData.tigerSet)
@@ -64,8 +61,14 @@ class NJBytesTest extends AnyFunSuite {
     akka(akkaRoot / "tiger.json.lz4", TestData.tigerSet)
     fs2(fs2Root / "tiger.json.lz4", TestData.tigerSet)
   }
+
   test("deflate") {
-    akka(akkaRoot / "tiger.json.deflate", TestData.tigerSet)
     fs2(fs2Root / "tiger.json.deflate", TestData.tigerSet)
+    akka(akkaRoot / "tiger.json.deflate", TestData.tigerSet)
+  }
+
+  ignore("ZSTANDARD") {
+    akka(akkaRoot / "tiger.json.zst", TestData.tigerSet)
+    fs2(fs2Root / "tiger.json.zst", TestData.tigerSet)
   }
 }
