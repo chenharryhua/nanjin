@@ -76,7 +76,7 @@ class CsvTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/persist/csv/tablet/bzip2.deflate")
     val s    = saver(path).bzip2.withHeader
     s.run.unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, sparkSession)
+    val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }

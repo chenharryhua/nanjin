@@ -9,7 +9,7 @@ import fs2.{INothing, Pipe, Stream}
 import io.scalaland.enumz.Enum
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import squants.information.{Bytes, Information}
+import squants.information.Information
 
 import scala.concurrent.Future
 
@@ -46,5 +46,5 @@ final class NJBytes[F[_]] private (
 
 object NJBytes {
   def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] =
-    new NJBytes[F](cfg, BlockSizeHint, Bytes(8192), CompressionLevel.DEFAULT_COMPRESSION)
+    new NJBytes[F](cfg, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)
 }

@@ -62,7 +62,7 @@ final class NJAvro[F[_]] private (
 
 object NJAvro {
   def apply[F[_]: Sync](schema: Schema, cfg: Configuration): NJAvro[F] =
-    new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BlockSizeHint, ChunkSize(1000))
+    new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BLOCK_SIZE_HINT, CHUNK_SIZE)
 }
 
 private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)

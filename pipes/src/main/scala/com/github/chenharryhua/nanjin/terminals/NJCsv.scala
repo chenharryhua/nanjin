@@ -32,7 +32,7 @@ final class NJCsv[F[_]] private (
   def withCompressionLevel(level: Int): NJCsv[F] = withCompressionLevel(Enum[CompressionLevel].withIndex(level))
 
   private def modifyEncoder[A](encoder: HeaderEncoder[A]): HeaderEncoder[A] = new HeaderEncoder[A] {
-    override val header: Option[Seq[String]] = encoder.header.orElse(Some(List("this is a place holder")))
+    override val header: Option[Seq[String]] = encoder.header.orElse(Some(List("this is a header place holder")))
     override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
   }
 
@@ -60,7 +60,7 @@ final class NJCsv[F[_]] private (
 }
 object NJCsv {
   def apply[F[_]: Sync](csvConfiguration: CsvConfiguration, cfg: Configuration) =
-    new NJCsv[F](cfg, BlockSizeHint, ChunkSize(1000), CompressionLevel.DEFAULT_COMPRESSION, csvConfiguration)
+    new NJCsv[F](cfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvConfiguration)
 }
 
 private class AkkaCsvSource[A](

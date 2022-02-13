@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.pipes.serde
 
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.terminals.{BUFFER_SIZE, CHUNK_SIZE}
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
 import kantan.csv.*
@@ -27,11 +28,17 @@ object CsvSerde {
     }
   }
 
+  def toBytes[F[_], A](conf: CsvConfiguration)(implicit enc: HeaderEncoder[A], F: Async[F]): Pipe[F, A, Byte] =
+    toBytes[F, A](conf, BUFFER_SIZE)
+
   def fromBytes[F[_], A](conf: CsvConfiguration, chunkSize: ChunkSize)(implicit
     dec: HeaderDecoder[A],
     F: Async[F]): Pipe[F, Byte, A] =
     _.through(toInputStream[F]).flatMap(is =>
       Stream.fromBlockingIterator[F](is.asCsvReader[A](conf).iterator, chunkSize.value).rethrow)
+
+  def fromBytes[F[_], A](conf: CsvConfiguration)(implicit dec: HeaderDecoder[A], F: Async[F]): Pipe[F, Byte, A] =
+    fromBytes[F, A](conf, CHUNK_SIZE)
 
   def rowDecode[A](rowStr: String, csvConfiguration: CsvConfiguration)(implicit dec: RowDecoder[A]): A = {
     val sr: StringReader = new StringReader(rowStr)
