@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.hadoop.compression.lzo.LzoCodec
 import io.scalaland.enumz.Enum
 import org.apache.avro.file.DataFileConstants
 import org.apache.avro.mapred.AvroOutputFormat
@@ -42,7 +41,6 @@ sealed trait NJCompression extends Serializable {
     case NJCompression.Snappy       => CompressionCodecName.SNAPPY
     case NJCompression.Gzip         => CompressionCodecName.GZIP
     case NJCompression.Lz4          => CompressionCodecName.LZ4
-    case NJCompression.Lzo          => CompressionCodecName.LZO
     case NJCompression.Brotli       => CompressionCodecName.BROTLI
     case NJCompression.Zstandard(_) => CompressionCodecName.ZSTD
     case c                          => sys.error(s"not support $c in parquet")
@@ -56,7 +54,6 @@ sealed trait NJCompression extends Serializable {
       case NJCompression.Bzip2        => CompressionCodecs.setCodecConfiguration(config, classOf[BZip2Codec].getName)
       case NJCompression.Gzip         => CompressionCodecs.setCodecConfiguration(config, classOf[GzipCodec].getName)
       case NJCompression.Lz4          => CompressionCodecs.setCodecConfiguration(config, classOf[Lz4Codec].getName)
-      case NJCompression.Lzo          => CompressionCodecs.setCodecConfiguration(config, classOf[LzoCodec].getName)
       case NJCompression.Deflate(level) =>
         ZlibFactory.setCompressionLevel(config, ecl.withIndex(level))
         CompressionCodecs.setCodecConfiguration(config, classOf[DeflateCodec].getName)
@@ -88,10 +85,6 @@ object NJCompression {
 
   case object Lz4 extends NJCompression {
     override val name: String = "lz4"
-  }
-
-  case object Lzo extends NJCompression {
-    override val name: String = "lzo"
   }
 
   case object Brotli extends NJCompression {

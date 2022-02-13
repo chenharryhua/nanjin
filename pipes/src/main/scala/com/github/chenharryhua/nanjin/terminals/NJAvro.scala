@@ -15,14 +15,14 @@ import scala.concurrent.{Future, Promise}
 import scala.jdk.CollectionConverters.*
 
 final class NJAvro[F[_]] private (
-  cfg: Configuration,
+  configuration: Configuration,
   schema: Schema,
   codecFactory: CodecFactory,
   blockSizeHint: Long,
   chunkSize: ChunkSize)(implicit F: Sync[F]) {
-  def withCodecFactory(cf: CodecFactory): NJAvro[F] = new NJAvro[F](cfg, schema, cf, blockSizeHint, chunkSize)
-  def withChunSize(cs: ChunkSize): NJAvro[F]        = new NJAvro[F](cfg, schema, codecFactory, blockSizeHint, cs)
-  def withBlockSizeHint(bsh: Long): NJAvro[F]       = new NJAvro[F](cfg, schema, codecFactory, bsh, chunkSize)
+  def withCodecFactory(cf: CodecFactory): NJAvro[F] = new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
+  def withChunSize(cs: ChunkSize): NJAvro[F]  = new NJAvro[F](configuration, schema, codecFactory, blockSizeHint, cs)
+  def withBlockSizeHint(bsh: Long): NJAvro[F] = new NJAvro[F](configuration, schema, codecFactory, bsh, chunkSize)
 
   def sink(path: NJPath): Pipe[F, GenericRecord, Unit] = {
     def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Unit, Unit] =
@@ -36,7 +36,7 @@ final class NJAvro[F[_]] private (
         dfw <- Stream.bracket[F, DataFileWriter[GenericRecord]](
           F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
           F.blocking(r.close()))
-        os <- Stream.bracket(F.blocking(path.hadoopOutputFile(cfg).createOrOverwrite(blockSizeHint)))(r =>
+        os <- Stream.bracket(F.blocking(path.hadoopOutputFile(configuration).createOrOverwrite(blockSizeHint)))(r =>
           F.blocking(r.close()))
         writer <- Stream.bracket(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
         _ <- go(ss, writer).stream
@@ -45,7 +45,7 @@ final class NJAvro[F[_]] private (
 
   def source(path: NJPath): Stream[F, GenericRecord] =
     for {
-      is <- Stream.bracket(F.blocking(path.hadoopInputFile(cfg).newStream()))(r => F.blocking(r.close()))
+      is <- Stream.bracket(F.blocking(path.hadoopInputFile(configuration).newStream()))(r => F.blocking(r.close()))
       dfs <- Stream.bracket[F, DataFileStream[GenericRecord]](
         F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
       gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
@@ -53,16 +53,16 @@ final class NJAvro[F[_]] private (
 
   object akka {
     def source(path: NJPath): Source[GenericRecord, Future[IOResult]] =
-      Source.fromGraph(new AkkaAvroSource(path, schema, cfg))
+      Source.fromGraph(new AkkaAvroSource(path, schema, configuration))
 
     def sink(path: NJPath): Sink[GenericRecord, Future[IOResult]] =
-      Sink.fromGraph(new AkkaAvroSink(path, cfg, blockSizeHint, schema, codecFactory))
+      Sink.fromGraph(new AkkaAvroSink(path, configuration, blockSizeHint, schema, codecFactory))
   }
 }
 
 object NJAvro {
   def apply[F[_]: Sync](schema: Schema, cfg: Configuration): NJAvro[F] =
-    new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BlockSizeHint, ChunkSize(1000))
+    new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BLOCK_SIZE_HINT, CHUNK_SIZE)
 }
 
 private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)

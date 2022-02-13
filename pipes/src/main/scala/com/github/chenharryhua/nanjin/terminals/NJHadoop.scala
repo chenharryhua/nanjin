@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.Sync
+import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
@@ -59,7 +60,9 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
   def filesByTime(path: NJPath): F[List[NJPath]] = filesIn(path, _.getModificationTime)
   def filesByName(path: NJPath): F[List[NJPath]] = filesIn(path, _.getPath.getName)
 
+  // sources and sinks
   def bytes: NJBytes[F]                     = NJBytes[F](config)
   def avro(schema: Schema): NJAvro[F]       = NJAvro[F](schema, config)
   def parquet(schema: Schema): NJParquet[F] = NJParquet[F](schema, config)
+  def csv(cfg: CsvConfiguration): NJCsv[F]  = NJCsv[F](cfg, config)
 }

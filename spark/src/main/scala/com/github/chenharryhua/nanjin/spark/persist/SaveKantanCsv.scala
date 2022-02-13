@@ -3,20 +3,19 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.pipes.serde.{CsvSerde, NEWLINE_SEPERATOR}
 import kantan.csv.CsvConfiguration.Header
-import kantan.csv.{CsvConfiguration, HeaderEncoder}
-import monocle.macros.GenLens
+import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.sql.Dataset
 
 final class SaveKantanCsv[F[_], A](
   ds: Dataset[A],
-  csvCfg: CsvConfiguration,
+  val csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   encoder: HeaderEncoder[A])
     extends Serializable {
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](ds, f(csvCfg), cfg, encoder)
+    new SaveKantanCsv[F, A](ds, f(csvConfiguration), cfg, encoder)
 
   // header
   def withHeader: SaveKantanCsv[F, A]              = updateCsvConfig(_.withHeader)
@@ -33,14 +32,13 @@ final class SaveKantanCsv[F[_], A](
 
   val params: HoarderParams = cfg.evalConfig
 
-  lazy val csvConfiguration: CsvConfiguration =
-    GenLens[CsvConfiguration](_.header).modify {
-      case Header.Implicit => Header.Explicit(ds.schema.fields.map(_.name).toSeq)
-      case others          => others
-    }(csvCfg)
+  private def modifiedEncoder: HeaderEncoder[A] = new HeaderEncoder[A] {
+    override val header: Option[Seq[String]] = encoder.header.orElse(Some(ds.schema.fields.map(_.name).toSeq))
+    override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
+  }
 
   private def updateConfig(cfg: HoarderConfig): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](ds, csvCfg, cfg, encoder)
+    new SaveKantanCsv[F, A](ds, csvConfiguration, cfg, encoder)
 
   def append: SaveKantanCsv[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveKantanCsv[F, A]      = updateConfig(cfg.overwriteMode)
@@ -55,27 +53,27 @@ final class SaveKantanCsv[F[_], A](
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptibleMany {
-        saveRDD.kantanCsv[A](ds.rdd, params.outPath, params.compression, csvConfiguration, encoder)
+        saveRDD.csv[A](ds.rdd, params.outPath, params.compression, csvConfiguration, modifiedEncoder)
       })
 }
 
-private class KantanCsvIterator[A](enc: HeaderEncoder[A], conf: CsvConfiguration, iter: Iterator[A])
+private class KantanCsvIterator[A](headerEncoder: HeaderEncoder[A], csvCfg: CsvConfiguration, iter: Iterator[A])
     extends Iterator[(NullWritable, Text)] {
 
   private[this] val nullWritable: NullWritable = NullWritable.get()
 
   private val headerText: Option[(NullWritable, Text)] = {
-    val headerStrs: Option[Seq[String]] = conf.header match {
+    val headerStrs: Option[Seq[String]] = csvCfg.header match {
       case Header.None             => None
-      case Header.Implicit         => enc.header
+      case Header.Implicit         => headerEncoder.header
       case Header.Explicit(header) => Some(header)
     }
-    headerStrs.map(hs => (nullWritable, new Text(hs.mkString(conf.cellSeparator.toString) + NEWLINE_SEPERATOR)))
+    headerStrs.map(hs => (nullWritable, new Text(hs.mkString(csvCfg.cellSeparator.toString) + NEWLINE_SEPERATOR)))
   }
 
   private[this] var isFirstTimeAccess: Boolean = true
 
-  private[this] def nextText(): Text = new Text(CsvSerde.rowEncode(iter.next(), conf)(enc.rowEncoder))
+  private[this] def nextText(): Text = new Text(CsvSerde.rowEncode(iter.next(), csvCfg)(headerEncoder.rowEncoder))
 
   override def hasNext: Boolean = iter.hasNext
 
