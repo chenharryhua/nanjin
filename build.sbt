@@ -327,9 +327,9 @@ lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(
-    libraryDependencies ++= Seq("org.tukaani" % "xz" % "1.9") ++
+    libraryDependencies ++=
       kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++
-      serdeLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
+        serdeLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
   )
 
 lazy val database = (project in file("database"))
@@ -389,3 +389,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
