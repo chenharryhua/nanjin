@@ -288,7 +288,7 @@ lazy val aws = (project in file("aws"))
   .settings(
     libraryDependencies ++=
       Seq(
-        "com.typesafe.akka" %% "akka-http"                % "10.2.7",
+        "com.typesafe.akka" %% "akka-http"                % "10.2.8",
         "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.4"
       ) ++ akkaLib ++ awsLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
   )
