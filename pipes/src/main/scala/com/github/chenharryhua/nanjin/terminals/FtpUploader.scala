@@ -24,7 +24,7 @@ sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpA
   }
 
   object akka {
-    final def upload(pathStr: String)(implicit mat: Materializer): Sink[ByteString, Future[IOResult]] =
+    final def upload(pathStr: String): Sink[ByteString, Future[IOResult]] =
       ftpApi.toPath(pathStr, settings)
   }
 }

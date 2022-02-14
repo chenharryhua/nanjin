@@ -25,7 +25,7 @@ sealed abstract class FtpDownloader[F[_], C, S <: RemoteFileSettings](ftpApi: Ft
     }
 
   object akka {
-    final def download(pathStr: String)(implicit mat: Materializer): Source[ByteString, Future[IOResult]] =
+    final def download(pathStr: String): Source[ByteString, Future[IOResult]] =
       ftpApi.fromPath(pathStr, settings)
   }
 }
