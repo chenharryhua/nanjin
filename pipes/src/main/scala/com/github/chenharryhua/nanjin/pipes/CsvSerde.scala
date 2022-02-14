@@ -42,13 +42,14 @@ object CsvSerde {
 
   def rowDecode[A](rowStr: String, csvConfiguration: CsvConfiguration)(implicit dec: RowDecoder[A]): A = {
     val sr: StringReader = new StringReader(rowStr)
-    val engine           = ReaderEngine.internalCsvReaderEngine.readerFor(sr, csvConfiguration)
+    val engine: CsvReader[ReadResult[Seq[String]]] =
+      ReaderEngine.internalCsvReaderEngine.readerFor(sr, csvConfiguration)
     try
       dec.decode(engine.toIndexedSeq.flatMap {
-        case Left(value)  => throw value
+        case Left(ex)     => throw ex
         case Right(value) => value
       }) match {
-        case Left(value)  => throw value
+        case Left(ex)     => throw ex
         case Right(value) => value
       }
     finally engine.close()

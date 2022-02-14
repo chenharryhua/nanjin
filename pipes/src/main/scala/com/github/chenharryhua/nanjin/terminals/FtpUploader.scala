@@ -6,7 +6,6 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{IOResult, Materializer}
 import akka.util.ByteString
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.interop.reactivestreams.StreamOps
 import fs2.{Pipe, Stream}
 import net.schmizz.sshj.SSHClient
@@ -17,11 +16,16 @@ import scala.concurrent.Future
 sealed abstract class FtpUploader[F[_], C, S <: RemoteFileSettings](ftpApi: FtpApi[C, S], settings: S) {
 
   final def upload(pathStr: String)(implicit F: Async[F], mat: Materializer): Pipe[F, Byte, IOResult] = {
-    val sink: Sink[ByteString, Future[IOResult]] = ftpApi.toPath(pathStr, settings)
     (ss: Stream[F, Byte]) =>
       Stream.eval(ss.chunks.toUnicastPublisher.use { p =>
-        F.fromFuture(F.blocking(Source.fromPublisher(p).map(x => ByteString.apply(x.toArray)).runWith(sink)))
+        F.fromFuture(
+          F.blocking(Source.fromPublisher(p).map(x => ByteString.apply(x.toArray)).runWith(akka.upload(pathStr))))
       })
+  }
+
+  object akka {
+    final def upload(pathStr: String)(implicit mat: Materializer): Sink[ByteString, Future[IOResult]] =
+      ftpApi.toPath(pathStr, settings)
   }
 }
 
