@@ -17,7 +17,7 @@ final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] =
-    _.through(CsvSerde.toBytes[F, A](csvConfig, byteBuffer)).through(uploader.upload(pathStr))
+    _.through(KantanSerde.toBytes[F, A](csvConfig, byteBuffer)).through(uploader.upload(pathStr))
 
   def csv[A](pathStr: String, byteBuffer: Information)(implicit
     enc: RowEncoder[A],

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.pipes.CsvSerde
+import com.github.chenharryhua.nanjin.pipes.KantanSerde
 import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.sql.Dataset
@@ -64,13 +64,13 @@ private class KantanCsvIterator[A](headerEncoder: HeaderEncoder[A], csvCfg: CsvC
 
   private[this] var isFirstTimeAccess: Boolean = true
 
-  private[this] def nextText(): Text = new Text(CsvSerde.rowEncode(iter.next(), csvCfg, headerEncoder.rowEncoder))
+  private[this] def nextText(): Text = new Text(KantanSerde.rowEncode(iter.next(), csvCfg, headerEncoder.rowEncoder))
 
   override def hasNext: Boolean = iter.hasNext
 
   override def next(): (NullWritable, Text) =
     if (isFirstTimeAccess) {
       isFirstTimeAccess = false
-      (nullWritable, new Text(CsvSerde.headerStr(csvCfg, headerEncoder)))
+      (nullWritable, new Text(KantanSerde.headerStr(csvCfg, headerEncoder)))
     } else (nullWritable, nextText())
 }
