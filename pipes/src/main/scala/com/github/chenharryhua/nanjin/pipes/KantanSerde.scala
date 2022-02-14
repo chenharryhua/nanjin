@@ -16,7 +16,7 @@ import squants.information.Information
 
 import java.io.{StringReader, StringWriter}
 
-object CsvSerde {
+object KantanSerde {
 
   def toBytes[F[_], A](conf: CsvConfiguration, byteBuffer: Information)(implicit
     enc: HeaderEncoder[A],

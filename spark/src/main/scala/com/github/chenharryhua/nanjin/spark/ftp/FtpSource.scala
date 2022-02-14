@@ -17,7 +17,7 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] =
-    downloader.download(pathStr, chunkSize).through(CsvSerde.fromBytes[F, A](csvConfig, chunkSize))
+    downloader.download(pathStr, chunkSize).through(KantanSerde.fromBytes[F, A](csvConfig, chunkSize))
 
   def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],

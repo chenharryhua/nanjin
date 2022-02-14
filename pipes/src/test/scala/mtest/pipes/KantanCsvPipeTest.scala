@@ -3,7 +3,7 @@ package mtest.pipes
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.CsvSerde
+import com.github.chenharryhua.nanjin.pipes.KantanSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -13,7 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import squants.information.InformationConversions.*
 import kantan.csv.generic.*
 
-class CsvPipeTest extends AnyFunSuite {
+class KantanCsvPipeTest extends AnyFunSuite {
   import TestData.*
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
   val hd                      = NJHadoop[IO](new Configuration())
@@ -22,8 +22,8 @@ class CsvPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(CsvSerde.toBytes[IO, Tiger](CsvConfiguration.rfc, 300.kb))
-        .through(CsvSerde.fromBytes[IO, Tiger](CsvConfiguration.rfc, 5))
+        .through(KantanSerde.toBytes[IO, Tiger](CsvConfiguration.rfc, 300.kb))
+        .through(KantanSerde.fromBytes[IO, Tiger](CsvConfiguration.rfc, 5))
         .compile
         .toList
         .unsafeRunSync() === tigers)
@@ -35,8 +35,8 @@ class CsvPipeTest extends AnyFunSuite {
       IO.fromFuture(
         IO(
           Source(tigers)
-            .via(CsvSerde.akka.toByteString(CsvConfiguration.rfc))
-            .via(CsvSerde.akka.fromByteString[Tiger](CsvConfiguration.rfc))
+            .via(KantanSerde.akka.toByteString(CsvConfiguration.rfc))
+            .via(KantanSerde.akka.fromByteString[Tiger](CsvConfiguration.rfc))
             .runFold(List.empty[Tiger]) { case (ss, i) => ss.appended(i) }))
         .unsafeRunSync() === tigers)
   }
@@ -48,8 +48,8 @@ class CsvPipeTest extends AnyFunSuite {
       IO.fromFuture(
         IO(
           Source(tigers)
-            .via(CsvSerde.akka.toByteString(rfc))
-            .via(CsvSerde.akka.fromByteString[Tiger](rfc))
+            .via(KantanSerde.akka.toByteString(rfc))
+            .via(KantanSerde.akka.fromByteString[Tiger](rfc))
             .runFold(List.empty[Tiger]) { case (ss, i) => ss.appended(i) }))
         .unsafeRunSync() === tigers)
   }
@@ -66,8 +66,8 @@ class CsvPipeTest extends AnyFunSuite {
       .withQuote('\'')
       .withQuotePolicy(CsvConfiguration.QuotePolicy.Always)
     val write =
-      data.through(CsvSerde.toBytes[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
-    val read = hd.bytes.source(path).through(CsvSerde.fromBytes[IO, Tiger](rfc, 1))
+      data.through(KantanSerde.toBytes[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
+    val read = hd.bytes.source(path).through(KantanSerde.fromBytes[IO, Tiger](rfc, 1))
     val run  = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }
@@ -78,8 +78,8 @@ class CsvPipeTest extends AnyFunSuite {
     val tigers = List(Tiger(1, Some("a|b")), Tiger(2, Some("a'b")), Tiger(3, None), Tiger(4, Some("a||'b")))
     val data   = Stream.emits(tigers).covaryAll[IO, Tiger]
     val rfc    = CsvConfiguration.rfc.withoutHeader
-    val write  = data.through(CsvSerde.toBytes[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
-    val read   = hd.bytes.source(path).through(CsvSerde.fromBytes[IO, Tiger](rfc, 1))
+    val write  = data.through(KantanSerde.toBytes[IO, Tiger](rfc, 2.kb)).through(hd.bytes.sink(path))
+    val read   = hd.bytes.source(path).through(KantanSerde.fromBytes[IO, Tiger](rfc, 1))
     val run    = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }
