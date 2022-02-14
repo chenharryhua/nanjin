@@ -2,7 +2,7 @@ package mtest.terminals
 
 import akka.stream.scaladsl.Source
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.pipes.serde.CirceSerde
+import com.github.chenharryhua.nanjin.pipes.CirceSerde
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import mtest.terminals.HadoopTestData.hdp
 import org.scalatest.funsuite.AnyFunSuite

@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.terminals.{BUFFER_SIZE, CHUNK_SIZE}
+import com.github.chenharryhua.nanjin.terminals.{withOptionalHeader, BUFFER_SIZE, CHUNK_SIZE, HEADER_PLACE_HOLDER}
 import fs2.io.{readOutputStream, toInputStream}
 import fs2.{Pipe, Pull, Stream}
 import kantan.csv.*
@@ -24,7 +24,11 @@ object CsvSerde {
             Pull.eval(F.delay(hl.foldLeft(cw) { case (w, item) => w.write(item) })).flatMap(go(tl, _))
           case None => Pull.eval(F.blocking(cw.close())) >> Pull.done
         }
-      go(ss, os.asCsvWriter[A](conf)).stream.compile.drain
+      go(
+        ss,
+        os.asCsvWriter[A](conf)(
+          withOptionalHeader(enc, HEADER_PLACE_HOLDER),
+          WriterEngine.internalCsvWriterEngine)).stream.compile.drain
     }
   }
 

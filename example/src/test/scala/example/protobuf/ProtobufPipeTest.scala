@@ -3,7 +3,7 @@ package example.protobuf
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.{DelimitedProtoBufSerde, ProtoBufSerde}
+import com.github.chenharryhua.nanjin.pipes.{DelimitedProtoBufSerde, ProtoBufSerde}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.pb.test.Lion

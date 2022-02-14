@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
 
 import akka.NotUsed
 import akka.stream.scaladsl.Flow

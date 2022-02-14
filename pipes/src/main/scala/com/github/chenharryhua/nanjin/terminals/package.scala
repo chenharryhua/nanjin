@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin
 
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import kantan.csv.{HeaderEncoder, RowEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -8,8 +9,12 @@ import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
+import java.nio.charset.StandardCharsets
 
 package object terminals {
+  final val NEWLINE_SEPERATOR: String            = "\r\n"
+  final val NEWLINE_BYTES_SEPERATOR: Array[Byte] = NEWLINE_SEPERATOR.getBytes(StandardCharsets.UTF_8)
+
   final val BLOCK_SIZE_HINT: Long    = -1
   final val BUFFER_SIZE: Information = Bytes(8192)
   final val CHUNK_SIZE: ChunkSize    = ChunkSize(1000)
@@ -34,4 +39,11 @@ package object terminals {
       case None     => os
     }
   }
+
+  final val HEADER_PLACE_HOLDER = List("header", "place", "holder")
+  def withOptionalHeader[A](encoder: HeaderEncoder[A], hd: Seq[String]): HeaderEncoder[A] =
+    new HeaderEncoder[A] {
+      override val header: Option[Seq[String]] = encoder.header.orElse(Some(hd))
+      override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
+    }
 }

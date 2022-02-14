@@ -31,11 +31,6 @@ final class NJCsv[F[_]] private (
     new NJCsv[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
   def withCompressionLevel(level: Int): NJCsv[F] = withCompressionLevel(Enum[CompressionLevel].withIndex(level))
 
-  private def modifyEncoder[A](encoder: HeaderEncoder[A]): HeaderEncoder[A] = new HeaderEncoder[A] {
-    override val header: Option[Seq[String]] = encoder.header.orElse(Some(List("this is a header place holder")))
-    override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
-  }
-
   def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Stream[F, A] =
     for {
       is <- Stream.bracket(F.blocking(inputStream(path, configuration)))(r => F.blocking(r.close()))
@@ -45,7 +40,8 @@ final class NJCsv[F[_]] private (
   def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, INothing] = { (ss: Stream[F, A]) =>
     Stream
       .bracket(F.blocking(outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](
-        csvConfiguration)(modifyEncoder(enc), WriterEngine.internalCsvWriterEngine)))(r => F.blocking(r.close()))
+        csvConfiguration)(withOptionalHeader(enc, HEADER_PLACE_HOLDER), WriterEngine.internalCsvWriterEngine)))(r =>
+        F.blocking(r.close()))
       .flatMap(writer => ss.chunks.foreach(c => F.blocking(c.map(writer.write)).void))
   }
 
@@ -55,7 +51,13 @@ final class NJCsv[F[_]] private (
 
     def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Sink[A, Future[IOResult]] =
       Sink.fromGraph(
-        new AkkaCsvSink[A](path, csvConfiguration, configuration, blockSizeHint, compressLevel, modifyEncoder[A](enc)))
+        new AkkaCsvSink[A](
+          path,
+          csvConfiguration,
+          configuration,
+          blockSizeHint,
+          compressLevel,
+          withOptionalHeader[A](enc, HEADER_PLACE_HOLDER)))
   }
 }
 object NJCsv {

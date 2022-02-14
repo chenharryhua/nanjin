@@ -4,7 +4,7 @@ import akka.stream.Materializer
 import akka.stream.alpakka.ftp.RemoteFileSettings
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.pipes.serde.*
+import com.github.chenharryhua.nanjin.pipes.*
 import com.github.chenharryhua.nanjin.terminals.FtpDownloader
 import com.sksamuel.avro4s.Decoder as AvroDecoder
 import fs2.Stream

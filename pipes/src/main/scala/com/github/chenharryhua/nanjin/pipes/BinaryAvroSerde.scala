@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.kernel.Async
 import fs2.io.toInputStream
@@ -24,9 +24,9 @@ object BinaryAvroSerde {
   }
 
   def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+    val datumReader = new GenericDatumReader[GenericRecord](schema)
     ss.through(toInputStream).flatMap { is =>
       val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
           .functionKInstance(F.delay(try Some(datumReader.read(null, avroDecoder))

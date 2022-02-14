@@ -1,7 +1,9 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
+
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Framing}
 import akka.util.ByteString
+import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPERATOR
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, RaiseThrowable, Stream}
 import io.circe.parser.decode
@@ -16,7 +18,7 @@ object CirceSerde {
 
   def fromBytes[F[_], A](implicit ev: RaiseThrowable[F], dec: JsonDecoder[A]): Pipe[F, Byte, A] =
     (ss: Stream[F, Byte]) =>
-      ss.through(utf8.decode).through(lines).filter(_.trim.nonEmpty).mapChunks(_.map(decode[A])).rethrow
+      ss.through(utf8.decode).through(lines).filter(_.nonEmpty).mapChunks(_.map(decode[A])).rethrow
 
   object akka {
     def toByteString[A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Flow[A, ByteString, NotUsed] = {

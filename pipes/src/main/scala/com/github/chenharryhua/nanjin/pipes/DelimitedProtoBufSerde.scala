@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.kernel.Async
 import com.github.chenharryhua.nanjin.common.ChunkSize
