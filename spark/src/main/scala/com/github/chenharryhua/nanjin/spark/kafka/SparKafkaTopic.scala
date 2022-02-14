@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
-import com.github.chenharryhua.nanjin.pipes.serde.{BinaryAvroSerde, CirceSerde, JacksonSerde, JavaObjectSerde}
+import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerde, CirceSerde, JacksonSerde, JavaObjectSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
 import com.github.chenharryhua.nanjin.spark.persist.loaders

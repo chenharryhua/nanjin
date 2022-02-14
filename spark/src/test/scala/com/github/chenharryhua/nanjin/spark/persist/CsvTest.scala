@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.CsvSerde
+import com.github.chenharryhua.nanjin.pipes.CsvSerde
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
@@ -38,9 +38,9 @@ class CsvTest extends AnyFunSuite {
 
   test("tablet read/write identity multi.uncompressed") {
     val path = NJPath("./data/test/spark/persist/csv/tablet/multi.uncompressed")
-    val s    = saver(path).append.errorIfExists.ignoreIfExists.overwrite.uncompress
+    val s    = saver(path).uncompress.withHeader.withCellSeparator('*').quoteAll
     s.run.unsafeRunSync()
-    val t = loaders.csv(path, Tablet.ate, sparkSession)
+    val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }

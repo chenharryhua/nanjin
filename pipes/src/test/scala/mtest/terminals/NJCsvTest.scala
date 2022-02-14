@@ -33,6 +33,7 @@ class NJCsvTest extends AnyFunSuite {
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
+
   val akkaRoot: NJPath = NJPath("./data/test/pipes/csv/akka")
   val fs2Root: NJPath  = NJPath("./data/test/pipes/csv/fs2")
 
@@ -43,7 +44,7 @@ class NJCsvTest extends AnyFunSuite {
   }
 
   test("gzip") {
-    val cfg = CsvConfiguration.rfc.withHeader
+    val cfg = CsvConfiguration.rfc
     akka(akkaRoot / "tiger.csv.gz", cfg, TestData.tigerSet)
     fs2(fs2Root / "tiger.csv.gz", cfg, TestData.tigerSet)
   }

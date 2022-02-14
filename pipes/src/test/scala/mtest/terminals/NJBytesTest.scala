@@ -2,7 +2,7 @@ package mtest.terminals
 
 import akka.stream.scaladsl.Source
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.pipes.serde.CirceSerde
+import com.github.chenharryhua.nanjin.pipes.CirceSerde
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import mtest.terminals.HadoopTestData.hdp
 import org.scalatest.funsuite.AnyFunSuite
@@ -37,8 +37,8 @@ class NJBytesTest extends AnyFunSuite {
       src.through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
-  val akkaRoot: NJPath = NJPath("./data/test/pipes/bytes/akka")
-  val fs2Root: NJPath  = NJPath("./data/test/pipes/bytes/fs2")
+  val akkaRoot: NJPath = NJPath("./data/test/terminals/bytes/akka")
+  val fs2Root: NJPath  = NJPath("./data/test/terminals/bytes/fs2")
 
   test("uncompressed") {
     akka(akkaRoot / "tiger.json", TestData.tigerSet)

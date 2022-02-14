@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerde
+import com.github.chenharryhua.nanjin.pipes.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*

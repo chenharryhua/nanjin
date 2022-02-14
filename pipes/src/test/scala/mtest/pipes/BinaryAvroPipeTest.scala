@@ -2,14 +2,13 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.BinaryAvroSerde
+import com.github.chenharryhua.nanjin.pipes.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.*
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData.*
@@ -28,6 +27,23 @@ class BinaryAvroPipeTest extends AnyFunSuite {
         .toList
         .unsafeRunSync() === tigers)
   }
+
+//  test("binary-json identity akka") {
+//    import mtest.terminals.mat
+//
+//    assert(
+//      IO.fromFuture(
+//        IO(
+//          Source(tigers)
+//            .map(encoder.to)
+//            .via(BinaryAvroSerde.akka.toByteString(AvroSchema[Tiger]))
+//            .via(BinaryAvroSerde.akka.fromByteString(AvroSchema[Tiger]))
+//            .map(Tiger.avroDecoder.decode)
+//            .runFold(List.empty[Tiger]) { case (ss, i) =>
+//              ss.appended(i)
+//            }))
+//        .unsafeRunSync() === tigers)
+//  }
 
   test("write/read identity") {
     val path = NJPath("data/pipe/bin-avro.avro")

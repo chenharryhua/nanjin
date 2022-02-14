@@ -1,10 +1,11 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
 
 import akka.NotUsed
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Flow, Framing}
 import akka.util.ByteString
 import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.github.chenharryhua.nanjin.terminals.{NEWLINE_BYTES_SEPERATOR, NEWLINE_SEPERATOR}
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Printer
@@ -81,6 +82,13 @@ object JacksonSerde {
         baos.close()
         ByteString.fromArray(baos.toByteArray)
       }.intersperse(ByteString(NEWLINE_SEPERATOR))
+    }
+
+    def fromByteString(schema: Schema): Flow[ByteString, GenericRecord, NotUsed] = {
+      val datumReader = new GenericDatumReader[GenericRecord](schema)
+      Flow[ByteString]
+        .via(Framing.delimiter(ByteString(NEWLINE_SEPERATOR), Int.MaxValue, allowTruncation = true))
+        .map(bs => datumReader.read(null, DecoderFactory.get().jsonDecoder(schema, bs.utf8String)))
     }
   }
 }

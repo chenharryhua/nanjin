@@ -100,7 +100,7 @@ private class AkkaParquetSource(readBuilder: Reader[NJPath, ParquetReader.Builde
                 case _: SubscriptionWithCancelException.NonFailureCancellation =>
                   promise.success(IOResult(count))
                 case ex: Throwable =>
-                  promise.failure(new IOOperationIncompleteException("parquet.source", count, ex))
+                  promise.failure(new IOOperationIncompleteException("akka.parquet.source", count, ex))
               }
             } catch {
               case ex: Throwable => promise.failure(ex)
@@ -153,7 +153,7 @@ private class AkkaParquetSink(writeBuilder: Reader[NJPath, AvroParquetWriter.Bui
             try {
               super.onUpstreamFailure(ex)
               writer.close()
-              promise.failure(new IOOperationIncompleteException("parquet.sink", count, ex))
+              promise.failure(new IOOperationIncompleteException("akka.parquet.sink", count, ex))
             } catch {
               case ex: Throwable => promise.failure(ex)
             }

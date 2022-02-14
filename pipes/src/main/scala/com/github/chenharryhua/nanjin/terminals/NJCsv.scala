@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{INothing, Pipe, Stream}
 import io.scalaland.enumz.Enum
 import kantan.csv.*
-import kantan.csv.engine.{ReaderEngine, WriterEngine}
 import kantan.csv.ops.{toCsvInputOps, toCsvOutputOps}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -31,11 +30,6 @@ final class NJCsv[F[_]] private (
     new NJCsv[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
   def withCompressionLevel(level: Int): NJCsv[F] = withCompressionLevel(Enum[CompressionLevel].withIndex(level))
 
-  private def modifyEncoder[A](encoder: HeaderEncoder[A]): HeaderEncoder[A] = new HeaderEncoder[A] {
-    override val header: Option[Seq[String]] = encoder.header.orElse(Some(List("this is a header place holder")))
-    override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
-  }
-
   def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Stream[F, A] =
     for {
       is <- Stream.bracket(F.blocking(inputStream(path, configuration)))(r => F.blocking(r.close()))
@@ -44,30 +38,30 @@ final class NJCsv[F[_]] private (
 
   def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, INothing] = { (ss: Stream[F, A]) =>
     Stream
-      .bracket(F.blocking(outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](
-        csvConfiguration)(modifyEncoder(enc), WriterEngine.internalCsvWriterEngine)))(r => F.blocking(r.close()))
+      .bracket(
+        F.blocking(outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)))(
+        r => F.blocking(r.close()))
       .flatMap(writer => ss.chunks.foreach(c => F.blocking(c.map(writer.write)).void))
   }
 
   object akka {
     def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Source[A, Future[IOResult]] =
-      Source.fromGraph(new AkkaCsvSource[A](path, csvConfiguration, configuration, dec))
+      Source.fromGraph(new AkkaCsvSource[A](path, csvConfiguration, configuration))
 
     def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Sink[A, Future[IOResult]] =
-      Sink.fromGraph(
-        new AkkaCsvSink[A](path, csvConfiguration, configuration, blockSizeHint, compressLevel, modifyEncoder[A](enc)))
+      Sink.fromGraph(new AkkaCsvSink[A](path, csvConfiguration, configuration, blockSizeHint, compressLevel))
   }
 }
+
 object NJCsv {
   def apply[F[_]: Sync](csvConfiguration: CsvConfiguration, cfg: Configuration) =
     new NJCsv[F](cfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvConfiguration)
 }
 
-private class AkkaCsvSource[A](
+private class AkkaCsvSource[A: HeaderDecoder](
   path: NJPath,
   csvConfiguration: CsvConfiguration,
-  configuration: Configuration,
-  headerDecoder: HeaderDecoder[A])
+  configuration: Configuration)
     extends GraphStageWithMaterializedValue[SourceShape[A], Future[IOResult]] {
   private val out: Outlet[A] = Outlet("akka.csv.source")
 
@@ -85,8 +79,7 @@ private class AkkaCsvSource[A](
           private var count: Long = 0
 
           private val reader: CsvReader[ReadResult[A]] =
-            inputStream(path, configuration)
-              .asCsvReader[A](csvConfiguration)(headerDecoder, ReaderEngine.internalCsvReaderEngine)
+            inputStream(path, configuration).asCsvReader[A](csvConfiguration)
 
           override def onDownstreamFinish(cause: Throwable): Unit =
             try {
@@ -96,7 +89,7 @@ private class AkkaCsvSource[A](
                 case _: SubscriptionWithCancelException.NonFailureCancellation =>
                   promise.success(IOResult(count))
                 case ex: Throwable =>
-                  promise.failure(new IOOperationIncompleteException("csv.source", count, ex))
+                  promise.failure(new IOOperationIncompleteException("akka.csv.source", count, ex))
               }
             } catch {
               case ex: Throwable => promise.failure(ex)
@@ -120,13 +113,12 @@ private class AkkaCsvSource[A](
   }
 }
 
-private class AkkaCsvSink[A](
+private class AkkaCsvSink[A: HeaderEncoder](
   path: NJPath,
   csvConfiguration: CsvConfiguration,
   configuration: Configuration,
   blockSizeHint: Long,
-  compressLevel: CompressionLevel,
-  headerEncoder: HeaderEncoder[A])
+  compressLevel: CompressionLevel)
     extends GraphStageWithMaterializedValue[SinkShape[A], Future[IOResult]] {
 
   private val in: Inlet[A] = Inlet("akka.csv.sink")
@@ -145,8 +137,7 @@ private class AkkaCsvSink[A](
           private var count: Long = 0
 
           private val writer: CsvWriter[A] =
-            outputStream(path, configuration, compressLevel, blockSizeHint)
-              .asCsvWriter[A](csvConfiguration)(headerEncoder, WriterEngine.internalCsvWriterEngine)
+            outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)
 
           override def onUpstreamFinish(): Unit =
             try {
@@ -161,7 +152,7 @@ private class AkkaCsvSink[A](
             try {
               super.onUpstreamFailure(ex)
               writer.close()
-              promise.failure(new IOOperationIncompleteException("csv.sink", count, ex))
+              promise.failure(new IOOperationIncompleteException("akka.csv.sink", count, ex))
             } catch {
               case ex: Throwable => promise.failure(ex)
             }

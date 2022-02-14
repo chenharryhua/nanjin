@@ -1,5 +1,8 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
 
+import akka.NotUsed
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
 import cats.effect.kernel.Async
 import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
@@ -24,9 +27,9 @@ object BinaryAvroSerde {
   }
 
   def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
+    val datumReader = new GenericDatumReader[GenericRecord](schema)
     ss.through(toInputStream).flatMap { is =>
       val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
           .functionKInstance(F.delay(try Some(datumReader.read(null, avroDecoder))
@@ -37,5 +40,27 @@ object BinaryAvroSerde {
           }
       Pull.loop(pullAll)(is).void.stream
     }
+  }
+
+  object akka {
+    def toByteString(schema: Schema): Flow[GenericRecord, ByteString, NotUsed] = {
+      val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+      Flow[GenericRecord].map { gr =>
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val encoder: BinaryEncoder      = EncoderFactory.get().binaryEncoder(baos, null)
+        datumWriter.write(gr, encoder)
+        encoder.flush()
+        baos.close()
+        ByteString.fromArray(baos.toByteArray)
+      }
+    }
+
+//    def fromByteString(schema: Schema): Flow[ByteString, GenericRecord, NotUsed] = {
+//      val datumReader = new GenericDatumReader[GenericRecord](schema)
+//      Flow[ByteString].map(_.iterator.asInputStream).map { is =>
+//        val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
+//        datumReader.read(null, avroDecoder)
+//      }
+//    }
   }
 }

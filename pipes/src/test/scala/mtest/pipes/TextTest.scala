@@ -5,7 +5,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.TextSerde
+import com.github.chenharryhua.nanjin.pipes.TextSerde
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import mtest.terminals.akkaSystem

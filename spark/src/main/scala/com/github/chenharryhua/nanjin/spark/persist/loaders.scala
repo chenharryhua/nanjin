@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.pipes.serde.CsvSerde
+import com.github.chenharryhua.nanjin.pipes.CsvSerde
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
@@ -62,7 +62,7 @@ object loaders {
       dec: RowDecoder[A]): RDD[A] =
       ss.sparkContext.textFile(path.pathStr).mapPartitions { rows =>
         val itor = if (csvConfiguration.hasHeader) rows.drop(1) else rows
-        itor.map(CsvSerde.rowDecode(_, csvConfiguration))
+        itor.map(CsvSerde.rowDecode(_, csvConfiguration, dec))
       }
 
     def circe[A: ClassTag: JsonDecoder](path: NJPath, ss: SparkSession): RDD[A] =

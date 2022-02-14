@@ -1,8 +1,9 @@
-package com.github.chenharryhua.nanjin.pipes.serde
+package com.github.chenharryhua.nanjin.pipes
 
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Framing}
 import akka.util.ByteString
+import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPERATOR
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, Stream}
 

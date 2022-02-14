@@ -3,7 +3,7 @@ package mtest.pipes
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.serde.CirceSerde
+import com.github.chenharryhua.nanjin.pipes.CirceSerde
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -37,11 +37,10 @@ class CircePipeTest extends AnyFunSuite {
   }
 
   test("circe identity - remove null akka") {
-    import mtest.terminals.*
-    val src = Source(tigers)
+    import mtest.terminals.mat
     val rst = IO.fromFuture(
       IO(
-        src
+        Source(tigers)
           .via(CirceSerde.akka.toByteString(isKeepNull = false))
           .via(CirceSerde.akka.fromByteString[Tiger])
           .runFold(List.empty[Tiger]) { case (ss, i) => ss :+ i }))

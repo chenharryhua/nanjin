@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.pipes.serde.{CsvSerde, NEWLINE_SEPERATOR}
-import kantan.csv.CsvConfiguration.Header
+import com.github.chenharryhua.nanjin.pipes.CsvSerde
 import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.sql.Dataset
@@ -32,11 +31,6 @@ final class SaveKantanCsv[F[_], A](
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def modifiedEncoder: HeaderEncoder[A] = new HeaderEncoder[A] {
-    override val header: Option[Seq[String]] = encoder.header.orElse(Some(ds.schema.fields.map(_.name).toSeq))
-    override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
-  }
-
   private def updateConfig(cfg: HoarderConfig): SaveKantanCsv[F, A] =
     new SaveKantanCsv[F, A](ds, csvConfiguration, cfg, encoder)
 
@@ -50,10 +44,16 @@ final class SaveKantanCsv[F[_], A](
   def deflate(level: Int): SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
   def uncompress: SaveKantanCsv[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
+  private def withOptionalHeader(encoder: HeaderEncoder[A]): HeaderEncoder[A] =
+    new HeaderEncoder[A] {
+      override val header: Option[Seq[String]] = encoder.header.orElse(Some(ds.schema.fields.map(_.name).toIndexedSeq))
+      override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
+    }
+
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptibleMany {
-        saveRDD.csv[A](ds.rdd, params.outPath, params.compression, csvConfiguration, modifiedEncoder)
+        saveRDD.csv[A](ds.rdd, params.outPath, params.compression, csvConfiguration, withOptionalHeader(encoder))
       })
 }
 
@@ -62,27 +62,15 @@ private class KantanCsvIterator[A](headerEncoder: HeaderEncoder[A], csvCfg: CsvC
 
   private[this] val nullWritable: NullWritable = NullWritable.get()
 
-  private val headerText: Option[(NullWritable, Text)] = {
-    val headerStrs: Option[Seq[String]] = csvCfg.header match {
-      case Header.None             => None
-      case Header.Implicit         => headerEncoder.header
-      case Header.Explicit(header) => Some(header)
-    }
-    headerStrs.map(hs => (nullWritable, new Text(hs.mkString(csvCfg.cellSeparator.toString) + NEWLINE_SEPERATOR)))
-  }
-
   private[this] var isFirstTimeAccess: Boolean = true
 
-  private[this] def nextText(): Text = new Text(CsvSerde.rowEncode(iter.next(), csvCfg)(headerEncoder.rowEncoder))
+  private[this] def nextText(): Text = new Text(CsvSerde.rowEncode(iter.next(), csvCfg, headerEncoder.rowEncoder))
 
   override def hasNext: Boolean = iter.hasNext
 
   override def next(): (NullWritable, Text) =
     if (isFirstTimeAccess) {
       isFirstTimeAccess = false
-      headerText match {
-        case Some(value) => value
-        case None        => (nullWritable, nextText())
-      }
+      (nullWritable, new Text(CsvSerde.headerStr(csvCfg, headerEncoder)))
     } else (nullWritable, nextText())
 }
