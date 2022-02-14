@@ -55,12 +55,12 @@ object BinaryAvroSerde {
       }
     }
 
-    def fromByteString(schema: Schema): Flow[ByteString, GenericRecord, NotUsed] = {
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
-      Flow[ByteString].map(_.iterator.asInputStream).map { is =>
-        val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
-        datumReader.read(null, avroDecoder)
-      }
-    }
+//    def fromByteString(schema: Schema): Flow[ByteString, GenericRecord, NotUsed] = {
+//      val datumReader = new GenericDatumReader[GenericRecord](schema)
+//      Flow[ByteString].map(_.iterator.asInputStream).map { is =>
+//        val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
+//        datumReader.read(null, avroDecoder)
+//      }
+//    }
   }
 }

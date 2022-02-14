@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin
 
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import kantan.csv.{HeaderEncoder, RowEncoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -39,11 +38,4 @@ package object terminals {
       case None     => os
     }
   }
-
-  final val HEADER_PLACE_HOLDER = List("header", "place", "holder")
-  def withOptionalHeader[A](encoder: HeaderEncoder[A], hd: Seq[String]): HeaderEncoder[A] =
-    new HeaderEncoder[A] {
-      override val header: Option[Seq[String]] = encoder.header.orElse(Some(hd))
-      override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
-    }
 }

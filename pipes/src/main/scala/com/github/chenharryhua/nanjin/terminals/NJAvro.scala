@@ -93,7 +93,7 @@ private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)
                 case _: SubscriptionWithCancelException.NonFailureCancellation =>
                   promise.success(IOResult(count))
                 case ex: Throwable =>
-                  promise.failure(new IOOperationIncompleteException("avro.source", count, ex))
+                  promise.failure(new IOOperationIncompleteException("akka.avro.source", count, ex))
               }
             } catch {
               case ex: Throwable => promise.failure(ex)
@@ -155,7 +155,7 @@ private class AkkaAvroSink(
             try {
               super.onUpstreamFailure(ex)
               writer.close()
-              promise.failure(new IOOperationIncompleteException("avro.sink", count, ex))
+              promise.failure(new IOOperationIncompleteException("akka.avro.sink", count, ex))
             } catch {
               case ex: Throwable => promise.failure(ex)
             }

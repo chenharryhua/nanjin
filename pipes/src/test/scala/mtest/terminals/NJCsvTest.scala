@@ -43,7 +43,7 @@ class NJCsvTest extends AnyFunSuite {
   }
 
   test("gzip") {
-    val cfg = CsvConfiguration.rfc.withHeader
+    val cfg = CsvConfiguration.rfc
     akka(akkaRoot / "tiger.csv.gz", cfg, TestData.tigerSet)
     fs2(fs2Root / "tiger.csv.gz", cfg, TestData.tigerSet)
   }

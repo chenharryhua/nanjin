@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.pipes.CsvSerde
-import com.github.chenharryhua.nanjin.terminals.{withOptionalHeader, NEWLINE_SEPERATOR}
+import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPERATOR
 import kantan.csv.CsvConfiguration.Header
-import kantan.csv.{CsvConfiguration, HeaderEncoder}
+import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.sql.Dataset
 
@@ -46,15 +46,16 @@ final class SaveKantanCsv[F[_], A](
   def deflate(level: Int): SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
   def uncompress: SaveKantanCsv[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
+  private def withOptionalHeader(encoder: HeaderEncoder[A]): HeaderEncoder[A] =
+    new HeaderEncoder[A] {
+      override val header: Option[Seq[String]] = encoder.header.orElse(Some(ds.schema.fields.map(_.name).toIndexedSeq))
+      override val rowEncoder: RowEncoder[A]   = encoder.rowEncoder
+    }
+
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptibleMany {
-        saveRDD.csv[A](
-          ds.rdd,
-          params.outPath,
-          params.compression,
-          csvConfiguration,
-          withOptionalHeader(encoder, ds.schema.fields.map(_.name).toIndexedSeq))
+        saveRDD.csv[A](ds.rdd, params.outPath, params.compression, csvConfiguration, withOptionalHeader(encoder))
       })
 }
 
