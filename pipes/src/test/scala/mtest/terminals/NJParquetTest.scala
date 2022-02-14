@@ -33,8 +33,8 @@ class NJParquetTest extends AnyFunSuite {
     assert(rst.unsafeRunSync() == data)
   }
 
-  val akkaRoot: NJPath = NJPath("./data/test/pipes/parquet/akka")
-  val fs2Root: NJPath  = NJPath("./data/test/pipes/parquet/fs2")
+  val akkaRoot: NJPath = NJPath("./data/test/terminals/parquet/akka")
+  val fs2Root: NJPath  = NJPath("./data/test/terminals/parquet/fs2")
 
   test("parquet snappy") {
     fs2(fs2Root / "panda.snappy.parquet", CompressionCodecName.SNAPPY, pandaSet)

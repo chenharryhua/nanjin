@@ -33,6 +33,7 @@ class NJCsvTest extends AnyFunSuite {
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
+
   val akkaRoot: NJPath = NJPath("./data/test/pipes/csv/akka")
   val fs2Root: NJPath  = NJPath("./data/test/pipes/csv/fs2")
 

@@ -36,8 +36,8 @@ class NJAvroTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val akkaRoot: NJPath = NJPath("./data/test/pipes/avro/akka")
-  val fs2Root: NJPath  = NJPath("./data/test/pipes/avro/fs2")
+  val akkaRoot: NJPath = NJPath("./data/test/terminals/avro/akka")
+  val fs2Root: NJPath  = NJPath("./data/test/terminals/avro/fs2")
 
   test("snappy avro") {
     fs2(fs2Root / "panda.snappy.avro", CodecFactory.snappyCodec, pandaSet)
