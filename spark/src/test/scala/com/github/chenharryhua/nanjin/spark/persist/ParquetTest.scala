@@ -18,7 +18,7 @@ class ParquetTest extends AnyFunSuite {
     fs2.Stream
       .force(
         hdp
-          .filesByName(path)
+          .filesSortByName(path)
           .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, p) =>
             ss ++ hdp.parquet(Rooster.schema).source(p).map(Rooster.avroCodec.fromRecord)
           }))
