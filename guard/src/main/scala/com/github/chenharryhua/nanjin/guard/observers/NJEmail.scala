@@ -26,6 +26,7 @@ object sesEmail {
       subject = None,
       chunkSize = ChunkSize(60),
       interval = 60.minutes,
+      isNewestFirst = true,
       Translator.html[F])
 }
 
@@ -37,6 +38,7 @@ object snsEmail {
       title = None,
       chunkSize = ChunkSize(60),
       interval = 60.minutes,
+      isNewestFirst = true,
       Translator.html[F])
 
   def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmail[F] = apply[F](sns(snsArn))
@@ -47,8 +49,9 @@ final class NJSesEmail[F[_]: Async](
   from: EmailAddr,
   to: NonEmptyList[EmailAddr],
   subject: Option[Subject],
-  chunkSize: ChunkSize,
-  interval: FiniteDuration,
+  chunkSize: ChunkSize, // number of events in an email
+  interval: FiniteDuration, // send out email every interval
+  isNewestFirst: Boolean, // the latest event comes first
   translator: Translator[F, Text.TypedTag[String]]
 ) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmail[F]] with all {
 
@@ -57,12 +60,14 @@ final class NJSesEmail[F[_]: Async](
     subject: Option[Subject] = subject,
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
+    isNewestFirst: Boolean = isNewestFirst,
     translator: Translator[F, Text.TypedTag[String]] = translator): NJSesEmail[F] =
-    new NJSesEmail[F](client, from, to, subject, chunkSize, interval, translator)
+    new NJSesEmail[F](client, from, to, subject, chunkSize, interval, isNewestFirst, translator)
 
   def withInterval(fd: FiniteDuration): NJSesEmail[F] = copy(interval = fd)
   def withChunkSize(cs: ChunkSize): NJSesEmail[F]     = copy(chunkSize = cs)
   def withSubject(sj: Subject): NJSesEmail[F]         = copy(subject = Some(sj))
+  def withOldestFirst: NJSesEmail[F]                  = copy(isNewestFirst = false)
 
   def withClient(client: Resource[F, SimpleEmailService[F]]): NJSesEmail[F] = copy(client = client)
 
@@ -82,8 +87,12 @@ final class NJSesEmail[F[_]: Async](
         .unNone
         .groupWithin(chunkSize.value, interval)
         .evalMap { events =>
-          val mailBody: String =
-            html(body(events.map(hr(_)).toList, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+          val mailBody: String = {
+            val text: List[Text.TypedTag[String]] =
+              if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
+            html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+          }
+
           c.send(
             EmailContent(from.value, to.map(_.value).toList.distinct, subject.map(_.value).getOrElse(""), mailBody))
             .attempt
@@ -97,6 +106,7 @@ final class NJSnsEmail[F[_]: Async](
   title: Option[Title],
   chunkSize: ChunkSize,
   interval: FiniteDuration,
+  isNewestFirst: Boolean,
   translator: Translator[F, Text.TypedTag[String]]
 ) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmail[F]] with all {
 
@@ -105,12 +115,14 @@ final class NJSnsEmail[F[_]: Async](
     title: Option[Title] = title,
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
+    isNewestFirst: Boolean = isNewestFirst,
     translator: Translator[F, Text.TypedTag[String]] = translator): NJSnsEmail[F] =
-    new NJSnsEmail[F](client, title, chunkSize, interval, translator)
+    new NJSnsEmail[F](client, title, chunkSize, interval, isNewestFirst, translator)
 
   def withInterval(fd: FiniteDuration): NJSnsEmail[F] = copy(interval = fd)
   def withChunkSize(cs: ChunkSize): NJSnsEmail[F]     = copy(chunkSize = cs)
   def withTitle(t: Title): NJSnsEmail[F]              = copy(title = Some(t))
+  def withOldestFirst: NJSnsEmail[F]                  = copy(isNewestFirst = false)
 
   override def updateTranslator(
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSnsEmail[F] =
@@ -128,11 +140,15 @@ final class NJSnsEmail[F[_]: Async](
         .unNone
         .groupWithin(chunkSize.value, interval)
         .evalMap { events =>
-          val mailBody: String =
+          val mailBody: String = {
+            val text: List[Text.TypedTag[String]] =
+              if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
             html(
               body(
-                events.map(hr(_)).toList.prependedAll(title.map(t => hr(h2(t.value)))),
+                text.prependedAll(title.map(t => hr(h2(t.value)))),
                 footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+          }
+
           c.publish(mailBody).attempt.as(mailBody)
         }
     } yield rst

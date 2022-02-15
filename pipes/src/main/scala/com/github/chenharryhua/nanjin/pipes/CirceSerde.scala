@@ -11,8 +11,11 @@ import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 
 object CirceSerde {
 
+  @inline private def encoder[A](isKeepNull: Boolean, enc: JsonEncoder[A]): A => Json =
+    (a: A) => if (isKeepNull) enc(a) else enc(a).deepDropNullValues
+
   def toBytes[F[_], A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Pipe[F, A, Byte] = {
-    def encode(a: A): Json = if (isKeepNull) enc(a) else enc(a).deepDropNullValues
+    val encode = encoder[A](isKeepNull, enc)
     (ss: Stream[F, A]) => ss.mapChunks(_.map(encode(_).noSpaces)).intersperse(NEWLINE_SEPERATOR).through(utf8.encode)
   }
 
@@ -22,7 +25,7 @@ object CirceSerde {
 
   object akka {
     def toByteString[A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Flow[A, ByteString, NotUsed] = {
-      def encode(a: A): Json = if (isKeepNull) enc(a) else enc(a).deepDropNullValues
+      val encode = encoder[A](isKeepNull, enc)
       Flow[A].map(encode).map(js => ByteString.fromString(js.noSpaces)).intersperse(ByteString(NEWLINE_SEPERATOR))
     }
 
@@ -32,7 +35,7 @@ object CirceSerde {
         .map(_.utf8String)
         .map(s =>
           decode(s) match {
-            case Left(value)  => throw value
+            case Left(ex)     => throw ex
             case Right(value) => value
           })
   }

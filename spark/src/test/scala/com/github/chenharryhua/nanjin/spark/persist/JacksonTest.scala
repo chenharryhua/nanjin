@@ -2,11 +2,14 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.pipes.JacksonSerde
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import fs2.Stream
 
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
@@ -17,11 +20,28 @@ class JacksonTest extends AnyFunSuite {
       Rooster.avroCodec.avroEncoder,
       HoarderConfig(path))
 
+  val hdp = sparkSession.hadoop[IO]
+
+  def loadRooster(path: NJPath) = Stream
+    .force(
+      hdp
+        .filesSortByName(path)
+        .map(_.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hip) =>
+          ss ++ hdp.bytes
+            .source(hip)
+            .through(JacksonSerde.fromBytes[IO](Rooster.schema))
+            .map(Rooster.avroCodec.fromRecord)
+        }))
+    .compile
+    .toList
+    .map(_.toSet)
+
   test("datetime read/write identity - multi") {
     val path = NJPath("./data/test/spark/persist/jackson/rooster/multi.json")
     rooster(path).jackson.errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession)
     assert(RoosterData.expected == r.collect().toSet)
+    assert(RoosterData.expected == loadRooster(path).unsafeRunSync())
   }
 
   def bee(path: NJPath) =
