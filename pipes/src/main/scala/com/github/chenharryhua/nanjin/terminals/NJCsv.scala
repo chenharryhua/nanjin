@@ -32,15 +32,16 @@ final class NJCsv[F[_]] private (
 
   def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Stream[F, A] =
     for {
-      is <- Stream.bracket(F.blocking(inputStream(path, configuration)))(r => F.blocking(r.close()))
+      is <- Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
       a <- Stream.fromBlockingIterator(is.asCsvReader[A](csvConfiguration).iterator, chunkSize.value).rethrow
     } yield a
 
   def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, INothing] = { (ss: Stream[F, A]) =>
     Stream
       .bracket(
-        F.blocking(outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)))(
-        r => F.blocking(r.close()))
+        F.blocking(
+          fileOutputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)))(r =>
+        F.blocking(r.close()))
       .flatMap(writer => ss.chunks.foreach(c => F.blocking(c.map(writer.write)).void))
   }
 
@@ -79,7 +80,7 @@ private class AkkaCsvSource[A: HeaderDecoder](
           private var count: Long = 0
 
           private val reader: CsvReader[ReadResult[A]] =
-            inputStream(path, configuration).asCsvReader[A](csvConfiguration)
+            fileInputStream(path, configuration).asCsvReader[A](csvConfiguration)
 
           override def onDownstreamFinish(cause: Throwable): Unit =
             try {
@@ -137,7 +138,7 @@ private class AkkaCsvSink[A: HeaderEncoder](
           private var count: Long = 0
 
           private val writer: CsvWriter[A] =
-            outputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)
+            fileOutputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)
 
           override def onUpstreamFinish(): Unit =
             try {

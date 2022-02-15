@@ -25,22 +25,23 @@ final class NJBytes[F[_]] private (
 
   def source(path: NJPath): Stream[F, Byte] =
     for {
-      is <- Stream.bracket(F.blocking(inputStream(path, configuration)))(r => F.blocking(r.close()))
+      is <- Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
       byte <- readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = false) // avoid double close
     } yield byte
 
   def sink(path: NJPath): Pipe[F, Byte, INothing] = { (ss: Stream[F, Byte]) =>
     Stream
-      .bracket(F.blocking(outputStream(path, configuration, compressLevel, blockSizeHint)))(r => F.blocking(r.close()))
+      .bracket(F.blocking(fileOutputStream(path, configuration, compressLevel, blockSizeHint)))(r =>
+        F.blocking(r.close()))
       .flatMap(os => ss.through(writeOutputStream(F.pure(os), closeAfterUse = false))) // avoid double close
   }
 
   object akka {
     def source(path: NJPath): Source[ByteString, Future[IOResult]] =
-      StreamConverters.fromInputStream(() => inputStream(path, configuration))
+      StreamConverters.fromInputStream(() => fileInputStream(path, configuration))
 
     def sink(path: NJPath): Sink[ByteString, Future[IOResult]] =
-      StreamConverters.fromOutputStream(() => outputStream(path, configuration, compressLevel, blockSizeHint))
+      StreamConverters.fromOutputStream(() => fileOutputStream(path, configuration, compressLevel, blockSizeHint))
   }
 }
 

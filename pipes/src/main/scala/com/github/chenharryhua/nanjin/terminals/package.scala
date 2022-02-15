@@ -18,7 +18,7 @@ package object terminals {
   final val BUFFER_SIZE: Information = Bytes(8192)
   final val CHUNK_SIZE: ChunkSize    = ChunkSize(1000)
 
-  def inputStream(path: NJPath, configuration: Configuration): InputStream = {
+  def fileInputStream(path: NJPath, configuration: Configuration): InputStream = {
     val is: InputStream = path.hadoopInputFile(configuration).newStream()
     Option(new CompressionCodecFactory(configuration).getCodec(path.hadoopPath)) match {
       case Some(cc) => cc.createInputStream(is)
@@ -26,7 +26,7 @@ package object terminals {
     }
   }
 
-  def outputStream(
+  def fileOutputStream(
     path: NJPath,
     configuration: Configuration,
     compressionLevel: CompressionLevel,
