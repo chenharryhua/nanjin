@@ -17,9 +17,9 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
 
   def bzip2: SaveBinaryAvro[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
+  def deflate(level: Int): SaveBinaryAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
   def gzip: SaveBinaryAvro[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveBinaryAvro[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
-  def deflate(level: Int): SaveBinaryAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
   def uncompress: SaveBinaryAvro[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F]): F[Unit] =

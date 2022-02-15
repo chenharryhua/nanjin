@@ -28,36 +28,38 @@ class ParquetTest extends AnyFunSuite {
 
   def roosterSaver(path: NJPath) =
     new DatasetAvroFileHoarder[IO, Rooster](RoosterData.ds, Rooster.avroCodec.avroEncoder).parquet(path)
+
+  val root = NJPath("./data/test/spark/persist/parquet")
   test("datetime read/write identity multi.uncompressed") {
-    val path = NJPath("./data/test/spark/persist/parquet/rooster/multi.uncompressed.parquet")
+    val path = root / "rooster" / "uncompressed"
     roosterSaver(path).errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(expected == r)
   }
 
   test("datetime read/write identity multi.snappy") {
-    val path = NJPath("./data/test/spark/persist/parquet/rooster/multi.snappy.parquet")
+    val path = root / "rooster" / "snappy"
     roosterSaver(path).snappy.run.unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(expected == r)
   }
 
   test("datetime read/write identity multi.lz4") {
-    val path = NJPath("./data/test/spark/persist/parquet/rooster/multi.lz4.parquet")
+    val path = root / "rooster" / "lz4"
     roosterSaver(path).lz4.run.unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(expected == r)
   }
 
   test("datetime read/write identity multi.zstd") {
-    val path = NJPath("./data/test/spark/persist/parquet/rooster/multi.zstd.parquet")
+    val path = root / "rooster" / "zstd"
     roosterSaver(path).zstd(5).run.unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(expected == r)
   }
 
   test("datetime read/write identity multi.gzip") {
-    val path = NJPath("./data/test/spark/persist/parquet/rooster/multi.gzip.parquet")
+    val path = root / "rooster" / "gzip"
     roosterSaver(path).gzip.run.unsafeRunSync()
     val r =
       loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet

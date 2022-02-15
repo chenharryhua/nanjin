@@ -16,11 +16,11 @@ final class SaveParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends Ser
   def errorIfExists: SaveParquet[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveParquet[F, A] = updateConfig(cfg.ignoreMode)
 
-  def zstd(level: Int): SaveParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
+  def gzip: SaveParquet[F, A]             = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveParquet[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def snappy: SaveParquet[F, A]           = updateConfig(cfg.outputCompression(NJCompression.Snappy))
-  def gzip: SaveParquet[F, A]             = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def uncompress: SaveParquet[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def zstd(level: Int): SaveParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, ds.sparkSession.sparkContext.hadoopConfiguration)

@@ -36,8 +36,9 @@ class CsvTest extends AnyFunSuite {
     .toList
     .map(_.toSet)
 
+  val root = NJPath("./data/test/spark/persist/csv/tablet")
   test("tablet read/write identity multi.uncompressed") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/multi.uncompressed")
+    val path = root / "uncompressed"
     val s    = saver(path).uncompress.withHeader.withCellSeparator('*').quoteAll
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
@@ -46,7 +47,7 @@ class CsvTest extends AnyFunSuite {
   }
 
   test("tablet read/write identity multi.gzip") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/multi.gzip")
+    val path = root / "gzip"
     val s    = saver(path).gzip
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, sparkSession)
@@ -55,7 +56,7 @@ class CsvTest extends AnyFunSuite {
   }
 
   test("tablet read/write identity multi.1.deflate") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/multi.1.deflate")
+    val path = root / "deflate1"
     val s    = saver(path).deflate(1)
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, sparkSession)
@@ -64,7 +65,7 @@ class CsvTest extends AnyFunSuite {
   }
 
   test("tablet read/write identity multi.9.deflate") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/multi.9.deflate")
+    val path = root / "deflate9"
     val s    = saver(path)
     s.deflate(9).run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, sparkSession)
@@ -73,7 +74,7 @@ class CsvTest extends AnyFunSuite {
   }
 
   test("tablet read/write identity multi.bzip2") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/bzip2.deflate")
+    val path = root / "bzip2"
     val s    = saver(path).bzip2.withHeader
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
@@ -81,8 +82,17 @@ class CsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
 
+  test("tablet read/write identity multi.lz4") {
+    val path = root / "lz4"
+    val s    = saver(path).lz4.withHeader
+    s.run.unsafeRunSync()
+    val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
+    assert(data.toSet == t.collect().toSet)
+    assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
+  }
+
   test("tablet read/write identity with-header") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/tablet_header_multi.csv")
+    val path = root / "with_header"
     val s    = saver(path).withHeader("x", "y", "z")
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
@@ -91,7 +101,7 @@ class CsvTest extends AnyFunSuite {
   }
 
   test("tablet read/write identity with-header-delimiter") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/tablet_header_delimit_multi.csv")
+    val path = root / "with_pipe"
     val rfc  = CsvConfiguration.rfc.withCellSeparator('|')
     val s    = saver(path).updateCsvConfig(_ => rfc)
     s.run.unsafeRunSync()
@@ -101,7 +111,7 @@ class CsvTest extends AnyFunSuite {
   }
 
   test("tablet read/write identity with-header-delimiter-quote") {
-    val path = NJPath("./data/test/spark/persist/csv/tablet/tablet_header_delimit_quote_multi.csv")
+    val path = root / "with_quote"
     val s    = saver(path).withHeader.withCellSeparator('|').withQuote('*').quoteAll
     s.run.unsafeRunSync()
     val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
