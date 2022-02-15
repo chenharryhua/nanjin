@@ -16,6 +16,8 @@ import squants.information.Information
 
 import java.io.{StringReader, StringWriter}
 
+// kudos to authors of https://nrinaudo.github.io/kantan.csv/
+
 object KantanSerde {
 
   def toBytes[F[_], A](conf: CsvConfiguration, byteBuffer: Information)(implicit
