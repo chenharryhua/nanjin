@@ -15,10 +15,9 @@ import org.scalatest.funsuite.AnyFunSuite
 class BinAvroTest extends AnyFunSuite {
 
   def saver(path: NJPath) =
-    new RddAvroFileHoarder[IO, Rooster](
-      RoosterData.rdd.repartition(2),
-      Rooster.avroCodec.avroEncoder,
-      HoarderConfig(path)).binAvro.overwrite
+    new RddAvroFileHoarder[IO, Rooster](RoosterData.rdd.repartition(2), Rooster.avroCodec.avroEncoder)
+      .binAvro(path)
+      .overwrite
 
   def loadRooster(path: NJPath) = fs2.Stream
     .force(

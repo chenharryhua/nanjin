@@ -124,43 +124,43 @@ class SparkTableTest extends AnyFunSuite {
 
   val tb: SparkDBTable[IO, DBTable] = sparkDB.table(table)
 
-  def saver(path: NJPath): DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save(path)).unsafeRunSync()
+  def saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save).unsafeRunSync()
 
   test("save avro") {
-    val avro = saver(root / "multi.raw.avro").avro.run
+    val avro = saver.avro(root / "multi.raw.avro").run
     avro.unsafeRunSync()
     val mhead = tb.load.avro(root / "multi.raw.avro").map(_.dataset.collect().head).unsafeRunSync()
     assert(mhead == dbData)
   }
 
   test("save bin avro") {
-    val avro = saver(root / "binary.avro").binAvro.run
+    val avro = saver.binAvro(root / "binary.avro").run
     avro.unsafeRunSync()
     val head = tb.load.binAvro(root / "binary.avro").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
   }
 
   test("save parquet") {
-    val parquet = saver(root / "multi.parquet").parquet.run
+    val parquet = saver.parquet(root / "multi.parquet").run
     parquet.unsafeRunSync()
     val head = tb.load.parquet(root / "multi.parquet").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
   }
   test("save circe") {
-    val circe = saver(root / "multi.circe.json").circe.run
+    val circe = saver.circe(root / "multi.circe.json").run
     circe.unsafeRunSync()
     val mhead = tb.load.circe(root / "multi.circe.json").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
   }
 
   test("save csv") {
-    val csv = saver(root / "multi.csv").csv.run
+    val csv = saver.csv(root / "multi.csv").run
     csv.unsafeRunSync()
     val mhead = tb.load.csv(root / "multi.csv").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
   }
   test("save spark json") {
-    val json = saver(root / "spark.json").json.run
+    val json = saver.json(root / "spark.json").run
     json.unsafeRunSync()
     val head = tb.load.json(root / "spark.json").map(_.dataset.collect().head)
     assert(head.unsafeRunSync() == dbData)
