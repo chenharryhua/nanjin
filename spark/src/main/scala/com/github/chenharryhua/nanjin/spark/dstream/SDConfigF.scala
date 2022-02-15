@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.Functor
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
+import com.github.chenharryhua.nanjin.spark.persist.NJCompression
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -11,7 +12,8 @@ import java.time.ZoneId
 
 @Lenses final private[dstream] case class SDParams private (
   zoneId: ZoneId,
-  pathBuilder: NJPath => NJTimestamp => NJPath
+  pathBuilder: NJPath => NJTimestamp => NJPath,
+  compression: NJCompression
 )
 
 object SDParams {
@@ -20,7 +22,7 @@ object SDParams {
     root / ts.atZone(zoneId).toLocalDate
 
   def apply(zoneId: ZoneId): SDParams =
-    SDParams(zoneId = zoneId, pathBuilder = pathBuilder(zoneId))
+    SDParams(zoneId = zoneId, pathBuilder = pathBuilder(zoneId), compression = NJCompression.Uncompressed)
 }
 
 sealed private[dstream] trait SDConfigF[A]
@@ -30,10 +32,12 @@ private object SDConfigF {
 
   final case class InitParams[K](zoneId: ZoneId) extends SDConfigF[K]
   final case class WithPathBuilder[K](f: NJPath => NJTimestamp => NJPath, cont: K) extends SDConfigF[K]
+  final case class WithCompression[K](value: NJCompression, cont: K) extends SDConfigF[K]
 
   private val algebra: Algebra[SDConfigF, SDParams] = Algebra[SDConfigF, SDParams] {
     case InitParams(zoneId)    => SDParams(zoneId)
     case WithPathBuilder(v, c) => SDParams.pathBuilder.set(v)(c)
+    case WithCompression(v, c) => SDParams.compression.set(v)(c)
   }
   def evalConfig(cfg: SDConfig): SDParams = scheme.cata(algebra).apply(cfg.value)
 }
@@ -44,6 +48,9 @@ final private[spark] case class SDConfig private (value: Fix[SDConfigF]) {
 
   def pathBuilder(f: NJPath => NJTimestamp => NJPath): SDConfig =
     SDConfig(Fix(WithPathBuilder(f, value)))
+
+  def withCompression(nc: NJCompression): SDConfig =
+    SDConfig(Fix(WithCompression(nc, value)))
 
 }
 
