@@ -13,10 +13,10 @@ import org.scalatest.funsuite.AnyFunSuite
 class ExampleKafakDump extends AnyFunSuite {
   test("dump kafka data in json") {
     val path = NJPath("./data/example/foo/batch/circe.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save(path).circe.run).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).run).unsafeRunSync()
   }
   test("dump kafka data in avro compressed by snappy") {
     val path = NJPath("./data/example/foo/batch/avro")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save(path).avro.snappy.run).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.avro(path).snappy.run).unsafeRunSync()
   }
 }

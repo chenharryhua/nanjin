@@ -66,6 +66,14 @@ class ParquetTest extends AnyFunSuite {
     assert(expected == r)
   }
 
+//  test("datetime read/write identity multi.brotli") {
+//    val path = root / "rooster" / "brotli"
+//    roosterSaver(path).brotli.run.unsafeRunSync()
+//    val r =
+//      loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
+//    assert(expected == r)
+//  }
+
   def beeSaver(path: NJPath) =
     new DatasetAvroFileHoarder[IO, Bee](BeeData.ds, Bee.avroEncoder).parquet(path)
 
