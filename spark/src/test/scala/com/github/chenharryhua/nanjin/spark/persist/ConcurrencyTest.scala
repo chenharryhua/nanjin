@@ -11,19 +11,16 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class ConcurrencyTest extends AnyFunSuite {
 
-  def rooster(path: NJPath) =
-    new DatasetAvroFileHoarder[IO, Rooster](
-      RoosterData.bigset.repartition(2).persist(),
-      Rooster.avroCodec.avroEncoder,
-      HoarderConfig(path))
+  def rooster =
+    new DatasetAvroFileHoarder[IO, Rooster](RoosterData.bigset.repartition(2).persist(), Rooster.avroCodec.avroEncoder)
   test("avro") {
     val root = NJPath("./data/test/spark/persist/interlope/avro/rooster/")
     val run = for {
-      a <- rooster(root / "bzip2").avro.bzip2.run.start
-      b <- rooster(root / "deflate").avro.deflate(1).run.start
-      c <- rooster(root / "snappy").avro.snappy.run.start
-      d <- rooster(root / "xz").avro.xz(1).run.start
-      e <- rooster(root / "uncompress").avro.run.start
+      a <- rooster.avro(root / "bzip2").bzip2.run.start
+      b <- rooster.avro(root / "deflate").deflate(1).run.start
+      c <- rooster.avro(root / "snappy").snappy.run.start
+      d <- rooster.avro(root / "xz").xz(1).run.start
+      e <- rooster.avro(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -61,10 +58,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("spark json") {
     val root = NJPath("./data/test/spark/persist/interlope/json/rooster/")
     val run = for {
-      a <- rooster(root / "bzip2").json.bzip2.run.start
-      b <- rooster(root / "deflate").json.deflate(1).run.start
-      c <- rooster(root / "gzip").json.gzip.run.start
-      d <- rooster(root / "uncompress").json.run.start
+      a <- rooster.json(root / "bzip2").bzip2.run.start
+      b <- rooster.json(root / "deflate").deflate(1).run.start
+      c <- rooster.json(root / "gzip").gzip.run.start
+      d <- rooster.json(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- d.join
@@ -81,10 +78,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("circe") {
     val root = NJPath("./data/test/spark/persist/interlope/circe/rooster/")
     val run = for {
-      d <- rooster(root / "bzip2").circe.bzip2.run.start
-      b <- rooster(root / "deflate").circe.deflate(1).run.start
-      c <- rooster(root / "gzip").circe.gzip.run.start
-      a <- rooster(root / "uncompress").circe.run.start
+      d <- rooster.circe(root / "bzip2").bzip2.run.start
+      b <- rooster.circe(root / "deflate").deflate(1).run.start
+      c <- rooster.circe(root / "gzip").gzip.run.start
+      a <- rooster.circe(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -101,10 +98,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("jackson") {
     val root = NJPath("./data/test/spark/persist/interlope/jackson/rooster/")
     val run = for {
-      d <- rooster(root / "bzip2").jackson.bzip2.run.start
-      b <- rooster(root / "deflate").jackson.deflate(1).run.start
-      c <- rooster(root / "gzip").jackson.gzip.run.start
-      a <- rooster(root / "uncompress").jackson.run.start
+      d <- rooster.jackson(root / "bzip2").bzip2.run.start
+      b <- rooster.jackson(root / "deflate").deflate(1).run.start
+      c <- rooster.jackson(root / "gzip").gzip.run.start
+      a <- rooster.jackson(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -121,10 +118,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("csv") {
     val root = NJPath("./data/test/spark/persist/interlope/csv/rooster/")
     val run = for {
-      d <- rooster(root / "bzip2").csv.bzip2.run.start
-      b <- rooster(root / "deflate").csv.deflate(1).run.start
-      c <- rooster(root / "gzip").csv.gzip.run.start
-      a <- rooster(root / "uncompress").csv.run.start
+      d <- rooster.csv(root / "bzip2").bzip2.run.start
+      b <- rooster.csv(root / "deflate").deflate(1).run.start
+      c <- rooster.csv(root / "gzip").gzip.run.start
+      a <- rooster.csv(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -141,10 +138,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("text") {
     val root = NJPath("./data/test/spark/persist/interlope/text/rooster/")
     val run = for {
-      d <- rooster(root / "bzip2").text.bzip2.run.start
-      b <- rooster(root / "deflate").text.deflate(1).run.start
-      c <- rooster(root / "gzip").text.gzip.run.start
-      a <- rooster(root / "uncompress").text.run.start
+      d <- rooster.text(root / "bzip2").bzip2.run.start
+      b <- rooster.text(root / "deflate").deflate(1).run.start
+      c <- rooster.text(root / "gzip").gzip.run.start
+      a <- rooster.text(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -161,9 +158,9 @@ class ConcurrencyTest extends AnyFunSuite {
   test("parquet") {
     val root = NJPath("./data/test/spark/persist/interlope/parquet/rooster/")
     val run = for {
-      d <- rooster(root / "snappy").parquet.snappy.run.start
-      c <- rooster(root / "gzip").parquet.gzip.run.start
-      a <- rooster(root / "uncompress").parquet.run.start
+      d <- rooster.parquet(root / "snappy").snappy.run.start
+      c <- rooster.parquet(root / "gzip").gzip.run.start
+      a <- rooster.parquet(root / "uncompress").run.start
       _ <- a.join
       _ <- c.join
       _ <- d.join
@@ -187,36 +184,36 @@ class ConcurrencyTest extends AnyFunSuite {
   test("mix multi") {
     val root = NJPath("./data/test/spark/persist/interlope/mix-multi/")
     val run = for {
-      a <- rooster(root / "avro1").avro.bzip2.run.start
-      b <- rooster(root / "avro2").avro.deflate(1).run.start
-      c <- rooster(root / "avro3").avro.snappy.run.attempt.start
-      d <- rooster(root / "avro4").avro.xz(2).run.start
+      a <- rooster.avro(root / "avro1").bzip2.run.start
+      b <- rooster.avro(root / "avro2").deflate(1).run.start
+      c <- rooster.avro(root / "avro3").snappy.run.attempt.start
+      d <- rooster.avro(root / "avro4").xz(2).run.start
 
-      e <- rooster(root / "jackson1").jackson.gzip.run.start
-      f <- rooster(root / "jackson2").jackson.deflate(4).run.start
-      g <- rooster(root / "jackson3").jackson.bzip2.run.start
+      e <- rooster.jackson(root / "jackson1").gzip.run.start
+      f <- rooster.jackson(root / "jackson2").deflate(4).run.start
+      g <- rooster.jackson(root / "jackson3").bzip2.run.start
 
-      h <- rooster(root / "binAvro").binAvro.run.start
-      i <- rooster(root / "obj").objectFile.run.start
+      h <- rooster.binAvro(root / "binAvro").run.start
+      i <- rooster.objectFile(root / "obj").run.start
 
-      j <- rooster(root / "parquet1").parquet.snappy.run.attempt.start
-      k <- rooster(root / "parquet2").parquet.gzip.run.start
+      j <- rooster.parquet(root / "parquet1").snappy.run.attempt.start
+      k <- rooster.parquet(root / "parquet2").gzip.run.start
 
-      l <- rooster(root / "circe1").circe.deflate(5).run.start
-      m <- rooster(root / "circe2").circe.gzip.run.start
-      n <- rooster(root / "circe3").circe.bzip2.run.start
+      l <- rooster.circe(root / "circe1").deflate(5).run.start
+      m <- rooster.circe(root / "circe2").gzip.run.start
+      n <- rooster.circe(root / "circe3").bzip2.run.start
 
-      o <- rooster(root / "json1").json.deflate(3).run.start
-      p <- rooster(root / "json2").json.bzip2.run.start
-      q <- rooster(root / "json3").json.gzip.run.start
+      o <- rooster.json(root / "json1").deflate(3).run.start
+      p <- rooster.json(root / "json2").bzip2.run.start
+      q <- rooster.json(root / "json3").gzip.run.start
 
-      r <- rooster(root / "text1").text.deflate(5).run.start
-      s <- rooster(root / "text2").text.gzip.run.start
-      t <- rooster(root / "text3").text.bzip2.run.start
+      r <- rooster.text(root / "text1").deflate(5).run.start
+      s <- rooster.text(root / "text2").gzip.run.start
+      t <- rooster.text(root / "text3").bzip2.run.start
 
-      u <- rooster(root / "csv1").csv.deflate(5).run.start
-      v <- rooster(root / "csv2").csv.gzip.run.start
-      w <- rooster(root / "csv3").csv.bzip2.run.start
+      u <- rooster.csv(root / "csv1").deflate(5).run.start
+      v <- rooster.csv(root / "csv2").gzip.run.start
+      w <- rooster.csv(root / "csv3").bzip2.run.start
 
       _ <- a.join
       _ <- b.join

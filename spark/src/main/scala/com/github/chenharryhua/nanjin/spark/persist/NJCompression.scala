@@ -9,6 +9,7 @@ import org.apache.hadoop.io.compress.*
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
+import org.apache.parquet.hadoop.codec.ZstandardCodec
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.spark.sql.catalyst.util.CompressionCodecs
 
@@ -36,14 +37,16 @@ sealed trait NJCompression extends Serializable {
     case c => sys.error(s"not support $c in avro")
   }
 
-  final def parquet: CompressionCodecName = this match {
+  final def parquet(conf: Configuration): CompressionCodecName = this match {
     case NJCompression.Uncompressed => CompressionCodecName.UNCOMPRESSED
     case NJCompression.Snappy       => CompressionCodecName.SNAPPY
     case NJCompression.Gzip         => CompressionCodecName.GZIP
     case NJCompression.Lz4          => CompressionCodecName.LZ4
     case NJCompression.Brotli       => CompressionCodecName.BROTLI
-    case NJCompression.Zstandard(_) => CompressionCodecName.ZSTD
-    case c                          => sys.error(s"not support $c in parquet")
+    case NJCompression.Zstandard(level) =>
+      conf.set(ZstandardCodec.PARQUET_COMPRESS_ZSTD_LEVEL, level.toString)
+      CompressionCodecName.ZSTD
+    case c => sys.error(s"not support $c in parquet")
   }
 
   final def set(config: Configuration): Unit = {

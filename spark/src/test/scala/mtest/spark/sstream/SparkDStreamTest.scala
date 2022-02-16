@@ -50,9 +50,9 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     sender
       .concurrently(
         runner.withFreshStart
-          .signup(topic.dstream)(_.avro(avro))
-          .signup(topic.dstream)(_.coalesce.jackson(jackson))
-          .signup(topic.dstream)(_.coalesce.circe(circe))
+          .signup(topic.dstream)(_.avro(avro).snappy.run)
+          .signup(topic.dstream)(_.coalesce.jackson(jackson).deflate(2).run)
+          .signup(topic.dstream)(_.coalesce.circe(circe).gzip.run)
           .stream
           .debug()
       )

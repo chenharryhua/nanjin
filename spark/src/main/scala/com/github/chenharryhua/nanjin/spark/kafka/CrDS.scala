@@ -75,8 +75,8 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   // transition
 
-  def save(path: NJPath): DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder, HoarderConfig(path))
+  def save: DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder)
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, ack, acv, cfg, dataset.sparkSession)
 

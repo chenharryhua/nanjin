@@ -19,8 +19,9 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) e
   def ignoreIfExists: SaveText[F, A] = updateConfig(cfg.ignoreMode)
 
   def bzip2: SaveText[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def gzip: SaveText[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def deflate(level: Int): SaveText[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def gzip: SaveText[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def lz4: SaveText[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveText[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F], show: Show[A]): F[Unit] =

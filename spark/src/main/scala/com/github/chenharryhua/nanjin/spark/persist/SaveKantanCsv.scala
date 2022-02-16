@@ -40,8 +40,9 @@ final class SaveKantanCsv[F[_], A](
   def ignoreIfExists: SaveKantanCsv[F, A] = updateConfig(cfg.ignoreMode)
 
   def bzip2: SaveKantanCsv[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def gzip: SaveKantanCsv[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def deflate(level: Int): SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def gzip: SaveKantanCsv[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def lz4: SaveKantanCsv[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveKantanCsv[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   private def withOptionalHeader(encoder: HeaderEncoder[A]): HeaderEncoder[A] =

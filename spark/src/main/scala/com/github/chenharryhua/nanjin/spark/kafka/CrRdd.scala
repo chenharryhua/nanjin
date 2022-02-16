@@ -5,8 +5,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -71,8 +70,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   val params: SKParams = cfg.evalConfig
 
-  def save(path: NJPath): RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder, HoarderConfig(path))
+  def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)
 
   // statistics
   def stats: Statistics[F] =

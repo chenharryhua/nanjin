@@ -31,6 +31,8 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
     NJPath(root, segments ::: List(year, month, day, hour))
   }
 
+  def /(num: Long): NJPath = NJPath(root, segments.appended(PathSegment.unsafeFrom(num.toString)))
+
   lazy val uri: URI = new URI(root.value + segments.map(g => s"/${g.value}").mkString).normalize()
 
   lazy val pathStr: String = uri.toASCIIString

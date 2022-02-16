@@ -48,7 +48,7 @@ final class SparkDBTable[F[_], A](
         .head())
 
   def dump(implicit F: Sync[F]): F[Unit] =
-    fromDB.flatMap(_.save(params.replayPath).objectFile.overwrite.run)
+    fromDB.flatMap(_.save.objectFile(params.replayPath).overwrite.run)
 
   def tableset(ds: Dataset[A]): TableDS[F, A] =
     new TableDS[F, A](ate.normalize(ds), tableDef, hikariConfig, cfg)

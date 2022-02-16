@@ -16,11 +16,11 @@ final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   def errorIfExists: SaveAvro[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveAvro[F, A] = updateConfig(cfg.ignoreMode)
 
-  def deflate(level: Int): SaveAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
-  def xz(level: Int): SaveAvro[F, A]      = updateConfig(cfg.outputCompression(NJCompression.Xz(level)))
-  def snappy: SaveAvro[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def bzip2: SaveAvro[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
+  def deflate(level: Int): SaveAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def snappy: SaveAvro[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def uncompress: SaveAvro[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def xz(level: Int): SaveAvro[F, A]      = updateConfig(cfg.outputCompression(NJCompression.Xz(level)))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

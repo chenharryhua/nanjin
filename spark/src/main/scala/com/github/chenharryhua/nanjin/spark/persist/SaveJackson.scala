@@ -17,8 +17,9 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
   def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.ignoreMode)
 
   def bzip2: SaveJackson[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def gzip: SaveJackson[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def deflate(level: Int): SaveJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
+  def gzip: SaveJackson[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def lz4: SaveJackson[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveJackson[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def run(implicit F: Sync[F]): F[Unit] =

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
+import cats.data.Reader
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.persist.{saveRDD, NJCompression}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -9,26 +10,37 @@ import org.apache.spark.streaming.dstream.DStream
 
 private[dstream] object persist {
 
-  def circe[A: JsonEncoder](ds: DStream[A])(pathBuilder: NJTimestamp => NJPath): DStreamRunner.Mark = {
+  def circe[A: JsonEncoder](
+    ds: DStream[A],
+    compression: NJCompression,
+    pathBuilder: Reader[NJTimestamp, NJPath]): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
-      val path = pathBuilder(NJTimestamp(time.milliseconds))
-      saveRDD.circe(rdd, path, NJCompression.Uncompressed, isKeepNull = true)
+      val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
+      saveRDD.circe(rdd, path, compression, isKeepNull = true)
     }
     DStreamRunner.Mark
   }
 
-  def jackson[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => NJPath): DStreamRunner.Mark = {
+  def jackson[A](
+    ds: DStream[A],
+    encoder: AvroEncoder[A],
+    compression: NJCompression,
+    pathBuilder: Reader[NJTimestamp, NJPath]): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
-      val path = pathBuilder(NJTimestamp(time.milliseconds))
-      saveRDD.jackson(rdd, path, encoder, NJCompression.Uncompressed)
+      val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
+      saveRDD.jackson(rdd, path, encoder, compression)
     }
     DStreamRunner.Mark
   }
 
-  def avro[A](ds: DStream[A], encoder: AvroEncoder[A])(pathBuilder: NJTimestamp => NJPath): DStreamRunner.Mark = {
+  def avro[A](
+    ds: DStream[A],
+    encoder: AvroEncoder[A],
+    compression: NJCompression,
+    pathBuilder: Reader[NJTimestamp, NJPath]): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
-      val path = pathBuilder(NJTimestamp(time.milliseconds))
-      saveRDD.avro(rdd, path, encoder, NJCompression.Snappy)
+      val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
+      saveRDD.avro(rdd, path, encoder, compression)
     }
     DStreamRunner.Mark
   }

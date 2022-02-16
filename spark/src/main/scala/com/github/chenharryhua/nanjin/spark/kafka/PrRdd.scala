@@ -10,8 +10,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.spark.persist.{HoarderConfig, RddAvroFileHoarder}
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import fs2.Stream
 import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
@@ -51,8 +50,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
-  def save(path: NJPath): RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder, HoarderConfig(path))
+  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder)
 
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, ProducerRecords[Unit, K, V]] =
