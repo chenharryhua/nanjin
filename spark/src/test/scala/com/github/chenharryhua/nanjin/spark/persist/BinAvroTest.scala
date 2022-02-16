@@ -93,7 +93,7 @@ class BinAvroTest extends AnyFunSuite {
 
   val reverseRoot = root / "reverse"
   test("reverse read/write gzip") {
-    val path = reverseRoot / "gzip"
+    val path = reverseRoot / "rooster.binary.avro.gz"
     RoosterData.rdd
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
@@ -107,7 +107,7 @@ class BinAvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t1)
   }
   test("reverse read/write bzip2") {
-    val path = reverseRoot / "bzip2"
+    val path = reverseRoot / "rooster.binary.avro.bz2"
     RoosterData.rdd
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
@@ -122,7 +122,7 @@ class BinAvroTest extends AnyFunSuite {
   }
 
   test("reverse read/write uncompress") {
-    val path = reverseRoot / "uncompressed"
+    val path = reverseRoot / "rooster.binary.avro"
     RoosterData.rdd
       .stream[IO](100)
       .map(Rooster.avroCodec.toRecord)
