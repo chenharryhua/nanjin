@@ -28,7 +28,7 @@ final class SaveSparkJson[F[_], A](ds: Dataset[A], cfg: HoarderConfig, isKeepNul
       .checkAndRun(F.interruptibleMany {
         ds.write
           .mode(params.saveMode)
-          .option("compression", params.compression.name)
+          .option("compression", params.compression.shortName)
           .option("ignoreNullFields", !isKeepNull)
           .json(params.outPath.pathStr)
       })

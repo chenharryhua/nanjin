@@ -30,7 +30,7 @@ final class NJJacksonKeyOutputFormat extends AvroOutputFormatBase[AvroKey[Generi
   }
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val suffix: String        = s"-${utils.uuidStr(job)}${NJFileFormat.Jackson.suffix}"
+    val suffix: String        = s"-${utils.uuidStr(job)}.${NJFileFormat.Jackson.suffix}"
     val schema: Schema        = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf: Configuration   = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)

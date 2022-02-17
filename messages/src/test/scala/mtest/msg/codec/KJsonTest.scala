@@ -1,15 +1,16 @@
 package mtest.msg.codec
 
 import cats.Id
-import cats.derived.auto.eq._
+import cats.derived.auto.eq.*
+import cats.kernel.Eq
 import cats.kernel.laws.discipline.EqTests
 import cats.laws.discipline.DistributiveTests
-import cats.syntax.all._
+import cats.syntax.all.*
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import io.circe.Json
-import io.circe.generic.auto._
-import io.circe.syntax._
+import io.circe.generic.auto.*
+import io.circe.syntax.*
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
@@ -17,7 +18,7 @@ import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 object KJsonTestData {
   final case class Base(a: Long, b: Json)
   final case class CompositionType(c: Int, base: Base)
-  import io.circe.generic.auto._
+
   val goodJson: SerdeOf[KJson[CompositionType]] = SerdeOf[KJson[CompositionType]]
 
   val genCT: Gen[CompositionType] = for {
@@ -37,7 +38,7 @@ object KJsonTestData {
 }
 
 class KJsonTest extends Properties("kjson") {
-  import KJsonTestData._
+  import KJsonTestData.*
 
   val genKJsons: Gen[List[KJson[CompositionType]]]                = Gen.listOfN(20, genKJson)
   implicit val arbKJsons: Arbitrary[List[KJson[CompositionType]]] = Arbitrary(genKJsons)
@@ -55,10 +56,12 @@ class KJsonTest extends Properties("kjson") {
 }
 
 class KJsonEqTest extends CatsSuite with FunSuiteDiscipline {
-  import KJsonTestData._
+  import KJsonTestData.*
 
   implicit val cogenCT: Cogen[CompositionType] =
     Cogen[CompositionType]((a: CompositionType) => a.base.a)
+
+  implicit val infereq0: Eq[CompositionType] = cats.derived.semiauto.eq[CompositionType]
 
   checkAll("KJson", EqTests[KJson[CompositionType]].eqv)
   checkAll("KJson", DistributiveTests[KJson].distributive[CompositionType, CompositionType, CompositionType, List, Id])
