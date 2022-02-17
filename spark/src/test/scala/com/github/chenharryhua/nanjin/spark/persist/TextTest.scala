@@ -19,7 +19,7 @@ class TextTest extends AnyFunSuite {
   }
   test("tablet - with new suffix") {
     val path = root / "new-suffix"
-    saver(path).withSuffix(".text").uncompress.run.unsafeRunSync()
+    saver(path).withSuffix("text").uncompress.run.unsafeRunSync()
   }
 
   test("tablet - deflate") {

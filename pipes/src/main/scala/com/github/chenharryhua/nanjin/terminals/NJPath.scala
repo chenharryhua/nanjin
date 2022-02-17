@@ -12,7 +12,8 @@ import java.time.{LocalDate, ZonedDateTime}
 
 final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
-  def /(seg: PathSegment): NJPath = NJPath(root, segments.appended(seg))
+  def /(seg: PathSegment): NJPath      = NJPath(root, segments.appended(seg))
+  def /(ss: List[PathSegment]): NJPath = NJPath(root, segments ::: ss)
 
   // Year=2020/Month=01/Day=05
   def /(ld: LocalDate): NJPath = {

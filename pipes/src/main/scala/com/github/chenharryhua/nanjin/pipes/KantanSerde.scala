@@ -73,14 +73,11 @@ object KantanSerde {
     val engine           = WriterEngine.internalCsvWriterEngine.writerFor(sw, conf)
 
     try {
-      if (conf.hasHeader) {
-        conf.header match {
-          case Header.None             => ()
-          case Header.Implicit         => enc.header.foreach(engine.write)
-          case Header.Explicit(header) => engine.write(header)
-        }
+      conf.header match {
+        case Header.None             => ()
+        case Header.Implicit         => enc.header.foreach(engine.write)
+        case Header.Explicit(header) => engine.write(header)
       }
-
       sw.toString
     } finally engine.close()
   }

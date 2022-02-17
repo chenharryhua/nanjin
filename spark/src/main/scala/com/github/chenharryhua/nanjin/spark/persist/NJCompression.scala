@@ -14,7 +14,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.spark.sql.catalyst.util.CompressionCodecs
 
 sealed trait NJCompression extends Serializable {
-  def name: String
+  def shortName: String
 
   final def avro(conf: Configuration): Unit = this match {
     case NJCompression.Uncompressed =>
@@ -63,7 +63,7 @@ sealed trait NJCompression extends Serializable {
       case NJCompression.Zstandard(level) =>
         ZlibFactory.setCompressionLevel(config, ecl.withIndex(level))
         CompressionCodecs.setCodecConfiguration(config, classOf[ZStandardCodec].getName)
-      case cc => sys.error(s"${cc.name} is not supported")
+      case cc => sys.error(s"${cc.shortName} is not supported")
     }
   }
 }
@@ -71,38 +71,38 @@ sealed trait NJCompression extends Serializable {
 object NJCompression {
 
   case object Uncompressed extends NJCompression {
-    override val name = "uncompressed"
+    override val shortName = "uncompressed"
   }
 
   case object Snappy extends NJCompression {
-    override val name: String = "snappy"
+    override val shortName: String = "snappy"
   }
 
   case object Bzip2 extends NJCompression {
-    override val name: String = "bzip2"
+    override val shortName: String = "bzip2"
   }
 
   case object Gzip extends NJCompression {
-    override val name: String = "gzip"
+    override val shortName: String = "gzip"
   }
 
   case object Lz4 extends NJCompression {
-    override val name: String = "lz4"
+    override val shortName: String = "lz4"
   }
 
   case object Brotli extends NJCompression {
-    override val name: String = "brotli"
+    override val shortName: String = "brotli"
   }
 
   final case class Deflate(level: Int) extends NJCompression {
-    override val name: String = "deflate"
+    override val shortName: String = "deflate"
   }
 
   final case class Xz(level: Int) extends NJCompression {
-    override val name: String = "xz"
+    override val shortName: String = "xz"
   }
 
   final case class Zstandard(level: Int) extends NJCompression {
-    override val name: String = "zstd"
+    override val shortName: String = "zstd"
   }
 }
