@@ -49,7 +49,9 @@ final case class KafkaSummary(
   count_distance_gap: Long,
   start_ts: ZonedDateTime,
   end_ts: ZonedDateTime,
-  period: String) {}
+  period: String) {
+  def show: String = KafkaSummary.showKafkaSummary.show(this)
+}
 
 object KafkaSummary {
   implicit val showKafkaSummary: Show[KafkaSummary] = ks =>
