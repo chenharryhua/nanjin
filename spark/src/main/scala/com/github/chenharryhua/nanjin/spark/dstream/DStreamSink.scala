@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Reader
+import com.github.chenharryhua.nanjin.common.NJCompression
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner.Mark
-import com.github.chenharryhua.nanjin.spark.persist.NJCompression
+import com.github.chenharryhua.nanjin.spark.persist.saveRDD
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import io.circe.Encoder as JsonEncoder
@@ -24,7 +25,7 @@ final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig) extends Serializa
   def coalesce(implicit tag: ClassTag[A]): DStreamSink[A] = transform(_.transform(_.coalesce(1)))
 
   def circe(path: NJPath)(implicit enc: JsonEncoder[A]): DStreamCirce[A] =
-    new DStreamCirce[A](dstream, Reader(params.pathBuilder(path)), cfg)
+    new DStreamCirce[A](dstream, Reader(params.pathBuilder(path)), cfg, true)
 
 }
 
@@ -42,7 +43,7 @@ final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg
   def coalesce(implicit tag: ClassTag[A]): AvroDStreamSink[A] = transform(encoder)(_.transform(_.coalesce(1)))
 
   def circe(path: NJPath)(implicit enc: JsonEncoder[A]): DStreamCirce[A] =
-    new DStreamCirce[A](dstream, Reader(params.pathBuilder(path)), cfg)
+    new DStreamCirce[A](dstream, Reader(params.pathBuilder(path)), cfg, true)
 
   def avro(path: NJPath): DStreamAvro[A] = new DStreamAvro[A](dstream, Reader(params.pathBuilder(path)), encoder, cfg)
 
@@ -50,12 +51,15 @@ final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg
     new DStreamJackson[A](dstream, Reader(params.pathBuilder(path)), encoder, cfg)
 }
 
-final class DStreamCirce[A: JsonEncoder](dstream: DStream[A], pathBuilder: Reader[NJTimestamp, NJPath], cfg: SDConfig) {
+final class DStreamCirce[A: JsonEncoder](
+  dstream: DStream[A],
+  pathBuilder: Reader[NJTimestamp, NJPath],
+  cfg: SDConfig,
+  isKeepNull: Boolean) {
+  val params: SDParams = cfg.evalConfig
 
   private def updateConfig(f: SDConfig => SDConfig): DStreamCirce[A] =
-    new DStreamCirce[A](dstream, pathBuilder, f(cfg))
-
-  val params: SDParams = cfg.evalConfig
+    new DStreamCirce[A](dstream, pathBuilder, f(cfg), isKeepNull)
 
   def lz4: DStreamCirce[A]                 = updateConfig(_.withCompression(NJCompression.Lz4))
   def bzip2: DStreamCirce[A]               = updateConfig(_.withCompression(NJCompression.Bzip2))
@@ -63,7 +67,15 @@ final class DStreamCirce[A: JsonEncoder](dstream: DStream[A], pathBuilder: Reade
   def deflate(level: Int): DStreamCirce[A] = updateConfig(_.withCompression(NJCompression.Deflate(level)))
   def uncompress: DStreamCirce[A]          = updateConfig(_.withCompression(NJCompression.Uncompressed))
 
-  def run: Mark = persist.circe[A](dstream, params.compression, pathBuilder)
+  def dropNull: DStreamCirce[A] = new DStreamCirce[A](dstream, pathBuilder, cfg, false)
+
+  def run: Mark = {
+    dstream.foreachRDD { (rdd, time) =>
+      val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
+      saveRDD.circe(rdd, path, params.compression, isKeepNull)
+    }
+    DStreamRunner.Mark
+  }
 }
 
 final class DStreamAvro[A](
@@ -82,7 +94,13 @@ final class DStreamAvro[A](
   def bzip2: DStreamAvro[A]               = updateConfig(_.withCompression(NJCompression.Bzip2))
   def uncompress: DStreamAvro[A]          = updateConfig(_.withCompression(NJCompression.Uncompressed))
 
-  def run: Mark = persist.avro[A](dstream, encoder, params.compression, pathBuilder)
+  def run: Mark = {
+    dstream.foreachRDD { (rdd, time) =>
+      val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
+      saveRDD.avro(rdd, path, encoder, params.compression)
+    }
+    DStreamRunner.Mark
+  }
 }
 
 final class DStreamJackson[A](
@@ -101,5 +119,11 @@ final class DStreamJackson[A](
   def deflate(level: Int): DStreamJackson[A] = updateConfig(_.withCompression(NJCompression.Deflate(level)))
   def uncompress: DStreamJackson[A]          = updateConfig(_.withCompression(NJCompression.Uncompressed))
 
-  def run: Mark = persist.jackson[A](dstream, encoder, params.compression, pathBuilder)
+  def run: Mark = {
+    dstream.foreachRDD { (rdd, time) =>
+      val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
+      saveRDD.jackson(rdd, path, encoder, params.compression)
+    }
+    DStreamRunner.Mark
+  }
 }

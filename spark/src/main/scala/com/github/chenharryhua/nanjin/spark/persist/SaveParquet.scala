@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.NJCompression
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.sql.Dataset
 
@@ -28,7 +29,7 @@ final class SaveParquet[F[_], A](ds: Dataset[A], cfg: HoarderConfig) extends Ser
 
     new SaveModeAware[F](params.saveMode, params.outPath, conf).checkAndRun(F.interruptibleMany {
       ds.write
-        .option("compression", params.compression.parquet(conf).name)
+        .option("compression", compressionConfig.parquet(conf, params.compression).name)
         .mode(params.saveMode)
         .parquet(params.outPath.pathStr)
     })

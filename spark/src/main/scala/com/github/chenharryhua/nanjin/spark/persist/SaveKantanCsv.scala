@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.NJCompression
 import com.github.chenharryhua.nanjin.pipes.KantanSerde
 import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
 import org.apache.hadoop.io.{NullWritable, Text}
