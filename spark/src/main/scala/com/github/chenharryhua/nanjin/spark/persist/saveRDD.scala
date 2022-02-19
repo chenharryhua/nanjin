@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.common.{NJCompression, NJFileFormat}
 import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPERATOR
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
@@ -20,6 +20,7 @@ import scalapb.GeneratedMessage
 import java.io.ByteArrayOutputStream
 
 private[spark] object saveRDD {
+
   private def genericRecordPair[A](rdd: RDD[A], enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] =
     rdd.mapPartitions { rcds =>
       val to: ToRecord[A] = ToRecord[A](enc)
@@ -29,7 +30,7 @@ private[spark] object saveRDD {
   def avro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    compression.avro(config)
+    compressionConfig.avro(config, compression)
     val job: Job = Job.getInstance(config)
     AvroJob.setOutputKeySchema(job, encoder.schema)
     // run
@@ -52,7 +53,7 @@ private[spark] object saveRDD {
     }
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    compression.set(config)
+    compressionConfig.set(config, compression)
     config.set(NJBinaryOutputFormat.suffix, NJFileFormat.BinaryAvro.suffix)
     // run
     rdd
@@ -70,7 +71,7 @@ private[spark] object saveRDD {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Circe.suffix)
-    compression.set(config)
+    compressionConfig.set(config, compression)
     // run
     rdd
       .map(x => (NullWritable.get(), new Text(encode(x).noSpaces + NEWLINE_SEPERATOR)))
@@ -80,7 +81,7 @@ private[spark] object saveRDD {
   def jackson[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    compression.set(config)
+    compressionConfig.set(config, compression)
     val job = Job.getInstance(config)
     AvroJob.setOutputKeySchema(job, encoder.schema)
     // run
@@ -101,7 +102,7 @@ private[spark] object saveRDD {
     }
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    compression.set(config)
+    compressionConfig.set(config, compression)
     config.set(NJBinaryOutputFormat.suffix, NJFileFormat.ProtoBuf.suffix)
     // run
     rdd
@@ -118,7 +119,7 @@ private[spark] object saveRDD {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, suffix)
-    compression.set(config)
+    compressionConfig.set(config, compression)
     // run
     rdd
       .map(a => (NullWritable.get(), new Text(a.show + NEWLINE_SEPERATOR)))
@@ -134,7 +135,7 @@ private[spark] object saveRDD {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
-    compression.set(config)
+    compressionConfig.set(config, compression)
     // run
     rdd
       .mapPartitions(iter => new KantanCsvIterator[A](encoder, csvCfg, iter), preservesPartitioning = true)
