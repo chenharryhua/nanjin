@@ -14,7 +14,9 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.io.compress.{CompressionCodec, CompressionCodecFactory}
+import org.apache.hadoop.io.compress.SplittableCompressionCodec.READ_MODE
+import org.apache.hadoop.io.compress.bzip2.CBZip2InputStream
+import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodec, CompressionCodecFactory}
 import org.apache.hadoop.mapreduce.Job
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -116,7 +118,14 @@ object loaders {
           val factory: CompressionCodecFactory = new CompressionCodecFactory(pds.getConfiguration)
           val codec: Option[CompressionCodec]  = Option(factory.getCodec(new Path(sp)))
           val is: InputStream                  = pds.open()
-          val decompressed: InputStream        = codec.fold(is)(_.createInputStream(is))
+          val decompressed: InputStream = codec match {
+            case Some(cc) =>
+              cc match {
+                case _: BZip2Codec => new CBZip2InputStream(is, READ_MODE.BYBLOCK) // default is: READ_MODE.CONTINUOUS
+                case other         => other.createInputStream(is)
+              }
+            case None => is
+          }
           val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(decompressed).build(decoder.schema).iterator
           new Iterator[A] {
             override def hasNext: Boolean =
