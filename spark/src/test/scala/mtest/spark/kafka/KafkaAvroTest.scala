@@ -135,21 +135,22 @@ class KafkaAvroTest extends AnyFunSuite {
       sk.load.rdd.avro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
-  test("should be sent to kafka and save to single snappy avro") {
+  test("should be sent to kafka and save to binary bzip2 avro") {
     val data = fs2
       .Stream(
         ProducerRecords(
           List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(topicEnum.fs2Channel.updateProducer(_.withClientId("kafka.avro.test5")).producerPipe)
-    val path = NJPath("./data/test/spark/kafka/coproduct/single-scalaenum.snappy.avro")
+    val path = NJPath("./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
-      sk.fromKafka.flatMap(_.save.avro(path).snappy.run) >>
-      sk.load.rdd.avro(path).map(_.rdd.take(10).toSet)
+      sk.fromKafka.flatMap(_.save.binAvro(path).bzip2.run) >>
+      sk.load.rdd.binAvro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
+
 }
