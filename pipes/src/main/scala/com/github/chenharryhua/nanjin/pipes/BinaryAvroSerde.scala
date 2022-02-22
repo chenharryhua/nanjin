@@ -32,7 +32,7 @@ object BinaryAvroSerde {
       val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
       def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
         Pull
-          .functionKInstance(F.delay(try Some(datumReader.read(null, avroDecoder))
+          .functionKInstance(F.delay(try Option(datumReader.read(null, avroDecoder))
           catch { case _: EOFException => None }))
           .flatMap {
             case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))

@@ -14,10 +14,9 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.{AvroJob, AvroKeyInputFormat}
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.io.compress.SplittableCompressionCodec.READ_MODE
-import org.apache.hadoop.io.compress.bzip2.CBZip2InputStream
-import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodec, CompressionCodecFactory}
+import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.mapreduce.Job
+import org.apache.spark.input.PortableDataStream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -75,27 +74,6 @@ object loaders {
           case Right(r) => r
         }))
 
-    def protobuf[A <: GeneratedMessage: ClassTag](path: NJPath, ss: SparkSession)(implicit
-      decoder: GeneratedMessageCompanion[A]): RDD[A] =
-      ss.sparkContext
-        .binaryFiles(path.pathStr)
-        .mapPartitions(_.flatMap { case (sp, pds) =>
-          val factory: CompressionCodecFactory = new CompressionCodecFactory(pds.getConfiguration)
-          val codec: Option[CompressionCodec]  = Option(factory.getCodec(new Path(sp)))
-          val is: InputStream                  = pds.open()
-          val decompressed: InputStream        = codec.fold(is)(_.createInputStream(is))
-          val itor: Iterator[A]                = decoder.streamFromDelimitedInput(decompressed).iterator
-          new Iterator[A] {
-            override def hasNext: Boolean =
-              if (itor.hasNext) true
-              else {
-                decompressed.close()
-                false
-              }
-            override def next(): A = itor.next()
-          }
-        })
-
     def avro[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
@@ -111,33 +89,6 @@ object loaders {
         .map { case (gr, _) => decoder.decode(gr.datum()) }
     }
 
-    def binAvro[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] =
-      ss.sparkContext
-        .binaryFiles(path.pathStr)
-        .mapPartitions(_.flatMap { case (sp, pds) => // resource leak ???
-          val factory: CompressionCodecFactory = new CompressionCodecFactory(pds.getConfiguration)
-          val codec: Option[CompressionCodec]  = Option(factory.getCodec(new Path(sp)))
-          val is: InputStream                  = pds.open()
-          val decompressed: InputStream = codec match {
-            case Some(cc) =>
-              cc match {
-                case _: BZip2Codec => new CBZip2InputStream(is, READ_MODE.BYBLOCK) // default is: READ_MODE.CONTINUOUS
-                case other         => other.createInputStream(is)
-              }
-            case None => is
-          }
-          val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(decompressed).build(decoder.schema).iterator
-          new Iterator[A] {
-            override def hasNext: Boolean =
-              if (itor.hasNext) true
-              else {
-                decompressed.close()
-                false
-              }
-            override def next(): A = itor.next()
-          }
-        })
-
     def jackson[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
       val schema: Schema = decoder.schema
       ss.sparkContext.textFile(path.pathStr).mapPartitions { strs =>
@@ -148,5 +99,51 @@ object loaders {
         }
       }
     }
+
+    /** binary files
+      */
+
+    private def decompressedInputStream(pds: PortableDataStream): InputStream =
+      Option(new CompressionCodecFactory(pds.getConfiguration).getCodec(new Path(pds.getPath()))) match {
+        case Some(cc) => cc.createInputStream(pds.open())
+        case None     => pds.open()
+      }
+
+    def protobuf[A <: GeneratedMessage: ClassTag](path: NJPath, ss: SparkSession)(implicit
+      decoder: GeneratedMessageCompanion[A]): RDD[A] =
+      ss.sparkContext
+        .binaryFiles(path.pathStr)
+        .mapPartitions(_.flatMap { case (_, pds) =>
+          val is: InputStream   = decompressedInputStream(pds)
+          val itor: Iterator[A] = decoder.streamFromDelimitedInput(is).iterator
+          new Iterator[A] {
+            override def hasNext: Boolean =
+              if (itor.hasNext) true
+              else {
+                is.close()
+                false
+              }
+            override def next(): A = itor.next()
+          }
+        })
+
+    def binAvro[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] =
+      ss.sparkContext
+        .binaryFiles(path.pathStr)
+        .mapPartitions(
+          _.flatMap { case (_, pds) =>
+            val is: InputStream   = decompressedInputStream(pds)
+            val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(is).build(decoder.schema).iterator
+            new Iterator[A] {
+              override def hasNext: Boolean =
+                if (itor.hasNext) true
+                else {
+                  is.close()
+                  false
+                }
+              override def next(): A = itor.next()
+            }
+          }
+        )
   }
 }

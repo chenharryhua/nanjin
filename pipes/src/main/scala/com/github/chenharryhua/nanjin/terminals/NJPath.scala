@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Show
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import eu.timepit.refined.api.Refined
+import io.circe.generic.JsonCodec
+import io.circe.refined.*
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
@@ -10,6 +12,7 @@ import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import java.net.URI
 import java.time.{LocalDate, ZonedDateTime}
 
+@JsonCodec
 final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
   def /(seg: PathSegment): NJPath      = NJPath(root, segments.appended(seg))

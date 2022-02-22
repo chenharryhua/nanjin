@@ -113,7 +113,7 @@ val fs2Lib = Seq(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.4")
+).map(_ % "3.2.5")
 
 val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -230,7 +230,7 @@ val http4sLib = Seq(
   "org.http4s" %% "http4s-blaze-client",
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "1.0.0-M30")
+).map(_ % "1.0.0-M31")
 
 val jwtLib = Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
