@@ -3,11 +3,14 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.pipes.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
+import com.github.chenharryhua.nanjin.spark.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.Json
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -134,5 +137,11 @@ class BinAvroTest extends AnyFunSuite {
 
     val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(RoosterData.expected == t1)
+  }
+
+  ignore("local") {
+    val path  = NJPath("/Users/chenh/Downloads/part-r-00000-9ed5fd81-6b1f-3708-a6a2-4d9c2392df33.binary.avro.bz2")
+    val codec = NJAvroCodec[NJConsumerRecord[KJson[Json], KJson[Json]]]
+    loaders.rdd.binAvro(path, codec.avroDecoder, sparkSession).count()
   }
 }
