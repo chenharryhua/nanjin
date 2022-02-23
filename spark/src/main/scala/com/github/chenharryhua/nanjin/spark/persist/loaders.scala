@@ -109,6 +109,22 @@ object loaders {
         case None     => pds.open()
       }
 
+    private class ClosableIterator[A](is: InputStream, itor: Iterator[A]) extends Iterator[A] {
+      override def hasNext: Boolean =
+        if (itor.hasNext) true
+        else {
+          is.close()
+          false
+        }
+      override def next(): A =
+        try itor.next()
+        catch {
+          case ex: Throwable =>
+            is.close()
+            throw ex
+        }
+    }
+
     def protobuf[A <: GeneratedMessage: ClassTag](path: NJPath, ss: SparkSession)(implicit
       decoder: GeneratedMessageCompanion[A]): RDD[A] =
       ss.sparkContext
@@ -116,15 +132,7 @@ object loaders {
         .mapPartitions(_.flatMap { case (_, pds) =>
           val is: InputStream   = decompressedInputStream(pds)
           val itor: Iterator[A] = decoder.streamFromDelimitedInput(is).iterator
-          new Iterator[A] {
-            override def hasNext: Boolean =
-              if (itor.hasNext) true
-              else {
-                is.close()
-                false
-              }
-            override def next(): A = itor.next()
-          }
+          new ClosableIterator[A](is, itor)
         })
 
     def binAvro[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] =
@@ -134,15 +142,7 @@ object loaders {
           _.flatMap { case (_, pds) =>
             val is: InputStream   = decompressedInputStream(pds)
             val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(is).build(decoder.schema).iterator
-            new Iterator[A] {
-              override def hasNext: Boolean =
-                if (itor.hasNext) true
-                else {
-                  is.close()
-                  false
-                }
-              override def next(): A = itor.next()
-            }
+            new ClosableIterator[A](is, itor)
           }
         )
   }
