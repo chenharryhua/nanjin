@@ -312,8 +312,8 @@ lazy val guard = (project in file("guard"))
     libraryDependencies ++= Seq(
       "com.github.cb372" %% "cats-retry-mtl" % "3.1.0",
       "com.lihaoyi" %% "scalatags"           % "0.11.1",
-      "org.tpolecat" %% "skunk-core"         % "0.3.0",
-      "org.tpolecat" %% "skunk-circe"        % "0.3.0"
+      "org.tpolecat" %% "skunk-core"         % "0.3.1",
+      "org.tpolecat" %% "skunk-circe"        % "0.3.1"
     ) ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
   )
 
@@ -341,7 +341,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-core"   % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
-      "org.tpolecat" %% "skunk-core"    % "0.3.0",
+      "org.tpolecat" %% "skunk-core"    % "0.3.1",
       "com.zaxxer"                      % "HikariCP" % "5.0.1"
     ) ++ effectLib ++ fs2Lib ++ testLib
   )
