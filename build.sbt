@@ -59,7 +59,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
-).map(_ % "3.3.1") ++ awsLib
+).map(_ % "3.3.2") ++ awsLib
 
 val circeLib = Seq(
   "io.circe" %% "circe-literal"        % "0.14.1",
@@ -84,7 +84,7 @@ val jacksonLib = Seq(
   "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
   "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
-).map(_ % "2.13.1")
+).map(_ % "2.13.2")
 
 val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv",
@@ -160,11 +160,12 @@ val testLib = Seq(
 val kafkaLib = Seq(
   "io.confluent"                              % "kafka-schema-registry-client" % confluent,
   "io.confluent"                              % "kafka-schema-serializer"      % confluent,
-  "org.apache.kafka"                          % "kafka-clients"                % kafkaVersion,
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   "com.typesafe.akka" %% "akka-stream-kafka"  % "3.0.0",
   "com.github.fd4s" %% "fs2-kafka"            % "3.0.0-M5"
+).map(_.exclude("org.apache.kafka", "kafka-clients")) ++ Seq(
+  "org.apache.kafka" % "kafka-clients" % kafkaVersion
 )
 
 val enumLib = Seq(
@@ -329,7 +330,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(
     libraryDependencies ++= Seq("org.tukaani" % "xz" % "1.9") ++
       kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++
-        serdeLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
+      serdeLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
   )
 
 lazy val database = (project in file("database"))
@@ -364,8 +365,8 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "io.netty"                               % "netty-all"  % "4.1.75.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.0.0" % Test) ++
+      "io.netty"                               % "netty-all" % "4.1.75.Final",
+      "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test) ++
       sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
       akkaLib ++ ftpLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
   )
