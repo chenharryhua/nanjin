@@ -14,7 +14,7 @@ class AdminApiTest extends AnyFunSuite {
   val topic  = ctx.topic[Int, Int]("admin")
   val mirror = ctx.topic[Int, Int]("admin.mirror")
 
-  test("newTopic") {
+  ignore("newTopic") {
     val run = for {
       d <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- IO.sleep(1.seconds)
@@ -25,7 +25,7 @@ class AdminApiTest extends AnyFunSuite {
     run.unsafeRunSync()
 
   }
-  test("mirrorTo") {
+  ignore("mirrorTo") {
     val run = for {
       d <- mirror.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- IO.sleep(1.seconds)
