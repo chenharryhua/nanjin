@@ -31,7 +31,7 @@ object KafkaStreamingData {
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
-  val s1Data: Stream[IO, ProducerRecords[Unit, Int, StreamOne]] = Stream
+  val s1Data: Stream[IO, ProducerRecords[Int, StreamOne]] = Stream
     .emits(
       List(
         ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 101, StreamOne("na", -1)),
@@ -45,10 +45,10 @@ object KafkaStreamingData {
       ).map(ProducerRecords.one(_)))
     .covary[IO]
 
-  val sendS1Data: Stream[IO, ProducerResult[Unit, Int, StreamOne]] =
+  val sendS1Data: Stream[IO, ProducerResult[Int, StreamOne]] =
     Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1Topic.fs2Channel.producerPipe).debug()
 
-  val sendT2Data: Stream[IO, ProducerResult[Unit, Int, TableTwo]] =
+  val sendT2Data: Stream[IO, ProducerResult[Int, TableTwo]] =
     Stream(
       ProducerRecords(List(
         ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
@@ -108,7 +108,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
         .map(_.record.value)
         .debug()
-    val s1Data: Stream[IO, ProducerRecords[Unit, Int, Array[Byte]]] = Stream
+    val s1Data: Stream[IO, ProducerRecords[Int, Array[Byte]]] = Stream
       .emits(
         List(
           ProducerRecord[Int, Array[Byte]](

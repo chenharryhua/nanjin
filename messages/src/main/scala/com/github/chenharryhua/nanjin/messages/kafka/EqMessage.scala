@@ -90,14 +90,4 @@ private[kafka] trait EqMessage {
   implicit def eqTransactionalMessageAkka[K: Eq, V: Eq]: Eq[AkkaTransactionalMessage[K, V]] =
     cats.derived.semiauto.eq[AkkaTransactionalMessage[K, V]]
 
-  // fs2
-  implicit final def eqProducerRecordsFs2[K: Eq, V: Eq, P: Eq]: Eq[Fs2ProducerRecords[K, V, P]] =
-    (x: Fs2ProducerRecords[K, V, P], y: Fs2ProducerRecords[K, V, P]) =>
-      (x.records === y.records) &&
-        (x.passthrough === y.passthrough)
-
-  implicit final def eqTransactionalProducerRecordsFs2[F[_], K: Eq, V: Eq, P: Eq]
-    : Eq[Fs2TransactionalProducerRecords[F, K, V, P]] =
-    (x: Fs2TransactionalProducerRecords[F, K, V, P], y: Fs2TransactionalProducerRecords[F, K, V, P]) =>
-      (x.records === y.records) && (x.passthrough === y.passthrough)
 }

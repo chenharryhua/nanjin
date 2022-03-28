@@ -107,7 +107,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
 
   def dumpToday(implicit F: Sync[F]): F[Unit] = withOneDay(LocalDate.now()).dump
 
-  def replay(listener: ProducerResult[Unit, K, V] => F[Unit])(implicit F: Async[F]): F[Unit] =
+  def replay(listener: ProducerResult[K, V] => F[Unit])(implicit F: Async[F]): F[Unit] =
     Stream
       .force(
         fromDisk.map(

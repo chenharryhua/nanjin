@@ -9,8 +9,8 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
-import fs2.kafka.KafkaByteConsumerRecord
 import fs2.{Pipe, Stream}
+import fs2.kafka.KafkaByteConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
@@ -75,8 +75,8 @@ object KafkaChannels {
       topic.decoder[G](cr)
 
     // pipe
-    def producerPipe[P](implicit F: Async[F]): Pipe[F, ProducerRecords[P, K, V], ProducerResult[P, K, V]] =
-      KafkaProducer.pipe[F, K, V, P](producerSettings)
+    def producerPipe[P](implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
+      KafkaProducer.pipe[F, K, V](producerSettings)
 
     def producer(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
       KafkaProducer.stream(producerSettings)
