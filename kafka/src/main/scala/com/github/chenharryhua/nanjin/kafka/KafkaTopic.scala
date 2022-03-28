@@ -84,8 +84,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
     fs2Channel.producer.evalMap(_.produceOne_(topicName.value, k, v).flatten).compile.lastOrError
 
-  def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[Unit, K, V]] =
-    fs2Channel.producer.evalMap(_.produceOne(pr, ())).compile.lastOrError.flatten
+  def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[K, V]] =
+    fs2Channel.producer.evalMap(_.produceOne(pr)).compile.lastOrError.flatten
 
 }
 

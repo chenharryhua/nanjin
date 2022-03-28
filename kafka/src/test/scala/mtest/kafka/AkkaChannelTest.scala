@@ -18,7 +18,7 @@ import eu.timepit.refined.auto.*
 class AkkaChannelTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, String] = ctx.topic[Int, String]("akka.consumer.test")
 
-  val data: Stream[IO, ProducerResult[Unit, Int, String]] =
+  val data: Stream[IO, ProducerResult[Int, String]] =
     Stream(
       ProducerRecords(List(
         ProducerRecord(topic.topicName.value, 1, "a"),
