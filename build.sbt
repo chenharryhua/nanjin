@@ -261,7 +261,7 @@ val baseLib = Seq(
   "io.scalaland" %% "chimney"                      % "0.6.1",
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
-  "com.chuusai" %% "shapeless"                     % "2.3.8"
+  "com.chuusai" %% "shapeless"                     % "2.3.9"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib
 
 lazy val common = (project in file("common"))
