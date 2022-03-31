@@ -76,15 +76,15 @@ val circeLib = Seq(
 )
 
 val jacksonLib = Seq(
-  "com.fasterxml.jackson.core"     % "jackson-annotations",
-  "com.fasterxml.jackson.core"     % "jackson-core",
-  "com.fasterxml.jackson.core"     % "jackson-databind",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
-  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala"
-).map(_ % "2.13.2")
+  "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.13.2",
+  "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.13.2",
+  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.2.2",
+  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.13.2",
+  "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.13.2",
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.13.2",
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.13.2",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.2"
+)
 
 val kantanLib = Seq(
   "com.nrinaudo" %% "kantan.csv",
@@ -113,7 +113,7 @@ val fs2Lib = Seq(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.5")
+).map(_ % "3.2.7")
 
 val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -231,7 +231,7 @@ val http4sLib = Seq(
   "org.http4s" %% "http4s-blaze-client",
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "1.0.0-M31")
+).map(_ % "1.0.0-M32")
 
 val jwtLib = Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -388,6 +388,4 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-
+  (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
