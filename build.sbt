@@ -163,7 +163,7 @@ val kafkaLib = Seq(
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   "com.typesafe.akka" %% "akka-stream-kafka"  % "3.0.0",
-  "com.github.fd4s" %% "fs2-kafka"            % "3.0.0-M6"
+  "com.github.fd4s" %% "fs2-kafka"            % "3.0.0-M7"
 ).map(_.exclude("org.apache.kafka", "kafka-clients")) ++ Seq(
   "org.apache.kafka" % "kafka-clients" % kafkaVersion
 )
