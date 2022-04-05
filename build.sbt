@@ -11,7 +11,7 @@ val monocle      = "2.1.0"
 val catsEffect   = "3.3.10"
 val akka26       = "2.6.19"
 val confluent    = "7.0.1"
-val kafkaVersion = "7.0.2-ce"
+val kafkaVersion = "7.1.0-ce"
 val avro         = "1.11.0"
 
 lazy val commonSettings = Seq(
