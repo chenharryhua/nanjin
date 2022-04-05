@@ -14,25 +14,25 @@ class AdminApiTest extends AnyFunSuite {
   val topic  = ctx.topic[Int, Int]("admin")
   val mirror = ctx.topic[Int, Int]("admin.mirror")
 
-  ignore("newTopic") {
+  test("newTopic") {
     val run = for {
       d <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- IO.sleep(1.seconds)
       n <- topic.admin.newTopic(3, 1)
       _ <- IO.sleep(1.seconds)
       info <- topic.admin.describe
-    } yield ()
+    } yield println(info)
     run.unsafeRunSync()
 
   }
-  ignore("mirrorTo") {
+  test("mirrorTo") {
     val run = for {
       d <- mirror.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence
       _ <- IO.sleep(1.seconds)
       n <- topic.admin.mirrorTo(mirror.topicName, 1)
       _ <- IO.sleep(1.seconds)
       info <- topic.admin.describe
-    } yield ()
+    } yield println(info)
     run.unsafeRunSync()
   }
 
