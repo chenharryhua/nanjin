@@ -248,7 +248,7 @@ val metricLib = Seq(
 )
 
 val cronLib = Seq(
-  "eu.timepit" %% "fs2-cron-cron4s"                 % "0.7.1",
+  "eu.timepit" %% "fs2-cron-cron4s"                 % "0.7.2",
   "com.github.alonsodomin.cron4s" %% "cron4s-core"  % "0.6.1",
   "com.github.alonsodomin.cron4s" %% "cron4s-circe" % "0.6.1"
 )
