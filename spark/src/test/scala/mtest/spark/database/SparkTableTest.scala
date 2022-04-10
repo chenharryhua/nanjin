@@ -1,6 +1,7 @@
 package mtest.spark.database
 
 import cats.effect.IO
+import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.{Postgres, TableName}
@@ -13,6 +14,8 @@ import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import doobie.ExecutionContexts
+import doobie.hikari.HikariTransactor
 import doobie.implicits.*
 import eu.timepit.refined.auto.*
 import frameless.{TypedDataset, TypedEncoder}
@@ -76,7 +79,10 @@ class SparkTableTest extends AnyFunSuite {
 
   val dbData: DBTable = sample.transformInto[DBTable]
 
-  NJHikari[Postgres].runQuery[IO, Int](postgres)(DBTable.drop *> DBTable.create).unsafeRunSync()
+  val pg: Resource[IO, HikariTransactor[IO]] =
+    NJHikari[Postgres].transactorResource(postgres, ExecutionContexts.fixedThreadPool[IO](10))
+
+  pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
   test("sparkTable upload dataset to table") {
     val data = TypedDataset.create(List(sample.transformInto[DBTable]))

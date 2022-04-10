@@ -10,7 +10,7 @@ import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
 
 import java.sql.{Date, Timestamp}
-import java.time.{Instant, LocalDate}
+import java.time.LocalDate
 
 private[spark] trait InjectionInstances extends Serializable {
 
@@ -31,12 +31,6 @@ private[spark] trait InjectionInstances extends Serializable {
     override def apply(a: Date): SQLDate  = SQLDate(DateTimeUtils.fromJavaDate(a))
     override def invert(b: SQLDate): Date = DateTimeUtils.toJavaDate(b.days)
   }
-
-  implicit val instantInjection: Injection[Instant, Timestamp] =
-    new Injection[Instant, Timestamp] {
-      override def apply(a: Instant): Timestamp  = Timestamp.from(a)
-      override def invert(b: Timestamp): Instant = b.toInstant
-    }
 
   implicit val timestampInjection: Injection[Timestamp, SQLTimestamp] =
     new Injection[Timestamp, SQLTimestamp] {
