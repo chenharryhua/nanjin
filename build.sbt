@@ -132,10 +132,10 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % "3.2.0") ++ Seq(
+).map(_ % "3.2.1") ++ Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
-).map(_ % "0.11.1") ++ Seq(
+).map(_ % "0.12.0") ++ Seq(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
 ).map(_ % avro)
