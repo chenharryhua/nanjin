@@ -3,26 +3,25 @@ package com.github.chenharryhua.nanjin.database
 import cats.effect.kernel.{Async, Resource}
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
-import doobie.free.connection.ConnectionIO
 import doobie.hikari.HikariTransactor
-import doobie.util.ExecutionContexts
 import fs2.Stream
+
+import scala.concurrent.ExecutionContext
 
 /** [[https://tpolecat.github.io/doobie/]]
   */
 sealed trait NJHikari[DB] {
   def hikariConfig(db: DB): HikariConfig
 
-  final def transactorResource[F[_]: Async](db: DB): Resource[F, HikariTransactor[F]] =
-    ExecutionContexts.fixedThreadPool[F](8).flatMap { threadPool =>
-      HikariTransactor.fromHikariConfig[F](hikariConfig(db), threadPool)
-    }
+  final def transactorResource[F[_]: Async](
+    db: DB,
+    threadPool: Resource[F, ExecutionContext]): Resource[F, HikariTransactor[F]] =
+    threadPool.flatMap(tp => HikariTransactor.fromHikariConfig[F](hikariConfig(db), tp))
 
-  final def transactorStream[F[_]: Async](db: DB): Stream[F, HikariTransactor[F]] =
-    Stream.resource(transactorResource(db))
-
-  final def runQuery[F[_]: Async, A](db: DB)(action: ConnectionIO[A]): F[A] =
-    transactorResource[F](db).use(_.trans.apply(action))
+  final def transactorStream[F[_]: Async](
+    db: DB,
+    threadPool: Resource[F, ExecutionContext]): Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorResource(db, threadPool))
 }
 
 object NJHikari {
