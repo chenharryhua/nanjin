@@ -12,8 +12,12 @@ import skunk.implicits.toStringOps
 import skunk.{Command, Session}
 
 object postgres {
+
+  def apply[F[_]: Sync](session: Resource[F, Session[F]], tableName: TableName): NJPostgres[F] =
+    new NJPostgres[F](session, Translator.json[F], tableName)
+
   def apply[F[_]: Sync](session: Resource[F, Session[F]]): NJPostgres[F] =
-    new NJPostgres[F](session, Translator.json[F], tableName = TableName("event_stream"))
+    apply[F](session, TableName("event_stream"))
 }
 
 final class NJPostgres[F[_]: Sync](
