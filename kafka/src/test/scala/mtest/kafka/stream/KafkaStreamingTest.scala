@@ -26,8 +26,8 @@ object KafkaStreamingData {
 
   case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic[Int, StreamOne]("stream.test.stream.one")
-  val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("stream.test.table.two")
+  val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic[Int, StreamOne]("stream.test.join.stream.one")
+  val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("stream.test.join.table.two")
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
@@ -42,7 +42,7 @@ object KafkaStreamingData {
         ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 3, StreamOne("c", 2)),
         ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 201, StreamOne("d", 3)),
         ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 202, StreamOne("e", 4))
-      ).map(ProducerRecords.one(_)))
+      ).map(ProducerRecords.one))
     .covary[IO]
 
   val sendS1Data: Stream[IO, ProducerResult[Int, StreamOne]] =
@@ -69,7 +69,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   before(sendT2Data.compile.drain.unsafeRunSync())
 
-  ignore("stream-table join") {
+  test("stream-table join") {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
@@ -84,7 +84,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val res: Set[StreamTarget] =
       harvest
         .concurrently(sendS1Data)
-        .concurrently(ctx.buildStreams(top).stream.debug().delayBy(2.seconds))
+        .concurrently(ctx.buildStreams(top).stream.debug())
         .interruptAfter(15.seconds)
         .compile
         .toList
@@ -132,7 +132,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
             s1Topic.topicName.value,
             106,
             oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1)))
-        ).map(ProducerRecords.one(_)))
+        ).map(ProducerRecords.one))
       .covary[IO]
 
     val sendS1Data =

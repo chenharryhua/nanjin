@@ -1,12 +1,10 @@
 package mtest
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.utils.random4d
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, KafkaTopic}
-import org.apache.kafka.clients.consumer.ConsumerConfig
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import cats.effect.Temporal
 import eu.timepit.refined.auto.*
+import org.apache.kafka.clients.consumer.ConsumerConfig
 
 package object kafka {
   import akka.actor.ActorSystem
@@ -17,8 +15,8 @@ package object kafka {
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
       .withStreamingProperty("state.dir", "./data/kafka_states")
       .ioContext
-      .withGroupId("nj-kafka-unit-test-group")
-      .withApplicationId("nj-kafka-unit-test-app")
+      .withGroupId(s"nj-kafka-unit-test-group-${random4d.value}")
+      .withApplicationId(s"nj-kafka-unit-test-app-${random4d.value}")
 
   val taxi: KafkaTopic[IO, Int, trip_record] =
     ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")
