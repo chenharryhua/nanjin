@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.Show
+import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import eu.timepit.refined.api.Refined
 import io.circe.generic.JsonCodec
@@ -53,6 +54,7 @@ object NJPath {
   def apply(root: PathRoot): NJPath = NJPath(root, Nil)
   def apply(hp: Path): NJPath       = NJPath(PathRoot.unsafeFrom(hp.toString))
   def apply(uri: URI): NJPath       = NJPath(PathRoot.unsafeFrom(uri.toASCIIString))
+  def apply(s3: S3Path): NJPath     = NJPath(PathRoot.unsafeFrom(s3.s3a))
 
   implicit val showNJPath: Show[NJPath] = _.pathStr
 
