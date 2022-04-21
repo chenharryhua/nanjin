@@ -26,9 +26,12 @@ final class NJCsv[F[_]] private (
     new NJCsv[F](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
   def withBlockSizeHint(bsh: Long): NJCsv[F] =
     new NJCsv[F](configuration, bsh, chunkSize, compressLevel, csvConfiguration)
-  def withCompressionLevel(cl: CompressionLevel) =
+  def withCompressionLevel(cl: CompressionLevel): NJCsv[F] =
     new NJCsv[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
-  def withCompressionLevel(level: Int): NJCsv[F] = withCompressionLevel(Enum[CompressionLevel].withIndex(level))
+  def withCompressionLevel(level: Int): NJCsv[F] =
+    withCompressionLevel(Enum[CompressionLevel].withIndex(level))
+  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): NJCsv[F] =
+    new NJCsv[F](configuration, blockSizeHint, chunkSize, compressLevel, f(csvConfiguration))
 
   def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Stream[F, A] =
     for {
@@ -55,8 +58,11 @@ final class NJCsv[F[_]] private (
 }
 
 object NJCsv {
-  def apply[F[_]: Sync](csvConfiguration: CsvConfiguration, cfg: Configuration) =
-    new NJCsv[F](cfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvConfiguration)
+  def apply[F[_]: Sync](csvCfg: CsvConfiguration, hadoopCfg: Configuration) =
+    new NJCsv[F](hadoopCfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
+
+  def apply[F[_]: Sync](hadoopCfg: Configuration): NJCsv[F] =
+    apply[F](CsvConfiguration.rfc, hadoopCfg)
 }
 
 private class AkkaCsvSource[A: HeaderDecoder](
