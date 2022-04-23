@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumed, KafkaStreamingProduced}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
-import fs2.kafka.{ProducerRecord, ProducerResult}
+import fs2.kafka.{ProducerRecord as Fs2ProducerRecord, ProducerResult}
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.streams.processor.RecordContext
 import org.apache.kafka.streams.scala.kstream.{Consumed, Produced}
 
@@ -80,13 +80,16 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       akkaUpdater.unitProducer[K, V],
       akkaUpdater.unitCommitter)
 
-  // for testing
-  def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
-    fs2Channel.producer.evalMap(_.produceOne_(topicName.value, k, v).flatten).compile.lastOrError
+  def producerRecord(k: K, v: V): ProducerRecord[K, V]       = new ProducerRecord(topicDef.topicName.value, k, v)
+  def fs2ProducerRecord(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicDef.topicName.value, k, v)
 
-  def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[K, V]] =
+  // for testing
+
+  def produceOne(pr: Fs2ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[K, V]] =
     fs2Channel.producer.evalMap(_.produceOne(pr)).compile.lastOrError.flatten
 
+  def produceOne(k: K, v: V)(implicit F: Async[F]): F[ProducerResult[K, V]] =
+    produceOne(fs2ProducerRecord(k, v))
 }
 
 final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {

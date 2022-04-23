@@ -75,7 +75,7 @@ object KafkaChannels {
       topic.decoder[G](cr)
 
     // pipe
-    def producerPipe[P](implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
+    def producerPipe(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
       KafkaProducer.pipe[F, K, V](producerSettings)
 
     def producer(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
