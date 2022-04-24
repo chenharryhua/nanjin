@@ -7,7 +7,7 @@ import eu.timepit.refined.api.Refined
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{LocatedFileStatus, Path}
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 
 import java.net.URI
@@ -51,10 +51,11 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 }
 object NJPath {
 
-  def apply(root: PathRoot): NJPath = NJPath(root, Nil)
-  def apply(hp: Path): NJPath       = NJPath(PathRoot.unsafeFrom(hp.toString))
-  def apply(uri: URI): NJPath       = NJPath(PathRoot.unsafeFrom(uri.toASCIIString))
-  def apply(s3: S3Path): NJPath     = NJPath(PathRoot.unsafeFrom(s3.s3a))
+  def apply(root: PathRoot): NJPath         = NJPath(root, Nil)
+  def apply(hp: Path): NJPath               = apply(PathRoot.unsafeFrom(hp.toString))
+  def apply(uri: URI): NJPath               = apply(PathRoot.unsafeFrom(uri.toASCIIString))
+  def apply(s3: S3Path): NJPath             = apply(PathRoot.unsafeFrom(s3.s3a))
+  def apply(lfs: LocatedFileStatus): NJPath = apply(lfs.getPath)
 
   implicit val showNJPath: Show[NJPath] = _.pathStr
 

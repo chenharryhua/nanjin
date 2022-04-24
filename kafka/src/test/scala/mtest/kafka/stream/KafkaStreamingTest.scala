@@ -34,14 +34,14 @@ object KafkaStreamingData {
   val s1Data: Stream[IO, ProducerRecords[Int, StreamOne]] = Stream
     .emits(
       List(
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 101, StreamOne("na", -1)),
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 102, StreamOne("na", -1)),
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 103, StreamOne("na", -1)),
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 1, StreamOne("a", 0)),
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 2, StreamOne("b", 1)),
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 3, StreamOne("c", 2)),
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 201, StreamOne("d", 3)),
-        ProducerRecord[Int, StreamOne](s1Topic.topicName.value, 202, StreamOne("e", 4))
+        s1Topic.fs2ProducerRecord(101, StreamOne("na", -1)),
+        s1Topic.fs2ProducerRecord(102, StreamOne("na", -1)),
+        s1Topic.fs2ProducerRecord(103, StreamOne("na", -1)),
+        s1Topic.fs2ProducerRecord(1, StreamOne("a", 0)),
+        s1Topic.fs2ProducerRecord(2, StreamOne("b", 1)),
+        s1Topic.fs2ProducerRecord(3, StreamOne("c", 2)),
+        s1Topic.fs2ProducerRecord(201, StreamOne("d", 3)),
+        s1Topic.fs2ProducerRecord(202, StreamOne("e", 4))
       ).map(ProducerRecords.one))
     .covary[IO]
 
