@@ -22,6 +22,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.record.TimestampType
 import shapeless.cachedImplicit
 
+import java.time.Instant
+
 @Lenses
 @AvroDoc("kafka record, optional Key and Value")
 @AvroNamespace("nj.spark.kafka")
@@ -56,11 +58,11 @@ final case class NJConsumerRecord[K, V](
     case _ => TimestampType.NO_TIMESTAMP_TYPE
   }
 
-  def metaInfo: String =
-    s"Meta(topic=$topic,partition=$partition,offset=$offset,ts=${NJTimestamp(timestamp).utc},tt=${tst.toString})"
+  def metaInfo: ConsumerRecordMetaInfo =
+    this.into[ConsumerRecordMetaInfo].withFieldComputed(_.timestamp, x => Instant.ofEpochMilli(x.timestamp)).transform
 
   override def toString: String =
-    s"CR($metaInfo,key=${key.toString},value=${value.toString})"
+    s"CR(${metaInfo.show},key=${key.toString},value=${value.toString})"
 }
 
 object NJConsumerRecord {

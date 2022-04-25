@@ -3,11 +3,12 @@ package mtest.spark.sstream
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.{NJLogLevel, PathSegment}
+import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto.*
@@ -15,8 +16,8 @@ import mtest.spark.kafka.sparKafka
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
+import java.time.LocalDate
 import scala.concurrent.duration.*
-import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
@@ -60,14 +61,11 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
       .drain
       .unsafeRunSync()
 
-    val ts    = NJTimestamp.now()
-    val year  = PathSegment.unsafeFrom(s"Year=${ts.yearStr(sydneyTime)}")
-    val month = PathSegment.unsafeFrom(s"Month=${ts.monthStr(sydneyTime)}")
-    val day   = PathSegment.unsafeFrom(s"Day=${ts.dayStr(sydneyTime)}")
+    val ts = LocalDate.now()
 
-    val j = topic.load.jackson(jackson / year / month / day).unsafeRunSync().transform(_.distinct())
-    val a = topic.load.avro(avro / year / month / day).map(_.transform(_.distinct())).unsafeRunSync()
-    val c = topic.load.circe(circe / year / month / day).unsafeRunSync().transform(_.distinct())
+    val j = topic.load.jackson(jackson / ts).unsafeRunSync().transform(_.distinct())
+    val a = topic.load.avro(avro / ts).map(_.transform(_.distinct())).unsafeRunSync()
+    val c = topic.load.circe(circe / ts).unsafeRunSync().transform(_.distinct())
 
     j.diff(a).show(truncate = false)
     c.diff(a).show(truncate = false)

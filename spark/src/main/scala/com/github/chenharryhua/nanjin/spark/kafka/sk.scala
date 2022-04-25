@@ -49,14 +49,19 @@ private[kafka] object sk {
   def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext,
-    locationStrategy: LocationStrategy): F[DStream[NJConsumerRecord[K, V]]] =
+    locationStrategy: LocationStrategy,
+    listener: NJConsumerRecordWithError[K, V] => Unit): F[DStream[NJConsumerRecord[K, V]]] =
     topic.shortLiveConsumer.use(_.partitionsFor).map { topicPartitions =>
       val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
         ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
           topicPartitions.value,
           props(topic.context.settings.consumerSettings.config).asScala)
       KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
-        ms.map(m => NJConsumerRecordWithError(topic.codec, m).toNJConsumerRecord)
+        ms.map { m =>
+          val decoded: NJConsumerRecordWithError[K, V] = NJConsumerRecordWithError(topic.codec, m)
+          listener(decoded)
+          decoded.toNJConsumerRecord
+        }
       }
     }
 
