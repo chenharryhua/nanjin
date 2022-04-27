@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.PathRoot
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -30,7 +31,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
   val roosterTopic: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec)
 
-  val ate = NJConsumerRecord.ate(roosterTopic)
+  val ate = AvroTypedEncoder(roosterTopic)
 
   val data: RDD[NJProducerRecord[Int, Rooster]] =
     RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x.copy(a = Instant.now())))

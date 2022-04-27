@@ -5,6 +5,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
@@ -61,7 +62,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   // transition
   def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
-    val ate = NJConsumerRecord.ate(ack, acv)
+    val ate = AvroTypedEncoder(ack, acv)
     new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), cfg, ack, acv, tek, tev)
   }
 

@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl.*
@@ -36,7 +37,7 @@ class CrPrTest extends AnyFunSuite {
   implicit val te3: TypedEncoder[RoosterLike2]             = shapeless.cachedImplicit
 
   val rooster    = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
-  val roosterATE = NJConsumerRecord.ate(rooster)
+  val roosterATE = AvroTypedEncoder(rooster)
 
   val roosterLike =
     TopicDef[Long, RoosterLike](TopicName("roosterLike"), NJAvroCodec[RoosterLike])

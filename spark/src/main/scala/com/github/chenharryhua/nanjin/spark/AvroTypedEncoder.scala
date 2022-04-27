@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.spark
 
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.kafka.NJConsumerRecord
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
@@ -48,4 +50,16 @@ object AvroTypedEncoder {
     enc: AvroEncoder[A],
     te: TypedEncoder[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](NJAvroCodec[A](sf, dec, enc), te)
+
+  def apply[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
+    val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
+    AvroTypedEncoder[NJConsumerRecord[K, V]](ote, NJConsumerRecord.avroCodec(keyCodec, valCodec))
+  }
+
+  def apply[K, V](topicDef: TopicDef[K, V])(implicit
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
+    apply(topicDef.rawSerdes.keySerde.avroCodec, topicDef.rawSerdes.valSerde.avroCodec)
 }

@@ -35,7 +35,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   val topicName: TopicName = topic.topicDef.topicName
 
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.ate(topic.topicDef)
+    AvroTypedEncoder(topic.topicDef)
 
   val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
   val prCodec: NJAvroCodec[NJProducerRecord[K, V]] = NJProducerRecord.avroCodec(topic.topicDef)
@@ -177,7 +177,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
     implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
 
-    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = NJConsumerRecord.ate[KJson[K], KJson[V]](ack, acv)
+    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = AvroTypedEncoder[KJson[K], KJson[V]](ack, acv)
 
     sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ate)
   }

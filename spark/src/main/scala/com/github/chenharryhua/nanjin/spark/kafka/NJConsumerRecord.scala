@@ -8,9 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaConsumerRecordTransformer
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.sksamuel.avro4s.*
-import frameless.TypedEncoder
 import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
 import io.circe.generic.auto.*
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
@@ -91,18 +89,6 @@ object NJConsumerRecord {
 
   def avroCodec[K, V](topicDef: TopicDef[K, V]): NJAvroCodec[NJConsumerRecord[K, V]] =
     avroCodec(topicDef.rawSerdes.keySerde.avroCodec, topicDef.rawSerdes.valSerde.avroCodec)
-
-  def ate[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V])(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
-    val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
-    AvroTypedEncoder[NJConsumerRecord[K, V]](ote, avroCodec(keyCodec, valCodec))
-  }
-
-  def ate[K, V](topicDef: TopicDef[K, V])(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
-    ate(topicDef.rawSerdes.keySerde.avroCodec, topicDef.rawSerdes.valSerde.avroCodec)
 
   implicit def jsonEncoder[K, V](implicit
     jck: JsonEncoder[K],
