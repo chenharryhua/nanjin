@@ -141,14 +141,18 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
 
   /** DStream
     */
-  def dstream(implicit F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
+  def dstream(listener: NJConsumerRecordWithError[K, V] => Unit)(implicit
+    F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     Kleisli((sc: StreamingContext) =>
-      sk.kafkaDStream(topic, sc, params.locationStrategy)
+      sk.kafkaDStream(topic, sc, params.locationStrategy, listener)
         .map(ds =>
           new AvroDStreamSink(
             ds,
             NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder,
             SDConfig(params.timeRange.zoneId))))
+
+  def dstream(implicit F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
+    dstream(_ => ())
 
   /** structured stream
     */
