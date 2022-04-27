@@ -146,7 +146,7 @@ val testLib = Seq(
   "org.typelevel" %% "discipline-scalatest"                   % "2.1.5",
   "org.typelevel" %% "cats-laws"                              % catsCore,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.11",
+  "org.scalatest" %% "scalatest"                              % "3.2.12",
   "com.github.julien-truffaut" %% "monocle-law"               % monocle,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
@@ -235,9 +235,9 @@ val http4sLib = Seq(
 
 val jwtLib = Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
-  "io.jsonwebtoken"  % "jjwt-api"       % "0.11.3",
-  "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.3",
-  "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.3"
+  "io.jsonwebtoken"  % "jjwt-api"       % "0.11.4",
+  "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.4",
+  "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.4"
 )
 
 val metricLib = Seq(
@@ -319,6 +319,7 @@ lazy val guard = (project in file("guard"))
   )
 
 lazy val messages = (project in file("messages"))
+  .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= baseLib ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)

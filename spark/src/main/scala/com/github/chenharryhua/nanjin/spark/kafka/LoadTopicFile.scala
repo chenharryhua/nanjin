@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -72,7 +73,9 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
       new CrDS(tds, cfg, ack, acv, tek, tev)
     }
 
-  private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef).avroDecoder
+  private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord
+    .avroCodec(topic.topicDef.rawSerdes.keySerde.avroCodec, topic.topicDef.rawSerdes.valSerde.avroCodec)
+    .avroDecoder
 
   object rdd {
 

@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import mtest.spark.kafka.sparKafka
 import org.scalatest.funsuite.AnyFunSuite

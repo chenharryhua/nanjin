@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumed, KafkaStreamingProduced}
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsumerRecordWithError}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import fs2.kafka.{ProducerRecord as Fs2ProducerRecord, ProducerResult}
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -30,6 +30,13 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
+
+  def decode[G[_, _]: NJConsumerMessage](gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecordWithError[K, V] = {
+    val cr: ConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
+    val k: Either[Throwable, K]                      = codec.keyCodec.tryDecode(cr.key()).toEither
+    val v: Either[Throwable, V]                      = codec.valCodec.tryDecode(cr.value()).toEither
+    NJConsumerRecordWithError(cr.partition, cr.offset, cr.timestamp, k, v, cr.topic, cr.timestampType.id)
+  }
 
   def record(partition: Int, offset: Long)(implicit sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
     shortLiveConsumer.use(

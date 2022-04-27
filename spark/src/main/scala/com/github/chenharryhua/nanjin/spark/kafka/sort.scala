@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col

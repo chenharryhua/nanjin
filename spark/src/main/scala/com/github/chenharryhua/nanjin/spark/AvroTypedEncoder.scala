@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.kafka.NJConsumerRecord
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD

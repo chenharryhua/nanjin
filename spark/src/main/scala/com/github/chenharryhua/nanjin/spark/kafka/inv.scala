@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Eq
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 

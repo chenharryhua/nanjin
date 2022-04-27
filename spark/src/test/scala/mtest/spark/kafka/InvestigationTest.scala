@@ -1,6 +1,7 @@
 package mtest.spark.kafka
 
 import cats.derived.auto.eq.kittensMkEq
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.kafka.*
 import frameless.TypedDataset
 import mtest.spark.sparkSession
