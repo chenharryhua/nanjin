@@ -35,7 +35,7 @@ final case class NJConsumerRecordWithError[K, V] private (
     .transform
 }
 
-private[kafka] object NJConsumerRecordWithError {
+object NJConsumerRecordWithError {
   def apply[G[_, _], K, V](codec: KeyValueCodecPair[K, V], gaa: G[Array[Byte], Array[Byte]])(implicit
     cm: NJConsumerMessage[G]): NJConsumerRecordWithError[K, V] = {
     val cr: ConsumerRecord[Array[Byte], Array[Byte]] = cm.lens.get(gaa)
