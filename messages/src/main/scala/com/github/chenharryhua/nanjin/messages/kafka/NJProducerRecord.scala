@@ -1,10 +1,9 @@
-package com.github.chenharryhua.nanjin.spark.kafka
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import alleycats.Empty
 import cats.Bifunctor
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
@@ -85,9 +84,6 @@ object NJProducerRecord {
     val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
     NJAvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
-
-  def avroCodec[K, V](topicDef: TopicDef[K, V]): NJAvroCodec[NJProducerRecord[K, V]] =
-    avroCodec(topicDef.rawSerdes.keySerde.avroCodec, topicDef.rawSerdes.valSerde.avroCodec)
 
   implicit def jsonEncoder[K, V](implicit
     jck: JsonEncoder[K],

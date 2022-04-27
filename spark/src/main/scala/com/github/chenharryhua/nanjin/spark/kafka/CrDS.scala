@@ -5,9 +5,9 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.{DatasetAvroFileHoarder, HoarderConfig}
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
@@ -21,7 +21,7 @@ final class CrDS[F[_], K, V] private[kafka] (
   tev: TypedEncoder[V])
     extends Serializable {
 
-  val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = NJConsumerRecord.ate(ack, acv)(tek, tev)
+  val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = AvroTypedEncoder(ack, acv)(tek, tev)
 
   def typedDataset: TypedDataset[NJConsumerRecord[K, V]] = TypedDataset.create(dataset)(ate.typedEncoder)
 
@@ -52,7 +52,7 @@ final class CrDS[F[_], K, V] private[kafka] (
   def bimap[K2, V2](k: K => K2, v: V => V2)(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2])(implicit
     k2: TypedEncoder[K2],
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(ack2, acv2)
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = AvroTypedEncoder(ack2, acv2)
     new CrDS[F, K2, V2](dataset.map(_.bimap(k, v))(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
 
@@ -60,14 +60,14 @@ final class CrDS[F[_], K, V] private[kafka] (
     f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2])(implicit
     k2: TypedEncoder[K2],
     v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(ack2, acv2)
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = AvroTypedEncoder(ack2, acv2)
     new CrDS[F, K2, V2](dataset.map(f)(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
 
   def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
     ack2: NJAvroCodec[K2],
     acv2: NJAvroCodec[V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
-    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = NJConsumerRecord.ate(ack2, acv2)
+    val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = AvroTypedEncoder(ack2, acv2)
     new CrDS[F, K2, V2](dataset.flatMap(f)(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
 

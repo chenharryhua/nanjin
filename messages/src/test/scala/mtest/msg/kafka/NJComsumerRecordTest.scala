@@ -1,9 +1,10 @@
-package com.github.chenharryhua.nanjin.spark.kafka
+package mtest.msg.kafka
 
 import cats.derived.auto.eq.*
 import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.BifunctorTests
 import cats.tests.CatsSuite
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import eu.timepit.refined.auto.*
 import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline

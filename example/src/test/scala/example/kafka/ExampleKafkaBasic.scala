@@ -1,7 +1,7 @@
 package example.kafka
 
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.spark.kafka.NJProducerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import example.*

@@ -1,12 +1,10 @@
-package com.github.chenharryhua.nanjin.spark.kafka
+package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Show
-import com.github.chenharryhua.nanjin.kafka.KeyValueCodecPair
-import com.github.chenharryhua.nanjin.messages.kafka.*
 import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.typelevel.cats.time.instances.instant
+
 import java.time.Instant
 
 @JsonCodec
@@ -16,7 +14,7 @@ object ConsumerRecordMetaInfo extends instant {
     cats.derived.semiauto.show[ConsumerRecordMetaInfo]
 }
 
-final case class NJConsumerRecordWithError[K, V] private (
+final case class NJConsumerRecordWithError[K, V](
   partition: Int,
   offset: Long,
   timestamp: Long,
@@ -33,14 +31,4 @@ final case class NJConsumerRecordWithError[K, V] private (
     .withFieldComputed(_.key, _.key.toOption)
     .withFieldComputed(_.value, _.value.toOption)
     .transform
-}
-
-private[kafka] object NJConsumerRecordWithError {
-  def apply[G[_, _], K, V](codec: KeyValueCodecPair[K, V], gaa: G[Array[Byte], Array[Byte]])(implicit
-    cm: NJConsumerMessage[G]): NJConsumerRecordWithError[K, V] = {
-    val cr: ConsumerRecord[Array[Byte], Array[Byte]] = cm.lens.get(gaa)
-    val k: Either[Throwable, K]                      = codec.keyCodec.tryDecode(cr.key()).toEither
-    val v: Either[Throwable, V]                      = codec.valCodec.tryDecode(cr.value()).toEither
-    NJConsumerRecordWithError(cr.partition, cr.offset, cr.timestamp, k, v, cr.topic, cr.timestampType.id)
-  }
 }

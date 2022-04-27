@@ -1,15 +1,14 @@
-package com.github.chenharryhua.nanjin.spark.kafka
+package mtest.kafka
 
-import com.github.chenharryhua.nanjin.kafka.KeyValueCodecPair
-import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
+import cats.effect.IO
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import eu.timepit.refined.auto.*
 import fs2.kafka.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJConsumerRecordDecoderTest extends AnyFunSuite {
 
-  val decoder: KeyValueCodecPair[Int, Int] =
-    KeyValueCodecPair(SerdeOf[Int].asKey(Map.empty).codec("test"), SerdeOf[Int].asValue(Map.empty).codec("test"))
-
+  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("decode.test")
   val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))
 
@@ -21,26 +20,26 @@ class NJConsumerRecordDecoderTest extends AnyFunSuite {
 
   val badKV: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0), Array[Byte](0))
-
   test("decode good key value") {
-    val rst = NJConsumerRecordWithError(decoder, goodData)
+    val rst = topic.decode(goodData)
     assert(rst.key.contains(1))
     assert(rst.value.contains(2))
   }
 
   test("decode bad key") {
-    val rst = NJConsumerRecordWithError(decoder, badKey)
+    val rst = topic.decode(badKey)
     assert(rst.value.contains(2))
     assert(rst.key.isLeft)
   }
   test("decode bad value") {
-    val rst = NJConsumerRecordWithError(decoder, badVal)
+    val rst = topic.decode(badVal)
     assert(rst.key.contains(1))
     assert(rst.value.isLeft)
   }
   test("decode bad key vaule") {
-    val rst = NJConsumerRecordWithError(decoder, badKV)
+    val rst = topic.decode(badKV)
     assert(rst.key.isLeft)
     assert(rst.value.isLeft)
   }
+
 }

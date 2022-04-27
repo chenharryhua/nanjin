@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
 import monocle.function.At.{atMap, remove}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
@@ -56,9 +57,9 @@ private[kafka] object sk {
         ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
           topicPartitions.value,
           props(topic.context.settings.consumerSettings.config).asScala)
-      KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions { ms =>
-        ms.map { m =>
-          val decoded: NJConsumerRecordWithError[K, V] = NJConsumerRecordWithError(topic.codec, m)
+      KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions {
+        _.map { m =>
+          val decoded: NJConsumerRecordWithError[K, V] = topic.decode(m)
           listener(decoded)
           decoded.toNJConsumerRecord
         }
@@ -70,9 +71,7 @@ private[kafka] object sk {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
     sparkSession: SparkSession): F[RDD[NJConsumerRecordWithError[K, V]]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { ms =>
-      ms.map(m => NJConsumerRecordWithError(topic.codec, m))
-    })
+    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.map(topic.decode(_)))
 
   /** streaming
     */

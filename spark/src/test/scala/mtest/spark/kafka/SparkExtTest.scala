@@ -3,6 +3,7 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -30,7 +31,7 @@ class SparkExtTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, String, trip_record] =
     ctx.topic[String, trip_record]("nyc_yellow_taxi_trip_data")
 
-  val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = NJConsumerRecord.ate(topic.topicDef)
+  val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = AvroTypedEncoder(topic.topicDef)
 
   test("stream") {
     sparKafka.topic(topic).fromKafka.flatMap(_.crDS.dataset.stream[IO](100).compile.drain).unsafeRunSync()

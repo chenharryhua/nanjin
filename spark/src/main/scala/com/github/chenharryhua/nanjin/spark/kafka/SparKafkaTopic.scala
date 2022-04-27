@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError, NJProducerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerde, CirceSerde, JacksonSerde, JavaObjectSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -35,10 +36,12 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   val topicName: TopicName = topic.topicDef.topicName
 
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.ate(topic.topicDef)
+    AvroTypedEncoder(topic.topicDef)
 
-  val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(topic.topicDef)
-  val prCodec: NJAvroCodec[NJProducerRecord[K, V]] = NJProducerRecord.avroCodec(topic.topicDef)
+  val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
+    NJConsumerRecord.avroCodec(topic.topicDef.rawSerdes.keySerde.avroCodec, topic.topicDef.rawSerdes.valSerde.avroCodec)
+  val prCodec: NJAvroCodec[NJProducerRecord[K, V]] =
+    NJProducerRecord.avroCodec(topic.topicDef.rawSerdes.keySerde.avroCodec, topic.topicDef.rawSerdes.valSerde.avroCodec)
 
   object pipes {
     object circe {
@@ -134,7 +137,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     new CrDS(ate.normalizeDF(df), cfg, avroKeyCodec, avroValCodec, tek, tev)
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, NJProducerRecord.avroCodec(topic.topicDef), cfg)
+    new PrRdd[F, K, V](rdd, prCodec, cfg)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     prRdd(sparkSession.sparkContext.parallelize(list.toList))
@@ -145,11 +148,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     Kleisli((sc: StreamingContext) =>
       sk.kafkaDStream(topic, sc, params.locationStrategy, listener)
-        .map(ds =>
-          new AvroDStreamSink(
-            ds,
-            NJConsumerRecord.avroCodec(topic.topicDef).avroEncoder,
-            SDConfig(params.timeRange.zoneId))))
+        .map(ds => new AvroDStreamSink(ds, crCodec.avroEncoder, SDConfig(params.timeRange.zoneId))))
 
   def dstream(implicit F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     dstream(_ => ())
@@ -177,7 +176,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
     implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
 
-    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = NJConsumerRecord.ate[KJson[K], KJson[V]](ack, acv)
+    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = AvroTypedEncoder[KJson[K], KJson[V]](ack, acv)
 
     sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ate)
   }
