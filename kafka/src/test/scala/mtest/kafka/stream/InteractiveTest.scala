@@ -4,32 +4,27 @@ import cats.data.Reader
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsAbnormallyStopped, NJStateStore}
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
-import org.apache.kafka.streams.{KeyValue, StoreQueryParameters}
-import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, StreamsBuilder}
-import org.apache.kafka.streams.scala.kstream.Materialized
+import org.apache.kafka.streams.KeyValue
+import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
-import org.apache.kafka.streams.state.{QueryableStoreTypes, Stores}
-import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.jdk.CollectionConverters.*
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.*
+import scala.jdk.CollectionConverters.*
 import scala.util.Random
-import eu.timepit.refined.auto.*
 
-@DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
   val topic       = ctx.topic[Int, String]("stream.test.interactive.2")
-  val localStore  = topic.asConsumer.asStateStore("stream.test.interactive.local.store.2")
-  val globalStore = topic.asConsumer.asStateStore("stream.test.interactive.store.global.2")
+  val localStore  = topic.asStateStore("stream.test.interactive.local.store.2")
+  val globalStore = topic.asStateStore("stream.test.interactive.store.global.2")
 
   val top: Reader[StreamsBuilder, Unit] =
-    topic.asConsumer.withName("abc").ktable(localStore.inMemoryKeyValueStore.supplier).void
+    topic.asConsumer.withProcessorName("abc").ktable(localStore.inMemoryKeyValueStore.supplier).void
   val gtop: Reader[StreamsBuilder, Unit] =
     topic.asConsumer.gktable(globalStore.persistentKeyValueStore.supplier).void
 

@@ -4,7 +4,7 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.streaming.NJStateStore
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
@@ -15,13 +15,10 @@ import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
 import org.apache.kafka.streams.state.KeyValueStore
-import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import eu.timepit.refined.auto.*
 
-@DoNotDiscover
 class TransformerTest extends AnyFunSuite {
 
   test("stream transformer") {
@@ -54,7 +51,7 @@ class TransformerTest extends AnyFunSuite {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       s1 <- topic1.asConsumer.kstream
       t2 <- topic2.asConsumer.ktable
-    } yield s1.transform(transformer, store.name).join(t2)(_ + _).to(tgt.asProducer)
+    } yield s1.transform(transformer, store.name).join(t2)(_ + _).to(tgt.topicName)(tgt.asProduced)
 
     val kafkaStreamService = ctx
       .buildStreams(top)
