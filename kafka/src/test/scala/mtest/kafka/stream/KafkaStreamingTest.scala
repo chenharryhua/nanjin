@@ -5,7 +5,7 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingProduced, KafkaStreamsAbnormallyStopped}
+import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsAbnormallyStopped
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
@@ -14,8 +14,8 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
+import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration.*
 
@@ -30,7 +30,6 @@ object KafkaStreamingData {
   val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("stream.test.join.table.two")
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
-
   val s1Data: Stream[IO, ProducerRecords[Int, StreamOne]] = Stream
     .emits(
       List(
@@ -51,21 +50,19 @@ object KafkaStreamingData {
   val sendT2Data: Stream[IO, ProducerResult[Int, TableTwo]] =
     Stream(
       ProducerRecords(List(
-        ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
-        ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
-        ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
+        ProducerRecord(t2Topic.topicName, 1, TableTwo("x", 0)),
+        ProducerRecord(t2Topic.topicName, 2, TableTwo("y", 1)),
+        ProducerRecord(t2Topic.topicName, 3, TableTwo("z", 2))
       ))).covary[IO].through(t2Topic.fs2Channel.producerPipe)
 
   val expected: Set[StreamTarget] = Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
 }
 
-@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
-  implicit val oneValue: Serde[StreamOne]                            = s1Topic.asConsumer.serdeVal
-  implicit val twoValue: Serde[TableTwo]                             = t2Topic.asConsumer.serdeVal
-  implicit val target: KafkaStreamingProduced[IO, Int, StreamTarget] = tgt.asProducer
+  implicit val oneValue: Serde[StreamOne] = s1Topic.codec.valSerde
+  implicit val twoValue: Serde[TableTwo]  = t2Topic.codec.valSerde
 
   before(sendT2Data.compile.drain.unsafeRunSync())
 
@@ -73,7 +70,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(target)
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
@@ -100,7 +97,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.asProducer)
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream

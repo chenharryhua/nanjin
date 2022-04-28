@@ -3,15 +3,14 @@ package com.github.chenharryhua.nanjin.kafka
 import akka.actor.ActorSystem
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumed, KafkaStreamingProduced}
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsumerRecordWithError}
+import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsumerRecordWithError}
 import fs2.kafka.{ProducerRecord as Fs2ProducerRecord, ProducerResult}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.streams.processor.RecordContext
-import org.apache.kafka.streams.scala.kstream.{Consumed, Produced}
+import org.apache.kafka.streams.scala.kstream.Produced
 
 import scala.util.Try
 
@@ -57,15 +56,15 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   // Streaming
 
-  def asConsumer: KafkaStreamingConsumed[F, K, V] =
-    new KafkaStreamingConsumed[F, K, V](this, Consumed.`with`[K, V](codec.keySerde, codec.valSerde))
+  def asConsumer: KafkaStreamingConsumer[F, K, V] =
+    new KafkaStreamingConsumer[F, K, V](this, None, None, None)
 
-  def asProducer: KafkaStreamingProduced[F, K, V] =
-    new KafkaStreamingProduced[F, K, V](
-      this,
-      Produced.`with`[K, V](codec.keySerde, codec.valSerde),
-      (_: K, _: V, _: RecordContext) => topicName.value // default extractor, can be replaced
-    )
+  def asProduced: Produced[K, V] = Produced.`with`[K, V](codec.keySerde, codec.valSerde)
+
+  def asStateStore(storeName: StoreName): NJStateStore[K, V] = {
+    require(storeName.value =!= topicName.value, "should provide a name other than the topic name")
+    NJStateStore[K, V](storeName, RegisteredKeyValueSerdePair(codec.keySerde, codec.valSerde))
+  }
 
   // channels
   def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
