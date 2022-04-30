@@ -1,7 +1,6 @@
 package mtest
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.utils.random4d
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, KafkaTopic}
 import eu.timepit.refined.auto.*
 import org.apache.kafka.clients.consumer.ConsumerConfig

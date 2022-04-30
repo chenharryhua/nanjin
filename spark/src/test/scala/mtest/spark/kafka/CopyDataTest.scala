@@ -25,10 +25,10 @@ class CopyDataTest extends AnyFunSuite {
     fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary[IO].through(src.fs2Channel.producerPipe).compile.drain
 
   val prepareData =
-    src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+    src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
       src.schemaRegistry.delete >>
       src.schemaRegistry.register >>
-      tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+      tgt.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
       tgt.schemaRegistry.delete >>
       tgt.schemaRegistry.register >>
       loadData

@@ -4,8 +4,8 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsAbnormallyStopped
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
@@ -45,7 +45,7 @@ object KafkaStreamingData {
     .covary[IO]
 
   val sendS1Data: Stream[IO, ProducerResult[Int, StreamOne]] =
-    Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1Topic.fs2Channel.producerPipe).debug()
+    Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1Topic.fs2Channel.producerPipe) // .debug()
 
   val sendT2Data: Stream[IO, ProducerResult[Int, TableTwo]] =
     Stream(
@@ -70,7 +70,10 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
+    } yield a
+      .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
+      .peek((k, v) => println(s"out=($k, $v)"))
+      .to(tgt.topicName)(tgt.asProduced)
 
     val harvest: Stream[IO, StreamTarget] =
       tgt.fs2Channel.stream
@@ -91,57 +94,49 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("kafka stream throw exception") {
-    val s1Topic    = ctx.topic[Int, StreamOne]("stream.test.stream.exception.one")
-    val s1TopicBin = ctx.topic[Int, Array[Byte]]("stream.test.stream.exception.one")
+    val tn         = TopicName("stream.test.stream.exception.one")
+    val s1Topic    = ctx.topic[Int, StreamOne](tn)
+    val s1TopicBin = ctx.topic[Int, Array[Byte]](tn)
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
-      a <- s1Topic.asConsumer.kstream
+      a <- s1TopicBin.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
+    } yield a
+      .flatMapValues(v => s1Topic.codec.valCodec.tryDecode(v).toOption)
+      .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
+      .peek((k, v) => println(s"out=($k, $v)"))
+      .to(tgt.topicName)(tgt.asProduced)
 
-    val harvest: Stream[IO, StreamTarget] =
+    val harvest =
       tgt.fs2Channel.stream
         .map(x => tgt.decoder(x).decode)
-        .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
-        .map(_.record.value)
         .debug()
+        .delayBy(3.seconds)
+        .map(_.offset)
+        .through(commitBatchWithin(1, 1.seconds))
+
     val s1Data: Stream[IO, ProducerRecords[Int, Array[Byte]]] = Stream
       .emits(
         List(
-          ProducerRecord[Int, Array[Byte]](
-            s1Topic.topicName.value,
-            101,
-            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
-          ProducerRecord[Int, Array[Byte]](
-            s1Topic.topicName.value,
-            102,
-            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
-          ProducerRecord[Int, Array[Byte]](
-            s1Topic.topicName.value,
-            103,
-            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
-          ProducerRecord[Int, Array[Byte]](
-            s1Topic.topicName.value,
-            104,
-            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1))),
-          ProducerRecord[Int, Array[Byte]](s1Topic.topicName.value, 105, "exception".getBytes),
-          ProducerRecord[Int, Array[Byte]](
-            s1Topic.topicName.value,
-            106,
-            oneValue.serializer().serialize(s1Topic.topicName.value, StreamOne("na", -1)))
+          s1TopicBin.fs2ProducerRecord(1, s1Topic.serializeVal(StreamOne("a", -1))),
+          s1TopicBin.fs2ProducerRecord(2, s1Topic.serializeVal(StreamOne("b", -1))),
+          s1TopicBin.fs2ProducerRecord(3, s1Topic.serializeVal(StreamOne("c", -1))),
+          s1TopicBin.fs2ProducerRecord(1, s1Topic.serializeVal(StreamOne("d", -1))),
+          s1TopicBin.fs2ProducerRecord(2, "exception".getBytes),
+          s1TopicBin.fs2ProducerRecord(3, s1Topic.serializeVal(StreamOne("f", -1)))
         ).map(ProducerRecords.one))
       .covary[IO]
 
-    val sendS1Data =
-      Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1TopicBin.fs2Channel.producerPipe).debug()
+    val sendS1Data: Stream[IO, ProducerResult[Int, Array[Byte]]] =
+      Stream.fixedRate[IO](1.seconds).zipRight(s1Data).through(s1TopicBin.fs2Channel.producerPipe)
 
-    val res = s1Topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> IO.sleep(1.seconds) >>
-      harvest
-        .concurrently(sendS1Data)
-        .concurrently(ctx.buildStreams(top).stream.debug().delayBy(1.seconds))
-        .compile
-        .toList
+    harvest
+      .concurrently(sendS1Data)
+      .concurrently(ctx.buildStreams(top).stream.debug().delayBy(1.seconds))
+      .interruptAfter(30.seconds)
+      .compile
+      .toList
+      .unsafeRunSync()
 
-    assertThrows[KafkaStreamsAbnormallyStopped.type](res.unsafeRunSync())
   }
 }

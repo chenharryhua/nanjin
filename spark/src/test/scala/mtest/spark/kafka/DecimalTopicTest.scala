@@ -12,13 +12,12 @@ import frameless.TypedEncoder
 import io.circe.Codec
 //import frameless.cats.implicits._
 import cats.effect.unsafe.implicits.global
+import eu.timepit.refined.auto.*
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
-import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
-import eu.timepit.refined.auto.*
 
 object DecimalTopicTestCase {
 
@@ -96,7 +95,7 @@ class DecimalTopicTest extends AnyFunSuite {
       .compile
       .drain
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
     topic.schemaRegistry.register >>
     loadData).unsafeRunSync()
 
