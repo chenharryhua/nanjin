@@ -67,7 +67,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/coproduct/caseobject.avro")
     val sk   = sparKafka.topic(topicCO.topicDef)
 
-    val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+    val run = topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
       topicCO.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).run) >>
@@ -87,7 +87,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val circePath   = NJPath("./data/test/spark/kafka/coproduct/scalaenum.circe.json")
     val sk          = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(avroPath).run) >>
@@ -109,7 +109,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/coproduct/multi-scalaenum.avro")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).run) >>
@@ -128,7 +128,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).snappy.run) >>
@@ -145,7 +145,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.binAvro(path).bzip2.run) >>

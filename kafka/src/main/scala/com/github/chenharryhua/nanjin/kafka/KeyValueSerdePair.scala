@@ -14,8 +14,8 @@ final case class RawKeyValueSerdePair[K, V](keySerde: SerdeOf[K], valSerde: Serd
 final case class KeyValueCodecPair[K, V](keyCodec: NJCodec[K], valCodec: NJCodec[V]) {
   require(keyCodec.name === valCodec.name, "key and value codec should have same topic name")
 
-  implicit val keySerde: SerdeOf[K] = keyCodec.registered.serde
-  implicit val valSerde: SerdeOf[V] = valCodec.registered.serde
+  val keySerde: SerdeOf[K] = keyCodec.registered.serde
+  val valSerde: SerdeOf[V] = valCodec.registered.serde
 
   val keySchemaFor: SchemaFor[K] = keySerde.avroCodec.schemaFor
   val valSchemaFor: SchemaFor[V] = valSerde.avroCodec.schemaFor

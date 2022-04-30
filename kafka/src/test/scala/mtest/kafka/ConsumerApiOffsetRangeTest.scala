@@ -29,7 +29,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   val topicData = Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(topic.fs2Channel.producerPipe)
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >>
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
     topicData.compile.drain).unsafeRunSync()
 
   test("start and end are both in range") {

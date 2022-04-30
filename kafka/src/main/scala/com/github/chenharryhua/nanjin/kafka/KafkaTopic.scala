@@ -37,6 +37,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     NJConsumerRecordWithError(cr.partition, cr.offset, cr.timestamp, k, v, cr.topic, cr.timestampType.id)
   }
 
+  def serializeKey(k: K): Array[Byte] = codec.keySerializer.serialize(topicName.value, k)
+  def serializeVal(v: V): Array[Byte] = codec.valSerializer.serialize(topicName.value, v)
+
   def record(partition: Int, offset: Long)(implicit sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
     shortLiveConsumer.use(
       _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset)).map(_.map(decoder(_).tryDecodeKeyValue)))
