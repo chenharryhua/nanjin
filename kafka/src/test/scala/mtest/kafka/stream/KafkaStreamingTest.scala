@@ -1,12 +1,11 @@
 package mtest.kafka.stream
 
 import cats.Id
-import cats.data.Kleisli
+import cats.data.{Kleisli, Reader}
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsAbnormallyStopped
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
@@ -84,7 +83,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val res: Set[StreamTarget] = ctx
       .buildStreams(top)
-      .query
+      .kafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
@@ -124,7 +123,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val res = ctx
       .buildStreams(top)
-      .query
+      .kafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
@@ -138,7 +137,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val s1Topic    = ctx.topic[Int, StreamOne](tn)
     val s1TopicBin = ctx.topic[Int, Array[Byte]](tn)
 
-    val top: Kleisli[Id, StreamsBuilder, Unit] = for {
+    val top: Reader[StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
     } yield a
@@ -157,12 +156,12 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .through(s1TopicBin.fs2Channel.producerPipe)
       .debug()
 
-    assertThrows[KafkaStreamsAbnormallyStopped.type](
+    assertThrows[Exception](
       ctx
         .buildStreams(top)
-        .query
+        .kafkaStreams
         .concurrently(sendS1Data)
-        .flatMap(_ => harvest.interruptAfter(10.seconds))
+        .flatMap(_ => harvest.interruptAfter(1.day))
         .compile
         .toList
         .unsafeRunSync())

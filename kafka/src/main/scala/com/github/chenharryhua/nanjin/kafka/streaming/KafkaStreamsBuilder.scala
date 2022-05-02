@@ -30,12 +30,12 @@ final class KafkaStreamsBuilder[F[_]] private (
     dispatcher: Dispatcher[F],
     latch: CountDownLatch[F],
     stop: Deferred[F, Either[Throwable, Unit]],
-    bus: Channel[F, State]
+    bus: Option[Channel[F, State]]
   ) extends KafkaStreams.StateListener {
 
     override def onChange(newState: State, oldState: State): Unit =
       dispatcher.unsafeRunSync(
-        bus.send(newState) >>
+        bus.traverse(_.send(newState)) >>
           (newState match {
             case State.RUNNING     => latch.release
             case State.NOT_RUNNING => stop.complete(Right(())).void
@@ -45,7 +45,9 @@ final class KafkaStreamsBuilder[F[_]] private (
       )
   }
 
-  private def kickoff(stop: Deferred[F, Either[Throwable, Unit]], bus: Channel[F, State]): Resource[F, KafkaStreams] = {
+  private def kickoff(
+    stop: Deferred[F, Either[Throwable, Unit]],
+    bus: Option[Channel[F, State]]): Resource[F, KafkaStreams] = {
     val rrks: Resource[F, Resource[F, KafkaStreams]] = for {
       dispatcher <- Dispatcher[F]
       uks <- Resource.make(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
@@ -65,17 +67,15 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   /** one object KafkaStreams stream. for interactive state store query
     */
-  val query: Stream[F, KafkaStreams] = for {
+  val kafkaStreams: Stream[F, KafkaStreams] = for {
     stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
-    bus <- Stream.eval(Channel.synchronous[F, State])
-    _ <- Stream.eval(bus.close)
-    ks <- Stream.resource(kickoff(stop, bus)).interruptWhen(stop)
+    ks <- Stream.resource(kickoff(stop, None)).interruptWhen(stop)
   } yield ks
 
   val stream: Stream[F, State] = for {
     stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
     bus <- Stream.eval(Channel.unbounded[F, State])
-    _ <- Stream.resource(kickoff(stop, bus))
+    _ <- Stream.resource(kickoff(stop, Some(bus)))
     state <- bus.stream.interruptWhen(stop)
   } yield state
 
