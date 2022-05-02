@@ -35,10 +35,13 @@ final class KafkaStreamsBuilder[F[_]] private (
 
     override def onChange(newState: State, oldState: State): Unit =
       dispatcher.unsafeRunSync(
-        bus.send(newState) *>
-          latch.release.whenA(newState == State.RUNNING) *>
-          stop.complete(Right(())).whenA(newState == State.NOT_RUNNING) *>
-          stop.complete(Left(KafkaStreamsAbnormallyStopped)).whenA(newState == State.ERROR)
+        bus.send(newState) >>
+          (newState match {
+            case State.RUNNING     => latch.release
+            case State.NOT_RUNNING => stop.complete(Right(())).void
+            case State.ERROR       => stop.complete(Left(KafkaStreamsAbnormallyStopped)).void
+            case _                 => F.unit
+          })
       )
   }
 
@@ -51,10 +54,8 @@ final class KafkaStreamsBuilder[F[_]] private (
       val start: F[KafkaStreams] = for {
         latch <- CountDownLatch[F](1)
         _ <- F.blocking(uks.cleanUp())
-        _ <- F.blocking {
-          uks.setStateListener(new StateChange(dispatcher, latch, stop, bus))
-          uks.start()
-        }
+        _ <- F.blocking(uks.setStateListener(new StateChange(dispatcher, latch, stop, bus)))
+        _ <- F.blocking(uks.start())
         _ <- latch.await
       } yield uks
       Resource.eval(F.timeout(start, startUpTimeout))
