@@ -38,8 +38,8 @@ class InteractiveTest extends AnyFunSuite {
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
         _ <- data
-        kss1 <- ctx.buildStreams(top).query
-        kss2 <- ctx.buildStreams(gtop).query
+        kss1 <- ctx.buildStreams(top).kafkaStreams
+        kss2 <- ctx.buildStreams(gtop).kafkaStreams
       } yield {
         val g = kss1.store(localStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
         val q = kss2.store(globalStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
@@ -53,19 +53,19 @@ class InteractiveTest extends AnyFunSuite {
   test("startup timeout") {
     val to1 = ctx.buildStreams(top).withStartUpTimeout(0.seconds).stream.compile.drain
     assertThrows[TimeoutException](to1.unsafeRunSync())
-    val to2 = ctx.buildStreams(top).withStartUpTimeout(1.day).query.map(_.state()).debug().compile.drain
+    val to2 = ctx.buildStreams(top).withStartUpTimeout(1.day).kafkaStreams.map(_.state()).debug().compile.drain
     to2.unsafeRunSync()
   }
 
   test("detect stream stop") {
     val to1 =
-      ctx.buildStreams(top).query.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
+      ctx.buildStreams(top).kafkaStreams.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
     to1.compile.drain.unsafeRunSync()
   }
 
   test("detect stream error") {
     val to1 =
-      ctx.buildStreams(top).query.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.cleanUp()) >> IO.sleep(1.day))
+      ctx.buildStreams(top).kafkaStreams.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.cleanUp()) >> IO.sleep(1.day))
     assertThrows[IllegalStateException](to1.compile.drain.unsafeRunSync())
   }
 }

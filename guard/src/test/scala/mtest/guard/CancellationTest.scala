@@ -70,7 +70,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-  test("4.cancellation should propagate in right ordr") {
+  test("4.cancellation should propagate in right order") {
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
