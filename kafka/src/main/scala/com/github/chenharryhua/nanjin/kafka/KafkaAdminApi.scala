@@ -9,7 +9,7 @@ import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 // delegate to https://ovotech.github.io/fs2-kafka/
 
 sealed trait KafkaAdminApi[F[_]] {
-  val adminResource: Resource[F, KafkaAdminClient[F]]
+  def adminResource: Resource[F, KafkaAdminClient[F]]
 
   def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit]
   def describe: F[Map[String, TopicDescription]]

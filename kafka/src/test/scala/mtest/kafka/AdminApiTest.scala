@@ -2,36 +2,39 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.{KafkaConsumerGroupInfo, KafkaOffset, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.kafka.*
+import eu.timepit.refined.auto.*
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
-import eu.timepit.refined.auto.*
 
 class AdminApiTest extends AnyFunSuite {
-  val topic  = ctx.topic[Int, Int]("admin")
-  val mirror = ctx.topic[Int, Int]("admin.mirror")
+  val topic: KafkaTopic[IO, Int, Int]  = ctx.topic[Int, Int]("admin")
+  val mirror: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("admin.mirror")
 
   test("newTopic") {
+    val admin: KafkaAdminApi[IO] = topic.admin
     val run = for {
-      d <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
+      _ <- admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
       _ <- IO.sleep(1.seconds)
-      n <- topic.admin.newTopic(3, 1)
+      _ <- admin.newTopic(3, 1)
       _ <- IO.sleep(1.seconds)
-      info <- topic.admin.describe
+      info <- admin.describe
     } yield println(info)
     run.unsafeRunSync()
 
   }
   test("mirrorTo") {
+    val admin: KafkaAdminApi[IO]  = topic.admin
+    val madmin: KafkaAdminApi[IO] = mirror.admin
     val run = for {
-      d <- mirror.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
+      _ <- madmin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
       _ <- IO.sleep(1.seconds)
-      n <- topic.admin.mirrorTo(mirror.topicName, 1)
+      _ <- admin.mirrorTo(mirror.topicName, 1)
       _ <- IO.sleep(1.seconds)
-      info <- topic.admin.describe
+      info <- admin.describe
     } yield println(info)
     run.unsafeRunSync()
   }
