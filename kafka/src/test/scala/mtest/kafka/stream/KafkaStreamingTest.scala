@@ -3,6 +3,7 @@ package mtest.kafka.stream
 import cats.Id
 import cats.data.{Kleisli, Reader}
 import cats.effect.IO
+import cats.effect.kernel.Outcome
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
@@ -165,5 +166,31 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         .compile
         .toList
         .unsafeRunSync())
+  }
+
+  test("kafka stream should be able to be closed") {
+    val s1Topic = ctx.topic[Int, StreamOne]("stream.test.join.stream.one")
+
+    val top: Reader[StreamsBuilder, Unit] = for {
+      a <- s1Topic.asConsumer.kstream
+      b <- t2Topic.asConsumer.ktable
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
+
+    ctx
+      .buildStreams(top)
+      .kafkaStreams
+      .flatMap(ks =>
+        Stream
+          .fixedRate[IO](1.seconds)
+          .evalTap(_ => IO.println("running..."))
+          .concurrently(Stream.sleep[IO](5.second).map(_ => ks.close())))
+      .compile
+      .drain
+      .guaranteeCase {
+        case Outcome.Succeeded(_) => IO(assert(true)).void
+        case Outcome.Errored(_)   => IO(assert(false)).void
+        case Outcome.Canceled()   => IO(assert(false)).void
+      }
+      .unsafeRunSync()
   }
 }
