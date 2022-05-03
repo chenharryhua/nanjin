@@ -43,7 +43,7 @@ private[guard] object AgentParams {
   )
 }
 
-sealed private[guard] trait AgentConfigF[F]
+sealed private[guard] trait AgentConfigF[X]
 
 private object AgentConfigF {
   implicit val functorActionConfigF: Functor[AgentConfigF] = cats.derived.semiauto.functor[AgentConfigF]

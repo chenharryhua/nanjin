@@ -15,8 +15,8 @@ package object config {
   type ServiceName = Refined[String, NameConstraint]
   object ServiceName extends RefinedTypeOps[ServiceName, String] with CatsRefinedTypeOpsSyntax
 
-  type AppName = Refined[String, NameConstraint]
-  object AppName extends RefinedTypeOps[AppName, String] with CatsRefinedTypeOpsSyntax
+  type TaskName = Refined[String, NameConstraint]
+  object TaskName extends RefinedTypeOps[TaskName, String] with CatsRefinedTypeOpsSyntax
 
   type Span = Refined[String, NameConstraint]
   object Span extends RefinedTypeOps[Span, String] with CatsRefinedTypeOpsSyntax

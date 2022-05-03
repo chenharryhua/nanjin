@@ -32,7 +32,7 @@ private[kafka] object SKParams {
     )
 }
 
-sealed private[kafka] trait SKConfigF[A]
+sealed private[kafka] trait SKConfigF[X]
 
 private object SKConfigF {
   implicit val functorSKConfigF: Functor[SKConfigF] = cats.derived.semiauto.functor[SKConfigF]

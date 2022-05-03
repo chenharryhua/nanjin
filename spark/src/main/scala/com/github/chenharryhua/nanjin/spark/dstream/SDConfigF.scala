@@ -25,7 +25,7 @@ object SDParams {
     SDParams(zoneId = zoneId, pathBuilder = pathBuilder(zoneId), compression = NJCompression.Uncompressed)
 }
 
-sealed private[dstream] trait SDConfigF[A]
+sealed private[dstream] trait SDConfigF[X]
 
 private object SDConfigF {
   implicit val functorSDConfigF: Functor[SDConfigF] = cats.derived.semiauto.functor[SDConfigF]

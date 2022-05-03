@@ -72,7 +72,7 @@ private[guard] object ServiceParams {
     )
 }
 
-sealed private[guard] trait ServiceConfigF[F]
+sealed private[guard] trait ServiceConfigF[X]
 
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
