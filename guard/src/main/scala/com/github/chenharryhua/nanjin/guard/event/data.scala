@@ -139,7 +139,7 @@ object ServiceStatus extends instant {
   final case class Up(uuid: UUID, launchTime: Instant, lastRestartAt: Instant, lastCrashAt: Instant)
       extends ServiceStatus {
 
-    override def goUp(now: Instant): Up = this
+    override def goUp(now: Instant): Up = this.copy(lastRestartAt = now)
     override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down =
       Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
 
@@ -162,7 +162,8 @@ object ServiceStatus extends instant {
       extends ServiceStatus {
 
     override def goUp(now: Instant): Up = Up(uuid, launchTime, now, crashAt)
-    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down = this
+    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down =
+      this.copy(crashAt = now, upcommingRestart = upcomingDelay.map(fd => now.plus(fd.toJava)), cause = cause)
 
     override val isUp: Boolean      = false
     override val isDown: Boolean    = true
