@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.data.{Kleisli, Reader}
+import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref, RefSource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
@@ -54,7 +54,7 @@ final class Agent[F[_]] private[service] (
       kfab = Kleisli(f),
       succ = None,
       fail = Kleisli(r => F.pure(r._2.getMessage)),
-      isWorthRetry = Reader(_ => true))
+      isWorthRetry = Kleisli(_ => F.pure(true)))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
@@ -65,7 +65,7 @@ final class Agent[F[_]] private[service] (
       fb = fb,
       succ = None,
       fail = Kleisli(ex => F.pure(ex.getMessage)),
-      isWorthRetry = Reader(_ => true))
+      isWorthRetry = Kleisli(_ => F.pure(true)))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.{Kleisli, Reader}
+import cats.data.Kleisli
 import cats.effect.Temporal
 import cats.effect.kernel.{Outcome, Ref}
 import cats.effect.std.UUIDGen
@@ -23,7 +23,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   kfab: Kleisli[F, A, B],
   succ: Option[Kleisli[F, (A, B), String]],
   fail: Kleisli[F, (A, Throwable), String],
-  isWorthRetry: Reader[Throwable, Boolean])(implicit F: Temporal[F]) {
+  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
     metricRegistry: MetricRegistry = metricRegistry,
     channel: Channel[F, NJEvent] = channel,
@@ -32,23 +32,17 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
     kfab: Kleisli[F, A, B] = kfab,
     succ: Option[Kleisli[F, (A, B), String]] = succ,
     fail: Kleisli[F, (A, Throwable), String] = fail,
-    isWorthRetry: Reader[Throwable, Boolean] = isWorthRetry): NJRetry[F, A, B] =
+    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, A, B] =
     new NJRetry[F, A, B](metricRegistry, channel, ongoings, actionParams, kfab, succ, fail, isWorthRetry)
 
-  def withSuccNotesM(succ: (A, B) => F[String]): NJRetry[F, A, B] =
-    copy(succ = Some(Kleisli(succ.tupled)))
+  def withSuccNotesM(f: (A, B) => F[String]): NJRetry[F, A, B] = copy(succ = Some(Kleisli(f.tupled)))
+  def withSuccNotes(f: (A, B) => String): NJRetry[F, A, B]     = withSuccNotesM((a, b) => F.pure(f(a, b)))
 
-  def withSuccNotes(f: (A, B) => String): NJRetry[F, A, B] =
-    withSuccNotesM((a: A, b: B) => F.pure(f(a, b)))
+  def withFailNotesM(f: (A, Throwable) => F[String]): NJRetry[F, A, B] = copy(fail = Kleisli(f.tupled))
+  def withFailNotes(f: (A, Throwable) => String): NJRetry[F, A, B]     = withFailNotesM((a, ex) => F.pure(f(a, ex)))
 
-  def withFailNotesM(fail: (A, Throwable) => F[String]): NJRetry[F, A, B] =
-    copy(fail = Kleisli(fail.tupled))
-
-  def withFailNotes(f: (A, Throwable) => String): NJRetry[F, A, B] =
-    withFailNotesM((a: A, b: Throwable) => F.pure(f(a, b)))
-
-  def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetry[F, A, B] =
-    copy(isWorthRetry = Reader(isWorthRetry))
+  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry[F, A, B] = copy(isWorthRetry = Kleisli(f))
+  def withWorthRetry(f: Throwable => Boolean): NJRetry[F, A, B]     = withWorthRetryM(Kleisli.fromFunction(f).run)
 
   private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
@@ -76,7 +70,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
       .retryingOnSomeErrors[B]
       .apply[F, Throwable](
         actionParams.retry.policy[F],
-        isWorthRetry.map(F.pure).run,
+        isWorthRetry.run,
         (error, details) =>
           details match {
             case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
@@ -108,7 +102,7 @@ final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
   fb: F[B],
   succ: Option[Kleisli[F, B, String]],
   fail: Kleisli[F, Throwable, String],
-  isWorthRetry: Reader[Throwable, Boolean]) {
+  isWorthRetry: Kleisli[F, Throwable, Boolean]) {
   private def copy(
     metricRegistry: MetricRegistry = metricRegistry,
     channel: Channel[F, NJEvent] = channel,
@@ -117,23 +111,17 @@ final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
     fb: F[B] = fb,
     succ: Option[Kleisli[F, B, String]] = succ,
     fail: Kleisli[F, Throwable, String] = fail,
-    isWorthRetry: Reader[Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, B] =
+    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](metricRegistry, channel, ongoings, actionParams, fb, succ, fail, isWorthRetry)
 
-  def withSuccNotesM(succ: B => F[String]): NJRetryUnit[F, B] =
-    copy(succ = Some(Kleisli(succ)))
+  def withSuccNotesM(f: B => F[String]): NJRetryUnit[F, B] = copy(succ = Some(Kleisli(f)))
+  def withSuccNotes(f: B => String): NJRetryUnit[F, B]     = withSuccNotesM(Kleisli.fromFunction(f).run)
 
-  def withSuccNotes(f: B => String): NJRetryUnit[F, B] =
-    withSuccNotesM(Kleisli.fromFunction(f).run)
+  def withFailNotesM(f: Throwable => F[String]): NJRetryUnit[F, B] = copy(fail = Kleisli(f))
+  def withFailNotes(f: Throwable => String): NJRetryUnit[F, B]     = withFailNotesM(Kleisli.fromFunction(f).run)
 
-  def withFailNotesM(fail: Throwable => F[String]): NJRetryUnit[F, B] =
-    copy(fail = Kleisli(fail))
-
-  def withFailNotes(f: Throwable => String): NJRetryUnit[F, B] =
-    withFailNotesM(Kleisli.fromFunction(f).run)
-
-  def withWorthRetry(isWorthRetry: Throwable => Boolean): NJRetryUnit[F, B] =
-    copy(isWorthRetry = Reader(isWorthRetry))
+  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetryUnit[F, B] = copy(isWorthRetry = Kleisli(f))
+  def withWorthRetry(f: Throwable => Boolean): NJRetryUnit[F, B]     = withWorthRetryM(Kleisli.fromFunction(f).run)
 
   val run: F[B] =
     new NJRetry[F, Unit, B](
