@@ -111,5 +111,5 @@ final class KafkaStreamsBuilder[F[_]] private (
 
 object KafkaStreamsBuilder {
   def apply[F[_]: Async](settings: KafkaStreamSettings, top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings, top, Nil, 90.minutes)
+    new KafkaStreamsBuilder[F](settings, top, Nil, 180.minutes)
 }

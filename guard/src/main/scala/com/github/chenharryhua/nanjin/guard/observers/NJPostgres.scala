@@ -11,6 +11,11 @@ import skunk.data.Completion.Insert
 import skunk.implicits.toStringOps
 import skunk.{Command, Session}
 
+/** DDL:
+  *
+  * CREATE TABLE public.event_stream ( info json NULL, "timestamp" timestamptz NULL DEFAULT CURRENT_TIMESTAMP );
+  */
+
 object postgres {
 
   def apply[F[_]: Sync](session: Resource[F, Session[F]], tableName: TableName): NJPostgres[F] =

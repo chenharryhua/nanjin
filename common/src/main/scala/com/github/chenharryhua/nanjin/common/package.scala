@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin
 
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.boolean.{And, Not}
+import eu.timepit.refined.boolean.And
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
-import eu.timepit.refined.collection.{Contains, NonEmpty}
+import eu.timepit.refined.collection.NonEmpty
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.string.{MatchesRegex, Trimmed, Uri}
 
