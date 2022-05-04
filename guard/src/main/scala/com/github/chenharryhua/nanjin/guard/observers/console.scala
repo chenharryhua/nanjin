@@ -11,20 +11,21 @@ import fs2.Chunk
 import java.time.format.DateTimeFormatter
 
 object console {
-  def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] = new TextConsole[F](translator)
+  def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsoleObserver[F] =
+    new TextConsoleObserver[F](translator)
 
-  def apply[F[_]: Console: Monad]: TextConsole[F] = new TextConsole[F](Translator.text[F])
+  def apply[F[_]: Console: Monad]: TextConsoleObserver[F] = new TextConsoleObserver[F](Translator.text[F])
 }
 
 object simple {
-  def apply[F[_]: Console: Monad]: TextConsole[F] = new TextConsole[F](Translator.simpleText[F])
+  def apply[F[_]: Console: Monad]: TextConsoleObserver[F] = new TextConsoleObserver[F](Translator.simpleText[F])
 }
 
-final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
-    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
+final class TextConsoleObserver[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
+    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsoleObserver[F]] {
 
-  override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextConsole[F] =
-    new TextConsole[F](f(translator))
+  override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextConsoleObserver[F] =
+    new TextConsoleObserver[F](f(translator))
 
   private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 

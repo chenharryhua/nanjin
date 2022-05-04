@@ -18,8 +18,8 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object sesEmail {
 
-  def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): NJSesEmail[F] =
-    new NJSesEmail[F](
+  def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): NJSesEmailObserver[F] =
+    new NJSesEmailObserver[F](
       client = ses[F],
       from = from,
       to = to,
@@ -32,8 +32,8 @@ object sesEmail {
 
 object snsEmail {
 
-  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): NJSnsEmail[F] =
-    new NJSnsEmail[F](
+  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): NJSnsEmailObserver[F] =
+    new NJSnsEmailObserver[F](
       client = client,
       title = None,
       chunkSize = ChunkSize(60),
@@ -41,10 +41,10 @@ object snsEmail {
       isNewestFirst = true,
       Translator.html[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmail[F] = apply[F](sns(snsArn))
+  def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmailObserver[F] = apply[F](sns(snsArn))
 }
 
-final class NJSesEmail[F[_]: Async](
+final class NJSesEmailObserver[F[_]: Async](
   client: Resource[F, SimpleEmailService[F]],
   from: EmailAddr,
   to: NonEmptyList[EmailAddr],
@@ -53,7 +53,7 @@ final class NJSesEmail[F[_]: Async](
   interval: FiniteDuration, // send out email every interval
   isNewestFirst: Boolean, // the latest event comes first
   translator: Translator[F, Text.TypedTag[String]]
-) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmail[F]] with all {
+) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmailObserver[F]] with all {
 
   private[this] def copy(
     client: Resource[F, SimpleEmailService[F]] = client,
@@ -61,18 +61,18 @@ final class NJSesEmail[F[_]: Async](
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     isNewestFirst: Boolean = isNewestFirst,
-    translator: Translator[F, Text.TypedTag[String]] = translator): NJSesEmail[F] =
-    new NJSesEmail[F](client, from, to, subject, chunkSize, interval, isNewestFirst, translator)
+    translator: Translator[F, Text.TypedTag[String]] = translator): NJSesEmailObserver[F] =
+    new NJSesEmailObserver[F](client, from, to, subject, chunkSize, interval, isNewestFirst, translator)
 
-  def withInterval(fd: FiniteDuration): NJSesEmail[F] = copy(interval = fd)
-  def withChunkSize(cs: ChunkSize): NJSesEmail[F]     = copy(chunkSize = cs)
-  def withSubject(sj: Subject): NJSesEmail[F]         = copy(subject = Some(sj))
-  def withOldestFirst: NJSesEmail[F]                  = copy(isNewestFirst = false)
+  def withInterval(fd: FiniteDuration): NJSesEmailObserver[F] = copy(interval = fd)
+  def withChunkSize(cs: ChunkSize): NJSesEmailObserver[F]     = copy(chunkSize = cs)
+  def withSubject(sj: Subject): NJSesEmailObserver[F]         = copy(subject = Some(sj))
+  def withOldestFirst: NJSesEmailObserver[F]                  = copy(isNewestFirst = false)
 
-  def withClient(client: Resource[F, SimpleEmailService[F]]): NJSesEmail[F] = copy(client = client)
+  def withClient(client: Resource[F, SimpleEmailService[F]]): NJSesEmailObserver[F] = copy(client = client)
 
   override def updateTranslator(
-    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSesEmail[F] =
+    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSesEmailObserver[F] =
     copy(translator = f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, String] =
@@ -101,14 +101,14 @@ final class NJSesEmail[F[_]: Async](
     } yield mb
 }
 
-final class NJSnsEmail[F[_]: Async](
+final class NJSnsEmailObserver[F[_]: Async](
   client: Resource[F, SimpleNotificationService[F]],
   title: Option[Title],
   chunkSize: ChunkSize,
   interval: FiniteDuration,
   isNewestFirst: Boolean,
   translator: Translator[F, Text.TypedTag[String]]
-) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmail[F]] with all {
+) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmailObserver[F]] with all {
 
   private[this] def copy(
     client: Resource[F, SimpleNotificationService[F]] = client,
@@ -116,16 +116,16 @@ final class NJSnsEmail[F[_]: Async](
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     isNewestFirst: Boolean = isNewestFirst,
-    translator: Translator[F, Text.TypedTag[String]] = translator): NJSnsEmail[F] =
-    new NJSnsEmail[F](client, title, chunkSize, interval, isNewestFirst, translator)
+    translator: Translator[F, Text.TypedTag[String]] = translator): NJSnsEmailObserver[F] =
+    new NJSnsEmailObserver[F](client, title, chunkSize, interval, isNewestFirst, translator)
 
-  def withInterval(fd: FiniteDuration): NJSnsEmail[F] = copy(interval = fd)
-  def withChunkSize(cs: ChunkSize): NJSnsEmail[F]     = copy(chunkSize = cs)
-  def withTitle(t: Title): NJSnsEmail[F]              = copy(title = Some(t))
-  def withOldestFirst: NJSnsEmail[F]                  = copy(isNewestFirst = false)
+  def withInterval(fd: FiniteDuration): NJSnsEmailObserver[F] = copy(interval = fd)
+  def withChunkSize(cs: ChunkSize): NJSnsEmailObserver[F]     = copy(chunkSize = cs)
+  def withTitle(t: Title): NJSnsEmailObserver[F]              = copy(title = Some(t))
+  def withOldestFirst: NJSnsEmailObserver[F]                  = copy(isNewestFirst = false)
 
   override def updateTranslator(
-    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSnsEmail[F] =
+    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSnsEmailObserver[F] =
     copy(translator = f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, String] =
@@ -148,7 +148,6 @@ final class NJSnsEmail[F[_]: Async](
                 text.prependedAll(title.map(t => hr(h2(t.value)))),
                 footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
           }
-
           c.publish(mailBody).attempt.as(mailBody)
         }
     } yield rst

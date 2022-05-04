@@ -10,18 +10,19 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object logging {
-  def apply[F[_]: Sync](translator: Translator[F, String]): TextLogging[F] = new TextLogging[F](translator)
+  def apply[F[_]: Sync](translator: Translator[F, String]): TextLoggingObserver[F] =
+    new TextLoggingObserver[F](translator)
 
-  def apply[F[_]: Sync]: TextLogging[F] = new TextLogging[F](Translator.text[F])
+  def apply[F[_]: Sync]: TextLoggingObserver[F] = new TextLoggingObserver[F](Translator.text[F])
 }
 
-final class TextLogging[F[_]: Sync](translator: Translator[F, String])
-    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextLogging[F]] {
+final class TextLoggingObserver[F[_]: Sync](translator: Translator[F, String])
+    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextLoggingObserver[F]] {
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-  override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextLogging[F] =
-    new TextLogging[F](f(translator))
+  override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextLoggingObserver[F] =
+    new TextLoggingObserver[F](f(translator))
 
   override def apply(event: NJEvent): F[Unit] =
     event match {
