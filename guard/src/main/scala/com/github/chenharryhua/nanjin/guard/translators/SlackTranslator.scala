@@ -48,6 +48,7 @@ private[translators] object SlackTranslator extends all {
               first = TextField("Up Time", fmt.format(evt.upTime)),
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
             ),
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
             MarkdownSection(evt.serviceParams.brief)
           )
         ))
@@ -57,8 +58,7 @@ private[translators] object SlackTranslator extends all {
     val upcoming: String = evt.retryDetails.upcomingDelay match {
       case None => "the service was stopped" // never happen
       case Some(fd) =>
-        s"restart of which takes place in *${fmt.format(fd)}*, at ${localTimestampStr(
-            evt.timestamp.plus(fd.toJava).atZone(evt.zoneId))}," +
+        s"restart of which takes place in *${fmt.format(fd)}*, at ${localTimestampStr(evt.timestamp.plus(fd.toJava))}," +
           " meanwhile the service is dysfunctional."
     }
 
@@ -74,7 +74,7 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
                                 |*Error ID:* ${evt.error.uuid.show}
-                                |*Service ID* ${evt.serviceID.show}""".stripMargin),
+                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
         )
@@ -116,6 +116,7 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
               TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)),
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
             MarkdownSection(s"*Cause:* ${evt.cause.show}")
           )
         )
@@ -136,7 +137,7 @@ private[translators] object SlackTranslator extends all {
               TextField("Up Time", fmt.format(evt.upTime)),
               TextField(
                 "Scheduled Next",
-                evt.serviceParams.metric.nextReport(evt.zonedDateTime).map(localTimestampStr).getOrElse("None"))
+                evt.serviceParams.metric.nextReport(evt.timestamp).map(localTimestampStr).getOrElse("None"))
             ),
             metricsSection(evt.snapshot)
           )
@@ -162,7 +163,7 @@ private[translators] object SlackTranslator extends all {
                   TextField(
                     "Scheduled Next",
                     evt.serviceParams.metric
-                      .nextReport(evt.zonedDateTime)
+                      .nextReport(evt.timestamp)
                       .map(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
                       .getOrElse("None")
                   )

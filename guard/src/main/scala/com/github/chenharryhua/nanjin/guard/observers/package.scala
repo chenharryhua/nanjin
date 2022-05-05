@@ -54,8 +54,13 @@ package object observers {
     translator: Translator[F, A])(implicit F: Temporal[F]): F[List[A]] =
     for {
       ts <- F.realTimeInstant
-      msgs <- events.get.flatMap(_.values.toList.traverse(ss =>
-        translator.translate(ServiceStop(ss.serviceStatus, ts, ServiceStopCause.Abnormally("external termination")))))
+      msgs <- events.get.flatMap(
+        _.values.toList.traverse(ss =>
+          translator.translate(
+            ServiceStop(
+              ss.serviceStatus,
+              ss.serviceParams.toZonedDateTime(ts),
+              ServiceStopCause.Abnormally("external termination")))))
     } yield msgs.flatten
 
   private[observers] def updateRef[F[_]: Applicative](ref: Ref[F, Map[UUID, ServiceStart]], event: NJEvent): F[Unit] =

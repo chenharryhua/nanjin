@@ -32,6 +32,6 @@ final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit
   override def apply(event: NJEvent): F[Unit] =
     translator
       .translate(event)
-      .flatMap(_.traverse(evt => C.println(s"${event.zonedDateTime.format(fmt)} Console $evt")).void)
+      .flatMap(_.traverse(evt => C.println(s"${event.timestamp.format(fmt)} Console $evt")).void)
   def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
 }

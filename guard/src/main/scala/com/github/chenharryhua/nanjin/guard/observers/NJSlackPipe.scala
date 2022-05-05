@@ -60,11 +60,7 @@ final class NJSlackPipe[F[_]](
         .evalTap(e =>
           translator.filter {
             case MetricReport(rt, ss, _, ts, _) =>
-              isShowMetrics(
-                ss.serviceParams.metric.reportSchedule,
-                ss.serviceParams.toZonedDateTime(ts),
-                interval,
-                ss.serviceParams.toZonedDateTime(ss.launchTime)) || rt.isShow
+              isShowMetrics(ss.serviceParams.metric.reportSchedule, ts, interval, ss.launchTime) || rt.isShow
             case ActionStart(ai)            => ai.actionParams.isCritical
             case ActionSucc(ai, _, _, _)    => ai.actionParams.isCritical
             case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice

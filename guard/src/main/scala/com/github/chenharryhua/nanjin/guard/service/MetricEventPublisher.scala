@@ -20,10 +20,10 @@ final private class MetricEventPublisher[F[_]](
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
-      ts <- F.realTimeInstant
+      ss <- serviceStatus.get
+      ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
       ogs <- ongoings.get
       oldLast <- lastCounters.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
-      ss <- serviceStatus.get
       _ <- channel.send(
         MetricReport(
           serviceStatus = ss,
@@ -45,10 +45,10 @@ final private class MetricEventPublisher[F[_]](
     */
   def metricsReset(cronExpr: Option[CronExpr]): F[Unit] =
     for {
-      ts <- F.realTimeInstant
       ss <- serviceStatus.get
+      ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
       msg = cronExpr.flatMap { ce =>
-        ce.next(ss.serviceParams.toZonedDateTime(ts)).map { next =>
+        ce.next(ts).map { next =>
           MetricReset(
             resetType = MetricResetType.Scheduled(next),
             serviceStatus = ss,

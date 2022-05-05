@@ -8,11 +8,11 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
+import eu.timepit.refined.auto.*
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
-import eu.timepit.refined.auto.*
 
-import java.time.Instant
+import java.time.ZonedDateTime
 import java.util.UUID
 
 // TODO
@@ -21,7 +21,10 @@ object gendata {
 
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
     ExhaustiveCheck.instance(
-      List(ServiceStart(ServiceStatus.Up(service.serviceParams, UUID.randomUUID(), Instant.now()), Instant.now())))
+      List(
+        ServiceStart(
+          ServiceStatus.Up(service.serviceParams, UUID.randomUUID(), ZonedDateTime.now()),
+          ZonedDateTime.now())))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], NJEvent => Option[Option[Int]]](_.translate)

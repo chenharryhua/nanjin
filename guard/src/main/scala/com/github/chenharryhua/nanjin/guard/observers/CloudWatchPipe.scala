@@ -67,18 +67,18 @@ final class CloudWatchPipe[F[_]] private[observers] (
         report.serviceParams.taskParams.taskName.value,
         report.serviceParams.serviceName.value,
         metricName,
-        report.serviceParams.toLocalDate(report.serviceStatus.launchTime).show
+        report.serviceStatus.launchTime.toLocalDate.show
       ) -> counter
     }
 
     keyMap.foldLeft((List.empty[MetricDatum], last)) { case ((mds, last), (key, count)) =>
       last.get(key) match {
         case Some(old) =>
-          if (count > old) (key.metricDatum(report.timestamp, count - old) :: mds, last.updated(key, count))
+          if (count > old) (key.metricDatum(report.timestamp.toInstant, count - old) :: mds, last.updated(key, count))
           else if (count === old) (mds, last)
-          else (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
+          else (key.metricDatum(report.timestamp.toInstant, count) :: mds, last.updated(key, count))
         case None =>
-          (key.metricDatum(report.timestamp, count) :: mds, last.updated(key, count))
+          (key.metricDatum(report.timestamp.toInstant, count) :: mds, last.updated(key, count))
       }
     }
   }

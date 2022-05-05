@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.time.{Duration, Instant}
+import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
@@ -48,7 +48,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
   private[this] lazy val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
 
-  private[this] def timingAndCounting(isSucc: Boolean, launchTime: Instant, now: Instant): Unit = {
+  private[this] def timingAndCounting(isSucc: Boolean, launchTime: ZonedDateTime, now: ZonedDateTime): Unit = {
     if (actionParams.isTiming.value) timer.update(Duration.between(launchTime, now))
     if (actionParams.isCounting.value) {
       if (isSucc) succCounter.inc(1) else failCounter.inc(1)
@@ -61,7 +61,8 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   private[this] val failNotes: (A, Throwable) => F[Notes] =
     (a: A, ex: Throwable) => fail.run((a, ex)).map(Notes(_))
 
-  private[this] val publisher: ActionEventPublisher[F] = new ActionEventPublisher[F](channel, ongoings)
+  private[this] val publisher: ActionEventPublisher[F] =
+    new ActionEventPublisher[F](actionParams.serviceParams, channel, ongoings)
 
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries

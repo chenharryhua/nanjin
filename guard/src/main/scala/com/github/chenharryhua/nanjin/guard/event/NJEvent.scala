@@ -10,18 +10,17 @@ import io.circe.{Decoder, Encoder, Json}
 import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
-import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
+import java.time.{Duration, ZoneId, ZonedDateTime}
 import java.util.UUID
 
 sealed trait NJEvent {
-  def timestamp: Instant // event timestamp - when the event occurs
+  def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
   def metricName: Digested
 
-  final def zoneId: ZoneId               = serviceParams.taskParams.zoneId
-  final def zonedDateTime: ZonedDateTime = timestamp.atZone(zoneId)
-  final def show: String                 = NJEvent.showNJEvent.show(this)
-  final def asJson: Json                 = NJEvent.encoderNJEvent.apply(this)
+  final def zoneId: ZoneId = serviceParams.taskParams.zoneId
+  final def show: String   = NJEvent.showNJEvent.show(this)
+  final def asJson: Json   = NJEvent.encoderNJEvent.apply(this)
 }
 
 object NJEvent {
@@ -41,18 +40,18 @@ sealed trait ServiceEvent extends NJEvent {
 
 }
 
-final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: Instant) extends ServiceEvent
+final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime) extends ServiceEvent
 
 final case class ServicePanic(
   serviceStatus: ServiceStatus,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   retryDetails: RetryDetails,
   error: NJError
 ) extends ServiceEvent
 
 final case class ServiceStop(
   serviceStatus: ServiceStatus,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   cause: ServiceStopCause
 ) extends ServiceEvent
 
@@ -60,7 +59,7 @@ final case class MetricReport(
   reportType: MetricReportType,
   serviceStatus: ServiceStatus,
   ongoings: List[OngoingAction],
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
@@ -69,7 +68,7 @@ final case class MetricReport(
 final case class MetricReset(
   resetType: MetricResetType,
   serviceStatus: ServiceStatus,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
@@ -82,25 +81,25 @@ sealed trait ActionEvent extends NJEvent {
   final override def metricName: Digested         = actionInfo.actionParams.metricName
 
   final def actionParams: ActionParams = actionInfo.actionParams
-  final def launchTime: Instant        = actionInfo.launchTime
+  final def launchTime: ZonedDateTime  = actionInfo.launchTime
 
   final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
 }
 
 final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
-  override val timestamp: Instant = actionInfo.launchTime
+  override val timestamp: ZonedDateTime = actionInfo.launchTime
 }
 
 final case class ActionRetry(
   actionInfo: ActionInfo,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
     extends ActionEvent
 
 final case class ActionFail(
   actionInfo: ActionInfo,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
@@ -108,20 +107,20 @@ final case class ActionFail(
 
 final case class ActionSucc(
   actionInfo: ActionInfo,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before success
   notes: Notes // success notes
 ) extends ActionEvent
 
 sealed trait InstantEvent extends NJEvent {
   def metricName: Digested
-  def timestamp: Instant
+  def timestamp: ZonedDateTime
   def serviceParams: ServiceParams
 }
 
 final case class InstantAlert(
   metricName: Digested,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   importance: Importance,
   message: String
@@ -129,7 +128,7 @@ final case class InstantAlert(
 
 final case class PassThrough(
   metricName: Digested,
-  timestamp: Instant,
+  timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   asError: Boolean, // the payload json represent an error
   value: Json

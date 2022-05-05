@@ -11,7 +11,7 @@ final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], se
   F: Temporal[F]) {
   def passThrough(metricName: Digested, json: Json, asError: Boolean): F[Unit] =
     for {
-      ts <- F.realTimeInstant
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
         PassThrough(
           metricName = metricName,
@@ -23,7 +23,7 @@ final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], se
 
   def alert(metricName: Digested, msg: String, importance: Importance): F[Unit] =
     for {
-      ts <- F.realTimeInstant
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
         InstantAlert(
           metricName = metricName,

@@ -51,7 +51,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
-    ts <- F.realTimeInstant
+    ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
     ssRef <- F.ref(ServiceStatus.Up(serviceParams, uuid, ts))
   } yield ssRef
 
