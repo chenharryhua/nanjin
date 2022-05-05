@@ -91,7 +91,7 @@ final class NJSesEmailObserver[F[_]](
                 }.translate(e))
               .unNone
               .groupWithin(chunkSize.value, interval)
-              .evalMap { events =>
+              .evalTap { events =>
                 val mailBody: String = {
                   val text: List[Text.TypedTag[String]] =
                     if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
@@ -105,7 +105,7 @@ final class NJSesEmailObserver[F[_]](
                       subject.map(_.value).getOrElse(""),
                       mailBody))
                   .attempt
-                  .as(mailBody)
+                  .void
               }
               .onFinalize(serviceTerminateEvents(ref, translator).flatMap { events =>
                 ses
@@ -162,7 +162,7 @@ final class NJSnsEmailObserver[F[_]](
                 }.translate(e))
               .unNone
               .groupWithin(chunkSize.value, interval)
-              .evalMap { events =>
+              .evalTap { events =>
                 val mailBody: String = {
                   val text: List[Text.TypedTag[String]] =
                     if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
@@ -171,12 +171,10 @@ final class NJSnsEmailObserver[F[_]](
                       text.prependedAll(title.map(t => hr(h2(t.value)))),
                       footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
                 }
-                sns.publish(mailBody).attempt.as(mailBody)
+                sns.publish(mailBody).attempt.void
               }
               .onFinalize(serviceTerminateEvents(ref, translator).flatMap { events =>
-                val mailBody: String =
-                  html(body(events.map(hr(_)).prepended(hr(h2(AbnormalTerminationMessage))))).render
-                sns.publish(mailBody).attempt
+                sns.publish(html(body(events.map(hr(_)).prepended(hr(h2(AbnormalTerminationMessage))))).render).attempt
               }.void))
           .drain)
 
