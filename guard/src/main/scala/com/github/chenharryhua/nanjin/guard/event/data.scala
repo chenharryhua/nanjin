@@ -108,6 +108,7 @@ object ActionInfo extends instant {
 
 @JsonCodec
 sealed trait ServiceStatus {
+  def serviceParams: ServiceParams
   def uuid: UUID
   def launchTime: Instant
   def isUp: Boolean
@@ -136,12 +137,17 @@ object ServiceStatus extends instant {
   implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
 
   @JsonCodec
-  final case class Up(uuid: UUID, launchTime: Instant, lastRestartAt: Instant, lastCrashAt: Instant)
+  final case class Up(
+    serviceParams: ServiceParams,
+    uuid: UUID,
+    launchTime: Instant,
+    lastRestartAt: Instant,
+    lastCrashAt: Instant)
       extends ServiceStatus {
 
     override def goUp(now: Instant): Up = this.copy(lastRestartAt = now)
     override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down =
-      Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
+      Down(serviceParams, uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
 
     override val isUp: Boolean      = true
     override val isDown: Boolean    = false
@@ -149,11 +155,13 @@ object ServiceStatus extends instant {
   }
 
   object Up {
-    def apply(uuid: UUID, launchTime: Instant): ServiceStatus = Up(uuid, launchTime, launchTime, launchTime)
+    def apply(serviceParams: ServiceParams, uuid: UUID, launchTime: Instant): ServiceStatus =
+      Up(serviceParams, uuid, launchTime, launchTime, launchTime)
   }
 
   @JsonCodec
   final case class Down(
+    serviceParams: ServiceParams,
     uuid: UUID,
     launchTime: Instant,
     crashAt: Instant,
@@ -161,7 +169,7 @@ object ServiceStatus extends instant {
     cause: String)
       extends ServiceStatus {
 
-    override def goUp(now: Instant): Up = Up(uuid, launchTime, now, crashAt)
+    override def goUp(now: Instant): Up = Up(serviceParams, uuid, launchTime, now, crashAt)
     override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down =
       this.copy(crashAt = now, upcommingRestart = upcomingDelay.map(fd => now.plus(fd.toJava)), cause = cause)
 

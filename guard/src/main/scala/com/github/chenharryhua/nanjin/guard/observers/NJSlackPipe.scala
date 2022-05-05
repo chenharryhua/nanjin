@@ -59,12 +59,12 @@ final class NJSlackPipe[F[_]](
         .evalTap(evt => updateRef(ref, evt))
         .evalTap(e =>
           translator.filter {
-            case MetricReport(rt, ss, _, ts, sp, _) =>
+            case MetricReport(rt, ss, _, ts, _) =>
               isShowMetrics(
-                sp.metric.reportSchedule,
-                sp.toZonedDateTime(ts),
+                ss.serviceParams.metric.reportSchedule,
+                ss.serviceParams.toZonedDateTime(ts),
                 interval,
-                sp.toZonedDateTime(ss.launchTime)) || rt.isShow
+                ss.serviceParams.toZonedDateTime(ss.launchTime)) || rt.isShow
             case ActionStart(ai)            => ai.actionParams.isCritical
             case ActionSucc(ai, _, _, _)    => ai.actionParams.isCritical
             case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice

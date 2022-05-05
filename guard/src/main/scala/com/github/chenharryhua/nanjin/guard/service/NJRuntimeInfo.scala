@@ -17,7 +17,7 @@ final class NJRuntimeInfo[F[_]: Functor] private[service] (
   def upTime(now: Instant): F[Duration] = serviceStatus.get.map(_.upTime(now))
 
   def latestCrashDuration: F[Option[Duration]] = serviceStatus.get.map {
-    case ServiceStatus.Up(_, _, lastRestartAt, lastCrashAt) =>
+    case ServiceStatus.Up(_, _, _, lastRestartAt, lastCrashAt) =>
       Some(Duration.between(lastCrashAt, lastRestartAt))
     case _: ServiceStatus.Down => None
   }

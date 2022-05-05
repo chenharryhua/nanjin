@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.kernel.{Async, Ref, RefSource}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -12,7 +12,6 @@ import fs2.concurrent.Channel
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 final private class MetricEventPublisher[F[_]](
-  serviceParams: ServiceParams,
   channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
   serviceStatus: RefSource[F, ServiceStatus],
@@ -31,14 +30,13 @@ final private class MetricEventPublisher[F[_]](
           reportType = metricReportType,
           ongoings = ogs.map(OngoingAction(_)).toList.sortBy(_.launchTime),
           timestamp = ts,
-          serviceParams = serviceParams,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>
-              MetricSnapshot.full(metricRegistry, serviceParams)
+              MetricSnapshot.full(metricRegistry, ss.serviceParams)
             case MetricSnapshotType.Regular =>
-              MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
+              MetricSnapshot.regular(metricFilter, metricRegistry, ss.serviceParams)
             case MetricSnapshotType.Delta =>
-              MetricSnapshot.delta(oldLast, metricFilter, metricRegistry, serviceParams)
+              MetricSnapshot.delta(oldLast, metricFilter, metricRegistry, ss.serviceParams)
           }
         ))
     } yield ()
@@ -50,13 +48,12 @@ final private class MetricEventPublisher[F[_]](
       ts <- F.realTimeInstant
       ss <- serviceStatus.get
       msg = cronExpr.flatMap { ce =>
-        ce.next(serviceParams.toZonedDateTime(ts)).map { next =>
+        ce.next(ss.serviceParams.toZonedDateTime(ts)).map { next =>
           MetricReset(
             resetType = MetricResetType.Scheduled(next),
             serviceStatus = ss,
             timestamp = ts,
-            serviceParams = serviceParams,
-            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, serviceParams)
+            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, ss.serviceParams)
           )
         }
       }.getOrElse(
@@ -64,8 +61,7 @@ final private class MetricEventPublisher[F[_]](
           resetType = MetricResetType.Adhoc,
           serviceStatus = ss,
           timestamp = ts,
-          serviceParams = serviceParams,
-          snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
+          snapshot = MetricSnapshot.full(metricRegistry, ss.serviceParams)
         ))
       _ <- channel.send(msg)
       _ <- lastCounters.set(MetricSnapshot.LastCounters.empty)
@@ -73,9 +69,9 @@ final private class MetricEventPublisher[F[_]](
 
   // query
   val snapshotFull: F[MetricSnapshot] =
-    F.delay(MetricSnapshot.full(metricRegistry, serviceParams))
+    serviceStatus.get.map(ss => MetricSnapshot.full(metricRegistry, ss.serviceParams))
 
   def snapshot(metricFilter: MetricFilter): F[MetricSnapshot] =
-    F.delay(MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams))
+    serviceStatus.get.map(ss => MetricSnapshot.regular(metricFilter, metricRegistry, ss.serviceParams))
 
 }

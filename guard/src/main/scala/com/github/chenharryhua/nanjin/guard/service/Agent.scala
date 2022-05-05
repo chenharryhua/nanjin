@@ -115,7 +115,6 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](
       new MetricEventPublisher[F](
-        serviceParams = serviceParams,
         channel = channel,
         metricRegistry = metricRegistry,
         serviceStatus = serviceStatus,

@@ -21,7 +21,7 @@ object gendata {
 
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
     ExhaustiveCheck.instance(
-      List(ServiceStart(ServiceStatus.Up(UUID.randomUUID(), Instant.now()), Instant.now(), service.serviceParams)))
+      List(ServiceStart(ServiceStatus.Up(service.serviceParams, UUID.randomUUID(), Instant.now()), Instant.now())))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], NJEvent => Option[Option[Int]]](_.translate)

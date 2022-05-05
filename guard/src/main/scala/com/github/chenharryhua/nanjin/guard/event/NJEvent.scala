@@ -33,29 +33,27 @@ object NJEvent {
 sealed trait ServiceEvent extends NJEvent {
   def serviceStatus: ServiceStatus
 
-  final override def metricName: Digested = serviceParams.metricName
+  final override def serviceParams: ServiceParams = serviceStatus.serviceParams
+  final override def metricName: Digested         = serviceParams.metricName
 
   final def uuid: UUID       = serviceStatus.uuid
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
 
 }
 
-final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: Instant, serviceParams: ServiceParams)
-    extends ServiceEvent
+final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: Instant) extends ServiceEvent
 
 final case class ServicePanic(
   serviceStatus: ServiceStatus,
   timestamp: Instant,
   retryDetails: RetryDetails,
-  serviceParams: ServiceParams,
   error: NJError
 ) extends ServiceEvent
 
 final case class ServiceStop(
   serviceStatus: ServiceStatus,
   timestamp: Instant,
-  cause: ServiceStopCause,
-  serviceParams: ServiceParams
+  cause: ServiceStopCause
 ) extends ServiceEvent
 
 final case class MetricReport(
@@ -63,7 +61,6 @@ final case class MetricReport(
   serviceStatus: ServiceStatus,
   ongoings: List[OngoingAction],
   timestamp: Instant,
-  serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
@@ -73,7 +70,6 @@ final case class MetricReset(
   resetType: MetricResetType,
   serviceStatus: ServiceStatus,
   timestamp: Instant,
-  serviceParams: ServiceParams,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
   val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown

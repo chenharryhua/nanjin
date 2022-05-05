@@ -10,7 +10,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 
 final private class ServiceEventPublisher[F[_]: UUIDGen](
-  serviceParams: ServiceParams,
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
@@ -18,7 +17,7 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
     for {
       ts <- F.realTimeInstant
       ss <- serviceStatus.updateAndGet(_.goUp(ts))
-      _ <- channel.send(ServiceStart(ss, ts, serviceParams))
+      _ <- channel.send(ServiceStart(ss, ts))
     } yield ()
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
@@ -26,7 +25,7 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
       ts <- F.realTimeInstant
       ss <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, ExceptionUtils.getMessage(ex)))
       uuid <- UUIDGen.randomUUID[F]
-      _ <- channel.send(ServicePanic(ss, ts, retryDetails, serviceParams, NJError(uuid, ex)))
+      _ <- channel.send(ServicePanic(ss, ts, retryDetails, NJError(uuid, ex)))
     } yield ()
 
   def serviceStop(cause: ServiceStopCause): F[Unit] =
@@ -37,7 +36,6 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
         ServiceStop(
           timestamp = ts,
           serviceStatus = ss,
-          serviceParams = serviceParams,
           cause = cause
         ))
     } yield ()
