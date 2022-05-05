@@ -28,7 +28,7 @@ final class NJRuntimeInfo[F[_]: Functor] private[service] (
 
   def downCause: F[Option[String]] = serviceStatus.get.map(_.fold(_ => None, d => Some(d.cause)))
 
-  def serviceUUID: F[UUID] = serviceStatus.get.map(_.uuid)
+  def serviceID: F[UUID] = serviceStatus.get.map(_.serviceID)
 
   def isServiceUp: F[Boolean]   = serviceStatus.get.map(_.isUp)
   def isServiceDown: F[Boolean] = serviceStatus.get.map(_.isDown)

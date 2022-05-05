@@ -25,11 +25,6 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   fail: Kleisli[F, (A, Throwable), String],
   isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
-    metricRegistry: MetricRegistry = metricRegistry,
-    channel: Channel[F, NJEvent] = channel,
-    ongoings: Ref[F, Set[ActionInfo]] = ongoings,
-    actionParams: ActionParams = actionParams,
-    kfab: Kleisli[F, A, B] = kfab,
     succ: Option[Kleisli[F, (A, B), String]] = succ,
     fail: Kleisli[F, (A, Throwable), String] = fail,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, A, B] =
@@ -105,11 +100,6 @@ final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
   fail: Kleisli[F, Throwable, String],
   isWorthRetry: Kleisli[F, Throwable, Boolean]) {
   private def copy(
-    metricRegistry: MetricRegistry = metricRegistry,
-    channel: Channel[F, NJEvent] = channel,
-    ongoings: Ref[F, Set[ActionInfo]] = ongoings,
-    actionParams: ActionParams = actionParams,
-    fb: F[B] = fb,
     succ: Option[Kleisli[F, B, String]] = succ,
     fail: Kleisli[F, Throwable, String] = fail,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, B] =

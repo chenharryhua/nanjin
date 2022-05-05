@@ -134,7 +134,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.startTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.uniqueId.show)
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show)
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
@@ -142,7 +142,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.uniqueId.show),
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show)
     )
 
@@ -151,7 +151,7 @@ private[translators] object HtmlTranslator extends all {
       h3(style := "color:red")(evt.actionParams.failedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.uniqueId.show),
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
       p(b("Error ID: "), evt.error.uuid.show),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
@@ -165,7 +165,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.succedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.uniqueId.show),
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       notesText(evt.notes)

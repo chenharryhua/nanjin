@@ -35,7 +35,7 @@ sealed trait ServiceEvent extends NJEvent {
   final override def serviceParams: ServiceParams = serviceStatus.serviceParams
   final override def metricName: Digested         = serviceParams.metricName
 
-  final def serviceID: UUID  = serviceStatus.uuid
+  final def serviceID: UUID  = serviceStatus.serviceID
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
 
 }

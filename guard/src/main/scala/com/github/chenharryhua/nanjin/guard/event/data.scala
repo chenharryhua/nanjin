@@ -11,8 +11,9 @@ import io.circe.shapes.*
 import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.typelevel.cats.time.instances.zoneddatetime
+import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
+import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
@@ -57,10 +58,10 @@ private[guard] object NJError {
 
 @JsonCodec
 sealed trait MetricResetType
-object MetricResetType {
+object MetricResetType extends localdatetime {
   implicit val showMetricResetType: Show[MetricResetType] = {
     case Adhoc           => s"Adhoc Metric Reset"
-    case Scheduled(next) => s"Scheduled Metric Reset(next=$next)"
+    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.toLocalDateTime.truncatedTo(ChronoUnit.MINUTES).show})"
   }
   case object Adhoc extends MetricResetType
   final case class Scheduled(next: ZonedDateTime) extends MetricResetType
@@ -94,13 +95,13 @@ object OngoingAction extends zoneddatetime {
   def apply(ai: ActionInfo): OngoingAction =
     OngoingAction(
       ai.actionParams.metricName,
-      ai.uniqueId,
+      ai.actionID,
       ai.launchTime
     )
 }
 
 @JsonCodec
-final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTime: ZonedDateTime)
+final case class ActionInfo(actionParams: ActionParams, actionID: Int, launchTime: ZonedDateTime)
 
 object ActionInfo extends zoneddatetime {
   implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
@@ -109,7 +110,7 @@ object ActionInfo extends zoneddatetime {
 @JsonCodec
 sealed trait ServiceStatus {
   def serviceParams: ServiceParams
-  def uuid: UUID
+  def serviceID: UUID
   def launchTime: ZonedDateTime
   def isUp: Boolean
   def isDown: Boolean
@@ -139,7 +140,7 @@ object ServiceStatus extends zoneddatetime {
   @JsonCodec
   final case class Up(
     serviceParams: ServiceParams,
-    uuid: UUID,
+    serviceID: UUID,
     launchTime: ZonedDateTime,
     lastRestartAt: ZonedDateTime,
     lastCrashAt: ZonedDateTime)
@@ -147,7 +148,7 @@ object ServiceStatus extends zoneddatetime {
 
     override def goUp(now: ZonedDateTime): Up = this.copy(lastRestartAt = now)
     override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
-      Down(serviceParams, uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
+      Down(serviceParams, serviceID, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
 
     override val isUp: Boolean      = true
     override val isDown: Boolean    = false
@@ -162,14 +163,14 @@ object ServiceStatus extends zoneddatetime {
   @JsonCodec
   final case class Down(
     serviceParams: ServiceParams,
-    uuid: UUID,
+    serviceID: UUID,
     launchTime: ZonedDateTime,
     crashAt: ZonedDateTime,
     upcommingRestart: Option[ZonedDateTime],
     cause: String)
       extends ServiceStatus {
 
-    override def goUp(now: ZonedDateTime): Up = Up(serviceParams, uuid, launchTime, now, crashAt)
+    override def goUp(now: ZonedDateTime): Up = Up(serviceParams, serviceID, launchTime, now, crashAt)
     override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
       this.copy(crashAt = now, upcommingRestart = upcomingDelay.map(fd => now.plus(fd.toJava)), cause = cause)
 
