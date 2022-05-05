@@ -10,6 +10,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service (Re)Started
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.uuid}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |""".stripMargin
@@ -18,6 +19,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service Panic
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.uuid}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Cause: ${evt.error.message}
        |""".stripMargin
@@ -26,6 +28,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service Stopped
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.uuid}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |Cause: ${evt.cause.show}
@@ -35,6 +38,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.reportType.show}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.uuid}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |${evt.snapshot.show}
@@ -44,6 +48,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.resetType.show}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.uuid}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |${evt.snapshot.show}
