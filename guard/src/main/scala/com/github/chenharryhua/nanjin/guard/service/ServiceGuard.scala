@@ -51,8 +51,8 @@ final class ServiceGuard[F[_]] private[guard] (
 
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
-    ts <- F.realTimeInstant
-    ssRef <- F.ref(ServiceStatus.Up(uuid, ts))
+    ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
+    ssRef <- F.ref(ServiceStatus.Up(serviceParams, uuid, ts))
   } yield ssRef
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
@@ -64,7 +64,7 @@ final class ServiceGuard[F[_]] private[guard] (
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val theService: F[A] = {
-          val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceParams, serviceStatus, channel)
+          val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
 
           retry.mtl
             .retryingOnAllErrors(serviceParams.retry.policy[F], (ex: Throwable, rd) => sep.servicePanic(rd, ex)) {
@@ -94,7 +94,7 @@ final class ServiceGuard[F[_]] private[guard] (
         val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
         val metricEventPublisher: MetricEventPublisher[F] =
-          new MetricEventPublisher[F](serviceParams, channel, metricRegistry, serviceStatus, ongoings, lastCounters)
+          new MetricEventPublisher[F](channel, metricRegistry, serviceStatus, ongoings, lastCounters)
 
         val metricsReport: Stream[F, INothing] =
           serviceParams.metric.reportSchedule match {

@@ -10,14 +10,16 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service (Re)Started
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |""".stripMargin
 
-  private def servicePanic[F[_]: Applicative](evt: ServicePanic): String =
+  private def servicePanic(evt: ServicePanic): String =
     s"""
        |Service Panic
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Cause: ${evt.error.message}
        |""".stripMargin
@@ -26,6 +28,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service Stopped
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |Cause: ${evt.cause.show}
@@ -35,6 +38,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.reportType.show}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |${evt.snapshot.show}
@@ -44,6 +48,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.resetType.show}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Up Time: ${fmt.format(evt.upTime)}
        |${evt.snapshot.show}
@@ -81,7 +86,7 @@ private[translators] object SimpleTextTranslator {
        |Cause: ${evt.error.message}
        |""".stripMargin
 
-  private def actionFailed[F[_]: Applicative](evt: ActionFail): String =
+  private def actionFailed(evt: ActionFail): String =
     s"""
        |${evt.actionInfo.actionParams.failedTitle}
        |Service: ${evt.metricName.metricRepr}
@@ -105,14 +110,14 @@ private[translators] object SimpleTextTranslator {
       .empty[F, String]
       .withServiceStart(serviceStarted)
       .withServiceStop(serviceStopped)
-      .withServicePanic(servicePanic[F])
+      .withServicePanic(servicePanic)
       .withMetricsReport(metricReport)
       .withMetricsReset(metricReset)
       .withPassThrough(passThrough)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
-      .withActionFail(actionFailed[F])
+      .withActionFail(actionFailed)
       .withActionSucc(actionSucced)
 
 }

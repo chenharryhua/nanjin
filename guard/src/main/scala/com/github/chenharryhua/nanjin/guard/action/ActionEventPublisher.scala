@@ -4,20 +4,21 @@ import cats.effect.Unique
 import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import retry.RetryDetails.WillDelayAndRetry
 
-import java.time.Instant
+import java.time.ZonedDateTime
 
 final private class ActionEventPublisher[F[_]: UUIDGen](
+  serviceParams: ServiceParams,
   channel: Channel[F, NJEvent],
   ongoings: Ref[F, Set[ActionInfo]])(implicit F: Temporal[F]) {
 
   def actionStart(actionParams: ActionParams): F[ActionInfo] =
     for {
-      ts <- F.realTimeInstant
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams, token, ts)
       _ <- channel.send(ActionStart(ai)).whenA(actionParams.isNotice)
@@ -30,7 +31,7 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
     willDelayAndRetry: WillDelayAndRetry,
     ex: Throwable): F[Unit] =
     for {
-      ts <- F.realTimeInstant
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       uuid <- UUIDGen.randomUUID[F]
       _ <- channel.send(
         ActionRetry(
@@ -46,9 +47,9 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
     retryCount: Ref[F, Int],
     input: A,
     output: F[B],
-    buildNotes: (A, F[B]) => F[Notes]): F[Instant] =
+    buildNotes: (A, F[B]) => F[Notes]): F[ZonedDateTime] =
     for {
-      ts <- F.realTimeInstant
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- {
         for {
           num <- retryCount.get
@@ -64,9 +65,9 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
     retryCount: Ref[F, Int],
     ex: Throwable,
     input: A,
-    buildNotes: (A, Throwable) => F[Notes]): F[Instant] =
+    buildNotes: (A, Throwable) => F[Notes]): F[ZonedDateTime] =
     for {
-      ts <- F.realTimeInstant
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       uuid <- UUIDGen.randomUUID[F]
       numRetries <- retryCount.get
       notes <- buildNotes(input, ex)

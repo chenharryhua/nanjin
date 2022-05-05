@@ -237,4 +237,15 @@ class CancellationTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServicePanic])
   }
+  test("10.cancellation - never can be canceled") {
+    var i = 0
+    serviceGuard
+      .updateConfig(_.withConstantDelay(1.hour))
+      .eventStream(_ => IO.never.onCancel(IO { i = 1 }))
+      .interruptAfter(2.seconds)
+      .compile
+      .drain
+      .unsafeRunSync()
+    assert(i == 1)
+  }
 }

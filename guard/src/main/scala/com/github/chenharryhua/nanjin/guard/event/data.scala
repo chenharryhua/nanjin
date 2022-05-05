@@ -11,7 +11,7 @@ import io.circe.shapes.*
 import io.circe.syntax.*
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.typelevel.cats.time.instances.instant
+import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
@@ -88,8 +88,8 @@ object MetricReportType {
 }
 
 @JsonCodec
-final case class OngoingAction private (metricName: Digested, uniqueId: Int, launchTime: Instant)
-object OngoingAction extends instant {
+final case class OngoingAction private (metricName: Digested, uniqueId: Int, launchTime: ZonedDateTime)
+object OngoingAction extends zoneddatetime {
   implicit val showPendingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
   def apply(ai: ActionInfo): OngoingAction =
     OngoingAction(
@@ -100,22 +100,23 @@ object OngoingAction extends instant {
 }
 
 @JsonCodec
-final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTime: Instant)
+final case class ActionInfo(actionParams: ActionParams, uniqueId: Int, launchTime: ZonedDateTime)
 
-object ActionInfo extends instant {
+object ActionInfo extends zoneddatetime {
   implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 }
 
 @JsonCodec
 sealed trait ServiceStatus {
+  def serviceParams: ServiceParams
   def uuid: UUID
-  def launchTime: Instant
+  def launchTime: ZonedDateTime
   def isUp: Boolean
   def isDown: Boolean
   def isStopped: Boolean
 
-  def goUp(now: Instant): ServiceStatus
-  def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): ServiceStatus
+  def goUp(now: ZonedDateTime): ServiceStatus
+  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): ServiceStatus
 
   final def upTime(now: Instant): Duration = Duration.between(launchTime, now)
   final def fold[A](up: ServiceStatus.Up => A, down: ServiceStatus.Down => A): A =
@@ -132,16 +133,21 @@ sealed trait ServiceStatus {
   * : restarting when upcommingRestart is Some
   */
 
-object ServiceStatus extends instant {
+object ServiceStatus extends zoneddatetime {
   implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
 
   @JsonCodec
-  final case class Up(uuid: UUID, launchTime: Instant, lastRestartAt: Instant, lastCrashAt: Instant)
+  final case class Up(
+    serviceParams: ServiceParams,
+    uuid: UUID,
+    launchTime: ZonedDateTime,
+    lastRestartAt: ZonedDateTime,
+    lastCrashAt: ZonedDateTime)
       extends ServiceStatus {
 
-    override def goUp(now: Instant): Up = this
-    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down =
-      Down(uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
+    override def goUp(now: ZonedDateTime): Up = this.copy(lastRestartAt = now)
+    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
+      Down(serviceParams, uuid, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
 
     override val isUp: Boolean      = true
     override val isDown: Boolean    = false
@@ -149,20 +155,23 @@ object ServiceStatus extends instant {
   }
 
   object Up {
-    def apply(uuid: UUID, launchTime: Instant): ServiceStatus = Up(uuid, launchTime, launchTime, launchTime)
+    def apply(serviceParams: ServiceParams, uuid: UUID, launchTime: ZonedDateTime): ServiceStatus =
+      Up(serviceParams, uuid, launchTime, launchTime, launchTime)
   }
 
   @JsonCodec
   final case class Down(
+    serviceParams: ServiceParams,
     uuid: UUID,
-    launchTime: Instant,
-    crashAt: Instant,
-    upcommingRestart: Option[Instant],
+    launchTime: ZonedDateTime,
+    crashAt: ZonedDateTime,
+    upcommingRestart: Option[ZonedDateTime],
     cause: String)
       extends ServiceStatus {
 
-    override def goUp(now: Instant): Up = Up(uuid, launchTime, now, crashAt)
-    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: String): Down = this
+    override def goUp(now: ZonedDateTime): Up = Up(serviceParams, uuid, launchTime, now, crashAt)
+    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
+      this.copy(crashAt = now, upcommingRestart = upcomingDelay.map(fd => now.plus(fd.toJava)), cause = cause)
 
     override val isUp: Boolean      = false
     override val isDown: Boolean    = true
