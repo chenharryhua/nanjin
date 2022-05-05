@@ -62,7 +62,7 @@ private[translators] object HtmlTranslator extends all {
       h3(s"Service Started"),
       timestampText(evt.zonedDateTime),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.uuid.show),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b("Up Time: "), fmt.format(evt.upTime)),
       pre(evt.serviceParams.brief)
     )
@@ -75,7 +75,7 @@ private[translators] object HtmlTranslator extends all {
       p(b("Restart so far: "), evt.retryDetails.retriesSoFar),
       p(b("Error ID: "), evt.error.uuid.show),
       p(b("Policy: "), evt.serviceParams.retry.policy[F].show),
-      p(b("Service ID: "), evt.uuid.show),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b("Up Time: "), fmt.format(evt.upTime)),
       causeText(evt.error)
     )
@@ -85,7 +85,7 @@ private[translators] object HtmlTranslator extends all {
       h3(style := "color:red")(s"Service Stopped"),
       timestampText(evt.zonedDateTime),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.uuid.show),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b("Up Time: "), fmt.format(evt.upTime)),
       p(b("cause: "), evt.cause.show)
     )
@@ -95,11 +95,10 @@ private[translators] object HtmlTranslator extends all {
     div(
       h3(style := color)(evt.reportType.show),
       p(serviceStatusWord(evt.serviceStatus, evt.zoneId)),
-      p(b("Service ID: "), evt.uuid.show),
       timestampText(evt.zonedDateTime),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.uuid.show),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b("Up Time: "), fmt.format(evt.upTime)),
       pre(evt.serviceParams.brief),
       pendingActions(evt.ongoings, evt.timestamp, evt.zoneId),
@@ -115,7 +114,7 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.zonedDateTime),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.uuid.show),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b("Up Time: "), fmt.format(evt.upTime)),
       pre(evt.snapshot.show)
     )

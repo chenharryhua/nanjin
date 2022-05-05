@@ -60,7 +60,7 @@ package object observers {
 
   private[observers] def updateRef[F[_]: Applicative](ref: Ref[F, Map[UUID, ServiceStart]], event: NJEvent): F[Unit] =
     event match {
-      case ss: ServiceStart      => ref.update(_.updated(ss.uuid, ss))
+      case ss: ServiceStart      => ref.update(_.updated(ss.serviceID, ss))
       case ServiceStop(ss, _, _) => ref.update(_.removed(ss.uuid))
       case _                     => Applicative[F].unit
     }

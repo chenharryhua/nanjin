@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils

@@ -36,7 +36,7 @@ sealed trait ServiceEvent extends NJEvent {
   final override def serviceParams: ServiceParams = serviceStatus.serviceParams
   final override def metricName: Digested         = serviceParams.metricName
 
-  final def uuid: UUID       = serviceStatus.uuid
+  final def serviceID: UUID  = serviceStatus.uuid
   final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
 
 }
@@ -113,20 +113,24 @@ final case class ActionSucc(
   notes: Notes // success notes
 ) extends ActionEvent
 
-sealed trait InstantEvent extends NJEvent
+sealed trait InstantEvent extends NJEvent {
+  def metricName: Digested
+  def timestamp: Instant
+  def serviceParams: ServiceParams
+}
 
 final case class InstantAlert(
   metricName: Digested,
   timestamp: Instant,
-  importance: Importance,
   serviceParams: ServiceParams,
+  importance: Importance,
   message: String
 ) extends InstantEvent
 
 final case class PassThrough(
   metricName: Digested,
-  asError: Boolean, // the payload json represent an error
   timestamp: Instant,
   serviceParams: ServiceParams,
+  asError: Boolean, // the payload json represent an error
   value: Json
 ) extends InstantEvent

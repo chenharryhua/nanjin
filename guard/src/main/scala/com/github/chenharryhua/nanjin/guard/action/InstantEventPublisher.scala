@@ -15,9 +15,9 @@ final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], se
       _ <- channel.send(
         PassThrough(
           metricName = metricName,
-          asError = asError,
           timestamp = ts,
           serviceParams = serviceParams,
+          asError = asError,
           value = json))
     } yield ()
 
@@ -28,8 +28,8 @@ final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], se
         InstantAlert(
           metricName = metricName,
           timestamp = ts,
-          importance = importance,
           serviceParams = serviceParams,
+          importance = importance,
           message = msg))
     } yield ()
 }

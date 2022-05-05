@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.concurrent.Channel
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZoneId
 import scala.concurrent.Future
@@ -53,7 +54,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       kfab = Kleisli(f),
       succ = None,
-      fail = Kleisli(r => F.pure(r._2.getMessage)),
+      fail = Kleisli(r => F.pure(ExceptionUtils.getMessage(r._2))),
       isWorthRetry = Kleisli(_ => F.pure(true)))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
@@ -64,7 +65,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       fb = fb,
       succ = None,
-      fail = Kleisli(ex => F.pure(ex.getMessage)),
+      fail = Kleisli(ex => F.pure(ExceptionUtils.getMessage(ex))),
       isWorthRetry = Kleisli(_ => F.pure(true)))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run
@@ -123,7 +124,7 @@ final class Agent[F[_]] private[service] (
       dispatcher = dispatcher)
 
   lazy val runtime: NJRuntimeInfo[F] =
-    new NJRuntimeInfo[F](serviceParams = serviceParams, serviceStatus = serviceStatus, ongoings = ongoings)
+    new NJRuntimeInfo[F](serviceStatus = serviceStatus, ongoings = ongoings)
 
   // maximum retries
   def max(retries: MaxRetry): Agent[F] = updateConfig(_.withMaxRetries(retries))
