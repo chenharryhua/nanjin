@@ -47,6 +47,8 @@ package object observers {
           }
     }
 
+  final private[observers] val AbnormalTerminationMessage = "Service Termination Notice"
+
   private[observers] def serviceTerminateEvents[F[_], A](
     events: Ref[F, Map[UUID, ServiceStart]],
     translator: Translator[F, A])(implicit F: Temporal[F]): F[List[A]] =

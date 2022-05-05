@@ -13,10 +13,10 @@ import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
 object cloudwatch {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, namespace, 60)
+  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchPipe[F] =
+    new CloudWatchPipe[F](client, namespace, 60)
 
-  def apply[F[_]: Sync](namespace: String): CloudWatchObserver[F] =
+  def apply[F[_]: Sync](namespace: String): CloudWatchPipe[F] =
     apply[F](CloudWatch[F], namespace)
 }
 
@@ -42,17 +42,17 @@ final private case class MetricKey(
       .withValue(count)
 }
 
-final class CloudWatchObserver[F[_]] private[observers] (
+final class CloudWatchPipe[F[_]] private[observers] (
   client: Resource[F, CloudWatch[F]],
   namespace: String,
   storageResolution: Int)(implicit F: Sync[F])
     extends Pipe[F, NJEvent, NJEvent] with localdate {
 
-  def withStorageResolution(storageResolution: Int): CloudWatchObserver[F] = {
+  def withStorageResolution(storageResolution: Int): CloudWatchPipe[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchObserver(client, namespace, storageResolution)
+    new CloudWatchPipe(client, namespace, storageResolution)
   }
 
   private def buildMetricDatum(

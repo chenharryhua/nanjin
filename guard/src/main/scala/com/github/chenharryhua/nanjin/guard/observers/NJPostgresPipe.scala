@@ -20,24 +20,24 @@ import java.util.UUID
 
 object postgres {
 
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]], tableName: TableName): NJPostgresObserver[F] =
-    new NJPostgresObserver[F](session, Translator.json[F], tableName)
+  def apply[F[_]: Temporal](session: Resource[F, Session[F]], tableName: TableName): NJPostgresPipe[F] =
+    new NJPostgresPipe[F](session, Translator.json[F], tableName)
 
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]]): NJPostgresObserver[F] =
+  def apply[F[_]: Temporal](session: Resource[F, Session[F]]): NJPostgresPipe[F] =
     apply[F](session, TableName("event_stream"))
 }
 
-final class NJPostgresObserver[F[_]](
+final class NJPostgresPipe[F[_]](
   session: Resource[F, Session[F]],
   translator: Translator[F, Json],
   tableName: TableName)(implicit F: Temporal[F])
-    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, Json, NJPostgresObserver[F]] {
+    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, Json, NJPostgresPipe[F]] {
 
-  def withTableName(tableName: TableName): NJPostgresObserver[F] =
-    new NJPostgresObserver[F](session, translator, tableName)
+  def withTableName(tableName: TableName): NJPostgresPipe[F] =
+    new NJPostgresPipe[F](session, translator, tableName)
 
-  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): NJPostgresObserver[F] =
-    new NJPostgresObserver[F](session, f(translator), tableName)
+  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): NJPostgresPipe[F] =
+    new NJPostgresPipe[F](session, f(translator), tableName)
 
   def apply(events: Stream[F, NJEvent]): Stream[F, NJEvent] = {
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command

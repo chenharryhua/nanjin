@@ -32,7 +32,7 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
   def serviceStop(cause: ServiceStopCause): F[Unit] =
     for {
       ts <- F.realTimeInstant
-      ss <- serviceStatus.updateAndGet(_.goDown(ts, None, cause = "service was stopped"))
+      ss <- serviceStatus.updateAndGet(_.goDown(ts, None, cause = cause.show))
       _ <- channel.send(
         ServiceStop(
           timestamp = ts,

@@ -9,11 +9,12 @@ import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
-import fs2.{Pipe, Stream}
+import fs2.{INothing, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
+import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object sesEmail {
@@ -44,7 +45,7 @@ object snsEmail {
   def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmailObserver[F] = apply[F](sns(snsArn))
 }
 
-final class NJSesEmailObserver[F[_]: Async](
+final class NJSesEmailObserver[F[_]](
   client: Resource[F, SimpleEmailService[F]],
   from: EmailAddr,
   to: NonEmptyList[EmailAddr],
@@ -52,8 +53,8 @@ final class NJSesEmailObserver[F[_]: Async](
   chunkSize: ChunkSize, // number of events in an email
   interval: FiniteDuration, // send out email every interval
   isNewestFirst: Boolean, // the latest event comes first
-  translator: Translator[F, Text.TypedTag[String]]
-) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmailObserver[F]] with all {
+  translator: Translator[F, Text.TypedTag[String]])(implicit F: Async[F])
+    extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmailObserver[F]] with all {
 
   private[this] def copy(
     client: Resource[F, SimpleEmailService[F]] = client,
@@ -75,40 +76,58 @@ final class NJSesEmailObserver[F[_]: Async](
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSesEmailObserver[F] =
     copy(translator = f(translator))
 
-  override def apply(es: Stream[F, NJEvent]): Stream[F, String] =
-    for {
-      c <- Stream.resource(client)
-      mb <- es
-        .evalMap(e =>
-          translator.filter {
-            case event: ActionEvent => event.actionParams.isNonTrivial
-            case _                  => true
-          }.translate(e))
-        .unNone
-        .groupWithin(chunkSize.value, interval)
-        .evalMap { events =>
-          val mailBody: String = {
-            val text: List[Text.TypedTag[String]] =
-              if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-            html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-          }
-
-          c.send(
-            EmailContent(from.value, to.map(_.value).toList.distinct, subject.map(_.value).getOrElse(""), mailBody))
-            .attempt
-            .as(mailBody)
-        }
-    } yield mb
+  override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
+    Stream
+      .resource(client)
+      .flatMap(ses =>
+        Stream
+          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
+          .flatMap(ref =>
+            es.evalTap(evt => updateRef(ref, evt))
+              .evalMap(e =>
+                translator.filter {
+                  case event: ActionEvent => event.actionParams.isNonTrivial
+                  case _                  => true
+                }.translate(e))
+              .unNone
+              .groupWithin(chunkSize.value, interval)
+              .evalMap { events =>
+                val mailBody: String = {
+                  val text: List[Text.TypedTag[String]] =
+                    if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
+                  html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+                }
+                ses
+                  .send(
+                    EmailContent(
+                      from.value,
+                      to.map(_.value).toList.distinct,
+                      subject.map(_.value).getOrElse(""),
+                      mailBody))
+                  .attempt
+                  .as(mailBody)
+              }
+              .onFinalize(serviceTerminateEvents(ref, translator).flatMap { events =>
+                ses
+                  .send(
+                    EmailContent(
+                      from.value,
+                      to.map(_.value).toList.distinct,
+                      AbnormalTerminationMessage,
+                      html(body(events.map(hr(_)).toList)).render))
+                  .attempt
+              }.void)
+              .drain))
 }
 
-final class NJSnsEmailObserver[F[_]: Async](
+final class NJSnsEmailObserver[F[_]](
   client: Resource[F, SimpleNotificationService[F]],
   title: Option[Title],
   chunkSize: ChunkSize,
   interval: FiniteDuration,
   isNewestFirst: Boolean,
-  translator: Translator[F, Text.TypedTag[String]]
-) extends Pipe[F, NJEvent, String] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmailObserver[F]] with all {
+  translator: Translator[F, Text.TypedTag[String]])(implicit F: Async[F])
+    extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmailObserver[F]] with all {
 
   private[this] def copy(
     client: Resource[F, SimpleNotificationService[F]] = client,
@@ -128,27 +147,37 @@ final class NJSnsEmailObserver[F[_]: Async](
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSnsEmailObserver[F] =
     copy(translator = f(translator))
 
-  override def apply(es: Stream[F, NJEvent]): Stream[F, String] =
-    for {
-      c <- Stream.resource(client)
-      rst <- es
-        .evalMap(e =>
-          translator.filter {
-            case event: ActionEvent => event.actionParams.isNonTrivial
-            case _                  => true
-          }.translate(e))
-        .unNone
-        .groupWithin(chunkSize.value, interval)
-        .evalMap { events =>
-          val mailBody: String = {
-            val text: List[Text.TypedTag[String]] =
-              if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-            html(
-              body(
-                text.prependedAll(title.map(t => hr(h2(t.value)))),
-                footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-          }
-          c.publish(mailBody).attempt.as(mailBody)
-        }
-    } yield rst
+  override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
+    Stream
+      .resource(client)
+      .flatMap(sns =>
+        Stream
+          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
+          .flatMap(ref =>
+            es.evalTap(evt => updateRef(ref, evt))
+              .evalMap(e =>
+                translator.filter {
+                  case event: ActionEvent => event.actionParams.isNonTrivial
+                  case _                  => true
+                }.translate(e))
+              .unNone
+              .groupWithin(chunkSize.value, interval)
+              .evalMap { events =>
+                val mailBody: String = {
+                  val text: List[Text.TypedTag[String]] =
+                    if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
+                  html(
+                    body(
+                      text.prependedAll(title.map(t => hr(h2(t.value)))),
+                      footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+                }
+                sns.publish(mailBody).attempt.as(mailBody)
+              }
+              .onFinalize(serviceTerminateEvents(ref, translator).flatMap { events =>
+                val mailBody: String =
+                  html(body(events.map(hr(_)).prepended(hr(h2(AbnormalTerminationMessage))))).render
+                sns.publish(mailBody).attempt
+              }.void))
+          .drain)
+
 }
