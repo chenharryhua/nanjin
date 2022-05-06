@@ -9,7 +9,7 @@ private[translators] object SimpleTextTranslator {
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
-    s"  Service: $sn, Host: $host ID: ${se.serviceID.show}, Up-Time: ${fmt.format(se.upTime)}"
+    s"  Service: $sn, Host: $host, ID: ${se.serviceID.show}, Up-Time: ${fmt.format(se.upTime)}"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -22,8 +22,7 @@ private[translators] object SimpleTextTranslator {
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
     val sn: String   = ae.serviceParams.serviceName.value
-    s"""  Service: $sn, Host: $host, ID: ${ae.serviceID.show}
-       |  ${ae.actionParams.catalog} ID: ${ae.actionID.show}""".stripMargin
+    s"  Service: $sn, Host: $host, ID: ${ae.serviceID.show}"
   }
 
   private def serviceStarted(evt: ServiceStart): String =
@@ -46,7 +45,7 @@ private[translators] object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${evt.reportType.show}
        |${serviceEvent(evt)}
-       |  On Goings: ${evt.ongoings.map(_.actionParams.metricName.metricRepr).mkString(",")}
+       |  On Goings: ${evt.ongoings.map(_.actionID).mkString(",")}
        |  Metrics:
        |${evt.snapshot.show}
        |""".stripMargin
@@ -74,26 +73,25 @@ private[translators] object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""${evt.actionInfo.actionParams.startTitle}
        |${actionEvent(evt)}
+       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
     s"""${evt.actionInfo.actionParams.retryTitle}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}, Retries: ${evt.willDelayAndRetry.retriesSoFar}
+       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""${evt.actionInfo.actionParams.failedTitle}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
-       |  Notes: ${evt.notes.value}
+       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}, ${evt.notes.value}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
     s"""${evt.actionInfo.actionParams.succedTitle}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
-       |  Notes: ${evt.notes.value}
+       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}, ${evt.notes.value}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
