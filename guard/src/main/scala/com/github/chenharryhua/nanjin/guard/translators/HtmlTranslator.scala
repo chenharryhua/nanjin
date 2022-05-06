@@ -136,7 +136,7 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show)
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show)
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
@@ -145,8 +145,9 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
-      p(b("Policy: "), evt.actionParams.retry.policy[F].show)
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show),
+      p(b("Policy: "), evt.actionParams.retry.policy[F].show),
+      causeText(evt.error)
     )
 
   private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
@@ -155,8 +156,7 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
-      p(b("Error ID: "), evt.error.uuid.show),
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
@@ -170,7 +170,7 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
+      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       notesText(evt.notes)

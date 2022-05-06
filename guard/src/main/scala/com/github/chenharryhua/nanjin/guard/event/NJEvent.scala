@@ -79,6 +79,7 @@ sealed trait ActionEvent extends NJEvent {
   final def metricName: Digested       = actionInfo.actionParams.metricName
   final def actionParams: ActionParams = actionInfo.actionParams
   final def launchTime: ZonedDateTime  = actionInfo.launchTime
+  final def actionID: Int              = actionInfo.actionID
 
   final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
 }

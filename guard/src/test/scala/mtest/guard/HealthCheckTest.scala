@@ -7,7 +7,7 @@ import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
+import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
@@ -77,7 +77,7 @@ class HealthCheckTest extends AnyFunSuite {
           .max(10)
           .run(IO.raiseError(new Exception)))
       .interruptAfter(5.second)
-      .evalTap(logging.simple[IO])
+      .evalTap(console.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
