@@ -28,20 +28,11 @@ final class TextLogging[F[_]: Sync](translator: Translator[F, String])
     event match {
       case sa: InstantAlert => translator.instantAlert.run(sa).value.flatMap(_.traverse(logger.warn(_)).void)
       case sp @ ServicePanic(_, _, _, error) =>
-        translator.servicePanic
-          .run(sp)
-          .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(j) }.void)
+        translator.servicePanic.run(sp).value.flatMap(_.traverse(o => logger.error(error.throwable)(o))).void
       case ar @ ActionRetry(_, _, _, error) =>
-        translator.actionRetry
-          .run(ar)
-          .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.warn(ex)(j) }.void)
+        translator.actionRetry.run(ar).value.flatMap(_.traverse(o => logger.warn(error.throwable)(o))).void
       case af @ ActionFail(_, _, _, _, error) =>
-        translator.actionFail
-          .run(af)
-          .value
-          .flatMap(oj => (oj, error.throwable).traverseN { case (j, ex) => logger.error(ex)(j) }.void)
+        translator.actionFail.run(af).value.flatMap(_.traverse(o => logger.error(error.throwable)(o))).void
       case others => translator.translate(others).flatMap(_.traverse(m => logger.info(m)).void)
     }
 

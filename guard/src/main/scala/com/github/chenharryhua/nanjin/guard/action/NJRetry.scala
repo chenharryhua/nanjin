@@ -56,8 +56,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   private[this] val failNotes: (A, Throwable) => F[Notes] =
     (a: A, ex: Throwable) => fail.run((a, ex)).map(Notes(_))
 
-  private[this] val publisher: ActionEventPublisher[F] =
-    new ActionEventPublisher[F](actionParams.serviceParams, channel, ongoings)
+  private[this] val publisher: ActionEventPublisher[F] = new ActionEventPublisher[F](channel, ongoings)
 
   def run(input: A): F[B] = for {
     retryCount <- F.ref(0) // hold number of retries

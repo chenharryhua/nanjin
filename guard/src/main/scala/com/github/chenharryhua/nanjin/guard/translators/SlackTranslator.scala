@@ -82,6 +82,25 @@ private[translators] object SlackTranslator extends all {
     )
   }
 
+  private def serviceStopped(evt: ServiceStop): SlackApp =
+    SlackApp(
+      username = evt.serviceParams.taskParams.taskName.value,
+      attachments = List(
+        Attachment(
+          color = warnColor,
+          blocks = List(
+            MarkdownSection(s":octagonal_sign: *Service Stopped*"),
+            hostServiceSection(evt.serviceParams),
+            JuxtaposeSection(
+              TextField("Up Time", fmt.format(evt.upTime)),
+              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)),
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
+            MarkdownSection(s"*Cause:* ${evt.cause.show}")
+          )
+        )
+      )
+    )
+
   private def instantAlert(evt: InstantAlert): SlackApp = {
     val (title, color) = evt.importance match {
       case Importance.Critical => (":warning: Error", errorColor)
@@ -104,25 +123,6 @@ private[translators] object SlackTranslator extends all {
       )
     )
   }
-
-  private def serviceStopped(evt: ServiceStop): SlackApp =
-    SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = warnColor,
-          blocks = List(
-            MarkdownSection(s":octagonal_sign: *Service Stopped*"),
-            hostServiceSection(evt.serviceParams),
-            JuxtaposeSection(
-              TextField("Up Time", fmt.format(evt.upTime)),
-              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
-            MarkdownSection(s"*Cause:* ${evt.cause.show}")
-          )
-        )
-      )
-    )
 
   private def metricReport(evt: MetricReport): SlackApp = {
     val color = if (evt.hasError) warnColor else infoColor
@@ -207,7 +207,7 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
-                               |*Service ID* ${evt.serviceID.show}""".stripMargin)
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           )
         ))
     )
@@ -225,8 +225,8 @@ private[translators] object SlackTranslator extends all {
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
-                                |*Service ID* ${evt.serviceID.show}
-                                |*Next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
+                                |*Service ID:* ${evt.serviceID.show}
+                                |*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                 |*Policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
             KeyValueSection("Cause", s"```${evt.error.message}```")
           )
@@ -244,7 +244,7 @@ private[translators] object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
-                                |*Service ID* ${evt.serviceID.show}
+                                |*Service ID:* ${evt.serviceID.show}
                                 |*Error ID:* ${evt.error.uuid.show}
                                 |*Policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
@@ -263,7 +263,7 @@ private[translators] object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
-                               |*Service ID* ${evt.serviceID.show}""".stripMargin)
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )
       )

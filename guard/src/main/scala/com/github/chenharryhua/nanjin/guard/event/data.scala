@@ -31,7 +31,7 @@ final case class NJError private (
   uuid: UUID,
   message: String,
   stackTrace: String,
-  throwable: Option[Throwable]
+  throwable: Throwable
 )
 
 private[guard] object NJError {
@@ -50,10 +50,10 @@ private[guard] object NJError {
       id <- c.downField("uuid").as[UUID]
       msg <- c.downField("message").as[String]
       st <- c.downField("stackTrace").as[String]
-    } yield NJError(id, msg, st, None) // can not reconstruct throwables.
+    } yield NJError(id, msg, st, new Throwable("fake")) // can not reconstruct throwables.
 
   def apply(uuid: UUID, ex: Throwable): NJError =
-    NJError(uuid, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), Some(ex))
+    NJError(uuid, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
 }
 
 @JsonCodec

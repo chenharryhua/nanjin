@@ -1,21 +1,26 @@
 package mtest.guard
 
+import cats.Eq
+import cats.effect.IO
 import cats.laws.discipline.eq.*
+import cats.laws.discipline.{ExhaustiveCheck, FunctorFilterTests, MonadTests}
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
+import munit.DisciplineSuite
+import org.scalacheck.{Arbitrary, Gen}
+
+import java.time.ZonedDateTime
 
 // TODO
 
-/*
 object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
 
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
-    ExhaustiveCheck.instance(
-      List(
-        ServiceStart(
-          ServiceStatus.Up(service.serviceParams, UUID.randomUUID(), ZonedDateTime.now()),
-          ZonedDateTime.now())))
+    ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceStatus], ZonedDateTime.now())))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], NJEvent => Option[Option[Int]]](_.translate)
@@ -84,4 +89,3 @@ class TranslatorMonadTest extends DisciplineSuite {
   checkAll("Translator.FunctorFilter", FunctorFilterTests[Translator[Option, *]].functorFilter[Int, Int, Int])
 
 }
- */
