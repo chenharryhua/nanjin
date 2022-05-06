@@ -18,9 +18,10 @@ sealed trait NJEvent {
   def serviceParams: ServiceParams
   def metricName: Digested
 
-  final def zoneId: ZoneId = serviceParams.taskParams.zoneId
-  final def show: String   = NJEvent.showNJEvent.show(this)
-  final def asJson: Json   = NJEvent.encoderNJEvent.apply(this)
+  final def zoneId: ZoneId  = serviceParams.taskParams.zoneId
+  final def show: String    = NJEvent.showNJEvent.show(this)
+  final def asJson: Json    = NJEvent.encoderNJEvent.apply(this)
+  final def serviceID: UUID = serviceParams.serviceID
 }
 
 object NJEvent {
@@ -35,8 +36,7 @@ sealed trait ServiceEvent extends NJEvent {
   final override def serviceParams: ServiceParams = serviceStatus.serviceParams
   final override def metricName: Digested         = serviceParams.metricName
 
-  final def serviceID: UUID  = serviceStatus.serviceID
-  final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
+  final def upTime: Duration = serviceStatus.upTime(timestamp)
 
 }
 

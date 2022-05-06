@@ -61,7 +61,7 @@ sealed trait MetricResetType
 object MetricResetType extends localdatetime {
   implicit val showMetricResetType: Show[MetricResetType] = {
     case Adhoc           => s"Adhoc Metric Reset"
-    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.toLocalDateTime.truncatedTo(ChronoUnit.MINUTES).show})"
+    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show})"
   }
   case object Adhoc extends MetricResetType
   final case class Scheduled(next: ZonedDateTime) extends MetricResetType
@@ -110,8 +110,6 @@ object ActionInfo extends zoneddatetime {
 @JsonCodec
 sealed trait ServiceStatus {
   def serviceParams: ServiceParams
-  def serviceID: UUID
-  def launchTime: ZonedDateTime
   def isUp: Boolean
   def isDown: Boolean
   def isStopped: Boolean
@@ -119,7 +117,12 @@ sealed trait ServiceStatus {
   def goUp(now: ZonedDateTime): ServiceStatus
   def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): ServiceStatus
 
-  final def upTime(now: Instant): Duration = Duration.between(launchTime, now)
+  final def upTime(now: ZonedDateTime): Duration = Duration.between(serviceParams.launchTime, now)
+  final def upTime(now: Instant): Duration       = Duration.between(serviceParams.launchTime, now)
+
+  final def serviceID: UUID           = serviceParams.serviceID
+  final def launchTime: ZonedDateTime = serviceParams.launchTime
+
   final def fold[A](up: ServiceStatus.Up => A, down: ServiceStatus.Down => A): A =
     this match {
       case s: ServiceStatus.Up   => up(s)
@@ -138,17 +141,12 @@ object ServiceStatus extends zoneddatetime {
   implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
 
   @JsonCodec
-  final case class Up(
-    serviceParams: ServiceParams,
-    serviceID: UUID,
-    launchTime: ZonedDateTime,
-    lastRestartAt: ZonedDateTime,
-    lastCrashAt: ZonedDateTime)
+  final case class Up(serviceParams: ServiceParams, lastRestartAt: ZonedDateTime, lastCrashAt: ZonedDateTime)
       extends ServiceStatus {
 
     override def goUp(now: ZonedDateTime): Up = this.copy(lastRestartAt = now)
     override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
-      Down(serviceParams, serviceID, launchTime, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
+      Down(serviceParams, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
 
     override val isUp: Boolean      = true
     override val isDown: Boolean    = false
@@ -156,21 +154,19 @@ object ServiceStatus extends zoneddatetime {
   }
 
   object Up {
-    def apply(serviceParams: ServiceParams, uuid: UUID, launchTime: ZonedDateTime): ServiceStatus =
-      Up(serviceParams, uuid, launchTime, launchTime, launchTime)
+    def apply(serviceParams: ServiceParams): ServiceStatus =
+      Up(serviceParams, serviceParams.launchTime, serviceParams.launchTime)
   }
 
   @JsonCodec
   final case class Down(
     serviceParams: ServiceParams,
-    serviceID: UUID,
-    launchTime: ZonedDateTime,
     crashAt: ZonedDateTime,
     upcommingRestart: Option[ZonedDateTime],
     cause: String)
       extends ServiceStatus {
 
-    override def goUp(now: ZonedDateTime): Up = Up(serviceParams, serviceID, launchTime, now, crashAt)
+    override def goUp(now: ZonedDateTime): Up = Up(serviceParams, now, crashAt)
     override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
       this.copy(crashAt = now, upcommingRestart = upcomingDelay.map(fd => now.plus(fd.toJava)), cause = cause)
 

@@ -72,10 +72,10 @@ private[translators] object HtmlTranslator extends all {
       h3(style := "color:red")(s"Service Panic"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b("Restart so far: "), evt.retryDetails.retriesSoFar),
       p(b("Error ID: "), evt.error.uuid.show),
       p(b("Policy: "), evt.serviceParams.retry.policy[F].show),
-      p(b("Service ID: "), evt.serviceID.show),
       p(b("Up Time: "), fmt.format(evt.upTime)),
       causeText(evt.error)
     )
@@ -125,6 +125,7 @@ private[translators] object HtmlTranslator extends all {
       h3("Service Alert"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b("Name: "), evt.metricName.metricRepr, "    ", b("Importance: "), evt.importance.show),
       pre(evt.message)
     )
@@ -134,6 +135,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.startTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show)
     )
 
@@ -142,6 +144,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show)
     )
@@ -151,6 +154,7 @@ private[translators] object HtmlTranslator extends all {
       h3(style := "color:red")(evt.actionParams.failedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
       p(b("Error ID: "), evt.error.uuid.show),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
@@ -165,6 +169,7 @@ private[translators] object HtmlTranslator extends all {
       h3(evt.actionParams.succedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
+      p(b("Service ID: "), evt.serviceID.show),
       p(b(s"${evt.actionParams.catalog} ID: "), evt.actionInfo.actionID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),

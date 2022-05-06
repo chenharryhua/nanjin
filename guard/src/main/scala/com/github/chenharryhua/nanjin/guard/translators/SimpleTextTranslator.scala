@@ -58,6 +58,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Pass Through
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Message: ${evt.value.noSpaces}
        |""".stripMargin
@@ -66,6 +67,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |Service Alert
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Alert: ${evt.message}
        |""".stripMargin
@@ -74,6 +76,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.actionInfo.actionParams.startTitle}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |""".stripMargin
 
@@ -81,6 +84,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.actionInfo.actionParams.retryTitle}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Took so far: ${fmt.format(evt.took)}
        |Cause: ${evt.error.message}
@@ -90,6 +94,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.actionInfo.actionParams.failedTitle}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Took: ${fmt.format(evt.took)}
        |Notes: ${evt.notes.value}
@@ -100,6 +105,7 @@ private[translators] object SimpleTextTranslator {
     s"""
        |${evt.actionInfo.actionParams.succedTitle}
        |Service: ${evt.metricName.metricRepr}
+       |Service ID: ${evt.serviceID}
        |Host: ${evt.serviceParams.taskParams.hostName.value}
        |Took: ${fmt.format(evt.took)}
        |Notes: ${evt.notes.value}

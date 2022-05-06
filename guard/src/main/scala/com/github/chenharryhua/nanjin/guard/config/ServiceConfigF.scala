@@ -16,6 +16,7 @@ import io.circe.refined.*
 import monocle.macros.Lenses
 
 import java.time.*
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -42,7 +43,9 @@ private[guard] object MetricParams {
   retry: NJRetryPolicy,
   queueCapacity: QueueCapacity,
   metric: MetricParams,
-  brief: String
+  brief: String,
+  serviceID: UUID,
+  launchTime: ZonedDateTime
 ) {
   val metricName: Digested                        = Digested(serviceName, taskParams)
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
@@ -55,7 +58,7 @@ private[guard] object ServiceParams {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
-  def apply(serviceName: ServiceName, taskParams: TaskParams): ServiceParams =
+  def apply(serviceName: ServiceName, taskParams: TaskParams, serviceID: UUID, launchTime: Instant): ServiceParams =
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,
@@ -68,7 +71,9 @@ private[guard] object ServiceParams {
         durationTimeUnit = TimeUnit.MILLISECONDS,
         snapshotType = MetricSnapshotType.Regular
       ),
-      brief = "no brief"
+      brief = "no brief",
+      serviceID = serviceID,
+      launchTime = launchTime.atZone(taskParams.zoneId)
     )
 }
 
@@ -92,9 +97,9 @@ private object ServiceConfigF {
 
   final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
-  val algebra: Algebra[ServiceConfigF, ServiceParams] =
+  def algebra(serviceID: UUID, launchTime: Instant): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(s, t)        => ServiceParams(s, t)
+      case InitParams(s, t)        => ServiceParams(s, t, serviceID, launchTime)
       case WithRetryPolicy(v, c)   => ServiceParams.retry.set(v)(c)
       case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
       case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
@@ -149,7 +154,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
 
-  def evalConfig: ServiceParams = scheme.cata(algebra).apply(value)
+  def evalConfig(serviceID: UUID, launchTime: Instant): ServiceParams =
+    scheme.cata(algebra(serviceID, launchTime)).apply(value)
 }
 
 private[guard] object ServiceConfig {

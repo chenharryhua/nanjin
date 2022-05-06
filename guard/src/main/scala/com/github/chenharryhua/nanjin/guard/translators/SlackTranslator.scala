@@ -97,7 +97,8 @@ private[translators] object SlackTranslator extends all {
           color = color,
           blocks = List(
             MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"),
-            hostServiceSection(evt.serviceParams)
+            hostServiceSection(evt.serviceParams),
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}")
           ).appendedAll(msg)
         )
       )
@@ -188,6 +189,7 @@ private[translators] object SlackTranslator extends all {
                   TextField("Up Time", fmt.format(evt.upTime)),
                   TextField("Scheduled Next", next.show)
                 ),
+                MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
                 metricsSection(evt.snapshot)
               )
             )
@@ -204,7 +206,8 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}")
+            MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                               |*Service ID* ${evt.serviceID.show}""".stripMargin)
           )
         ))
     )
@@ -222,6 +225,7 @@ private[translators] object SlackTranslator extends all {
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                                |*Service ID* ${evt.serviceID.show}
                                 |*Next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                 |*Policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
             KeyValueSection("Cause", s"```${evt.error.message}```")
@@ -240,6 +244,7 @@ private[translators] object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                                |*Service ID* ${evt.serviceID.show}
                                 |*Error ID:* ${evt.error.uuid.show}
                                 |*Policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
@@ -257,7 +262,8 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}")
+            MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                               |*Service ID* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )
       )

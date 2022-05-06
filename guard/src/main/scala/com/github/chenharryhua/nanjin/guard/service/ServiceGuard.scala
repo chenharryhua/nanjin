@@ -8,7 +8,7 @@ import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig, ServiceName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig, ServiceName}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
@@ -36,8 +36,6 @@ final class ServiceGuard[F[_]] private[guard] (
   jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
-  val serviceParams: ServiceParams = serviceConfig.evalConfig
-
   override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
 
@@ -51,13 +49,14 @@ final class ServiceGuard[F[_]] private[guard] (
 
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
-    ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
-    ssRef <- F.ref(ServiceStatus.Up(serviceParams, uuid, ts))
+    ts <- F.realTimeInstant
+    ssRef <- F.ref(ServiceStatus.Up(serviceConfig.evalConfig(uuid, ts)))
   } yield ssRef
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceStatus <- Stream.eval(initStatus)
+      serviceParams <- Stream.eval(serviceStatus.get.map(_.serviceParams))
       lastCounters <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
       ongoings <- Stream.eval(F.ref(Set.empty[ActionInfo])) // currently running actions
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap { channel =>
