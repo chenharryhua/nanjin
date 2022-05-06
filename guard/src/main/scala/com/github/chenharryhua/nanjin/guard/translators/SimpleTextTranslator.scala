@@ -6,107 +6,85 @@ import com.github.chenharryhua.nanjin.guard.event.*
 
 private[translators] object SimpleTextTranslator {
 
+  private def serviceEvent(se: ServiceEvent): String = {
+    val host: String = se.serviceParams.taskParams.hostName.value
+    s"Service: ${se.metricName.metricRepr} Host: $host ID: ${se.serviceID} Up-Time: ${fmt.format(se.upTime)}"
+  }
+
+  private def instantEvent(ie: InstantEvent): String = {
+    val host: String = ie.serviceParams.taskParams.hostName.value
+    s"Service: ${ie.metricName.metricRepr} Host: $host ID: ${ie.serviceID} Name: ${ie.metricName.metricRepr}"
+  }
+
+  private def actionEvent(ae: ActionEvent): String = {
+    val host: String = ae.serviceParams.taskParams.hostName.value
+    s"Service: ${ae.metricName.metricRepr} Host: $host ID: ${ae.serviceID}"
+  }
+
   private def serviceStarted(evt: ServiceStart): String =
-    s"""
-       |Service (Re)Started
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
-       |Up Time: ${fmt.format(evt.upTime)}
+    s"""Service (Re)Started
+       |${serviceEvent(evt)}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String =
-    s"""
-       |Service Panic
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
+    s"""Service Panic
+       |${serviceEvent(evt)}
        |Cause: ${evt.error.message}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
-    s"""
-       |Service Stopped
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
-       |Up Time: ${fmt.format(evt.upTime)}
+    s"""Service Stopped
+       |${serviceEvent(evt)}
        |Cause: ${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""
-       |${evt.reportType.show}
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
-       |Up Time: ${fmt.format(evt.upTime)}
+    s"""${evt.reportType.show}
+       |${serviceEvent(evt)}
+       |On Goings: ${evt.ongoings.map(_.actionParams.metricName.origin).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""
-       |${evt.resetType.show}
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
-       |Up Time: ${fmt.format(evt.upTime)}
+    s"""${evt.resetType.show}
+       |${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =
-    s"""
-       |Pass Through
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
+    s"""Pass Through
+       |${instantEvent(evt)}
        |Message: ${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
-    s"""
-       |Service Alert
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
+    s"""Service Alert
+       |${instantEvent(evt)}
        |Alert: ${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
-    s"""
-       |${evt.actionInfo.actionParams.startTitle}
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
+    s"""${evt.actionInfo.actionParams.startTitle}
+       |${actionEvent(evt)}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
-    s"""
-       |${evt.actionInfo.actionParams.retryTitle}
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
-       |Took so far: ${fmt.format(evt.took)}
+    s"""${evt.actionInfo.actionParams.retryTitle}
+       |${actionEvent(evt)}
+       |So far: ${fmt.format(evt.took)}
        |Cause: ${evt.error.message}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
-    s"""
-       |${evt.actionInfo.actionParams.failedTitle}
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
+    s"""${evt.actionInfo.actionParams.failedTitle}
+       |${actionEvent(evt)}
        |Took: ${fmt.format(evt.took)}
        |Notes: ${evt.notes.value}
-       |Cause: ${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
-    s"""
-       |${evt.actionInfo.actionParams.succedTitle}
-       |Service: ${evt.metricName.metricRepr}
-       |Service ID: ${evt.serviceID}
-       |Host: ${evt.serviceParams.taskParams.hostName.value}
+    s"""${evt.actionInfo.actionParams.succedTitle}
+       |${actionEvent(evt)}
        |Took: ${fmt.format(evt.took)}
        |Notes: ${evt.notes.value}
        |""".stripMargin

@@ -11,14 +11,10 @@ import fs2.Chunk
 import java.time.format.DateTimeFormatter
 
 object console {
-  def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] =
-    new TextConsole[F](translator)
+  def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] = new TextConsole[F](translator)
 
-  def apply[F[_]: Console: Monad]: TextConsole[F] = new TextConsole[F](Translator.text[F])
-}
-
-object simple {
-  def apply[F[_]: Console: Monad]: TextConsole[F] = new TextConsole[F](Translator.simpleText[F])
+  def verbose[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.text[F])
+  def simple[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleText[F])
 }
 
 final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])

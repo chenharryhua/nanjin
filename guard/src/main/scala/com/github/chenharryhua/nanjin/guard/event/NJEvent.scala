@@ -58,7 +58,7 @@ final case class ServiceStop(
 final case class MetricReport(
   reportType: MetricReportType,
   serviceStatus: ServiceStatus,
-  ongoings: List[OngoingAction],
+  ongoings: List[ActionInfo],
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {

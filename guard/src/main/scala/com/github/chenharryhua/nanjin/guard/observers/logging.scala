@@ -10,10 +10,10 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object logging {
-  def apply[F[_]: Sync](translator: Translator[F, String]): TextLogging[F] =
-    new TextLogging[F](translator)
+  def apply[F[_]: Sync](translator: Translator[F, String]): TextLogging[F] = new TextLogging[F](translator)
 
-  def apply[F[_]: Sync]: TextLogging[F] = new TextLogging[F](Translator.text[F])
+  def verbose[F[_]: Sync]: TextLogging[F] = apply[F](Translator.text[F])
+  def simple[F[_]: Sync]: TextLogging[F]  = apply(Translator.simpleText[F])
 }
 
 final class TextLogging[F[_]: Sync](translator: Translator[F, String])

@@ -89,18 +89,6 @@ object MetricReportType {
 }
 
 @JsonCodec
-final case class OngoingAction private (metricName: Digested, uniqueId: Int, launchTime: ZonedDateTime)
-object OngoingAction extends zoneddatetime {
-  implicit val showPendingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
-  def apply(ai: ActionInfo): OngoingAction =
-    OngoingAction(
-      ai.actionParams.metricName,
-      ai.actionID,
-      ai.launchTime
-    )
-}
-
-@JsonCodec
 final case class ActionInfo(actionParams: ActionParams, actionID: Int, launchTime: ZonedDateTime)
 
 object ActionInfo extends zoneddatetime {

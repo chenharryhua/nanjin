@@ -32,7 +32,7 @@ private[translators] object HtmlTranslator extends all {
   private def notesText(n: Notes): Text.TypedTag[String]   = pre(n.value)
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
-  private def pendingActions(oas: List[OngoingAction], now: ZonedDateTime): Text.TypedTag[String] = {
+  private def pendingActions(oas: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
       b("Ongoing actions:"),
@@ -45,11 +45,11 @@ private[translators] object HtmlTranslator extends all {
           th(style := tds)("id")),
         oas.map(a =>
           tr(
-            td(style := tds)(a.metricName.origin),
-            td(style := tds)(a.metricName.digest),
+            td(style := tds)(a.actionParams.metricName.origin),
+            td(style := tds)(a.actionParams.metricName.digest),
             td(style := tds)(fmt.format(a.launchTime, now)),
             td(style := tds)(localTimestampStr(a.launchTime)),
-            td(style := tds)(a.uniqueId.show)
+            td(style := tds)(a.actionID.show)
           ))
       )
     )
