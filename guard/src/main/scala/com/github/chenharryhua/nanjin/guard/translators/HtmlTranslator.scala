@@ -21,8 +21,8 @@ private[translators] object HtmlTranslator extends all {
     p(b("Number of retries: "), numRetry.toString)
 
   private def hostServiceText(si: ServiceParams): Text.TypedTag[String] = {
-    val sn = si.taskParams.homePage.fold(p(b("Service: "), si.metricName.metricRepr))(hp =>
-      p(b("Sevice: "), a(href := hp.value)(si.metricName.origin)))
+    val sn = si.taskParams.homePage.fold(p(b("Service: "), si.serviceName.value))(hp =>
+      p(b("Sevice: "), a(href := hp.value)(si.serviceName.value)))
     div(
       sn,
       p(b("Host: "), si.taskParams.hostName.value)

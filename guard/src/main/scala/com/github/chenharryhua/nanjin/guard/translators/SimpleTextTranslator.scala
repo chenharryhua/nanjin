@@ -8,17 +8,17 @@ private[translators] object SimpleTextTranslator {
 
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
-    s"Service: ${se.metricName.metricRepr} Host: $host ID: ${se.serviceID} Up-Time: ${fmt.format(se.upTime)}"
+    s"Service: ${se.serviceParams.serviceName.value} Host: $host ID: ${se.serviceID} Up-Time: ${fmt.format(se.upTime)}"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
     val host: String = ie.serviceParams.taskParams.hostName.value
-    s"Service: ${ie.metricName.metricRepr} Host: $host ID: ${ie.serviceID} Name: ${ie.metricName.metricRepr}"
+    s"Service: ${ie.serviceParams.serviceName.value} Host: $host ID: ${ie.serviceID} Name: ${ie.metricName.metricRepr}"
   }
 
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
-    s"Service: ${ae.metricName.metricRepr} Host: $host ID: ${ae.serviceID}"
+    s"Service: ${ae.serviceParams.serviceName.value} Host: $host ID: ${ae.serviceID}"
   }
 
   private def serviceStarted(evt: ServiceStart): String =
@@ -41,7 +41,7 @@ private[translators] object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${evt.reportType.show}
        |${serviceEvent(evt)}
-       |On Goings: ${evt.ongoings.map(_.actionParams.metricName.origin).mkString(",")}
+       |On Goings: ${evt.ongoings.map(_.actionParams.metricName.metricRepr).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
 

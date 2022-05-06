@@ -16,7 +16,6 @@ import java.util.UUID
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
-  def metricName: Digested
 
   final def zoneId: ZoneId  = serviceParams.taskParams.zoneId
   final def show: String    = NJEvent.showNJEvent.show(this)
@@ -34,10 +33,8 @@ sealed trait ServiceEvent extends NJEvent {
   def serviceStatus: ServiceStatus
 
   final override def serviceParams: ServiceParams = serviceStatus.serviceParams
-  final override def metricName: Digested         = serviceParams.metricName
 
   final def upTime: Duration = serviceStatus.upTime(timestamp)
-
 }
 
 final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime) extends ServiceEvent
@@ -78,8 +75,8 @@ sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
 
   final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
-  final override def metricName: Digested         = actionInfo.actionParams.metricName
 
+  final def metricName: Digested       = actionInfo.actionParams.metricName
   final def actionParams: ActionParams = actionInfo.actionParams
   final def launchTime: ZonedDateTime  = actionInfo.launchTime
 
