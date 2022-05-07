@@ -9,7 +9,8 @@ private[translators] object SimpleTextTranslator {
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
-    s"  Service: $sn, Host: $host, ID: ${se.serviceID.show}, Up-Time: ${fmt.format(se.upTime)}"
+    val up: String   = if (se.serviceStatus.isUp) s"Uptime: ${fmt.format(se.upTime)}" else "Service is down"
+    s"  Service: $sn, Host: $host, ID: ${se.serviceID.show}, $up"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -47,14 +48,12 @@ private[translators] object SimpleTextTranslator {
     s"""${evt.reportType.show}
        |${serviceEvent(evt)}
        |  On Goings: ${evt.ongoings.map(_.actionID).mkString(",")}
-       |  Metrics:
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${evt.resetType.show}
        |${serviceEvent(evt)}
-       |  Metrics:
        |${evt.snapshot.show}
        |
        |""".stripMargin

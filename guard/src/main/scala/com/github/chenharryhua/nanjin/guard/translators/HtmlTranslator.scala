@@ -141,7 +141,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
-      h3(evt.actionParams.retryTitle),
+      h3(style := "color:#EEE8AA")(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
