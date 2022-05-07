@@ -27,10 +27,10 @@ final class Agent[F[_]] private[service] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
-  val agentParams: AgentParams     = agentConfig.evalConfig
-  val serviceParams: ServiceParams = agentParams.serviceParams
-  val zoneId: ZoneId               = agentParams.serviceParams.taskParams.zoneId
-  val digestedName: Digested       = Digested(agentParams.spans, agentParams.serviceParams)
+  lazy val agentParams: AgentParams = agentConfig.evalConfig
+  def serviceParams: ServiceParams  = agentParams.serviceParams
+  def zoneId: ZoneId                = agentParams.serviceParams.taskParams.zoneId
+  def digestedName: Digested        = Digested(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, ongoings, dispatcher, lastCounters, f(agentConfig))

@@ -127,5 +127,5 @@ final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
       isWorthRetry = isWorthRetry
     ).run(())
 
-  val unsafeRun: Either[Throwable, B] = dispatcher.unsafeRunSync(run.attempt)
+  def unsafeRun: Either[Throwable, B] = dispatcher.unsafeRunSync(run.attempt)
 }
