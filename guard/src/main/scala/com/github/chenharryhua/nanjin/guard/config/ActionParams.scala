@@ -67,12 +67,11 @@ final case class ActionParams private (
   isTiming: TimeAction,
   isExpensive: ExpensiveAction,
   retry: ActionRetryParams,
-  catalog: Catalog,
   serviceParams: ServiceParams) {
-  def startTitle: String  = s"$catalog ${metricName.metricRepr} started"
-  def retryTitle: String  = s"$catalog ${metricName.metricRepr} retrying"
-  def failedTitle: String = s"$catalog ${metricName.metricRepr} failed"
-  def succedTitle: String = s"$catalog ${metricName.metricRepr} succed"
+  def startTitle: String  = s"action ${metricName.metricRepr} started"
+  def retryTitle: String  = s"action ${metricName.metricRepr} retrying"
+  def failedTitle: String = s"action ${metricName.metricRepr} failed"
+  def succedTitle: String = s"action ${metricName.metricRepr} succed"
 
   val isCritical: Boolean   = importance > Importance.High // Critical
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
@@ -90,7 +89,6 @@ object ActionParams {
       isTiming = agentParams.isTiming,
       isExpensive = agentParams.isExpensive,
       retry = agentParams.retry,
-      catalog = agentParams.catalog,
       serviceParams = agentParams.serviceParams
     )
 }

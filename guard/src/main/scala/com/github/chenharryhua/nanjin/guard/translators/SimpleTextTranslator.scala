@@ -10,18 +10,19 @@ private[translators] object SimpleTextTranslator {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
     val up: String   = if (se.serviceStatus.isUp) s"Uptime:${fmt.format(se.upTime)}" else "Service is down"
-    s"  Host:$host, ServiceID:${se.serviceID.show}, Service:$sn, $up"
+    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, $up"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
     val host: String = ie.serviceParams.taskParams.hostName.value
     s"""|  Host:$host, ServiceID:${ie.serviceID.show}
-        |  Name:${ie.metricName.metricRepr}""".stripMargin
+        |  AlertName:${ie.metricName.metricRepr}""".stripMargin
   }
 
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
-    s"  Host:$host, ServiceID:${ae.serviceID.show}"
+    s"""  Host:$host, ServiceID:${ae.serviceID.show}
+       |  ActionName:${ae.metricName.metricRepr}, ActionID:${ae.actionID}""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =
@@ -65,34 +66,33 @@ private[translators] object SimpleTextTranslator {
   private def instantAlert(evt: InstantAlert): String =
     s"""Service Alert
        |${instantEvent(evt)}
-       |  Alert:${evt.message}
+       |  Message:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
-    s"""${evt.actionInfo.actionParams.startTitle}
+    s"""Action Start
        |${actionEvent(evt)}
-       |  ${evt.actionParams.catalog}ID:${evt.actionID.show}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
-    s"""${evt.actionInfo.actionParams.retryTitle}
+    s"""Action Retrying
        |${actionEvent(evt)}
-       |  ${evt.actionParams.catalog}ID:${evt.actionID.show}, Took:${fmt.format(evt.took)}
+       |  Took:${fmt.format(evt.took)}
        |  ${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
-    s"""${evt.actionInfo.actionParams.failedTitle}
+    s"""Action Failed
        |${actionEvent(evt)}
-       |  ${evt.actionParams.catalog}ID:${evt.actionID.show}, Took:${fmt.format(evt.took)}
+       |  Took:${fmt.format(evt.took)}
        |  ${evt.error.stackTrace}
        |  ${evt.notes.value}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
-    s"""${evt.actionInfo.actionParams.succedTitle}
+    s"""Action Succed
        |${actionEvent(evt)}
-       |  ${evt.actionParams.catalog}ID:${evt.actionID.show}, Took:${fmt.format(evt.took)}
+       |  Took:${fmt.format(evt.took)}
        |  ${evt.notes.value}
        |""".stripMargin
 

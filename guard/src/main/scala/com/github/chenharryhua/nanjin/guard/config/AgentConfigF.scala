@@ -21,7 +21,6 @@ import scala.concurrent.duration.*
   isTiming: TimeAction, // if timing the action?
   isExpensive: ExpensiveAction, // if the action take long time to accomplish, like a few minutes or hours?
   retry: ActionRetryParams,
-  catalog: Catalog,
   serviceParams: ServiceParams)
 
 private[guard] object AgentParams {
@@ -38,7 +37,6 @@ private[guard] object AgentParams {
       capDelay = None,
       njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds)
     ),
-    catalog = refineMV("action"),
     serviceParams = serviceParams
   )
 }
@@ -61,8 +59,6 @@ private object AgentConfigF {
   final case class WithCounting[K](value: CountAction, cont: K) extends AgentConfigF[K]
   final case class WithExpensive[K](value: ExpensiveAction, cont: K) extends AgentConfigF[K]
 
-  final case class WithCatalog[K](value: Catalog, cont: K) extends AgentConfigF[K]
-
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
       case InitParams(sp)        => AgentParams(sp)
@@ -73,7 +69,6 @@ private object AgentConfigF {
       case WithSpan(v, c)        => AgentParams.spans.modify(_.append(v))(c)
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
-      case WithCatalog(v, c)     => AgentParams.catalog.set(v)(c)
       case WithExpensive(v, c)   => AgentParams.isExpensive.set(v)(c)
     }
 }
@@ -109,8 +104,6 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
     AgentConfig(Fix(WithExpensive(value = if (isCostly) ExpensiveAction.Yes else ExpensiveAction.No, value)))
 
   def withSpan(name: Span): AgentConfig = AgentConfig(Fix(WithSpan(name, value)))
-
-  def withCatalog(alias: Catalog): AgentConfig = AgentConfig(Fix(WithCatalog(alias, value)))
 
   def evalConfig: AgentParams = scheme.cata(algebra).apply(value)
 }
