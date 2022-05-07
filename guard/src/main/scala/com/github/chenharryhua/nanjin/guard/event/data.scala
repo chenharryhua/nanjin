@@ -2,14 +2,11 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import cats.derived.auto.show.*
-import cats.kernel.Eq
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
-import io.circe.syntax.*
-import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
@@ -27,33 +24,13 @@ private[guard] object Notes {
   val empty: Notes              = Notes("")
 }
 
-final case class NJError private (
-  uuid: UUID,
-  message: String,
-  stackTrace: String,
-  throwable: Throwable
-)
+@JsonCodec
+final case class NJError private (uuid: UUID, message: String, stackTrace: String)
 
 private[guard] object NJError {
-  implicit val showNJError: Show[NJError] = ex => s"NJError(id=${ex.uuid.show}, message=${ex.message})"
-  implicit val eqNJError: Eq[NJError]     = (x: NJError, y: NJError) => x.uuid === y.uuid
-
-  implicit val encodeNJError: Encoder[NJError] = (a: NJError) =>
-    Json.obj(
-      ("uuid", a.uuid.asJson),
-      ("message", a.message.asJson),
-      ("stackTrace", a.stackTrace.asJson)
-    )
-
-  implicit val decodeNJError: Decoder[NJError] = (c: HCursor) =>
-    for {
-      id <- c.downField("uuid").as[UUID]
-      msg <- c.downField("message").as[String]
-      st <- c.downField("stackTrace").as[String]
-    } yield NJError(id, msg, st, new Throwable("fake")) // can not reconstruct throwables.
-
+  implicit val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
   def apply(uuid: UUID, ex: Throwable): NJError =
-    NJError(uuid, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex), ex)
+    NJError(uuid, Option(ex.getMessage).getOrElse(""), ExceptionUtils.getStackTrace(ex))
 }
 
 @JsonCodec

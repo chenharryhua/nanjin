@@ -236,13 +236,13 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(b.asInstanceOf[ActionFail].error.message == "ex")
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[ActionFail].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(e.asInstanceOf[ActionFail].error.message == "ex")
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
-    assert(h.asInstanceOf[ActionFail].error.throwable.asInstanceOf[Exception].getMessage == "ex")
+    assert(h.asInstanceOf[ActionFail].error.message == "ex")
     assert(i.isInstanceOf[ServicePanic])
   }
 
@@ -256,7 +256,7 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].error.throwable.getMessage == "action was canceled")
+    assert(b.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(c.isInstanceOf[ServiceStop])
   }
 

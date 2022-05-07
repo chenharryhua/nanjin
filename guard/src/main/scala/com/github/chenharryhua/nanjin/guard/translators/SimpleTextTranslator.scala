@@ -33,7 +33,8 @@ private[translators] object SimpleTextTranslator {
   private def servicePanic(evt: ServicePanic): String =
     s"""Service Panic
        |${serviceEvent(evt)}
-       |  Restarts: ${evt.retryDetails.retriesSoFar}
+       |  Restarts: ${evt.retryDetails.retriesSoFar}, Error ID: ${evt.error.uuid.show}
+       |  ${evt.error.stackTrace}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
@@ -80,18 +81,22 @@ private[translators] object SimpleTextTranslator {
     s"""${evt.actionInfo.actionParams.retryTitle}
        |${actionEvent(evt)}
        |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}
+       |  ${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""${evt.actionInfo.actionParams.failedTitle}
        |${actionEvent(evt)}
-       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}, ${evt.notes.value}
+       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}
+       |  ${evt.error.stackTrace}
+       |  ${evt.notes.value}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
     s"""${evt.actionInfo.actionParams.succedTitle}
        |${actionEvent(evt)}
-       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}, ${evt.notes.value}
+       |  ${evt.actionParams.catalog} ID: ${evt.actionID.show}, Took: ${fmt.format(evt.took)}
+       |  ${evt.notes.value}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
