@@ -47,6 +47,7 @@ final class Agent[F[_]] private[service] (
 
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
+      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       ongoings = ongoings,
@@ -58,6 +59,7 @@ final class Agent[F[_]] private[service] (
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
+      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       ongoings = ongoings,
