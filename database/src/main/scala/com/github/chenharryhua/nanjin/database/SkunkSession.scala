@@ -9,7 +9,7 @@ import skunk.{SSL, Session}
 import skunk.util.Typer
 
 // https://github.com/tpolecat/skunk
-final case class SkunkSession private (
+final case class SkunkSession[F[_]] private (
   postgres: Postgres,
   max: Int,
   debug: Boolean,
@@ -17,18 +17,22 @@ final case class SkunkSession private (
   ssl: SSL,
   parameters: Map[String, String],
   commandCache: Int,
-  queryCache: Int) {
-  def withMaxSessions(size: Int): SkunkSession       = copy(max = size)
-  def withStrategy(ts: Typer.Strategy): SkunkSession = copy(strategy = ts)
-  def withSSL(ssl: SSL): SkunkSession                = copy(ssl = ssl)
-  def withCommandCache(size: Int): SkunkSession      = copy(commandCache = size)
-  def withQueryCache(size: Int): SkunkSession        = copy(queryCache = size)
-  def withDebug: SkunkSession                        = copy(debug = true)
+  queryCache: Int,
+  trace: Option[Trace[F]]) {
+  def withMaxSessions(size: Int): SkunkSession[F]       = copy(max = size)
+  def withStrategy(ts: Typer.Strategy): SkunkSession[F] = copy(strategy = ts)
+  def withSSL(ssl: SSL): SkunkSession[F]                = copy(ssl = ssl)
+  def withCommandCache(size: Int): SkunkSession[F]      = copy(commandCache = size)
+  def withQueryCache(size: Int): SkunkSession[F]        = copy(queryCache = size)
+  def withDebug: SkunkSession[F]                        = copy(debug = true)
 
-  def withParameters(ps: Map[String, String]): SkunkSession = copy(parameters = ps)
-  def addParameter(k: String, v: String): SkunkSession      = copy(parameters = parameters + (k -> v))
+  def withParameters(ps: Map[String, String]): SkunkSession[F] = copy(parameters = ps)
+  def addParameter(k: String, v: String): SkunkSession[F]      = copy(parameters = parameters + (k -> v))
 
-  def pooled[F[_]: Concurrent: Trace: Network: Console]: Resource[F, Resource[F, Session[F]]] =
+  def withTrace(trace: Trace[F]): SkunkSession[F] = copy(trace = Some(trace))
+
+  def pooled(implicit C: Concurrent[F], N: Network[F], S: Console[F]): Resource[F, Resource[F, Session[F]]] = {
+    implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session.pooled(
       host = postgres.host.value,
       port = postgres.port.value,
@@ -43,8 +47,10 @@ final case class SkunkSession private (
       commandCache = commandCache,
       queryCache = queryCache
     )
+  }
 
-  def single[F[_]: Concurrent: Trace: Network: Console]: Resource[F, Session[F]] =
+  def single(implicit C: Concurrent[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
+    implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session.single(
       host = postgres.host.value,
       port = postgres.port.value,
@@ -58,10 +64,11 @@ final case class SkunkSession private (
       commandCache = commandCache,
       queryCache = queryCache
     )
+  }
 }
 
 object SkunkSession {
-  def apply(postgres: Postgres): SkunkSession = SkunkSession(
+  def apply[F[_]](postgres: Postgres): SkunkSession[F] = SkunkSession[F](
     postgres = postgres,
     max = 1,
     debug = false,
@@ -69,6 +76,7 @@ object SkunkSession {
     ssl = SSL.None,
     parameters = Session.DefaultConnectionParameters,
     commandCache = 1024,
-    queryCache = 1024
+    queryCache = 1024,
+    None
   )
 }
