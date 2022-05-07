@@ -27,7 +27,7 @@ object slack {
 final class NJSlackPipe[F[_]](
   snsResource: Resource[F, SimpleNotificationService[F]],
   supporters: Option[String],
-  interval: Option[FiniteDuration],
+  metricsInterval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
     extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, NJSlackPipe[F]] {
 
@@ -45,11 +45,11 @@ final class NJSlackPipe[F[_]](
   def at(supporters: String): NJSlackPipe[F] = {
     val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
     val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    new NJSlackPipe[F](snsResource, Some(supporters), interval, sp.andThen(st)(translator))
+    new NJSlackPipe[F](snsResource, Some(supporters), metricsInterval, sp.andThen(st)(translator))
   }
 
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlackPipe[F] =
-    new NJSlackPipe[F](snsResource, supporters, interval, f(translator))
+    new NJSlackPipe[F](snsResource, supporters, metricsInterval, f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
@@ -60,7 +60,11 @@ final class NJSlackPipe[F[_]](
         .evalTap(e =>
           translator.filter {
             case MetricReport(rt, ss, _, ts, _) =>
-              isShowMetrics(ss.serviceParams.metric.reportSchedule, ts, interval, ss.serviceParams.launchTime) || rt.isShow
+              isShowMetrics(
+                ss.serviceParams.metric.reportSchedule,
+                ts,
+                metricsInterval,
+                ss.serviceParams.launchTime) || rt.isShow
             case ActionStart(ai)            => ai.actionParams.isCritical
             case ActionSucc(ai, _, _, _)    => ai.actionParams.isCritical
             case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice

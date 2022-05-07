@@ -122,7 +122,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
-      h3("Service Alert"),
+      h3(style := "color:#FF8C00")("Service Alert"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -141,7 +141,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
-      h3(style := "color:#EEE8AA")(evt.actionParams.retryTitle),
+      h3(style := "color:#808000")(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
