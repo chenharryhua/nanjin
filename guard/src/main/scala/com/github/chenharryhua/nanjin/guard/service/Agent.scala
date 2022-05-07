@@ -27,10 +27,10 @@ final class Agent[F[_]] private[service] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
-  val agentParams: AgentParams     = agentConfig.evalConfig
-  val serviceParams: ServiceParams = agentParams.serviceParams
-  val zoneId: ZoneId               = agentParams.serviceParams.taskParams.zoneId
-  val digestedName: Digested       = Digested(agentParams.spans, agentParams.serviceParams)
+  lazy val agentParams: AgentParams = agentConfig.evalConfig
+  def serviceParams: ServiceParams  = agentParams.serviceParams
+  def zoneId: ZoneId                = agentParams.serviceParams.taskParams.zoneId
+  def digestedName: Digested        = Digested(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, ongoings, dispatcher, lastCounters, f(agentConfig))
@@ -47,6 +47,7 @@ final class Agent[F[_]] private[service] (
 
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
+      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       ongoings = ongoings,
@@ -58,6 +59,7 @@ final class Agent[F[_]] private[service] (
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
+      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       ongoings = ongoings,

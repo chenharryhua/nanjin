@@ -206,7 +206,7 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+            MarkdownSection(s"""*Action ID:* ${evt.actionInfo.actionID.show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           )
         ))
@@ -224,7 +224,7 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+            MarkdownSection(s"""|*Action ID:* ${evt.actionInfo.actionID.show}
                                 |*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                 |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                 |*Service ID:* ${evt.serviceID.show}""".stripMargin),
@@ -243,7 +243,7 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+            MarkdownSection(s"""|*Action ID:* ${evt.actionInfo.actionID.show}
                                 |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                 |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
@@ -261,7 +261,7 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+            MarkdownSection(s"""*Action ID:* ${evt.actionInfo.actionID.show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )

@@ -352,7 +352,7 @@ object Translator {
       Kleisli(x => OptionT(F.pure(Some(x))))
     )
 
-  def json[F[_]: Applicative]: Translator[F, Json] =
+  def verboseJson[F[_]: Applicative]: Translator[F, Json] =
     empty[F, Json]
       .withServiceStart(_.asJson)
       .withServicePanic(_.asJson)
@@ -366,7 +366,7 @@ object Translator {
       .withActionFail(_.asJson)
       .withActionSucc(_.asJson)
 
-  def text[F[_]: Applicative]: Translator[F, String] =
+  def verboseText[F[_]: Applicative]: Translator[F, String] =
     empty[F, String]
       .withServiceStart(_.show)
       .withServicePanic(_.show)

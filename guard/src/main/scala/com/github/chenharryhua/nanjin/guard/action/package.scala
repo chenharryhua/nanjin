@@ -31,8 +31,8 @@ package object action {
   private[action] def meterMRName(name: Digested): String     = s"24.meter.${name.metricRepr}"
   private[action] def histogramMRName(name: Digested): String = s"25.histogram.${name.metricRepr}"
 
-  private[action] def actionFailMRName(ap: ActionParams): String  = s"04.${ap.catalog}.${ap.metricName.metricRepr}.fail"
-  private[action] def actionSuccMRName(ap: ActionParams): String  = s"28.${ap.catalog}.${ap.metricName.metricRepr}.succ"
-  private[action] def actionTimerMRName(ap: ActionParams): String = s"${ap.catalog}.${ap.metricName.metricRepr}"
+  private[action] def actionFailMRName(ap: ActionParams): String  = s"04.action.${ap.metricName.metricRepr}.fail"
+  private[action] def actionSuccMRName(ap: ActionParams): String  = s"28.action.${ap.metricName.metricRepr}.succ"
+  private[action] def actionTimerMRName(ap: ActionParams): String = s"action.${ap.metricName.metricRepr}"
 
 }

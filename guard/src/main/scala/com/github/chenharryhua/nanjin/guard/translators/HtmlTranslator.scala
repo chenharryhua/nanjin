@@ -122,7 +122,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
-      h3("Service Alert"),
+      h3(style := "color:#FF8C00")("Service Alert"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -136,16 +136,16 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show)
+      p(b("Action ID: "), evt.actionID.show)
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
-      h3(style := "color:#EEE8AA")(evt.actionParams.retryTitle),
+      h3(style := "color:#808000")(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show),
+      p(b("Action ID: "), evt.actionID.show),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show),
       causeText(evt.error)
     )
@@ -156,7 +156,7 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show),
+      p(b("Action ID: "), evt.actionID.show),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
@@ -170,7 +170,7 @@ private[translators] object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b(s"${evt.actionParams.catalog} ID: "), evt.actionID.show),
+      p(b("Action ID: "), evt.actionID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       notesText(evt.notes)

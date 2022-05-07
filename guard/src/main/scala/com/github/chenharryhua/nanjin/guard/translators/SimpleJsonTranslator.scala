@@ -5,6 +5,7 @@ import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import io.circe.Json
 import io.circe.literal.JsonStringContext
+import io.circe.syntax.*
 
 private[translators] object SimpleJsonTranslator {
 
@@ -12,10 +13,7 @@ private[translators] object SimpleJsonTranslator {
     json"""
           { 
             "event": "ServiceStart",
-            "task" : ${evt.serviceParams.taskParams.taskName.value},
-            "name" : ${evt.serviceParams.serviceName.value},
-            "serviceID" : ${evt.serviceStatus.serviceID},
-            "launchTime" : ${evt.serviceParams.launchTime}
+            "params": ${evt.serviceParams.asJson}
           }
           """
 
@@ -28,6 +26,7 @@ private[translators] object SimpleJsonTranslator {
             "cause" : ${evt.error.stackTrace}
           }
           """
+
   private def serviceStopped(evt: ServiceStop): Json =
     json"""
           {
@@ -63,7 +62,7 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {
             "event": "PassThrough",
-            "serviceName" : ${evt.serviceParams.serviceName.value},
+            "name" : ${evt.metricName.metricRepr},
             "serviceID": ${evt.serviceParams.serviceID},
             "value": ${evt.value}
           }
@@ -73,7 +72,7 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {       
             "event": "InstantAlert",
-            "serviceName" : ${evt.serviceParams.serviceName.value},
+            "name" : ${evt.metricName.metricRepr},
             "serviceID": ${evt.serviceParams.serviceID},
             "message": ${evt.message}    
           }
@@ -85,7 +84,6 @@ private[translators] object SimpleJsonTranslator {
             "event": "ActionStart",
             "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
             "actionID" : ${evt.actionID},
-            "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID}
           }
           """
@@ -96,7 +94,6 @@ private[translators] object SimpleJsonTranslator {
             "event": "ActionRetry",
             "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
             "actionID" : ${evt.actionID},            
-            "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
             "cause" : ${evt.error.message}
           }
@@ -108,7 +105,6 @@ private[translators] object SimpleJsonTranslator {
             "event": "ActionFail",
             "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
             "actionID" : ${evt.actionID},            
-            "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
             "cause" : ${evt.error.stackTrace},
             "notes" : ${evt.notes.value}
@@ -121,7 +117,6 @@ private[translators] object SimpleJsonTranslator {
             "event": "ActionSucc",
             "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
             "actionID" : ${evt.actionID},            
-            "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
             "notes" : ${evt.notes.value}
           }

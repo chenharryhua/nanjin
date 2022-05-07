@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter
 object console {
   def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] = new TextConsole[F](translator)
 
-  def verbose[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.text[F])
+  def verbose[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseText[F])
   def simple[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleText[F])
 }
 

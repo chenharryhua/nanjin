@@ -7,14 +7,14 @@ import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.{MetricReport, PassThrough, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.{MetricReport, PassThrough}
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
+import eu.timepit.refined.auto.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
@@ -92,7 +92,7 @@ class PassThroughTest extends AnyFunSuite {
         val meter = agent.meter("nj.test.meter")
         (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
-      .evalTap(logging(Translator.text[IO]))
+      .evalTap(logging(Translator.verboseText[IO]))
       .compile
       .drain
       .unsafeRunSync()
@@ -105,7 +105,7 @@ class PassThroughTest extends AnyFunSuite {
         val meter = agent.histogram("nj.test.histogram")
         (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(5)
       }
-      .evalTap(logging(Translator.json[IO].map(_.noSpaces)))
+      .evalTap(logging(Translator.verboseJson[IO].map(_.noSpaces)))
       .compile
       .drain
       .unsafeRunSync()
