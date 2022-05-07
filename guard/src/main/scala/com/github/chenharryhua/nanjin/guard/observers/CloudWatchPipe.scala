@@ -61,13 +61,13 @@ final class CloudWatchPipe[F[_]] private[observers] (
 
     val keyMap: Map[MetricKey, Long] = report.snapshot.counterMap.map { case (metricName, counter) =>
       MetricKey(
-        report.serviceStatus.uuid,
+        report.serviceStatus.serviceParams.serviceID,
         report.serviceParams.taskParams.hostName.value,
         StandardUnit.Count,
         report.serviceParams.taskParams.taskName.value,
         report.serviceParams.serviceName.value,
         metricName,
-        report.serviceStatus.launchTime.toLocalDate.show
+        report.serviceStatus.serviceParams.launchTime.toLocalDate.show
       ) -> counter
     }
 

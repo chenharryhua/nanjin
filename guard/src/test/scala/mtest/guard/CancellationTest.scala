@@ -32,7 +32,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionFail])
-    assert(c.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
+    assert(c.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].serviceStatus.isDown)
     assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.Abnormally])
@@ -50,7 +50,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
+    assert(b.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(c.isInstanceOf[ServiceStop])
   }
 
@@ -66,7 +66,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
+    assert(b.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(c.isInstanceOf[ServicePanic])
   }
 
@@ -85,9 +85,9 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/inner][c60b4a00]")
-    assert(b.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
+    assert(b.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(c.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/outer][a84e7ff2]")
-    assert(c.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
+    assert(c.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -136,7 +136,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionStart])
     assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
     assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
-    assert(e.asInstanceOf[ActionFail].error.message == "Exception: ")
+    assert(e.asInstanceOf[ActionFail].error.message == "")
     assert(f.isInstanceOf[ServicePanic])
   }
 
@@ -210,7 +210,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
-    assert(d.asInstanceOf[ActionFail].error.throwable.get.getMessage == "action was canceled")
+    assert(d.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(e.isInstanceOf[ServiceStop])
   }
 

@@ -26,7 +26,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(logging(Translator.simpleText[IO]))
+      .evalTap(logging.simple[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -40,7 +40,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(console[IO])
+      .evalTap(console.verbose[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -136,8 +136,8 @@ class ObserversTest extends AnyFunSuite {
       .withInterval(1.minute)
       .withChunkSize(10)
     snsEmail[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
-    logging[IO]
-    console[IO]
+    logging.simple[IO]
+    console.verbose[IO]
   }
 
   test("postgres") {
@@ -163,7 +163,7 @@ class ObserversTest extends AnyFunSuite {
       TaskGuard[IO]("postgres")
         .service("postgres")
         .eventStream(_.notice.run(IO(0)))
-        .evalTap(console[IO])
+        .evalTap(console.verbose[IO])
         .through(postgres(session).withTableName("log"))
         .compile
         .drain

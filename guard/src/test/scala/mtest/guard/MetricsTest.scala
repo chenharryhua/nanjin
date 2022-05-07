@@ -1,16 +1,15 @@
 package mtest.guard
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.observers.console
-import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.unsafe.implicits.global
-import com.codahale.metrics.MetricFilter
-import com.github.chenharryhua.nanjin.guard.config.{Digested, MetricSnapshotType}
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.MetricReport
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 
@@ -21,7 +20,7 @@ class MetricsTest extends AnyFunSuite {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Delta))
       .eventStream(ag => ag.span("one").run(IO(0)) >> IO.sleep(10.minutes))
-      .evalTap(console[IO])
+      .evalTap(console.verbose[IO])
       .interruptAfter(5.seconds)
       .compile
       .last

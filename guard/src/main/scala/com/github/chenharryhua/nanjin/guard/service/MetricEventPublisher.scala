@@ -28,7 +28,7 @@ final private class MetricEventPublisher[F[_]](
         MetricReport(
           serviceStatus = ss,
           reportType = metricReportType,
-          ongoings = ogs.map(OngoingAction(_)).toList.sortBy(_.launchTime),
+          ongoings = ogs.toList.sortBy(_.launchTime),
           timestamp = ts,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>

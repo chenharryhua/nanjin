@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.concurrent.Channel
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZoneId
 import scala.concurrent.Future
@@ -53,8 +52,8 @@ final class Agent[F[_]] private[service] (
       ongoings = ongoings,
       actionParams = ActionParams(agentParams),
       kfab = Kleisli(f),
-      succ = None,
-      fail = Kleisli(r => F.pure(ExceptionUtils.getMessage(r._2))),
+      succ = Kleisli(_ => F.pure("")),
+      fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Kleisli(_ => F.pure(true)))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
@@ -64,8 +63,8 @@ final class Agent[F[_]] private[service] (
       ongoings = ongoings,
       actionParams = ActionParams(agentParams),
       fb = fb,
-      succ = None,
-      fail = Kleisli(ex => F.pure(ExceptionUtils.getMessage(ex))),
+      succ = Kleisli(_ => F.pure("")),
+      fail = Kleisli(_ => F.pure("")),
       isWorthRetry = Kleisli(_ => F.pure(true)))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run

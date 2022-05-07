@@ -381,6 +381,7 @@ object Translator {
       .withActionSucc(_.show)
 
   def simpleText[F[_]: Applicative]: Translator[F, String]    = SimpleTextTranslator[F]
+  def simpleJson[F[_]: Applicative]: Translator[F, Json]      = SimpleJsonTranslator[F]
   def html[F[_]: Monad]: Translator[F, Text.TypedTag[String]] = HtmlTranslator[F]
   def slack[F[_]: Applicative]: Translator[F, SlackApp]       = SlackTranslator[F]
 }

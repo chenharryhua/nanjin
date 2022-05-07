@@ -7,8 +7,7 @@ import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
-import com.github.chenharryhua.nanjin.guard.translators.Translator
+import com.github.chenharryhua.nanjin.guard.observers.logging
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
@@ -30,7 +29,7 @@ class HealthCheckTest extends AnyFunSuite {
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(9.second)
-      .evalTap(console(Translator.text[IO]))
+      .evalTap(logging.verbose[IO])
       .compile
       .toList
       .unsafeRunSync()
@@ -47,7 +46,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .updateConfig(_.withMetricReport(1.second))
       .eventStream(gd => gd.notice.retry(IO(1)).run >> gd.notice.retry(IO.never).run)
-      .evalTap(console(Translator.json[IO].map(_.noSpaces)))
+      .evalTap(logging.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(5.second)
@@ -78,7 +77,7 @@ class HealthCheckTest extends AnyFunSuite {
           .max(10)
           .run(IO.raiseError(new Exception)))
       .interruptAfter(5.second)
-      .evalTap(logging[IO])
+      .evalTap(logging.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile

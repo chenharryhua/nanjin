@@ -13,18 +13,14 @@ import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
 
 import java.time.ZonedDateTime
-import java.util.UUID
 
 // TODO
+
 object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
 
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
-    ExhaustiveCheck.instance(
-      List(
-        ServiceStart(
-          ServiceStatus.Up(service.serviceParams, UUID.randomUUID(), ZonedDateTime.now()),
-          ZonedDateTime.now())))
+    ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceStatus], ZonedDateTime.now())))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], NJEvent => Option[Option[Int]]](_.translate)

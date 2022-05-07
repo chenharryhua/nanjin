@@ -16,11 +16,11 @@ import java.util.UUID
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
-  def metricName: Digested
 
-  final def zoneId: ZoneId = serviceParams.taskParams.zoneId
-  final def show: String   = NJEvent.showNJEvent.show(this)
-  final def asJson: Json   = NJEvent.encoderNJEvent.apply(this)
+  final def zoneId: ZoneId  = serviceParams.taskParams.zoneId
+  final def show: String    = NJEvent.showNJEvent.show(this)
+  final def asJson: Json    = NJEvent.encoderNJEvent.apply(this)
+  final def serviceID: UUID = serviceParams.serviceID
 }
 
 object NJEvent {
@@ -33,11 +33,8 @@ sealed trait ServiceEvent extends NJEvent {
   def serviceStatus: ServiceStatus
 
   final override def serviceParams: ServiceParams = serviceStatus.serviceParams
-  final override def metricName: Digested         = serviceParams.metricName
 
-  final def serviceID: UUID  = serviceStatus.uuid
-  final def upTime: Duration = Duration.between(serviceStatus.launchTime, timestamp)
-
+  final def upTime: Duration = serviceStatus.upTime(timestamp)
 }
 
 final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime) extends ServiceEvent
@@ -58,7 +55,7 @@ final case class ServiceStop(
 final case class MetricReport(
   reportType: MetricReportType,
   serviceStatus: ServiceStatus,
-  ongoings: List[OngoingAction],
+  ongoings: List[ActionInfo],
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot
 ) extends ServiceEvent {
@@ -78,10 +75,11 @@ sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
 
   final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
-  final override def metricName: Digested         = actionInfo.actionParams.metricName
 
+  final def metricName: Digested       = actionInfo.actionParams.metricName
   final def actionParams: ActionParams = actionInfo.actionParams
   final def launchTime: ZonedDateTime  = actionInfo.launchTime
+  final def actionID: Int              = actionInfo.actionID
 
   final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
 }

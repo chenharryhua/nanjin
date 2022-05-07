@@ -82,28 +82,6 @@ private[translators] object SlackTranslator extends all {
     )
   }
 
-  private def instantAlert(evt: InstantAlert): SlackApp = {
-    val (title, color) = evt.importance match {
-      case Importance.Critical => (":warning: Error", errorColor)
-      case Importance.High     => (":warning: Warning", warnColor)
-      case Importance.Medium   => (":information_source: Info", infoColor)
-      case Importance.Low      => ("oops. should not happen", errorColor)
-    }
-    val msg: Option[Section] = if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
-    SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = color,
-          blocks = List(
-            MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"),
-            hostServiceSection(evt.serviceParams)
-          ).appendedAll(msg)
-        )
-      )
-    )
-  }
-
   private def serviceStopped(evt: ServiceStop): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
@@ -123,6 +101,29 @@ private[translators] object SlackTranslator extends all {
       )
     )
 
+  private def instantAlert(evt: InstantAlert): SlackApp = {
+    val (title, color) = evt.importance match {
+      case Importance.Critical => (":warning: Error", errorColor)
+      case Importance.High     => (":warning: Warning", warnColor)
+      case Importance.Medium   => (":information_source: Info", infoColor)
+      case Importance.Low      => ("oops. should not happen", errorColor)
+    }
+    val msg: Option[Section] = if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
+    SlackApp(
+      username = evt.serviceParams.taskParams.taskName.value,
+      attachments = List(
+        Attachment(
+          color = color,
+          blocks = List(
+            MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"),
+            hostServiceSection(evt.serviceParams),
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}")
+          ).appendedAll(msg)
+        )
+      )
+    )
+  }
+
   private def metricReport(evt: MetricReport): SlackApp = {
     val color = if (evt.hasError) warnColor else infoColor
     SlackApp(
@@ -139,6 +140,7 @@ private[translators] object SlackTranslator extends all {
                 "Scheduled Next",
                 evt.serviceParams.metric.nextReport(evt.timestamp).map(localTimestampStr).getOrElse("None"))
             ),
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
             metricsSection(evt.snapshot)
           )
         ),
@@ -168,6 +170,7 @@ private[translators] object SlackTranslator extends all {
                       .getOrElse("None")
                   )
                 ),
+                MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
                 metricsSection(evt.snapshot)
               )
             )
@@ -186,6 +189,7 @@ private[translators] object SlackTranslator extends all {
                   TextField("Up Time", fmt.format(evt.upTime)),
                   TextField("Scheduled Next", next.show)
                 ),
+                MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
                 metricsSection(evt.snapshot)
               )
             )
@@ -202,7 +206,8 @@ private[translators] object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}")
+            MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           )
         ))
     )
@@ -219,9 +224,10 @@ private[translators] object SlackTranslator extends all {
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
-                                |*Next retry in: * ${fmt.format(evt.willDelayAndRetry.nextDelay)}
-                                |*Policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin),
+            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                                |*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
+                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
+                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"```${evt.error.message}```")
           )
         ))
@@ -237,9 +243,9 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}
-                                |*Error ID:* ${evt.error.uuid.show}
-                                |*Policy:* ${evt.actionParams.retry.policy[F].show}""".stripMargin)
+            MarkdownSection(s"""|*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
+                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )
       )
@@ -255,7 +261,8 @@ private[translators] object SlackTranslator extends all {
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"*${evt.actionParams.catalog} ID:* ${evt.actionInfo.uniqueId.show}")
+            MarkdownSection(s"""*${evt.actionParams.catalog} ID:* ${evt.actionInfo.actionID.show}
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )
       )

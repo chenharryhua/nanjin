@@ -5,7 +5,6 @@ import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
-import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryDetails
 
 final private class ServiceEventPublisher[F[_]: UUIDGen](
@@ -24,9 +23,9 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
     for {
       ss <- serviceStatus.get
       ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
-      us <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, ExceptionUtils.getMessage(ex)))
-      uuid <- UUIDGen.randomUUID[F]
-      _ <- channel.send(ServicePanic(us, ts, retryDetails, NJError(uuid, ex)))
+      err <- UUIDGen.randomUUID[F].map(NJError(_, ex))
+      us <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, err.message))
+      _ <- channel.send(ServicePanic(us, ts, retryDetails, err))
     } yield ()
 
   def serviceStop(cause: ServiceStopCause): F[Unit] =

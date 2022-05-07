@@ -21,7 +21,7 @@ import java.util.UUID
 object postgres {
 
   def apply[F[_]: Temporal](session: Resource[F, Session[F]], tableName: TableName): NJPostgresPipe[F] =
-    new NJPostgresPipe[F](session, Translator.json[F], tableName)
+    new NJPostgresPipe[F](session, Translator.simpleJson[F], tableName)
 
   def apply[F[_]: Temporal](session: Resource[F, Session[F]]): NJPostgresPipe[F] =
     apply[F](session, TableName("event_stream"))
