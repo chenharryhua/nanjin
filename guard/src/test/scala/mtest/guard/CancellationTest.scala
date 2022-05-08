@@ -34,7 +34,6 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionFail])
     assert(c.asInstanceOf[ActionFail].error.message == "action was canceled")
     assert(d.isInstanceOf[ServiceStop])
-    assert(d.asInstanceOf[ServiceStop].serviceStatus.isDown)
     assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.Abnormally])
   }
 

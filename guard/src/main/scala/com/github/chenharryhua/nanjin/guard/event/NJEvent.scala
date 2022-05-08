@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Impo
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
-import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.{Duration, ZoneId, ZonedDateTime}
@@ -17,10 +16,11 @@ sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 
-  final def zoneId: ZoneId  = serviceParams.taskParams.zoneId
-  final def show: String    = NJEvent.showNJEvent.show(this)
-  final def asJson: Json    = NJEvent.encoderNJEvent.apply(this)
-  final def serviceID: UUID = serviceParams.serviceID
+  final def zoneId: ZoneId   = serviceParams.taskParams.zoneId
+  final def show: String     = NJEvent.showNJEvent.show(this)
+  final def asJson: Json     = NJEvent.encoderNJEvent.apply(this)
+  final def serviceID: UUID  = serviceParams.serviceID
+  final def upTime: Duration = serviceParams.upTime(timestamp)
 }
 
 object NJEvent {
@@ -29,47 +29,39 @@ object NJEvent {
   implicit final val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
 }
 
-sealed trait ServiceEvent extends NJEvent {
-  def serviceStatus: ServiceStatus
+sealed trait ServiceEvent extends NJEvent
 
-  final override def serviceParams: ServiceParams = serviceStatus.serviceParams
-
-  final def upTime: Duration = serviceStatus.upTime(timestamp)
-}
-
-final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime) extends ServiceEvent
+final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent
 
 final case class ServicePanic(
-  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
-  retryDetails: RetryDetails,
-  error: NJError
-) extends ServiceEvent
+  upcomingRestartTime: Option[ZonedDateTime],
+  error: NJError)
+    extends ServiceEvent
 
-final case class ServiceStop(
-  serviceStatus: ServiceStatus,
-  timestamp: ZonedDateTime,
-  cause: ServiceStopCause
-) extends ServiceEvent
+final case class ServiceStop(serviceParams: ServiceParams, timestamp: ZonedDateTime, cause: ServiceStopCause)
+    extends ServiceEvent
+
+sealed trait MetricEvent extends ServiceEvent {
+  def snapshot: MetricSnapshot
+}
 
 final case class MetricReport(
   reportType: MetricReportType,
-  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
   ongoings: List[ActionInfo],
   timestamp: ZonedDateTime,
-  snapshot: MetricSnapshot
-) extends ServiceEvent {
-  val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
-}
+  snapshot: MetricSnapshot,
+  upcomingRestartTime: Option[ZonedDateTime])
+    extends MetricEvent
 
 final case class MetricReset(
   resetType: MetricResetType,
-  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
-  snapshot: MetricSnapshot
-) extends ServiceEvent {
-  val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
-}
+  snapshot: MetricSnapshot)
+    extends MetricEvent
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
@@ -95,20 +87,25 @@ final case class ActionRetry(
   error: NJError)
     extends ActionEvent
 
+sealed trait ActionResultEvent extends ActionEvent {
+  def numRetries: Int
+  def notes: Notes
+}
+
 final case class ActionFail(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
-    extends ActionEvent
+    extends ActionResultEvent
 
 final case class ActionSucc(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before success
-  notes: Notes // success notes
-) extends ActionEvent
+  notes: Notes)
+    extends ActionResultEvent
 
 sealed trait InstantEvent extends NJEvent {
   def metricName: Digested
@@ -121,13 +118,13 @@ final case class InstantAlert(
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   importance: Importance,
-  message: String
-) extends InstantEvent
+  message: String)
+    extends InstantEvent
 
 final case class PassThrough(
   metricName: Digested,
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   asError: Boolean, // the payload json represent an error
-  value: Json
-) extends InstantEvent
+  value: Json)
+    extends InstantEvent

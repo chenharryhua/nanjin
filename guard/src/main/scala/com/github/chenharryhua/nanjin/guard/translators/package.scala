@@ -4,7 +4,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.ServiceStatus
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
@@ -68,14 +67,28 @@ package object translators {
   private[translators] def localTimestampStr(zdt: ZonedDateTime): String =
     zdt.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 
-  private[translators] def serviceStatusWord(ss: ServiceStatus): String =
-    ss.fold(
-      _ => "Service is Up",
-      down =>
-        down.upcommingRestart match {
-          case Some(ts) =>
-            s"${down.cause} occured at ${localTimestampStr(down.crashAt)}. restart is scheduled at ${localTimestampStr(ts)}"
-          case None => down.cause
-        }
-    )
+  /** in MetricReport
+    *
+    * None: Service is UP
+    *
+    * Some: Service panic
+    *
+    * in ServicePanic
+    *
+    * None: should never happen
+    *
+    * Some: Service panic
+    */
+  private[translators] def metricInterpretation(upcommingRestart: Option[ZonedDateTime]): String =
+    upcommingRestart.fold("Service is up")(zdt =>
+      s"Service is in panic, restart of which is scheduled at ${localTimestampStr(zdt)}")
+
+  private[translators] def panicInterpretation(upcommingRestart: Option[ZonedDateTime]): String = {
+    val upcoming: String = upcommingRestart match {
+      case None => "which is fatal" // never happen
+      case Some(ts) =>
+        s"restart of which is scheduled at ${localTimestampStr(ts)}, meanwhile the service is dysfunctional."
+    }
+    s":alarm: The service experienced a panic, $upcoming"
+  }
 }

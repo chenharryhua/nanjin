@@ -6,14 +6,16 @@ import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
 
 final private class ActionEventPublisher[F[_]: UUIDGen](
-  channel: Channel[F, NJEvent],
-  ongoings: Ref[F, Set[ActionInfo]])(implicit F: Temporal[F]) {
+  serviceStatus: Ref[F, ServiceStatus],
+  channel: Channel[F, NJEvent]
+)(implicit F: Temporal[F]) {
 
   def actionStart(actionParams: ActionParams): F[ActionInfo] =
     for {
@@ -21,7 +23,7 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams, token, ts)
       _ <- channel.send(ActionStart(ai)).whenA(actionParams.isNotice)
-      _ <- ongoings.update(_.incl(ai)).whenA(actionParams.isExpensive.value)
+      _ <- serviceStatus.update(_.include(ai)).whenA(actionParams.isExpensive.value)
     } yield ai
 
   def actionRetry(
@@ -56,7 +58,7 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
           _ <- channel.send(ActionSucc(actionInfo, ts, num, notes))
         } yield ()
       }.whenA(actionInfo.actionParams.isNotice)
-      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
+      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
     } yield ts
 
   def actionFail[A](
@@ -77,6 +79,6 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
           numRetries = numRetries,
           notes = notes,
           error = NJError(uuid, ex)))
-      _ <- ongoings.update(_.excl(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
+      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
     } yield ts
 }

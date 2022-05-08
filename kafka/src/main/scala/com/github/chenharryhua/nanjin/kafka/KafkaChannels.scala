@@ -84,6 +84,9 @@ object KafkaChannels {
     def txnProducer(transactionalId: String)(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
       TransactionalKafkaProducer.stream(txnProducerSettings(transactionalId))
 
+    def producerResource(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
+      KafkaProducer.resource(producerSettings)
+
     // sources
     def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
       KafkaConsumer

@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, N
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsumerRecord, NJConsumerRecordWithError}
 import com.sksamuel.avro4s.AvroInputStream
-import fs2.kafka.{ProducerRecord as Fs2ProducerRecord, ProducerResult}
+import fs2.kafka.{ProducerRecord as Fs2ProducerRecord, ProducerRecords, ProducerResult}
 import io.circe.Decoder
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -98,7 +98,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   // for testing
 
   def produceOne(pr: Fs2ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[K, V]] =
-    fs2Channel.producer.evalMap(_.produceOne(pr)).compile.lastOrError.flatten
+    fs2Channel.producerResource.use(_.produceOne(pr).flatten)
 
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[ProducerResult[K, V]] =
     produceOne(fs2ProducerRecord(k, v))
@@ -106,24 +106,24 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def produceCirce(circeStr: String)(implicit F: Async[F], k: Decoder[K], v: Decoder[V]): F[ProducerResult[K, V]] =
     io.circe.parser
       .decode[NJConsumerRecord[K, V]](circeStr)
-      .map(_.toNJProducerRecord.toFs2ProducerRecord(topicName))
+      .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
       .traverse(produceOne)
       .rethrow
 
-  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[List[ProducerResult[K, V]]] = {
+  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[ProducerResult[K, V]] = {
     val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
       NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
-    Resource
-      .fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes)))
-      .use(is =>
-        AvroInputStream
-          .json[NJConsumerRecord[K, V]](crCodec.avroDecoder)
-          .from(is)
-          .build(crCodec.schema)
-          .iterator
-          .toList
-          .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
-          .traverse(produceOne))
+    Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
+      val prs: List[Fs2ProducerRecord[K, V]] = AvroInputStream
+        .json[NJConsumerRecord[K, V]](crCodec.avroDecoder)
+        .from(is)
+        .build(crCodec.schema)
+        .iterator
+        .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
+        .toList
+
+      fs2Channel.producerResource.use(_.produce(ProducerRecords(prs)).flatten)
+    }
   }
 }
 

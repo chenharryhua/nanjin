@@ -43,7 +43,7 @@ private[translators] object SimpleJsonTranslator {
             "event": "MetricReport",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
-            "isUp": ${evt.serviceStatus.isUp},
+            "isUp": ${evt.upcomingRestartTime.isEmpty},
             "metrics": ${evt.snapshot.asJson}
           }
           """

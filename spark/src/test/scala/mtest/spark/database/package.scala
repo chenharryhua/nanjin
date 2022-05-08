@@ -11,7 +11,7 @@ package object database {
   import natchez.Trace.Implicits.noop
   val postgres: Postgres = Postgres(Username("postgres"), Password("postgres"), "localhost", 5432, "postgres")
 
-  val dbSession: Resource[IO, Session[IO]] = SkunkSession(postgres).single[IO]
+  val dbSession: Resource[IO, Session[IO]] = SkunkSession[IO](postgres).single
 
   val sparkDB: SparkDBContext[IO] = sparkSession.alongWith[IO](NJHikari(postgres))
 }

@@ -3,26 +3,26 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
-
-private[translators] object SimpleTextTranslator {
+import org.typelevel.cats.time.instances.zoneddatetime
+private[translators] object SimpleTextTranslator extends zoneddatetime {
 
   private def serviceEvent(se: ServiceEvent): String = {
-    val host: String = se.serviceParams.taskParams.hostName.value
-    val sn: String   = se.serviceParams.serviceName.value
-    val up: String   = if (se.serviceStatus.isUp) s"Uptime:${fmt.format(se.upTime)}" else "Service is down"
-    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, $up"
+    val host: String   = se.serviceParams.taskParams.hostName.value
+    val sn: String     = se.serviceParams.serviceName.value
+    val uptime: String = fmt.format(se.upTime)
+    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, Uptime:$uptime"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
     val host: String = ie.serviceParams.taskParams.hostName.value
     s"""|  Host:$host, ServiceID:${ie.serviceID.show}
-        |  AlertName:${ie.metricName.metricRepr}""".stripMargin
+        |  Name:${ie.metricName.metricRepr}""".stripMargin
   }
 
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
     s"""  Host:$host, ServiceID:${ae.serviceID.show}
-       |  ActionName:${ae.metricName.metricRepr}, ActionID:${ae.actionID}""".stripMargin
+       |  Name:${ae.metricName.metricRepr}, ID:${ae.actionID}""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =
@@ -33,20 +33,22 @@ private[translators] object SimpleTextTranslator {
   private def servicePanic(evt: ServicePanic): String =
     s"""Service Panic
        |${serviceEvent(evt)}
-       |  Restarts:${evt.retryDetails.retriesSoFar}, ErrorID:${evt.error.uuid.show}
-       |  ${evt.error.stackTrace}
+       |  ${panicInterpretation(evt.upcomingRestartTime)}
+       |  ErrorID:${evt.error.uuid.show}
+       |  StackTrace:${evt.error.stackTrace}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""Service Stopped
        |${serviceEvent(evt)}
-       |  Cause:${evt.cause.show}
+       |  StackTrace:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
     s"""${evt.reportType.show}
        |${serviceEvent(evt)}
-       |  OnGoings:${evt.ongoings.map(_.actionID).mkString(",")}
+       |  ${metricInterpretation(evt.upcomingRestartTime)}
+       |  Ongoings:${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
 
@@ -54,7 +56,6 @@ private[translators] object SimpleTextTranslator {
     s"""${evt.resetType.show}
        |${serviceEvent(evt)}
        |${evt.snapshot.show}
-       |
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =
@@ -66,7 +67,7 @@ private[translators] object SimpleTextTranslator {
   private def instantAlert(evt: InstantAlert): String =
     s"""Service Alert
        |${instantEvent(evt)}
-       |  Message:${evt.message}
+       |  Alert:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
@@ -78,14 +79,14 @@ private[translators] object SimpleTextTranslator {
     s"""Action Retrying
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
-       |  ${evt.error.stackTrace}
+       |  StackTrace:${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""Action Failed
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
-       |  ${evt.error.stackTrace}
+       |  StackTrace:${evt.error.stackTrace}
        |  ${evt.notes.value}
        |""".stripMargin
 
