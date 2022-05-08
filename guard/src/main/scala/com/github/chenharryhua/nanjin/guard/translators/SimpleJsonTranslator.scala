@@ -33,7 +33,8 @@ private[translators] object SimpleJsonTranslator {
             "event": "ServiceStop",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
-            "cause": ${evt.cause.show}
+            "cause": ${evt.cause.show},
+            "exitCode": ${evt.cause.exitCode}
           }
           """
 
@@ -43,7 +44,7 @@ private[translators] object SimpleJsonTranslator {
             "event": "MetricReport",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
-            "isUp": ${evt.upcomingRestartTime.isEmpty},
+            "isUp": ${evt.isUp},
             "metrics": ${evt.snapshot.asJson}
           }
           """

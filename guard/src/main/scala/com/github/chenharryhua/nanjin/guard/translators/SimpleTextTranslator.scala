@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import org.typelevel.cats.time.instances.zoneddatetime
-private[translators] object SimpleTextTranslator extends zoneddatetime {
+
+private[translators] object SimpleTextTranslator {
 
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String   = se.serviceParams.taskParams.hostName.value

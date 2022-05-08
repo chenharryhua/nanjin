@@ -71,12 +71,18 @@ object ActionInfo extends zoneddatetime {
 }
 
 @JsonCodec
-sealed trait ServiceStopCause
+sealed trait ServiceStopCause {
+  def exitCode: Int
+}
 object ServiceStopCause {
   implicit val showServiceStopCause: Show[ServiceStopCause] = {
     case Normally        => "normally exit"
     case Abnormally(msg) => s"abnormally exit due to $msg"
   }
-  case object Normally extends ServiceStopCause
-  final case class Abnormally(msg: String) extends ServiceStopCause
+  case object Normally extends ServiceStopCause {
+    override val exitCode: Int = 0
+  }
+  final case class Abnormally(msg: String) extends ServiceStopCause {
+    override val exitCode: Int = 1
+  }
 }

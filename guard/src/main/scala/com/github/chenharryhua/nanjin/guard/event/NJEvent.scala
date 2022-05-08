@@ -54,7 +54,9 @@ final case class MetricReport(
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot,
   upcomingRestartTime: Option[ZonedDateTime])
-    extends MetricEvent
+    extends MetricEvent {
+  val isUp: Boolean = upcomingRestartTime.isEmpty
+}
 
 final case class MetricReset(
   resetType: MetricResetType,
