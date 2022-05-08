@@ -91,10 +91,10 @@ private[translators] object HtmlTranslator extends all {
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] = {
-    val color: String = if (evt.hasError) "color:red" else "color:black"
+    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
     div(
       h3(style := color)(evt.reportType.show),
-      p(serviceStatusWord(evt.isUp)),
+      p(serviceStatusWord(evt.isUp, evt.upcommingRestart)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
@@ -107,10 +107,9 @@ private[translators] object HtmlTranslator extends all {
   }
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] = {
-    val color: String = if (evt.hasError) "color:red" else "color:black"
+    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
     div(
       h3(style := color)(evt.resetType.show),
-      p(serviceStatusWord(evt.isUp)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),

@@ -125,7 +125,7 @@ private[translators] object SlackTranslator extends all {
   }
 
   private def metricReport(evt: MetricReport): SlackApp = {
-    val color = if (evt.hasError) warnColor else infoColor
+    val color = if (evt.snapshot.isContainErrors) warnColor else infoColor
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -156,7 +156,7 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.taskName.value,
           attachments = List(
             Attachment(
-              color = if (evt.hasError) warnColor else infoColor,
+              color = if (evt.snapshot.isContainErrors) warnColor else infoColor,
               blocks = List(
                 MarkdownSection("*Adhoc Metric Reset*"),
                 hostServiceSection(evt.serviceParams),
@@ -181,7 +181,7 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.taskName.value,
           attachments = List(
             Attachment(
-              color = if (evt.hasError) warnColor else infoColor,
+              color = if (evt.snapshot.isContainErrors) warnColor else infoColor,
               blocks = List(
                 MarkdownSection(s"*Scheduled Metric Reset*"),
                 hostServiceSection(evt.serviceParams),

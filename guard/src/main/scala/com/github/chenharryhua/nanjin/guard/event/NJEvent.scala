@@ -55,17 +55,19 @@ final case class ServiceStop(
   override val isUp: Boolean = false
 }
 
+sealed trait MetricEvent extends ServiceEvent {
+  def snapshot: MetricSnapshot
+}
+
 final case class MetricReport(
   reportType: MetricReportType,
   serviceParams: ServiceParams,
   ongoings: List[ActionInfo],
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot,
+  upcommingRestart: Option[ZonedDateTime],
   isUp: Boolean
-) extends ServiceEvent {
-
-  val hasError: Boolean = snapshot.isContainErrors // || serviceParams.isDown
-}
+) extends MetricEvent
 
 final case class MetricReset(
   resetType: MetricResetType,
@@ -73,9 +75,7 @@ final case class MetricReset(
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot,
   isUp: Boolean
-) extends ServiceEvent {
-  val hasError: Boolean = snapshot.isContainErrors // || serviceParams.isDown
-}
+) extends MetricEvent
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
