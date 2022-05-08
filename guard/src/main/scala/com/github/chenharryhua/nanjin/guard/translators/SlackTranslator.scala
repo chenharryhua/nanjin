@@ -10,7 +10,6 @@ import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
 import java.time.temporal.ChronoUnit
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 private[translators] object SlackTranslator extends all {
   private val goodColor  = "#36a64f"
@@ -54,22 +53,14 @@ private[translators] object SlackTranslator extends all {
         ))
     )
 
-  private def servicePanic[F[_]: Applicative](evt: ServicePanic): SlackApp = {
-    val upcoming: String = evt.retryDetails.upcomingDelay match {
-      case None => "the service was stopped" // never happen
-      case Some(fd) =>
-        s"restart of which takes place in *${fmt.format(fd)}*, at ${localTimestampStr(evt.timestamp.plus(fd.toJava))}," +
-          " meanwhile the service is dysfunctional."
-    }
-
+  private def servicePanic[F[_]: Applicative](evt: ServicePanic): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
           color = errorColor,
           blocks = List(
-            MarkdownSection(
-              s":alarm: The service experienced a panic, the *${toOrdinalWords(evt.retryDetails.retriesSoFar + 1L)}* time, $upcoming"),
+            MarkdownSection(panicInterpretation(evt.upcomingRestartTime)),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
@@ -80,7 +71,6 @@ private[translators] object SlackTranslator extends all {
         )
       )
     )
-  }
 
   private def serviceStopped(evt: ServiceStop): SlackApp =
     SlackApp(

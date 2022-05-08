@@ -98,7 +98,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   // for testing
 
   def produceOne(pr: Fs2ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[K, V]] =
-    fs2Channel.producerResource.use(_.produceOne(pr)).flatten
+    fs2Channel.producerResource.use(_.produceOne(pr).flatten)
 
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[ProducerResult[K, V]] =
     produceOne(fs2ProducerRecord(k, v))
@@ -122,7 +122,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
         .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
         .toList
 
-      fs2Channel.producerResource.use(_.produce(ProducerRecords(prs))).flatten
+      fs2Channel.producerResource.use(_.produce(ProducerRecords(prs)).flatten)
     }
   }
 }

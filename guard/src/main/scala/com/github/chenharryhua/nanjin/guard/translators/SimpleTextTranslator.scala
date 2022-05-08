@@ -7,9 +7,10 @@ import org.typelevel.cats.time.instances.zoneddatetime
 private[translators] object SimpleTextTranslator extends zoneddatetime {
 
   private def serviceEvent(se: ServiceEvent): String = {
-    val host: String = se.serviceParams.taskParams.hostName.value
-    val sn: String   = se.serviceParams.serviceName.value
-    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn"
+    val host: String   = se.serviceParams.taskParams.hostName.value
+    val sn: String     = se.serviceParams.serviceName.value
+    val uptime: String = fmt.format(se.upTime)
+    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, Uptime:$uptime"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -32,7 +33,8 @@ private[translators] object SimpleTextTranslator extends zoneddatetime {
   private def servicePanic(evt: ServicePanic): String =
     s"""Service Panic
        |${serviceEvent(evt)}
-       |  Restarts:${evt.retryDetails.retriesSoFar}, ErrorID:${evt.error.uuid.show}
+       |  ${panicInterpretation(evt.upcomingRestartTime)}
+       |  ErrorID:${evt.error.uuid.show}
        |  StackTrace:${evt.error.stackTrace}
        |""".stripMargin
 
@@ -42,18 +44,13 @@ private[translators] object SimpleTextTranslator extends zoneddatetime {
        |  StackTrace:${evt.cause.show}
        |""".stripMargin
 
-  private def metricReport(evt: MetricReport): String = {
-    val upTime: String =
-      evt.upcomingRestartTime.fold(s"UpTime:${fmt.format(evt.upTime)}")(zdt =>
-        s"Service was down, restart at ${zdt.show}")
-
+  private def metricReport(evt: MetricReport): String =
     s"""${evt.reportType.show}
        |${serviceEvent(evt)}
-       |  $upTime
+       |  ${metricInterpretation(evt.upcomingRestartTime)}
        |  Ongoings:${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
-  }
 
   private def metricReset(evt: MetricReset): String =
     s"""${evt.resetType.show}

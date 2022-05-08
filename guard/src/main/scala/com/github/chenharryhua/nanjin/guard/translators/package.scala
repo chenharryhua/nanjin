@@ -67,7 +67,28 @@ package object translators {
   private[translators] def localTimestampStr(zdt: ZonedDateTime): String =
     zdt.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 
-  private[translators] def serviceStatusWord(upcommingRestart: Option[ZonedDateTime]): String =
+  /** in MetricReport
+    *
+    * None: Service is UP
+    *
+    * Some: Service panic
+    *
+    * in ServicePanic
+    *
+    * None: should never happen
+    *
+    * Some: Service panic
+    */
+  private[translators] def metricInterpretation(upcommingRestart: Option[ZonedDateTime]): String =
     upcommingRestart.fold("Service is up")(zdt =>
-      s"Service was stopped, restart of which is scheduled at ${localTimestampStr(zdt)}")
+      s"Service is in panic, restart of which is scheduled at ${localTimestampStr(zdt)}")
+
+  private[translators] def panicInterpretation(upcommingRestart: Option[ZonedDateTime]): String = {
+    val upcoming: String = upcommingRestart match {
+      case None => "which is fatal" // never happen
+      case Some(ts) =>
+        s"restart of which is scheduled at ${localTimestampStr(ts)}, meanwhile the service is dysfunctional."
+    }
+    s":alarm: The service experienced a panic, $upcoming"
+  }
 }

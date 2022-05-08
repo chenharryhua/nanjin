@@ -50,7 +50,7 @@ final class ServiceGuard[F[_]] private[guard] (
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
-    ssRef <- F.ref(ServiceStatus.Up(serviceConfig.evalConfig(uuid, ts)))
+    ssRef <- F.ref[ServiceStatus](ServiceStatus.Up(serviceConfig.evalConfig(uuid, ts)))
   } yield ssRef
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =

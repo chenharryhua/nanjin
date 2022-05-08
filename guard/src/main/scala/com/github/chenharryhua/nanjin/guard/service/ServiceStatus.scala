@@ -60,15 +60,15 @@ private[guard] object ServiceStatus {
     }
 
     override val upcomingRestartTime: Option[ZonedDateTime] = None
-    override def include(action: ActionInfo): ServiceStatus = copy(ongoingActionSet = ongoingActionSet.incl(action))
-    override def exclude(action: ActionInfo): ServiceStatus = copy(ongoingActionSet = ongoingActionSet.excl(action))
 
-    override def updateLastCounters(last: LastCounters): ServiceStatus =
-      copy(lastCounters = last)
+    override def include(action: ActionInfo): Up = copy(ongoingActionSet = ongoingActionSet.incl(action))
+    override def exclude(action: ActionInfo): Up = copy(ongoingActionSet = ongoingActionSet.excl(action))
+
+    override def updateLastCounters(last: LastCounters): Up = copy(lastCounters = last)
   }
 
   object Up {
-    def apply(serviceParams: ServiceParams): ServiceStatus =
+    def apply(serviceParams: ServiceParams): Up =
       Up(
         serviceParams = serviceParams,
         lastCounters = LastCounters.empty,
@@ -103,9 +103,9 @@ private[guard] object ServiceStatus {
 
     override val ongoingActionSet: Set[ActionInfo] = Set.empty[ActionInfo]
 
-    override def include(action: ActionInfo): ServiceStatus = this
-    override def exclude(action: ActionInfo): ServiceStatus = this
+    override def include(action: ActionInfo): Down = this
+    override def exclude(action: ActionInfo): Down = this
 
-    override def updateLastCounters(last: LastCounters): ServiceStatus = copy(lastCounters = last)
+    override def updateLastCounters(last: LastCounters): Down = copy(lastCounters = last)
   }
 }

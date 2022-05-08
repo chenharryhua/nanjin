@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Impo
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
-import retry.RetryDetails
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.{Duration, ZoneId, ZonedDateTime}
@@ -37,7 +36,7 @@ final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDate
 final case class ServicePanic(
   serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
-  retryDetails: RetryDetails,
+  upcomingRestartTime: Option[ZonedDateTime],
   error: NJError)
     extends ServiceEvent
 
