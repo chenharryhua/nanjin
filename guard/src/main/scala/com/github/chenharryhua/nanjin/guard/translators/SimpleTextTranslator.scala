@@ -16,13 +16,13 @@ private[translators] object SimpleTextTranslator {
   private def instantEvent(ie: InstantEvent): String = {
     val host: String = ie.serviceParams.taskParams.hostName.value
     s"""|  Host:$host, ServiceID:${ie.serviceID.show}
-        |  AlertName:${ie.metricName.metricRepr}""".stripMargin
+        |  Name:${ie.metricName.metricRepr}""".stripMargin
   }
 
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
     s"""  Host:$host, ServiceID:${ae.serviceID.show}
-       |  ActionName:${ae.metricName.metricRepr}, ActionID:${ae.actionID}""".stripMargin
+       |  Name:${ae.metricName.metricRepr}, ID:${ae.actionID}""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =
@@ -34,13 +34,13 @@ private[translators] object SimpleTextTranslator {
     s"""Service Panic
        |${serviceEvent(evt)}
        |  Restarts:${evt.retryDetails.retriesSoFar}, ErrorID:${evt.error.uuid.show}
-       |  ${evt.error.stackTrace}
+       |  StackTrace:${evt.error.stackTrace}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""Service Stopped
        |${serviceEvent(evt)}
-       |  Cause:${evt.cause.show}
+       |  StackTrace:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
@@ -54,7 +54,6 @@ private[translators] object SimpleTextTranslator {
     s"""${evt.resetType.show}
        |${serviceEvent(evt)}
        |${evt.snapshot.show}
-       |
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =
@@ -66,7 +65,7 @@ private[translators] object SimpleTextTranslator {
   private def instantAlert(evt: InstantAlert): String =
     s"""Service Alert
        |${instantEvent(evt)}
-       |  Message:${evt.message}
+       |  Alert:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
@@ -78,14 +77,14 @@ private[translators] object SimpleTextTranslator {
     s"""Action Retrying
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
-       |  ${evt.error.stackTrace}
+       |  StackTrace:${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""Action Failed
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
-       |  ${evt.error.stackTrace}
+       |  StackTrace:${evt.error.stackTrace}
        |  ${evt.notes.value}
        |""".stripMargin
 
