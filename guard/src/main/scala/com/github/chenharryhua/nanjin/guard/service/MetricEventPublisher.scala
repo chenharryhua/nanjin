@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref, RefSource}
+import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
@@ -14,21 +14,17 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final private class MetricEventPublisher[F[_]](
   channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
-  serviceStatus: RefSource[F, ServiceStatus],
-  ongoings: RefSource[F, Set[ActionInfo]],
-  lastCounters: Ref[F, MetricSnapshot.LastCounters])(implicit F: Async[F]) {
+  serviceStatus: Ref[F, ServiceStatus])(implicit F: Async[F]) {
 
   def metricsReport(metricFilter: MetricFilter, metricReportType: MetricReportType): F[Unit] =
     for {
-      ss <- serviceStatus.get
+      ss <- serviceStatus.getAndUpdate(_.updateLastCounters(MetricSnapshot.LastCounters(metricRegistry)))
       ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
-      ogs <- ongoings.get
-      oldLast <- lastCounters.getAndSet(MetricSnapshot.LastCounters(metricRegistry))
       _ <- channel.send(
         MetricReport(
-          serviceStatus = ss,
+          serviceParams = ss.serviceParams,
           reportType = metricReportType,
-          ongoings = ogs.toList.sortBy(_.launchTime),
+          ongoings = ss.ongoingActions.toList.sortBy(_.launchTime),
           timestamp = ts,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>
@@ -36,8 +32,9 @@ final private class MetricEventPublisher[F[_]](
             case MetricSnapshotType.Regular =>
               MetricSnapshot.regular(metricFilter, metricRegistry, ss.serviceParams)
             case MetricSnapshotType.Delta =>
-              MetricSnapshot.delta(oldLast, metricFilter, metricRegistry, ss.serviceParams)
-          }
+              MetricSnapshot.delta(ss.lastCounters, metricFilter, metricRegistry, ss.serviceParams)
+          },
+          isUp = ss.isUp
         ))
     } yield ()
 
@@ -45,26 +42,26 @@ final private class MetricEventPublisher[F[_]](
     */
   def metricsReset(cronExpr: Option[CronExpr]): F[Unit] =
     for {
-      ss <- serviceStatus.get
+      ss <- serviceStatus.getAndUpdate(_.updateLastCounters(MetricSnapshot.LastCounters.empty))
       ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
       msg = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>
           MetricReset(
             resetType = MetricResetType.Scheduled(next),
-            serviceStatus = ss,
+            serviceParams = ss.serviceParams,
             timestamp = ts,
-            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, ss.serviceParams)
+            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, ss.serviceParams),
+            isUp = ss.isUp
           )
         }
-      }.getOrElse(
-        MetricReset(
-          resetType = MetricResetType.Adhoc,
-          serviceStatus = ss,
-          timestamp = ts,
-          snapshot = MetricSnapshot.full(metricRegistry, ss.serviceParams)
-        ))
+      }.getOrElse(MetricReset(
+        resetType = MetricResetType.Adhoc,
+        serviceParams = ss.serviceParams,
+        timestamp = ts,
+        snapshot = MetricSnapshot.full(metricRegistry, ss.serviceParams),
+        isUp = ss.isUp
+      ))
       _ <- channel.send(msg)
-      _ <- lastCounters.set(MetricSnapshot.LastCounters.empty)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   // query

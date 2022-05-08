@@ -17,10 +17,11 @@ sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 
-  final def zoneId: ZoneId  = serviceParams.taskParams.zoneId
-  final def show: String    = NJEvent.showNJEvent.show(this)
-  final def asJson: Json    = NJEvent.encoderNJEvent.apply(this)
-  final def serviceID: UUID = serviceParams.serviceID
+  final def zoneId: ZoneId   = serviceParams.taskParams.zoneId
+  final def show: String     = NJEvent.showNJEvent.show(this)
+  final def asJson: Json     = NJEvent.encoderNJEvent.apply(this)
+  final def serviceID: UUID  = serviceParams.serviceID
+  final def upTime: Duration = serviceParams.upTime(timestamp)
 }
 
 object NJEvent {
@@ -30,45 +31,50 @@ object NJEvent {
 }
 
 sealed trait ServiceEvent extends NJEvent {
-  def serviceStatus: ServiceStatus
-
-  final override def serviceParams: ServiceParams = serviceStatus.serviceParams
-
-  final def upTime: Duration = serviceStatus.upTime(timestamp)
+  def isUp: Boolean
 }
 
-final case class ServiceStart(serviceStatus: ServiceStatus, timestamp: ZonedDateTime) extends ServiceEvent
+final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent {
+  override val isUp: Boolean = true
+}
 
 final case class ServicePanic(
-  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
   retryDetails: RetryDetails,
   error: NJError
-) extends ServiceEvent
+) extends ServiceEvent {
+  override val isUp: Boolean = false
+}
 
 final case class ServiceStop(
-  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
   cause: ServiceStopCause
-) extends ServiceEvent
+) extends ServiceEvent {
+  override val isUp: Boolean = false
+}
 
 final case class MetricReport(
   reportType: MetricReportType,
-  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
   ongoings: List[ActionInfo],
   timestamp: ZonedDateTime,
-  snapshot: MetricSnapshot
+  snapshot: MetricSnapshot,
+  isUp: Boolean
 ) extends ServiceEvent {
-  val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
+
+  val hasError: Boolean = snapshot.isContainErrors // || serviceParams.isDown
 }
 
 final case class MetricReset(
   resetType: MetricResetType,
-  serviceStatus: ServiceStatus,
+  serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
-  snapshot: MetricSnapshot
+  snapshot: MetricSnapshot,
+  isUp: Boolean
 ) extends ServiceEvent {
-  val hasError: Boolean = snapshot.isContainErrors || serviceStatus.isDown
+  val hasError: Boolean = snapshot.isContainErrors // || serviceParams.isDown
 }
 
 sealed trait ActionEvent extends NJEvent {

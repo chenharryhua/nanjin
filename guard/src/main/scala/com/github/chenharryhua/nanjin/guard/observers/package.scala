@@ -58,7 +58,7 @@ package object observers {
         _.values.toList.traverse(ss =>
           translator.translate(
             ServiceStop(
-              ss.serviceStatus,
+              ss.serviceParams,
               ss.serviceParams.toZonedDateTime(ts),
               ServiceStopCause.Abnormally("external termination")))))
     } yield msgs.flatten
@@ -66,7 +66,7 @@ package object observers {
   private[observers] def updateRef[F[_]: Applicative](ref: Ref[F, Map[UUID, ServiceStart]], event: NJEvent): F[Unit] =
     event match {
       case ss: ServiceStart      => ref.update(_.updated(ss.serviceID, ss))
-      case ServiceStop(ss, _, _) => ref.update(_.removed(ss.serviceParams.serviceID))
+      case ServiceStop(ss, _, _) => ref.update(_.removed(ss.serviceID))
       case _                     => Applicative[F].unit
     }
 }

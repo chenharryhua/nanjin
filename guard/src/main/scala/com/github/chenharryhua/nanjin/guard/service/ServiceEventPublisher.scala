@@ -13,30 +13,27 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
 
   def serviceReStart: F[Unit] =
     for {
-      ss <- serviceStatus.get
-      ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
+      ts <- F.realTimeInstant
       us <- serviceStatus.updateAndGet(_.goUp(ts))
-      _ <- channel.send(ServiceStart(us, ts))
+      _ <- channel.send(ServiceStart(us.serviceParams, us.serviceParams.toZonedDateTime(ts)))
     } yield ()
 
   def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
     for {
-      ss <- serviceStatus.get
-      ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
+      ts <- F.realTimeInstant
       err <- UUIDGen.randomUUID[F].map(NJError(_, ex))
-      us <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, err.message))
-      _ <- channel.send(ServicePanic(us, ts, retryDetails, err))
+      us <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, err))
+      _ <- channel.send(ServicePanic(us.serviceParams, us.serviceParams.toZonedDateTime(ts), retryDetails, err))
     } yield ()
 
   def serviceStop(cause: ServiceStopCause): F[Unit] =
     for {
       ss <- serviceStatus.get
       ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
-      us <- serviceStatus.updateAndGet(_.goDown(ts, None, cause = cause.show))
       _ <- channel.send(
         ServiceStop(
           timestamp = ts,
-          serviceStatus = us,
+          serviceParams = ss.serviceParams,
           cause = cause
         ))
     } yield ()

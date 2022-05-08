@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.laws.discipline.eq.*
 import cats.laws.discipline.{ExhaustiveCheck, FunctorFilterTests, MonadTests}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -20,7 +21,7 @@ object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
 
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
-    ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceStatus], ZonedDateTime.now())))
+    ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], ZonedDateTime.now())))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], NJEvent => Option[Option[Int]]](_.translate)

@@ -57,8 +57,6 @@ final class ServiceGuard[F[_]] private[guard] (
     for {
       serviceStatus <- Stream.eval(initStatus)
       serviceParams <- Stream.eval(serviceStatus.get.map(_.serviceParams))
-      lastCounters <- Stream.eval(F.ref(MetricSnapshot.LastCounters.empty))
-      ongoings <- Stream.eval(F.ref(Set.empty[ActionInfo])) // currently running actions
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
@@ -68,15 +66,7 @@ final class ServiceGuard[F[_]] private[guard] (
           retry.mtl
             .retryingOnAllErrors(serviceParams.retry.policy[F], (ex: Throwable, rd) => sep.servicePanic(rd, ex)) {
               sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
-                runAgent(
-                  new Agent[F](
-                    metricRegistry,
-                    serviceStatus,
-                    channel,
-                    ongoings,
-                    dispatcher,
-                    lastCounters,
-                    AgentConfig(serviceParams))))
+                runAgent(new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, AgentConfig(serviceParams))))
             }
             .guaranteeCase {
               case Outcome.Succeeded(_) =>
@@ -93,7 +83,7 @@ final class ServiceGuard[F[_]] private[guard] (
         val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
         val metricEventPublisher: MetricEventPublisher[F] =
-          new MetricEventPublisher[F](channel, metricRegistry, serviceStatus, ongoings, lastCounters)
+          new MetricEventPublisher[F](channel, metricRegistry, serviceStatus)
 
         val metricsReport: Stream[F, INothing] =
           serviceParams.metric.reportSchedule match {

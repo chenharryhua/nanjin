@@ -9,7 +9,7 @@ private[translators] object SimpleTextTranslator {
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
-    val up: String   = if (se.serviceStatus.isUp) s"Uptime:${fmt.format(se.upTime)}" else "Service is down"
+    val up: String   = if (se.isUp) s"Uptime:${fmt.format(se.upTime)}" else "Service is down"
     s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, $up"
   }
 

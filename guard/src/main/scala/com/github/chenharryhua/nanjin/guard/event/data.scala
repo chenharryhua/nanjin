@@ -10,11 +10,9 @@ import io.circe.shapes.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
+import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, Instant, ZonedDateTime}
 import java.util.UUID
-import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class Notes private (value: String) extends AnyVal
@@ -70,75 +68,6 @@ final case class ActionInfo(actionParams: ActionParams, actionID: Int, launchTim
 
 object ActionInfo extends zoneddatetime {
   implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
-}
-
-@JsonCodec
-sealed trait ServiceStatus {
-  def serviceParams: ServiceParams
-  def isUp: Boolean
-  def isDown: Boolean
-  def isStopped: Boolean
-
-  def goUp(now: ZonedDateTime): ServiceStatus
-  def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): ServiceStatus
-
-  final def upTime(now: ZonedDateTime): Duration = Duration.between(serviceParams.launchTime, now)
-  final def upTime(now: Instant): Duration       = Duration.between(serviceParams.launchTime, now)
-
-  final def serviceID: UUID           = serviceParams.serviceID
-  final def launchTime: ZonedDateTime = serviceParams.launchTime
-
-  final def fold[A](up: ServiceStatus.Up => A, down: ServiceStatus.Down => A): A =
-    this match {
-      case s: ServiceStatus.Up   => up(s)
-      case s: ServiceStatus.Down => down(s)
-    }
-}
-
-/** Up - service is up
-  *
-  * Down: Stopped when upcommingRestart is None
-  *
-  * : restarting when upcommingRestart is Some
-  */
-
-object ServiceStatus extends zoneddatetime {
-  implicit val showServiceStatus: Show[ServiceStatus] = cats.derived.semiauto.show[ServiceStatus]
-
-  @JsonCodec
-  final case class Up(serviceParams: ServiceParams, lastRestartAt: ZonedDateTime, lastCrashAt: ZonedDateTime)
-      extends ServiceStatus {
-
-    override def goUp(now: ZonedDateTime): Up = this.copy(lastRestartAt = now)
-    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
-      Down(serviceParams, now, upcomingDelay.map(fd => now.plus(fd.toJava)), cause)
-
-    override val isUp: Boolean      = true
-    override val isDown: Boolean    = false
-    override val isStopped: Boolean = false
-  }
-
-  object Up {
-    def apply(serviceParams: ServiceParams): ServiceStatus =
-      Up(serviceParams, serviceParams.launchTime, serviceParams.launchTime)
-  }
-
-  @JsonCodec
-  final case class Down(
-    serviceParams: ServiceParams,
-    crashAt: ZonedDateTime,
-    upcommingRestart: Option[ZonedDateTime],
-    cause: String)
-      extends ServiceStatus {
-
-    override def goUp(now: ZonedDateTime): Up = Up(serviceParams, now, crashAt)
-    override def goDown(now: ZonedDateTime, upcomingDelay: Option[FiniteDuration], cause: String): Down =
-      this.copy(crashAt = now, upcommingRestart = upcomingDelay.map(fd => now.plus(fd.toJava)), cause = cause)
-
-    override val isUp: Boolean      = false
-    override val isDown: Boolean    = true
-    override val isStopped: Boolean = upcommingRestart.isEmpty
-  }
 }
 
 @JsonCodec
