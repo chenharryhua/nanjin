@@ -67,10 +67,7 @@ package object translators {
   private[translators] def localTimestampStr(zdt: ZonedDateTime): String =
     zdt.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
 
-  private[translators] def serviceStatusWord(isUp: Boolean, upcommingRestart: Option[ZonedDateTime]): String =
-    if (isUp) "Service is Up"
-    else {
-      upcommingRestart.fold("Service was stopped")(zdt =>
-        s"Service was stopped, restart of which is scheduled at ${localTimestampStr(zdt)}")
-    }
+  private[translators] def serviceStatusWord(upcommingRestart: Option[ZonedDateTime]): String =
+    upcommingRestart.fold("Service is up")(zdt =>
+      s"Service was stopped, restart of which is scheduled at ${localTimestampStr(zdt)}")
 }

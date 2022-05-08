@@ -24,7 +24,7 @@ final private class MetricEventPublisher[F[_]](
         MetricReport(
           serviceParams = ss.serviceParams,
           reportType = metricReportType,
-          ongoings = ss.ongoingActions.toList.sortBy(_.launchTime),
+          ongoings = ss.ongoingActionSet.toList.sortBy(_.launchTime),
           timestamp = ts,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>
@@ -34,8 +34,7 @@ final private class MetricEventPublisher[F[_]](
             case MetricSnapshotType.Delta =>
               MetricSnapshot.delta(ss.lastCounters, metricFilter, metricRegistry, ss.serviceParams)
           },
-          upcommingRestart = ss.upcommingRestart,
-          isUp = ss.isUp
+          upcomingRestartTime = ss.upcomingRestartTime
         ))
     } yield ()
 
@@ -51,17 +50,16 @@ final private class MetricEventPublisher[F[_]](
             resetType = MetricResetType.Scheduled(next),
             serviceParams = ss.serviceParams,
             timestamp = ts,
-            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, ss.serviceParams),
-            isUp = ss.isUp
+            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, ss.serviceParams)
           )
         }
-      }.getOrElse(MetricReset(
-        resetType = MetricResetType.Adhoc,
-        serviceParams = ss.serviceParams,
-        timestamp = ts,
-        snapshot = MetricSnapshot.full(metricRegistry, ss.serviceParams),
-        isUp = ss.isUp
-      ))
+      }.getOrElse(
+        MetricReset(
+          resetType = MetricResetType.Adhoc,
+          serviceParams = ss.serviceParams,
+          timestamp = ts,
+          snapshot = MetricSnapshot.full(metricRegistry, ss.serviceParams)
+        ))
       _ <- channel.send(msg)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 

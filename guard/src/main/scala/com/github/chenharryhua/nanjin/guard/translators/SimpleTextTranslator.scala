@@ -3,14 +3,13 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
-
-private[translators] object SimpleTextTranslator {
+import org.typelevel.cats.time.instances.zoneddatetime
+private[translators] object SimpleTextTranslator extends zoneddatetime {
 
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
-    val up: String   = if (se.isUp) s"Uptime:${fmt.format(se.upTime)}" else "Service is down"
-    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, $up"
+    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -43,12 +42,18 @@ private[translators] object SimpleTextTranslator {
        |  StackTrace:${evt.cause.show}
        |""".stripMargin
 
-  private def metricReport(evt: MetricReport): String =
+  private def metricReport(evt: MetricReport): String = {
+    val upTime: String =
+      evt.upcomingRestartTime.fold(s"UpTime:${fmt.format(evt.upTime)}")(zdt =>
+        s"Service was down, restart at ${zdt.show}")
+
     s"""${evt.reportType.show}
+       |  $upTime
        |${serviceEvent(evt)}
        |  OnGoings:${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
+  }
 
   private def metricReset(evt: MetricReset): String =
     s"""${evt.resetType.show}

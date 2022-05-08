@@ -30,30 +30,19 @@ object NJEvent {
   implicit final val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
 }
 
-sealed trait ServiceEvent extends NJEvent {
-  def isUp: Boolean
-}
+sealed trait ServiceEvent extends NJEvent
 
-final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent {
-  override val isUp: Boolean = true
-}
+final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent
 
 final case class ServicePanic(
   serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
   retryDetails: RetryDetails,
-  error: NJError
-) extends ServiceEvent {
-  override val isUp: Boolean = false
-}
+  error: NJError)
+    extends ServiceEvent
 
-final case class ServiceStop(
-  serviceParams: ServiceParams,
-  timestamp: ZonedDateTime,
-  cause: ServiceStopCause
-) extends ServiceEvent {
-  override val isUp: Boolean = false
-}
+final case class ServiceStop(serviceParams: ServiceParams, timestamp: ZonedDateTime, cause: ServiceStopCause)
+    extends ServiceEvent
 
 sealed trait MetricEvent extends ServiceEvent {
   def snapshot: MetricSnapshot
@@ -65,17 +54,15 @@ final case class MetricReport(
   ongoings: List[ActionInfo],
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot,
-  upcommingRestart: Option[ZonedDateTime],
-  isUp: Boolean
-) extends MetricEvent
+  upcomingRestartTime: Option[ZonedDateTime])
+    extends MetricEvent
 
 final case class MetricReset(
   resetType: MetricResetType,
   serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
-  snapshot: MetricSnapshot,
-  isUp: Boolean
-) extends MetricEvent
+  snapshot: MetricSnapshot)
+    extends MetricEvent
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
@@ -101,20 +88,25 @@ final case class ActionRetry(
   error: NJError)
     extends ActionEvent
 
+sealed trait ActionResultEvent extends ActionEvent {
+  def numRetries: Int
+  def notes: Notes
+}
+
 final case class ActionFail(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
-    extends ActionEvent
+    extends ActionResultEvent
 
 final case class ActionSucc(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before success
-  notes: Notes // success notes
-) extends ActionEvent
+  notes: Notes)
+    extends ActionResultEvent
 
 sealed trait InstantEvent extends NJEvent {
   def metricName: Digested
@@ -127,13 +119,13 @@ final case class InstantAlert(
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   importance: Importance,
-  message: String
-) extends InstantEvent
+  message: String)
+    extends InstantEvent
 
 final case class PassThrough(
   metricName: Digested,
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
   asError: Boolean, // the payload json represent an error
-  value: Json
-) extends InstantEvent
+  value: Json)
+    extends InstantEvent

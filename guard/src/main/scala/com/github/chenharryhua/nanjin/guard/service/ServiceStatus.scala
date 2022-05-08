@@ -12,9 +12,9 @@ sealed private[guard] trait ServiceStatus {
   def serviceParams: ServiceParams
   def isUp: Boolean
 
-  def upcommingRestart: Option[ZonedDateTime] // None when service is up
+  def upcomingRestartTime: Option[ZonedDateTime] // None when service is up
 
-  def ongoingActions: Set[ActionInfo]
+  def ongoingActionSet: Set[ActionInfo]
   def include(action: ActionInfo): ServiceStatus
   def exclude(action: ActionInfo): ServiceStatus
 
@@ -34,9 +34,7 @@ sealed private[guard] trait ServiceStatus {
 
 /** Up - service is up
   *
-  * Down: Stopped when upcommingRestart is None
-  *
-  * restarting when upcommingRestart is Some
+  * restarting when upcomingRestart is Some
   */
 
 private[guard] object ServiceStatus {
@@ -44,21 +42,26 @@ private[guard] object ServiceStatus {
   final case class Up(
     serviceParams: ServiceParams,
     lastCounters: LastCounters,
-    ongoingActions: Set[ActionInfo],
-    lastRestartAt: ZonedDateTime,
-    lastCrashAt: ZonedDateTime)
+    ongoingActionSet: Set[ActionInfo],
+    lastRestartTime: ZonedDateTime,
+    lastCrashTime: ZonedDateTime)
       extends ServiceStatus {
     override val isUp: Boolean = true
 
-    override def goUp(now: Instant): Up = copy(lastRestartAt = serviceParams.toZonedDateTime(now))
+    override def goUp(now: Instant): Up = copy(lastRestartTime = serviceParams.toZonedDateTime(now))
     override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: NJError): Down = {
       val zdt = serviceParams.toZonedDateTime(now)
-      Down(serviceParams, lastCounters, zdt, upcomingDelay.map(fd => zdt.plus(fd.toJava)), cause)
+      Down(
+        serviceParams = serviceParams,
+        lastCounters = lastCounters,
+        crashTime = zdt,
+        upcomingRestartTime = upcomingDelay.map(fd => zdt.plus(fd.toJava)),
+        cause = cause)
     }
 
-    override val upcommingRestart: Option[ZonedDateTime]    = None
-    override def include(action: ActionInfo): ServiceStatus = copy(ongoingActions = ongoingActions.incl(action))
-    override def exclude(action: ActionInfo): ServiceStatus = copy(ongoingActions = ongoingActions.excl(action))
+    override val upcomingRestartTime: Option[ZonedDateTime] = None
+    override def include(action: ActionInfo): ServiceStatus = copy(ongoingActionSet = ongoingActionSet.incl(action))
+    override def exclude(action: ActionInfo): ServiceStatus = copy(ongoingActionSet = ongoingActionSet.excl(action))
 
     override def updateLastCounters(last: LastCounters): ServiceStatus =
       copy(lastCounters = last)
@@ -66,27 +69,39 @@ private[guard] object ServiceStatus {
 
   object Up {
     def apply(serviceParams: ServiceParams): ServiceStatus =
-      Up(serviceParams, LastCounters.empty, Set.empty[ActionInfo], serviceParams.launchTime, serviceParams.launchTime)
+      Up(
+        serviceParams = serviceParams,
+        lastCounters = LastCounters.empty,
+        ongoingActionSet = Set.empty[ActionInfo],
+        lastRestartTime = serviceParams.launchTime,
+        lastCrashTime = serviceParams.launchTime
+      )
   }
 
   final case class Down(
     serviceParams: ServiceParams,
     lastCounters: LastCounters,
-    crashAt: ZonedDateTime,
-    upcommingRestart: Option[ZonedDateTime],
+    crashTime: ZonedDateTime,
+    upcomingRestartTime: Option[ZonedDateTime],
     cause: NJError)
       extends ServiceStatus {
 
     override val isUp: Boolean = false
 
     override def goUp(now: Instant): Up =
-      Up(serviceParams, lastCounters, Set.empty[ActionInfo], serviceParams.toZonedDateTime(now), crashAt)
+      Up(
+        serviceParams = serviceParams,
+        lastCounters = lastCounters,
+        ongoingActionSet = Set.empty[ActionInfo],
+        lastRestartTime = serviceParams.toZonedDateTime(now),
+        lastCrashTime = crashTime
+      )
     override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: NJError): Down = {
       val zdt = serviceParams.toZonedDateTime(now)
-      this.copy(crashAt = zdt, upcommingRestart = upcomingDelay.map(fd => zdt.plus(fd.toJava)), cause = cause)
+      copy(crashTime = zdt, upcomingRestartTime = upcomingDelay.map(fd => zdt.plus(fd.toJava)), cause = cause)
     }
 
-    override val ongoingActions: Set[ActionInfo] = Set.empty[ActionInfo]
+    override val ongoingActionSet: Set[ActionInfo] = Set.empty[ActionInfo]
 
     override def include(action: ActionInfo): ServiceStatus = this
     override def exclude(action: ActionInfo): ServiceStatus = this

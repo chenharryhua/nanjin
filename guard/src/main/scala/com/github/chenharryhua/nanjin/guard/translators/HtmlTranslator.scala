@@ -94,7 +94,7 @@ private[translators] object HtmlTranslator extends all {
     val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
     div(
       h3(style := color)(evt.reportType.show),
-      p(serviceStatusWord(evt.isUp, evt.upcommingRestart)),
+      p(serviceStatusWord(evt.upcomingRestartTime)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),

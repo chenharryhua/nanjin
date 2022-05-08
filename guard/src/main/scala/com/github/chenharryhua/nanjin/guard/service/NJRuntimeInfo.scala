@@ -19,10 +19,10 @@ final class NJRuntimeInfo[F[_]: Temporal] private[service] (serviceStatus: RefSo
   }
 
   def latestCrash: F[ZonedDateTime] =
-    serviceStatus.get.map(_.fold(_.lastCrashAt, _.crashAt))
+    serviceStatus.get.map(_.fold(_.lastCrashTime, _.crashTime))
 
   def latestRestart: F[Option[ZonedDateTime]] =
-    serviceStatus.get.map(_.fold(u => Some(u.lastRestartAt), _ => None))
+    serviceStatus.get.map(_.fold(u => Some(u.lastRestartTime), _ => None))
 
   def downCause: F[Option[String]] = serviceStatus.get.map(_.fold(_ => None, d => Some(d.cause.message)))
 
@@ -31,5 +31,5 @@ final class NJRuntimeInfo[F[_]: Temporal] private[service] (serviceStatus: RefSo
   def isServiceUp: F[Boolean]   = serviceStatus.get.map(_.isUp)
   def isServiceDown: F[Boolean] = serviceStatus.get.map(_.isDown)
 
-  def pendingActions: F[Set[ActionInfo]] = serviceStatus.get.map(_.ongoingActions)
+  def pendingActions: F[Set[ActionInfo]] = serviceStatus.get.map(_.ongoingActionSet)
 }

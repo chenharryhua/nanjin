@@ -59,8 +59,8 @@ final class NJSlackPipe[F[_]](
         .evalTap(evt => updateRef(ref, evt))
         .evalTap(e =>
           translator.filter {
-            case MetricReport(rt, ss, _, ts, _, _, _) =>
-              isShowMetrics(ss.metric.reportSchedule, ts, metricsInterval, ss.launchTime) || rt.isShow
+            case MetricReport(mrt, sp, _, ts, _, _) =>
+              isShowMetrics(sp.metric.reportSchedule, ts, metricsInterval, sp.launchTime) || mrt.isShow
             case ActionStart(ai)            => ai.actionParams.isCritical
             case ActionSucc(ai, _, _, _)    => ai.actionParams.isCritical
             case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice
