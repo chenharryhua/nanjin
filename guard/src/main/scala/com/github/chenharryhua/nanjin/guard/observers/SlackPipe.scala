@@ -13,26 +13,26 @@ import io.circe.syntax.*
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-object slack {
-  def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): NJSlackPipe[F] =
-    new NJSlackPipe[F](snsResource, None, None, Translator.slack[F])
+object SlackPipe {
+  def apply[F[_]: Async](snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
+    new SlackPipe[F](snsResource, None, None, Translator.slack[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn): NJSlackPipe[F] =
-    new NJSlackPipe[F](sns[F](snsArn), None, None, Translator.slack[F])
+  def apply[F[_]: Async](snsArn: SnsArn): SlackPipe[F] =
+    new SlackPipe[F](sns[F](snsArn), None, None, Translator.slack[F])
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 
-final class NJSlackPipe[F[_]](
+final class SlackPipe[F[_]](
   snsResource: Resource[F, SimpleNotificationService[F]],
   supporters: Option[String],
   metricsInterval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
-    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, NJSlackPipe[F]] {
+    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, SlackPipe[F]] {
 
-  def withInterval(fd: FiniteDuration): NJSlackPipe[F] =
-    new NJSlackPipe[F](snsResource, supporters, Some(fd), translator)
+  def withInterval(fd: FiniteDuration): SlackPipe[F] =
+    new SlackPipe[F](snsResource, supporters, Some(fd), translator)
 
   /** supporters will be notified:
     *
@@ -42,14 +42,14 @@ final class NJSlackPipe[F[_]](
     *
     * ServiceTermination
     */
-  def at(supporters: String): NJSlackPipe[F] = {
+  def at(supporters: String): SlackPipe[F] = {
     val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
     val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    new NJSlackPipe[F](snsResource, Some(supporters), metricsInterval, sp.andThen(st)(translator))
+    new SlackPipe[F](snsResource, Some(supporters), metricsInterval, sp.andThen(st)(translator))
   }
 
-  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): NJSlackPipe[F] =
-    new NJSlackPipe[F](snsResource, supporters, metricsInterval, f(translator))
+  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackPipe[F] =
+    new SlackPipe[F](snsResource, supporters, metricsInterval, f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {

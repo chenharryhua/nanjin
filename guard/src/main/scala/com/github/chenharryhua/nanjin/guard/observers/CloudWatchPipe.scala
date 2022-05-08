@@ -12,7 +12,7 @@ import java.time.Instant
 import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
-object cloudwatch {
+object CloudWatchPipe {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchPipe[F] =
     new CloudWatchPipe[F](client, namespace, 60)
 
@@ -20,32 +20,8 @@ object cloudwatch {
     apply[F](CloudWatch[F], namespace)
 }
 
-final private case class MetricKey(
-  uuid: UUID,
-  hostName: String,
-  standardUnit: StandardUnit,
-  task: String,
-  service: String,
-  metricName: String,
-  launchDate: String) {
-  def metricDatum(ts: Instant, count: Long): MetricDatum =
-    new MetricDatum()
-      .withDimensions(
-        new Dimension().withName("Task").withValue(task),
-        new Dimension().withName("Service").withValue(service),
-        new Dimension().withName("Host").withValue(hostName),
-        new Dimension().withName("LaunchDate").withValue(launchDate)
-      )
-      .withMetricName(metricName)
-      .withUnit(standardUnit)
-      .withTimestamp(Date.from(ts))
-      .withValue(count)
-}
-
-final class CloudWatchPipe[F[_]] private[observers] (
-  client: Resource[F, CloudWatch[F]],
-  namespace: String,
-  storageResolution: Int)(implicit F: Sync[F])
+final class CloudWatchPipe[F[_]](client: Resource[F, CloudWatch[F]], namespace: String, storageResolution: Int)(implicit
+  F: Sync[F])
     extends Pipe[F, NJEvent, NJEvent] with localdate {
 
   def withStorageResolution(storageResolution: Int): CloudWatchPipe[F] = {
@@ -111,4 +87,26 @@ final class CloudWatchPipe[F[_]] private[observers] (
 
     Stream.resource(client).flatMap(cw => go(cw, es, Map.empty).stream)
   }
+}
+
+final private case class MetricKey(
+  uuid: UUID,
+  hostName: String,
+  standardUnit: StandardUnit,
+  task: String,
+  service: String,
+  metricName: String,
+  launchDate: String) {
+  def metricDatum(ts: Instant, count: Long): MetricDatum =
+    new MetricDatum()
+      .withDimensions(
+        new Dimension().withName("Task").withValue(task),
+        new Dimension().withName("Service").withValue(service),
+        new Dimension().withName("Host").withValue(hostName),
+        new Dimension().withName("LaunchDate").withValue(launchDate)
+      )
+      .withMetricName(metricName)
+      .withUnit(standardUnit)
+      .withTimestamp(Date.from(ts))
+      .withValue(count)
 }

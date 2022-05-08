@@ -70,7 +70,7 @@ class ObserversTest extends AnyFunSuite {
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
       .interruptAfter(7.seconds)
-      .through(slack[IO](sns.fake[IO]).at("@chenh"))
+      .through(SlackPipe[IO](sns.fake[IO]).at("@chenh"))
       .compile
       .drain
       .unsafeRunSync()
@@ -78,7 +78,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("ses mail") {
     val mail =
-      sesEmail[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
+      SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
         .withInterval(5.seconds)
         .withChunkSize(100)
         .withSubject("subject")
@@ -99,7 +99,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("sns mail") {
     val mail =
-      snsEmail[IO](sns.fake[IO]).withInterval(5.seconds).withChunkSize(100).updateTranslator(_.skipActionStart)
+      SnsEmailObserver[IO](sns.fake[IO]).withInterval(5.seconds).withChunkSize(100).updateTranslator(_.skipActionStart)
 
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://google.com"))
@@ -131,11 +131,11 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("syntax") {
-    sesEmail[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
+    SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
       .withSubject("subject")
       .withInterval(1.minute)
       .withChunkSize(10)
-    snsEmail[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
+    SnsEmailObserver[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
     logging.simple[IO]
     console.verbose[IO]
   }
@@ -164,7 +164,7 @@ class ObserversTest extends AnyFunSuite {
         .service("postgres")
         .eventStream(_.notice.run(IO(0)))
         .evalTap(console.verbose[IO])
-        .through(postgres(session).withTableName("log"))
+        .through(PostgresPipe(session).withTableName("log"))
         .compile
         .drain
 

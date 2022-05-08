@@ -44,6 +44,7 @@ private[translators] object SimpleJsonTranslator {
             "event": "MetricReport",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
+            "ongoings": ${evt.ongoings.map(_.actionID)},
             "isUp": ${evt.isUp},
             "metrics": ${evt.snapshot.asJson}
           }
