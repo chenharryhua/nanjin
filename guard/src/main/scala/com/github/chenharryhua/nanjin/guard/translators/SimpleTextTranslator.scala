@@ -48,9 +48,9 @@ private[translators] object SimpleTextTranslator extends zoneddatetime {
         s"Service was down, restart at ${zdt.show}")
 
     s"""${evt.reportType.show}
-       |  $upTime
        |${serviceEvent(evt)}
-       |  OnGoings:${evt.ongoings.map(_.actionID).mkString(",")}
+       |  $upTime
+       |  Ongoings:${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
   }
