@@ -33,7 +33,8 @@ private[translators] object SimpleJsonTranslator {
             "event": "ServiceStop",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
-            "cause": ${evt.cause.show}
+            "cause": ${evt.cause.show},
+            "exitCode": ${evt.cause.exitCode}
           }
           """
 
@@ -43,7 +44,8 @@ private[translators] object SimpleJsonTranslator {
             "event": "MetricReport",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "serviceID": ${evt.serviceParams.serviceID},
-            "isUp": ${evt.upcomingRestartTime.isEmpty},
+            "ongoings": ${evt.ongoings.map(_.actionID)},
+            "isUp": ${evt.isUp},
             "metrics": ${evt.snapshot.asJson}
           }
           """
@@ -62,8 +64,10 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {
             "event": "PassThrough",
-            "name" : ${evt.metricName.metricRepr},
+            "name": ${evt.metricName.origin},
+            "digest": ${evt.metricName.digest},
             "serviceID": ${evt.serviceParams.serviceID},
+            "isError": ${evt.isError},
             "value": ${evt.value}
           }
           """
@@ -72,8 +76,10 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {       
             "event": "InstantAlert",
-            "name" : ${evt.metricName.metricRepr},
+            "name": ${evt.metricName.origin},
+            "digest": ${evt.metricName.digest},
             "serviceID": ${evt.serviceParams.serviceID},
+            "importance": ${evt.importance.value},
             "message": ${evt.message}    
           }
           """
@@ -82,8 +88,9 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionStart",
-            "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
-            "actionID" : ${evt.actionID},
+            "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "digest": ${evt.actionInfo.actionParams.metricName.digest},
+            "id": ${evt.actionID},
             "serviceID": ${evt.serviceParams.serviceID}
           }
           """
@@ -92,8 +99,9 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionRetry",
-            "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
-            "actionID" : ${evt.actionID},            
+            "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "digest": ${evt.actionInfo.actionParams.metricName.digest},
+            "id": ${evt.actionID},         
             "serviceID": ${evt.serviceParams.serviceID},
             "cause" : ${evt.error.message}
           }
@@ -103,8 +111,9 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionFail",
-            "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
-            "actionID" : ${evt.actionID},            
+            "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "digest": ${evt.actionInfo.actionParams.metricName.digest},
+            "id": ${evt.actionID},       
             "serviceID": ${evt.serviceParams.serviceID},
             "cause" : ${evt.error.stackTrace},
             "notes" : ${evt.notes.value}
@@ -115,8 +124,9 @@ private[translators] object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionSucc",
-            "actionName": ${evt.actionInfo.actionParams.metricName.metricRepr},
-            "actionID" : ${evt.actionID},            
+            "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "digest": ${evt.actionInfo.actionParams.metricName.digest},
+            "id": ${evt.actionID},      
             "serviceID": ${evt.serviceParams.serviceID},
             "notes" : ${evt.notes.value}
           }

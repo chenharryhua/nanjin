@@ -9,7 +9,7 @@ import io.circe.Json
 
 final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams)(implicit
   F: Temporal[F]) {
-  def passThrough(metricName: Digested, json: Json, asError: Boolean): F[Unit] =
+  def passThrough(metricName: Digested, json: Json, isError: Boolean): F[Unit] =
     for {
       ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
@@ -17,7 +17,7 @@ final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], se
           metricName = metricName,
           timestamp = ts,
           serviceParams = serviceParams,
-          asError = asError,
+          isError = isError,
           value = json))
     } yield ()
 

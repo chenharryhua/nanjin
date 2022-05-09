@@ -3,14 +3,19 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import org.typelevel.cats.time.instances.zoneddatetime
-private[translators] object SimpleTextTranslator extends zoneddatetime {
+
+private[translators] object SimpleTextTranslator {
+  private def coloring(msg: String): Coloring = new Coloring({
+    case ColorScheme.GoodColor  => msg
+    case ColorScheme.InfoColor  => msg
+    case ColorScheme.WarnColor  => Console.CYAN + msg + Console.RESET
+    case ColorScheme.ErrorColor => Console.YELLOW + msg + Console.RESET
+  })
 
   private def serviceEvent(se: ServiceEvent): String = {
-    val host: String   = se.serviceParams.taskParams.hostName.value
-    val sn: String     = se.serviceParams.serviceName.value
-    val uptime: String = fmt.format(se.upTime)
-    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, Uptime:$uptime"
+    val host: String = se.serviceParams.taskParams.hostName.value
+    val sn: String   = se.serviceParams.serviceName.value
+    s"  Host:$host, ServiceID:${se.serviceID.show}, Service:$sn"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -26,74 +31,74 @@ private[translators] object SimpleTextTranslator extends zoneddatetime {
   }
 
   private def serviceStarted(evt: ServiceStart): String =
-    s"""Service (Re)Started
+    s"""${coloring("Service (Re)Started")(evt)}
        |${serviceEvent(evt)}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String =
-    s"""Service Panic
+    s"""${coloring("Service Panic")(evt)}
        |${serviceEvent(evt)}
-       |  ${panicInterpretation(evt.upcomingRestartTime)}
-       |  ErrorID:${evt.error.uuid.show}
-       |  StackTrace:${evt.error.stackTrace}
+       |  ${upcomingRestartTimeInterpretation(evt)}
+       |  ErrorID: ${evt.error.uuid.show}
+       |  StackTrace: ${evt.error.stackTrace}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
-    s"""Service Stopped
+    s"""${coloring("Service Stopped")(evt)}
        |${serviceEvent(evt)}
-       |  StackTrace:${evt.cause.show}
+       |  Cause: ${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""${evt.reportType.show}
+    s"""${coloring(evt.reportType.show)(evt)}
        |${serviceEvent(evt)}
-       |  ${metricInterpretation(evt.upcomingRestartTime)}
-       |  Ongoings:${evt.ongoings.map(_.actionID).mkString(",")}
+       |  ${upcomingRestartTimeInterpretation(evt)}
+       |  Ongoings: ${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""${evt.resetType.show}
+    s"""${coloring(evt.resetType.show)(evt)}
        |${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =
-    s"""Pass Through
+    s"""${coloring("Pass Through")(evt)}
        |${instantEvent(evt)}
-       |  Message:${evt.value.noSpaces}
+       |  Message: ${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
-    s"""Service Alert
+    s"""${coloring("Service Alert")(evt)}
        |${instantEvent(evt)}
-       |  Alert:${evt.message}
+       |  Alert: ${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
-    s"""Action Start
+    s"""${coloring("Action Start")(evt)}
        |${actionEvent(evt)}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
-    s"""Action Retrying
+    s"""${coloring("Action Retrying")(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
-       |  StackTrace:${evt.error.stackTrace}
+       |  Took: ${fmt.format(evt.took)}
+       |  StackTrace: ${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
-    s"""Action Failed
+    s"""${coloring("Action Failed")(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
-       |  StackTrace:${evt.error.stackTrace}
+       |  Took: ${fmt.format(evt.took)}
+       |  StackTrace: ${evt.error.stackTrace}
        |  ${evt.notes.value}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
-    s"""Action Succed
+    s"""${coloring("Action Succed")(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
+       |  Took: ${fmt.format(evt.took)}
        |  ${evt.notes.value}
        |""".stripMargin
 

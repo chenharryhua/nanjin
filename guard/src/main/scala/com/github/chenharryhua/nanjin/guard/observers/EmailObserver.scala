@@ -17,10 +17,10 @@ import scalatags.Text.all.*
 import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-object sesEmail {
+object SesEmailObserver {
 
-  def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): NJSesEmailObserver[F] =
-    new NJSesEmailObserver[F](
+  def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): SesEmailObserver[F] =
+    new SesEmailObserver[F](
       client = ses[F],
       from = from,
       to = to,
@@ -31,10 +31,10 @@ object sesEmail {
       Translator.html[F])
 }
 
-object snsEmail {
+object SnsEmailObserver {
 
-  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): NJSnsEmailObserver[F] =
-    new NJSnsEmailObserver[F](
+  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): SnsEmailObserver[F] =
+    new SnsEmailObserver[F](
       client = client,
       title = None,
       chunkSize = ChunkSize(60),
@@ -42,10 +42,10 @@ object snsEmail {
       isNewestFirst = true,
       Translator.html[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn): NJSnsEmailObserver[F] = apply[F](sns(snsArn))
+  def apply[F[_]: Async](snsArn: SnsArn): SnsEmailObserver[F] = apply[F](sns(snsArn))
 }
 
-final class NJSesEmailObserver[F[_]](
+final class SesEmailObserver[F[_]](
   client: Resource[F, SimpleEmailService[F]],
   from: EmailAddr,
   to: NonEmptyList[EmailAddr],
@@ -54,7 +54,7 @@ final class NJSesEmailObserver[F[_]](
   interval: FiniteDuration, // send out email every interval
   isNewestFirst: Boolean, // the latest event comes first
   translator: Translator[F, Text.TypedTag[String]])(implicit F: Async[F])
-    extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], NJSesEmailObserver[F]] with all {
+    extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], SesEmailObserver[F]] with all {
 
   private[this] def copy(
     client: Resource[F, SimpleEmailService[F]] = client,
@@ -62,18 +62,18 @@ final class NJSesEmailObserver[F[_]](
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     isNewestFirst: Boolean = isNewestFirst,
-    translator: Translator[F, Text.TypedTag[String]] = translator): NJSesEmailObserver[F] =
-    new NJSesEmailObserver[F](client, from, to, subject, chunkSize, interval, isNewestFirst, translator)
+    translator: Translator[F, Text.TypedTag[String]] = translator): SesEmailObserver[F] =
+    new SesEmailObserver[F](client, from, to, subject, chunkSize, interval, isNewestFirst, translator)
 
-  def withInterval(fd: FiniteDuration): NJSesEmailObserver[F] = copy(interval = fd)
-  def withChunkSize(cs: ChunkSize): NJSesEmailObserver[F]     = copy(chunkSize = cs)
-  def withSubject(sj: Subject): NJSesEmailObserver[F]         = copy(subject = Some(sj))
-  def withOldestFirst: NJSesEmailObserver[F]                  = copy(isNewestFirst = false)
+  def withInterval(fd: FiniteDuration): SesEmailObserver[F] = copy(interval = fd)
+  def withChunkSize(cs: ChunkSize): SesEmailObserver[F]     = copy(chunkSize = cs)
+  def withSubject(sj: Subject): SesEmailObserver[F]         = copy(subject = Some(sj))
+  def withOldestFirst: SesEmailObserver[F]                  = copy(isNewestFirst = false)
 
-  def withClient(client: Resource[F, SimpleEmailService[F]]): NJSesEmailObserver[F] = copy(client = client)
+  def withClient(client: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] = copy(client = client)
 
   override def updateTranslator(
-    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSesEmailObserver[F] =
+    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SesEmailObserver[F] =
     copy(translator = f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =
@@ -120,14 +120,14 @@ final class NJSesEmailObserver[F[_]](
               .drain))
 }
 
-final class NJSnsEmailObserver[F[_]](
+final class SnsEmailObserver[F[_]](
   client: Resource[F, SimpleNotificationService[F]],
   title: Option[Title],
   chunkSize: ChunkSize,
   interval: FiniteDuration,
   isNewestFirst: Boolean,
   translator: Translator[F, Text.TypedTag[String]])(implicit F: Async[F])
-    extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], NJSnsEmailObserver[F]] with all {
+    extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], SnsEmailObserver[F]] with all {
 
   private[this] def copy(
     client: Resource[F, SimpleNotificationService[F]] = client,
@@ -135,16 +135,16 @@ final class NJSnsEmailObserver[F[_]](
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     isNewestFirst: Boolean = isNewestFirst,
-    translator: Translator[F, Text.TypedTag[String]] = translator): NJSnsEmailObserver[F] =
-    new NJSnsEmailObserver[F](client, title, chunkSize, interval, isNewestFirst, translator)
+    translator: Translator[F, Text.TypedTag[String]] = translator): SnsEmailObserver[F] =
+    new SnsEmailObserver[F](client, title, chunkSize, interval, isNewestFirst, translator)
 
-  def withInterval(fd: FiniteDuration): NJSnsEmailObserver[F] = copy(interval = fd)
-  def withChunkSize(cs: ChunkSize): NJSnsEmailObserver[F]     = copy(chunkSize = cs)
-  def withTitle(t: Title): NJSnsEmailObserver[F]              = copy(title = Some(t))
-  def withOldestFirst: NJSnsEmailObserver[F]                  = copy(isNewestFirst = false)
+  def withInterval(fd: FiniteDuration): SnsEmailObserver[F] = copy(interval = fd)
+  def withChunkSize(cs: ChunkSize): SnsEmailObserver[F]     = copy(chunkSize = cs)
+  def withTitle(t: Title): SnsEmailObserver[F]              = copy(title = Some(t))
+  def withOldestFirst: SnsEmailObserver[F]                  = copy(isNewestFirst = false)
 
   override def updateTranslator(
-    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): NJSnsEmailObserver[F] =
+    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SnsEmailObserver[F] =
     copy(translator = f(translator))
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, INothing] =

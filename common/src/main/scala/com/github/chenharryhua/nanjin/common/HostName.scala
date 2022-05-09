@@ -27,5 +27,6 @@ object HostName {
     override def combine(x: HostName, y: HostName): HostName = x / y
   }
 
-  val local_host: HostName = HostName(Try(InetAddress.getLocalHost.getHostName).getOrElse("none"))
+  val local_host: HostName =
+    HostName(Try(Option(InetAddress.getLocalHost.getHostName)).toOption.flatten.getOrElse("none"))
 }

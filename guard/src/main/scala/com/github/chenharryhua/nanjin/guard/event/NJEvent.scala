@@ -54,7 +54,9 @@ final case class MetricReport(
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot,
   upcomingRestartTime: Option[ZonedDateTime])
-    extends MetricEvent
+    extends MetricEvent {
+  val isUp: Boolean = upcomingRestartTime.isEmpty
+}
 
 final case class MetricReset(
   resetType: MetricResetType,
@@ -125,6 +127,6 @@ final case class PassThrough(
   metricName: Digested,
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
-  asError: Boolean, // the payload json represent an error
+  isError: Boolean, // the payload json represent an error
   value: Json)
     extends InstantEvent

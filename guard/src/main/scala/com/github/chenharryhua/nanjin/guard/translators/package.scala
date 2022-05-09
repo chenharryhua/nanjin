@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.{MetricReport, ServicePanic}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
@@ -14,6 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object translators {
+
   def nextTime(
     reportSchedule: Option[Either[FiniteDuration, CronExpr]],
     now: ZonedDateTime,
@@ -79,15 +81,16 @@ package object translators {
     *
     * Some: Service panic
     */
-  private[translators] def metricInterpretation(upcommingRestart: Option[ZonedDateTime]): String =
-    upcommingRestart.fold("Service is up")(zdt =>
-      s"Service is in panic, restart of which is scheduled at ${localTimestampStr(zdt)}")
+  private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
+    mr.upcomingRestartTime match {
+      case None      => s"The service has been up and running for ${fmt.format(mr.upTime)}"
+      case Some(zdt) => s"The service is in panic, restart was scheduled at ${localTimestampStr(zdt)}"
+    }
 
-  private[translators] def panicInterpretation(upcommingRestart: Option[ZonedDateTime]): String = {
-    val upcoming: String = upcommingRestart match {
-      case None => "which is fatal" // never happen
-      case Some(ts) =>
-        s"restart of which is scheduled at ${localTimestampStr(ts)}, meanwhile the service is dysfunctional."
+  private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
+    val upcoming: String = sp.upcomingRestartTime match {
+      case None     => "which should never happen" // never happen
+      case Some(ts) => s"restart was scheduled at ${localTimestampStr(ts)}."
     }
     s":alarm: The service experienced a panic, $upcoming"
   }

@@ -39,7 +39,7 @@ sealed private[guard] trait ServiceStatus {
 
 private[guard] object ServiceStatus {
 
-  final case class Up(
+  final case class Up private[ServiceStatus] (
     serviceParams: ServiceParams,
     lastCounters: LastCounters,
     ongoingActionSet: Set[ActionInfo],
@@ -78,7 +78,7 @@ private[guard] object ServiceStatus {
       )
   }
 
-  final case class Down(
+  final case class Down private[ServiceStatus] (
     serviceParams: ServiceParams,
     lastCounters: LastCounters,
     crashTime: ZonedDateTime,

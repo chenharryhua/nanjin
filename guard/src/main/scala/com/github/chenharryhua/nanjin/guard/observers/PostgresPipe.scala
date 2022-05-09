@@ -18,26 +18,24 @@ import java.util.UUID
   * CREATE TABLE public.event_stream ( info json NULL, "timestamp" timestamptz NULL DEFAULT CURRENT_TIMESTAMP );
   */
 
-object postgres {
+object PostgresPipe {
 
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]], tableName: TableName): NJPostgresPipe[F] =
-    new NJPostgresPipe[F](session, Translator.simpleJson[F], tableName)
+  def apply[F[_]: Temporal](session: Resource[F, Session[F]], tableName: TableName): PostgresPipe[F] =
+    new PostgresPipe[F](session, Translator.simpleJson[F], tableName)
 
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]]): NJPostgresPipe[F] =
+  def apply[F[_]: Temporal](session: Resource[F, Session[F]]): PostgresPipe[F] =
     apply[F](session, TableName("event_stream"))
 }
 
-final class NJPostgresPipe[F[_]](
-  session: Resource[F, Session[F]],
-  translator: Translator[F, Json],
-  tableName: TableName)(implicit F: Temporal[F])
-    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, Json, NJPostgresPipe[F]] {
+final class PostgresPipe[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json], tableName: TableName)(
+  implicit F: Temporal[F])
+    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, Json, PostgresPipe[F]] {
 
-  def withTableName(tableName: TableName): NJPostgresPipe[F] =
-    new NJPostgresPipe[F](session, translator, tableName)
+  def withTableName(tableName: TableName): PostgresPipe[F] =
+    new PostgresPipe[F](session, translator, tableName)
 
-  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): NJPostgresPipe[F] =
-    new NJPostgresPipe[F](session, f(translator), tableName)
+  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): PostgresPipe[F] =
+    new PostgresPipe[F](session, f(translator), tableName)
 
   def apply(events: Stream[F, NJEvent]): Stream[F, NJEvent] = {
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
