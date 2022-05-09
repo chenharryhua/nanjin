@@ -7,10 +7,9 @@ import com.github.chenharryhua.nanjin.guard.event.*
 private[translators] object SimpleTextTranslator {
 
   private def serviceEvent(se: ServiceEvent): String = {
-    val host: String   = se.serviceParams.taskParams.hostName.value
-    val sn: String     = se.serviceParams.serviceName.value
-    val uptime: String = fmt.format(se.upTime)
-    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn, Uptime:$uptime"
+    val host: String = se.serviceParams.taskParams.hostName.value
+    val sn: String   = se.serviceParams.serviceName.value
+    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -33,7 +32,7 @@ private[translators] object SimpleTextTranslator {
   private def servicePanic(evt: ServicePanic): String =
     s"""Service Panic
        |${serviceEvent(evt)}
-       |  ${panicInterpretation(evt.upcomingRestartTime)}
+       |  ${upcomingRestartTimeInterpretation(evt)}
        |  ErrorID:${evt.error.uuid.show}
        |  StackTrace:${evt.error.stackTrace}
        |""".stripMargin
@@ -47,7 +46,7 @@ private[translators] object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${evt.reportType.show}
        |${serviceEvent(evt)}
-       |  ${metricInterpretation(evt.upcomingRestartTime)}
+       |  ${upcomingRestartTimeInterpretation(evt)}
        |  Ongoings:${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin

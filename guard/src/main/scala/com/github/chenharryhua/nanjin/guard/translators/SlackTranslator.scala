@@ -60,7 +60,7 @@ private[translators] object SlackTranslator extends all {
         Attachment(
           color = errorColor,
           blocks = List(
-            MarkdownSection(panicInterpretation(evt.upcomingRestartTime)),
+            MarkdownSection(upcomingRestartTimeInterpretation(evt)),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
@@ -115,17 +115,18 @@ private[translators] object SlackTranslator extends all {
   }
 
   private def metricReport(evt: MetricReport): SlackApp = {
-    val color = if (evt.snapshot.isContainErrors) warnColor else infoColor
+    val color: String = if (evt.snapshot.isContainErrors || !evt.isUp) warnColor else infoColor
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(s"*${evt.reportType.show}*"),
+            MarkdownSection(s"""*${evt.reportType.show}*
+                               |${upcomingRestartTimeInterpretation(evt)}""".stripMargin),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              TextField("Up Time", fmt.format(evt.upTime)),
+              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show),
               TextField(
                 "Scheduled Next",
                 evt.serviceParams.metric.nextReport(evt.timestamp).map(localTimestampStr).getOrElse("None"))
@@ -156,7 +157,7 @@ private[translators] object SlackTranslator extends all {
                     "Scheduled Next",
                     evt.serviceParams.metric
                       .nextReport(evt.timestamp)
-                      .map(_.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+                      .map(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)
                       .getOrElse("None")
                   )
                 ),
@@ -177,7 +178,7 @@ private[translators] object SlackTranslator extends all {
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
-                  TextField("Scheduled Next", next.show)
+                  TextField("Scheduled Next", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)
                 ),
                 MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
                 metricsSection(evt.snapshot)

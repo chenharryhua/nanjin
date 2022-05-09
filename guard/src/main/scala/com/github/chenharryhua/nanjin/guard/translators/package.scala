@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.{MetricReport, ServicePanic}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
@@ -79,15 +80,15 @@ package object translators {
     *
     * Some: Service panic
     */
-  private[translators] def metricInterpretation(upcommingRestart: Option[ZonedDateTime]): String =
-    upcommingRestart.fold("Service is up")(zdt =>
-      s"Service is in panic, restart of which is scheduled at ${localTimestampStr(zdt)}")
+  private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
+    mr.upcomingRestartTime.fold(s"Service has been up and running for ${fmt.format(mr.upTime)}")(zdt =>
+      s"Service is in panic, restart of which was scheduled at ${localTimestampStr(zdt)}")
 
-  private[translators] def panicInterpretation(upcommingRestart: Option[ZonedDateTime]): String = {
-    val upcoming: String = upcommingRestart match {
-      case None => "which is fatal" // never happen
+  private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
+    val upcoming: String = sp.upcomingRestartTime match {
+      case None => "which should never happen" // never happen
       case Some(ts) =>
-        s"restart of which is scheduled at ${localTimestampStr(ts)}, meanwhile the service is dysfunctional."
+        s"restart of which was scheduled at ${localTimestampStr(ts)}, meanwhile the service is dysfunctional."
     }
     s":alarm: The service experienced a panic, $upcoming"
   }

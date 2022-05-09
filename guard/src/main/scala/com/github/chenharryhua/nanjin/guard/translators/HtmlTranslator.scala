@@ -70,7 +70,7 @@ private[translators] object HtmlTranslator extends all {
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := "color:red")(s"Service Panic"),
-      p(b(panicInterpretation(evt.upcomingRestartTime))),
+      p(b(upcomingRestartTimeInterpretation(evt))),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -94,7 +94,7 @@ private[translators] object HtmlTranslator extends all {
     val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
     div(
       h3(style := color)(evt.reportType.show),
-      p(metricInterpretation(evt.upcomingRestartTime)),
+      p(upcomingRestartTimeInterpretation(evt)),
       timestampText(evt.timestamp),
       p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
