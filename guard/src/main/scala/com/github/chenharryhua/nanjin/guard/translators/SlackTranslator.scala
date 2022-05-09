@@ -147,7 +147,7 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.taskName.value,
           attachments = List(
             Attachment(
-              color = if (evt.snapshot.isContainErrors) warnColor else infoColor,
+              color = infoColor,
               blocks = List(
                 MarkdownSection("*Adhoc Metric Reset*"),
                 hostServiceSection(evt.serviceParams),

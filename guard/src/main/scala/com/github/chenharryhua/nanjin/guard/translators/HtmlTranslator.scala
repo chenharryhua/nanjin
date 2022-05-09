@@ -3,19 +3,26 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
 private[translators] object HtmlTranslator extends all {
+
+  private val errorColor = "color:red"
+  private val warnColor  = "color:#ffd79a"
+  private val infoColor  = "color:#b3d1ff"
+  private val goodColor  = "color:black"
+
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
-    p(b("Timestamp: "), localTimestampStr(timestamp))
+    p(b("Timestamp: "), timestamp.truncatedTo(ChronoUnit.SECONDS).show)
 
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
     p(b("Number of retries: "), numRetry.toString)
@@ -59,7 +66,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
     div(
-      h3(s"Service Started"),
+      h3(style := goodColor)(s"Service Started"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -69,7 +76,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): Text.TypedTag[String] =
     div(
-      h3(style := "color:red")(s"Service Panic"),
+      h3(style := errorColor)(s"Service Panic"),
       p(b(upcomingRestartTimeInterpretation(evt))),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
@@ -82,7 +89,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
-      h3(style := "color:red")(s"Service Stopped"),
+      h3(style := errorColor)(s"Service Stopped"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -91,47 +98,53 @@ private[translators] object HtmlTranslator extends all {
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] = {
-    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
+    val color: String =
+      if (!evt.isUp) errorColor
+      else if (evt.snapshot.isContainErrors) warnColor
+      else goodColor
+
     div(
       h3(style := color)(evt.reportType.show),
       p(upcomingRestartTimeInterpretation(evt)),
       timestampText(evt.timestamp),
-      p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b("Up Time: "), fmt.format(evt.upTime)),
       pre(evt.serviceParams.brief),
       pendingActions(evt.ongoings, evt.timestamp),
       pre(evt.snapshot.show)
     )
   }
 
-  private def metricReset(evt: MetricReset): Text.TypedTag[String] = {
-    val color: String = if (evt.snapshot.isContainErrors) "color:red" else "color:black"
+  private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
-      h3(style := color)(evt.resetType.show),
+      h3(style := goodColor)(evt.resetType.show),
       timestampText(evt.timestamp),
-      p(b("Time Zone: "), evt.serviceParams.taskParams.zoneId.show),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
       p(b("Up Time: "), fmt.format(evt.upTime)),
       pre(evt.snapshot.show)
     )
-  }
 
-  private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
+  private def instantAlert(evt: InstantAlert): Text.TypedTag[String] = {
+    val color: String = evt.importance match {
+      case Importance.Critical => errorColor
+      case Importance.High     => warnColor
+      case Importance.Medium   => infoColor
+      case Importance.Low      => goodColor
+    }
     div(
-      h3(style := "color:#FF8C00")("Service Alert"),
+      h3(style := color)("Service Alert"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
-      p(b("Name: "), evt.metricName.metricRepr, "    ", b("Importance: "), evt.importance.show),
+      p(b("Name: "), evt.metricName.metricRepr),
       pre(evt.message)
     )
+  }
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] =
     div(
-      h3(evt.actionParams.startTitle),
+      h3(style := goodColor)(evt.actionParams.startTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -140,7 +153,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
-      h3(style := "color:#808000")(evt.actionParams.retryTitle),
+      h3(style := warnColor)(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -151,7 +164,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
     div(
-      h3(style := "color:red")(evt.actionParams.failedTitle),
+      h3(style := errorColor)(evt.actionParams.failedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),
@@ -165,7 +178,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
-      h3(evt.actionParams.succedTitle),
+      h3(style := goodColor)(evt.actionParams.succedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("Service ID: "), evt.serviceID.show),

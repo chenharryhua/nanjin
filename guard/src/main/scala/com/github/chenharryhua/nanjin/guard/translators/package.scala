@@ -15,6 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object translators {
+
   def nextTime(
     reportSchedule: Option[Either[FiniteDuration, CronExpr]],
     now: ZonedDateTime,
@@ -81,8 +82,8 @@ package object translators {
     * Some: Service panic
     */
   private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
-    mr.upcomingRestartTime.fold(s"Service has been up and running for ${fmt.format(mr.upTime)}")(zdt =>
-      s"Service is in panic, restart of which was scheduled at ${localTimestampStr(zdt)}")
+    mr.upcomingRestartTime.fold(s"The service has been up and running for ${fmt.format(mr.upTime)}")(zdt =>
+      s"The service is in panic, restart of which was scheduled at ${localTimestampStr(zdt)}")
 
   private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
     val upcoming: String = sp.upcomingRestartTime match {
