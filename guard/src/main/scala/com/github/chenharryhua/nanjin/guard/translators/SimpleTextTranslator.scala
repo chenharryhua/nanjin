@@ -15,7 +15,7 @@ private[translators] object SimpleTextTranslator {
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
-    s"  Host:$host, ServiceID:${se.serviceID.show}, ServiceName:$sn"
+    s"  Host:$host, ServiceID:${se.serviceID.show}, Service:$sn"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -46,7 +46,7 @@ private[translators] object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring("Service Stopped")(evt)}
        |${serviceEvent(evt)}
-       |  cause: ${evt.cause.show}
+       |  Cause: ${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =

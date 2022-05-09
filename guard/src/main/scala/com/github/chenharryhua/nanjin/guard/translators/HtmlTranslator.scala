@@ -71,8 +71,8 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))(s"Service Started"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Up Time: "), fmt.format(evt.upTime)),
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.serviceParams.brief)
     )
 
@@ -82,10 +82,10 @@ private[translators] object HtmlTranslator extends all {
       p(b(upcomingRestartTimeInterpretation(evt))),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Error ID: "), evt.error.uuid.show),
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("ErrorID: "), evt.error.uuid.show),
       p(b("Policy: "), evt.serviceParams.retry.policy[F].show),
-      p(b("Up Time: "), fmt.format(evt.upTime)),
+      p(b("UpTime: "), fmt.format(evt.upTime)),
       causeText(evt.error)
     )
 
@@ -94,9 +94,9 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))(s"Service Stopped"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Up Time: "), fmt.format(evt.upTime)),
-      p(b("cause: "), evt.cause.show)
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("UpTime: "), fmt.format(evt.upTime)),
+      p(b("Cause: "), evt.cause.show)
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
@@ -105,7 +105,7 @@ private[translators] object HtmlTranslator extends all {
       p(upcomingRestartTimeInterpretation(evt)),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
+      p(b("ServiceID: "), evt.serviceID.show),
       pre(evt.serviceParams.brief),
       pendingActions(evt.ongoings, evt.timestamp),
       pre(evt.snapshot.show)
@@ -116,8 +116,8 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.resetType.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Up Time: "), fmt.format(evt.upTime)),
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.snapshot.show)
     )
 
@@ -126,7 +126,7 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))("Service Alert"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
+      p(b("ServiceID: "), evt.serviceID.show),
       p(b("Name: "), evt.metricName.metricRepr),
       pre(evt.message)
     )
@@ -136,8 +136,8 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.actionParams.startTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Action ID: "), evt.actionID.show)
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("ActionID: "), evt.actionID.show)
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
@@ -145,8 +145,8 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.actionParams.retryTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Action ID: "), evt.actionID.show),
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("ActionID: "), evt.actionID.show),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show),
       causeText(evt.error)
     )
@@ -156,8 +156,8 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.actionParams.failedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Action ID: "), evt.actionID.show),
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("ActionID: "), evt.actionID.show),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
@@ -170,8 +170,8 @@ private[translators] object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.actionParams.succedTitle),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("Service ID: "), evt.serviceID.show),
-      p(b("Action ID: "), evt.actionID.show),
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("ActionID: "), evt.actionID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       notesText(evt.notes)

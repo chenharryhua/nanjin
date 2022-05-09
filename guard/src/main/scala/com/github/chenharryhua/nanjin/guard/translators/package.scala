@@ -82,14 +82,15 @@ package object translators {
     * Some: Service panic
     */
   private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
-    mr.upcomingRestartTime.fold(s"The service has been up and running for ${fmt.format(mr.upTime)}")(zdt =>
-      s"The service is in panic, restart was scheduled at ${localTimestampStr(zdt)}")
+    mr.upcomingRestartTime match {
+      case None      => s"The service has been up and running for ${fmt.format(mr.upTime)}"
+      case Some(zdt) => s"The service is in panic, restart was scheduled at ${localTimestampStr(zdt)}"
+    }
 
   private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
     val upcoming: String = sp.upcomingRestartTime match {
-      case None => "which should never happen" // never happen
-      case Some(ts) =>
-        s"restart was scheduled at ${localTimestampStr(ts)}, meanwhile the service is dysfunctional."
+      case None     => "which should never happen" // never happen
+      case Some(ts) => s"restart was scheduled at ${localTimestampStr(ts)}."
     }
     s":alarm: The service experienced a panic, $upcoming"
   }
