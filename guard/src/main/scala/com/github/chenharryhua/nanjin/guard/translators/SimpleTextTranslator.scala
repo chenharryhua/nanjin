@@ -39,21 +39,21 @@ private[translators] object SimpleTextTranslator {
     s"""${coloring("Service Panic")(evt)}
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
-       |  ErrorID:${evt.error.uuid.show}
-       |  StackTrace:${evt.error.stackTrace}
+       |  ErrorID: ${evt.error.uuid.show}
+       |  StackTrace: ${evt.error.stackTrace}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring("Service Stopped")(evt)}
        |${serviceEvent(evt)}
-       |  StackTrace:${evt.cause.show}
+       |  cause: ${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
     s"""${coloring(evt.reportType.show)(evt)}
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
-       |  Ongoings:${evt.ongoings.map(_.actionID).mkString(",")}
+       |  Ongoings: ${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
 
@@ -66,13 +66,13 @@ private[translators] object SimpleTextTranslator {
   private def passThrough(evt: PassThrough): String =
     s"""${coloring("Pass Through")(evt)}
        |${instantEvent(evt)}
-       |  Message:${evt.value.noSpaces}
+       |  Message: ${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
     s"""${coloring("Service Alert")(evt)}
        |${instantEvent(evt)}
-       |  Alert:${evt.message}
+       |  Alert: ${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
@@ -83,22 +83,22 @@ private[translators] object SimpleTextTranslator {
   private def actionRetrying(evt: ActionRetry): String =
     s"""${coloring("Action Retrying")(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
-       |  StackTrace:${evt.error.stackTrace}
+       |  Took: ${fmt.format(evt.took)}
+       |  StackTrace: ${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""${coloring("Action Failed")(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
-       |  StackTrace:${evt.error.stackTrace}
+       |  Took: ${fmt.format(evt.took)}
+       |  StackTrace: ${evt.error.stackTrace}
        |  ${evt.notes.value}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
     s"""${coloring("Action Succed")(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
+       |  Took: ${fmt.format(evt.took)}
        |  ${evt.notes.value}
        |""".stripMargin
 

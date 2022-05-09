@@ -30,7 +30,7 @@ final class NJBroker[F[_]: Temporal] private[guard] (
     new NJBroker[F](metricName, dispatcher, metricRegistry, channel, serviceParams, isError, CountAction.Yes)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
-    publisher.passThrough(metricName, a.asJson, asError = isError).map(_ => if (isCounting.value) counter.inc(1))
+    publisher.passThrough(metricName, a.asJson, isError).map(_ => if (isCounting.value) counter.inc(1))
 
   def unsafePassThrough[A: Encoder](a: A): Unit = dispatcher.unsafeRunSync(passThrough(a))
 }

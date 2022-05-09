@@ -33,7 +33,7 @@ final class Coloring(f: ColorScheme => String) extends (NJEvent => String) {
         case Importance.Medium   => ColorScheme.InfoColor
         case Importance.Low      => ColorScheme.InfoColor
       }
-    case PassThrough(_, _, _, asError, _) => if (asError) ColorScheme.ErrorColor else ColorScheme.InfoColor
+    case PassThrough(_, _, _, isError, _) => if (isError) ColorScheme.ErrorColor else ColorScheme.InfoColor
   }
 
   override def apply(evt: NJEvent): String = f(toScheme(evt))

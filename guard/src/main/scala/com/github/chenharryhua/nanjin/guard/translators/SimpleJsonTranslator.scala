@@ -67,6 +67,7 @@ private[translators] object SimpleJsonTranslator {
             "name": ${evt.metricName.origin},
             "digest": ${evt.metricName.digest},
             "serviceID": ${evt.serviceParams.serviceID},
+            "isError": ${evt.isError},
             "value": ${evt.value}
           }
           """
@@ -78,6 +79,7 @@ private[translators] object SimpleJsonTranslator {
             "name": ${evt.metricName.origin},
             "digest": ${evt.metricName.digest},
             "serviceID": ${evt.serviceParams.serviceID},
+            "importance": ${evt.importance.value},
             "message": ${evt.message}    
           }
           """

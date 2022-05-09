@@ -127,6 +127,6 @@ final case class PassThrough(
   metricName: Digested,
   timestamp: ZonedDateTime,
   serviceParams: ServiceParams,
-  asError: Boolean, // the payload json represent an error
+  isError: Boolean, // the payload json represent an error
   value: Json)
     extends InstantEvent
