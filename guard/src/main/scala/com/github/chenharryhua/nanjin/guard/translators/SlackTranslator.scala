@@ -12,10 +12,13 @@ import java.text.NumberFormat
 import java.time.temporal.ChronoUnit
 
 private[translators] object SlackTranslator extends all {
-  private val goodColor  = "#36a64f"
-  private val warnColor  = "#ffd79a"
-  private val infoColor  = "#b3d1ff"
-  private val errorColor = "#935252"
+
+  private val coloring: Coloring = new Coloring({
+    case ColorScheme.GoodColor  => "#36a64f"
+    case ColorScheme.InfoColor  => "#b3d1ff"
+    case ColorScheme.WarnColor  => "#ffd79a"
+    case ColorScheme.ErrorColor => "#935252"
+  })
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
     if (snapshot.show.length <= MessageSizeLimits) {
@@ -39,7 +42,7 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = infoColor,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(":rocket: *(Re)Started Service*"),
             hostServiceSection(evt.serviceParams),
@@ -58,7 +61,7 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = errorColor,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(upcomingRestartTimeInterpretation(evt)),
             hostServiceSection(evt.serviceParams),
@@ -77,7 +80,7 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = warnColor,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(s":octagonal_sign: *Service Stopped*"),
             hostServiceSection(evt.serviceParams),
@@ -92,18 +95,18 @@ private[translators] object SlackTranslator extends all {
     )
 
   private def instantAlert(evt: InstantAlert): SlackApp = {
-    val (title, color) = evt.importance match {
-      case Importance.Critical => (":warning: Error", errorColor)
-      case Importance.High     => (":warning: Warning", warnColor)
-      case Importance.Medium   => (":information_source: Info", infoColor)
-      case Importance.Low      => ("oops. should not happen", errorColor)
+    val title = evt.importance match {
+      case Importance.Critical => ":warning: Error"
+      case Importance.High     => ":warning: Warning"
+      case Importance.Medium   => ":information_source: Info"
+      case Importance.Low      => "oops. should not happen"
     }
     val msg: Option[Section] = if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = color,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"),
             hostServiceSection(evt.serviceParams),
@@ -114,13 +117,12 @@ private[translators] object SlackTranslator extends all {
     )
   }
 
-  private def metricReport(evt: MetricReport): SlackApp = {
-    val color: String = if (evt.snapshot.isContainErrors || !evt.isUp) warnColor else infoColor
+  private def metricReport(evt: MetricReport): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = color,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(s"""*${evt.reportType.show}*
                                |${upcomingRestartTimeInterpretation(evt)}""".stripMargin),
@@ -135,10 +137,9 @@ private[translators] object SlackTranslator extends all {
             metricsSection(evt.snapshot)
           )
         ),
-        Attachment(color = color, blocks = List(MarkdownSection(evt.serviceParams.brief)))
+        Attachment(color = coloring(evt), blocks = List(MarkdownSection(evt.serviceParams.brief)))
       )
     )
-  }
 
   private def metricReset(evt: MetricReset): SlackApp =
     evt.resetType match {
@@ -147,7 +148,7 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.taskName.value,
           attachments = List(
             Attachment(
-              color = infoColor,
+              color = coloring(evt),
               blocks = List(
                 MarkdownSection("*Adhoc Metric Reset*"),
                 hostServiceSection(evt.serviceParams),
@@ -172,7 +173,7 @@ private[translators] object SlackTranslator extends all {
           username = evt.serviceParams.taskParams.taskName.value,
           attachments = List(
             Attachment(
-              color = if (evt.snapshot.isContainErrors) warnColor else infoColor,
+              color = coloring(evt),
               blocks = List(
                 MarkdownSection(s"*Scheduled Metric Reset*"),
                 hostServiceSection(evt.serviceParams),
@@ -193,7 +194,7 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = infoColor,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.startTitle}*"),
             hostServiceSection(evt.serviceParams),
@@ -208,7 +209,7 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = warnColor,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.retryTitle}*"),
             hostServiceSection(evt.serviceParams),
@@ -229,7 +230,7 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = errorColor,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
             hostServiceSection(evt.serviceParams),
@@ -247,7 +248,7 @@ private[translators] object SlackTranslator extends all {
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
-          color = goodColor,
+          color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
             hostServiceSection(evt.serviceParams),

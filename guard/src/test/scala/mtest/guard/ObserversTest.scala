@@ -16,6 +16,7 @@ import skunk.Session
 
 import scala.concurrent.duration.*
 
+// sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
 
   test("logging") {

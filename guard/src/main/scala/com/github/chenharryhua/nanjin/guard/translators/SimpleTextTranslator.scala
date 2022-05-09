@@ -5,6 +5,12 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
 
 private[translators] object SimpleTextTranslator {
+  private def coloring(msg: String): Coloring = new Coloring({
+    case ColorScheme.GoodColor  => msg
+    case ColorScheme.InfoColor  => msg
+    case ColorScheme.WarnColor  => Console.CYAN + msg + Console.RESET
+    case ColorScheme.ErrorColor => Console.YELLOW + msg + Console.RESET
+  })
 
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
@@ -25,12 +31,12 @@ private[translators] object SimpleTextTranslator {
   }
 
   private def serviceStarted(evt: ServiceStart): String =
-    s"""Service (Re)Started
+    s"""${coloring("Service (Re)Started")(evt)}
        |${serviceEvent(evt)}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String =
-    s"""Service Panic
+    s"""${coloring("Service Panic")(evt)}
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  ErrorID:${evt.error.uuid.show}
@@ -38,13 +44,13 @@ private[translators] object SimpleTextTranslator {
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
-    s"""Service Stopped
+    s"""${coloring("Service Stopped")(evt)}
        |${serviceEvent(evt)}
        |  StackTrace:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""${evt.reportType.show}
+    s"""${coloring(evt.reportType.show)(evt)}
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  Ongoings:${evt.ongoings.map(_.actionID).mkString(",")}
@@ -52,37 +58,37 @@ private[translators] object SimpleTextTranslator {
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""${evt.resetType.show}
+    s"""${coloring(evt.resetType.show)(evt)}
        |${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =
-    s"""Pass Through
+    s"""${coloring("Pass Through")(evt)}
        |${instantEvent(evt)}
        |  Message:${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
-    s"""Service Alert
+    s"""${coloring("Service Alert")(evt)}
        |${instantEvent(evt)}
        |  Alert:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
-    s"""Action Start
+    s"""${coloring("Action Start")(evt)}
        |${actionEvent(evt)}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
-    s"""Action Retrying
+    s"""${coloring("Action Retrying")(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  StackTrace:${evt.error.stackTrace}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
-    s"""Action Failed
+    s"""${coloring("Action Failed")(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  StackTrace:${evt.error.stackTrace}
@@ -90,7 +96,7 @@ private[translators] object SimpleTextTranslator {
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
-    s"""Action Succed
+    s"""${coloring("Action Succed")(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  ${evt.notes.value}
