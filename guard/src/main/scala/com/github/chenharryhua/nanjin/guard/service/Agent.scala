@@ -16,6 +16,7 @@ import fs2.concurrent.Channel
 
 import java.time.ZoneId
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 final class Agent[F[_]] private[service] (
   metricRegistry: MetricRegistry,
@@ -53,7 +54,7 @@ final class Agent[F[_]] private[service] (
       kfab = Kleisli(f),
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
-      isWorthRetry = Kleisli(_ => F.pure(true)))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
@@ -65,7 +66,7 @@ final class Agent[F[_]] private[service] (
       fb = fb,
       succ = Kleisli(_ => F.pure("")),
       fail = Kleisli(_ => F.pure("")),
-      isWorthRetry = Kleisli(_ => F.pure(true)))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run
   def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)

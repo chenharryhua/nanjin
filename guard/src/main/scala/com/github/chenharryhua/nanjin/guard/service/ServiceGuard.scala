@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.data.Reader
-import cats.effect.kernel.{Async, Outcome, Ref}
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -15,7 +15,9 @@ import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
-import org.apache.commons.lang3.exception.ExceptionUtils
+import retry.RetryDetails
+
+import scala.util.control.{ControlThrowable, NonFatal}
 
 // format: off
 /** @example
@@ -50,7 +52,7 @@ final class ServiceGuard[F[_]] private[guard] (
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
-    ssRef <- F.ref[ServiceStatus](ServiceStatus.Up(serviceConfig.evalConfig(uuid, ts)))
+    ssRef <- F.ref[ServiceStatus](ServiceStatus.initialize(serviceConfig.evalConfig(uuid, ts)))
   } yield ssRef
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
@@ -64,18 +66,22 @@ final class ServiceGuard[F[_]] private[guard] (
           val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
 
           retry.mtl
-            .retryingOnAllErrors(serviceParams.retry.policy[F], (ex: Throwable, rd) => sep.servicePanic(rd, ex)) {
+            .retryingOnSomeErrors[A](
+              serviceParams.retry.policy[F],
+              (ex: Throwable) => F.pure(NonFatal(ex)), // avoid fatal errors
+              (ex: Throwable, rd) =>
+                rd match {
+                  case RetryDetails.GivingUp(retries, delay) =>
+                    val msg =
+                      s"Fatal Error: Service give up restart after $retries retries, took ${delay.toSeconds} seconds"
+                    F.raiseError[Unit](new ControlThrowable(msg) {}) // GivingUp as fatal error
+                  case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
+                }
+            ) {
               sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
                 runAgent(new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, AgentConfig(serviceParams))))
             }
-            .guaranteeCase {
-              case Outcome.Succeeded(_) =>
-                sep.serviceStop(ServiceStopCause.Normally) <* channel.close
-              case Outcome.Errored(e) =>
-                sep.serviceStop(ServiceStopCause.Abnormally(ExceptionUtils.getMessage(e))) <* channel.close
-              case Outcome.Canceled() =>
-                sep.serviceStop(ServiceStopCause.Abnormally("canceled")) <* channel.close
-            }
+            .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
         }
 
         /** concurrent streams

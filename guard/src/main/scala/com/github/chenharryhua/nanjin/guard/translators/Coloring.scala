@@ -12,13 +12,13 @@ object ColorScheme {
   case object ErrorColor extends ColorScheme // oops
 }
 
-final class Coloring(f: ColorScheme => String) extends (NJEvent => String) {
+final private class Coloring(f: ColorScheme => String) extends (NJEvent => String) {
   private def toScheme(evt: NJEvent): ColorScheme = evt match {
     case _: ServiceStart          => ColorScheme.InfoColor
     case _: ServicePanic          => ColorScheme.ErrorColor
     case ServiceStop(_, _, cause) => if (cause.exitCode === 0) ColorScheme.WarnColor else ColorScheme.ErrorColor
     case mr @ MetricReport(_, _, _, _, snapshot, _) =>
-      if (!mr.isUp) ColorScheme.ErrorColor
+      if (mr.isDown) ColorScheme.ErrorColor
       else if (snapshot.isContainErrors) ColorScheme.WarnColor
       else ColorScheme.InfoColor
     case _: MetricReset => ColorScheme.InfoColor

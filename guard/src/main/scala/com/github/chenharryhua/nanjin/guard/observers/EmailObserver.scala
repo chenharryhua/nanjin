@@ -81,9 +81,9 @@ final class SesEmailObserver[F[_]](
       .resource(client)
       .flatMap(ses =>
         Stream
-          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
-          .flatMap(ref =>
-            es.evalTap(evt => updateRef(ref, evt))
+          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
+          .flatMap(ofm =>
+            es.evalTap(evt => ofm.monitoring(evt))
               .evalMap(e =>
                 translator.filter {
                   case event: ActionEvent => event.actionParams.isNonTrivial
@@ -107,16 +107,19 @@ final class SesEmailObserver[F[_]](
                   .attempt
                   .void
               }
-              .onFinalize(serviceTerminateEvents(ref, translator).flatMap { events =>
-                ses
-                  .send(
-                    EmailContent(
-                      from.value,
-                      to.map(_.value).toList.distinct,
-                      AbnormalTerminationMessage,
-                      html(body(events.map(hr(_)).toList)).render))
-                  .attempt
-              }.void)
+              .onFinalizeCase(ofm
+                .terminated(_)
+                .flatMap { events =>
+                  ses
+                    .send(
+                      EmailContent(
+                        from.value,
+                        to.map(_.value).toList.distinct,
+                        "Service Termination Notice",
+                        html(body(events.map(hr(_)).toList)).render))
+                    .attempt
+                }
+                .void)
               .drain))
 }
 
@@ -152,9 +155,9 @@ final class SnsEmailObserver[F[_]](
       .resource(client)
       .flatMap(sns =>
         Stream
-          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
-          .flatMap(ref =>
-            es.evalTap(evt => updateRef(ref, evt))
+          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
+          .flatMap(ofm =>
+            es.evalTap(ofm.monitoring)
               .evalMap(e =>
                 translator.filter {
                   case event: ActionEvent => event.actionParams.isNonTrivial
@@ -173,9 +176,16 @@ final class SnsEmailObserver[F[_]](
                 }
                 sns.publish(mailBody).attempt.void
               }
-              .onFinalize(serviceTerminateEvents(ref, translator).flatMap { events =>
-                sns.publish(html(body(events.map(hr(_)).prepended(hr(h2(AbnormalTerminationMessage))))).render).attempt
-              }.void))
+              .onFinalizeCase {
+                ofm
+                  .terminated(_)
+                  .flatMap { events =>
+                    sns
+                      .publish(html(body(events.map(hr(_)).prepended(hr(h2("Service Termination Notice"))))).render)
+                      .attempt
+                  }
+                  .void
+              })
           .drain)
 
 }

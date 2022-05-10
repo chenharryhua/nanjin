@@ -7,7 +7,7 @@ import io.circe.Json
 import io.circe.literal.JsonStringContext
 import io.circe.syntax.*
 
-private[translators] object SimpleJsonTranslator {
+private object SimpleJsonTranslator {
 
   private def serviceStarted(evt: ServiceStart): Json =
     json"""

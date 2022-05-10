@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
 
-private[translators] object SimpleTextTranslator {
+private object SimpleTextTranslator {
   private def coloring(msg: String): Coloring = new Coloring({
     case ColorScheme.GoodColor  => msg
     case ColorScheme.InfoColor  => msg

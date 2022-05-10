@@ -1,28 +1,32 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError}
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot.LastCounters
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError}
 
-import java.time.{Instant, ZonedDateTime}
-import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
+import java.time.ZonedDateTime
 
 sealed private[guard] trait ServiceStatus {
+
   def serviceParams: ServiceParams
-  def isUp: Boolean
 
-  def upcomingRestartTime: Option[ZonedDateTime] // None when service is up
+  /** None: Service is up
+    *
+    * Some(ts): Service is down, will be restarted at ts
+    */
+  def upcomingRestartTime: Option[ZonedDateTime]
 
-  def ongoingActionSet: Set[ActionInfo]
+  def ongoingActionSet: Set[ActionInfo] // list of expensive actions
   def include(action: ActionInfo): ServiceStatus
   def exclude(action: ActionInfo): ServiceStatus
 
-  def lastCounters: LastCounters
+  def lastCounters: LastCounters // latest updated counters. for delta metrics report
   def updateLastCounters(last: LastCounters): ServiceStatus
 
-  def goUp(now: Instant): ServiceStatus
-  def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: NJError): ServiceStatus
+  def isUp: Boolean
+  def timestamp: ZonedDateTime // when updated
+  def goUp(now: ZonedDateTime): ServiceStatus.Up
+  def goDown(now: ZonedDateTime, restart: ZonedDateTime, cause: NJError): ServiceStatus.Down
 
   final def isDown: Boolean = !isUp
   final def fold[A](up: ServiceStatus.Up => A, down: ServiceStatus.Down => A): A =
@@ -38,74 +42,62 @@ sealed private[guard] trait ServiceStatus {
   */
 
 private[guard] object ServiceStatus {
+  def initialize(serviceParams: ServiceParams): Up =
+    Up(
+      serviceParams = serviceParams,
+      ongoingActionSet = Set.empty[ActionInfo],
+      lastCounters = LastCounters.empty,
+      timestamp = serviceParams.launchTime)
 
   final case class Up private[ServiceStatus] (
     serviceParams: ServiceParams,
     lastCounters: LastCounters,
     ongoingActionSet: Set[ActionInfo],
-    lastRestartTime: ZonedDateTime,
-    lastCrashTime: ZonedDateTime)
+    timestamp: ZonedDateTime)
       extends ServiceStatus {
-    override val isUp: Boolean = true
 
-    override def goUp(now: Instant): Up = copy(lastRestartTime = serviceParams.toZonedDateTime(now))
-    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: NJError): Down = {
-      val zdt = serviceParams.toZonedDateTime(now)
+    override def goUp(now: ZonedDateTime): Up = this
+    override def goDown(now: ZonedDateTime, restartTime: ZonedDateTime, cause: NJError): Down =
       Down(
         serviceParams = serviceParams,
         lastCounters = lastCounters,
-        crashTime = zdt,
-        upcomingRestartTime = upcomingDelay.map(fd => zdt.plus(fd.toJava)),
+        timestamp = now,
+        plannedRestartTime = restartTime,
         cause = cause)
-    }
-
-    override val upcomingRestartTime: Option[ZonedDateTime] = None
 
     override def include(action: ActionInfo): Up = copy(ongoingActionSet = ongoingActionSet.incl(action))
     override def exclude(action: ActionInfo): Up = copy(ongoingActionSet = ongoingActionSet.excl(action))
 
     override def updateLastCounters(last: LastCounters): Up = copy(lastCounters = last)
-  }
 
-  object Up {
-    def apply(serviceParams: ServiceParams): Up =
-      Up(
-        serviceParams = serviceParams,
-        lastCounters = LastCounters.empty,
-        ongoingActionSet = Set.empty[ActionInfo],
-        lastRestartTime = serviceParams.launchTime,
-        lastCrashTime = serviceParams.launchTime
-      )
+    override val upcomingRestartTime: Option[ZonedDateTime] = None
+    override val isUp: Boolean                              = true
   }
 
   final case class Down private[ServiceStatus] (
     serviceParams: ServiceParams,
     lastCounters: LastCounters,
-    crashTime: ZonedDateTime,
-    upcomingRestartTime: Option[ZonedDateTime],
+    timestamp: ZonedDateTime,
+    plannedRestartTime: ZonedDateTime,
     cause: NJError)
       extends ServiceStatus {
 
-    override val isUp: Boolean = false
-
-    override def goUp(now: Instant): Up =
+    override def goUp(now: ZonedDateTime): Up =
       Up(
         serviceParams = serviceParams,
         lastCounters = lastCounters,
         ongoingActionSet = Set.empty[ActionInfo],
-        lastRestartTime = serviceParams.toZonedDateTime(now),
-        lastCrashTime = crashTime
-      )
-    override def goDown(now: Instant, upcomingDelay: Option[FiniteDuration], cause: NJError): Down = {
-      val zdt = serviceParams.toZonedDateTime(now)
-      copy(crashTime = zdt, upcomingRestartTime = upcomingDelay.map(fd => zdt.plus(fd.toJava)), cause = cause)
-    }
+        timestamp = now)
+
+    override def goDown(now: ZonedDateTime, restart: ZonedDateTime, cause: NJError): Down = this
+    override def include(action: ActionInfo): Down                                        = this
+    override def exclude(action: ActionInfo): Down                                        = this
+
+    override def updateLastCounters(last: LastCounters): Down = copy(lastCounters = last)
 
     override val ongoingActionSet: Set[ActionInfo] = Set.empty[ActionInfo]
 
-    override def include(action: ActionInfo): Down = this
-    override def exclude(action: ActionInfo): Down = this
-
-    override def updateLastCounters(last: LastCounters): Down = copy(lastCounters = last)
+    override val upcomingRestartTime: Option[ZonedDateTime] = Some(plannedRestartTime)
+    override val isUp: Boolean                              = false
   }
 }

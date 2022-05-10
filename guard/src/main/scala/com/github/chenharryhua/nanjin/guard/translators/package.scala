@@ -66,32 +66,27 @@ package object translators {
 
   private[translators] val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
-  private[translators] def localTimestampStr(zdt: ZonedDateTime): String =
-    zdt.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
+  private[translators] def localTimeAndDurationStr(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
+    val duration = Duration.between(start, end)
+    val localTime: String =
+      if (duration.minus(Duration.ofHours(24)).isNegative)
+        end.truncatedTo(ChronoUnit.SECONDS).toLocalTime.show
+      else
+        end.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show
 
-  /** in MetricReport
-    *
-    * None: Service is UP
-    *
-    * Some: Service panic
-    *
-    * in ServicePanic
-    *
-    * None: should never happen
-    *
-    * Some: Service panic
-    */
+    (localTime, fmt.format(duration))
+  }
+
   private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
-    mr.upcomingRestartTime match {
-      case None      => s"The service has been up and running for ${fmt.format(mr.upTime)}"
-      case Some(zdt) => s"The service is in panic, restart was scheduled at ${localTimestampStr(zdt)}"
+    mr.serviceRestartTime match {
+      case None => s"The service has been up and running for ${fmt.format(mr.upTime)}."
+      case Some(zdt) =>
+        val (time, dur) = localTimeAndDurationStr(mr.timestamp, zdt)
+        s"The service is in panic, restart was scheduled at $time, in $dur."
     }
 
   private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
-    val upcoming: String = sp.upcomingRestartTime match {
-      case None     => "which should never happen" // never happen
-      case Some(ts) => s"restart was scheduled at ${localTimestampStr(ts)}."
-    }
-    s":alarm: The service experienced a panic, $upcoming"
+    val (time, dur) = localTimeAndDurationStr(sp.timestamp, sp.restartTime)
+    s":alarm: The service experienced a panic, restart was scheduled at $time, in $dur."
   }
 }
