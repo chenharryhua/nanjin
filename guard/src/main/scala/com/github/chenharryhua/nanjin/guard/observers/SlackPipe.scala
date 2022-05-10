@@ -54,9 +54,9 @@ final class SlackPipe[F[_]](
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
       sns <- Stream.resource(snsResource)
-      ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
+      ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
       event <- es
-        .evalTap(evt => updateRef(ref, evt))
+        .evalTap(ref.monitoring)
         .evalTap(e =>
           translator.filter {
             case MetricReport(mrt, sp, _, ts, _, _) =>
@@ -68,9 +68,7 @@ final class SlackPipe[F[_]](
             case _                          => true
           }.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
         .onFinalize {
-          serviceTerminateEvents(ref, translator)
-            .flatMap(_.traverse(msg => sns.publish(msg.asJson.noSpaces).attempt))
-            .void
+          ref.terminated.flatMap(_.traverse(msg => sns.publish(msg.asJson.noSpaces).attempt)).void
         }
     } yield event
 }

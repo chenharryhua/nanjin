@@ -41,11 +41,11 @@ final class PostgresPipe[F[_]](session: Resource[F, Session[F]], translator: Tra
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
     for {
       pg <- Stream.resource(session.flatMap(_.prepare(cmd)))
-      ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
+      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
       event <- events
-        .evalTap(evt => updateRef(ref, evt))
+        .evalTap(ofm.monitoring)
         .evalTap(evt => translator.translate(evt).flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)
-        .onFinalize(serviceTerminateEvents(ref, translator).flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)
+        .onFinalize(ofm.terminated.flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)
     } yield event
   }
 }
