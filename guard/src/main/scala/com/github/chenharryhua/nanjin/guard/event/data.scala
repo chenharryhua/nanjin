@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import cats.derived.auto.show.*
+import cats.effect.kernel.Outcome
+import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.JsonCodec
@@ -28,7 +30,7 @@ final case class NJError private (uuid: UUID, message: String, stackTrace: Strin
 private[guard] object NJError {
   implicit val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
   def apply(uuid: UUID, ex: Throwable): NJError =
-    NJError(uuid, Option(ex.getMessage).getOrElse(""), ExceptionUtils.getStackTrace(ex))
+    NJError(uuid, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex))
 }
 
 @JsonCodec
@@ -73,16 +75,38 @@ object ActionInfo extends zoneddatetime {
 @JsonCodec
 sealed trait ServiceStopCause {
   def exitCode: Int
-}
-object ServiceStopCause {
-  implicit val showServiceStopCause: Show[ServiceStopCause] = {
-    case Normally        => "normally exit"
-    case Abnormally(msg) => s"abnormally exit due to $msg"
+
+  final override def toString: String = this match {
+    case ServiceStopCause.Normally         => "normally exit"
+    case ServiceStopCause.ByCancelation    => "abnormally exit due to cancelation"
+    case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
   }
+}
+
+object ServiceStopCause {
+  def apply(ec: ExitCase): ServiceStopCause = ec match {
+    case ExitCase.Succeeded  => ServiceStopCause.Normally
+    case ExitCase.Errored(e) => ServiceStopCause.ByException(ExceptionUtils.getMessage(e))
+    case ExitCase.Canceled   => ServiceStopCause.ByCancelation
+  }
+
+  def apply[F[_], A](oc: Outcome[F, Throwable, A]): ServiceStopCause = oc match {
+    case Outcome.Succeeded(_) => ServiceStopCause.Normally
+    case Outcome.Errored(e)   => ServiceStopCause.ByException(ExceptionUtils.getMessage(e))
+    case Outcome.Canceled()   => ServiceStopCause.ByCancelation
+  }
+
+  implicit val showServiceStopCause: Show[ServiceStopCause] = _.toString
+
   case object Normally extends ServiceStopCause {
     override val exitCode: Int = 0
   }
-  final case class Abnormally(msg: String) extends ServiceStopCause {
+
+  case object ByCancelation extends ServiceStopCause {
     override val exitCode: Int = 1
+  }
+
+  final case class ByException(msg: String) extends ServiceStopCause {
+    override val exitCode: Int = 2
   }
 }

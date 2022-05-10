@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.data.Reader
-import cats.effect.kernel.{Async, Outcome, Ref}
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -15,7 +15,6 @@ import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 // format: off
 /** @example
@@ -68,14 +67,7 @@ final class ServiceGuard[F[_]] private[guard] (
               sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
                 runAgent(new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, AgentConfig(serviceParams))))
             }
-            .guaranteeCase {
-              case Outcome.Succeeded(_) =>
-                sep.serviceStop(ServiceStopCause.Normally) <* channel.close
-              case Outcome.Errored(e) =>
-                sep.serviceStop(ServiceStopCause.Abnormally(ExceptionUtils.getMessage(e))) <* channel.close
-              case Outcome.Canceled() =>
-                sep.serviceStop(ServiceStopCause.Abnormally("canceled")) <* channel.close
-            }
+            .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
         }
 
         /** concurrent streams

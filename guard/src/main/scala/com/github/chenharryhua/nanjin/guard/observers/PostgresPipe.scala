@@ -45,7 +45,7 @@ final class PostgresPipe[F[_]](session: Resource[F, Session[F]], translator: Tra
       event <- events
         .evalTap(ofm.monitoring)
         .evalTap(evt => translator.translate(evt).flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)
-        .onFinalize(ofm.terminated.flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)
+        .onFinalizeCase(ofm.terminated(_).flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)
     } yield event
   }
 }

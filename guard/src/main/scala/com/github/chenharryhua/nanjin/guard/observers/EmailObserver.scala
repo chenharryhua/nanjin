@@ -107,16 +107,19 @@ final class SesEmailObserver[F[_]](
                   .attempt
                   .void
               }
-              .onFinalize(ofm.terminated.flatMap { events =>
-                ses
-                  .send(
-                    EmailContent(
-                      from.value,
-                      to.map(_.value).toList.distinct,
-                      "Service Termination Notice",
-                      html(body(events.map(hr(_)).toList)).render))
-                  .attempt
-              }.void)
+              .onFinalizeCase(ofm
+                .terminated(_)
+                .flatMap { events =>
+                  ses
+                    .send(
+                      EmailContent(
+                        from.value,
+                        to.map(_.value).toList.distinct,
+                        "Service Termination Notice",
+                        html(body(events.map(hr(_)).toList)).render))
+                    .attempt
+                }
+                .void)
               .drain))
 }
 
@@ -173,11 +176,16 @@ final class SnsEmailObserver[F[_]](
                 }
                 sns.publish(mailBody).attempt.void
               }
-              .onFinalize(ofm.terminated.flatMap { events =>
-                sns
-                  .publish(html(body(events.map(hr(_)).prepended(hr(h2("Service Termination Notice"))))).render)
-                  .attempt
-              }.void))
+              .onFinalizeCase {
+                ofm
+                  .terminated(_)
+                  .flatMap { events =>
+                    sns
+                      .publish(html(body(events.map(hr(_)).prepended(hr(h2("Service Termination Notice"))))).render)
+                      .attempt
+                  }
+                  .void
+              })
           .drain)
 
 }

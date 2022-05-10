@@ -67,8 +67,6 @@ final class SlackPipe[F[_]](
             case ActionFail(ai, _, _, _, _) => ai.actionParams.isNonTrivial
             case _                          => true
           }.translate(e).flatMap(_.traverse(sa => sns.publish(sa.asJson.noSpaces).attempt)).void)
-        .onFinalize {
-          ref.terminated.flatMap(_.traverse(msg => sns.publish(msg.asJson.noSpaces).attempt)).void
-        }
+        .onFinalizeCase(ref.terminated(_).flatMap(_.traverse(msg => sns.publish(msg.asJson.noSpaces).attempt)).void)
     } yield event
 }
