@@ -14,7 +14,7 @@ import java.time.temporal.ChronoUnit
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
-private[translators] object HtmlTranslator extends all {
+private object HtmlTranslator extends all {
 
   private val coloring: Coloring = new Coloring({
     case ColorScheme.GoodColor  => "color:black"

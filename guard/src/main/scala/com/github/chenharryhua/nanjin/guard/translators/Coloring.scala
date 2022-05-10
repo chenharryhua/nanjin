@@ -12,7 +12,7 @@ object ColorScheme {
   case object ErrorColor extends ColorScheme // oops
 }
 
-final class Coloring(f: ColorScheme => String) extends (NJEvent => String) {
+final private class Coloring(f: ColorScheme => String) extends (NJEvent => String) {
   private def toScheme(evt: NJEvent): ColorScheme = evt match {
     case _: ServiceStart          => ColorScheme.InfoColor
     case _: ServicePanic          => ColorScheme.ErrorColor

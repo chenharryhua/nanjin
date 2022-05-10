@@ -10,7 +10,7 @@ import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
 
-private[translators] object SlackTranslator extends all {
+private object SlackTranslator extends all {
 
   private val coloring: Coloring = new Coloring({
     case ColorScheme.GoodColor  => "#36a64f"
