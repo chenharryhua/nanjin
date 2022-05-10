@@ -5,7 +5,9 @@ import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
-import retry.RetryDetails
+
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 final private class ServiceEventPublisher[F[_]: UUIDGen](
   serviceStatus: Ref[F, ServiceStatus],
@@ -14,17 +16,21 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
   def serviceReStart: F[Unit] =
     for {
       ts <- F.realTimeInstant
-      ss <- serviceStatus.updateAndGet(_.goUp(ts))
-      _ <- channel.send(ServiceStart(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts)))
+      sp <- serviceStatus.get.map(_.serviceParams)
+      now = sp.toZonedDateTime(ts)
+      _ <- serviceStatus.update(_.goUp(now))
+      _ <- channel.send(ServiceStart(sp, now))
     } yield ()
 
-  def servicePanic(retryDetails: RetryDetails, ex: Throwable): F[Unit] =
+  def servicePanic(delay: FiniteDuration, ex: Throwable): F[Unit] =
     for {
       ts <- F.realTimeInstant
       err <- UUIDGen.randomUUID[F].map(NJError(_, ex))
-      ss <- serviceStatus.updateAndGet(_.goDown(ts, retryDetails.upcomingDelay, err))
-      _ <- channel.send(
-        ServicePanic(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ss.upcomingRestartTime, err))
+      sp <- serviceStatus.get.map(_.serviceParams)
+      now  = sp.toZonedDateTime(ts)
+      next = sp.toZonedDateTime(ts.plus(delay.toJava))
+      _ <- serviceStatus.update(_.goDown(now, next, err))
+      _ <- channel.send(ServicePanic(serviceParams = sp, timestamp = now, restartTime = next, error = err))
     } yield ()
 
   def serviceStop(cause: ServiceStopCause): F[Unit] =

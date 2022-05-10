@@ -36,7 +36,7 @@ final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDate
 final case class ServicePanic(
   serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
-  upcomingRestartTime: Option[ZonedDateTime],
+  restartTime: ZonedDateTime,
   error: NJError)
     extends ServiceEvent
 
@@ -53,10 +53,10 @@ final case class MetricReport(
   ongoings: List[ActionInfo],
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot,
-  upcomingRestartTime: Option[ZonedDateTime])
+  serviceRestartTime: Option[ZonedDateTime])
     extends MetricEvent {
-  val isDown: Boolean = upcomingRestartTime.nonEmpty
-  val isUp: Boolean   = upcomingRestartTime.isEmpty
+  val isDown: Boolean = serviceRestartTime.nonEmpty
+  val isUp: Boolean   = serviceRestartTime.isEmpty
 }
 
 final case class MetricReset(

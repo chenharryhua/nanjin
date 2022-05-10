@@ -78,7 +78,7 @@ package object translators {
   }
 
   private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
-    mr.upcomingRestartTime match {
+    mr.serviceRestartTime match {
       case None => s"The service has been up and running for ${fmt.format(mr.upTime)}."
       case Some(zdt) =>
         val (time, dur) = localTimeAndDurationStr(mr.timestamp, zdt)
@@ -86,12 +86,7 @@ package object translators {
     }
 
   private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
-    val upcoming: String = sp.upcomingRestartTime match {
-      case None => "which should never happen." // never happen
-      case Some(zdt) =>
-        val (time, dur) = localTimeAndDurationStr(sp.timestamp, zdt)
-        s"restart was scheduled at $time, in $dur."
-    }
-    s":alarm: The service experienced a panic, $upcoming"
+    val (time, dur) = localTimeAndDurationStr(sp.timestamp, sp.restartTime)
+    s":alarm: The service experienced a panic, restart was scheduled at $time, in $dur."
   }
 }
