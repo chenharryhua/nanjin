@@ -57,7 +57,7 @@ private[translators] object HtmlTranslator extends all {
             td(style := tds)(a.actionParams.metricName.origin),
             td(style := tds)(a.actionParams.metricName.digest),
             td(style := tds)(fmt.format(a.launchTime, now)),
-            td(style := tds)(localTimestampStr(a.launchTime)),
+            td(style := tds)(a.launchTime.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show),
             td(style := tds)(a.actionID.show)
           ))
       )
@@ -68,7 +68,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(s"Service Started"),
+      h3(style := coloring(evt))("Service Started"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
@@ -78,7 +78,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(s"Service Panic"),
+      h3(style := coloring(evt))("Service Panic"),
       p(b(upcomingRestartTimeInterpretation(evt))),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
@@ -91,7 +91,7 @@ private[translators] object HtmlTranslator extends all {
 
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(s"Service Stopped"),
+      h3(style := coloring(evt))("Service Stopped"),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),

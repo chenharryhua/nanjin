@@ -9,7 +9,6 @@ import io.circe.generic.auto.*
 import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
-import java.time.temporal.ChronoUnit
 
 private[translators] object SlackTranslator extends all {
 
@@ -131,7 +130,10 @@ private[translators] object SlackTranslator extends all {
               TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show),
               TextField(
                 "Scheduled Next",
-                evt.serviceParams.metric.nextReport(evt.timestamp).map(localTimestampStr).getOrElse("None"))
+                evt.serviceParams.metric
+                  .nextReport(evt.timestamp)
+                  .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
+                  .getOrElse("None"))
             ),
             MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
             metricsSection(evt.snapshot)
@@ -158,7 +160,7 @@ private[translators] object SlackTranslator extends all {
                     "Scheduled Next",
                     evt.serviceParams.metric
                       .nextReport(evt.timestamp)
-                      .map(_.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)
+                      .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
                       .getOrElse("None")
                   )
                 ),
@@ -179,7 +181,7 @@ private[translators] object SlackTranslator extends all {
                 hostServiceSection(evt.serviceParams),
                 JuxtaposeSection(
                   TextField("Up Time", fmt.format(evt.upTime)),
-                  TextField("Scheduled Next", next.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show)
+                  TextField("Scheduled Next", localTimeAndDurationStr(evt.timestamp, next)._1)
                 ),
                 MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
                 metricsSection(evt.snapshot)
