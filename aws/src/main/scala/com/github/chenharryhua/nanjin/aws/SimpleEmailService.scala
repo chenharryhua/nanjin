@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import com.amazonaws.regions.Regions
 import com.amazonaws.services.simpleemail.model.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
 import io.circe.generic.JsonCodec
@@ -17,19 +16,20 @@ sealed trait SimpleEmailService[F[_]] {
   def send(txt: EmailContent): F[SendEmailResult]
 }
 
-object ses {
+object SimpleEmailService {
 
   private val name: String = "aws.SES"
 
-  def apply[F[_]](regions: Regions)(implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] =
+  def apply[F[_]](builder: AmazonSimpleEmailServiceClientBuilder)(implicit
+    F: Sync[F]): Resource[F, SimpleEmailService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      er <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSES[F](regions, logger))) {
+      er <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSES[F](builder, logger))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield er
 
-  def apply[F[_]: Sync]: Resource[F, SimpleEmailService[F]] = apply[F](defaultRegion)
+  def apply[F[_]: Sync]: Resource[F, SimpleEmailService[F]] = apply[F](AmazonSimpleEmailServiceClientBuilder.standard())
 
   def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
@@ -39,11 +39,11 @@ object ses {
     }))(_ => F.unit)
   }
 
-  final private class AwsSES[F[_]](regions: Regions, logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsSES[F[_]](builder: AmazonSimpleEmailServiceClientBuilder, logger: Logger[F])(implicit
+    F: Sync[F])
       extends ShutdownService[F] with SimpleEmailService[F] {
 
-    private val client: AmazonSimpleEmailService =
-      AmazonSimpleEmailServiceClientBuilder.standard().withRegion(regions).build
+    private val client: AmazonSimpleEmailService = builder.build()
 
     override def send(content: EmailContent): F[SendEmailResult] = {
       val request = new SendEmailRequest()

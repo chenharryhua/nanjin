@@ -20,11 +20,11 @@ import java.util.UUID
 
 object PostgresPipe {
 
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]], tableName: TableName): PostgresPipe[F] =
-    new PostgresPipe[F](session, Translator.simpleJson[F], tableName)
-
   def apply[F[_]: Temporal](session: Resource[F, Session[F]]): PostgresPipe[F] =
-    apply[F](session, TableName("event_stream"))
+    new PostgresPipe[F](session, Translator.simpleJson[F], TableName("event_stream"))
+
+  def apply[F[_]: Temporal](session: Session[F]): PostgresPipe[F] =
+    apply[F](Resource.pure[F, Session[F]](session))
 }
 
 final class PostgresPipe[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json], tableName: TableName)(

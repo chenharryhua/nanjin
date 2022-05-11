@@ -16,7 +16,7 @@ import fs2.interop.reactivestreams.*
 import io.circe.optics.JsonPath.*
 import io.circe.parser.*
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.sqs.SqsAsyncClient
+import software.amazon.awssdk.services.sqs.{SqsAsyncClient, SqsAsyncClientBuilder}
 
 import java.net.URLDecoder
 import scala.concurrent.duration.DurationInt
@@ -28,7 +28,7 @@ sealed trait SimpleQueueService[F[_]] {
     fetchRecords(sqs).flatMap(sar => Stream.emits(sqsS3Parser(sar.messageAction.message.body())))
 }
 
-object sqs {
+object SimpleQueueService {
 
   private val name: String = "aws.SQS"
 
@@ -37,23 +37,25 @@ object sqs {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
     }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize)(implicit
+  def apply[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize, builder: SqsAsyncClientBuilder)(implicit
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      qr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, chunkSize))) {
+      qr <- Resource.makeCase(
+        logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, chunkSize, builder))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield qr
 
   def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
-    apply[F](akkaSystem, ChunkSize(1024))
+    apply[F](akkaSystem, ChunkSize(1024), SqsAsyncClient.builder())
 
-  final private class AwsSQS[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize)(implicit F: Async[F])
+  final private class AwsSQS[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize, builder: SqsAsyncClientBuilder)(
+    implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
     implicit private val client: SqsAsyncClient =
-      SqsAsyncClient.builder().httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
+      builder.httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
     implicit private val mat: Materializer = Materializer(akkaSystem)
 
     private val settings: SqsSourceSettings =

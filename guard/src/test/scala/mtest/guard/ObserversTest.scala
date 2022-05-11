@@ -5,7 +5,8 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.aws.{ses, sns}
+import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService}
+import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
@@ -18,6 +19,7 @@ import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
+  val snsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
 
   test("logging") {
     TaskGuard[IO]("logging")
@@ -71,7 +73,7 @@ class ObserversTest extends AnyFunSuite {
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
       .interruptAfter(7.seconds)
-      .through(SlackPipe[IO](sns.fake[IO]).at("@chenh"))
+      .through(SlackPipe[IO](snsArn, SimpleNotificationService.fake[IO]).at("@chenh"))
       .compile
       .drain
       .unsafeRunSync()
@@ -84,7 +86,7 @@ class ObserversTest extends AnyFunSuite {
         .withChunkSize(100)
         .withSubject("subject")
         .updateTranslator(_.skipActionStart)
-        .withClient(ses.fake[IO])
+        .withClient(SimpleEmailService.fake[IO])
 
     TaskGuard[IO]("ses")
       .updateConfig(_.withHomePage("https://google.com"))
@@ -100,7 +102,10 @@ class ObserversTest extends AnyFunSuite {
 
   test("sns mail") {
     val mail =
-      SnsEmailObserver[IO](sns.fake[IO]).withInterval(5.seconds).withChunkSize(100).updateTranslator(_.skipActionStart)
+      SnsEmailObserver[IO](snsArn, SimpleNotificationService.fake[IO])
+        .withInterval(5.seconds)
+        .withChunkSize(100)
+        .updateTranslator(_.skipActionStart)
 
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://google.com"))
@@ -136,7 +141,10 @@ class ObserversTest extends AnyFunSuite {
       .withSubject("subject")
       .withInterval(1.minute)
       .withChunkSize(10)
-    SnsEmailObserver[IO](sns.fake[IO]).withTitle("title").withInterval(1.minute).withChunkSize(10)
+    SnsEmailObserver[IO](snsArn, SimpleNotificationService.fake[IO])
+      .withTitle("title")
+      .withInterval(1.minute)
+      .withChunkSize(10)
     logging.simple[IO]
     console.verbose[IO]
   }

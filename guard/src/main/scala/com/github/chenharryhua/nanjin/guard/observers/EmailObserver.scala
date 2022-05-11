@@ -21,7 +21,7 @@ object SesEmailObserver {
 
   def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): SesEmailObserver[F] =
     new SesEmailObserver[F](
-      client = ses[F],
+      client = SimpleEmailService[F],
       from = from,
       to = to,
       subject = None,
@@ -33,16 +33,18 @@ object SesEmailObserver {
 
 object SnsEmailObserver {
 
-  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): SnsEmailObserver[F] =
+  def apply[F[_]: Async](snsArn: SnsArn, client: Resource[F, SimpleNotificationService[F]]): SnsEmailObserver[F] =
     new SnsEmailObserver[F](
       client = client,
+      snsArn = snsArn,
       title = None,
       chunkSize = ChunkSize(60),
       interval = 60.minutes,
       isNewestFirst = true,
       Translator.html[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn): SnsEmailObserver[F] = apply[F](sns(snsArn))
+  def apply[F[_]: Async](snsArn: SnsArn, client: SimpleNotificationService[F]): SnsEmailObserver[F] =
+    apply[F](snsArn, Resource.pure[F, SimpleNotificationService[F]](client))
 }
 
 final class SesEmailObserver[F[_]](
@@ -70,7 +72,7 @@ final class SesEmailObserver[F[_]](
   def withSubject(sj: Subject): SesEmailObserver[F]         = copy(subject = Some(sj))
   def withOldestFirst: SesEmailObserver[F]                  = copy(isNewestFirst = false)
 
-  def withClient(client: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] = copy(client = client)
+  def withClient(fake: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] = copy(client = fake)
 
   override def updateTranslator(
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SesEmailObserver[F] =
@@ -125,6 +127,7 @@ final class SesEmailObserver[F[_]](
 
 final class SnsEmailObserver[F[_]](
   client: Resource[F, SimpleNotificationService[F]],
+  snsArn: SnsArn,
   title: Option[Title],
   chunkSize: ChunkSize,
   interval: FiniteDuration,
@@ -133,18 +136,19 @@ final class SnsEmailObserver[F[_]](
     extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], SnsEmailObserver[F]] with all {
 
   private[this] def copy(
-    client: Resource[F, SimpleNotificationService[F]] = client,
+    snsArn: SnsArn = snsArn,
     title: Option[Title] = title,
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     isNewestFirst: Boolean = isNewestFirst,
     translator: Translator[F, Text.TypedTag[String]] = translator): SnsEmailObserver[F] =
-    new SnsEmailObserver[F](client, title, chunkSize, interval, isNewestFirst, translator)
+    new SnsEmailObserver[F](client, snsArn, title, chunkSize, interval, isNewestFirst, translator)
 
   def withInterval(fd: FiniteDuration): SnsEmailObserver[F] = copy(interval = fd)
   def withChunkSize(cs: ChunkSize): SnsEmailObserver[F]     = copy(chunkSize = cs)
   def withTitle(t: Title): SnsEmailObserver[F]              = copy(title = Some(t))
   def withOldestFirst: SnsEmailObserver[F]                  = copy(isNewestFirst = false)
+  def withSnsArn(arn: SnsArn): SnsEmailObserver[F]          = copy(snsArn = arn)
 
   override def updateTranslator(
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SnsEmailObserver[F] =
@@ -174,14 +178,16 @@ final class SnsEmailObserver[F[_]](
                       text.prependedAll(title.map(t => hr(h2(t.value)))),
                       footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
                 }
-                sns.publish(mailBody).attempt.void
+                sns.publish(snsArn, mailBody).attempt.void
               }
               .onFinalizeCase {
                 ofm
                   .terminated(_)
                   .flatMap { events =>
                     sns
-                      .publish(html(body(events.map(hr(_)).prepended(hr(h2("Service Termination Notice"))))).render)
+                      .publish(
+                        snsArn,
+                        html(body(events.map(hr(_)).prepended(hr(h2("Service Termination Notice"))))).render)
                       .attempt
                   }
                   .void

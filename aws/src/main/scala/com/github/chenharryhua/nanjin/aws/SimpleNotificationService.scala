@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import com.amazonaws.regions.Regions
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.amazonaws.services.sns.{AmazonSNS, AmazonSNSClientBuilder}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
@@ -10,37 +9,37 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 sealed trait SimpleNotificationService[F[_]] {
-  def publish(msg: => String): F[PublishResult]
+  def publish(snsArn: SnsArn, msg: String): F[PublishResult]
 }
 
-object sns {
+object SimpleNotificationService {
 
   private val name: String = "aws.SNS"
 
   def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     Resource.make(F.pure(new SimpleNotificationService[F] {
-      override def publish(msg: => String): F[PublishResult] =
+      override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
         logger.info(msg) *> F.pure(new PublishResult())
     }))(_ => F.unit)
   }
 
-  def apply[F[_]](topic: SnsArn, region: Regions)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] =
+  def apply[F[_]](builder: AmazonSNSClientBuilder)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      nr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSNS[F](topic, region, logger))) {
+      nr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSNS[F](builder, logger))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield nr
 
-  def apply[F[_]: Sync](topic: SnsArn): Resource[F, SimpleNotificationService[F]] = apply[F](topic, defaultRegion)
+  def apply[F[_]: Sync]: Resource[F, SimpleNotificationService[F]] = apply[F](AmazonSNSClientBuilder.standard())
 
-  final private class AwsSNS[F[_]](topic: SnsArn, region: Regions, logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsSNS[F[_]](builder: AmazonSNSClientBuilder, logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with SimpleNotificationService[F] {
-    private val client: AmazonSNS = AmazonSNSClientBuilder.standard().withRegion(region).build()
+    private val client: AmazonSNS = builder.build()
 
-    override def publish(msg: => String): F[PublishResult] =
-      F.blocking(client.publish(new PublishRequest(topic.value, msg)))
+    override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
+      F.blocking(client.publish(new PublishRequest(snsArn.value, msg)))
         .attempt
         .flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r))
         .rethrow
