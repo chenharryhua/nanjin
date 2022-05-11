@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
-import com.github.chenharryhua.nanjin.aws.CloudWatch
+import com.github.chenharryhua.nanjin.aws.CloudWatchClient
 import com.github.chenharryhua.nanjin.guard.event.{MetricReport, NJEvent}
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate
@@ -13,12 +13,15 @@ import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchPipe {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]])(namespace: String): CloudWatchPipe[F] =
+  def apply[F[_]: Sync](client: Resource[F, CloudWatchClient[F]])(namespace: String): CloudWatchPipe[F] =
     new CloudWatchPipe[F](client, namespace, 60)
 
 }
 
-final class CloudWatchPipe[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String, storageResolution: Int)
+final class CloudWatchPipe[F[_]: Sync](
+  client: Resource[F, CloudWatchClient[F]],
+  namespace: String,
+  storageResolution: Int)
     extends Pipe[F, NJEvent, NJEvent] with localdate {
 
   def withStorageResolution(storageResolution: Int): CloudWatchPipe[F] = {
@@ -57,7 +60,7 @@ final class CloudWatchPipe[F[_]: Sync](client: Resource[F, CloudWatch[F]], names
   }
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] = {
-    def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
+    def go(cwc: CloudWatchClient[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
           val (mds, next) = events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
@@ -71,13 +74,14 @@ final class CloudWatchPipe[F[_]: Sync](client: Resource[F, CloudWatch[F]], names
               .grouped(20)
               .toList
               .traverse(ds =>
-                cw.putMetricData(
-                  new PutMetricDataRequest()
-                    .withNamespace(namespace)
-                    .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
+                cwc
+                  .putMetricData(
+                    new PutMetricDataRequest()
+                      .withNamespace(namespace)
+                      .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
                   .attempt)
 
-          Pull.eval(publish) >> Pull.output(events) >> go(cw, tail, next)
+          Pull.eval(publish) >> Pull.output(events) >> go(cwc, tail, next)
 
         case None => Pull.done
       }
