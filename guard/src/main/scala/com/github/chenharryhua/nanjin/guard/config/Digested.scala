@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.data.NonEmptyList
+import com.github.chenharryhua.nanjin.common.guard.{ServiceName, Span}
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 

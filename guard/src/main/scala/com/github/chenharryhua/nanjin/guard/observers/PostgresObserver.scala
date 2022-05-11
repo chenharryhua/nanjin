@@ -18,26 +18,19 @@ import java.util.UUID
   * CREATE TABLE public.event_stream ( info json NULL, "timestamp" timestamptz NULL DEFAULT CURRENT_TIMESTAMP );
   */
 
-object PostgresPipe {
-
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]], tableName: TableName): PostgresPipe[F] =
-    new PostgresPipe[F](session, Translator.simpleJson[F], tableName)
-
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]]): PostgresPipe[F] =
-    apply[F](session, TableName("event_stream"))
+object PostgresObserver {
+  def apply[F[_]: Temporal](session: Resource[F, Session[F]]): PostgresObserver[F] =
+    new PostgresObserver[F](session, Translator.simpleJson[F])
 }
 
-final class PostgresPipe[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json], tableName: TableName)(
-  implicit F: Temporal[F])
-    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, Json, PostgresPipe[F]] {
+final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json])(implicit
+  F: Temporal[F])
+    extends UpdateTranslator[F, Json, PostgresObserver[F]] {
 
-  def withTableName(tableName: TableName): PostgresPipe[F] =
-    new PostgresPipe[F](session, translator, tableName)
+  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): PostgresObserver[F] =
+    new PostgresObserver[F](session, f(translator))
 
-  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): PostgresPipe[F] =
-    new PostgresPipe[F](session, f(translator), tableName)
-
-  def apply(events: Stream[F, NJEvent]): Stream[F, NJEvent] = {
+  def observe(tableName: TableName): Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) => {
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
     for {
       pg <- Stream.resource(session.flatMap(_.prepare(cmd)))

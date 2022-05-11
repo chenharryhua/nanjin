@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.derived.auto.show.*
 import cats.{Functor, Show}
+import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}

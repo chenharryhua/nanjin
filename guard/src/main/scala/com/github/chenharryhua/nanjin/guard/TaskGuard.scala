@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricFilter
+import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceName, TaskConfig, TaskName, TaskParams}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 
 /** credit to the excellent retry lib [[https://github.com/cb372/cats-retry]]

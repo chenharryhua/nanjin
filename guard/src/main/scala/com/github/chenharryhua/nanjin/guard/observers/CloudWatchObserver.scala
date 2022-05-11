@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
-import com.github.chenharryhua.nanjin.aws.CloudWatch
+import com.github.chenharryhua.nanjin.aws.CloudWatchClient
+import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.event.{MetricReport, NJEvent}
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate
@@ -12,23 +13,20 @@ import java.time.Instant
 import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
-object CloudWatchPipe {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchPipe[F] =
-    new CloudWatchPipe[F](client, namespace, 60)
+object CloudWatchObserver {
+  def apply[F[_]: Sync](client: Resource[F, CloudWatchClient[F]]): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](client, 60)
 
-  def apply[F[_]: Sync](namespace: String): CloudWatchPipe[F] =
-    apply[F](CloudWatch[F], namespace)
 }
 
-final class CloudWatchPipe[F[_]](client: Resource[F, CloudWatch[F]], namespace: String, storageResolution: Int)(implicit
-  F: Sync[F])
-    extends Pipe[F, NJEvent, NJEvent] with localdate {
+final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[F]], storageResolution: Int)
+    extends localdate {
 
-  def withStorageResolution(storageResolution: Int): CloudWatchPipe[F] = {
+  def withStorageResolution(storageResolution: Int): CloudWatchObserver[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchPipe(client, namespace, storageResolution)
+    new CloudWatchObserver(client, storageResolution)
   }
 
   private def buildMetricDatum(
@@ -59,8 +57,8 @@ final class CloudWatchPipe[F[_]](client: Resource[F, CloudWatch[F]], namespace: 
     }
   }
 
-  override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] = {
-    def go(cw: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
+  def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
+    def go(cwc: CloudWatchClient[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
           val (mds, next) = events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
@@ -74,13 +72,14 @@ final class CloudWatchPipe[F[_]](client: Resource[F, CloudWatch[F]], namespace: 
               .grouped(20)
               .toList
               .traverse(ds =>
-                cw.putMetricData(
-                  new PutMetricDataRequest()
-                    .withNamespace(namespace)
-                    .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
+                cwc
+                  .putMetricData(
+                    new PutMetricDataRequest()
+                      .withNamespace(namespace.value)
+                      .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
                   .attempt)
 
-          Pull.eval(publish) >> Pull.output(events) >> go(cw, tail, next)
+          Pull.eval(publish) >> Pull.output(events) >> go(cwc, tail, next)
 
         case None => Pull.done
       }
