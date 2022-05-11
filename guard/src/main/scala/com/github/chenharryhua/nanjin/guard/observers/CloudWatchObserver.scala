@@ -12,23 +12,20 @@ import java.time.Instant
 import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
-object CloudWatchPipe {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatchClient[F]])(namespace: String): CloudWatchPipe[F] =
-    new CloudWatchPipe[F](client, namespace, 60)
+object CloudWatchObserver {
+  def apply[F[_]: Sync](client: Resource[F, CloudWatchClient[F]]): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](client, 60)
 
 }
 
-final class CloudWatchPipe[F[_]: Sync](
-  client: Resource[F, CloudWatchClient[F]],
-  namespace: String,
-  storageResolution: Int)
-    extends Pipe[F, NJEvent, NJEvent] with localdate {
+final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[F]], storageResolution: Int)
+    extends localdate {
 
-  def withStorageResolution(storageResolution: Int): CloudWatchPipe[F] = {
+  def withStorageResolution(storageResolution: Int): CloudWatchObserver[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchPipe(client, namespace, storageResolution)
+    new CloudWatchObserver(client, storageResolution)
   }
 
   private def buildMetricDatum(
@@ -59,7 +56,7 @@ final class CloudWatchPipe[F[_]: Sync](
     }
   }
 
-  override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] = {
+  def observe(namespace: String): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
     def go(cwc: CloudWatchClient[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>

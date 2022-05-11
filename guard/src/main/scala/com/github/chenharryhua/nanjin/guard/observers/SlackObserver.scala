@@ -13,30 +13,26 @@ import io.circe.syntax.*
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-object SlackPipe {
-  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]])(snsArn: SnsArn): SlackPipe[F] =
-    new SlackPipe[F](client, snsArn, None, Translator.slack[F])
-
+object SlackObserver {
+  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
+    new SlackObserver[F](client, None, Translator.slack[F])
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 
-final class SlackPipe[F[_]](
+final class SlackObserver[F[_]](
   client: Resource[F, SimpleNotificationService[F]],
-  snsArn: SnsArn,
   metricsInterval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
-    extends Pipe[F, NJEvent, NJEvent] with UpdateTranslator[F, SlackApp, SlackPipe[F]] {
+    extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
 
   private def copy(
-    snsArn: SnsArn = snsArn,
     metricsInterval: Option[FiniteDuration] = metricsInterval,
-    translator: Translator[F, SlackApp] = translator): SlackPipe[F] =
-    new SlackPipe[F](client, snsArn, metricsInterval, translator)
+    translator: Translator[F, SlackApp] = translator): SlackObserver[F] =
+    new SlackObserver[F](client, metricsInterval, translator)
 
-  def withInterval(fd: FiniteDuration): SlackPipe[F] = copy(metricsInterval = Some(fd))
-  def withSnsArn(arn: SnsArn): SlackPipe[F]          = copy(snsArn = arn)
+  def withInterval(fd: FiniteDuration): SlackObserver[F] = copy(metricsInterval = Some(fd))
 
   /** supporters will be notified:
     *
@@ -46,16 +42,16 @@ final class SlackPipe[F[_]](
     *
     * ServiceTermination
     */
-  def at(supporters: String): SlackPipe[F] = {
+  def at(supporters: String): SlackObserver[F] = {
     val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
     val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
     copy(translator = sp.andThen(st)(translator))
   }
 
-  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackPipe[F] =
+  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackObserver[F] =
     copy(translator = f(translator))
 
-  override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
+  def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
     for {
       sns <- Stream.resource(client)
       ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))

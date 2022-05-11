@@ -7,6 +7,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
@@ -73,7 +74,7 @@ class ObserversTest extends AnyFunSuite {
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
       .interruptAfter(7.seconds)
-      .through(SlackPipe(SimpleNotificationService.fake[IO])(snsArn).at("@chenh"))
+      .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
       .compile
       .drain
       .unsafeRunSync()
@@ -81,10 +82,9 @@ class ObserversTest extends AnyFunSuite {
 
   test("ses mail") {
     val mail =
-      EmailObserver(SimpleEmailService.fake[IO])("abc@google.com", NonEmptyList.one("efg@tek.com"))
+      EmailObserver(SimpleEmailService.fake[IO])
         .withInterval(5.seconds)
         .withChunkSize(100)
-        .withSubject("subject")
         .updateTranslator(_.skipActionStart)
 
     TaskGuard[IO]("ses")
@@ -93,7 +93,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
-      .through(mail)
+      .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
       .compile
       .drain
       .unsafeRunSync()
@@ -101,7 +101,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("sns mail") {
     val mail =
-      EmailObserver[IO](SimpleNotificationService.fake[IO])(snsArn)
+      EmailObserver[IO](SimpleNotificationService.fake[IO])
         .withInterval(5.seconds)
         .withChunkSize(100)
         .updateTranslator(_.skipActionStart)
@@ -112,7 +112,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
-      .through(mail)
+      .through(mail.observe(snsArn, "title"))
       .compile
       .drain
       .unsafeRunSync()
@@ -136,14 +136,8 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("syntax") {
-    EmailObserver(SimpleEmailService.fake[IO])("abc@google.com", NonEmptyList.one("efg@tek.com"))
-      .withSubject("subject")
-      .withInterval(1.minute)
-      .withChunkSize(10)
-    EmailObserver[IO](SimpleNotificationService.fake[IO])(snsArn)
-      .withTitle("title")
-      .withInterval(1.minute)
-      .withChunkSize(10)
+    EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10)
+    EmailObserver[IO](SimpleNotificationService.fake[IO]).withInterval(1.minute).withChunkSize(10)
     logging.simple[IO]
     console.verbose[IO]
   }
@@ -172,7 +166,7 @@ class ObserversTest extends AnyFunSuite {
         .service("postgres")
         .eventStream(_.notice.run(IO(0)))
         .evalTap(console.verbose[IO])
-        .through(PostgresPipe(session).withTableName("log"))
+        .through(PostgresObserver(session).observe("log"))
         .compile
         .drain
 
