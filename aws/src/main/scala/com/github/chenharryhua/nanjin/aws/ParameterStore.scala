@@ -19,6 +19,9 @@ sealed trait ParameterStore[F[_]] {
 
   final def base64(path: ParameterStorePath)(implicit F: Applicative[F]): F[Array[Byte]] =
     fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
+
+  def updateBuilder(
+    f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder): ParameterStore[F]
 }
 
 object ParameterStore {
@@ -31,24 +34,25 @@ object ParameterStore {
       override def fetch(path: ParameterStorePath): F[ParameterStoreContent] =
         ParameterStoreContent(content).pure
 
+      override def updateBuilder(
+        f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder): ParameterStore[F] = this
     }))(_ => F.unit)
 
   def apply[F[_]: Sync](f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder)
     : Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      ps <- Resource.makeCase(
-        logger
-          .info(s"initialize $name")
-          .map(_ => new AwsPS(f(AWSSimpleSystemsManagementClientBuilder.standard()), logger))) { case (cw, quitCase) =>
+      ps <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(f, logger))) { case (cw, quitCase) =>
         cw.shutdown(name, quitCase, logger)
       }
     } yield ps
 
-  final private class AwsPS[F[_]](builder: AWSSimpleSystemsManagementClientBuilder, logger: Logger[F])(implicit
-    F: Sync[F])
+  final private class AwsPS[F[_]](
+    buildFrom: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder,
+    logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with ParameterStore[F] {
-    private val client: AWSSimpleSystemsManagement = builder.build()
+    private lazy val client: AWSSimpleSystemsManagement =
+      buildFrom(AWSSimpleSystemsManagementClientBuilder.standard()).build()
 
     override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
       val req = new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
@@ -59,5 +63,9 @@ object ParameterStore {
     }
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
+
+    override def updateBuilder(
+      f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder): ParameterStore[F] =
+      new AwsPS[F](buildFrom.andThen(f), logger)
   }
 }

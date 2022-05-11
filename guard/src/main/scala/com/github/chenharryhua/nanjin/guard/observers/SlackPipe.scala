@@ -14,8 +14,8 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 object SlackPipe {
-  def apply[F[_]: Async](snsArn: SnsArn, snsResource: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
-    new SlackPipe[F](snsResource, snsArn, None, Translator.slack[F])
+  def apply[F[_]: Async](snsArn: SnsArn, client: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
+    new SlackPipe[F](client, snsArn, None, Translator.slack[F])
 
   def apply[F[_]: Async](snsArn: SnsArn, client: SimpleNotificationService[F]): SlackPipe[F] =
     apply[F](snsArn, Resource.pure[F, SimpleNotificationService[F]](client))
@@ -25,7 +25,7 @@ object SlackPipe {
   */
 
 final class SlackPipe[F[_]](
-  snsResource: Resource[F, SimpleNotificationService[F]],
+  client: Resource[F, SimpleNotificationService[F]],
   snsArn: SnsArn,
   metricsInterval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Async[F])
@@ -35,7 +35,7 @@ final class SlackPipe[F[_]](
     snsArn: SnsArn = snsArn,
     metricsInterval: Option[FiniteDuration] = metricsInterval,
     translator: Translator[F, SlackApp] = translator): SlackPipe[F] =
-    new SlackPipe[F](snsResource, snsArn, metricsInterval, translator)
+    new SlackPipe[F](client, snsArn, metricsInterval, translator)
 
   def withInterval(fd: FiniteDuration): SlackPipe[F] = copy(metricsInterval = Some(fd))
   def withSnsArn(arn: SnsArn): SlackPipe[F]          = copy(snsArn = arn)
@@ -59,7 +59,7 @@ final class SlackPipe[F[_]](
 
   override def apply(es: Stream[F, NJEvent]): Stream[F, NJEvent] =
     for {
-      sns <- Stream.resource(snsResource)
+      sns <- Stream.resource(client)
       ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
       event <- es
         .evalTap(ref.monitoring)

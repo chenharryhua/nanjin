@@ -10,6 +10,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 sealed trait SimpleNotificationService[F[_]] {
   def publish(snsArn: SnsArn, msg: String): F[PublishResult]
+  def updateBuilder(f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): SimpleNotificationService[F]
 }
 
 object SimpleNotificationService {
@@ -21,6 +22,9 @@ object SimpleNotificationService {
     Resource.make(F.pure(new SimpleNotificationService[F] {
       override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
         logger.info(msg) *> F.pure(new PublishResult())
+
+      override def updateBuilder(f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): SimpleNotificationService[F] =
+        this
     }))(_ => F.unit)
   }
 
@@ -28,15 +32,16 @@ object SimpleNotificationService {
     f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): Resource[F, SimpleNotificationService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      nr <- Resource.makeCase(
-        logger.info(s"initialize $name").map(_ => new AwsSNS[F](f(AmazonSNSClientBuilder.standard()), logger))) {
+      nr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSNS[F](f, logger))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield nr
 
-  final private class AwsSNS[F[_]](builder: AmazonSNSClientBuilder, logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsSNS[F[_]](buildFrom: AmazonSNSClientBuilder => AmazonSNSClientBuilder, logger: Logger[F])(
+    implicit F: Sync[F])
       extends ShutdownService[F] with SimpleNotificationService[F] {
-    private val client: AmazonSNS = builder.build()
+
+    private lazy val client: AmazonSNS = buildFrom(AmazonSNSClientBuilder.standard()).build()
 
     override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
       F.blocking(client.publish(new PublishRequest(snsArn.value, msg)))
@@ -45,5 +50,8 @@ object SimpleNotificationService {
         .rethrow
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
+
+    override def updateBuilder(f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): SimpleNotificationService[F] =
+      new AwsSNS[F](buildFrom.andThen(f), logger)
   }
 }
