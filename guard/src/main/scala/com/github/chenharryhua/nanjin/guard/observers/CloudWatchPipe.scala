@@ -13,15 +13,12 @@ import java.util.{Date, UUID}
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchPipe {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String): CloudWatchPipe[F] =
+  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]])(namespace: String): CloudWatchPipe[F] =
     new CloudWatchPipe[F](client, namespace, 60)
 
-  def apply[F[_]: Sync](namespace: String): CloudWatchPipe[F] =
-    apply[F](CloudWatch[F], namespace)
 }
 
-final class CloudWatchPipe[F[_]](client: Resource[F, CloudWatch[F]], namespace: String, storageResolution: Int)(implicit
-  F: Sync[F])
+final class CloudWatchPipe[F[_]: Sync](client: Resource[F, CloudWatch[F]], namespace: String, storageResolution: Int)
     extends Pipe[F, NJEvent, NJEvent] with localdate {
 
   def withStorageResolution(storageResolution: Int): CloudWatchPipe[F] = {

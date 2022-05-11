@@ -17,12 +17,10 @@ import scalatags.Text.all.*
 import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-object SesEmailObserver {
+object EmailObserver {
 
   def apply[F[_]: Async](
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
-    client: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] =
+    client: Resource[F, SimpleEmailService[F]])(from: EmailAddr, to: NonEmptyList[EmailAddr]): SesEmailObserver[F] =
     new SesEmailObserver[F](
       client = client,
       from = from,
@@ -33,16 +31,7 @@ object SesEmailObserver {
       isNewestFirst = true,
       Translator.html[F])
 
-  def apply[F[_]: Async](
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
-    client: SimpleEmailService[F]): SesEmailObserver[F] =
-    apply[F](from, to, Resource.pure[F, SimpleEmailService[F]](client))
-}
-
-object SnsEmailObserver {
-
-  def apply[F[_]: Async](snsArn: SnsArn, client: Resource[F, SimpleNotificationService[F]]): SnsEmailObserver[F] =
+  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]])(snsArn: SnsArn): SnsEmailObserver[F] =
     new SnsEmailObserver[F](
       client = client,
       snsArn = snsArn,
@@ -52,8 +41,6 @@ object SnsEmailObserver {
       isNewestFirst = true,
       Translator.html[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn, client: SimpleNotificationService[F]): SnsEmailObserver[F] =
-    apply[F](snsArn, Resource.pure[F, SimpleNotificationService[F]](client))
 }
 
 final class SesEmailObserver[F[_]](

@@ -9,6 +9,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 sealed trait CloudWatch[F[_]] {
   def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult]
+  def updateBuilder(f: AmazonCloudWatchClientBuilder => AmazonCloudWatchClientBuilder): CloudWatch[F]
 }
 
 object CloudWatch {
@@ -20,24 +21,26 @@ object CloudWatch {
     Resource.pure[F, CloudWatch[F]](new CloudWatch[F] {
       override def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult] =
         logger.info(putMetricDataRequest.toString) *> F.pure(new PutMetricDataResult())
+
+      override def updateBuilder(f: AmazonCloudWatchClientBuilder => AmazonCloudWatchClientBuilder): CloudWatch[F] =
+        this
     })
   }
 
-  def apply[F[_]: Sync](builder: AmazonCloudWatchClientBuilder): Resource[F, CloudWatch[F]] =
+  def apply[F[_]: Sync](f: AmazonCloudWatchClientBuilder => AmazonCloudWatchClientBuilder): Resource[F, CloudWatch[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      acw <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsCloudWatch(logger, builder))) {
+      acw <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsCloudWatch(f, logger))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield acw
 
-  def apply[F[_]: Sync]: Resource[F, CloudWatch[F]] = apply[F](AmazonCloudWatchClientBuilder.standard())
-
-  final private class AwsCloudWatch[F[_]](logger: Logger[F], builder: AmazonCloudWatchClientBuilder)(implicit
-    F: Sync[F])
+  final private class AwsCloudWatch[F[_]](
+    buildFrom: AmazonCloudWatchClientBuilder => AmazonCloudWatchClientBuilder,
+    logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with CloudWatch[F] {
 
-    private val client: AmazonCloudWatch = builder.build()
+    private lazy val client: AmazonCloudWatch = buildFrom(AmazonCloudWatchClientBuilder.standard()).build()
 
     override def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult] =
       F.delay(client.putMetricData(putMetricDataRequest))
@@ -46,5 +49,8 @@ object CloudWatch {
         .rethrow
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
+
+    override def updateBuilder(f: AmazonCloudWatchClientBuilder => AmazonCloudWatchClientBuilder): CloudWatch[F] =
+      new AwsCloudWatch[F](buildFrom.andThen(f), logger)
   }
 }

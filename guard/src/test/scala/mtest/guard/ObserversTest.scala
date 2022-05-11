@@ -73,7 +73,7 @@ class ObserversTest extends AnyFunSuite {
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
       .interruptAfter(7.seconds)
-      .through(SlackPipe[IO](snsArn, SimpleNotificationService.fake[IO]).at("@chenh"))
+      .through(SlackPipe(SimpleNotificationService.fake[IO])(snsArn).at("@chenh"))
       .compile
       .drain
       .unsafeRunSync()
@@ -81,7 +81,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("ses mail") {
     val mail =
-      SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"), SimpleEmailService.fake[IO])
+      EmailObserver(SimpleEmailService.fake[IO])("abc@google.com", NonEmptyList.one("efg@tek.com"))
         .withInterval(5.seconds)
         .withChunkSize(100)
         .withSubject("subject")
@@ -101,7 +101,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("sns mail") {
     val mail =
-      SnsEmailObserver[IO](snsArn, SimpleNotificationService.fake[IO])
+      EmailObserver[IO](SimpleNotificationService.fake[IO])(snsArn)
         .withInterval(5.seconds)
         .withChunkSize(100)
         .updateTranslator(_.skipActionStart)
@@ -136,11 +136,11 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("syntax") {
-    SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"), SimpleEmailService.fake[IO])
+    EmailObserver(SimpleEmailService.fake[IO])("abc@google.com", NonEmptyList.one("efg@tek.com"))
       .withSubject("subject")
       .withInterval(1.minute)
       .withChunkSize(10)
-    SnsEmailObserver[IO](snsArn, SimpleNotificationService.fake[IO])
+    EmailObserver[IO](SimpleNotificationService.fake[IO])(snsArn)
       .withTitle("title")
       .withInterval(1.minute)
       .withChunkSize(10)

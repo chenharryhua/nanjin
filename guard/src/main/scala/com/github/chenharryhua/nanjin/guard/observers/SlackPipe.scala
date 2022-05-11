@@ -14,11 +14,9 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 object SlackPipe {
-  def apply[F[_]: Async](snsArn: SnsArn, client: Resource[F, SimpleNotificationService[F]]): SlackPipe[F] =
+  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]])(snsArn: SnsArn): SlackPipe[F] =
     new SlackPipe[F](client, snsArn, None, Translator.slack[F])
 
-  def apply[F[_]: Async](snsArn: SnsArn, client: SimpleNotificationService[F]): SlackPipe[F] =
-    apply[F](snsArn, Resource.pure[F, SimpleNotificationService[F]](client))
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]

@@ -23,8 +23,6 @@ object PostgresPipe {
   def apply[F[_]: Temporal](session: Resource[F, Session[F]]): PostgresPipe[F] =
     new PostgresPipe[F](session, Translator.simpleJson[F], TableName("event_stream"))
 
-  def apply[F[_]: Temporal](session: Session[F]): PostgresPipe[F] =
-    apply[F](Resource.pure[F, Session[F]](session))
 }
 
 final class PostgresPipe[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json], tableName: TableName)(
