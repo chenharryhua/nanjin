@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.syntax.all.*
 import cats.{Applicative, Show}
+import com.github.chenharryhua.nanjin.common.guard.MaxRetry
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import eu.timepit.refined.cats.*

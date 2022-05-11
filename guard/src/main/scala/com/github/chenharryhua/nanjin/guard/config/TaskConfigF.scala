@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.HostName
+import com.github.chenharryhua.nanjin.common.guard.{HomePage, TaskName}
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import eu.timepit.refined.cats.*
 import higherkindness.droste.data.Fix

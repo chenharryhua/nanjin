@@ -8,7 +8,8 @@ import cats.syntax.all.*
 import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig, ServiceName}
+import com.github.chenharryhua.nanjin.common.guard.ServiceName
+import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
