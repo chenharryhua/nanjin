@@ -4,6 +4,7 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
 import com.github.chenharryhua.nanjin.aws.CloudWatchClient
+import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.event.{MetricReport, NJEvent}
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate
@@ -56,7 +57,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
     }
   }
 
-  def observe(namespace: String): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
+  def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
     def go(cwc: CloudWatchClient[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
@@ -74,7 +75,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
                 cwc
                   .putMetricData(
                     new PutMetricDataRequest()
-                      .withNamespace(namespace)
+                      .withNamespace(namespace.value)
                       .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
                   .attempt)
 
