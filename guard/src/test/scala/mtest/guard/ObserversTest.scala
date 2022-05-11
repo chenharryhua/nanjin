@@ -19,7 +19,7 @@ import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
-  val snsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
+  val snsArn: SnsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
 
   test("logging") {
     TaskGuard[IO]("logging")
@@ -81,12 +81,11 @@ class ObserversTest extends AnyFunSuite {
 
   test("ses mail") {
     val mail =
-      SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
+      SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"), SimpleEmailService.fake[IO])
         .withInterval(5.seconds)
         .withChunkSize(100)
         .withSubject("subject")
         .updateTranslator(_.skipActionStart)
-        .withClient(SimpleEmailService.fake[IO])
 
     TaskGuard[IO]("ses")
       .updateConfig(_.withHomePage("https://google.com"))
@@ -137,7 +136,7 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("syntax") {
-    SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"))
+    SesEmailObserver[IO]("abc@google.com", NonEmptyList.one("efg@tek.com"), SimpleEmailService.fake[IO])
       .withSubject("subject")
       .withInterval(1.minute)
       .withChunkSize(10)

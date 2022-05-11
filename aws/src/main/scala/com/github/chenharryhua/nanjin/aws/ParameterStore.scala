@@ -33,18 +33,17 @@ object ParameterStore {
 
     }))(_ => F.unit)
 
-  def apply[F[_]](builder: AWSSimpleSystemsManagementClientBuilder)(implicit
-    F: Sync[F]): Resource[F, ParameterStore[F]] =
+  def apply[F[_]: Sync](f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder)
+    : Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      ps <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(builder, logger))) {
-        case (cw, quitCase) =>
-          cw.shutdown(name, quitCase, logger)
+      ps <- Resource.makeCase(
+        logger
+          .info(s"initialize $name")
+          .map(_ => new AwsPS(f(AWSSimpleSystemsManagementClientBuilder.standard()), logger))) { case (cw, quitCase) =>
+        cw.shutdown(name, quitCase, logger)
       }
     } yield ps
-
-  def apply[F[_]](implicit F: Sync[F]): Resource[F, ParameterStore[F]] =
-    apply[F](AWSSimpleSystemsManagementClientBuilder.standard())
 
   final private class AwsPS[F[_]](builder: AWSSimpleSystemsManagementClientBuilder, logger: Logger[F])(implicit
     F: Sync[F])

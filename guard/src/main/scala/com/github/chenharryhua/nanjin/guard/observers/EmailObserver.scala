@@ -19,9 +19,12 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object SesEmailObserver {
 
-  def apply[F[_]: Async](from: EmailAddr, to: NonEmptyList[EmailAddr]): SesEmailObserver[F] =
+  def apply[F[_]: Async](
+    from: EmailAddr,
+    to: NonEmptyList[EmailAddr],
+    client: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] =
     new SesEmailObserver[F](
-      client = SimpleEmailService[F],
+      client = client,
       from = from,
       to = to,
       subject = None,
@@ -29,6 +32,12 @@ object SesEmailObserver {
       interval = 60.minutes,
       isNewestFirst = true,
       Translator.html[F])
+
+  def apply[F[_]: Async](
+    from: EmailAddr,
+    to: NonEmptyList[EmailAddr],
+    client: SimpleEmailService[F]): SesEmailObserver[F] =
+    apply[F](from, to, Resource.pure[F, SimpleEmailService[F]](client))
 }
 
 object SnsEmailObserver {
@@ -59,7 +68,6 @@ final class SesEmailObserver[F[_]](
     extends Pipe[F, NJEvent, INothing] with UpdateTranslator[F, Text.TypedTag[String], SesEmailObserver[F]] with all {
 
   private[this] def copy(
-    client: Resource[F, SimpleEmailService[F]] = client,
     subject: Option[Subject] = subject,
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
@@ -71,8 +79,6 @@ final class SesEmailObserver[F[_]](
   def withChunkSize(cs: ChunkSize): SesEmailObserver[F]     = copy(chunkSize = cs)
   def withSubject(sj: Subject): SesEmailObserver[F]         = copy(subject = Some(sj))
   def withOldestFirst: SesEmailObserver[F]                  = copy(isNewestFirst = false)
-
-  def withClient(fake: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] = copy(client = fake)
 
   override def updateTranslator(
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SesEmailObserver[F] =

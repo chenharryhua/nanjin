@@ -24,15 +24,15 @@ object SimpleNotificationService {
     }))(_ => F.unit)
   }
 
-  def apply[F[_]](builder: AmazonSNSClientBuilder)(implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] =
+  def apply[F[_]: Sync](
+    f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): Resource[F, SimpleNotificationService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      nr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSNS[F](builder, logger))) {
+      nr <- Resource.makeCase(
+        logger.info(s"initialize $name").map(_ => new AwsSNS[F](f(AmazonSNSClientBuilder.standard()), logger))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield nr
-
-  def apply[F[_]: Sync]: Resource[F, SimpleNotificationService[F]] = apply[F](AmazonSNSClientBuilder.standard())
 
   final private class AwsSNS[F[_]](builder: AmazonSNSClientBuilder, logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with SimpleNotificationService[F] {

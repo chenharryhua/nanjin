@@ -20,16 +20,17 @@ object SimpleEmailService {
 
   private val name: String = "aws.SES"
 
-  def apply[F[_]](builder: AmazonSimpleEmailServiceClientBuilder)(implicit
-    F: Sync[F]): Resource[F, SimpleEmailService[F]] =
+  def apply[F[_]: Sync](f: AmazonSimpleEmailServiceClientBuilder => AmazonSimpleEmailServiceClientBuilder)
+    : Resource[F, SimpleEmailService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      er <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSES[F](builder, logger))) {
+      er <- Resource.makeCase(
+        logger
+          .info(s"initialize $name")
+          .map(_ => new AwsSES[F](f(AmazonSimpleEmailServiceClientBuilder.standard()), logger))) {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield er
-
-  def apply[F[_]: Sync]: Resource[F, SimpleEmailService[F]] = apply[F](AmazonSimpleEmailServiceClientBuilder.standard())
 
   def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]

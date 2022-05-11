@@ -11,21 +11,20 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
-import fs2.Stream
+import com.github.matsluni.akkahttpspi.AkkaHttpClient.AkkaHttpClientBuilder
 import fs2.interop.reactivestreams.*
+import fs2.{Chunk, Stream}
 import io.circe.optics.JsonPath.*
 import io.circe.parser.*
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.sqs.{SqsAsyncClient, SqsAsyncClientBuilder}
 
 import java.net.URLDecoder
-import scala.concurrent.duration.DurationInt
-
 sealed trait SimpleQueueService[F[_]] {
   def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult]
 
   final def fetchS3(sqs: SqsUrl): Stream[F, S3Path] =
-    fetchRecords(sqs).flatMap(sar => Stream.emits(sqsS3Parser(sar.messageAction.message.body())))
+    fetchRecords(sqs).map(sar => Chunk.iterable(sqsS3Parser(sar.messageAction.message.body()))).unchunks
 }
 
 object SimpleQueueService {
@@ -37,33 +36,41 @@ object SimpleQueueService {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
     }))(_ => F.unit)
 
-  def apply[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize, builder: SqsAsyncClientBuilder)(implicit
-    F: Async[F]): Resource[F, SimpleQueueService[F]] =
+  def apply[F[_]: Async](akkaSystem: ActorSystem)(f: SqsSourceSettings => SqsSourceSettings)(
+    g: SqsAsyncClientBuilder => SqsAsyncClientBuilder)(
+    h: AkkaHttpClientBuilder => AkkaHttpClientBuilder): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       qr <- Resource.makeCase(
-        logger.info(s"initialize $name").map(_ => new AwsSQS[F](akkaSystem, chunkSize, builder))) {
-        case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
+        logger
+          .info(s"initialize $name")
+          .map(_ =>
+            new AwsSQS[F](
+              akkaSystem,
+              f(SqsSourceSettings()),
+              g(SqsAsyncClient.builder()),
+              h(AkkaHttpClient.builder())))) { case (cw, quitCase) =>
+        cw.shutdown(name, quitCase, logger)
       }
     } yield qr
 
-  def apply[F[_]](akkaSystem: ActorSystem)(implicit F: Async[F]): Resource[F, SimpleQueueService[F]] =
-    apply[F](akkaSystem, ChunkSize(1024), SqsAsyncClient.builder())
-
-  final private class AwsSQS[F[_]](akkaSystem: ActorSystem, chunkSize: ChunkSize, builder: SqsAsyncClientBuilder)(
-    implicit F: Async[F])
+  final private class AwsSQS[F[_]](
+    akkaSystem: ActorSystem,
+    sourceSettings: SqsSourceSettings,
+    clientBuilder: SqsAsyncClientBuilder,
+    akkaBuilder: AkkaHttpClientBuilder)(implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
-    implicit private val client: SqsAsyncClient =
-      builder.httpClient(AkkaHttpClient.builder().withActorSystem(akkaSystem).build()).build()
-    implicit private val mat: Materializer = Materializer(akkaSystem)
+    private val chunkSize: ChunkSize = ChunkSize(1024)
 
-    private val settings: SqsSourceSettings =
-      SqsSourceSettings().withCloseOnEmptyReceive(true).withWaitTime(10.millis)
+    implicit private val client: SqsAsyncClient =
+      clientBuilder.httpClient(akkaBuilder.withActorSystem(akkaSystem).build()).build()
+
+    implicit private val mat: Materializer = Materializer(akkaSystem)
 
     override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] =
       Stream.suspend(
-        SqsSource(sqs.value, settings)
+        SqsSource(sqs.value, sourceSettings)
           .map(MessageAction.Delete(_))
           .via(SqsAckFlow(sqs.value))
           .runWith(Sink.asPublisher(fanout = false))
