@@ -101,7 +101,7 @@ val pbLib = Seq(
 )
 
 val serdeLib = Seq(
-  "com.sksamuel.avro4s" %% "avro4s-core" % "4.0.12",
+  "com.sksamuel.avro4s" %% "avro4s-core" % "4.0.13",
   "org.apache.parquet"                   % "parquet-common"           % "1.12.2",
   "org.apache.parquet"                   % "parquet-hadoop"           % "1.12.2",
   "org.apache.parquet"                   % "parquet-avro"             % "1.12.2",
