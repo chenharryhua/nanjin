@@ -22,8 +22,8 @@ private object SimpleJsonTranslator {
           {
             "event": "ServicePanic",
             "serviceName" : ${evt.serviceParams.serviceName.value},
-            "serviceID": ${evt.serviceParams.serviceID},
-            "cause" : ${evt.error.stackTrace}
+            "cause" : ${evt.error.stackTrace},
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
@@ -32,31 +32,37 @@ private object SimpleJsonTranslator {
           {
             "event": "ServiceStop",
             "serviceName" : ${evt.serviceParams.serviceName.value},
-            "serviceID": ${evt.serviceParams.serviceID},
+            "exitCode": ${evt.cause.exitCode},
             "cause": ${evt.cause.show},
-            "exitCode": ${evt.cause.exitCode}
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
-  private def metricReport(evt: MetricReport): Json =
+  private def metricReport(evt: MetricReport): Json = {
+    val index: Option[Long] = evt.reportType match {
+      case MetricReportType.Adhoc(_)            => None
+      case MetricReportType.Scheduled(_, index) => Some(index)
+    }
     json"""
           {
             "event": "MetricReport",
             "serviceName" : ${evt.serviceParams.serviceName.value},
-            "serviceID": ${evt.serviceParams.serviceID},
-            "ongoings": ${evt.ongoings.map(_.actionID)},
+            "index": $index,
             "isUp": ${evt.isUp},
-            "metrics": ${evt.snapshot.asJson}
+            "ongoings": ${evt.ongoings.map(_.actionID)},            
+            "metrics": ${evt.snapshot.asJson},
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
+  }
 
   private def metricReset(evt: MetricReset): Json =
     json"""
           {
             "event": "MetricReset",
             "serviceName" : ${evt.serviceParams.serviceName.value},
-            "serviceID": ${evt.serviceParams.serviceID},
-            "metrics": ${evt.snapshot.asJson}
+            "metrics": ${evt.snapshot.asJson},
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
@@ -65,10 +71,10 @@ private object SimpleJsonTranslator {
           {
             "event": "PassThrough",
             "name": ${evt.metricName.origin},
-            "digest": ${evt.metricName.digest},
-            "serviceID": ${evt.serviceParams.serviceID},
             "isError": ${evt.isError},
-            "value": ${evt.value}
+            "value": ${evt.value},
+            "digest": ${evt.metricName.digest},
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
@@ -77,10 +83,10 @@ private object SimpleJsonTranslator {
           {       
             "event": "InstantAlert",
             "name": ${evt.metricName.origin},
-            "digest": ${evt.metricName.digest},
-            "serviceID": ${evt.serviceParams.serviceID},
             "importance": ${evt.importance.value},
-            "message": ${evt.message}    
+            "message": ${evt.message},
+            "digest": ${evt.metricName.digest},
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
@@ -100,10 +106,10 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionRetry",
             "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "cause" : ${evt.error.message},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},         
-            "serviceID": ${evt.serviceParams.serviceID},
-            "cause" : ${evt.error.message}
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
@@ -112,11 +118,11 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionFail",
             "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "notes" : ${evt.notes.value},
+            "cause" : ${evt.error.stackTrace},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},       
-            "serviceID": ${evt.serviceParams.serviceID},
-            "cause" : ${evt.error.stackTrace},
-            "notes" : ${evt.notes.value}
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
@@ -125,10 +131,10 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionSucc",
             "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "notes" : ${evt.notes.value},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},      
-            "serviceID": ${evt.serviceParams.serviceID},
-            "notes" : ${evt.notes.value}
+            "serviceID": ${evt.serviceParams.serviceID}
           }
           """
 
