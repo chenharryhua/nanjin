@@ -54,7 +54,7 @@ final class SlackObserver[F[_]](
   def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
     for {
       sns <- Stream.resource(client)
-      ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
+      ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new FinalizeMonitor(translator, r)))
       event <- es
         .evalTap(ref.monitoring)
         .evalTap(e =>
