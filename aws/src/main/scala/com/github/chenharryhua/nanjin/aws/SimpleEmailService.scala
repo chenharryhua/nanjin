@@ -1,16 +1,17 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.data.NonEmptyList
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import com.amazonaws.services.simpleemail.model.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
+import com.amazonaws.services.simpleemail.model.*
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 @JsonCodec
-final case class EmailContent(from: String, to: List[String], subject: String, body: String)
+final case class EmailContent(from: String, to: NonEmptyList[String], subject: String, body: String)
 
 sealed trait SimpleEmailService[F[_]] {
   def send(txt: EmailContent): F[SendEmailResult]
@@ -52,7 +53,7 @@ object SimpleEmailService {
 
     override def send(content: EmailContent): F[SendEmailResult] = {
       val request = new SendEmailRequest()
-        .withDestination(new Destination().withToAddresses(content.to*))
+        .withDestination(new Destination().withToAddresses(content.to.distinct.toList*))
         .withMessage(
           new Message()
             .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))

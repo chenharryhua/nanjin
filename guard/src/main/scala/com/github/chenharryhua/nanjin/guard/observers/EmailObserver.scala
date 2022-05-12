@@ -9,7 +9,8 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
-import fs2.{INothing, Pipe, Stream}
+import eu.timepit.refined.auto.*
+import fs2.{Chunk, INothing, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
@@ -30,7 +31,7 @@ object EmailObserver {
   def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): SnsEmailObserver[F] =
     new SnsEmailObserver[F](
       client = client,
-      chunkSize = ChunkSize(60),
+      chunkSize = ChunkSize(20),
       interval = 120.minutes,
       isNewestFirst = true,
       Translator.html[F])
@@ -60,47 +61,34 @@ final class SesEmailObserver[F[_]](
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SesEmailObserver[F] =
     copy(translator = f(translator))
 
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: Subject): Pipe[F, NJEvent, INothing] =
+  private def publish(
+    events: Chunk[Text.TypedTag[String]],
+    ses: SimpleEmailService[F],
+    from: EmailAddr,
+    to: NonEmptyList[EmailAddr],
+    subject: Subject): F[Unit] = {
+    val text: List[Text.TypedTag[String]] =
+      if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
+    val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+    ses.send(EmailContent(from.value, to.map(_.value), subject.value, content)).attempt.void
+  }
+
+  // 'to' should better be a NonEmptySet but it need Order instance of EmailAddr.
+  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: Subject): Pipe[F, NJEvent, INothing] = {
     (es: Stream[F, NJEvent]) =>
-      Stream
-        .resource(client)
-        .flatMap(ses =>
-          Stream
-            .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
-            .flatMap(ofm =>
-              es.evalTap(evt => ofm.monitoring(evt))
-                .evalMap(e =>
-                  translator.filter {
-                    case event: ActionEvent => event.actionParams.isNonTrivial
-                    case _                  => true
-                  }.translate(e))
-                .unNone
-                .groupWithin(chunkSize.value, interval)
-                .evalTap { events =>
-                  val mailBody: String = {
-                    val text: List[Text.TypedTag[String]] =
-                      if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-                    html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-                  }
-                  ses
-                    .send(EmailContent(from.value, to.map(_.value).toList.distinct, subject.value, mailBody))
-                    .attempt
-                    .void
-                }
-                .onFinalizeCase(ofm
-                  .terminated(_)
-                  .flatMap { events =>
-                    ses
-                      .send(
-                        EmailContent(
-                          from.value,
-                          to.map(_.value).toList.distinct,
-                          "Service Termination Notice",
-                          html(body(events.map(hr(_)).toList)).render))
-                      .attempt
-                  }
-                  .void)
-                .drain))
+      val compu = for {
+        ses <- Stream.resource(client)
+        ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
+        _ <- es
+          .evalTap(ofm.monitoring)
+          .evalMap(translator.translate)
+          .unNone
+          .groupWithin(chunkSize.value, interval)
+          .evalTap(publish(_, ses, from, to, subject))
+          .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, ses, from, to, "Service Termination Notice")))
+      } yield ()
+      compu.drain
+  }
 }
 
 final class SnsEmailObserver[F[_]](
@@ -126,45 +114,31 @@ final class SnsEmailObserver[F[_]](
     f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SnsEmailObserver[F] =
     copy(translator = f(translator))
 
+  private def publish(
+    events: Chunk[Text.TypedTag[String]],
+    sns: SimpleNotificationService[F],
+    snsArn: SnsArn,
+    title: Title): F[Unit] = {
+    val text: List[Text.TypedTag[String]] =
+      if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
+    val content = html(
+      body(hr(h2(title.value)), text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+    sns.publish(snsArn, content).attempt.void
+  }
+
   def observe(snsArn: SnsArn, title: Title): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
     Stream
       .resource(client)
       .flatMap(sns =>
         Stream
-          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
+          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
           .flatMap(ofm =>
             es.evalTap(ofm.monitoring)
-              .evalMap(e =>
-                translator.filter {
-                  case event: ActionEvent => event.actionParams.isNonTrivial
-                  case _                  => true
-                }.translate(e))
+              .evalMap(translator.translate)
               .unNone
               .groupWithin(chunkSize.value, interval)
-              .evalTap { events =>
-                val mailBody: String = {
-                  val text: List[Text.TypedTag[String]] =
-                    if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-                  html(
-                    body(
-                      hr(h2(title.value)),
-                      text,
-                      footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-                }
-                sns.publish(snsArn, mailBody).attempt.void
-              }
-              .onFinalizeCase {
-                ofm
-                  .terminated(_)
-                  .flatMap { events =>
-                    sns
-                      .publish(
-                        snsArn,
-                        html(body(events.map(hr(_)).prepended(hr(h2("Service Termination Notice"))))).render)
-                      .attempt
-                  }
-                  .void
-              })
+              .evalTap(publish(_, sns, snsArn, title))
+              .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, sns, snsArn, "Service Termination Notice"))))
           .drain)
 
 }

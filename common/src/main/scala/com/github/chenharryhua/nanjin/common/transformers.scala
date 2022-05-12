@@ -8,7 +8,9 @@ import io.scalaland.chimney.Transformer
 import io.scalaland.enumz.Enum
 import monocle.Iso
 
-object transformers extends ReverseTransformers {
+object transformers extends TransformersTrait
+
+trait TransformersTrait extends ReverseTransformers {
 
   implicit def str2Enum[E](implicit ev: Enum[E]): Transformer[String, E] =
     (src: String) => ev.withNameInsensitive(src)

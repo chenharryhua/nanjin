@@ -8,7 +8,9 @@ import monocle.function.Plated
 
 /** relate Monocle to Droste
   */
-object fixpoint {
+object fixpoint extends FixPointTrait
+
+trait FixPointTrait {
 
   implicit def platedFix[G[_]: Traverse]: Plated[Fix[G]] =
     Plated[Fix[G]](new Traversal[Fix[G], Fix[G]] {

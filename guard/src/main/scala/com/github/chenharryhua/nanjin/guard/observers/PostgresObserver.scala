@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStart}
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import io.circe.Json
+import skunk.{Command, Session}
 import skunk.circe.codec.json.json
 import skunk.implicits.toStringOps
-import skunk.{Command, Session}
 
 import java.util.UUID
 
@@ -34,7 +34,7 @@ final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator:
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
     for {
       pg <- Stream.resource(session.flatMap(_.prepare(cmd)))
-      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new ObserverFinalizeMonitor(translator, r)))
+      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new FinalizeMonitor(translator, r)))
       event <- events
         .evalTap(ofm.monitoring)
         .evalTap(evt => translator.translate(evt).flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)
