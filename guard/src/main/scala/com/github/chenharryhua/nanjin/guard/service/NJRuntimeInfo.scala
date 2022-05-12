@@ -16,8 +16,8 @@ final class NJRuntimeInfo[F[_]: Temporal] private[service] (serviceStatus: RefSo
 
   def serviceID: F[UUID] = serviceStatus.get.map(_.serviceParams.serviceID)
 
-  def isServiceUp: F[Boolean]   = serviceStatus.get.map(_.isUp)
-  def isServiceDown: F[Boolean] = serviceStatus.get.map(_.isDown)
+  def isServiceUp: F[Boolean]    = serviceStatus.get.map(_.isUp)
+  def isServicePanic: F[Boolean] = serviceStatus.get.map(_.isPanic)
 
   def pendingActions: F[Set[ActionInfo]] = serviceStatus.get.map(_.ongoingActionSet)
 }

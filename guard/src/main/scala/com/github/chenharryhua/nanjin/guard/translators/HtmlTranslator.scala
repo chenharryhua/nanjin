@@ -19,7 +19,7 @@ private object HtmlTranslator extends all {
   private val coloring: Coloring = new Coloring({
     case ColorScheme.GoodColor  => "color:black"
     case ColorScheme.InfoColor  => "color:black"
-    case ColorScheme.WarnColor  => "color:#FF9333"
+    case ColorScheme.WarnColor  => "color:#e66c00"
     case ColorScheme.ErrorColor => "color:red"
   })
 

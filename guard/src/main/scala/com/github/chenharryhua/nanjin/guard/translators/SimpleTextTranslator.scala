@@ -24,6 +24,9 @@ private object SimpleTextTranslator {
         |  Name:${ie.metricName.metricRepr}""".stripMargin
   }
 
+  private def errorStr(err: NJError): String =
+    s"Cause: ${err.stackTrace}"
+
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
     s"""  Host:$host, ServiceID:${ae.serviceID.show}
@@ -40,7 +43,7 @@ private object SimpleTextTranslator {
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  ErrorID: ${evt.error.uuid.show}
-       |  StackTrace: ${evt.error.stackTrace}
+       |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
@@ -84,14 +87,14 @@ private object SimpleTextTranslator {
     s"""${coloring("Action Retrying")(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
-       |  StackTrace: ${evt.error.stackTrace}
+       |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""${coloring("Action Failed")(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
-       |  StackTrace: ${evt.error.stackTrace}
+       |  ${errorStr(evt.error)}
        |  ${evt.notes.value}
        |""".stripMargin
 

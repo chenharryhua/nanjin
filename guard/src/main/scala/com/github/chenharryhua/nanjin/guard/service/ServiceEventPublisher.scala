@@ -29,7 +29,7 @@ final private class ServiceEventPublisher[F[_]: UUIDGen](
       sp <- serviceStatus.get.map(_.serviceParams)
       now  = sp.toZonedDateTime(ts)
       next = sp.toZonedDateTime(ts.plus(delay.toJava))
-      _ <- serviceStatus.update(_.goDown(now, next, err))
+      _ <- serviceStatus.update(_.goPanic(now, next, err))
       _ <- channel.send(ServicePanic(serviceParams = sp, timestamp = now, restartTime = next, error = err))
     } yield ()
 

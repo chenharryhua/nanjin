@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.{MetricReport, PassThrough}
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -39,15 +38,10 @@ class PassThroughTest extends AnyFunSuite {
   test("unsafe pass-through") {
     val List(PassThroughObject(a, b)) = guard.eventStream { action =>
       IO(1).map(_ => action.broker("pt").unsafePassThrough(PassThroughObject(1, "a")))
-    }.debug()
-      .map {
-        case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
-        case _                          => None
-      }
-      .unNone
-      .compile
-      .toList
-      .unsafeRunSync()
+    }.map {
+      case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
+      case _                          => None
+    }.unNone.compile.toList.unsafeRunSync()
     assert(a == 1)
     assert(b == "a")
   }
@@ -62,7 +56,6 @@ class PassThroughTest extends AnyFunSuite {
           .inc(1)
           .delayBy(1.second)
           .replicateA(3) >> ag.metrics.fullReport)
-      .debug()
       .filter(_.isInstanceOf[MetricReport])
       .compile
       .last
@@ -76,7 +69,6 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(crontabs.c997))
       .eventStream(ag =>
         ag.alert("oops").withCounting.error("message").delayBy(1.second) >> ag.metrics.report(MetricFilter.ALL))
-      .debug()
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
       .compile
@@ -109,20 +101,5 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-  }
-
-  test("importance settings") {
-    guard.eventStream { ag =>
-      val a1 = ag.critical
-      val a2 = ag.notice
-      val a3 = ag.normal
-      val a4 = ag.trivial
-      IO {
-        assert(a1.agentParams.importance == Importance.Critical)
-        assert(a2.agentParams.importance == Importance.High)
-        assert(a3.agentParams.importance == Importance.Medium)
-        assert(a4.agentParams.importance == Importance.Low)
-      }
-    }.compile.drain.timeout(1.second).unsafeRunSync()
   }
 }

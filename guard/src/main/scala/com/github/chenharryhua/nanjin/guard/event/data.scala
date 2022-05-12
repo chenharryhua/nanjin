@@ -77,7 +77,7 @@ sealed trait ServiceStopCause {
   def exitCode: Int
 
   final override def toString: String = this match {
-    case ServiceStopCause.Normally         => "normally exit"
+    case ServiceStopCause.Normally         => "exitCode 0"
     case ServiceStopCause.ByCancelation    => "abnormally exit due to cancelation"
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
   }

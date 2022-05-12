@@ -27,10 +27,11 @@ final class Agent[F[_]] private[service] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
-  lazy val agentParams: AgentParams = agentConfig.evalConfig
-  def serviceParams: ServiceParams  = agentParams.serviceParams
-  def zoneId: ZoneId                = agentParams.serviceParams.taskParams.zoneId
-  def digestedName: Digested        = Digested(agentParams.spans, agentParams.serviceParams)
+  private lazy val agentParams: AgentParams     = agentConfig.evalConfig
+  private lazy val serviceParams: ServiceParams = agentParams.serviceParams
+
+  def zoneId: ZoneId         = agentParams.serviceParams.taskParams.zoneId
+  def digestedName: Digested = Digested(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, f(agentConfig))
@@ -126,9 +127,7 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     span(Span("nj-nonStop"))
-      .max(retries = refineMV(0))
-      .cheap
-      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance)
+      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance.withExpensive(false).withMaxRetries(refineMV(0)))
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
