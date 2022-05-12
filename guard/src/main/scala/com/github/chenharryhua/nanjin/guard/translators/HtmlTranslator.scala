@@ -17,10 +17,10 @@ import java.time.temporal.ChronoUnit
 private object HtmlTranslator extends all {
 
   private val coloring: Coloring = new Coloring({
-    case ColorScheme.GoodColor  => "color:black"
+    case ColorScheme.GoodColor  => "color:darkgreen"
     case ColorScheme.InfoColor  => "color:black"
-    case ColorScheme.WarnColor  => "color:#e66c00"
-    case ColorScheme.ErrorColor => "color:red"
+    case ColorScheme.WarnColor  => "color:#darkkhaki"
+    case ColorScheme.ErrorColor => "color:maroon"
   })
 
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =

@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 
 private object SimpleTextTranslator {
   private def coloring(msg: String): Coloring = new Coloring({
-    case ColorScheme.GoodColor  => msg
+    case ColorScheme.GoodColor  => Console.GREEN + msg + Console.RESET
     case ColorScheme.InfoColor  => msg
     case ColorScheme.WarnColor  => Console.CYAN + msg + Console.RESET
     case ColorScheme.ErrorColor => Console.YELLOW + msg + Console.RESET
