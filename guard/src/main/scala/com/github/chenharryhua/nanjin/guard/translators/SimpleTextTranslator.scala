@@ -34,12 +34,12 @@ private object SimpleTextTranslator {
   }
 
   private def serviceStarted(evt: ServiceStart): String =
-    s"""${coloring("Service (Re)Started")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${serviceEvent(evt)}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String =
-    s"""${coloring("Service Panic")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  ErrorID: ${evt.error.uuid.show}
@@ -47,13 +47,13 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
-    s"""${coloring("Service Stopped")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${serviceEvent(evt)}
        |  Cause: ${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""${coloring(evt.reportType.show)(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  Ongoings: ${evt.ongoings.map(_.actionID).mkString(",")}
@@ -61,37 +61,37 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""${coloring(evt.resetType.show)(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =
-    s"""${coloring("Pass Through")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${instantEvent(evt)}
        |  Message: ${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
-    s"""${coloring("Service Alert")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${instantEvent(evt)}
        |  Alert: ${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
-    s"""${coloring("Action Start")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
-    s"""${coloring("Action Retrying")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
-    s"""${coloring("Action Failed")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
        |  ${errorStr(evt.error)}
@@ -99,7 +99,7 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
-    s"""${coloring("Action Succed")(evt)}
+    s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
        |  ${evt.notes.value}

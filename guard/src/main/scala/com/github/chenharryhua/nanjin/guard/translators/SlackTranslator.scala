@@ -43,7 +43,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(":rocket: *(Re)Started Service*"),
+            MarkdownSection(s":rocket: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField("Up Time", fmt.format(evt.upTime)),
@@ -81,13 +81,13 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s":octagonal_sign: *Service Stopped*"),
+            MarkdownSection(s":octagonal_sign: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
               TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
-            MarkdownSection(s"*Cause:* ${evt.cause.show}")
+            MarkdownSection(s"""*Service ID:* ${evt.serviceID.show}
+                               |*Cause:* ${evt.cause.show}""".stripMargin)
           )
         )
       )
@@ -123,7 +123,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"""*${evt.reportType.show}*
+            MarkdownSection(s"""*${evt.title}*
                                |${upcomingRestartTimeInterpretation(evt)}""".stripMargin),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
@@ -144,52 +144,24 @@ private object SlackTranslator extends all {
     )
 
   private def metricReset(evt: MetricReset): SlackApp =
-    evt.resetType match {
-      case MetricResetType.Adhoc =>
-        SlackApp(
-          username = evt.serviceParams.taskParams.taskName.value,
-          attachments = List(
-            Attachment(
-              color = coloring(evt),
-              blocks = List(
-                MarkdownSection("*Adhoc Metric Reset*"),
-                hostServiceSection(evt.serviceParams),
-                JuxtaposeSection(
-                  TextField("Up Time", fmt.format(evt.upTime)),
-                  TextField(
-                    "Scheduled Next",
-                    evt.serviceParams.metric
-                      .nextReport(evt.timestamp)
-                      .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
-                      .getOrElse("None")
-                  )
-                ),
-                MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
-                metricsSection(evt.snapshot)
-              )
-            )
+    SlackApp(
+      username = evt.serviceParams.taskParams.taskName.value,
+      attachments = List(
+        Attachment(
+          color = coloring(evt),
+          blocks = List(
+            MarkdownSection(s"*${evt.title}*"),
+            hostServiceSection(evt.serviceParams),
+            JuxtaposeSection(
+              TextField("Up Time", fmt.format(evt.upTime)),
+              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
+            ),
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
+            metricsSection(evt.snapshot)
           )
         )
-      case MetricResetType.Scheduled(next) =>
-        SlackApp(
-          username = evt.serviceParams.taskParams.taskName.value,
-          attachments = List(
-            Attachment(
-              color = coloring(evt),
-              blocks = List(
-                MarkdownSection(s"*Scheduled Metric Reset*"),
-                hostServiceSection(evt.serviceParams),
-                JuxtaposeSection(
-                  TextField("Up Time", fmt.format(evt.upTime)),
-                  TextField("Scheduled Next", localTimeAndDurationStr(evt.timestamp, next)._1)
-                ),
-                MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
-                metricsSection(evt.snapshot)
-              )
-            )
-          )
-        )
-    }
+      )
+    )
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(
@@ -198,9 +170,10 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.actionParams.startTitle}*"),
+            MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""*Action ID:* ${evt.actionInfo.actionID.show}
+            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
+                               |*ID:* ${evt.actionInfo.actionID.show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           )
         ))
@@ -213,15 +186,16 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.actionParams.retryTitle}*"),
+            MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-            MarkdownSection(s"""|*Action ID:* ${evt.actionInfo.actionID.show}
-                                |*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
-                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
-                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
+                               |*ID:* ${evt.actionInfo.actionID.show}
+                               |*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
+                               |*Policy:* ${evt.actionParams.retry.policy[F].show}
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"```${evt.error.message}```")
           )
         ))
@@ -234,12 +208,13 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.actionParams.failedTitle}*"),
+            MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""|*Action ID:* ${evt.actionInfo.actionID.show}
-                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
-                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
+            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
+                               |*ID:* ${evt.actionInfo.actionID.show}
+                               |*Policy:* ${evt.actionParams.retry.policy[F].show}
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )
       )
@@ -252,10 +227,11 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.actionParams.succedTitle}*"),
+            MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""*Action ID:* ${evt.actionInfo.actionID.show}
+            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
+                               |*ID:* ${evt.actionInfo.actionID.show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )

@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import cats.derived.auto.show.*
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import io.circe.generic.auto.*
@@ -15,6 +16,7 @@ import java.util.UUID
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
+  def title: String
 
   final def zoneId: ZoneId   = serviceParams.taskParams.zoneId
   final def show: String     = NJEvent.showNJEvent.show(this)
@@ -31,17 +33,23 @@ object NJEvent {
 
 sealed trait ServiceEvent extends NJEvent
 
-final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent
+final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent {
+  override val title: String = titles.serviceStart
+}
 
 final case class ServicePanic(
   serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
   restartTime: ZonedDateTime,
   error: NJError)
-    extends ServiceEvent
+    extends ServiceEvent {
+  override val title: String = titles.servicePanic
+}
 
 final case class ServiceStop(serviceParams: ServiceParams, timestamp: ZonedDateTime, cause: ServiceStopCause)
-    extends ServiceEvent
+    extends ServiceEvent {
+  override val title: String = titles.serviceStop
+}
 
 sealed trait MetricEvent extends ServiceEvent {
   def snapshot: MetricSnapshot
@@ -55,8 +63,9 @@ final case class MetricReport(
   snapshot: MetricSnapshot,
   serviceRestartTime: Option[ZonedDateTime])
     extends MetricEvent {
-  val isPanic: Boolean = serviceRestartTime.nonEmpty
-  val isUp: Boolean    = serviceRestartTime.isEmpty
+  val isPanic: Boolean       = serviceRestartTime.nonEmpty
+  val isUp: Boolean          = serviceRestartTime.isEmpty
+  override val title: String = reportType.show
 }
 
 final case class MetricReset(
@@ -64,7 +73,9 @@ final case class MetricReset(
   serviceParams: ServiceParams,
   timestamp: ZonedDateTime,
   snapshot: MetricSnapshot)
-    extends MetricEvent
+    extends MetricEvent {
+  override val title: String = resetType.show
+}
 
 sealed trait ActionEvent extends NJEvent {
   def actionInfo: ActionInfo // action runtime information
@@ -81,6 +92,7 @@ sealed trait ActionEvent extends NJEvent {
 
 final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
   override val timestamp: ZonedDateTime = actionInfo.launchTime
+  override val title: String            = titles.actionStart
 }
 
 final case class ActionRetry(
@@ -88,7 +100,9 @@ final case class ActionRetry(
   timestamp: ZonedDateTime,
   willDelayAndRetry: WillDelayAndRetry,
   error: NJError)
-    extends ActionEvent
+    extends ActionEvent {
+  override val title: String = titles.actionRetry
+}
 
 sealed trait ActionResultEvent extends ActionEvent {
   def numRetries: Int
@@ -101,19 +115,22 @@ final case class ActionFail(
   numRetries: Int, // number of retries before giving up
   notes: Notes, // failure notes
   error: NJError)
-    extends ActionResultEvent
+    extends ActionResultEvent {
+  override val title: String = titles.actionFail
+}
 
 final case class ActionSucc(
   actionInfo: ActionInfo,
   timestamp: ZonedDateTime,
   numRetries: Int, // number of retries before success
   notes: Notes)
-    extends ActionResultEvent
+    extends ActionResultEvent {
+  override val title: String = titles.actionSucc
+}
 
 sealed trait InstantEvent extends NJEvent {
   def metricName: Digested
   def timestamp: ZonedDateTime
-  def serviceParams: ServiceParams
 }
 
 final case class InstantAlert(
@@ -122,7 +139,9 @@ final case class InstantAlert(
   serviceParams: ServiceParams,
   importance: Importance,
   message: String)
-    extends InstantEvent
+    extends InstantEvent {
+  override val title: String = titles.instantAlert
+}
 
 final case class PassThrough(
   metricName: Digested,
@@ -130,4 +149,18 @@ final case class PassThrough(
   serviceParams: ServiceParams,
   isError: Boolean, // the payload json represent an error
   value: Json)
-    extends InstantEvent
+    extends InstantEvent {
+  override val title: String = titles.passThrough
+}
+
+private object titles {
+  val serviceStart: String = "(Re)Start Service"
+  val serviceStop: String  = "Service Stopped"
+  val servicePanic: String = "Service Panic"
+  val instantAlert: String = "Service Alert"
+  val actionStart: String  = "Action Start"
+  val actionRetry: String  = "Action Retrying"
+  val actionFail: String   = "Action Failed"
+  val actionSucc: String   = "Action Succed"
+  val passThrough: String  = "Pass Through"
+}

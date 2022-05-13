@@ -19,8 +19,8 @@ private object HtmlTranslator extends all {
   private val coloring: Coloring = new Coloring({
     case ColorScheme.GoodColor  => "color:darkgreen"
     case ColorScheme.InfoColor  => "color:black"
-    case ColorScheme.WarnColor  => "color:#darkkhaki"
-    case ColorScheme.ErrorColor => "color:maroon"
+    case ColorScheme.WarnColor  => "color:#b3b300"
+    case ColorScheme.ErrorColor => "color:red"
   })
 
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
@@ -68,7 +68,7 @@ private object HtmlTranslator extends all {
 
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))("Service Started"),
+      h3(style := coloring(evt))(evt.title),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
@@ -78,7 +78,7 @@ private object HtmlTranslator extends all {
 
   private def servicePanic[F[_]: Applicative](evt: ServicePanic): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))("Service Panic"),
+      h3(style := coloring(evt))(evt.title),
       p(b(upcomingRestartTimeInterpretation(evt))),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
@@ -91,7 +91,7 @@ private object HtmlTranslator extends all {
 
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))("Service Stopped"),
+      h3(style := coloring(evt))(evt.title),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
@@ -101,7 +101,7 @@ private object HtmlTranslator extends all {
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.reportType.show),
+      h3(style := coloring(evt))(evt.title),
       p(upcomingRestartTimeInterpretation(evt)),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
@@ -113,7 +113,7 @@ private object HtmlTranslator extends all {
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.resetType.show),
+      h3(style := coloring(evt))(evt.title),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
@@ -123,7 +123,7 @@ private object HtmlTranslator extends all {
 
   private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))("Service Alert"),
+      h3(style := coloring(evt))(evt.title),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
@@ -133,31 +133,34 @@ private object HtmlTranslator extends all {
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.actionParams.startTitle),
+      h3(style := coloring(evt))(evt.title),
+      p(b("Name: "), evt.metricName.metricRepr),
+      p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
-      p(b("ActionID: "), evt.actionID.show)
+      p(b("ServiceID: "), evt.serviceID.show)
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.actionParams.retryTitle),
+      h3(style := coloring(evt))(evt.title),
+      p(b("Name: "), evt.metricName.metricRepr),
+      p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
-      p(b("ActionID: "), evt.actionID.show),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show),
       causeText(evt.error)
     )
 
   private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.actionParams.failedTitle),
+      h3(style := coloring(evt))(evt.title),
+      p(b("Name: "), evt.metricName.metricRepr),
+      p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
-      p(b("ActionID: "), evt.actionID.show),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
@@ -167,11 +170,12 @@ private object HtmlTranslator extends all {
 
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.actionParams.succedTitle),
+      h3(style := coloring(evt))(evt.title),
+      p(b("Name: "), evt.metricName.metricRepr),
+      p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
-      p(b("ActionID: "), evt.actionID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       notesText(evt.notes)

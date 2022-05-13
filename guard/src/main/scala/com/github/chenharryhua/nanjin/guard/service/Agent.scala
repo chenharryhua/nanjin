@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.{Alternative, Traverse}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
-import cats.{Alternative, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
@@ -126,8 +126,10 @@ final class Agent[F[_]] private[service] (
   def max(retries: MaxRetry): Agent[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    span(Span("nj-nonStop"))
-      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance.withExpensive(false).withMaxRetries(refineMV(0)))
+    updateConfig(
+      _.withSpan(Span("nonStop")).withoutTiming.withoutCounting.withLowImportance
+        .withExpensive(true)
+        .withMaxRetries(refineMV(0)))
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
