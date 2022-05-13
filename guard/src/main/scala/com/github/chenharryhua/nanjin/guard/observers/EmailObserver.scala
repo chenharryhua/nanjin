@@ -26,7 +26,7 @@ object EmailObserver {
       chunkSize = ChunkSize(60),
       interval = 120.minutes,
       isNewestFirst = true,
-      Translator.html[F])
+      translator = Translator.html[F])
 
   def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): SnsEmailObserver[F] =
     new SnsEmailObserver[F](
@@ -34,7 +34,7 @@ object EmailObserver {
       chunkSize = ChunkSize(20),
       interval = 120.minutes,
       isNewestFirst = true,
-      Translator.html[F])
+      translator = Translator.html[F])
 
 }
 

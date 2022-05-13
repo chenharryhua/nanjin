@@ -69,10 +69,6 @@ final case class ActionParams private (
   isExpensive: ExpensiveAction,
   retry: ActionRetryParams,
   serviceParams: ServiceParams) {
-  def startTitle: String  = s"action ${metricName.metricRepr} started"
-  def retryTitle: String  = s"action ${metricName.metricRepr} retrying"
-  def failedTitle: String = s"action ${metricName.metricRepr} failed"
-  def succedTitle: String = s"action ${metricName.metricRepr} succed"
 
   val isCritical: Boolean   = importance > Importance.High // Critical
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical

@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.{Alternative, Traverse}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
-import cats.{Alternative, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
@@ -27,10 +27,11 @@ final class Agent[F[_]] private[service] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
-  lazy val agentParams: AgentParams = agentConfig.evalConfig
-  def serviceParams: ServiceParams  = agentParams.serviceParams
-  def zoneId: ZoneId                = agentParams.serviceParams.taskParams.zoneId
-  def digestedName: Digested        = Digested(agentParams.spans, agentParams.serviceParams)
+  private lazy val agentParams: AgentParams     = agentConfig.evalConfig
+  private lazy val serviceParams: ServiceParams = agentParams.serviceParams
+
+  def zoneId: ZoneId         = agentParams.serviceParams.taskParams.zoneId
+  def digestedName: Digested = Digested(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, f(agentConfig))
@@ -125,10 +126,10 @@ final class Agent[F[_]] private[service] (
   def max(retries: MaxRetry): Agent[F] = updateConfig(_.withMaxRetries(retries))
 
   def nonStop[B](fb: F[B]): F[Nothing] =
-    span(Span("nj-nonStop"))
-      .max(retries = refineMV(0))
-      .cheap
-      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance)
+    updateConfig(
+      _.withSpan(Span("nonStop")).withoutTiming.withoutCounting.withLowImportance
+        .withExpensive(true)
+        .withMaxRetries(refineMV(0)))
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))

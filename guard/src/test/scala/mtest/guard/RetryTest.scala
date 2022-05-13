@@ -210,7 +210,6 @@ class RetryTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: f :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
-      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -229,7 +228,6 @@ class RetryTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: rest = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
-      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -250,7 +248,6 @@ class RetryTest extends AnyFunSuite {
     val a :: b :: c :: Nil = serviceGuard
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO(1) >> IO.canceled))
-      .debug()
       .interruptAfter(5.seconds)
       .compile
       .toList

@@ -25,7 +25,6 @@ class CancellationTest extends AnyFunSuite {
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO(1) <* IO.canceled)
           .run)
-      .debug()
       .compile
       .toVector
       .unsafeRunSync()
@@ -43,7 +42,6 @@ class CancellationTest extends AnyFunSuite {
         val a1 = action.span("never").normal.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
-      .debug()
       .compile
       .toVector
       .unsafeRunSync()
@@ -76,7 +74,6 @@ class CancellationTest extends AnyFunSuite {
         val a1     = action.span("inner").run(IO.never[Int])
         action.span("outer").retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))).run
       }
-      .debug()
       .interruptAfter(10.second)
       .compile
       .toVector

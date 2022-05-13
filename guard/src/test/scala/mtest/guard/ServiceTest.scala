@@ -83,7 +83,6 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.retry(IO.never).run)
-      .debug()
       .interruptAfter(5.second)
       .compile
       .toList
@@ -141,10 +140,6 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("print agent params") {
-    guard
-      .eventStream(ag => IO.println(ag.agentParams) >> IO.println(ag.digestedName) >> IO.println(ag.zoneId))
-      .compile
-      .drain
-      .unsafeRunSync()
+    guard.eventStream(ag => IO.println(ag.digestedName) >> IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
   }
 }
