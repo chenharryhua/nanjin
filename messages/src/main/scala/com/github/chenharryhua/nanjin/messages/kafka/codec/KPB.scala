@@ -72,7 +72,7 @@ object KPB {
         new Serializer[KPB[A]] with Serializable {
 
           @transient private[this] lazy val ser: KafkaProtobufSerializer[DynamicMessage] =
-            new KafkaProtobufSerializer[DynamicMessage]()
+            new KafkaProtobufSerializer[DynamicMessage]
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             ser.configure(configs, isKey)
@@ -94,7 +94,7 @@ object KPB {
         new Deserializer[KPB[A]] with Serializable {
 
           @transient private[this] lazy val deSer: KafkaProtobufDeserializer[DynamicMessage] =
-            new KafkaProtobufDeserializer[DynamicMessage]()
+            new KafkaProtobufDeserializer[DynamicMessage]
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             deSer.configure(configs, isKey)

@@ -104,7 +104,7 @@ final case class CompatibilityTestReport(
   val diffVal: Option[List[Operation[Json]]] = for {
     kafkaValSchema <- meta.value.flatMap(skm => parse(skm.getSchema).toOption)
     localValSchema <- parse(valueSchema.canonicalString()).toOption
-  } yield (diff(kafkaValSchema, localValSchema)).ops
+  } yield diff(kafkaValSchema, localValSchema).ops
 
   val isIdentical: Boolean = (diffKey, diffVal).mapN(_ ::: _).exists(_.isEmpty)
 

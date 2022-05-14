@@ -134,7 +134,7 @@ class CirceTest extends AnyFunSuite {
       catch { case _: Throwable => 0 }
     saver.append.run.unsafeRunSync()
     val t2 = loaders.rdd.circe[Json](path, sparkSession).count()
-    assert((data.size + t1) == t2)
+    assert(data.size + t1 == t2)
   }
 
 }

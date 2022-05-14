@@ -25,13 +25,12 @@ import scala.compat.java8.OptionConverters.*
 private[kafka] trait EqMessage {
 
   // kafka
-  implicit val eqHeader: Eq[Header] = (x: Header, y: Header) =>
-    (x.key() === y.key()) && (x.value().sameElements(y.value()))
+  implicit val eqHeader: Eq[Header] = (x: Header, y: Header) => x.key() === y.key() && x.value().sameElements(y.value())
 
   implicit val eqHeaders: Eq[Headers] = (x: Headers, y: Headers) => {
     val xa = x.toArray
     val ya = y.toArray
-    (xa.size === ya.size) && xa.zip(ya).forall { case (x, y) => x === y }
+    xa.size === ya.size && xa.zip(ya).forall { case (x, y) => x === y }
   }
 
   implicit val eqOptionalInteger: Eq[Optional[java.lang.Integer]] =
@@ -46,26 +45,26 @@ private[kafka] trait EqMessage {
 
   implicit final def eqConsumerRecord[K: Eq, V: Eq]: Eq[ConsumerRecord[K, V]] =
     (x: ConsumerRecord[K, V], y: ConsumerRecord[K, V]) =>
-      (x.topic() === y.topic) &&
-        (x.partition() === y.partition()) &&
-        (x.offset() === y.offset()) &&
-        (x.timestamp() === y.timestamp()) &&
-        (x.timestampType().id === y.timestampType().id) &&
-        (x.serializedKeySize() === y.serializedKeySize()) &&
-        (x.serializedValueSize() === y.serializedValueSize()) &&
-        (x.key() === y.key()) &&
-        (x.value() === y.value()) &&
-        (x.headers() === y.headers()) &&
-        (x.leaderEpoch() === y.leaderEpoch())
+      x.topic() === y.topic &&
+        x.partition() === y.partition() &&
+        x.offset() === y.offset() &&
+        x.timestamp() === y.timestamp() &&
+        x.timestampType().id === y.timestampType().id &&
+        x.serializedKeySize() === y.serializedKeySize() &&
+        x.serializedValueSize() === y.serializedValueSize() &&
+        x.key() === y.key() &&
+        x.value() === y.value() &&
+        x.headers() === y.headers() &&
+        x.leaderEpoch() === y.leaderEpoch()
 
   implicit final def eqProducerRecord[K: Eq, V: Eq]: Eq[ProducerRecord[K, V]] =
     (x: ProducerRecord[K, V], y: ProducerRecord[K, V]) =>
-      (x.topic() === y.topic()) &&
+      x.topic() === y.topic() &&
         x.partition().equals(y.partition()) &&
         x.timestamp().equals(y.timestamp()) &&
-        (x.key() === y.key()) &&
-        (x.value() === y.value()) &&
-        (x.headers() === y.headers())
+        x.key() === y.key() &&
+        x.value() === y.value() &&
+        x.headers() === y.headers()
 
   // akka
   implicit val eqGroupTopicPartitionAkka: Eq[AkkaGroupTopicPartition] =
@@ -85,7 +84,7 @@ private[kafka] trait EqMessage {
 
   implicit def eqProducerMultiMessageAkka[K: Eq, V: Eq, P: Eq]: Eq[AkkaMultiMessage[K, V, P]] =
     (x: AkkaMultiMessage[K, V, P], y: AkkaMultiMessage[K, V, P]) =>
-      (x.records.toList === y.records.toList) && (x.passThrough === y.passThrough)
+      x.records.toList === y.records.toList && x.passThrough === y.passThrough
 
   implicit def eqTransactionalMessageAkka[K: Eq, V: Eq]: Eq[AkkaTransactionalMessage[K, V]] =
     cats.derived.semiauto.eq[AkkaTransactionalMessage[K, V]]

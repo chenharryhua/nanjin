@@ -27,8 +27,8 @@ final class NJAvro[F[_]] private (
   def sink(path: NJPath): Pipe[F, GenericRecord, INothing] = {
     def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, INothing, Unit] =
       grs.pull.uncons.flatMap {
-        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
-        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
+        case Some(hl, tl) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
+        case None         => Pull.eval(F.blocking(writer.close())) >> Pull.done
       }
 
     val dataFileWriter: Stream[F, DataFileWriter[GenericRecord]] = for {
