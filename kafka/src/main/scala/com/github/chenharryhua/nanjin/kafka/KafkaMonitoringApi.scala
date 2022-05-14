@@ -1,28 +1,23 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Resource}
+import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
+import com.sksamuel.avro4s.AvroOutputStream
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
-import org.apache.kafka.clients.consumer.ConsumerRecord
 
-import scala.util.Try
+import java.io.ByteArrayOutputStream
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
-  def watch: F[Unit]
-  def watchFromEarliest: F[Unit]
-  def watchFrom(njt: NJTimestamp): F[Unit]
-  def watchFrom(njt: String): F[Unit]
+  def watch(implicit F: Console[F]): F[Unit]
+  def watchFromEarliest(implicit F: Console[F]): F[Unit]
+  def watchFrom(njt: NJTimestamp)(implicit C: Console[F]): F[Unit]
+  def watchFrom(njt: String)(implicit C: Console[F]): F[Unit]
 
-  def filter(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
-  def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit]
-
-  def badRecordsFromEarliest: F[Unit]
-  def badRecords: F[Unit]
-
-  def summaries: F[Unit]
+  def summaries(implicit C: Console[F]): F[Unit]
 
   def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit]
 }
@@ -35,26 +30,33 @@ object KafkaMonitoringApi {
   final private class KafkaTopicMonitoring[F[_]: Async, K, V](topic: KafkaTopic[F, K, V])
       extends KafkaMonitoringApi[F, K, V] {
 
-    private def watch(aor: AutoOffsetReset): F[Unit] =
+    private def watch(aor: AutoOffsetReset): Stream[F, NJConsumerRecordWithError[K, V]] =
       topic.fs2Channel
-        .updateConsumer(_.withAutoOffsetReset(aor))
+        .updateConsumer(_.withAutoOffsetReset(aor).withEnableAutoCommit(false))
         .stream
-        .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-        .debug()
-        .compile
-        .drain
+        .map(m => topic.decode(m))
 
-    private def filterWatch(predict: ConsumerRecord[Try[K], Try[V]] => Boolean, aor: AutoOffsetReset): F[Unit] =
-      topic.fs2Channel
-        .updateConsumer(_.withAutoOffsetReset(aor))
-        .stream
-        .filter(m => predict(isoFs2ComsumerRecord.get(topic.decoder(m).tryDecodeKeyValue.record)))
-        .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-        .debug()
-        .compile
-        .drain
+    private def printJackson(cr: NJConsumerRecordWithError[K, V])(implicit C: Console[F]): F[Unit] =
+      Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream())).use { bos =>
+        for {
+          _ <- C.println(cr.metaInfo(topic.context.settings.zoneId).show)
+          _ <- cr.key.leftTraverse(C.println)
+          _ <- cr.value.leftTraverse(C.println)
+          _ <- C.println {
+            val aos: AvroOutputStream[NJConsumerRecord[K, V]] = AvroOutputStream
+              .json[NJConsumerRecord[K, V]](
+                NJConsumerRecord.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec).avroEncoder)
+              .to(bos)
+              .build()
+            aos.write(cr.toNJConsumerRecord)
+            aos.close()
+            bos.flush()
+            bos.toString()
+          }
+        } yield ()
+      }
 
-    override def watchFrom(njt: NJTimestamp): F[Unit] = {
+    override def watchFrom(njt: NJTimestamp)(implicit C: Console[F]): F[Unit] = {
       val run: Stream[F, Unit] = for {
         kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
@@ -63,46 +65,38 @@ object KafkaMonitoringApi {
         } yield os.combineWith(e)(_.orElse(_)))
         _ <- topic.fs2Channel
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
-          .map(m => topic.decoder(m).tryDecodeKeyValue.toString)
-          .debug()
+          .map(m => topic.decode(m))
+          .evalMap(printJackson)
       } yield ()
       run.compile.drain
     }
 
-    override def watchFrom(njt: String): F[Unit] = watchFrom(NJTimestamp(njt))
+    override def watchFrom(njt: String)(implicit C: Console[F]): F[Unit] =
+      watchFrom(NJTimestamp(njt, topic.context.settings.zoneId))
 
-    override def watch: F[Unit]             = watch(AutoOffsetReset.Latest)
-    override def watchFromEarliest: F[Unit] = watch(AutoOffsetReset.Earliest)
+    override def watch(implicit F: Console[F]): F[Unit] =
+      watch(AutoOffsetReset.Latest).evalMap(printJackson).compile.drain
 
-    override def filter(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
-      filterWatch(pred, AutoOffsetReset.Latest)
+    override def watchFromEarliest(implicit F: Console[F]): F[Unit] =
+      watch(AutoOffsetReset.Earliest).evalMap(printJackson).compile.drain
 
-    override def filterFromEarliest(pred: ConsumerRecord[Try[K], Try[V]] => Boolean): F[Unit] =
-      filterWatch(pred, AutoOffsetReset.Earliest)
-
-    override def badRecordsFromEarliest: F[Unit] =
-      filterFromEarliest(cr => cr.key().isFailure || cr.value().isFailure)
-
-    override def badRecords: F[Unit] =
-      filter(cr => cr.key().isFailure || cr.value().isFailure)
-
-    override def summaries: F[Unit] =
+    override def summaries(implicit C: Console[F]): F[Unit] =
       topic.shortLiveConsumer.use { consumer =>
         for {
           num <- consumer.numOfRecords
-          first <-
-            consumer.retrieveFirstRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
+          first <- consumer.retrieveFirstRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
           last <- consumer.retrieveLastRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
-        } yield println(s"""
-                           |summaries:
-                           |
-                           |number of records: $num
-                           |first records of each partitions: 
-                           |${first.map(_.toString).mkString("\n")}
-                           |
-                           |last records of each partitions:
-                           |${last.map(_.toString).mkString("\n")}
-                           |""".stripMargin)
+          _ <- C.println(s"""
+                            |summaries:
+                            |
+                            |number of records: $num
+                            |first records of each partitions: 
+                            |${first.map(_.toString).mkString("\n")}
+                            |
+                            |last records of each partitions:
+                            |${last.map(_.toString).mkString("\n")}
+                            |""".stripMargin)
+        } yield ()
       }
 
     override def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit] = {

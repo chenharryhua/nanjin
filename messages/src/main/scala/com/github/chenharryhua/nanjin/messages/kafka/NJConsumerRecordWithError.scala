@@ -5,13 +5,13 @@ import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
-import org.typelevel.cats.time.instances.instant
+import org.typelevel.cats.time.instances.zoneddatetime
 
-import java.time.Instant
+import java.time.{Instant, ZoneId, ZonedDateTime}
 
 @JsonCodec
-final case class ConsumerRecordMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Instant)
-object ConsumerRecordMetaInfo extends instant {
+final case class ConsumerRecordMetaInfo(topic: String, partition: Int, offset: Long, timestamp: ZonedDateTime)
+object ConsumerRecordMetaInfo extends zoneddatetime {
   implicit val showConsumerRecordMetaInfo: Show[ConsumerRecordMetaInfo] =
     cats.derived.semiauto.show[ConsumerRecordMetaInfo]
 }
@@ -25,8 +25,11 @@ final case class NJConsumerRecordWithError[K, V](
   topic: String,
   timestampType: Int) {
 
-  def metaInfo: ConsumerRecordMetaInfo =
-    this.into[ConsumerRecordMetaInfo].withFieldComputed(_.timestamp, x => Instant.ofEpochMilli(x.timestamp)).transform
+  def metaInfo(zoneId: ZoneId): ConsumerRecordMetaInfo =
+    this
+      .into[ConsumerRecordMetaInfo]
+      .withFieldComputed(_.timestamp, x => ZonedDateTime.ofInstant(Instant.ofEpochMilli(x.timestamp), zoneId))
+      .transform
 
   def toNJConsumerRecord: NJConsumerRecord[K, V] = this
     .into[NJConsumerRecord[K, V]]
