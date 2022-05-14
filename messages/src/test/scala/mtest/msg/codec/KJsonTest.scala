@@ -46,12 +46,12 @@ class KJsonTest extends Properties("kjson") {
   property("encode/decode identity") = forAll { (ct: KJson[CompositionType]) =>
     val en = goodJson.avroCodec.avroEncoder.encode(ct)
     val de = goodJson.avroCodec.avroDecoder.decode(en)
-    (ct == de) && (ct === goodJson.avroCodec.idConversion(ct))
+    ct == de && ct === goodJson.avroCodec.idConversion(ct)
   }
 
   property("encode/decode collection identity") = forAll { (ct: List[KJson[CompositionType]]) =>
     val id = ct.map(goodJson.avroCodec.idConversion)
-    (ct == id) && (ct === id)
+    ct == id && ct === id
   }
 }
 

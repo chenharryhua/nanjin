@@ -13,7 +13,7 @@ object JavaObjectSerde {
 
   def toBytes[F[_], A]: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     ss.chunks.flatMap { as =>
-      val bos = new ByteArrayOutputStream()
+      val bos = new ByteArrayOutputStream
       val oos = new ObjectOutputStream(bos)
       as.foreach(oos.writeObject)
       oos.close()
@@ -48,7 +48,7 @@ object JavaObjectSerde {
   object akka {
 
     def toByteString[A]: Flow[A, ByteString, NotUsed] = Flow[A].map { a =>
-      val bos = new ByteArrayOutputStream()
+      val bos = new ByteArrayOutputStream
       val oos = new ObjectOutputStream(bos)
       oos.writeObject(a)
       oos.close()

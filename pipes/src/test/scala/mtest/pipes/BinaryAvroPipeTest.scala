@@ -14,7 +14,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   import TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)
-  val hd                       = NJHadoop[IO](new Configuration())
+  val hd                       = NJHadoop[IO](new Configuration)
   test("binary-json identity") {
 
     assert(

@@ -14,7 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class CircePipeTest extends AnyFunSuite {
   import TestData.*
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
-  val hd: NJHadoop[IO]        = NJHadoop[IO](new Configuration())
+  val hd: NJHadoop[IO]        = NJHadoop[IO](new Configuration)
 
   test("circe identity - remove null") {
     assert(
