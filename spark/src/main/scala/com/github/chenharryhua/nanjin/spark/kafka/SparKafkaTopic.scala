@@ -118,6 +118,15 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
       .compile
       .drain
 
+  /** replay last num records
+    */
+  def replay(num: Long)(implicit F: Async[F]): F[Unit] =
+    Stream
+      .force(fromDisk.map(
+        _.prRdd.descendTimestamp.noMeta.producerRecords(topicName, 1).take(num).through(topic.fs2Channel.producerPipe)))
+      .compile
+      .drain
+
   def replay(implicit F: Async[F]): F[Unit] = replay(_ => F.unit)
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)

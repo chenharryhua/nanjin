@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsum
 import com.sksamuel.avro4s.AvroOutputStream
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
-
+import org.typelevel.cats.time.instances.zoneddatetime
 import java.io.ByteArrayOutputStream
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
@@ -28,9 +28,9 @@ object KafkaMonitoringApi {
     new KafkaTopicMonitoring[F, K, V](topic)
 
   final private class KafkaTopicMonitoring[F[_]: Async, K, V](topic: KafkaTopic[F, K, V])
-      extends KafkaMonitoringApi[F, K, V] {
+      extends KafkaMonitoringApi[F, K, V] with zoneddatetime {
 
-    private def watch(aor: AutoOffsetReset): Stream[F, NJConsumerRecordWithError[K, V]] =
+    private def fetchData(aor: AutoOffsetReset): Stream[F, NJConsumerRecordWithError[K, V]] =
       topic.fs2Channel
         .updateConsumer(_.withAutoOffsetReset(aor).withEnableAutoCommit(false))
         .stream
@@ -39,7 +39,7 @@ object KafkaMonitoringApi {
     private def printJackson(cr: NJConsumerRecordWithError[K, V])(implicit C: Console[F]): F[Unit] =
       Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream())).use { bos =>
         for {
-          _ <- C.println(cr.metaInfo(topic.context.settings.zoneId).show)
+          _ <- C.println(cr.metaInfo(topic.context.settings.zoneId).timestamp.show)
           _ <- cr.key.leftTraverse(C.println)
           _ <- cr.value.leftTraverse(C.println)
           _ <- C.println {
@@ -53,6 +53,7 @@ object KafkaMonitoringApi {
             bos.flush()
             bos.toString()
           }
+          _ <- C.println("----------------------------------------")
         } yield ()
       }
 
@@ -64,6 +65,7 @@ object KafkaMonitoringApi {
           e <- kcs.endOffsets
         } yield os.combineWith(e)(_.orElse(_)))
         _ <- topic.fs2Channel
+          .updateConsumer(_.withEnableAutoCommit(false))
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decode(m))
           .evalMap(printJackson)
@@ -75,10 +77,10 @@ object KafkaMonitoringApi {
       watchFrom(NJTimestamp(njt, topic.context.settings.zoneId))
 
     override def watch(implicit F: Console[F]): F[Unit] =
-      watch(AutoOffsetReset.Latest).evalMap(printJackson).compile.drain
+      fetchData(AutoOffsetReset.Latest).evalMap(printJackson).compile.drain
 
     override def watchFromEarliest(implicit F: Console[F]): F[Unit] =
-      watch(AutoOffsetReset.Earliest).evalMap(printJackson).compile.drain
+      fetchData(AutoOffsetReset.Earliest).evalMap(printJackson).compile.drain
 
     override def summaries(implicit C: Console[F]): F[Unit] =
       topic.shortLiveConsumer.use { consumer =>
