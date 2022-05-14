@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import com.github.chenharryhua.nanjin.guard.event.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.event.*
 
 sealed trait ColorScheme
 object ColorScheme {

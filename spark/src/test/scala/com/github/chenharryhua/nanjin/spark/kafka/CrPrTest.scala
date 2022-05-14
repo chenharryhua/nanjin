@@ -17,7 +17,6 @@ import org.apache.spark.sql.types.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
-import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 final case class RoosterLike(c: BigDecimal, d: BigDecimal)
 

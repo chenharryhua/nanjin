@@ -31,15 +31,11 @@ class MonitorApiTest extends AnyFunSuite {
     .through(st.fs2Channel.producerPipe)
 
   test("realtime filter and watch") {
-    val e   = topic.monitor.filterFromEarliest(_.key().toOption.exists(_ == 2))
-    val n   = topic.monitor.filter(_.key().toOption.exists(_ < 2))
-    val w   = topic.monitor.watch
-    val wn  = topic.monitor.watchFromEarliest
-    val wf  = topic.monitor.watchFrom(s"${Instant.now.toString}")
-    val bw  = topic.monitor.badRecords
-    val bwf = topic.monitor.badRecordsFromEarliest
+    val w  = topic.monitor.watch
+    val wn = topic.monitor.watchFromEarliest
+    val wf = topic.monitor.watchFrom(s"${Instant.now.toString}")
 
-    IO.parSequenceN(7)(List(e, n, w, wn, wf, bw, bwf)).unsafeRunTimed(10.seconds)
+    IO.parSequenceN(7)(List(w, wn, wf)).unsafeRunTimed(10.seconds)
   }
   test("carbon copy") {
     topic.monitor.carbonCopyTo(tgt).unsafeRunTimed(3.seconds)

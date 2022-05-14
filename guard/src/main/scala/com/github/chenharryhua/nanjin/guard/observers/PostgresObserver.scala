@@ -34,7 +34,7 @@ final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator:
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
     for {
       pg <- Stream.resource(session.flatMap(_.prepare(cmd)))
-      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new FinalizeMonitor(translator, r)))
+      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
       event <- events
         .evalTap(ofm.monitoring)
         .evalTap(evt => translator.translate(evt).flatMap(_.traverse(msg => pg.execute(msg).attempt)).void)

@@ -54,9 +54,9 @@ final class SlackObserver[F[_]](
   def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
     for {
       sns <- Stream.resource(client)
-      ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(r => new FinalizeMonitor(translator, r)))
+      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
       event <- es
-        .evalTap(ref.monitoring)
+        .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
             case MetricReport(mrt, sp, _, ts, _, _) =>
@@ -66,8 +66,8 @@ final class SlackObserver[F[_]](
             case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice
             case ActionFail(ai, _, _, _, _) => ai.actionParams.isNonTrivial
             case _                          => true
-          }.translate(e).flatMap(_.traverse(sa => sns.publish(snsArn, sa.asJson.noSpaces).attempt)).void)
+          }.translate(e).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
         .onFinalizeCase(
-          ref.terminated(_).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
+          ofm.terminated(_).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
     } yield event
 }

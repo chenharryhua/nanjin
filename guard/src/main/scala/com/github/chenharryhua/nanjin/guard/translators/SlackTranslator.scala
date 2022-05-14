@@ -171,10 +171,12 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
+            JuxtaposeSection(
+              TextField("Name", evt.metricName.metricRepr),
+              TextField("ID", evt.actionInfo.actionID.show)
+            ),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
-                               |*ID:* ${evt.actionInfo.actionID.show}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}".stripMargin)
           )
         ))
     )
@@ -187,13 +189,15 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
+            JuxtaposeSection(
+              TextField("Name", evt.metricName.metricRepr),
+              TextField("ID", evt.actionInfo.actionID.show)
+            ),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
-                               |*ID:* ${evt.actionInfo.actionID.show}
-                               |*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
+            MarkdownSection(s"""*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"```${evt.error.message}```")
@@ -209,11 +213,13 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
+            JuxtaposeSection(
+              TextField("Name", evt.metricName.metricRepr),
+              TextField("ID", evt.actionInfo.actionID.show)
+            ),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
-                               |*ID:* ${evt.actionInfo.actionID.show}
-                               |*Policy:* ${evt.actionParams.retry.policy[F].show}
+            MarkdownSection(s"""*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )
@@ -228,11 +234,13 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
+            JuxtaposeSection(
+              TextField("Name", evt.metricName.metricRepr),
+              TextField("ID", evt.actionInfo.actionID.show)
+            ),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""*Name:* ${evt.metricName.metricRepr}
-                               |*ID:* ${evt.actionInfo.actionID.show}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
+            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}".stripMargin)
           ).appendedAll(noteSection(evt.notes))
         )
       )

@@ -12,7 +12,9 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.streams.StreamsConfig
+import org.typelevel.cats.time.instances.zoneid
 
+import java.time.ZoneId
 import java.util.Properties
 
 /** [[https://kafka.apache.org/]]
@@ -39,6 +41,7 @@ object KafkaStreamSettings {
 @Lenses final case class SchemaRegistrySettings(config: Map[String, String])
 
 @Lenses final case class KafkaSettings private (
+  zoneId: ZoneId,
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
   streamSettings: KafkaStreamSettings,
@@ -61,6 +64,8 @@ object KafkaStreamSettings {
       )
       .composeLens(at(key))
       .set(Some(value))(this)
+
+  def withZoneId(zoneId: ZoneId): KafkaSettings = KafkaSettings.zoneId.set(zoneId)(this)
 
   def withBrokers(brokers: String): KafkaSettings   = updateAll(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokers)
   def withSaslJaas(sasl: String): KafkaSettings     = updateAll(SaslConfigs.SASL_JAAS_CONFIG, sasl)
@@ -95,10 +100,11 @@ object KafkaStreamSettings {
   def monixContext: KafkaContext[monix.eval.Task] = KafkaContext.monixContext(this)
 }
 
-object KafkaSettings {
+object KafkaSettings extends zoneid {
   implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semiauto.show[KafkaSettings]
 
   val empty: KafkaSettings = KafkaSettings(
+    ZoneId.systemDefault(),
     KafkaConsumerSettings(Map.empty),
     KafkaProducerSettings(Map.empty),
     KafkaStreamSettings(Map.empty),

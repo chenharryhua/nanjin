@@ -154,13 +154,13 @@ final case class PassThrough(
 }
 
 private object titles {
-  val serviceStart: String = "(Re)Start Service"
-  val serviceStop: String  = "Service Stopped"
-  val servicePanic: String = "Service Panic"
-  val instantAlert: String = "Service Alert"
-  val actionStart: String  = "Action Start"
-  val actionRetry: String  = "Action Retrying"
-  val actionFail: String   = "Action Failed"
-  val actionSucc: String   = "Action Succed"
-  val passThrough: String  = "Pass Through"
+  final val serviceStart: String = "(Re)Start Service"
+  final val serviceStop: String  = "Service Stopped"
+  final val servicePanic: String = "Service Panic"
+  final val actionStart: String  = "Start Action"
+  final val actionRetry: String  = "Action Retrying"
+  final val actionFail: String   = "Action Failed"
+  final val actionSucc: String   = "Action Succed"
+  final val instantAlert: String = "Alert"
+  final val passThrough: String  = "Pass Through"
 }

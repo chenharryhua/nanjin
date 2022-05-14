@@ -8,8 +8,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaConsumerRecordTransformer
 import com.sksamuel.avro4s.*
 import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
-import io.circe.generic.auto.*
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
+import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
 import monocle.Optional
 import monocle.macros.Lenses
@@ -17,7 +17,7 @@ import monocle.std.option.some
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import shapeless.cachedImplicit
 
-import java.time.Instant
+import java.time.{Instant, ZoneId, ZonedDateTime}
 
 @Lenses
 @AvroDoc("kafka record, optional Key and Value")
@@ -47,11 +47,12 @@ final case class NJConsumerRecord[K, V](
   def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
     JsonEncoder[NJConsumerRecord[K, V]].apply(this)
 
-  def metaInfo: ConsumerRecordMetaInfo =
-    this.into[ConsumerRecordMetaInfo].withFieldComputed(_.timestamp, x => Instant.ofEpochMilli(x.timestamp)).transform
+  def metaInfo(zoneId: ZoneId): ConsumerRecordMetaInfo =
+    this
+      .into[ConsumerRecordMetaInfo]
+      .withFieldComputed(_.timestamp, x => ZonedDateTime.ofInstant(Instant.ofEpochMilli(x.timestamp), zoneId))
+      .transform
 
-  override def toString: String =
-    s"CR(${metaInfo.show},key=${key.toString},value=${value.toString})"
 }
 
 object NJConsumerRecord {
@@ -78,12 +79,12 @@ object NJConsumerRecord {
     NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
-  implicit def jsonEncoder[K, V](implicit
+  implicit def jsonEncoderNJConsumerRecord[K, V](implicit
     jck: JsonEncoder[K],
     jcv: JsonEncoder[V]): JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
 
-  implicit def jsonDecoder[K, V](implicit
+  implicit def jsonDecoderNJConsumerRecord[K, V](implicit
     jck: JsonDecoder[K],
     jcv: JsonDecoder[V]): JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
