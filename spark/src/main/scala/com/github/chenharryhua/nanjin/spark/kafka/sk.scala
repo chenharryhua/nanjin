@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
 import monocle.function.At.{atMap, remove}
@@ -34,15 +35,16 @@ private[kafka] object sk {
       OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
-  private def kafkaRDD[F[_]: Sync, K, V](
-    topic: KafkaTopic[F, K, V],
+  private def kafkaBinaryRDD[F[_]: Sync](
+    topicName: TopicName,
+    ctx: KafkaContext[F],
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
     sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    topic.shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
+    ctx.byteTopic(topicName).shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
         sparkSession.sparkContext,
-        props(topic.context.settings.consumerSettings.config),
+        props(ctx.settings.consumerSettings.config),
         offsetRanges(gtp),
         locationStrategy)
     }
@@ -71,7 +73,8 @@ private[kafka] object sk {
     timeRange: NJDateTimeRange,
     locationStrategy: LocationStrategy,
     sparkSession: SparkSession): F[RDD[NJConsumerRecordWithError[K, V]]] =
-    kafkaRDD[F, K, V](topic, timeRange, locationStrategy, sparkSession).map(_.map(topic.decode(_)))
+    kafkaBinaryRDD[F](topic.topicName, topic.context, timeRange, locationStrategy, sparkSession)
+      .map(_.map(topic.decode(_)))
 
   /** streaming
     */
