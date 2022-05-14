@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsu
 import com.sksamuel.avro4s.AvroInputStream
 import fs2.kafka.{ProducerRecord as Fs2ProducerRecord, ProducerRecords, ProducerResult}
 import io.circe.Decoder
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.streams.scala.kstream.Produced
@@ -35,8 +36,10 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def decode[G[_, _]: NJConsumerMessage](gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecordWithError[K, V] = {
     val cr: ConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
-    val k: Either[Throwable, K]                      = codec.keyCodec.tryDecode(cr.key()).toEither
-    val v: Either[Throwable, V]                      = codec.valCodec.tryDecode(cr.value()).toEither
+    val k: Either[String, K] =
+      codec.keyCodec.tryDecode(cr.key()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
+    val v: Either[String, V] =
+      codec.valCodec.tryDecode(cr.value()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
     NJConsumerRecordWithError(cr.partition, cr.offset, cr.timestamp, k, v, cr.topic, cr.timestampType.id)
   }
 

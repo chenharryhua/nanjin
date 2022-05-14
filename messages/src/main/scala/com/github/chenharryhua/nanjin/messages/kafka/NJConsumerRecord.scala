@@ -78,12 +78,12 @@ object NJConsumerRecord {
     NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
-  implicit def jsonEncoder[K, V](implicit
+  implicit def jsonEncoderNJConsumerRecord[K, V](implicit
     jck: JsonEncoder[K],
     jcv: JsonEncoder[V]): JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
 
-  implicit def jsonDecoder[K, V](implicit
+  implicit def jsonDecoderNJConsumerRecord[K, V](implicit
     jck: JsonDecoder[K],
     jcv: JsonDecoder[V]): JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]

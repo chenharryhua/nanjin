@@ -30,7 +30,7 @@ final case class NJError private (uuid: UUID, message: String, stackTrace: Strin
 private[guard] object NJError {
   implicit val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
   def apply(uuid: UUID, ex: Throwable): NJError =
-    NJError(uuid, ExceptionUtils.getMessage(ex), ExceptionUtils.getStackTrace(ex))
+    NJError(uuid, ExceptionUtils.getRootCauseMessage(ex), ExceptionUtils.getStackTrace(ex))
 }
 
 @JsonCodec
@@ -86,13 +86,13 @@ sealed trait ServiceStopCause {
 object ServiceStopCause {
   def apply(ec: ExitCase): ServiceStopCause = ec match {
     case ExitCase.Succeeded  => ServiceStopCause.Normally
-    case ExitCase.Errored(e) => ServiceStopCause.ByException(ExceptionUtils.getMessage(e))
+    case ExitCase.Errored(e) => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(e))
     case ExitCase.Canceled   => ServiceStopCause.ByCancelation
   }
 
   def apply[F[_], A](oc: Outcome[F, Throwable, A]): ServiceStopCause = oc match {
     case Outcome.Succeeded(_) => ServiceStopCause.Normally
-    case Outcome.Errored(e)   => ServiceStopCause.ByException(ExceptionUtils.getMessage(e))
+    case Outcome.Errored(e)   => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(e))
     case Outcome.Canceled()   => ServiceStopCause.ByCancelation
   }
 
