@@ -35,7 +35,7 @@ final class NJParquet[F[_]] private (
   def sink(path: NJPath): Pipe[F, GenericRecord, INothing] = {
     def go(grs: Stream[F, GenericRecord], pw: ParquetWriter[GenericRecord]): Pull[F, INothing, Unit] =
       grs.pull.uncons.flatMap {
-        case Some(hl, tl) => Pull.eval(F.blocking(hl.foreach(pw.write))) >> go(tl, pw)
+        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(pw.write))) >> go(tl, pw)
         case None         => Pull.done
       }
 

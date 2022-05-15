@@ -55,7 +55,7 @@ object ParameterStore {
       buildFrom(AWSSimpleSystemsManagementClientBuilder.standard()).build()
 
     override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
-      val req = new GetParametersRequest.withNames(path.value).withWithDecryption(path.isSecure)
+      val req = new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
       F.blocking(ParameterStoreContent(client.getParameters(req).getParameters.get(0).getValue))
         .attempt
         .flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r))
