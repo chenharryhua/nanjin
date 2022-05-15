@@ -5,8 +5,8 @@ import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.codahale.metrics.jmx.JmxReporter
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
+import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig}
@@ -14,11 +14,11 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
-import fs2.concurrent.Channel
 import fs2.{INothing, Stream}
+import fs2.concurrent.Channel
 import retry.RetryDetails
 
-import scala.util.control.{ControlThrowable, NonFatal}
+import scala.util.control.NonFatal
 
 // format: off
 /** @example
@@ -69,13 +69,10 @@ final class ServiceGuard[F[_]] private[guard] (
           retry.mtl
             .retryingOnSomeErrors[A](
               serviceParams.retry.policy[F],
-              (ex: Throwable) => F.pure(NonFatal(ex)), // avoid fatal errors
+              (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
               (ex: Throwable, rd) =>
                 rd match {
-                  case RetryDetails.GivingUp(retries, delay) =>
-                    val msg =
-                      s"Fatal Error: Service give up restart after $retries retries, took ${delay.toSeconds} seconds"
-                    F.raiseError[Unit](new ControlThrowable(msg) {}) // GivingUp as fatal error
+                  case RetryDetails.GivingUp(_, _)                     => F.unit
                   case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
                 }
             ) {

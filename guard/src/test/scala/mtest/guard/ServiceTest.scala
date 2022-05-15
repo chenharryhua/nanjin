@@ -11,6 +11,7 @@ import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import scala.util.control.ControlThrowable
 
 class ServiceTest extends AnyFunSuite {
 
@@ -58,6 +59,22 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServicePanic])
+  }
+
+  test("should throw exception when fatal error occurs") {
+    val res = guard
+      .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
+      .updateConfig(_.withQueueCapacity(2))
+      .eventStream { gd =>
+        gd.notice
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .run(IO.raiseError(new ControlThrowable("fatal error") {}))
+      }
+      .debug()
+      .compile
+      .toVector
+
+    assertThrows[Throwable](res.unsafeRunSync())
   }
 
   test("json codec") {
