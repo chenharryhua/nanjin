@@ -20,7 +20,6 @@ import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
-  val snsArn: SnsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
 
   test("logging") {
     TaskGuard[IO]("logging")
