@@ -14,7 +14,7 @@ import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
 
 import java.time.ZonedDateTime
-
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 // TODO
 
 object gendata {

@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{MetricReport, PassThrough}
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -17,7 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
-
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 final case class PassThroughObject(a: Int, b: String)
 
 class PassThroughTest extends AnyFunSuite {

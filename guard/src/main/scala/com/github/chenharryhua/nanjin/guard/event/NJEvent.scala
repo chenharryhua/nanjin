@@ -8,13 +8,11 @@ import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Impo
 import io.circe.generic.auto.*
 import io.circe.shapes.*
 import io.circe.{Decoder, Encoder, Json}
-import io.circe.generic.JsonCodec
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.{Duration, ZoneId, ZonedDateTime}
 import java.util.UUID
 
-@JsonCodec
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams

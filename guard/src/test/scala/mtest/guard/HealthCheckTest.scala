@@ -2,11 +2,11 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
@@ -15,7 +15,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
-
 class HealthCheckTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("health-check")
   test("should receive 3 MetricsReport event") {

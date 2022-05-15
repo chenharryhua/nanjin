@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
-
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
 
@@ -70,6 +70,8 @@ class ServiceTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .run(IO.raiseError(new ControlThrowable("fatal error") {}))
       }
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .debug()
       .compile
       .toVector
@@ -100,6 +102,8 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.retry(IO.never).run)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .interruptAfter(5.second)
       .compile
       .toList
@@ -116,6 +120,8 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .compile
       .toList
       .unsafeRunSync()
