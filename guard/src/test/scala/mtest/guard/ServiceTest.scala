@@ -62,6 +62,12 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("should throw exception when fatal error occurs") {
+    var sStart = 0
+    var sStop  = 0
+    var aStart = 0
+    var aFail  = 0
+    var others = 0
+
     val res = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(2))
@@ -70,13 +76,23 @@ class ServiceTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .run(IO.raiseError(new ControlThrowable("fatal error") {}))
       }
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalTap {
+        case _: ServiceStart => IO(sStart += 1)
+        case _: ServiceStop  => IO(sStop += 1)
+        case _: ActionStart  => IO(aStart += 1)
+        case _: ActionFail   => IO(aFail += 1)
+        case _               => IO(others += 1)
+      }
       .debug()
       .compile
       .toVector
 
     assertThrows[Throwable](res.unsafeRunSync())
+    assert(sStart == 1)
+    assert(sStop == 1)
+    assert(aStart == 1)
+    assert(aFail == 1)
+    assert(others == 0)
   }
 
   test("json codec") {
