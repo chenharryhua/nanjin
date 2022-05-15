@@ -20,12 +20,12 @@ object JacksonSerde {
 
   private def toJsonStr[F[_]](schema: Schema, isPretty: Boolean): Pipe[F, GenericRecord, String] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
-    val objMapper   = new ObjectMapper()
+    val objMapper   = new ObjectMapper
 
     _.repeatPull(_.uncons1.flatMap {
       case None => Pull.pure(None)
-      case Some((h, tl)) =>
-        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+      case Some(h, tl) =>
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
         datumWriter.write(h, encoder)
         encoder.flush()
@@ -46,7 +46,7 @@ object JacksonSerde {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     (sfgr: Stream[F, GenericRecord]) =>
       sfgr.chunks.map { grs =>
-        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
         grs.foreach(gr => datumWriter.write(gr, encoder))
         encoder.flush()
@@ -75,7 +75,7 @@ object JacksonSerde {
     def toByteString(schema: Schema): Flow[GenericRecord, ByteString, NotUsed] = {
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       Flow[GenericRecord].map { gr =>
-        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
         datumWriter.write(gr, encoder)
         encoder.flush()

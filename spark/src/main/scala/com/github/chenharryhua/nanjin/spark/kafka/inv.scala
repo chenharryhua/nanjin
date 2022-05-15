@@ -25,11 +25,11 @@ object inv {
     right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[DiffResult[K, V]] =
     left
       .joinLeft(right)(
-        (left.col(Symbol("partition")) === right.col(Symbol("partition"))) &&
-          (left.col(Symbol("offset")) === right.col(Symbol("offset"))))
+        left.col(Symbol("partition")) === right.col(Symbol("partition")) &&
+          left.col(Symbol("offset")) === right.col(Symbol("offset")))
       .deserialized
       .flatMap { case (m, om) =>
-        if (om.exists(o => (o.key === m.key) && (o.value === m.value)))
+        if (om.exists(o => o.key === m.key && o.value === m.value))
           None
         else
           Some(DiffResult(m, om))
@@ -46,7 +46,7 @@ object inv {
         l <- iterL
         r <- oIterR.traverse(_.toList)
         dr <-
-          if (r.exists(o => (o.key === l.key) && (o.value === l.value)))
+          if (r.exists(o => o.key === l.key && o.value === l.value))
             None
           else
             Some(DiffResult(l, r))

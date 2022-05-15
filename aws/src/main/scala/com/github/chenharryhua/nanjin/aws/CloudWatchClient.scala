@@ -20,7 +20,7 @@ object CloudWatchClient {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     Resource.pure[F, CloudWatchClient[F]](new CloudWatchClient[F] {
       override def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult] =
-        logger.info(putMetricDataRequest.toString) *> F.pure(new PutMetricDataResult())
+        logger.info(putMetricDataRequest.toString) *> F.pure(new PutMetricDataResult)
 
       override def updateBuilder(
         f: AmazonCloudWatchClientBuilder => AmazonCloudWatchClientBuilder): CloudWatchClient[F] =

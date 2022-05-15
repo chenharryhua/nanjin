@@ -52,12 +52,12 @@ object SimpleEmailService {
       buildFrom(AmazonSimpleEmailServiceClientBuilder.standard()).build()
 
     override def send(content: EmailContent): F[SendEmailResult] = {
-      val request = new SendEmailRequest()
-        .withDestination(new Destination().withToAddresses(content.to.distinct.toList*))
+      val request = new SendEmailRequest
+        .withDestination(new Destination.withToAddresses(content.to.distinct.toList*))
         .withMessage(
-          new Message()
-            .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))
-            .withSubject(new Content().withCharset("UTF-8").withData(content.subject)))
+          new Message
+            .withBody(new Body.withHtml(new Content.withCharset("UTF-8").withData(content.body)))
+            .withSubject(new Content.withCharset("UTF-8").withData(content.subject)))
         .withSource(content.from)
       F.blocking(client.sendEmail(request)).attempt.flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r)).rethrow
     }

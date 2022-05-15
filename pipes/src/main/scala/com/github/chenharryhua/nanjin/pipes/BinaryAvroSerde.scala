@@ -17,7 +17,7 @@ object BinaryAvroSerde {
   def toBytes[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
     ss.chunks.flatMap { grs =>
-      val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+      val baos: ByteArrayOutputStream = new ByteArrayOutputStream
       val encoder: BinaryEncoder      = EncoderFactory.get().binaryEncoder(baos, null)
       grs.foreach(gr => datumWriter.write(gr, encoder))
       encoder.flush()
@@ -46,7 +46,7 @@ object BinaryAvroSerde {
     def toByteString(schema: Schema): Flow[GenericRecord, ByteString, NotUsed] = {
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       Flow[GenericRecord].map { gr =>
-        val baos: ByteArrayOutputStream = new ByteArrayOutputStream()
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val encoder: BinaryEncoder      = EncoderFactory.get().binaryEncoder(baos, null)
         datumWriter.write(gr, encoder)
         encoder.flush()
