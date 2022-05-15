@@ -12,7 +12,7 @@ import scala.util.Random
 
 object ProtobufData {
   val lions =
-    (1 to 10).map(x => (Lion("Melbourne Zoo", Random.nextInt()))).toList
+    (1 to 10).map(x => Lion("Melbourne Zoo", Random.nextInt())).toList
 
 //  import sparkSession.implicits.*
 //  val rdd = sparkSession.createDataset(lions).rdd

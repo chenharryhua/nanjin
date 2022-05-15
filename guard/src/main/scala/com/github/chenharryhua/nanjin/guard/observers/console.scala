@@ -18,7 +18,7 @@ object console {
 }
 
 final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
-    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
+    extends NJEvent => F[Unit] with UpdateTranslator[F, String, TextConsole[F]] {
 
   override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextConsole[F] =
     new TextConsole[F](f(translator))

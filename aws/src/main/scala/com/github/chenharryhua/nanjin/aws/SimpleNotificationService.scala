@@ -21,7 +21,7 @@ object SimpleNotificationService {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     Resource.make(F.pure(new SimpleNotificationService[F] {
       override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
-        logger.info(msg) *> F.pure(new PublishResult())
+        logger.info(msg) *> F.pure(new PublishResult)
 
       override def updateBuilder(f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): SimpleNotificationService[F] =
         this
