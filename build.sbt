@@ -38,7 +38,7 @@ lazy val commonSettings = Seq(
     "-language:higherKinds",
     "-unchecked",
     "-Xfatal-warnings",
-    //  "-Xlint",
+    "-Xlint:-byname-implicit",
     "-Yrangepos",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
