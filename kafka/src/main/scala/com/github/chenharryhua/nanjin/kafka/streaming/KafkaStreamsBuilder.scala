@@ -102,7 +102,7 @@ final class KafkaStreamsBuilder[F[_]] private (
       startUpTimeout = startUpTimeout)
 
   lazy val topology: Topology = {
-    val builder: StreamsBuilder = new StreamsBuilder()
+    val builder: StreamsBuilder = new StreamsBuilder
     val lss: StreamsBuilder     = localStateStores.foldLeft(builder)((bd, rd) => rd.run(bd))
     top.run(lss)
     builder.build()
