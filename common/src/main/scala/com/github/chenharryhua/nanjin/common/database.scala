@@ -8,7 +8,6 @@ import eu.timepit.refined.collection.{MaxSize, NonEmpty}
 import eu.timepit.refined.string.{Trimmed, Uri}
 import eu.timepit.refined.types.net
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
 import io.circe.refined.*
 
 object database {
@@ -38,7 +37,7 @@ object database {
     database: DatabaseName)
 
   object Postgres {
-    implicit val showPostgres: Show[Postgres] = cats.derived.semiauto.show[Postgres]
+    implicit final val showPostgres: Show[Postgres] = cats.derived.semiauto.show[Postgres]
   }
 
   @JsonCodec final case class Redshift(
@@ -49,7 +48,7 @@ object database {
     database: DatabaseName)
 
   object Redshift {
-    implicit val showPostgres: Show[Redshift] = cats.derived.semiauto.show[Redshift]
+    implicit final val showPostgres: Show[Redshift] = cats.derived.semiauto.show[Redshift]
   }
 
   @JsonCodec final case class SqlServer(
@@ -60,6 +59,6 @@ object database {
     database: DatabaseName)
 
   object SqlServer {
-    implicit val showSqlServer: Show[SqlServer] = cats.derived.semiauto.show[SqlServer]
+    implicit final val showSqlServer: Show[SqlServer] = cats.derived.semiauto.show[SqlServer]
   }
 }

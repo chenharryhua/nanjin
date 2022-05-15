@@ -30,7 +30,7 @@ object aws {
   }
 
   object S3Path {
-    implicit val showS3Path: Show[S3Path] = cats.derived.semiauto.show[S3Path]
+    implicit final val showS3Path: Show[S3Path] = cats.derived.semiauto.show[S3Path]
   }
 
   // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html

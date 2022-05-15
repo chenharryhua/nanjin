@@ -20,8 +20,8 @@ final case class HostName(value: String) extends AnyVal {
 }
 
 object HostName {
-  implicit val showHostName: Show[HostName] = cats.derived.semiauto.show[HostName]
-  implicit val monoidHostName: Monoid[HostName] = new Monoid[HostName] {
+  implicit final val showHostName: Show[HostName] = cats.derived.semiauto.show[HostName]
+  implicit final val monoidHostName: Monoid[HostName] = new Monoid[HostName] {
     override val empty: HostName = HostName("")
 
     override def combine(x: HostName, y: HostName): HostName = x / y

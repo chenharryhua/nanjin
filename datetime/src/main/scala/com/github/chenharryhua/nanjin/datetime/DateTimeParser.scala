@@ -25,49 +25,49 @@ sealed trait DateTimeParser[A] extends Serializable { self =>
 object DateTimeParser {
   def apply[A](implicit ev: DateTimeParser[A]): DateTimeParser[A] = ev
 
-  implicit val localDateParser: DateTimeParser[LocalDate] =
+  implicit final val localDateParser: DateTimeParser[LocalDate] =
     new DateTimeParser[LocalDate] {
 
       override def parse(str: String): Either[FailedParsers, LocalDate] =
         Either.catchNonFatal(LocalDate.parse(str)).leftMap(_ => FailedParsers("LocalDate"))
     }
 
-  implicit val localTimeParser: DateTimeParser[LocalTime] =
+  implicit final val localTimeParser: DateTimeParser[LocalTime] =
     new DateTimeParser[LocalTime] {
 
       override def parse(str: String): Either[FailedParsers, LocalTime] =
         Either.catchNonFatal(LocalTime.parse(str)).leftMap(_ => FailedParsers("LocalTime"))
     }
 
-  implicit val localDateTimeParser: DateTimeParser[LocalDateTime] =
+  implicit final val localDateTimeParser: DateTimeParser[LocalDateTime] =
     new DateTimeParser[LocalDateTime] {
 
       override def parse(str: String): Either[FailedParsers, LocalDateTime] =
         Either.catchNonFatal(LocalDateTime.parse(str)).leftMap(_ => FailedParsers("LocalDateTime"))
     }
 
-  implicit val instantParser: DateTimeParser[Instant] =
+  implicit final val instantParser: DateTimeParser[Instant] =
     new DateTimeParser[Instant] {
 
       override def parse(str: String): Either[FailedParsers, Instant] =
         Either.catchNonFatal(Instant.parse(str)).leftMap(_ => FailedParsers("Instant"))
     }
 
-  implicit val zonedParser: DateTimeParser[ZonedDateTime] =
+  implicit final val zonedParser: DateTimeParser[ZonedDateTime] =
     new DateTimeParser[ZonedDateTime] {
 
       override def parse(str: String): Either[FailedParsers, ZonedDateTime] =
         Either.catchNonFatal(ZonedDateTime.parse(str)).leftMap(_ => FailedParsers("ZonedDateTime"))
     }
 
-  implicit val offsetParser: DateTimeParser[OffsetDateTime] =
+  implicit final val offsetParser: DateTimeParser[OffsetDateTime] =
     new DateTimeParser[OffsetDateTime] {
 
       override def parse(str: String): Either[FailedParsers, OffsetDateTime] =
         Either.catchNonFatal(OffsetDateTime.parse(str)).leftMap(_ => FailedParsers("OffsetDateTime"))
     }
 
-  implicit val alternativeDateTimeParser: Alternative[DateTimeParser] =
+  implicit final val alternativeDateTimeParser: Alternative[DateTimeParser] =
     new Alternative[DateTimeParser] {
 
       override def empty[A]: DateTimeParser[A] =
