@@ -15,6 +15,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
+import io.circe.syntax.*
+
 class HealthCheckTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("health-check")
   test("should receive 3 MetricsReport event") {

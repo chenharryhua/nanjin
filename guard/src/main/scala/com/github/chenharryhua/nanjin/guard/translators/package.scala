@@ -50,7 +50,7 @@ package object translators {
     JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName.value))
   }
 
-  def toOrdinalWords(n: Long): String = {
+  def toOrdinalWords(n: Int): String = {
     val w =
       if (n % 100 / 10 == 1) "th"
       else {

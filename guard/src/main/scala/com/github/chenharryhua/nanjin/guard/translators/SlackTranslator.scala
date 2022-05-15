@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Note
 import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
+import java.time.Duration
 
 private object SlackTranslator extends all {
   import NJEvent.*
@@ -181,7 +182,10 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): SlackApp =
+  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): SlackApp = {
+    val next = fmt.format(Duration.between(evt.timestamp, evt.nextRetryTime))
+    val lt   = evt.nextRetryTime.toLocalTime
+
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -196,14 +200,15 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Took so far", fmt.format(evt.took)),
-              TextField("Retries so far", evt.willDelayAndRetry.retriesSoFar.show)),
-            MarkdownSection(s"""*Next retry in:* ${fmt.format(evt.willDelayAndRetry.nextDelay)}
+              TextField("Retries so far", evt.retriesSoFar.show)),
+            MarkdownSection(s"""*${toOrdinalWords(evt.retriesSoFar)} retry:* at $lt, in $next
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"```${evt.error.message}```")
           )
         ))
     )
+  }
 
   private def actionFailed[F[_]: Applicative](evt: ActionFail): SlackApp =
     SlackApp(

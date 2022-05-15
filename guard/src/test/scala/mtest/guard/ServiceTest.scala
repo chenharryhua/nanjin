@@ -2,14 +2,17 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
 
@@ -25,7 +28,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(3.second))
       .updateConfig(_.withQueueCapacity(1))
       .eventStream(gd =>
-        gd.span("normal-exit-action").max(10).retry(IO(1)).withFailNotes(_ => null).run.delayBy(1.second))
+        gd.span("normal-exit-action").max(10).retry(IO(1)).withSuccNotes(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -45,8 +48,7 @@ class ServiceTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .run(IO.raiseError(new Exception("oops")))
       }
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -83,20 +85,22 @@ class ServiceTest extends AnyFunSuite {
         case _: ActionFail   => IO(aFail += 1)
         case _               => IO(others += 1)
       }
-      .debug()
+      // .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      // .debug()
+      // .evalTap(console.simple[IO])
       .compile
-      .toVector
+      .drain
 
     assertThrows[Throwable](res.unsafeRunSync())
     assert(sStart == 1)
-    assert(sStop == 1)
     assert(aStart == 1)
     assert(aFail == 1)
+    assert(sStop == 1)
     assert(others == 0)
   }
 
   test("json codec") {
-    val vec = guard
+    val a :: b :: c :: d :: e :: f :: g :: rest = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
@@ -105,12 +109,18 @@ class ServiceTest extends AnyFunSuite {
           .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
           .run(IO.raiseError(new Exception("oops")))
       }
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
-      .toVector
+      .toList
       .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionRetry])
+    assert(f.isInstanceOf[ActionFail])
+    assert(g.isInstanceOf[ServicePanic])
   }
 
   test("should receive at least 3 report event") {
@@ -118,8 +128,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.retry(IO.never).run)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
       .compile
       .toList
@@ -136,8 +145,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toList
       .unsafeRunSync()
@@ -151,8 +159,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = guard
       .updateConfig(_.withQueueCapacity(10))
       .eventStream(gd => gd.span("a").notice.retry(IO(1)).run >> gd.span("b").notice.retry(IO(2)).run)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()

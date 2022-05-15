@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -11,8 +12,11 @@ import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.parser.decode
+
 import scala.concurrent.duration.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import io.circe.syntax.*
+
 class MetricsTest extends AnyFunSuite {
   val sg: ServiceGuard[IO] =
     TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(1.second))
@@ -21,8 +25,7 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Delta))
       .eventStream(ag => ag.span("one").run(IO(0)) >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .last
@@ -34,8 +37,7 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Full))
       .eventStream(ag => ag.span("one").updateConfig(_.withCounting).run(IO(0)) >> IO.sleep(10.minutes))
       .evalTap(console(Translator.simpleText[IO]))
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .last
@@ -52,8 +54,7 @@ class MetricsTest extends AnyFunSuite {
           10.minutes)
       }
       .evalTap(console(Translator.simpleText[IO]))
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .last

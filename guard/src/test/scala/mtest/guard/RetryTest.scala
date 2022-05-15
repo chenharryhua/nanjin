@@ -12,6 +12,8 @@ import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.parser.decode
 import scala.concurrent.duration.*
+import io.circe.syntax.*
+
 final case class MyException() extends Exception("my exception")
 
 class RetryTest extends AnyFunSuite {

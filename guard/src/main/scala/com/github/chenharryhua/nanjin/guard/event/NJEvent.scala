@@ -7,28 +7,25 @@ import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import io.circe.generic.auto.*
 import io.circe.shapes.*
-import io.circe.{Decoder, Encoder, Json}
-import retry.RetryDetails.WillDelayAndRetry
+import io.circe.Json
+import io.circe.generic.JsonCodec
 
 import java.time.{Duration, ZoneId, ZonedDateTime}
 import java.util.UUID
 
+@JsonCodec
 sealed trait NJEvent {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
   def title: String
 
   final def zoneId: ZoneId   = serviceParams.taskParams.zoneId
-  final def show: String     = NJEvent.showNJEvent.show(this)
-  final def asJson: Json     = NJEvent.encoderNJEvent.apply(this)
   final def serviceID: UUID  = serviceParams.serviceID
   final def upTime: Duration = serviceParams.upTime(timestamp)
 }
 
 object NJEvent {
-  implicit final val showNJEvent: Show[NJEvent]       = cats.derived.semiauto.show[NJEvent]
-  implicit final val encoderNJEvent: Encoder[NJEvent] = io.circe.generic.semiauto.deriveEncoder[NJEvent]
-  implicit final val decoderNJEvent: Decoder[NJEvent] = io.circe.generic.semiauto.deriveDecoder[NJEvent]
+  implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
 
   sealed trait ServiceEvent extends NJEvent
 
@@ -97,7 +94,8 @@ object NJEvent {
   final case class ActionRetry(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
-    willDelayAndRetry: WillDelayAndRetry,
+    retriesSoFar: Int,
+    nextRetryTime: ZonedDateTime,
     error: NJError)
       extends ActionEvent {
     override val title: String = titles.actionRetry
@@ -105,7 +103,6 @@ object NJEvent {
 
   sealed trait ActionResultEvent extends ActionEvent {
     def numRetries: Int
-
     def notes: Notes
   }
 

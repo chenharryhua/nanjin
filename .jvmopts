@@ -1,5 +1,5 @@
 -Xms4G
 -Xmx12G
--Xss8M
+-Xss64M
 -XX:MaxMetaspaceSize=1G
 -XX:+UseG1GC
