@@ -18,6 +18,7 @@ import fs2.{INothing, Stream}
 import fs2.concurrent.Channel
 import retry.RetryDetails
 
+import scala.concurrent.duration.DurationInt
 import scala.util.control.NonFatal
 
 // format: off
@@ -63,24 +64,28 @@ final class ServiceGuard[F[_]] private[guard] (
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry
 
-        val theService: F[A] = {
-          val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
+        val runningService: Stream[F, INothing] = Stream
+          .eval[F, A] {
+            val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
 
-          retry.mtl
-            .retryingOnSomeErrors[A](
-              serviceParams.retry.policy[F],
-              (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
-              (ex: Throwable, rd) =>
-                rd match {
-                  case RetryDetails.GivingUp(_, _)                     => F.unit
-                  case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
-                }
-            ) {
-              sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
-                runAgent(new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, AgentConfig(serviceParams))))
-            }
-            .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
-        }
+            retry.mtl
+              .retryingOnSomeErrors[A](
+                serviceParams.retry.policy[F],
+                (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
+                (ex: Throwable, rd) =>
+                  rd match {
+                    case RetryDetails.GivingUp(_, _)                     => F.unit
+                    case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
+                  }
+              ) {
+                sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
+                  runAgent(
+                    new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, AgentConfig(serviceParams))))
+              }
+              .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
+          }
+          .onFinalize(F.sleep(1.second))
+          .drain
 
         /** concurrent streams
           */
@@ -129,7 +134,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
         channel.stream
           .onFinalizeWeak(channel.close.void) // drain pending send operation
-          .concurrently(Stream.eval(theService).drain)
+          .concurrently(runningService)
           .concurrently(metricsReport)
           .concurrently(metricsReset)
           .concurrently(jmxReporting)

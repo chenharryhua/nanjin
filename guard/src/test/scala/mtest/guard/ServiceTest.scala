@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -85,11 +86,10 @@ class ServiceTest extends AnyFunSuite {
         case _: ActionFail   => IO(aFail += 1)
         case _               => IO(others += 1)
       }
-      // .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-      // .debug()
-      // .evalTap(console.simple[IO])
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .evalTap(console.simple[IO])
       .compile
-      .drain
+      .toList
 
     assertThrows[Throwable](res.unsafeRunSync())
     assert(sStart == 1)
