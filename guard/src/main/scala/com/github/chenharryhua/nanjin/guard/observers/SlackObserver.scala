@@ -5,7 +5,15 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionFail,
+  ActionRetry,
+  ActionStart,
+  ActionSucc,
+  MetricReport,
+  ServiceStart
+}
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*

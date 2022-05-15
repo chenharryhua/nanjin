@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.{Resource, Temporal}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.TableName
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStart}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import io.circe.Json

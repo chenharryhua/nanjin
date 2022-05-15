@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServicePanic, ServiceStart, ServiceStop}
 import fs2.concurrent.Channel
 
 import scala.concurrent.duration.FiniteDuration

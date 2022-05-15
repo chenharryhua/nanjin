@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import eu.timepit.refined.auto.*
 import fs2.{Chunk, INothing, Pipe, Stream}

@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStart, ServiceStop, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import fs2.Chunk
 

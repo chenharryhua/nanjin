@@ -4,13 +4,13 @@ import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.*
-import io.circe.generic.auto.*
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Notes}
 import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
 
 private object SlackTranslator extends all {
+  import NJEvent.*
 
   private val coloring: Coloring = new Coloring({
     case ColorScheme.GoodColor  => "#36a64f"

@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{InstantAlert, NJEvent, PassThrough}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{InstantAlert, PassThrough}
 import fs2.concurrent.Channel
 import io.circe.Json
 

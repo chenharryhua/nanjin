@@ -2,9 +2,10 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 
 private object SimpleTextTranslator {
+  import NJEvent.*
   private def coloring(msg: String): Coloring = new Coloring({
     case ColorScheme.GoodColor  => Console.GREEN + msg + Console.RESET
     case ColorScheme.InfoColor  => msg

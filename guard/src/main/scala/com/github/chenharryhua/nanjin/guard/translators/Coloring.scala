@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 
 sealed trait ColorScheme
 object ColorScheme {
@@ -13,6 +13,7 @@ object ColorScheme {
 }
 
 final private class Coloring(f: ColorScheme => String) extends (NJEvent => String) {
+  import NJEvent.*
   private def toScheme(evt: NJEvent): ColorScheme = evt match {
     case _: ServiceStart          => ColorScheme.InfoColor
     case _: ServicePanic          => ColorScheme.ErrorColor

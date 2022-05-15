@@ -4,9 +4,9 @@ import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
 import cats.{Applicative, Functor, FunctorFilter, Monad, Traverse}
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
-import io.circe.generic.auto.*
 import monocle.macros.Lenses
 import scalatags.Text
 

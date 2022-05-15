@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toShow, toTraverseOps}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, InstantAlert, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.Chunk
 import org.typelevel.log4cats.SelfAwareStructuredLogger

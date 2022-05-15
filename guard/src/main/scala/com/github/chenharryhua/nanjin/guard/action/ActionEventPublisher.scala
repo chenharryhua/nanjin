@@ -5,7 +5,8 @@ import cats.effect.kernel.{Ref, Temporal}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, Notes}
 import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
 import retry.RetryDetails.WillDelayAndRetry

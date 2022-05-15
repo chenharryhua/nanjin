@@ -5,7 +5,8 @@ import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
 import com.github.chenharryhua.nanjin.aws.CloudWatchClient
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.event.{MetricReport, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate
 
