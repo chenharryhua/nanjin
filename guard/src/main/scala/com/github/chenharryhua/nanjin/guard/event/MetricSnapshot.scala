@@ -79,7 +79,7 @@ private[guard] object MetricSnapshot {
     rateTimeUnit: TimeUnit,
     durationTimeUnit: TimeUnit): Json = {
     val str =
-      new ObjectMapper
+      new ObjectMapper()
         .registerModule(new MetricsModule(rateTimeUnit, durationTimeUnit, false, metricFilter))
         .writerWithDefaultPrettyPrinter()
         .writeValueAsString(metricRegistry)

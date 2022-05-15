@@ -4,7 +4,8 @@ import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, MetricReset}
+import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricResetType, MetricSnapshot, NJEvent}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel

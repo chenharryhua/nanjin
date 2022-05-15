@@ -3,11 +3,10 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.MetricReport
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
-
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import scala.concurrent.duration.*
 import eu.timepit.refined.auto.*
 

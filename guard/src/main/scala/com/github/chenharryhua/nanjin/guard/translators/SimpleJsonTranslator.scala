@@ -2,12 +2,13 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
 import io.circe.Json
 import io.circe.literal.JsonStringContext
 import io.circe.syntax.*
 
 private object SimpleJsonTranslator {
+  import NJEvent.*
 
   private def serviceStarted(evt: ServiceStart): Json =
     json"""

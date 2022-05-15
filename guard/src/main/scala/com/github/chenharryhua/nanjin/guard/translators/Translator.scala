@@ -4,9 +4,9 @@ import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
 import cats.{Applicative, Functor, FunctorFilter, Monad, Traverse}
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
-import io.circe.generic.auto.*
 import monocle.macros.Lenses
 import scalatags.Text
 
@@ -352,7 +352,9 @@ object Translator {
       Kleisli(x => OptionT(F.pure(Some(x))))
     )
 
-  def verboseJson[F[_]: Applicative]: Translator[F, Json] =
+  def verboseJson[F[_]: Applicative]: Translator[F, Json] = {
+    import io.circe.syntax.*
+    import io.circe.generic.auto.*
     empty[F, Json]
       .withServiceStart(_.asJson)
       .withServicePanic(_.asJson)
@@ -365,8 +367,11 @@ object Translator {
       .withActionRetry(_.asJson)
       .withActionFail(_.asJson)
       .withActionSucc(_.asJson)
+  }
 
-  def verboseText[F[_]: Applicative]: Translator[F, String] =
+  def verboseText[F[_]: Applicative]: Translator[F, String] = {
+    import cats.derived.auto.show.*
+    import com.github.chenharryhua.nanjin.datetime.instances.*
     empty[F, String]
       .withServiceStart(_.show)
       .withServicePanic(_.show)
@@ -379,6 +384,7 @@ object Translator {
       .withActionRetry(_.show)
       .withActionFail(_.show)
       .withActionSucc(_.show)
+  }
 
   def simpleText[F[_]: Applicative]: Translator[F, String]    = SimpleTextTranslator[F]
   def simpleJson[F[_]: Applicative]: Translator[F, Json]      = SimpleJsonTranslator[F]

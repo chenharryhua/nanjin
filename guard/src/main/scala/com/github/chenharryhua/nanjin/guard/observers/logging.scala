@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toShow, toTraverseOps}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, InstantAlert, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.Chunk
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -17,7 +18,7 @@ object logging {
 }
 
 final class TextLogging[F[_]: Sync](translator: Translator[F, String])
-    extends NJEvent => F[Unit] with UpdateTranslator[F, String, TextLogging[F]] {
+    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextLogging[F]] {
 
   private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 

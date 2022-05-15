@@ -3,10 +3,10 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.ActionStart
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
+import org.scalatest.funsuite.AnyFunSuite
 
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] = TaskGuard[IO]("config").service("config")

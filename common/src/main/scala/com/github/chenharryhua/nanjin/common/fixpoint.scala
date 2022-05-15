@@ -12,14 +12,14 @@ object fixpoint extends FixPointTrait
 
 trait FixPointTrait {
 
-  implicit def platedFix[G[_]: Traverse]: Plated[Fix[G]] =
+  implicit final def platedFix[G[_]: Traverse]: Plated[Fix[G]] =
     Plated[Fix[G]](new Traversal[Fix[G], Fix[G]] {
 
       override def modifyF[F[_]](f: Fix[G] => F[Fix[G]])(s: Fix[G])(implicit ev: Applicative[F]): F[Fix[G]] =
         Fix.un(s).traverse(f).map(ga => Fix(ga))
     })
 
-  implicit def platedAttr[G[_]: Traverse, A]: Plated[Attr[G, A]] =
+  implicit final def platedAttr[G[_]: Traverse, A]: Plated[Attr[G, A]] =
     Plated[Attr[G, A]](new Traversal[Attr[G, A], Attr[G, A]] {
 
       override def modifyF[F[_]](f: Attr[G, A] => F[Attr[G, A]])(s: Attr[G, A])(implicit
@@ -29,7 +29,7 @@ trait FixPointTrait {
       }
     })
 
-  implicit def platedCoattr[G[_]: Traverse, A]: Plated[Coattr[G, A]] =
+  implicit final def platedCoattr[G[_]: Traverse, A]: Plated[Coattr[G, A]] =
     Plated[Coattr[G, A]](new Traversal[Coattr[G, A], Coattr[G, A]] {
 
       override def modifyF[F[_]](f: Coattr[G, A] => F[Coattr[G, A]])(s: Coattr[G, A])(implicit

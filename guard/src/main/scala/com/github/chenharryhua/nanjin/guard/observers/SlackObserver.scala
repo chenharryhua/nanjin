@@ -5,7 +5,15 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionFail,
+  ActionRetry,
+  ActionStart,
+  ActionSucc,
+  MetricReport,
+  ServiceStart
+}
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*
@@ -61,11 +69,11 @@ final class SlackObserver[F[_]](
           translator.filter {
             case MetricReport(mrt, sp, _, ts, _, _) =>
               isShowMetrics(sp.metric.reportSchedule, ts, metricsInterval, sp.launchTime) || mrt.isShow
-            case ActionStart(ai)            => ai.actionParams.isCritical
-            case ActionSucc(ai, _, _, _)    => ai.actionParams.isCritical
-            case ActionRetry(ai, _, _, _)   => ai.actionParams.isNotice
-            case ActionFail(ai, _, _, _, _) => ai.actionParams.isNonTrivial
-            case _                          => true
+            case ActionStart(ai)             => ai.actionParams.isCritical
+            case ActionSucc(ai, _, _, _)     => ai.actionParams.isCritical
+            case ActionRetry(ai, _, _, _, _) => ai.actionParams.isNotice
+            case ActionFail(ai, _, _, _, _)  => ai.actionParams.isNonTrivial
+            case _                           => true
           }.translate(e).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
         .onFinalizeCase(
           ofm.terminated(_).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)

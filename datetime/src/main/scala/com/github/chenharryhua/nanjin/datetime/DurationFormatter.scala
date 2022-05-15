@@ -18,7 +18,7 @@ trait DurationFormatter {
 
 object DurationFormatter {
 
-  val defaultFormatter: DurationFormatter = (duration: Duration) => {
+  final val defaultFormatter: DurationFormatter = (duration: Duration) => {
     val dur: Duration = if (duration < Duration.Zero) duration.neg() else duration
     if (dur < oneMillisec) {
       val nano = dur.toNanos
@@ -38,6 +38,6 @@ object DurationFormatter {
       DurationFormatUtils.formatDurationWords(dur.toHours * 3600 * 1000, true, true)
   }
 
-  val words: DurationFormatter = (duration: Duration) =>
+  final val words: DurationFormatter = (duration: Duration) =>
     DurationFormatUtils.formatDurationWords(duration.toMillis, true, true)
 }

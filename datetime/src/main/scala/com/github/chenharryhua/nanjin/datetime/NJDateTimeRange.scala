@@ -143,7 +143,7 @@ object NJDateTimeRange {
       String :+: // date-time in string, like "03:12"
       CNil
 
-  implicit val partialOrderNJDateTimeRange: PartialOrder[NJDateTimeRange] & Show[NJDateTimeRange] =
+  implicit final val partialOrderNJDateTimeRange: PartialOrder[NJDateTimeRange] & Show[NJDateTimeRange] =
     new PartialOrder[NJDateTimeRange] with Show[NJDateTimeRange] {
 
       private def lessStart(a: Option[NJTimestamp], b: Option[NJTimestamp]): Boolean =

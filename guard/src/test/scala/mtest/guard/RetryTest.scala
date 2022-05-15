@@ -2,15 +2,17 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.event.*
-import org.scalatest.funsuite.AnyFunSuite
-
-import scala.concurrent.duration.*
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.action.NJRetry
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
+import org.scalatest.funsuite.AnyFunSuite
+import io.circe.parser.decode
+import scala.concurrent.duration.*
+import io.circe.syntax.*
 
 final case class MyException() extends Exception("my exception")
 
@@ -28,7 +30,7 @@ class RetryTest extends AnyFunSuite {
         .withFailNotes((a, e) => s"$a $e")
         .withWorthRetry(_ => true)
         .run(1)
-    }.compile.toVector.unsafeRunSync()
+    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(c.isInstanceOf[ServiceStop])
@@ -45,7 +47,7 @@ class RetryTest extends AnyFunSuite {
         .withFailNotes((a, e) => "")
         .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run(i))
-    }.compile.toVector.unsafeRunSync()
+    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
@@ -66,7 +68,7 @@ class RetryTest extends AnyFunSuite {
         .retry((x: Int) => IO.raiseError[Int](new Exception))
         .withFailNotes((a, e) => a.toString)
       List(1, 2, 3).traverse(i => ag.run(i).attempt)
-    }.compile.toVector.unsafeRunSync()
+    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
@@ -93,7 +95,7 @@ class RetryTest extends AnyFunSuite {
             i += 1; throw new Exception
           } else i))
         .run(1)
-    }.compile.toVector.unsafeRunSync()
+    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
@@ -130,6 +132,8 @@ class RetryTest extends AnyFunSuite {
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
           .run(1)
       }
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -151,6 +155,8 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .retry(IO.raiseError(new NullPointerException))
           .run)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -172,6 +178,8 @@ class RetryTest extends AnyFunSuite {
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -196,6 +204,8 @@ class RetryTest extends AnyFunSuite {
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -211,6 +221,8 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
       .interruptAfter(5.seconds)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .compile
       .toList
       .unsafeRunSync()
@@ -229,6 +241,8 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
       .interruptAfter(5.seconds)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .compile
       .toList
       .unsafeRunSync()
@@ -249,6 +263,8 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO(1) >> IO.canceled))
       .interruptAfter(5.seconds)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
       .compile
       .toList
       .unsafeRunSync()

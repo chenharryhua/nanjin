@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{MetricReport, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServicePanic}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
@@ -50,7 +50,7 @@ package object translators {
     JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName.value))
   }
 
-  def toOrdinalWords(n: Long): String = {
+  def toOrdinalWords(n: Int): String = {
     val w =
       if (n % 100 / 10 == 1) "th"
       else {

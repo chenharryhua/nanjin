@@ -38,7 +38,7 @@ lazy val commonSettings = Seq(
     "-language:higherKinds",
     "-unchecked",
     "-Xfatal-warnings",
-    //  "-Xlint",
+    "-Xlint:-byname-implicit",
     "-Yrangepos",
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
@@ -78,12 +78,12 @@ val circeLib = Seq(
 val jacksonLib = Seq(
   "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.13.3",
   "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.13.3",
-  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.2.2",
-  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.13.2",
+  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.3",
+  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.13.3",
   "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.13.3",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.13.2",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.13.2",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.2"
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.13.3",
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.13.3",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.3"
 )
 
 val kantanLib = Seq(

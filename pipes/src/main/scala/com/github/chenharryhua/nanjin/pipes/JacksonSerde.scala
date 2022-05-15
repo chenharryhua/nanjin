@@ -24,7 +24,7 @@ object JacksonSerde {
 
     _.repeatPull(_.uncons1.flatMap {
       case None => Pull.pure(None)
-      case Some(h, tl) =>
+      case Some((h, tl)) =>
         val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
         datumWriter.write(h, encoder)

@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, Notes}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
@@ -15,6 +15,7 @@ import java.time.temporal.ChronoUnit
 /** https://com-lihaoyi.github.io/scalatags/
   */
 private object HtmlTranslator extends all {
+  import NJEvent.*
 
   private val coloring: Coloring = new Coloring({
     case ColorScheme.GoodColor  => "color:darkgreen"
