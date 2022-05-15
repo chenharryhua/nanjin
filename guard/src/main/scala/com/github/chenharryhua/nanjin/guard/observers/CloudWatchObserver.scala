@@ -61,7 +61,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
   def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
     def go(cwc: CloudWatchClient[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
-        case Some(events, tail) =>
+        case Some((events, tail)) =>
           val (mds, next) = events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
             case ((lmd, last), mr) =>
               val (mds, newLast) = buildMetricDatum(mr, last)
@@ -75,7 +75,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
               .traverse(ds =>
                 cwc
                   .putMetricData(
-                    new PutMetricDataRequest
+                    new PutMetricDataRequest()
                       .withNamespace(namespace.value)
                       .withMetricData(ds.map(_.withStorageResolution(storageResolution)).asJava))
                   .attempt)
@@ -98,12 +98,12 @@ final private case class MetricKey(
   metricName: String,
   launchDate: String) {
   def metricDatum(ts: Instant, count: Long): MetricDatum =
-    new MetricDatum
+    new MetricDatum()
       .withDimensions(
-        new Dimension.withName("Task").withValue(task),
-        new Dimension.withName("Service").withValue(service),
-        new Dimension.withName("Host").withValue(hostName),
-        new Dimension.withName("LaunchDate").withValue(launchDate)
+        new Dimension().withName("Task").withValue(task),
+        new Dimension().withName("Service").withValue(service),
+        new Dimension().withName("Host").withValue(hostName),
+        new Dimension().withName("LaunchDate").withValue(launchDate)
       )
       .withMetricName(metricName)
       .withUnit(standardUnit)
