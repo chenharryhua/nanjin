@@ -30,7 +30,7 @@ object NJHikari {
 
   implicit val databaseSettingsPostgres: NJHikari[Postgres] = new NJHikari[Postgres] {
     override def hikariConfig(db: Postgres): HikariConfig = {
-      val cfg = new HikariConfig()
+      val cfg = new HikariConfig
       cfg.setDriverClassName("org.postgresql.Driver")
       cfg.setJdbcUrl(Protocols.Postgres.url(db.host, Some(db.port)) + s"/${db.database.value}")
       cfg.setUsername(db.username.value)
@@ -41,7 +41,7 @@ object NJHikari {
 
   implicit val databaseSettingsRedshift: NJHikari[Redshift] = new NJHikari[Redshift] {
     override def hikariConfig(db: Redshift): HikariConfig = {
-      val cfg = new HikariConfig()
+      val cfg = new HikariConfig
       cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
       cfg.setJdbcUrl(Protocols.Redshift.url(db.host, Some(db.port)) + s"/${db.database.value}")
       cfg.setUsername(db.username.value)
@@ -54,7 +54,7 @@ object NJHikari {
 
   implicit val databaseSettingsSqlServer: NJHikari[SqlServer] = new NJHikari[SqlServer] {
     override def hikariConfig(db: SqlServer): HikariConfig = {
-      val cfg = new HikariConfig()
+      val cfg = new HikariConfig
       cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
       cfg.setJdbcUrl(Protocols.SqlServer.url(db.host, Some(db.port)) + s";databaseName=${db.database.value}")
       cfg.setUsername(db.username.value)

@@ -37,7 +37,7 @@ object KafkaMonitoringApi {
         .map(m => topic.decode(m))
 
     private def printJackson(cr: NJConsumerRecordWithError[K, V])(implicit C: Console[F]): F[Unit] =
-      Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream())).use { bos =>
+      Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use { bos =>
         for {
           _ <- C.println(cr.metaInfo(topic.context.settings.zoneId).timestamp.show)
           _ <- cr.key.leftTraverse(C.println)

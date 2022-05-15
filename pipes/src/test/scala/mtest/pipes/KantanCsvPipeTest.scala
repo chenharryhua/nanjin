@@ -16,7 +16,7 @@ import kantan.csv.generic.*
 class KantanCsvPipeTest extends AnyFunSuite {
   import TestData.*
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
-  val hd                      = NJHadoop[IO](new Configuration())
+  val hd                      = NJHadoop[IO](new Configuration)
 
   test("csv identity") {
 

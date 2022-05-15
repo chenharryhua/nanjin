@@ -24,9 +24,9 @@ final case class NJLocalTimeRange(start: LocalTime, duration: FiniteDuration, zo
       val ld  = instant.atZone(zoneId).toLocalTime
       val end = start.plus(duration.toJava)
       if (st.isAfter(start)) {
-        (ld.compareTo(start) >= 0) && ld.isBefore(end)
+        ld.compareTo(start) >= 0 && ld.isBefore(end)
       } else {
-        (ld.compareTo(start) >= 0) || ld.isBefore(end)
+        ld.compareTo(start) >= 0 || ld.isBefore(end)
       }
     }
 

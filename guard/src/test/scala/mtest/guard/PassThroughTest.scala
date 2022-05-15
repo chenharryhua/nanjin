@@ -94,7 +94,7 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
         val meter = agent.histogram("nj.test.histogram")
-        (IO(Random.nextInt(100).toLong).flatMap(meter.update)).delayBy(1.second).replicateA(5)
+        IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.verboseJson[IO].map(_.noSpaces)))
       .compile

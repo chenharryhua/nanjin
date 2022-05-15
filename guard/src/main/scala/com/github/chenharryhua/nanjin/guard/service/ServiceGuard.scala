@@ -61,7 +61,7 @@ final class ServiceGuard[F[_]] private[guard] (
       serviceStatus <- Stream.eval(initStatus)
       serviceParams <- Stream.eval(serviceStatus.get.map(_.serviceParams))
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap { channel =>
-        val metricRegistry: MetricRegistry = new MetricRegistry()
+        val metricRegistry: MetricRegistry = new MetricRegistry
 
         val theService: F[A] = {
           val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)

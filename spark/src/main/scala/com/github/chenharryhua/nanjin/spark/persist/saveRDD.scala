@@ -44,7 +44,7 @@ private[spark] object saveRDD {
 
   def binAvro[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
     def bytesWritable(a: A): BytesWritable = {
-      val os  = new ByteArrayOutputStream()
+      val os  = new ByteArrayOutputStream
       val aos = AvroOutputStream.binary(encoder).to(os).build()
       aos.write(a)
       aos.flush()
@@ -95,7 +95,7 @@ private[spark] object saveRDD {
 
   def protobuf[A](rdd: RDD[A], path: NJPath, compression: NJCompression)(implicit enc: A <:< GeneratedMessage): Unit = {
     def bytesWritable(a: A): BytesWritable = {
-      val os: ByteArrayOutputStream = new ByteArrayOutputStream()
+      val os: ByteArrayOutputStream = new ByteArrayOutputStream
       enc(a).writeDelimitedTo(os)
       os.close()
       new BytesWritable(os.toByteArray)

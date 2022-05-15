@@ -198,7 +198,7 @@ class RetryTest extends AnyFunSuite {
         gd.span("predicate")
           .notice
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
-          .retry(IO.raiseError(new Exception()))
+          .retry(IO.raiseError(new Exception))
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }

@@ -50,6 +50,6 @@ class TextTest extends AnyFunSuite {
     saver(path).append.run.unsafeRunSync()
     val t2 = sparkSession.read.text(path.pathStr).count()
 
-    assert((t1 + rdd.count()) == t2)
+    assert(t1 + rdd.count() == t2)
   }
 }
