@@ -61,7 +61,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     for {
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher[F])
       stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
-      uks <- Stream.bracket(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
+      uks <- Stream.bracket(F.pure(new KafkaStreams(topology, settings.javaProperties)))(ks =>
         F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
       ks <- Stream.eval(startKS(uks, dispatcher, stop)).interruptWhen(stop)
     } yield ks

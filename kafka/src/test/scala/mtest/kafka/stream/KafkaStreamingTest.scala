@@ -191,4 +191,26 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         case Outcome.Canceled()   => IO(assert(false)).void
       }).unsafeRunSync()
   }
+
+  test("should raise an error when kafka topic does not exist") {
+    val s1Topic = ctx.topic[Int, StreamOne]("consumer.topic.does.not.exist")
+
+    val top: Reader[StreamsBuilder, Unit] = for {
+      a <- s1Topic.asConsumer.kstream
+      b <- t2Topic.asConsumer.ktable
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
+
+    val res = IO.println(Console.CYAN + "kafka topic does not exist" + Console.RESET) >> ctx
+      .buildStreams(top)
+      .stateStream
+      .debug()
+      .compile
+      .drain
+      .guaranteeCase {
+        case Outcome.Succeeded(_) => IO(assert(false)).void
+        case Outcome.Errored(_)   => IO(assert(true)).void
+        case Outcome.Canceled()   => IO(assert(false)).void
+      }
+    assertThrows[Throwable](res.unsafeRunSync())
+  }
 }

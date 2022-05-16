@@ -46,11 +46,14 @@ class InteractiveTest extends AnyFunSuite {
         assert(q == g)
         q
       }
+
+    println(Console.CYAN + "interactive" + Console.RESET)
     println(ctx.buildStreams(top).topology.describe())
     println(res.compile.toList.unsafeRunSync().flatten)
   }
 
   test("startup timeout") {
+    println(Console.CYAN + "startup timeout" + Console.RESET)
     val to1 = ctx.buildStreams(top).withStartUpTimeout(0.seconds).stateStream.compile.drain
     assertThrows[TimeoutException](to1.unsafeRunSync())
     val to2 = ctx.buildStreams(top).withStartUpTimeout(1.day).kafkaStreams.map(_.state()).debug().compile.drain
@@ -58,12 +61,14 @@ class InteractiveTest extends AnyFunSuite {
   }
 
   test("detect stream stop") {
+    println(Console.CYAN + "detect stream stop" + Console.RESET)
     val to1 =
       ctx.buildStreams(top).kafkaStreams.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
     to1.compile.drain.unsafeRunSync()
   }
 
   test("detect stream error") {
+    println(Console.CYAN + "detect stream error" + Console.RESET)
     val to1 =
       ctx.buildStreams(top).kafkaStreams.evalMap(ks => IO.sleep(1.seconds) >> IO(ks.cleanUp()) >> IO.sleep(1.day))
     assertThrows[IllegalStateException](to1.compile.drain.unsafeRunSync())

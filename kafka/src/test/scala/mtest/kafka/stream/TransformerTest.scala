@@ -88,6 +88,8 @@ class TransformerTest extends AnyFunSuite {
         .compile
         .toList)
         .unsafeRunSync()
+
+    println(Console.CYAN + "stream transformer" + Console.RESET)
     assert(res.map(_.record.key).toSet == Set(2, 4, 6))
   }
 }
