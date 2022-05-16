@@ -45,7 +45,7 @@ object KafkaStreamingData {
       .map(x => tgt.decoder(x).decode)
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
       .map(_.record.value)
-      .debug()
+      .debug(o => s"harvest: $o")
 
   val expected: Set[StreamTarget] = Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
 }
@@ -82,15 +82,14 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .peek((k, v) => println(s"out=($k, $v)"))
       .to(tgt.topicName)(tgt.asProduced)
 
-    val res: Set[StreamTarget] = ctx
+    val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(top)
       .kafkaStreams
       .concurrently(sendS1Data)
-      .flatMap(_ => harvest.interruptAfter(10.seconds))
+      .flatMap(_ => harvest)
+      .interruptAfter(10.seconds)
       .compile
-      .toList
-      .unsafeRunSync()
-      .toSet
+      .toList).unsafeRunSync().toSet
     assert(res == expected)
   }
 
@@ -122,14 +121,13 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .through(s1TopicBin.fs2Channel.producerPipe)
       .debug()
 
-    val res = ctx
+    val res = (IO.println(Console.CYAN + "kafka stream has bad records" + Console.RESET) >> ctx
       .buildStreams(top)
       .kafkaStreams
       .concurrently(sendS1Data)
-      .flatMap(_ => harvest.interruptAfter(10.seconds))
+      .flatMap(_ => harvest.interruptAfter(6.seconds))
       .compile
-      .toList
-      .unsafeRunSync()
+      .toList).unsafeRunSync()
     assert(res == List(StreamTarget("a", 0, 0), StreamTarget("c", 0, 2)))
   }
 
@@ -158,14 +156,15 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .debug()
 
     assertThrows[Exception](
-      ctx
+      (IO.println(Console.CYAN + "kafka stream exception" + Console.RESET) >> ctx
         .buildStreams(top)
-        .kafkaStreams
+        .stateStream
+        .debug()
         .concurrently(sendS1Data)
-        .flatMap(_ => harvest.interruptAfter(1.day))
+        .concurrently(harvest)
+        .interruptAfter(1.day)
         .compile
-        .toList
-        .unsafeRunSync())
+        .drain).unsafeRunSync())
   }
 
   test("kafka stream should be able to be closed") {
@@ -176,7 +175,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       b <- t2Topic.asConsumer.ktable
     } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
 
-    ctx
+    (IO.println(Console.CYAN + "kafka stream should be able to be closed" + Console.RESET) >> ctx
       .buildStreams(top)
       .kafkaStreams
       .flatMap(ks =>
@@ -190,7 +189,6 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         case Outcome.Succeeded(_) => IO(assert(true)).void
         case Outcome.Errored(_)   => IO(assert(false)).void
         case Outcome.Canceled()   => IO(assert(false)).void
-      }
-      .unsafeRunSync()
+      }).unsafeRunSync()
   }
 }
