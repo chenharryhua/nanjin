@@ -19,6 +19,6 @@ class ExampleKafkaKStream extends AnyFunSuite {
       fooTopic.asConsumer.kstream
         .map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic.topicName.value)(barTopic.asProduced))
 
-    ctx.buildStreams(top).stream.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
+    ctx.buildStreams(top).stateStream.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }

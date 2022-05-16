@@ -127,8 +127,6 @@ object NJEvent {
 
   sealed trait InstantEvent extends NJEvent {
     def metricName: Digested
-
-    def timestamp: ZonedDateTime
   }
 
   final case class InstantAlert(
@@ -153,13 +151,13 @@ object NJEvent {
 }
 
 private object titles {
-  final val serviceStart: String = "(Re)Start Service"
-  final val serviceStop: String  = "Service Stopped"
-  final val servicePanic: String = "Service Panic"
-  final val actionStart: String  = "Start Action"
-  final val actionRetry: String  = "Action Retrying"
-  final val actionFail: String   = "Action Failed"
-  final val actionSucc: String   = "Action Succed"
-  final val instantAlert: String = "Alert"
-  final val passThrough: String  = "Pass Through"
+  @inline final val serviceStart: String = "(Re)Start Service"
+  @inline final val serviceStop: String  = "Service Stopped"
+  @inline final val servicePanic: String = "Service Panic"
+  @inline final val actionStart: String  = "Start Action"
+  @inline final val actionRetry: String  = "Action Retrying"
+  @inline final val actionFail: String   = "Action Failed"
+  @inline final val actionSucc: String   = "Action Succed"
+  @inline final val instantAlert: String = "Alert"
+  @inline final val passThrough: String  = "Pass Through"
 }

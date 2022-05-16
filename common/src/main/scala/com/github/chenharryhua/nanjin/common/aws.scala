@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Show
+import cats.data.NonEmptyList
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.{MatchesRegex, Url}
@@ -37,4 +38,8 @@ object aws {
   final case class ParameterStorePath(value: String, isSecure: Boolean = true)
 
   final case class ParameterStoreContent(value: String)
+
+  @JsonCodec
+  final case class EmailContent(from: String, to: NonEmptyList[String], subject: String, body: String)
+
 }

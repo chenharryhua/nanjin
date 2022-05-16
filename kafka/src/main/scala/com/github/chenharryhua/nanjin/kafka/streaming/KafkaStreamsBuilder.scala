@@ -72,7 +72,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     ks <- Stream.resource(kickoff(stop, None)).interruptWhen(stop)
   } yield ks
 
-  val stream: Stream[F, State] = for {
+  val stateStream: Stream[F, State] = for {
     stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
     bus <- Stream.eval(Channel.unbounded[F, State])
     _ <- Stream.resource(kickoff(stop, Some(bus)))

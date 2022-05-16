@@ -29,7 +29,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(logging.simple[IO])
+      .evalTap(logging.verbose[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -57,7 +57,7 @@ class ObserversTest extends AnyFunSuite {
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
-      .evalTap(console(Translator.simpleJson[IO].map(_.noSpaces)))
+      .evalTap(console(Translator.verboseJson[IO].map(_.noSpaces)))
       .compile
       .drain
       .unsafeRunSync()
