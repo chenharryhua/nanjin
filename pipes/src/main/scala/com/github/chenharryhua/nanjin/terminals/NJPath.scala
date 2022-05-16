@@ -57,6 +57,6 @@ object NJPath {
   def apply(s3: S3Path): NJPath             = apply(PathRoot.unsafeFrom(s3.s3a))
   def apply(lfs: LocatedFileStatus): NJPath = apply(lfs.getPath)
 
-  implicit val showNJPath: Show[NJPath] = _.pathStr
+  implicit final val showNJPath: Show[NJPath] = _.pathStr
 
 }

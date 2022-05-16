@@ -81,13 +81,15 @@ class TransformerTest extends AnyFunSuite {
 
     val res =
       (havest
-        .concurrently(kafkaStreamService.stream)
+        .concurrently(kafkaStreamService.stateStream)
         .concurrently(t2Data)
         .concurrently(s1Data)
         .interruptAfter(15.seconds)
         .compile
         .toList)
         .unsafeRunSync()
+
+    println(Console.CYAN + "stream transformer" + Console.RESET)
     assert(res.map(_.record.key).toSet == Set(2, 4, 6))
   }
 }

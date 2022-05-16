@@ -28,7 +28,7 @@ private[guard] object Notes {
 final case class NJError private (uuid: UUID, message: String, stackTrace: String)
 
 private[guard] object NJError {
-  implicit val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
+  implicit final val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
   def apply(uuid: UUID, ex: Throwable): NJError =
     NJError(uuid, ExceptionUtils.getRootCauseMessage(ex), ExceptionUtils.getStackTrace(ex))
 }
@@ -36,7 +36,7 @@ private[guard] object NJError {
 @JsonCodec
 sealed trait MetricResetType
 object MetricResetType extends localdatetime {
-  implicit val showMetricResetType: Show[MetricResetType] = {
+  implicit final val showMetricResetType: Show[MetricResetType] = {
     case Adhoc           => s"Adhoc Metric Reset"
     case Scheduled(next) => s"Scheduled Metric Reset(next=${next.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show})"
   }
@@ -51,7 +51,7 @@ sealed trait MetricReportType {
 }
 
 object MetricReportType {
-  implicit val showMetricReportType: Show[MetricReportType] = {
+  implicit final val showMetricReportType: Show[MetricReportType] = {
     case Adhoc(mst)            => s"Adhoc ${mst.show} Metric Report"
     case Scheduled(mst, index) => s"Scheduled ${mst.show} Metric Report(index=$index)"
   }
@@ -69,7 +69,7 @@ object MetricReportType {
 final case class ActionInfo(actionParams: ActionParams, actionID: Int, launchTime: ZonedDateTime)
 
 object ActionInfo extends zoneddatetime {
-  implicit val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
+  implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 }
 
 @JsonCodec
@@ -96,7 +96,7 @@ object ServiceStopCause {
     case Outcome.Canceled()   => ServiceStopCause.ByCancelation
   }
 
-  implicit val showServiceStopCause: Show[ServiceStopCause] = _.toString
+  implicit final val showServiceStopCause: Show[ServiceStopCause] = _.toString
 
   case object Normally extends ServiceStopCause {
     override val exitCode: Int = 0

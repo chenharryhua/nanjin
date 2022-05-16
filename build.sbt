@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.8"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.15.2-SNAPSHOT"
+ThisBuild / version            := "0.15.5-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val algebra      = "2.7.0"
@@ -197,7 +197,7 @@ val catsLib = Seq(
 val refinedLib = Seq(
   "eu.timepit" %% "refined",
   "eu.timepit" %% "refined-cats"
-).map(_ % "0.9.28")
+).map(_ % "0.9.29")
 
 val akkaLib = Seq(
   "com.typesafe.akka" %% "akka-actor-typed",
@@ -211,8 +211,8 @@ val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
   "dev.zio" %% "zio"               % "1.0.14"  % Provided,
   "dev.zio" %% "zio-interop-cats"  % "3.2.9.1" % Provided,
-  "io.monix" %% "monix-eval"       % "3.4.0"   % Provided,
-  "io.monix" %% "monix"            % "3.4.0"   % Provided
+  "io.monix" %% "monix-eval"       % "3.4.1"   % Provided,
+  "io.monix" %% "monix"            % "3.4.1"   % Provided
 )
 
 val ftpLib = Seq(

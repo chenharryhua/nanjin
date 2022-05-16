@@ -1,17 +1,13 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.data.NonEmptyList
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
 import com.amazonaws.services.simpleemail.model.*
-import io.circe.generic.JsonCodec
+import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
-@JsonCodec
-final case class EmailContent(from: String, to: NonEmptyList[String], subject: String, body: String)
 
 sealed trait SimpleEmailService[F[_]] {
   def send(txt: EmailContent): F[SendEmailResult]

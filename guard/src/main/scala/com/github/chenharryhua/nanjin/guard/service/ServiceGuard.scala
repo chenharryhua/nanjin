@@ -133,7 +133,7 @@ final class ServiceGuard[F[_]] private[guard] (
         // put together
 
         channel.stream
-          .onFinalizeWeak(channel.close.void) // drain pending send operation
+          .onFinalize(channel.close.void) // drain pending send operation
           .concurrently(runningService)
           .concurrently(metricsReport)
           .concurrently(metricsReset)

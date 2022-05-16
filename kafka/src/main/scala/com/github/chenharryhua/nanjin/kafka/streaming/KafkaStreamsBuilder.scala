@@ -1,18 +1,18 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.Reader
-import cats.effect.kernel.{Async, Deferred, Resource}
+import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.kafka.KafkaStreamSettings
 import fs2.Stream
 import fs2.concurrent.Channel
 import monocle.function.At.at
+import org.apache.kafka.streams.{KafkaStreams, Topology}
 import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
-import org.apache.kafka.streams.{KafkaStreams, Topology}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
@@ -45,38 +45,36 @@ final class KafkaStreamsBuilder[F[_]] private (
       )
   }
 
-  private def kickoff(
-    stop: Deferred[F, Either[Throwable, Unit]],
-    bus: Option[Channel[F, State]]): Resource[F, KafkaStreams] = {
-    val rrks: Resource[F, Resource[F, KafkaStreams]] = for {
-      dispatcher <- Dispatcher[F]
-      uks <- Resource.make(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
-        F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
-    } yield {
-      val start: F[KafkaStreams] = for {
+  private def kickoff(bus: Option[Channel[F, State]]): Stream[F, KafkaStreams] = {
+    def startKS(
+      ks: KafkaStreams,
+      dispatcher: Dispatcher[F],
+      stop: Deferred[F, Either[Throwable, Unit]]): F[KafkaStreams] =
+      for {
         latch <- CountDownLatch[F](1)
-        _ <- F.blocking(uks.cleanUp())
-        _ <- F.blocking(uks.setStateListener(new StateChange(dispatcher, latch, stop, bus)))
-        _ <- F.blocking(uks.start())
-        _ <- latch.await
-      } yield uks
-      Resource.eval(F.timeout(start, startUpTimeout))
-    }
-    rrks.flatten
+        _ <- F.blocking(ks.cleanUp())
+        _ <- F.blocking(ks.setStateListener(new StateChange(dispatcher, latch, stop, bus)))
+        _ <- F.blocking(ks.start())
+        _ <- F.timeout(latch.await, startUpTimeout)
+      } yield ks
+
+    for {
+      dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher[F])
+      stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+      uks <- Stream.bracket(F.pure(new KafkaStreams(topology, settings.javaProperties)))(ks =>
+        F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
+      ks <- Stream.eval(startKS(uks, dispatcher, stop)).interruptWhen(stop)
+    } yield ks
   }
 
   /** one object KafkaStreams stream. for interactive state store query
     */
-  val kafkaStreams: Stream[F, KafkaStreams] = for {
-    stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
-    ks <- Stream.resource(kickoff(stop, None)).interruptWhen(stop)
-  } yield ks
+  val kafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
 
-  val stream: Stream[F, State] = for {
-    stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+  val stateStream: Stream[F, State] = for {
     bus <- Stream.eval(Channel.unbounded[F, State])
-    _ <- Stream.resource(kickoff(stop, Some(bus)))
-    state <- bus.stream.interruptWhen(stop)
+    _ <- kickoff(Some(bus))
+    state <- bus.stream
   } yield state
 
   def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
