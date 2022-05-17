@@ -30,7 +30,7 @@ class RetryTest extends AnyFunSuite {
         .withFailNotes((a, e) => s"$a $e")
         .withWorthRetry(_ => true)
         .run(1)
-    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
+    }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(c.isInstanceOf[ServiceStop])
@@ -47,7 +47,7 @@ class RetryTest extends AnyFunSuite {
         .withFailNotes((a, e) => "")
         .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run(i))
-    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
+    }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
@@ -68,7 +68,7 @@ class RetryTest extends AnyFunSuite {
         .retry((x: Int) => IO.raiseError[Int](new Exception))
         .withFailNotes((a, e) => a.toString)
       List(1, 2, 3).traverse(i => ag.run(i).attempt)
-    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
+    }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
@@ -95,7 +95,7 @@ class RetryTest extends AnyFunSuite {
             i += 1; throw new Exception
           } else i))
         .run(1)
-    }.map(e => decode[NJEvent](e.asJson.noSpaces).toOption).unNone.compile.toVector.unsafeRunSync()
+    }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
@@ -132,8 +132,7 @@ class RetryTest extends AnyFunSuite {
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
           .run(1)
       }
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -155,8 +154,7 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
           .retry(IO.raiseError(new NullPointerException))
           .run)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .toList
@@ -178,8 +176,7 @@ class RetryTest extends AnyFunSuite {
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -204,8 +201,7 @@ class RetryTest extends AnyFunSuite {
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
       }
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -241,8 +237,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
       .interruptAfter(5.seconds)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toList
       .unsafeRunSync()
@@ -263,8 +258,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO(1) >> IO.canceled))
       .interruptAfter(5.seconds)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toList
       .unsafeRunSync()

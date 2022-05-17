@@ -48,6 +48,11 @@ object MetricResetType extends localdatetime {
 sealed trait MetricReportType {
   def isShow: Boolean
   def snapshotType: MetricSnapshotType
+
+  final def idx: Option[Long] = this match {
+    case MetricReportType.Adhoc(_)            => None
+    case MetricReportType.Scheduled(_, index) => Some(index)
+  }
 }
 
 object MetricReportType {
