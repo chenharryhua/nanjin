@@ -54,10 +54,8 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   private[this] val succNotes: (A, F[B]) => F[Notes]      = (a: A, b: F[B]) => b.flatMap(succ.run(a, _)).map(Notes(_))
   private[this] val failNotes: (A, Throwable) => F[Notes] = (a: A, ex: Throwable) => fail.run(a, ex).map(Notes(_))
 
-  private[this] val publisher: ActionEventPublisher[F] = new ActionEventPublisher[F](serviceStatus, channel)
-
   def run(input: A): F[B] = for {
-    retryCount <- F.ref(0) // hold number of retries
+    publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](serviceStatus, channel, retryCounter))
     actionInfo <- publisher.actionStart(actionParams)
     res <- retry.mtl
       .retryingOnSomeErrors[B]
@@ -66,22 +64,22 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
         isWorthRetry.run,
         (error, details) =>
           details match {
-            case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, retryCount, wdr, error)
+            case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, wdr, error)
             case _: GivingUp            => F.unit
           }
       )(kfab.run(input))
       .guaranteeCase {
         case Outcome.Canceled() =>
           publisher
-            .actionFail[A](actionInfo, retryCount, ActionException.ActionCanceled, input, failNotes)
+            .actionFail[A](actionInfo, input, ActionException.ActionCanceled, failNotes)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Errored(error) =>
           publisher
-            .actionFail[A](actionInfo, retryCount, error, input, failNotes)
+            .actionFail[A](actionInfo, input, error, failNotes)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
-            .actionSucc[A, B](actionInfo, retryCount, input, output, succNotes)
+            .actionSucc[A, B](actionInfo, input, output, succNotes)
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
   } yield res
