@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import io.circe.Json
 import io.circe.literal.JsonStringContext
 import io.circe.syntax.*
@@ -39,23 +39,18 @@ private object SimpleJsonTranslator {
           }
           """
 
-  private def metricReport(evt: MetricReport): Json = {
-    val index: Option[Long] = evt.reportType match {
-      case MetricReportType.Adhoc(_)            => None
-      case MetricReportType.Scheduled(_, index) => Some(index)
-    }
+  private def metricReport(evt: MetricReport): Json =
     json"""
           {
             "event": "MetricReport",
+            "index": ${evt.reportType.idx},
             "serviceName" : ${evt.serviceParams.serviceName.value},
-            "index": $index,
             "isUp": ${evt.isUp},
             "ongoings": ${evt.ongoings.map(_.actionID)},            
             "metrics": ${evt.snapshot.asJson},
             "serviceID": ${evt.serviceParams.serviceID}
           }
           """
-  }
 
   private def metricReset(evt: MetricReset): Json =
     json"""

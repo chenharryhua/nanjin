@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.{Alternative, Traverse}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
-import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -23,7 +22,6 @@ final class Agent[F[_]] private[service] (
   metricRegistry: MetricRegistry,
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
-  dispatcher: Dispatcher[F],
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
@@ -34,7 +32,7 @@ final class Agent[F[_]] private[service] (
   def digestedName: Digested = Digested(agentParams.spans, agentParams.serviceParams)
 
   override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
-    new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, f(agentConfig))
+    new Agent[F](metricRegistry, serviceStatus, channel, f(agentConfig))
 
   def span(name: Span): Agent[F] = updateConfig(_.withSpan(name))
 
@@ -49,7 +47,6 @@ final class Agent[F[_]] private[service] (
   def retry[A, B](f: A => F[B]): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
       serviceStatus = serviceStatus,
-      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = ActionParams(agentParams),
@@ -61,7 +58,6 @@ final class Agent[F[_]] private[service] (
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
       serviceStatus = serviceStatus,
-      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = ActionParams(agentParams),
@@ -80,7 +76,6 @@ final class Agent[F[_]] private[service] (
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
       metricName = Digested(agentParams.spans :+ brokerName, serviceParams),
-      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -90,7 +85,6 @@ final class Agent[F[_]] private[service] (
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
       metricName = Digested(agentParams.spans :+ alertName, serviceParams),
-      dispatcher = dispatcher,
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -117,8 +111,7 @@ final class Agent[F[_]] private[service] (
 
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](
-      new MetricEventPublisher[F](channel = channel, metricRegistry = metricRegistry, serviceStatus = serviceStatus),
-      dispatcher = dispatcher)
+      new MetricEventPublisher[F](channel = channel, metricRegistry = metricRegistry, serviceStatus = serviceStatus))
 
   lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
 

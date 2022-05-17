@@ -6,16 +6,16 @@ import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.parser.decode
+import io.circe.syntax.*
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import io.circe.syntax.*
 
 class MetricsTest extends AnyFunSuite {
   val sg: ServiceGuard[IO] =
@@ -62,4 +62,5 @@ class MetricsTest extends AnyFunSuite {
 
     assert(last.get.asInstanceOf[MetricReport].snapshot.counterMap.size === 0)
   }
+
 }

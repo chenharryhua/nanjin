@@ -11,10 +11,8 @@ final class NJCounter[F[_]] private[guard] (metricName: Digested, metricRegistry
 
   def asError: NJCounter[F] = new NJCounter[F](metricName, metricRegistry, isError = true)
 
-  def unsafeInc(num: Long): Unit = counter.inc(num)
-  def inc(num: Long): F[Unit]    = F.delay(unsafeInc(num))
+  def inc(num: Long): F[Unit] = F.delay(counter.inc(num))
 
-  def unsafeDec(num: Long): Unit = counter.dec(num)
-  def dec(num: Long): F[Unit]    = F.delay(unsafeDec(num))
+  def dec(num: Long): F[Unit] = F.delay(counter.dec(num))
 
 }

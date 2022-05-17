@@ -15,9 +15,8 @@ final class NJMeter[F[_]] private[guard] (
 
   def withCounting: NJMeter[F] = new NJMeter[F](metricName, metricRegistry, CountAction.Yes)
 
-  def unsafeMark(num: Long): Unit = {
+  def mark(num: Long): F[Unit] = F.delay {
     meter.mark(num)
     if (isCounting.value) counter.inc(num)
   }
-  def mark(num: Long): F[Unit] = F.delay(unsafeMark(num))
 }

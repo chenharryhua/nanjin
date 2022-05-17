@@ -16,7 +16,8 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 final private class ActionEventPublisher[F[_]: UUIDGen](
   serviceStatus: Ref[F, ServiceStatus],
-  channel: Channel[F, NJEvent]
+  channel: Channel[F, NJEvent],
+  retryCount: Ref[F, Int]
 )(implicit F: Temporal[F]) {
 
   def actionStart(actionParams: ActionParams): F[ActionInfo] =
@@ -28,28 +29,25 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
       _ <- serviceStatus.update(_.include(ai)).whenA(actionParams.isExpensive.value)
     } yield ai
 
-  def actionRetry(
-    actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
-    willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable): F[Unit] =
+  def actionRetry(actionInfo: ActionInfo, willDelayAndRetry: WillDelayAndRetry, ex: Throwable): F[Unit] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       uuid <- UUIDGen.randomUUID[F]
-      _ <- channel.send(
-        ActionRetry(
-          actionInfo = actionInfo,
-          timestamp = ts,
-          retriesSoFar = willDelayAndRetry.retriesSoFar,
-          nextRetryTime = ts.plus(willDelayAndRetry.nextDelay.toJava),
-          error = NJError(uuid, ex)
-        ))
+      _ <- channel
+        .send(
+          ActionRetry(
+            actionInfo = actionInfo,
+            timestamp = ts,
+            retriesSoFar = willDelayAndRetry.retriesSoFar,
+            nextRetryTime = ts.plus(willDelayAndRetry.nextDelay.toJava),
+            error = NJError(uuid, ex)
+          ))
+        .whenA(actionInfo.actionParams.isNonTrivial)
       _ <- retryCount.update(_ + 1)
     } yield ()
 
   def actionSucc[A, B](
     actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
     input: A,
     output: F[B],
     buildNotes: (A, F[B]) => F[Notes]): F[ZonedDateTime] =
@@ -67,9 +65,8 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
 
   def actionFail[A](
     actionInfo: ActionInfo,
-    retryCount: Ref[F, Int],
-    ex: Throwable,
     input: A,
+    ex: Throwable,
     buildNotes: (A, Throwable) => F[Notes]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)

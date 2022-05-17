@@ -117,32 +117,30 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metricReport(evt: MetricReport): SlackApp =
+  private def metricReport(evt: MetricReport): SlackApp = {
+    val nextReport = evt.serviceParams.metric
+      .nextReport(evt.timestamp)
+      .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
+      .getOrElse("None")
+
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"""*${evt.title}*
-                               |${upcomingRestartTimeInterpretation(evt)}""".stripMargin),
+            MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            JuxtaposeSection(
-              TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show),
-              TextField(
-                "Scheduled Next",
-                evt.serviceParams.metric
-                  .nextReport(evt.timestamp)
-                  .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
-                  .getOrElse("None"))
-            ),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
+            MarkdownSection(s"""${upcomingRestartTimeInterpretation(evt)}
+                               |*Next Report at:* $nextReport
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
         ),
         Attachment(color = coloring(evt), blocks = List(MarkdownSection(evt.serviceParams.brief)))
       )
     )
+  }
 
   private def metricReset(evt: MetricReset): SlackApp =
     SlackApp(

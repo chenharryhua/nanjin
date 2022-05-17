@@ -82,11 +82,11 @@ package object translators {
       case None => s"The service has been up and running for ${fmt.format(mr.upTime)}."
       case Some(zdt) =>
         val (time, dur) = localTimeAndDurationStr(mr.timestamp, zdt)
-        s"The service is in panic, restart was scheduled at $time, in $dur."
+        s"The service is in panic. Restart was scheduled at $time, in $dur."
     }
 
   private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
     val (time, dur) = localTimeAndDurationStr(sp.timestamp, sp.restartTime)
-    s":alarm: The service experienced a panic, restart was scheduled at $time, in $dur."
+    s":alarm: The service experienced a panic. Restart was scheduled at $time, in $dur."
   }
 }

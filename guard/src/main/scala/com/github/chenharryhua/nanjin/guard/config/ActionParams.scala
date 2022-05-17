@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.syntax.all.*
 import cats.{Applicative, Show}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.guard.MaxRetry
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
@@ -10,8 +10,8 @@ import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.refined.*
 import monocle.macros.Lenses
-import retry.PolicyDecision.DelayAndRetry
 import retry.{RetryPolicies, RetryPolicy}
+import retry.PolicyDecision.DelayAndRetry
 
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration.*
@@ -51,9 +51,11 @@ object NJRetryPolicy {
   maxRetries: MaxRetry,
   capDelay: Option[FiniteDuration],
   njRetryPolicy: NJRetryPolicy) {
-  def policy[F[_]: Applicative]: RetryPolicy[F] =
-    capDelay.fold(njRetryPolicy.policy[F].join(RetryPolicies.limitRetries[F](maxRetries.value)))(cd =>
-      RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(RetryPolicies.limitRetries[F](maxRetries.value)))
+  def policy[F[_]: Applicative]: RetryPolicy[F] = {
+    val limit: RetryPolicy[F] = RetryPolicies.limitRetries[F](maxRetries.value)
+    capDelay.fold(njRetryPolicy.policy[F].join(limit))(cd =>
+      RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(limit))
+  }
 }
 
 object ActionRetryParams {
