@@ -34,17 +34,6 @@ class PassThroughTest extends AnyFunSuite {
     assert(rest.size == 8)
   }
 
-  test("unsafe pass-through") {
-    val List(PassThroughObject(a, b)) = guard.eventStream { action =>
-      IO(1).map(_ => action.broker("pt").unsafePassThrough(PassThroughObject(1, "a")))
-    }.map {
-      case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
-      case _                          => None
-    }.unNone.compile.toList.unsafeRunSync()
-    assert(a == 1)
-    assert(b == "a")
-  }
-
   test("counter") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.secondly))

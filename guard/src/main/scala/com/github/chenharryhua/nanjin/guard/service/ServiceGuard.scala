@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Ref}
-import cats.effect.std.{Dispatcher, UUIDGen}
+import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
@@ -78,9 +78,8 @@ final class ServiceGuard[F[_]] private[guard] (
                     case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
                   }
               ) {
-                sep.serviceReStart *> Dispatcher[F].use(dispatcher =>
-                  runAgent(
-                    new Agent[F](metricRegistry, serviceStatus, channel, dispatcher, AgentConfig(serviceParams))))
+                sep.serviceReStart *>
+                  runAgent(new Agent[F](metricRegistry, serviceStatus, channel, AgentConfig(serviceParams)))
               }
               .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
           }
