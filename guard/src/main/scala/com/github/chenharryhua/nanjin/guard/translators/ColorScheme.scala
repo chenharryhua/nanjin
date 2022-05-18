@@ -14,8 +14,8 @@ object ColorScheme {
   case object WarnColor extends ColorScheme // well, not so wrong
   case object ErrorColor extends ColorScheme // oops
 
-  def decorate(evt: NJEvent): ContT[Eval, String, ColorScheme] =
-    ContT.pure[Eval, String, NJEvent](evt).map {
+  def decorate[A](evt: NJEvent): ContT[Eval, A, ColorScheme] =
+    ContT.pure[Eval, A, NJEvent](evt).map {
       case _: ServiceStart          => InfoColor
       case _: ServicePanic          => ErrorColor
       case ServiceStop(_, _, cause) => if (cause.exitCode === 0) GoodColor else ErrorColor
