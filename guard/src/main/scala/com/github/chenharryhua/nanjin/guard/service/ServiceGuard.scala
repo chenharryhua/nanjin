@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.data.Reader
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import cats.Endo
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -37,18 +37,18 @@ import scala.util.control.NonFatal
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   metricFilter: MetricFilter,
-  jmxBuilder: Option[Reader[JmxReporter.Builder, JmxReporter.Builder]])(implicit F: Async[F])
+  jmxBuilder: Option[Endo[JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
-  override def updateConfig(f: ServiceConfig => ServiceConfig): ServiceGuard[F] =
+  override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
 
   def apply(serviceName: ServiceName): ServiceGuard[F] = updateConfig(_.withServiceName(serviceName))
 
-  def withJmxReporter(builder: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricFilter, Some(Reader(builder)))
+  def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
+    new ServiceGuard[F](serviceConfig, metricFilter, Some(builder))
 
-  def withMetricFilter(filter: MetricFilter) =
+  def withMetricFilter(filter: MetricFilter): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, filter, jmxBuilder)
 
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
@@ -123,8 +123,8 @@ final class ServiceGuard[F[_]] private[guard] (
             case None => Stream.empty
             case Some(builder) =>
               Stream
-                .bracket(F.delay(builder.run(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(
-                  r => F.delay(r.close()))
+                .bracket(F.delay(builder(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(r =>
+                  F.delay(r.close()))
                 .evalMap(jr => F.delay(jr.start()))
                 .flatMap(_ => Stream.never[F])
           }

@@ -5,6 +5,7 @@ import akka.kafka.ProducerMessage.{multi, Envelope}
 import akka.stream.scaladsl.Source
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -25,7 +26,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
   val params: SKParams = cfg.evalConfig
 
   // transform
-  def transform(f: RDD[NJProducerRecord[K, V]] => RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
+  def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](f(rdd), codec, cfg)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))

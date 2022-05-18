@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.Eq
+import cats.{Endo, Eq}
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -24,7 +24,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   protected val codec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
 
   // transforms
-  def transform(f: RDD[NJConsumerRecord[K, V]] => RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
+  def transform(f: Endo[RDD[NJConsumerRecord[K, V]]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](f(rdd), ack, acv, cfg, ss)
 
   def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))

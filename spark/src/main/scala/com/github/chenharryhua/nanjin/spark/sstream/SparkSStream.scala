@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
+import cats.Endo
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedEncoder, TypedExpressionEncoder}
@@ -9,7 +10,7 @@ import org.apache.spark.sql.{Dataset, Row}
 final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) extends Serializable {
   val params: SStreamParams = cfg.evalConfig
 
-  private def updateConfig(f: SStreamConfig => SStreamConfig): SparkSStream[F, A] =
+  private def updateConfig(f: Endo[SStreamConfig]): SparkSStream[F, A] =
     new SparkSStream[F, A](dataset, f(cfg))
 
   def checkpoint(cp: NJPath): SparkSStream[F, A] = updateConfig(_.checkpoint(cp))

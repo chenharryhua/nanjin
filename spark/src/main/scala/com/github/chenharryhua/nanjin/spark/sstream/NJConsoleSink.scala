@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.kernel.Async
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.utils.random4d
 import fs2.Stream
@@ -19,7 +20,7 @@ final class NJConsoleSink[F[_], A](
   def truncate: NJConsoleSink[F, A]       = new NJConsoleSink[F, A](dsw, cfg, numRows, true)
   def untruncate: NJConsoleSink[F, A]     = new NJConsoleSink[F, A](dsw, cfg, numRows, false)
 
-  override def updateConfig(f: SStreamConfig => SStreamConfig): NJConsoleSink[F, A] =
+  override def updateConfig(f: Endo[SStreamConfig]): NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dsw, f(cfg), numRows, isTruncate)
 
   def trigger(trigger: Trigger): NJConsoleSink[F, A] = updateConfig(_.triggerMode(trigger))

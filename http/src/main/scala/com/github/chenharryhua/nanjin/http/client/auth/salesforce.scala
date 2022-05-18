@@ -5,6 +5,7 @@ import cats.effect.implicits.genTemporalOps_
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import org.http4s.*
@@ -90,7 +91,7 @@ object salesforce {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): MarketingCloud[F] =
+    override def updateConfig(f: Endo[AuthConfig]): MarketingCloud[F] =
       new MarketingCloud[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -186,7 +187,7 @@ object salesforce {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): Iot[F] =
+    override def updateConfig(f: Endo[AuthConfig]): Iot[F] =
       new Iot[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,

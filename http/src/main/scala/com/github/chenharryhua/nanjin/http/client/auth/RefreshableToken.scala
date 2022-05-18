@@ -5,6 +5,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
@@ -81,7 +82,7 @@ final class RefreshableToken[F[_]] private (
     }
   }
 
-  override def updateConfig(f: AuthConfig => AuthConfig): RefreshableToken[F] =
+  override def updateConfig(f: Endo[AuthConfig]): RefreshableToken[F] =
     new RefreshableToken[F](
       auth_endpoint = auth_endpoint,
       client_id = client_id,

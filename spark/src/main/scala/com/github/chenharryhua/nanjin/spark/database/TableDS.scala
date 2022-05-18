@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.database
 
+import cats.Endo
 import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import com.zaxxer.hikari.HikariConfig
 import frameless.TypedDataset
@@ -14,10 +15,10 @@ final class TableDS[F[_], A] private[database] (
 
   val params: STParams = cfg.evalConfig
 
-  def transform(f: Dataset[A] => Dataset[A]): TableDS[F, A] =
+  def transform(f: Endo[Dataset[A]]): TableDS[F, A] =
     new TableDS[F, A](f(dataset), tableDef, hikariConfig, cfg)
 
-  def normalize: TableDS[F, A] = transform(tableDef.ate.normalize(_))
+  def normalize: TableDS[F, A] = transform(tableDef.ate.normalize)
 
   def repartition(num: Int): TableDS[F, A] = transform(_.repartition(num))
 

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Reader
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.NJCompression
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner.Mark
@@ -31,7 +32,7 @@ final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig) extends Serializa
 final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg: SDConfig) extends Serializable {
   val params: SDParams = cfg.evalConfig
 
-  private def updateConfig(f: SDConfig => SDConfig): AvroDStreamSink[A] =
+  private def updateConfig(f: Endo[SDConfig]): AvroDStreamSink[A] =
     new AvroDStreamSink[A](dstream, encoder, f(cfg))
 
   def pathBuilder(f: NJPath => NJTimestamp => NJPath): AvroDStreamSink[A] = updateConfig(_.pathBuilder(f))
@@ -58,7 +59,7 @@ final class DStreamCirce[A: JsonEncoder](
     extends Serializable {
   val params: SDParams = cfg.evalConfig
 
-  private def updateConfig(f: SDConfig => SDConfig): DStreamCirce[A] =
+  private def updateConfig(f: Endo[SDConfig]): DStreamCirce[A] =
     new DStreamCirce[A](dstream, pathBuilder, f(cfg), isKeepNull)
 
   def lz4: DStreamCirce[A]                 = updateConfig(_.withCompression(NJCompression.Lz4))
@@ -78,7 +79,7 @@ final class DStreamAvro[A](
   encoder: AvroEncoder[A],
   cfg: SDConfig)
     extends Serializable {
-  private def updateConfig(f: SDConfig => SDConfig): DStreamAvro[A] =
+  private def updateConfig(f: Endo[SDConfig]): DStreamAvro[A] =
     new DStreamAvro[A](dstream, pathBuilder, encoder, f(cfg))
 
   val params: SDParams = cfg.evalConfig
@@ -99,7 +100,7 @@ final class DStreamJackson[A](
   encoder: AvroEncoder[A],
   cfg: SDConfig)
     extends Serializable {
-  private def updateConfig(f: SDConfig => SDConfig): DStreamJackson[A] =
+  private def updateConfig(f: Endo[SDConfig]): DStreamJackson[A] =
     new DStreamJackson[A](dstream, pathBuilder, encoder, f(cfg))
 
   val params: SDParams = cfg.evalConfig
