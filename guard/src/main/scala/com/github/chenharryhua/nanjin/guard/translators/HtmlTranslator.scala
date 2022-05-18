@@ -87,7 +87,6 @@ private object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
-      p(b("ErrorID: "), evt.error.uuid.show),
       p(b("Policy: "), evt.serviceParams.retry.policy[F].show),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       causeText(evt.error)

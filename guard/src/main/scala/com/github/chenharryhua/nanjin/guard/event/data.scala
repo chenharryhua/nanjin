@@ -14,7 +14,6 @@ import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
-import java.util.UUID
 
 @JsonCodec
 final case class Notes private (value: String) extends AnyVal
@@ -25,12 +24,12 @@ private[guard] object Notes {
 }
 
 @JsonCodec
-final case class NJError private (uuid: UUID, message: String, stackTrace: String)
+final case class NJError private (message: String, stackTrace: String)
 
 private[guard] object NJError {
   implicit final val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
-  def apply(uuid: UUID, ex: Throwable): NJError =
-    NJError(uuid, ExceptionUtils.getRootCauseMessage(ex), ExceptionUtils.getStackTrace(ex))
+  def apply(ex: Throwable): NJError =
+    NJError(ExceptionUtils.getRootCauseMessage(ex), ExceptionUtils.getStackTrace(ex))
 }
 
 @JsonCodec
