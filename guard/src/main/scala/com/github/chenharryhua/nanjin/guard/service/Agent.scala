@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.{Alternative, Traverse}
+import cats.{Alternative, Endo, Traverse}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
@@ -31,7 +31,7 @@ final class Agent[F[_]] private[service] (
   def zoneId: ZoneId         = agentParams.serviceParams.taskParams.zoneId
   def digestedName: Digested = Digested(agentParams.spans, agentParams.serviceParams)
 
-  override def updateConfig(f: AgentConfig => AgentConfig): Agent[F] =
+  override def updateConfig(f: Endo[AgentConfig]): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, f(agentConfig))
 
   def span(name: Span): Agent[F] = updateConfig(_.withSpan(name))

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.effect.kernel.Async
+import cats.Endo
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import fs2.Stream
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress, Trigger}
@@ -11,7 +12,7 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
 
   override val params: SStreamParams = cfg.evalConfig
 
-  private def updateCfg(f: SStreamConfig => SStreamConfig): NJFileSink[F, A] =
+  private def updateCfg(f: Endo[SStreamConfig]): NJFileSink[F, A] =
     new NJFileSink[F, A](dsw, f(cfg), path)
 
   def parquet: NJFileSink[F, A] = updateCfg(_.parquetFormat)
@@ -21,7 +22,7 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
   def triggerEvery(duration: FiniteDuration): NJFileSink[F, A] =
     updateCfg(_.triggerMode(Trigger.ProcessingTime(duration)))
 
-  def withOptions(f: DataStreamWriter[A] => DataStreamWriter[A]): NJFileSink[F, A] =
+  def withOptions(f: Endo[DataStreamWriter[A]]): NJFileSink[F, A] =
     new NJFileSink(f(dsw), cfg, path)
 
   def queryName(name: String): NJFileSink[F, A] = updateCfg(_.queryName(name))

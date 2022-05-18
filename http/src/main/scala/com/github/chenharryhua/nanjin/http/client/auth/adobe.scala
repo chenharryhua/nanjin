@@ -5,6 +5,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
@@ -82,7 +83,7 @@ object adobe {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): IMS[F] =
+    override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
       new IMS[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -185,7 +186,7 @@ object adobe {
       }
     }
 
-    override def updateConfig(f: AuthConfig => AuthConfig): JWT[F] =
+    override def updateConfig(f: Endo[AuthConfig]): JWT[F] =
       new JWT[F](
         auth_endpoint = auth_endpoint,
         ims_org_id = ims_org_id,

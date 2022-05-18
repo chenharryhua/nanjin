@@ -5,6 +5,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
@@ -106,7 +107,7 @@ object cognito {
         cfg = cfg,
         middleware = compose(f, middleware))
 
-    override def updateConfig(f: AuthConfig => AuthConfig): AuthorizationCode[F] =
+    override def updateConfig(f: Endo[AuthConfig]): AuthorizationCode[F] =
       new AuthorizationCode[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -202,7 +203,7 @@ object cognito {
         compose(f, middleware)
       )
 
-    override def updateConfig(f: AuthConfig => AuthConfig): ClientCredentials[F] =
+    override def updateConfig(f: Endo[AuthConfig]): ClientCredentials[F] =
       new ClientCredentials[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,

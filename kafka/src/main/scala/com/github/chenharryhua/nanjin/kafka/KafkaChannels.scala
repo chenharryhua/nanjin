@@ -5,6 +5,7 @@ import akka.{Done, NotUsed}
 import cats.data.NonEmptyList
 import cats.effect.kernel.*
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage
@@ -45,29 +46,26 @@ object KafkaChannels {
 
     // settings
 
-    def updateConsumer(
-      f: ConsumerSettings[F, Array[Byte], Array[Byte]] => ConsumerSettings[F, Array[Byte], Array[Byte]])
-      : Fs2Channel[F, K, V] =
+    def updateConsumer(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): Fs2Channel[F, K, V] =
       new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater.updateConfig(f), psUpdater, txnUpdater)
 
-    def updateProducer(f: ProducerSettings[F, K, V] => ProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
+    def updateProducer(f: Endo[ProducerSettings[F, K, V]]): Fs2Channel[F, K, V] =
       new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater, psUpdater.updateConfig(f), txnUpdater)
 
-    def updateTxnProducer(
-      f: TransactionalProducerSettings[F, K, V] => TransactionalProducerSettings[F, K, V]): Fs2Channel[F, K, V] =
+    def updateTxnProducer(f: Endo[TransactionalProducerSettings[F, K, V]]): Fs2Channel[F, K, V] =
       new Fs2Channel[F, K, V](topic, kps, kcs, csUpdater, psUpdater, txnUpdater.updateConfig(f))
 
     def producerSettings(implicit F: Sync[F]): ProducerSettings[F, K, V] =
-      psUpdater.updates.run(
+      psUpdater.updates(
         ProducerSettings[F, K, V](
           Serializer.delegate(topic.codec.keySerializer),
           Serializer.delegate(topic.codec.valSerializer)).withProperties(kps.config))
 
     def txnProducerSettings(transactionalId: String)(implicit F: Sync[F]): TransactionalProducerSettings[F, K, V] =
-      txnUpdater.updates.run(TransactionalProducerSettings(transactionalId, producerSettings))
+      txnUpdater.updates(TransactionalProducerSettings(transactionalId, producerSettings))
 
     def consumerSettings(implicit F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
-      csUpdater.updates.run(
+      csUpdater.updates(
         ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
           .withProperties(kcs.config))
 
@@ -127,28 +125,27 @@ object KafkaChannels {
 
     val topicName: TopicName = topic.topicName
     // settings
-    def updateConsumer(f: ConsumerSettings[Array[Byte], Array[Byte]] => ConsumerSettings[Array[Byte], Array[Byte]])
-      : AkkaChannel[F, K, V] =
+    def updateConsumer(f: Endo[ConsumerSettings[Array[Byte], Array[Byte]]]): AkkaChannel[F, K, V] =
       new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater.updateConfig(f), psUpdater, ctUpdater)
 
-    def updateProducer(f: ProducerSettings[K, V] => ProducerSettings[K, V]): AkkaChannel[F, K, V] =
+    def updateProducer(f: Endo[ProducerSettings[K, V]]): AkkaChannel[F, K, V] =
       new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater.updateConfig(f), ctUpdater)
 
-    def updateCommitter(f: CommitterSettings => CommitterSettings): AkkaChannel[F, K, V] =
+    def updateCommitter(f: Endo[CommitterSettings]): AkkaChannel[F, K, V] =
       new AkkaChannel[F, K, V](topic, akkaSystem, kps, kcs, csUpdater, psUpdater, ctUpdater.updateConfig(f))
 
     def producerSettings: ProducerSettings[K, V] =
-      psUpdater.updates.run(
+      psUpdater.updates(
         ProducerSettings[K, V](akkaSystem, topic.codec.keySerializer, topic.codec.valSerializer)
           .withProperties(kps.config))
 
     def consumerSettings: ConsumerSettings[Array[Byte], Array[Byte]] =
-      csUpdater.updates.run(
+      csUpdater.updates(
         ConsumerSettings[Array[Byte], Array[Byte]](akkaSystem, new ByteArrayDeserializer, new ByteArrayDeserializer)
           .withProperties(kcs.config))
 
     def committerSettings: CommitterSettings =
-      ctUpdater.updates.run(CommitterSettings(akkaSystem))
+      ctUpdater.updates(CommitterSettings(akkaSystem))
 
     @inline def decoder[G[_, _]: NJConsumerMessage](cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
       topic.decoder[G](cr)
