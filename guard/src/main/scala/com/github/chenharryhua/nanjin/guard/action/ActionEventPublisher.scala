@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.Unique
 import cats.effect.kernel.{Ref, Temporal}
-import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, Notes}
@@ -14,7 +13,7 @@ import retry.RetryDetails.WillDelayAndRetry
 import java.time.ZonedDateTime
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-final private class ActionEventPublisher[F[_]: UUIDGen](
+final private class ActionEventPublisher[F[_]](
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   retryCount: Ref[F, Int]
@@ -32,7 +31,6 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
   def actionRetry(actionInfo: ActionInfo, willDelayAndRetry: WillDelayAndRetry, ex: Throwable): F[Unit] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
-      uuid <- UUIDGen.randomUUID[F]
       _ <- channel
         .send(
           ActionRetry(
@@ -40,7 +38,7 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
             timestamp = ts,
             retriesSoFar = willDelayAndRetry.retriesSoFar,
             nextRetryTime = ts.plus(willDelayAndRetry.nextDelay.toJava),
-            error = NJError(uuid, ex)
+            error = NJError(ex)
           ))
         .whenA(actionInfo.actionParams.isNonTrivial)
       _ <- retryCount.update(_ + 1)
@@ -70,7 +68,6 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
     buildNotes: (A, Throwable) => F[Notes]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
-      uuid <- UUIDGen.randomUUID[F]
       numRetries <- retryCount.get
       notes <- buildNotes(input, ex)
       _ <- channel.send(
@@ -79,7 +76,7 @@ final private class ActionEventPublisher[F[_]: UUIDGen](
           timestamp = ts,
           numRetries = numRetries,
           notes = notes,
-          error = NJError(uuid, ex)))
+          error = NJError(ex)))
       _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
     } yield ts
 }

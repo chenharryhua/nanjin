@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.Kleisli
 import cats.effect.Temporal
 import cats.effect.kernel.{Outcome, Ref}
-import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
@@ -16,7 +15,7 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
-final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
+final class NJRetry[F[_], A, B] private[guard] (
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -85,7 +84,7 @@ final class NJRetry[F[_]: UUIDGen, A, B] private[guard] (
   } yield res
 }
 
-final class NJRetryUnit[F[_]: Temporal: UUIDGen, B] private[guard] (
+final class NJRetryUnit[F[_]: Temporal, B] private[guard] (
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],

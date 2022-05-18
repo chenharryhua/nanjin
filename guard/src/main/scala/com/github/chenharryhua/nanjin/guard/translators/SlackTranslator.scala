@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.Applicative
+import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.Importance
@@ -13,12 +13,15 @@ import java.time.Duration
 private object SlackTranslator extends all {
   import NJEvent.*
 
-  private val coloring: Coloring = new Coloring({
-    case ColorScheme.GoodColor  => "#36a64f"
-    case ColorScheme.InfoColor  => "#b3d1ff"
-    case ColorScheme.WarnColor  => "#ffd79a"
-    case ColorScheme.ErrorColor => "#935252"
-  })
+  private def coloring(evt: NJEvent): String = ColorScheme
+    .decorate(evt)
+    .run {
+      case ColorScheme.GoodColor  => Eval.now("#36a64f")
+      case ColorScheme.InfoColor  => Eval.now("#b3d1ff")
+      case ColorScheme.WarnColor  => Eval.now("#ffd79a")
+      case ColorScheme.ErrorColor => Eval.now("#935252")
+    }
+    .value
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
     if (snapshot.show.length <= MessageSizeLimits) {
@@ -67,7 +70,6 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
-                                |*Error ID:* ${evt.error.uuid.show}
                                 |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )

@@ -1,17 +1,20 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.Applicative
+import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 
 private object SimpleTextTranslator {
   import NJEvent.*
-  private def coloring(msg: String): Coloring = new Coloring({
-    case ColorScheme.GoodColor  => Console.GREEN + msg + Console.RESET
-    case ColorScheme.InfoColor  => msg
-    case ColorScheme.WarnColor  => Console.CYAN + msg + Console.RESET
-    case ColorScheme.ErrorColor => Console.YELLOW + msg + Console.RESET
-  })
+  private def coloring(msg: String)(evt: NJEvent): String = ColorScheme
+    .decorate(evt)
+    .run {
+      case ColorScheme.GoodColor  => Eval.now(Console.GREEN + msg + Console.RESET)
+      case ColorScheme.InfoColor  => Eval.now(msg)
+      case ColorScheme.WarnColor  => Eval.now(Console.CYAN + msg + Console.RESET)
+      case ColorScheme.ErrorColor => Eval.now(Console.YELLOW + msg + Console.RESET)
+    }
+    .value
 
   private def serviceEvent(se: ServiceEvent): String = {
     val host: String = se.serviceParams.taskParams.hostName.value
@@ -25,8 +28,7 @@ private object SimpleTextTranslator {
         |  Name:${ie.metricName.metricRepr}""".stripMargin
   }
 
-  private def errorStr(err: NJError): String =
-    s"Cause: ${err.stackTrace}"
+  private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
@@ -43,7 +45,6 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
-       |  ErrorID: ${evt.error.uuid.show}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 

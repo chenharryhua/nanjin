@@ -1,0 +1,40 @@
+package com.github.chenharryhua.nanjin.guard.translators
+
+import cats.syntax.all.*
+import cats.Eval
+import cats.data.ContT
+import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+
+sealed trait ColorScheme
+object ColorScheme {
+  import NJEvent.*
+  case object GoodColor extends ColorScheme // successful-ish
+  case object InfoColor extends ColorScheme // fyi
+  case object WarnColor extends ColorScheme // well, not so wrong
+  case object ErrorColor extends ColorScheme // oops
+
+  def decorate[A](evt: NJEvent): ContT[Eval, A, ColorScheme] =
+    ContT.pure[Eval, A, NJEvent](evt).map {
+      case _: ServiceStart          => InfoColor
+      case _: ServicePanic          => ErrorColor
+      case ServiceStop(_, _, cause) => if (cause.exitCode === 0) GoodColor else ErrorColor
+      case mr @ MetricReport(_, _, _, _, snapshot, _) =>
+        if (mr.isPanic) ErrorColor
+        else if (snapshot.isContainErrors) WarnColor
+        else InfoColor
+      case _: MetricReset => InfoColor
+      case _: ActionStart => InfoColor
+      case _: ActionRetry => WarnColor
+      case _: ActionFail  => ErrorColor
+      case _: ActionSucc  => GoodColor
+      case InstantAlert(_, _, _, importance, _) =>
+        importance match {
+          case Importance.Critical => ErrorColor
+          case Importance.High     => WarnColor
+          case Importance.Medium   => InfoColor
+          case Importance.Low      => InfoColor
+        }
+      case PassThrough(_, _, _, isError, _) => if (isError) ErrorColor else InfoColor
+    }
+}

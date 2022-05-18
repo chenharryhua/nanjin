@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
+import cats.{Applicative, Eval, Monad}
 import cats.syntax.all.*
-import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, Notes}
@@ -17,12 +17,15 @@ import java.time.temporal.ChronoUnit
 private object HtmlTranslator extends all {
   import NJEvent.*
 
-  private val coloring: Coloring = new Coloring({
-    case ColorScheme.GoodColor  => "color:darkgreen"
-    case ColorScheme.InfoColor  => "color:black"
-    case ColorScheme.WarnColor  => "color:#b3b300"
-    case ColorScheme.ErrorColor => "color:red"
-  })
+  private def coloring(evt: NJEvent): String = ColorScheme
+    .decorate(evt)
+    .run {
+      case ColorScheme.GoodColor  => Eval.now("color:darkgreen")
+      case ColorScheme.InfoColor  => Eval.now("color:black")
+      case ColorScheme.WarnColor  => Eval.now("color:#b3b300")
+      case ColorScheme.ErrorColor => Eval.now("color:red")
+    }
+    .value
 
   private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
     p(b("Timestamp: "), timestamp.truncatedTo(ChronoUnit.SECONDS).show)
@@ -84,7 +87,6 @@ private object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
-      p(b("ErrorID: "), evt.error.uuid.show),
       p(b("Policy: "), evt.serviceParams.retry.policy[F].show),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       causeText(evt.error)

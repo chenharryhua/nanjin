@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.Applicative
+import cats.{Applicative, Endo}
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import com.amazonaws.services.simplesystemsmanagement.model.GetParametersRequest
 import com.amazonaws.services.simplesystemsmanagement.{
   AWSSimpleSystemsManagement,
   AWSSimpleSystemsManagementClientBuilder
 }
+import com.amazonaws.services.simplesystemsmanagement.model.GetParametersRequest
 import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -20,8 +20,7 @@ sealed trait ParameterStore[F[_]] {
   final def base64(path: ParameterStorePath)(implicit F: Applicative[F]): F[Array[Byte]] =
     fetch(path).map(c => Base64.getDecoder.decode(c.value.getBytes))
 
-  def updateBuilder(
-    f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder): ParameterStore[F]
+  def updateBuilder(f: Endo[AWSSimpleSystemsManagementClientBuilder]): ParameterStore[F]
 }
 
 object ParameterStore {
@@ -34,12 +33,10 @@ object ParameterStore {
       override def fetch(path: ParameterStorePath): F[ParameterStoreContent] =
         ParameterStoreContent(content).pure
 
-      override def updateBuilder(
-        f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder): ParameterStore[F] = this
+      override def updateBuilder(f: Endo[AWSSimpleSystemsManagementClientBuilder]): ParameterStore[F] = this
     }))(_ => F.unit)
 
-  def apply[F[_]: Sync](f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder)
-    : Resource[F, ParameterStore[F]] =
+  def apply[F[_]: Sync](f: Endo[AWSSimpleSystemsManagementClientBuilder]): Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       ps <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(f, logger))) { case (cw, quitCase) =>
@@ -47,9 +44,8 @@ object ParameterStore {
       }
     } yield ps
 
-  final private class AwsPS[F[_]](
-    buildFrom: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder,
-    logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsPS[F[_]](buildFrom: Endo[AWSSimpleSystemsManagementClientBuilder], logger: Logger[F])(implicit
+    F: Sync[F])
       extends ShutdownService[F] with ParameterStore[F] {
     private lazy val client: AWSSimpleSystemsManagement =
       buildFrom(AWSSimpleSystemsManagementClientBuilder.standard()).build()
@@ -64,8 +60,7 @@ object ParameterStore {
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
-    override def updateBuilder(
-      f: AWSSimpleSystemsManagementClientBuilder => AWSSimpleSystemsManagementClientBuilder): ParameterStore[F] =
+    override def updateBuilder(f: Endo[AWSSimpleSystemsManagementClientBuilder]): ParameterStore[F] =
       new AwsPS[F](buildFrom.andThen(f), logger)
   }
 }
