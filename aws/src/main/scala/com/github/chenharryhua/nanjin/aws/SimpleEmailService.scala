@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
+import cats.Endo
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
 import com.amazonaws.services.simpleemail.model.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
@@ -11,16 +12,14 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 sealed trait SimpleEmailService[F[_]] {
   def send(txt: EmailContent): F[SendEmailResult]
-  def updateBuilder(
-    f: AmazonSimpleEmailServiceClientBuilder => AmazonSimpleEmailServiceClientBuilder): SimpleEmailService[F]
+  def updateBuilder(f: Endo[AmazonSimpleEmailServiceClientBuilder]): SimpleEmailService[F]
 }
 
 object SimpleEmailService {
 
   private val name: String = "aws.SES"
 
-  def apply[F[_]: Sync](f: AmazonSimpleEmailServiceClientBuilder => AmazonSimpleEmailServiceClientBuilder)
-    : Resource[F, SimpleEmailService[F]] =
+  def apply[F[_]: Sync](f: Endo[AmazonSimpleEmailServiceClientBuilder]): Resource[F, SimpleEmailService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       er <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSES[F](f, logger))) {
@@ -34,14 +33,12 @@ object SimpleEmailService {
       override def send(txt: EmailContent): F[SendEmailResult] =
         logger.info(txt.asJson.noSpaces) *> F.pure(new SendEmailResult)
 
-      override def updateBuilder(
-        f: AmazonSimpleEmailServiceClientBuilder => AmazonSimpleEmailServiceClientBuilder): SimpleEmailService[F] = this
+      override def updateBuilder(f: Endo[AmazonSimpleEmailServiceClientBuilder]): SimpleEmailService[F] = this
     }))(_ => F.unit)
   }
 
-  final private class AwsSES[F[_]](
-    buildFrom: AmazonSimpleEmailServiceClientBuilder => AmazonSimpleEmailServiceClientBuilder,
-    logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsSES[F[_]](buildFrom: Endo[AmazonSimpleEmailServiceClientBuilder], logger: Logger[F])(implicit
+    F: Sync[F])
       extends ShutdownService[F] with SimpleEmailService[F] {
 
     private lazy val client: AmazonSimpleEmailService =
@@ -60,8 +57,7 @@ object SimpleEmailService {
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
-    override def updateBuilder(
-      f: AmazonSimpleEmailServiceClientBuilder => AmazonSimpleEmailServiceClientBuilder): SimpleEmailService[F] =
+    override def updateBuilder(f: Endo[AmazonSimpleEmailServiceClientBuilder]): SimpleEmailService[F] =
       new AwsSES[F](buildFrom.andThen(f), logger)
   }
 }

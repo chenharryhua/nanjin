@@ -2,18 +2,18 @@ package com.github.chenharryhua.nanjin.aws
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.alpakka.sqs.{MessageAction, SqsAckResult, SqsSourceSettings}
+import akka.stream.alpakka.sqs.scaladsl.{SqsAckFlow, SqsSource}
 import akka.stream.scaladsl.Sink
-import cats.Applicative
+import cats.{Applicative, Endo}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
 import com.github.matsluni.akkahttpspi.AkkaHttpClient.AkkaHttpClientBuilder
-import fs2.interop.reactivestreams.*
 import fs2.{Chunk, Stream}
+import fs2.interop.reactivestreams.*
 import io.circe.optics.JsonPath.*
 import io.circe.parser.*
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -28,9 +28,9 @@ sealed trait SimpleQueueService[F[_]] {
   final def fetchS3(sqs: SqsUrl): Stream[F, S3Path] =
     fetchRecords(sqs).map(sar => Chunk.iterable(sqsS3Parser(sar.messageAction.message.body()))).unchunks
 
-  def updateSqsSourceSettings(f: SqsSourceSettings => SqsSourceSettings): SimpleQueueService[F]
-  def updateSqsAsyncClientBuilder(g: SqsAsyncClientBuilder => SqsAsyncClientBuilder): SimpleQueueService[F]
-  def updateAkkaHttpClientBuilder(h: AkkaHttpClientBuilder => AkkaHttpClientBuilder): SimpleQueueService[F]
+  def updateSqsSourceSettings(f: Endo[SqsSourceSettings]): SimpleQueueService[F]
+  def updateSqsAsyncClientBuilder(g: Endo[SqsAsyncClientBuilder]): SimpleQueueService[F]
+  def updateAkkaHttpClientBuilder(h: Endo[AkkaHttpClientBuilder]): SimpleQueueService[F]
 }
 
 object SimpleQueueService {
@@ -41,15 +41,12 @@ object SimpleQueueService {
     Resource.make(F.pure(new SimpleQueueService[F] {
       override def fetchRecords(sqs: SqsUrl): Stream[F, SqsAckResult] = stream
 
-      override def updateSqsSourceSettings(f: SqsSourceSettings => SqsSourceSettings): SimpleQueueService[F] = this
-      override def updateSqsAsyncClientBuilder(
-        g: SqsAsyncClientBuilder => SqsAsyncClientBuilder): SimpleQueueService[F] = this
-      override def updateAkkaHttpClientBuilder(
-        h: AkkaHttpClientBuilder => AkkaHttpClientBuilder): SimpleQueueService[F] = this
+      override def updateSqsSourceSettings(f: Endo[SqsSourceSettings]): SimpleQueueService[F]         = this
+      override def updateSqsAsyncClientBuilder(g: Endo[SqsAsyncClientBuilder]): SimpleQueueService[F] = this
+      override def updateAkkaHttpClientBuilder(h: Endo[AkkaHttpClientBuilder]): SimpleQueueService[F] = this
     }))(_ => F.unit)
 
-  def apply[F[_]: Async](akkaSystem: ActorSystem)(
-    f: SqsSourceSettings => SqsSourceSettings): Resource[F, SimpleQueueService[F]] =
+  def apply[F[_]: Async](akkaSystem: ActorSystem)(f: Endo[SqsSourceSettings]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       qr <- Resource.makeCase(
@@ -61,9 +58,9 @@ object SimpleQueueService {
 
   final private class AwsSQS[F[_]](
     akkaSystem: ActorSystem,
-    buildSource: SqsSourceSettings => SqsSourceSettings,
-    buildClient: SqsAsyncClientBuilder => SqsAsyncClientBuilder,
-    buildAkkaHttp: AkkaHttpClientBuilder => AkkaHttpClientBuilder)(implicit F: Async[F])
+    buildSource: Endo[SqsSourceSettings],
+    buildClient: Endo[SqsAsyncClientBuilder],
+    buildAkkaHttp: Endo[AkkaHttpClientBuilder])(implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
     private val chunkSize: ChunkSize = ChunkSize(1024)
@@ -84,19 +81,18 @@ object SimpleQueueService {
     override protected val closeService: F[Unit] = F.blocking(client.close())
 
     private def copy(
-      buildSource: SqsSourceSettings => SqsSourceSettings = buildSource,
-      buildClient: SqsAsyncClientBuilder => SqsAsyncClientBuilder = buildClient,
-      buildAkkaHttp: AkkaHttpClientBuilder => AkkaHttpClientBuilder = buildAkkaHttp
-    ): AwsSQS[F] =
-      new AwsSQS[F](akkaSystem, buildSource, buildClient, buildAkkaHttp)
+      buildSource: Endo[SqsSourceSettings] = buildSource,
+      buildClient: Endo[SqsAsyncClientBuilder] = buildClient,
+      buildAkkaHttp: Endo[AkkaHttpClientBuilder] = buildAkkaHttp
+    ): AwsSQS[F] = new AwsSQS[F](akkaSystem, buildSource, buildClient, buildAkkaHttp)
 
-    override def updateSqsSourceSettings(f: SqsSourceSettings => SqsSourceSettings): SimpleQueueService[F] =
+    override def updateSqsSourceSettings(f: Endo[SqsSourceSettings]): SimpleQueueService[F] =
       copy(buildSource = buildSource.andThen(f))
 
-    override def updateSqsAsyncClientBuilder(g: SqsAsyncClientBuilder => SqsAsyncClientBuilder): SimpleQueueService[F] =
+    override def updateSqsAsyncClientBuilder(g: Endo[SqsAsyncClientBuilder]): SimpleQueueService[F] =
       copy(buildClient = buildClient.andThen(g))
 
-    override def updateAkkaHttpClientBuilder(h: AkkaHttpClientBuilder => AkkaHttpClientBuilder): SimpleQueueService[F] =
+    override def updateAkkaHttpClientBuilder(h: Endo[AkkaHttpClientBuilder]): SimpleQueueService[F] =
       copy(buildAkkaHttp = buildAkkaHttp.andThen(h))
   }
 }

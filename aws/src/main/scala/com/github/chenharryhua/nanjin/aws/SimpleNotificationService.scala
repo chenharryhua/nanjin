@@ -2,15 +2,16 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
+import cats.Endo
 import com.amazonaws.services.sns.{AmazonSNS, AmazonSNSClientBuilder}
+import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 sealed trait SimpleNotificationService[F[_]] {
   def publish(snsArn: SnsArn, msg: String): F[PublishResult]
-  def updateBuilder(f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): SimpleNotificationService[F]
+  def updateBuilder(f: Endo[AmazonSNSClientBuilder]): SimpleNotificationService[F]
 }
 
 object SimpleNotificationService {
@@ -23,13 +24,12 @@ object SimpleNotificationService {
       override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
         logger.info(msg) *> F.pure(new PublishResult)
 
-      override def updateBuilder(f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): SimpleNotificationService[F] =
+      override def updateBuilder(f: Endo[AmazonSNSClientBuilder]): SimpleNotificationService[F] =
         this
     }))(_ => F.unit)
   }
 
-  def apply[F[_]: Sync](
-    f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): Resource[F, SimpleNotificationService[F]] =
+  def apply[F[_]: Sync](f: Endo[AmazonSNSClientBuilder]): Resource[F, SimpleNotificationService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       nr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSNS[F](f, logger))) {
@@ -37,8 +37,7 @@ object SimpleNotificationService {
       }
     } yield nr
 
-  final private class AwsSNS[F[_]](buildFrom: AmazonSNSClientBuilder => AmazonSNSClientBuilder, logger: Logger[F])(
-    implicit F: Sync[F])
+  final private class AwsSNS[F[_]](buildFrom: Endo[AmazonSNSClientBuilder], logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with SimpleNotificationService[F] {
 
     private lazy val client: AmazonSNS = buildFrom(AmazonSNSClientBuilder.standard()).build()
@@ -51,7 +50,7 @@ object SimpleNotificationService {
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
-    override def updateBuilder(f: AmazonSNSClientBuilder => AmazonSNSClientBuilder): SimpleNotificationService[F] =
+    override def updateBuilder(f: Endo[AmazonSNSClientBuilder]): SimpleNotificationService[F] =
       new AwsSNS[F](buildFrom.andThen(f), logger)
   }
 }
