@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.{Alternative, Endo, Traverse}
-import cats.data.Kleisli
+import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -129,13 +129,25 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
 
-  def quasi[T[_]: Traverse: Alternative, B](tfb: T[F[B]]): F[T[B]] =
-    run(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map(_._2))
+  def quasi[T[_]: Traverse: Alternative, B](tfb: T[F[B]]): F[Ior[T[Throwable], T[B]]] =
+    run(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
+      (fail.size, succ.size) match {
+        case (0, _) => Ior.Right(succ)
+        case (_, 0) => Ior.left(fail)
+        case _      => Ior.Both(fail, succ)
+      }
+    })
 
-  def quasi[B](fbs: F[B]*): F[List[B]] = quasi[List, B](fbs.toList)
+  def quasi[B](fbs: F[B]*): F[Ior[List[Throwable], List[B]]] = quasi[List, B](fbs.toList)
 
-  def quasi[T[_]: Traverse: Alternative, B](parallelism: Int, tfb: T[F[B]]): F[T[B]] =
-    run(F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map(_._2))
+  def quasi[T[_]: Traverse: Alternative, B](parallelism: Int, tfb: T[F[B]]): F[Ior[T[Throwable], T[B]]] =
+    run(F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
+      (fail.size, succ.size) match {
+        case (0, _) => Ior.Right(succ)
+        case (_, 0) => Ior.left(fail)
+        case _      => Ior.Both(fail, succ)
+      }
+    })
 
-  def quasi[B](parallelism: Int)(tfb: F[B]*): F[List[B]] = quasi[List, B](parallelism, tfb.toList)
+  def quasi[B](parallelism: Int)(tfb: F[B]*): F[Ior[List[Throwable], List[B]]] = quasi[List, B](parallelism, tfb.toList)
 }

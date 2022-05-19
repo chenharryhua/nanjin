@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
+import cats.data.Cont
 import cats.syntax.all.*
-import cats.Eval
-import cats.data.ContT
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 
@@ -14,8 +13,8 @@ object ColorScheme {
   case object WarnColor extends ColorScheme // well, not so wrong
   case object ErrorColor extends ColorScheme // oops
 
-  def decorate[A](evt: NJEvent): ContT[Eval, A, ColorScheme] =
-    ContT.pure[Eval, A, NJEvent](evt).map {
+  def decorate[A](evt: NJEvent): Cont[A, ColorScheme] =
+    Cont.pure[A, NJEvent](evt).map {
       case _: ServiceStart          => InfoColor
       case _: ServicePanic          => ErrorColor
       case ServiceStop(_, _, cause) => if (cause.exitCode === 0) GoodColor else ErrorColor
