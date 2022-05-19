@@ -53,7 +53,7 @@ final class KafkaStreamsBuilder[F[_]] private (
       for {
         latch <- CountDownLatch[F](1)
         _ <- F.blocking(ks.cleanUp())
-        _ <- F.blocking(ks.setStateListener(new StateChange(dispatcher, latch, stop, bus)))
+        _ <- F.delay(ks.setStateListener(new StateChange(dispatcher, latch, stop, bus)))
         _ <- F.blocking(ks.start())
         _ <- F.timeout(latch.await, startUpTimeout)
       } yield ks

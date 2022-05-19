@@ -1,5 +1,5 @@
 package com.github.chenharryhua.nanjin.guard
-
+import cats.Endo
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
@@ -13,7 +13,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig) extends Upda
 
   val params: TaskParams = taskConfig.evalConfig
 
-  override def updateConfig(f: TaskConfig => TaskConfig): TaskGuard[F] =
+  override def updateConfig(f: Endo[TaskConfig]): TaskGuard[F] =
     new TaskGuard[F](f(taskConfig))
 
   def service(serviceName: ServiceName): ServiceGuard[F] =
