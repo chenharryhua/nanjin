@@ -15,7 +15,7 @@ import scala.reflect.ClassTag
 final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig) extends Serializable {
   val params: SDParams = cfg.evalConfig
 
-  private def updateConfig(f: SDConfig => SDConfig): DStreamSink[A] =
+  private def updateConfig(f: Endo[SDConfig]): DStreamSink[A] =
     new DStreamSink[A](dstream, f(cfg))
 
   def pathBuilder(f: NJPath => NJTimestamp => NJPath): DStreamSink[A] = updateConfig(_.pathBuilder(f))

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.kernel.{Resource, Sync}
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.{NJLogLevel, UpdateConfig}
 import fs2.Stream
 import org.apache.spark.SparkConf
@@ -32,7 +33,7 @@ final case class SparkSettings private (conf: SparkConf, logLevel: NJLogLevel)
 
   def withZoneId(zoneId: ZoneId): SparkSettings = updateConfig(_.set("spark.sql.session.timeZone", zoneId.getId))
 
-  def updateConfig(f: SparkConf => SparkConf): SparkSettings = copy(conf = f(conf))
+  def updateConfig(f: Endo[SparkConf]): SparkSettings = copy(conf = f(conf))
 
   def unsafeSession: SparkSession = {
     val spk: SparkSession = SparkSession.builder().config(conf).getOrCreate()

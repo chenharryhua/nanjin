@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.Foldable
+import cats.{Endo, Foldable}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
@@ -82,7 +82,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     }
   }
 
-  override def updateConfig(f: SKConfig => SKConfig): SparKafkaTopic[F, K, V] =
+  override def updateConfig(f: Endo[SKConfig]): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](sparkSession, topic, f(cfg))
 
   def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateConfig(_.startTime(str))
