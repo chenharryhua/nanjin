@@ -62,16 +62,16 @@ val hadoopLib = Seq(
 ).map(_ % "3.3.2") ++ awsLib
 
 val circeLib = Seq(
-  "io.circe" %% "circe-literal"        % "0.14.1",
-  "io.circe" %% "circe-core"           % "0.14.1",
-  "io.circe" %% "circe-generic"        % "0.14.1",
-  "io.circe" %% "circe-parser"         % "0.14.1",
-  "io.circe" %% "circe-shapes"         % "0.14.1",
-  "io.circe" %% "circe-jawn"           % "0.14.1",
+  "io.circe" %% "circe-literal"        % "0.14.2",
+  "io.circe" %% "circe-core"           % "0.14.2",
+  "io.circe" %% "circe-generic"        % "0.14.2",
+  "io.circe" %% "circe-parser"         % "0.14.2",
+  "io.circe" %% "circe-shapes"         % "0.14.2",
+  "io.circe" %% "circe-jawn"           % "0.14.2",
   "io.circe" %% "circe-optics"         % "0.14.1",
   "io.circe" %% "circe-jackson210"     % "0.14.0",
   "io.circe" %% "circe-generic-extras" % "0.14.1",
-  "io.circe" %% "circe-refined"        % "0.14.1",
+  "io.circe" %% "circe-refined"        % "0.14.2",
   "org.gnieh" %% "diffson-circe"       % "4.1.1"
 )
 
