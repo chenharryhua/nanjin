@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import cats.data.Reader
+import cats.data.{Cont, Reader}
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
@@ -21,7 +21,7 @@ case object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were 
 final class KafkaStreamsBuilder[F[_]] private (
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
-  localStateStores: List[Reader[StreamsBuilder, StreamsBuilder]],
+  localStateStores: Cont[StreamsBuilder, StreamsBuilder],
   startUpTimeout: FiniteDuration)(implicit F: Async[F]) {
 
   def showSettings: String = settings.show
@@ -50,7 +50,7 @@ final class KafkaStreamsBuilder[F[_]] private (
       ks: KafkaStreams,
       dispatcher: Dispatcher[F],
       stop: Deferred[F, Either[Throwable, Unit]]): F[KafkaStreams] =
-      for {
+      for { // fully initialized KafkaStreams
         latch <- CountDownLatch[F](1)
         _ <- F.blocking(ks.cleanUp())
         _ <- F.delay(ks.setStateListener(new StateChange(dispatcher, latch, stop, bus)))
@@ -95,19 +95,17 @@ final class KafkaStreamsBuilder[F[_]] private (
     new KafkaStreamsBuilder[F](
       settings = settings,
       top = top,
-      localStateStores =
-        Reader((sb: StreamsBuilder) => new StreamsBuilder(sb.addStateStore(storeBuilder))) :: localStateStores,
+      localStateStores = localStateStores.map(sb => new StreamsBuilder(sb.addStateStore(storeBuilder))),
       startUpTimeout = startUpTimeout)
 
   lazy val topology: Topology = {
-    val builder: StreamsBuilder = new StreamsBuilder
-    val lss: StreamsBuilder     = localStateStores.foldLeft(builder)((bd, rd) => rd.run(bd))
-    top.run(lss)
+    val builder: StreamsBuilder = localStateStores.eval.value
+    top.run(builder)
     builder.build()
   }
 }
 
 object KafkaStreamsBuilder {
   def apply[F[_]: Async](settings: KafkaStreamSettings, top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings, top, Nil, 180.minutes)
+    new KafkaStreamsBuilder[F](settings, top, Cont.defer(new StreamsBuilder()), 180.minutes)
 }
