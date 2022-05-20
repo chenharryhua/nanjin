@@ -76,8 +76,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   }
 
   // channels
-  def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
-    new KafkaChannels.Fs2Channel[F, K, V](
+  def fs2Channel: Fs2Channel[F, K, V] =
+    new Fs2Channel[F, K, V](
       this,
       context.settings.producerSettings,
       context.settings.consumerSettings,
@@ -85,8 +85,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       fs2Updater.unitProducer[F, K, V],
       fs2Updater.unitTxnProducer[F, K, V])
 
-  def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
-    new KafkaChannels.AkkaChannel[F, K, V](
+  def akkaChannel(akkaSystem: ActorSystem): AkkaChannel[F, K, V] =
+    new AkkaChannel[F, K, V](
       this,
       akkaSystem,
       context.settings.producerSettings,

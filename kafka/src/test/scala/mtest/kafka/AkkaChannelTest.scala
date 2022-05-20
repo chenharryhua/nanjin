@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Sink
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
-import com.github.chenharryhua.nanjin.kafka.{stages, KafkaChannels, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.kafka.{stages, AkkaChannel, KafkaTopic, KafkaTopicPartition}
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
@@ -30,7 +30,7 @@ class AkkaChannelTest extends AnyFunSuite {
 
   data.compile.drain.unsafeRunSync()
 
-  val akkaChannel: KafkaChannels.AkkaChannel[IO, Int, String] =
+  val akkaChannel: AkkaChannel[IO, Int, String] =
     topic.akkaChannel(akkaSystem).updateCommitter(_.withParallelism(10).withParallelism(10))
 
   test("akka stream committableSink") {
