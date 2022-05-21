@@ -13,6 +13,14 @@ import scala.concurrent.ExecutionContext
 sealed abstract class NJHikari[DB](val database: DB) {
   def hikariConfig: HikariConfig
 
+  final def set(f: HikariConfig => Unit): this.type = {
+    f(hikariConfig)
+    this
+  }
+
+  /** use one of doobie.util.ExecutionContexts
+    */
+
   final def transactorResource[F[_]: Async](
     threadPool: Resource[F, ExecutionContext]): Resource[F, HikariTransactor[F]] =
     threadPool.flatMap(tp => HikariTransactor.fromHikariConfig[F](hikariConfig, tp))
