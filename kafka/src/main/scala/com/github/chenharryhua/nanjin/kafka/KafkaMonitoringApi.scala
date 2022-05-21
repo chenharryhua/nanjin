@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsum
 import com.sksamuel.avro4s.AvroOutputStream
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
-import org.typelevel.cats.time.instances.zoneddatetime
+import org.typelevel.cats.time.instances.localtime
 import java.io.ByteArrayOutputStream
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
@@ -28,18 +28,18 @@ object KafkaMonitoringApi {
     new KafkaTopicMonitoring[F, K, V](topic)
 
   final private class KafkaTopicMonitoring[F[_]: Async, K, V](topic: KafkaTopic[F, K, V])
-      extends KafkaMonitoringApi[F, K, V] with zoneddatetime {
+      extends KafkaMonitoringApi[F, K, V] with localtime {
 
     private def fetchData(aor: AutoOffsetReset): Stream[F, NJConsumerRecordWithError[K, V]] =
-      topic.fs2Channel
-        .updateConsumer(_.withAutoOffsetReset(aor).withEnableAutoCommit(false))
+      topic.consume
+        .updateConfig(_.withAutoOffsetReset(aor).withEnableAutoCommit(false))
         .stream
         .map(m => topic.decode(m))
 
     private def printJackson(cr: NJConsumerRecordWithError[K, V])(implicit C: Console[F]): F[Unit] =
       Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use { bos =>
         for {
-          _ <- C.println(cr.metaInfo(topic.context.settings.zoneId).timestamp.show)
+          _ <- C.println(s"timestamp: ${cr.metaInfo(topic.context.settings.zoneId).timestamp.toLocalTime.show}")
           _ <- cr.key.leftTraverse(C.println)
           _ <- cr.value.leftTraverse(C.println)
           _ <- C.println {
@@ -64,8 +64,8 @@ object KafkaMonitoringApi {
           os <- kcs.offsetsForTimes(njt)
           e <- kcs.endOffsets
         } yield os.combineWith(e)(_.orElse(_)))
-        _ <- topic.fs2Channel
-          .updateConsumer(_.withEnableAutoCommit(false))
+        _ <- topic.consume
+          .updateConfig(_.withEnableAutoCommit(false))
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decode(m))
           .evalMap(printJackson)
@@ -103,13 +103,19 @@ object KafkaMonitoringApi {
 
     override def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit] = {
       val run = for {
-        _ <- topic.fs2Channel.stream.map { m =>
-          val cr = other.decoder(m).nullableDecode.record
-          val ts = cr.timestamp.createTime.orElse(cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
-          val pr =
-            ProducerRecord(other.topicName.value, cr.key, cr.value).withHeaders(cr.headers).withPartition(cr.partition)
-          ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
-        }.through(other.fs2Channel.producerPipe)
+        _ <- topic.consume
+          .updateConfig(_.withEnableAutoCommit(false))
+          .stream
+          .map { m =>
+            val cr = other.decoder(m).nullableDecode.record
+            val ts = cr.timestamp.createTime.orElse(cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
+            val pr =
+              ProducerRecord(other.topicName.value, cr.key, cr.value)
+                .withHeaders(cr.headers)
+                .withPartition(cr.partition)
+            ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
+          }
+          .through(other.produce.pipe)
       } yield ()
       run.chunkN(10000).map(_ => print(".")).compile.drain
     }

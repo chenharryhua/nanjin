@@ -22,7 +22,7 @@ class CopyDataTest extends AnyFunSuite {
   val d5 = ProducerRecord(src.topicName.value, 4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
   val loadData =
-    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary[IO].through(src.fs2Channel.producerPipe).compile.drain
+    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary[IO].through(src.produce.pipe).compile.drain
 
   val prepareData =
     src.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
@@ -39,7 +39,7 @@ class CopyDataTest extends AnyFunSuite {
       _ <- sparKafka
         .topic(src.topicDef)
         .fromKafka
-        .flatMap(_.prRdd.producerRecords(tgt.topicName, 100).through(tgt.fs2Channel.producerPipe).compile.drain)
+        .flatMap(_.prRdd.producerRecords(tgt.topicName, 100).through(tgt.produce.pipe).compile.drain)
       srcData <- sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect())
       tgtData <- sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect())
     } yield {

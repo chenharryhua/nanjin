@@ -38,10 +38,10 @@ object KafkaStreamingData {
         ProducerRecord(t2Topic.topicName, 1, TableTwo("x", 0)),
         ProducerRecord(t2Topic.topicName, 2, TableTwo("y", 1)),
         ProducerRecord(t2Topic.topicName, 3, TableTwo("z", 2))
-      ))).covary[IO].through(t2Topic.fs2Channel.producerPipe)
+      ))).covary[IO].through(t2Topic.produce.pipe)
 
   val harvest: Stream[IO, StreamTarget] =
-    tgt.fs2Channel.stream
+    tgt.consume.stream
       .map(x => tgt.decoder(x).decode)
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
       .map(_.record.value)
@@ -72,7 +72,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(s1Topic.fs2Channel.producerPipe)
+      .through(s1Topic.produce.pipe)
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
@@ -118,7 +118,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(s1TopicBin.fs2Channel.producerPipe)
+      .through(s1TopicBin.produce.pipe)
       .debug()
 
     val res = (IO.println(Console.CYAN + "kafka stream has bad records" + Console.RESET) >> ctx
@@ -152,7 +152,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(s1TopicBin.fs2Channel.producerPipe)
+      .through(s1TopicBin.produce.pipe)
       .debug()
 
     assertThrows[Exception](

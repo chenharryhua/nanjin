@@ -38,7 +38,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
       ProducerRecords.one(ProducerRecord(topic.topicName.value, idx.toInt, "a"))
     }
     .debug()
-    .through(topic.topic.fs2Channel.updateProducer(_.withClientId("spark.kafka.dstream.test")).producerPipe)
+    .through(topic.topic.produce.updateConfig(_.withClientId("spark.kafka.dstream.test")).pipe)
     .interruptAfter(10.seconds)
 
   test("dstream") {

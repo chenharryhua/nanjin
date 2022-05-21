@@ -7,18 +7,18 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import frameless.{TypedDataset, TypedEncoder}
 import fs2.Stream
 import mtest.spark.kafka.sparKafka
 import mtest.spark.sparkSession
-import org.apache.spark.sql.streaming.StreamingQueryProgress
 import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.streaming.StreamingQueryProgress
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 import scala.util.Random
-import eu.timepit.refined.auto.*
 
 object StreamJoinTestData {
   implicit val ss: SparkSession = sparkSession
@@ -63,7 +63,7 @@ class SparkStreamJoinTest extends AnyFunSuite {
       fooTopic
         .prRdd(fooData)
         .producerRecords(fooTopic.topicName, 1)
-        .through(fooTopic.topic.fs2Channel.producerPipe)
+        .through(fooTopic.topic.produce.pipe)
         .metered(0.5.seconds)
 
     val ss: Stream[IO, StreamingQueryProgress] =

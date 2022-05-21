@@ -1,18 +1,26 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import akka.actor.ActorSystem
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsumerRecord, NJConsumerRecordWithError}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.sksamuel.avro4s.AvroInputStream
-import fs2.kafka.{ProducerRecord as Fs2ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.{
+  ConsumerSettings as Fs2ConsumerSettings,
+  Deserializer as Fs2Deserializer,
+  ProducerRecord as Fs2ProducerRecord,
+  ProducerRecords as Fs2ProducerRecords,
+  ProducerResult as Fs2ProducerResult,
+  ProducerSettings as Fs2ProducerSettings,
+  Serializer as Fs2Serializer
+}
 import io.circe.Decoder
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.kafka.streams.scala.kstream.Produced
 
 import java.io.ByteArrayInputStream
@@ -75,45 +83,78 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     NJStateStore[K, V](storeName, RegisteredKeyValueSerdePair(codec.keySerde, codec.valSerde))
   }
 
-  // channels
-  def fs2Channel: KafkaChannels.Fs2Channel[F, K, V] =
-    new KafkaChannels.Fs2Channel[F, K, V](
-      this,
-      context.settings.producerSettings,
-      context.settings.consumerSettings,
-      fs2Updater.unitConsumer[F],
-      fs2Updater.unitProducer[F, K, V],
-      fs2Updater.unitTxnProducer[F, K, V])
+  def consume(implicit F: Sync[F]): Fs2Consume[F] =
+    new Fs2Consume[F](
+      topicName,
+      Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](Fs2Deserializer[F, Array[Byte]], Fs2Deserializer[F, Array[Byte]])
+        .withProperties(context.settings.consumerSettings.config))
 
-  def akkaChannel(akkaSystem: ActorSystem): KafkaChannels.AkkaChannel[F, K, V] =
-    new KafkaChannels.AkkaChannel[F, K, V](
-      this,
-      akkaSystem,
-      context.settings.producerSettings,
-      context.settings.consumerSettings,
-      akkaUpdater.unitConsumer,
-      akkaUpdater.unitProducer[K, V],
-      akkaUpdater.unitCommitter)
+  def produce(implicit F: Sync[F]): Fs2Produce[F, K, V] =
+    new Fs2Produce[F, K, V](
+      Fs2ProducerSettings[F, K, V](
+        Fs2Serializer.delegate(codec.keySerializer),
+        Fs2Serializer.delegate(codec.valSerializer)).withProperties(context.settings.producerSettings.config))
+
+  object akka {
+    import _root_.akka.actor.{ActorSystem, ClassicActorSystemProvider}
+    import _root_.akka.kafka.{ConsumerSettings, ProducerSettings}
+    import com.typesafe.config.Config
+    def comsume(system: ActorSystem): AkkaConsume = {
+      val cs = ConsumerSettings(system, new ByteArrayDeserializer, new ByteArrayDeserializer)
+        .withProperties(context.settings.consumerSettings.config)
+      new AkkaConsume(topicName, cs)
+    }
+
+    def comsume(provider: ClassicActorSystemProvider): AkkaConsume = {
+      val cs = ConsumerSettings(provider, new ByteArrayDeserializer, new ByteArrayDeserializer)
+        .withProperties(context.settings.consumerSettings.config)
+      new AkkaConsume(topicName, cs)
+    }
+
+    def comsume(cfg: Config): AkkaConsume = {
+      val cs = ConsumerSettings(cfg, new ByteArrayDeserializer, new ByteArrayDeserializer)
+        .withProperties(context.settings.consumerSettings.config)
+      new AkkaConsume(topicName, cs)
+    }
+
+    def produce(system: ActorSystem): AkkaProduce[K, V] = {
+      val ps = ProducerSettings(system, codec.keySerializer, codec.valSerializer)
+        .withProperties(context.settings.producerSettings.config)
+      new AkkaProduce[K, V](ps)
+    }
+
+    def produce(provider: ClassicActorSystemProvider): AkkaProduce[K, V] = {
+      val ps = ProducerSettings(provider, codec.keySerializer, codec.valSerializer)
+        .withProperties(context.settings.producerSettings.config)
+      new AkkaProduce[K, V](ps)
+    }
+
+    def produce(cfg: Config): AkkaProduce[K, V] = {
+      val ps = ProducerSettings(cfg, codec.keySerializer, codec.valSerializer)
+        .withProperties(context.settings.producerSettings.config)
+      new AkkaProduce[K, V](ps)
+    }
+  }
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V]       = new ProducerRecord(topicDef.topicName.value, k, v)
   def fs2ProducerRecord(k: K, v: V): Fs2ProducerRecord[K, V] = Fs2ProducerRecord(topicDef.topicName.value, k, v)
 
   // for testing
 
-  def produceOne(pr: Fs2ProducerRecord[K, V])(implicit F: Async[F]): F[ProducerResult[K, V]] =
-    fs2Channel.producerResource.use(_.produceOne(pr).flatten)
+  def produceOne(pr: Fs2ProducerRecord[K, V])(implicit F: Async[F]): F[Fs2ProducerResult[K, V]] =
+    produce.resource.use(_.produceOne(pr).flatten)
 
-  def produceOne(k: K, v: V)(implicit F: Async[F]): F[ProducerResult[K, V]] =
+  def produceOne(k: K, v: V)(implicit F: Async[F]): F[Fs2ProducerResult[K, V]] =
     produceOne(fs2ProducerRecord(k, v))
 
-  def produceCirce(circeStr: String)(implicit F: Async[F], k: Decoder[K], v: Decoder[V]): F[ProducerResult[K, V]] =
+  def produceCirce(circeStr: String)(implicit F: Async[F], k: Decoder[K], v: Decoder[V]): F[Fs2ProducerResult[K, V]] =
     io.circe.parser
       .decode[NJConsumerRecord[K, V]](circeStr)
       .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
       .traverse(produceOne)
       .rethrow
 
-  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[ProducerResult[K, V]] = {
+  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[Fs2ProducerResult[K, V]] = {
     val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
       NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
@@ -125,7 +166,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
         .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
         .toList
 
-      fs2Channel.producerResource.use(_.produce(ProducerRecords(prs)).flatten)
+      produce.resource.use(_.produce(Fs2ProducerRecords(prs)).flatten)
     }
   }
 }

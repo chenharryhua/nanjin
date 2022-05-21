@@ -33,7 +33,7 @@ class InteractiveTest extends AnyFunSuite {
     val data =
       Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}")))
         .covary[IO]
-        .through(topic.fs2Channel.producerPipe)
+        .through(topic.produce.pipe)
 
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {

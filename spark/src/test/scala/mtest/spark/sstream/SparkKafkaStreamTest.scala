@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import mtest.spark.kafka.{ctx, sparKafka}
 import mtest.spark.sparkSession
@@ -22,7 +23,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.concurrent.duration.*
 import scala.util.Random
-import eu.timepit.refined.auto.*
 
 @DoNotDiscover
 class SparkKafkaStreamTest extends AnyFunSuite {
@@ -66,7 +66,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .topic(rooster)
         .prRdd(data)
         .producerRecords(rooster.topicName, 1)
-        .through(rooster.fs2Channel.producerPipe)
+        .through(rooster.produce.pipe)
         .metered(0.2.seconds)
         .delayBy(2.second)
 
@@ -124,7 +124,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .replicate(5)
         .producerRecords(rooster.topicName, 1)
         .metered(0.5.seconds)
-        .through(rooster.fs2Channel.producerPipe)
+        .through(rooster.produce.pipe)
         .delayBy(1.second)
         .debug()
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
@@ -158,7 +158,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
         .prRdd(data)
         .producerRecords(rooster.topicName, 1)
         .metered(1.second)
-        .through(rooster.fs2Channel.producerPipe)
+        .through(rooster.produce.pipe)
         .delayBy(3.second)
     ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
     import sparkSession.implicits.*

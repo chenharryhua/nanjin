@@ -56,9 +56,8 @@ class MessageDateTimeTest extends AnyFunSuite {
     import DatetimeCase.AllJavaDateTime
     val topic = TopicDef[Int, AllJavaDateTime](TopicName("message.datetime.test")).in(ctx)
     val m     = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
-    val data = fs2
-      .Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, 0, m)))
-      .through(topic.fs2Channel.producerPipe)
+    val data =
+      fs2.Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, 0, m))).through(topic.produce.pipe)
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
       _ <- topic.schemaRegistry.delete

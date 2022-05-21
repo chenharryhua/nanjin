@@ -113,8 +113,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def replay(listener: ProducerResult[K, V] => F[Unit])(implicit F: Async[F]): F[Unit] =
     Stream
       .force(
-        fromDisk.map(
-          _.prRdd.noMeta.producerRecords(topicName, 1000).through(topic.fs2Channel.producerPipe).evalMap(listener)))
+        fromDisk.map(_.prRdd.noMeta.producerRecords(topicName, 1000).through(topic.produce.pipe).evalMap(listener)))
       .compile
       .drain
 
@@ -122,8 +121,9 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     */
   def replay(num: Long)(implicit F: Async[F]): F[Unit] =
     Stream
-      .force(fromDisk.map(
-        _.prRdd.descendTimestamp.noMeta.producerRecords(topicName, 1).take(num).through(topic.fs2Channel.producerPipe)))
+      .force(
+        fromDisk.map(
+          _.prRdd.descendTimestamp.noMeta.producerRecords(topicName, 1).take(num).through(topic.produce.pipe)))
       .compile
       .drain
 
@@ -185,8 +185,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
     implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
 
-    val ate: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = AvroTypedEncoder[KJson[K], KJson[V]](ack, acv)
+    val ateNJ: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = AvroTypedEncoder[KJson[K], KJson[V]](ack, acv)
 
-    sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ate)
+    sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ateNJ)
   }
 }

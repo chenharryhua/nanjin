@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import cats.data.Reader
+import cats.data.{Cont, Reader}
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
@@ -37,12 +37,14 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
   val stateSerdes: StateSerdes[K, V] =
     new StateSerdes[K, V](topic.topicName.value, topic.codec.keySerde, topic.codec.valSerde)
 
-  private lazy val consumed: Consumed[K, V] = {
-    val c  = Consumed.`with`[K, V](topic.codec.keySerde, topic.codec.valSerde)
-    val rc = resetPolicy.fold(c)(c.withOffsetResetPolicy)
-    val tc = timestampExtractor.fold(rc)(rc.withTimestampExtractor)
-    processorName.fold(tc)(tc.withName)
-  }
+  private lazy val consumed: Consumed[K, V] =
+    Cont
+      .pure(Consumed.`with`[K, V](topic.codec.keySerde, topic.codec.valSerde))
+      .map(c => resetPolicy.fold(c)(c.withOffsetResetPolicy))
+      .map(c => timestampExtractor.fold(c)(c.withTimestampExtractor))
+      .map(c => processorName.fold(c)(c.withName))
+      .eval
+      .value
 
   def kstream: Reader[StreamsBuilder, KStream[K, V]] =
     Reader(builder => builder.stream[K, V](topic.topicName.value)(consumed))
