@@ -33,7 +33,7 @@ final class AkkaConsume private[kafka] (
   val source: Source[CommittableMessage[Array[Byte], Array[Byte]], Consumer.Control] =
     Consumer.committableSource(consumerSettings, Subscriptions.topics(topicName.value))
 
-  val transactionalSource: Source[TransactionalMessage[Array[Byte], Array[Byte]], Consumer.Control] =
+  val transactional: Source[TransactionalMessage[Array[Byte], Array[Byte]], Consumer.Control] =
     Transactional.source(consumerSettings, Subscriptions.topics(topicName.value))
 
   override def updateConfig(f: Endo[ConsumerSettings[Array[Byte], Array[Byte]]]): AkkaConsume =

@@ -28,7 +28,7 @@ class ZioTest extends AnyFunSuite {
     TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data")).in(ctx)
 
   test("zio should just work.") {
-    val task = topic.fs2Channel.stream
+    val task = topic.consume.stream
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
@@ -43,8 +43,8 @@ class ZioTest extends AnyFunSuite {
   }
 
   test("zio should work for akka.") {
-    val task = topic
-      .akka.comsume(akkaSystem)
+    val task = topic.akka
+      .comsume(akkaSystem)
       .updateConfig(_.withClientId("akka-test"))
       .source
       .map(x => topic.decoder(x).decodeValue)

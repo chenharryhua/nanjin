@@ -47,13 +47,13 @@ final class Fs2Produce[F[_], K, V] private[kafka] (producerSettings: ProducerSet
   def transactional(transactionalId: String): Fs2Transactional[F, K, V] =
     new Fs2Transactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
 
-  def producerResource(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
+  def resource(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.resource(producerSettings)
 
-  def producerPipe(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
+  def pipe(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
     KafkaProducer.pipe[F, K, V](producerSettings)
 
-  def producer(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
+  def stream(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)
 
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): Fs2Produce[F, K, V] =
@@ -62,7 +62,7 @@ final class Fs2Produce[F[_], K, V] private[kafka] (producerSettings: ProducerSet
 
 final class Fs2Transactional[F[_], K, V] private[kafka] (txnSettings: TransactionalProducerSettings[F, K, V])
     extends UpdateConfig[TransactionalProducerSettings[F, K, V], Fs2Transactional[F, K, V]] {
-  def txnProducer(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
+  def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
 
   override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): Fs2Transactional[F, K, V] =

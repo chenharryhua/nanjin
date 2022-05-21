@@ -28,7 +28,7 @@ class AkkaChannelTest extends AnyFunSuite {
         ProducerRecord(topic.topicName.value, 3, "c"),
         ProducerRecord(topic.topicName.value, 4, "d"),
         ProducerRecord(topic.topicName.value, 5, "e")
-      ))).covary[IO].through(topic.fs2Channel.producerPipe)
+      ))).covary[IO].through(topic.produce.pipe)
 
   data.compile.drain.unsafeRunSync()
 

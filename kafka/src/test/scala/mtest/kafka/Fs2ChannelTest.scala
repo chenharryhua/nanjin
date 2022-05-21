@@ -25,14 +25,12 @@ class Fs2ChannelTest extends AnyFunSuite {
     NJAvroCodec[smsCallInternet](smsCallInternet.schema).right.get)
 
   test("should be able to consume json topic") {
-    val topic = backblaze_smart
-      .in(ctx)
-      .fs2Channel
-      .updateConsumer(_.withGroupId("fs2"))
-      .updateProducer(_.withBatchSize(1))
-      .updateConsumer(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+    val topic = backblaze_smart.in(ctx)
+    val consumer =
+      topic.consume.updateConfig(_.withGroupId("fs2")).updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+
     val ret =
-      topic.stream
+      consumer.stream
         .map(m => topic.decoder(m).tryDecodeKeyValue)
         .take(1)
         .map(_.show)
@@ -45,10 +43,9 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("should be able to consume avro topic") {
-    val topic = ctx.topic(nyc_taxi_trip).fs2Channel
-    val ret = topic
-      .updateConsumer(_.withGroupId("g1"))
-      .stream
+    val topic    = ctx.topic(nyc_taxi_trip)
+    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val ret = consumer.stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
       .map(_.toString)
@@ -61,8 +58,9 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("should be able to consume telecom_italia_data topic") {
-    val topic = sms.in(ctx).fs2Channel.updateConsumer(_.withGroupId("g1"))
-    val ret = topic
+    val topic    = sms.in(ctx)
+    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val ret = consumer
       .assign(KafkaTopicPartition(Map(new TopicPartition(topic.topicName.value, 0) -> KafkaOffset(0))))
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
@@ -77,8 +75,9 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("should return empty when topic-partition is empty") {
-    val topic = sms.in(ctx).fs2Channel.updateConsumer(_.withGroupId("g1"))
-    val ret = topic
+    val topic    = sms.in(ctx)
+    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val ret = consumer
       .assign(KafkaTopicPartition.emptyOffset)
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
@@ -95,13 +94,13 @@ class Fs2ChannelTest extends AnyFunSuite {
     val txntopic = sms
       .in(ctx)
       .withTopicName("txn-target")
-      .fs2Channel
-      .updateTxnProducer(_.withTransactionTimeout(10.seconds))
-      .updateProducer(_.withRetries(10))
-      .txnProducer("txn")
+      .produce
+      .updateConfig(_.withRetries(10))
+      .transactional("txn")
+      .updateConfig(_.withTransactionTimeout(10.seconds))
     val run = for {
-      cr <- src.fs2Channel.stream.map(src.decoder(_).decode).take(10)
-      producer <- txntopic
+      cr <- src.consume.stream.map(src.decoder(_).decode).take(10)
+      producer <- txntopic.stream
       pr = TransactionalProducerRecords.one(
         CommittableProducerRecords
           .one[IO, Key, smsCallInternet](ProducerRecord("txn-target", cr.record.key, cr.record.value), cr.offset))

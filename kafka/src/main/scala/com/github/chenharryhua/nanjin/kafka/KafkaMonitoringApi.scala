@@ -115,7 +115,7 @@ object KafkaMonitoringApi {
                 .withPartition(cr.partition)
             ProducerRecords.one(ts.fold(pr)(pr.withTimestamp))
           }
-          .through(other.produce.producerPipe)
+          .through(other.produce.pipe)
       } yield ()
       run.chunkN(10000).map(_ => print(".")).compile.drain
     }
