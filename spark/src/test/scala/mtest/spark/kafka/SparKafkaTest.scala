@@ -46,7 +46,7 @@ class SparKafkaTest extends AnyFunSuite {
         ProducerRecords(
           List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 1, data))))
       .covary[IO]
-      .through(topic.fs2Channel.updateProducer(_.withClientId("spark.kafka.test")).producerPipe)
+      .through(topic.produce.updateConfig(_.withClientId("spark.kafka.test")).pipe)
       .compile
       .drain
 
