@@ -10,26 +10,20 @@ import scala.concurrent.ExecutionContext
 
 /** [[https://tpolecat.github.io/doobie/]]
   */
-sealed trait NJHikari[DB] {
-  def hikariConfig(db: DB): HikariConfig
+sealed abstract class NJHikari[DB](val database: DB) {
+  def hikariConfig: HikariConfig
 
   final def transactorResource[F[_]: Async](
-    db: DB,
     threadPool: Resource[F, ExecutionContext]): Resource[F, HikariTransactor[F]] =
-    threadPool.flatMap(tp => HikariTransactor.fromHikariConfig[F](hikariConfig(db), tp))
+    threadPool.flatMap(tp => HikariTransactor.fromHikariConfig[F](hikariConfig, tp))
 
-  final def transactorStream[F[_]: Async](
-    db: DB,
-    threadPool: Resource[F, ExecutionContext]): Stream[F, HikariTransactor[F]] =
-    Stream.resource(transactorResource(db, threadPool))
+  final def transactorStream[F[_]: Async](threadPool: Resource[F, ExecutionContext]): Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorResource(threadPool))
 }
 
 object NJHikari {
-  def apply[DB](db: DB)(implicit ev: NJHikari[DB]): HikariConfig = ev.hikariConfig(db)
-  def apply[DB](implicit ev: NJHikari[DB]): NJHikari[DB]         = ev
-
-  implicit val databaseSettingsPostgres: NJHikari[Postgres] = new NJHikari[Postgres] {
-    override def hikariConfig(db: Postgres): HikariConfig = {
+  def apply(db: Postgres): NJHikari[Postgres] = new NJHikari[Postgres](db) {
+    override val hikariConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("org.postgresql.Driver")
       cfg.setJdbcUrl(Protocols.Postgres.url(db.host, Some(db.port)) + s"/${db.database.value}")
@@ -39,8 +33,8 @@ object NJHikari {
     }
   }
 
-  implicit val databaseSettingsRedshift: NJHikari[Redshift] = new NJHikari[Redshift] {
-    override def hikariConfig(db: Redshift): HikariConfig = {
+  def apply(db: Redshift): NJHikari[Redshift] = new NJHikari[Redshift](db) {
+    override val hikariConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
       cfg.setJdbcUrl(Protocols.Redshift.url(db.host, Some(db.port)) + s"/${db.database.value}")
@@ -52,8 +46,8 @@ object NJHikari {
     }
   }
 
-  implicit val databaseSettingsSqlServer: NJHikari[SqlServer] = new NJHikari[SqlServer] {
-    override def hikariConfig(db: SqlServer): HikariConfig = {
+  def apply(db: SqlServer): NJHikari[SqlServer] = new NJHikari[SqlServer](db) {
+    override val hikariConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
       cfg.setJdbcUrl(Protocols.SqlServer.url(db.host, Some(db.port)) + s";databaseName=${db.database.value}")
