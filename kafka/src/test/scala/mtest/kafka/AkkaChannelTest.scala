@@ -1,17 +1,19 @@
 package mtest.kafka
 
-import akka.kafka.ProducerMessage
+import akka.kafka.{CommitterSettings, ConsumerMessage, ProducerMessage}
 import akka.stream.scaladsl.Sink
+import akka.Done
+import akka.kafka.scaladsl.Committer
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
-import com.github.chenharryhua.nanjin.kafka.{stages, AkkaChannel, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.kafka.{stages, KafkaTopic, KafkaTopicPartition}
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalDateTime
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.DurationInt
 import eu.timepit.refined.auto.*
 
@@ -30,20 +32,23 @@ class AkkaChannelTest extends AnyFunSuite {
 
   data.compile.drain.unsafeRunSync()
 
-  val akkaChannel: AkkaChannel[IO, Int, String] =
-    topic.akkaChannel(akkaSystem).updateCommitter(_.withParallelism(10).withParallelism(10))
+  val akkaConsumer = topic.akka.comsume(akkaSystem)
+  val akkaProducer = topic.akka.produce(akkaSystem)
+
+  val commitSink: Sink[ProducerMessage.Envelope[Int, String, ConsumerMessage.Committable], Future[Done]] =
+    akkaProducer.committableSink(CommitterSettings(akkaSystem))
 
   test("akka stream committableSink") {
     import org.apache.kafka.clients.producer.ProducerRecord
     val run = IO.fromFuture(
       IO(
-        akkaChannel.source
+        akkaConsumer.source
           .map(m => topic.decoder(m).nullableDecode)
           .map(m =>
             ProducerMessage
               .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
           .take(2)
-          .runWith(akkaChannel.committableSink)))
+          .runWith(commitSink)))
 
     run.unsafeRunSync()
   }
@@ -51,32 +56,32 @@ class AkkaChannelTest extends AnyFunSuite {
     import org.apache.kafka.clients.producer.ProducerRecord
     val run = IO.fromFuture(
       IO(
-        akkaChannel.source
+        akkaConsumer.source
           .map(m => topic.decoder(m).nullableDecode)
           .map(m =>
             ProducerMessage
               .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
-          .via(akkaChannel.flexiFlow)
+          .via(akkaProducer.flexiFlow)
           .map(_.passThrough)
           .take(2)
-          .runWith(akkaChannel.commitSink)))
+          .runWith(Committer.sink(CommitterSettings(akkaSystem)))))
 
     run.unsafeRunSync()
   }
 
   test("akka stream plainSink") {
     val run = IO.fromFuture(
-      IO(akkaChannel.source
+      IO(akkaConsumer.source
         .map(m => topic.decoder(m).nullableDecode)
         .map(m =>
           new org.apache.kafka.clients.producer.ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()))
         .take(2)
-        .runWith(akkaChannel.plainSink)))
+        .runWith(akkaProducer.plainSink)))
     run.unsafeRunSync()
   }
   test("akka source error") {
     val run =
-      akkaChannel.source
+      akkaConsumer.source
         .map(m => topic.decoder(m).nullableDecode)
         .map(m => throw new Exception("oops"))
         .runWith(Sink.ignore)
@@ -94,7 +99,7 @@ class AkkaChannelTest extends AnyFunSuite {
       val start    = range.flatten.mapValues(_.from)
       val end      = range.flatten.mapValues(_.until)
       val distance = range.flatten.value.foldLeft(0L) { case (s, (_, r)) => s + r.distance }
-      akkaChannel
+      akkaConsumer
         .assign(start)
         .via(stages.takeUntilEnd(end))
         .map(m => topic.decoder(m).decode)
@@ -106,7 +111,7 @@ class AkkaChannelTest extends AnyFunSuite {
 
   test("assignment - empty") {
     val ret =
-      akkaChannel
+      akkaConsumer
         .assign(KafkaTopicPartition.emptyOffset)
         .map(m => topic.decoder(m).decode)
         .runFold(0)((sum, _) => sum + 1)
