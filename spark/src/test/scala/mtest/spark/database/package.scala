@@ -13,5 +13,5 @@ package object database {
 
   val dbSession: Resource[IO, Session[IO]] = SkunkSession[IO](postgres).single
 
-  val sparkDB: SparkDBContext[IO] = sparkSession.alongWith[IO](NJHikari(postgres))
+  val sparkDB: SparkDBContext[IO] = sparkSession.alongWith[IO](NJHikari(postgres).hikariConfig)
 }

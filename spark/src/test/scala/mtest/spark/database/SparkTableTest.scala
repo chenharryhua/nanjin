@@ -80,7 +80,7 @@ class SparkTableTest extends AnyFunSuite {
   val dbData: DBTable = sample.transformInto[DBTable]
 
   val pg: Resource[IO, HikariTransactor[IO]] =
-    NJHikari[Postgres].transactorResource(postgres, ExecutionContexts.fixedThreadPool[IO](10))
+    NJHikari(postgres).transactorResource(ExecutionContexts.fixedThreadPool[IO](10))
 
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 

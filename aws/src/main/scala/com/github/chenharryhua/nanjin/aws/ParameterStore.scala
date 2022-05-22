@@ -53,9 +53,7 @@ object ParameterStore {
     override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
       val req = new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
       F.blocking(ParameterStoreContent(client.getParameters(req).getParameters.get(0).getValue))
-        .attempt
-        .flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r))
-        .rethrow
+        .onError(ex => logger.error(ex)(name))
     }
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())

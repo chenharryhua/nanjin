@@ -43,10 +43,7 @@ object CloudWatchClient {
     private lazy val client: AmazonCloudWatch = buildFrom(AmazonCloudWatchClientBuilder.standard()).build()
 
     override def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult] =
-      F.delay(client.putMetricData(putMetricDataRequest))
-        .attempt
-        .flatMap(r => r.swap.traverse(logger.error(_)(name)).as(r))
-        .rethrow
+      F.delay(client.putMetricData(putMetricDataRequest)).onError(ex => logger.error(ex)(name))
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
