@@ -49,7 +49,7 @@ lazy val commonSettings = Seq(
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.999")
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.1026")
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
