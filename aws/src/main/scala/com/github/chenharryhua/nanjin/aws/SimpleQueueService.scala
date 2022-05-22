@@ -65,7 +65,7 @@ object SimpleQueueService {
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
-    def receiveMessages(enrich: Endo[ReceiveMessageRequest]): Stream[F, Message] =
+    override def receiveMessages(enrich: Endo[ReceiveMessageRequest]): Stream[F, Message] =
       Stream
         .fixedRate[F](pollingRate)
         .evalMap(_ =>
