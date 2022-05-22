@@ -59,7 +59,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
-).map(_ % "3.3.2") ++ awsLib
+).map(_ % "3.3.3") ++ awsLib
 
 val circeLib = Seq(
   "io.circe" %% "circe-literal"        % "0.14.2",
@@ -231,7 +231,7 @@ val http4sLib = Seq(
   "org.http4s" %% "http4s-blaze-client",
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "1.0.0-M32")
+).map(_ % "0.23.11")
 
 val jwtLib = Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -278,21 +278,13 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
-  .settings(
-    libraryDependencies ++= jwtLib ++ http4sLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
-  )
+  .settings(libraryDependencies ++= jwtLib ++ http4sLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-aws")
-  .settings(
-    libraryDependencies ++=
-      Seq(
-        "com.typesafe.akka" %% "akka-http"                % "10.2.9",
-        "com.lightbend.akka" %% "akka-stream-alpakka-sqs" % "3.0.4"
-      ) ++ akkaLib ++ awsLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
-  )
+  .settings(libraryDependencies ++= awsLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)

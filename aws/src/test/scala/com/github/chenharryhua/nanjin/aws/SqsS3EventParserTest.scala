@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.aws
 
+import com.amazonaws.services.sqs.model.Message
 import org.scalatest.funsuite.AnyFunSuite
 
 class SqsS3EventParserTest extends AnyFunSuite {
@@ -49,8 +50,9 @@ class SqsS3EventParserTest extends AnyFunSuite {
 """
 
   test("should be able to parse sqs S3 event") {
-    val s3 = sqsS3Parser(event).head
-    assert(s3.bucket == "mybucket")
-    assert(s3.key == "HappyFace2021-05-18T11:10:20.jpg")
+    val s3 = sqsS3Parser(new Message().withBody(event)).head
+    assert(s3.path.bucket == "mybucket")
+    assert(s3.path.key == "HappyFace2021-05-18T11:10:20.jpg")
+    assert(s3.size == 1024)
   }
 }

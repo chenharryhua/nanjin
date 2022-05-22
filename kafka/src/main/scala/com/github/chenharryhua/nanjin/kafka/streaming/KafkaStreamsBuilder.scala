@@ -71,7 +71,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     */
   val kafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
 
-  val stateStream: Stream[F, State] = for {
+  val stream: Stream[F, State] = for {
     bus <- Stream.eval(Channel.unbounded[F, State])
     _ <- kickoff(Some(bus))
     state <- bus.stream

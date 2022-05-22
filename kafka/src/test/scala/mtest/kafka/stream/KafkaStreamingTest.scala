@@ -158,7 +158,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     assertThrows[Exception](
       (IO.println(Console.CYAN + "kafka stream exception" + Console.RESET) >> ctx
         .buildStreams(top)
-        .stateStream
+        .stream
         .debug()
         .concurrently(sendS1Data)
         .concurrently(harvest)
@@ -202,7 +202,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val res = IO.println(Console.CYAN + "kafka topic does not exist" + Console.RESET) >> ctx
       .buildStreams(top)
-      .stateStream
+      .stream
       .debug()
       .compile
       .drain

@@ -25,14 +25,14 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .topic(fooTopic)
       .prRdd(producerRecords)
       .producerRecords(fooTopic.topicName, 100)
-      .through(fooTopic.fs2Channel.producerPipe)
+      .through(fooTopic.produce.pipe)
       .compile
       .drain
       .unsafeRunSync()
   }
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
-    fooTopic.fs2Channel.stream
+    fooTopic.consume.stream
       .map(x => fooTopic.decoder(x).decode)
       .debug()
       .interruptAfter(3.seconds)
@@ -48,7 +48,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .topic(fooTopic)
       .load
       .circe(path)
-      .flatMap(_.prRdd.producerRecords(fooTopic.topicName, 2).through(fooTopic.fs2Channel.producerPipe).compile.drain)
+      .flatMap(_.prRdd.producerRecords(fooTopic.topicName, 2).through(fooTopic.produce.pipe).compile.drain)
       .unsafeRunSync()
   }
 }
