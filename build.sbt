@@ -59,7 +59,7 @@ val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-common",
   "org.apache.hadoop" % "hadoop-client",
   "org.apache.hadoop" % "hadoop-hdfs"
-).map(_ % "3.3.2") ++ awsLib
+).map(_ % "3.3.3") ++ awsLib
 
 val circeLib = Seq(
   "io.circe" %% "circe-literal"        % "0.14.2",
@@ -231,7 +231,7 @@ val http4sLib = Seq(
   "org.http4s" %% "http4s-blaze-client",
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "1.0.0-M32")
+).map(_ % "0.23.11")
 
 val jwtLib = Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
