@@ -14,7 +14,8 @@ private object SimpleJsonTranslator {
     json"""
           { 
             "event": "ServiceStart",
-            "params": ${evt.serviceParams.asJson}
+            "params": ${evt.serviceParams.asJson}, 
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -24,7 +25,8 @@ private object SimpleJsonTranslator {
             "event": "ServicePanic",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "cause" : ${evt.error.stackTrace},
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -35,7 +37,8 @@ private object SimpleJsonTranslator {
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "exitCode": ${evt.cause.exitCode},
             "cause": ${evt.cause.show},
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -48,7 +51,8 @@ private object SimpleJsonTranslator {
             "isUp": ${evt.isUp},
             "ongoings": ${evt.ongoings.map(_.actionID)},            
             "metrics": ${evt.snapshot.asJson},
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -58,7 +62,8 @@ private object SimpleJsonTranslator {
             "event": "MetricReset",
             "serviceName" : ${evt.serviceParams.serviceName.value},
             "metrics": ${evt.snapshot.asJson},
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -70,7 +75,8 @@ private object SimpleJsonTranslator {
             "isError": ${evt.isError},
             "value": ${evt.value},
             "digest": ${evt.metricName.digest},
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -82,7 +88,8 @@ private object SimpleJsonTranslator {
             "importance": ${evt.importance.value},
             "message": ${evt.message},
             "digest": ${evt.metricName.digest},
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -93,7 +100,8 @@ private object SimpleJsonTranslator {
             "name": ${evt.actionInfo.actionParams.metricName.origin},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -105,7 +113,8 @@ private object SimpleJsonTranslator {
             "cause" : ${evt.error.message},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},         
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -118,7 +127,8 @@ private object SimpleJsonTranslator {
             "cause" : ${evt.error.stackTrace},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},       
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
@@ -130,7 +140,8 @@ private object SimpleJsonTranslator {
             "notes" : ${evt.notes.value},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},      
-            "serviceID": ${evt.serviceParams.serviceID}
+            "serviceID": ${evt.serviceParams.serviceID},
+            "timestamp": ${evt.timestamp}
           }
           """
 
