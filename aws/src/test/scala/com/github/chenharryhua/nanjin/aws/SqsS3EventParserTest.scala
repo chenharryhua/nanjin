@@ -50,18 +50,18 @@ class SqsS3EventParserTest extends AnyFunSuite {
 """
 
   test("should be able to parse sqs S3 event") {
-    val s3 = sqsS3Parser(NJSqsMessage(new ReceiveMessageRequest(), new Message().withBody(event),0,0,0)).head
+    val s3 = sqsS3Parser(SqsMessage(new ReceiveMessageRequest(), new Message().withBody(event), 0, 0, 0)).head
     assert(s3.path.bucket == "mybucket")
     assert(s3.path.key == "HappyFace2021-05-18T11:10:20.jpg")
     assert(s3.size == 1024)
   }
 
   test("nulls") {
-    println(NJSqsMessage(null, null,0,0,0).asJson.noSpaces)
-    println(NJSqsMessage(null, new Message(),0,0,0).asJson.noSpaces)
-    println(NJSqsMessage(new ReceiveMessageRequest(), null,0,0,0).asJson.noSpaces)
-    assert(sqsS3Parser(NJSqsMessage(null, null,0,0,0)).isEmpty)
-    assert(sqsS3Parser(NJSqsMessage(new ReceiveMessageRequest(), new Message(),0,0,0)).isEmpty)
-    assert(sqsS3Parser(NJSqsMessage(new ReceiveMessageRequest(), null,0,0,0)).isEmpty)
+    println(SqsMessage(null, null, 0, 0, 0).asJson.noSpaces)
+    println(SqsMessage(null, new Message(), 0, 0, 0).asJson.noSpaces)
+    println(SqsMessage(new ReceiveMessageRequest(), null, 0, 0, 0).asJson.noSpaces)
+    assert(sqsS3Parser(SqsMessage(null, null, 0, 0, 0)).isEmpty)
+    assert(sqsS3Parser(SqsMessage(new ReceiveMessageRequest(), new Message(), 0, 0, 0)).isEmpty)
+    assert(sqsS3Parser(SqsMessage(new ReceiveMessageRequest(), null, 0, 0, 0)).isEmpty)
   }
 }
