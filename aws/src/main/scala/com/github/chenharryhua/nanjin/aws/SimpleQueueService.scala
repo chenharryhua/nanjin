@@ -22,12 +22,24 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.Try
 
-final case class NJSqsMessage(request: ReceiveMessageRequest, response: Message) {
+/** @param messageIndex
+  *   one based message index
+  * @param numInBatch
+  *   number of messages in one request
+  */
+
+final case class NJSqsMessage(
+  request: ReceiveMessageRequest,
+  response: Message,
+  batchIndex: Long,
+  messageIndex: Int,
+  numInBatch: Int) {
 
   def asJson: Json = {
     val om  = new ObjectMapper()
     val req = Try(jacksonToCirce(om.valueToTree[JsonNode](request)))
     val resp = Try(jacksonToCirce(om.valueToTree[JsonNode](response))).map { js =>
+      // replace the original body in case it is a json
       val body = parse(response.getBody).toOption.orElse(Option(response.getBody).map(Json.fromString))
       root.at("body").set(body)(js)
     }
@@ -35,7 +47,10 @@ final case class NJSqsMessage(request: ReceiveMessageRequest, response: Message)
     json"""
           {
             "request":  ${req.toOption},
-            "response": ${resp.toOption}
+            "response": ${resp.toOption},
+            "batchIndex": $batchIndex,
+            "messageIndex": $messageIndex, 
+            "numInBatch": $numInBatch
           }"""
   }
 }
@@ -64,7 +79,10 @@ object SimpleQueueService {
         Stream.fixedRate(duration).zipWithIndex.map { case (_, idx) =>
           NJSqsMessage(
             request,
-            new Message().withMessageId(idx.toString).withBody("hello, world").withReceiptHandle(idx.toString))
+            new Message().withMessageId(idx.toString).withBody("hello, world").withReceiptHandle(idx.toString),
+            0,
+            idx.toInt,
+            Int.MaxValue)
         }
       override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] = this
 
@@ -94,7 +112,13 @@ object SimpleQueueService {
       Stream
         .fixedRate[F](pollingRate)
         .evalMap(_ => F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name)))
-        .flatMap(response => Stream.emits(response.getMessages.asScala.map(NJSqsMessage(request, _))))
+        .zipWithIndex
+        .flatMap { case (response, batchId) =>
+          val responesMesssages = response.getMessages.asScala
+          Stream.emits(responesMesssages.zipWithIndex.map { case (respMessage, idx) =>
+            NJSqsMessage(request, respMessage, batchId, idx + 1, responesMesssages.size)
+          })
+        }
 
     override def delete(msg: NJSqsMessage): F[DeleteMessageResult] =
       F.blocking(client.deleteMessage(new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)))
