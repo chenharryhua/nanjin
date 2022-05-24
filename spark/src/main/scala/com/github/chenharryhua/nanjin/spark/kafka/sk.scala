@@ -2,12 +2,20 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
+import io.circe.jackson.jacksonToCirce
+import io.circe.Json
+import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import monocle.function.At.{atMap, remove}
+import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
+import org.apache.avro.io.{EncoderFactory, JsonEncoder}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -17,8 +25,10 @@ import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka010.*
 
+import java.io.ByteArrayOutputStream
 import java.util
 import scala.jdk.CollectionConverters.*
+import scala.util.Try
 
 private[kafka] object sk {
 
@@ -75,6 +85,43 @@ private[kafka] object sk {
     sparkSession: SparkSession): F[RDD[NJConsumerRecordWithError[K, V]]] =
     kafkaBinaryRDD[F](topic.topicName, topic.context, timeRange, locationStrategy, sparkSession)
       .map(_.map(topic.decode(_)))
+
+  def kafkaJsonRDD[F[_]: Sync](
+    topicName: TopicName,
+    ctx: KafkaContext[F],
+    timeRange: NJDateTimeRange,
+    locationStrategy: LocationStrategy,
+    sparkSession: SparkSession) =
+    kafkaBinaryRDD[F](topicName, ctx, timeRange, locationStrategy, sparkSession).map(_.mapPartitions { crs =>
+      val keyDeser = new GenericAvroDeserializer()
+      keyDeser.configure(ctx.settings.schemaRegistrySettings.config.asJava, true)
+      val valDeser = new GenericAvroDeserializer()
+      valDeser.configure(ctx.settings.schemaRegistrySettings.config.asJava, false)
+
+      val objMapper = new ObjectMapper
+
+      def toJson(gr: GenericRecord): Json = {
+        val datumWriter: GenericDatumWriter[GenericRecord] = new GenericDatumWriter[GenericRecord](gr.getSchema)
+        val baos: ByteArrayOutputStream                    = new ByteArrayOutputStream
+        val encoder: JsonEncoder                           = EncoderFactory.get().jsonEncoder(gr.getSchema, baos)
+        datumWriter.write(gr, encoder)
+        encoder.flush()
+        baos.close()
+        jacksonToCirce(objMapper.readTree(baos.toString))
+      }
+
+      crs.map { cr =>
+        val k = Try(keyDeser.deserialize(topicName.value, cr.key()))
+          .map(toJson)
+          .toEither
+          .leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
+        val v = Try(valDeser.deserialize(topicName.value, cr.value()))
+          .map(toJson)
+          .toEither
+          .leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
+        NJConsumerRecordWithError(cr.partition(), cr.offset(), cr.timestamp(), k, v, cr.topic(), cr.timestampType().id)
+      }
+    })
 
   /** streaming
     */
