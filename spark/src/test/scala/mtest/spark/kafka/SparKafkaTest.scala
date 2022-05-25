@@ -6,9 +6,10 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KUnknown, NJAvroCodec}
 import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.kafka.*
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import frameless.TypedDataset
 import fs2.kafka.{ProducerRecord, ProducerRecords}
@@ -43,8 +44,7 @@ class SparKafkaTest extends AnyFunSuite {
   val loadData =
     fs2
       .Stream(
-        ProducerRecords(
-          List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 1, data))))
+        ProducerRecords(List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
       .covary[IO]
       .through(topic.produce.updateConfig(_.withClientId("spark.kafka.test")).pipe)
       .compile
@@ -93,13 +93,7 @@ class SparKafkaTest extends AnyFunSuite {
     val t = ctx.topic[String, Int]("tmp")
 
     val birst =
-      sparKafka
-        .topic(src)
-        .crRdd(ds.rdd)
-        .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
-        .rdd
-        .collect()
-        .toSet
+      sparKafka.topic(src).crRdd(ds.rdd).bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int]).rdd.collect().toSet
     assert(birst.flatMap(_.value) == Set(2, 3, 5))
   }
 
@@ -133,15 +127,19 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
 
-    val t = sparKafka
-      .topic[Int, Int]("some.value")
-      .crRdd(ds.rdd)
-      .repartition(3)
-      .descendTimestamp
-      .dismissNulls
-      .transform(_.distinct())
+    val t =
+      sparKafka.topic[Int, Int]("some.value").crRdd(ds.rdd).repartition(3).descendTimestamp.dismissNulls.transform(_.distinct())
     val rst = t.rdd.collect().flatMap(_.value)
     assert(rst === Seq(cr1.value.get))
     println(cr1.toString)
+  }
+
+  test("should be able to save kunknown") {
+    import io.circe.generic.auto.*
+    val path = NJPath("./data/test/spark/kafka/kunknown")
+    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.flatMap(_.save.circe(path / "circe").run).unsafeRunSync()
+    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.flatMap(_.save.jackson(path / "jackson").run).unsafeRunSync()
+    sparKafka.topic[Int, HasDuck]("duck.test").fromKafka.flatMap(_.save.circe(path / "typed" / "circe").run).unsafeRunSync()
+    sparKafka.topic[Int, HasDuck]("duck.test").fromKafka.flatMap(_.save.jackson(path / "typed" / "jackson").run).unsafeRunSync()
   }
 }

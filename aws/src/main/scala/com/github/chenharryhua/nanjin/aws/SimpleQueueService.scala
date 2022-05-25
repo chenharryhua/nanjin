@@ -114,9 +114,9 @@ object SimpleQueueService {
         .evalMap(_ => F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name)))
         .zipWithIndex
         .flatMap { case (response, batchId) =>
-          val responesMesssages = response.getMessages.asScala
-          Stream.emits(responesMesssages.zipWithIndex.map { case (respMessage, idx) =>
-            SqsMessage(request, respMessage, batchId, idx + 1, responesMesssages.size)
+          val responseMesssages = response.getMessages.asScala
+          Stream.emits(responseMesssages.zipWithIndex.map { case (respMessage, idx) =>
+            SqsMessage(request, respMessage, batchId, idx + 1, responseMesssages.size)
           })
         }
 
