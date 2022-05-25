@@ -28,7 +28,7 @@ import scala.util.Try
   *   number of messages in one request
   */
 
-final case class NJSqsMessage(
+final case class SqsMessage(
   request: ReceiveMessageRequest,
   response: Message,
   batchIndex: Long,
@@ -57,11 +57,11 @@ final case class NJSqsMessage(
 
 sealed trait SimpleQueueService[F[_]] {
 
-  def receive(request: ReceiveMessageRequest): Stream[F, NJSqsMessage]
-  final def receive(sqsUrl: SqsUrl): Stream[F, NJSqsMessage] =
+  def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
+  final def receive(sqsUrl: SqsUrl): Stream[F, SqsMessage] =
     receive(new ReceiveMessageRequest(sqsUrl.value))
 
-  def delete(msg: NJSqsMessage): F[DeleteMessageResult]
+  def delete(msg: SqsMessage): F[DeleteMessageResult]
 
   def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F]
   def withPollingRate(pollingRate: FiniteDuration): SimpleQueueService[F]
@@ -73,11 +73,11 @@ object SimpleQueueService {
 
   def fake[F[_]](duration: FiniteDuration)(implicit F: Temporal[F]): Resource[F, SimpleQueueService[F]] =
     Resource.make(F.pure(new SimpleQueueService[F] {
-      override def delete(msg: NJSqsMessage): F[DeleteMessageResult] = F.pure(new DeleteMessageResult())
+      override def delete(msg: SqsMessage): F[DeleteMessageResult] = F.pure(new DeleteMessageResult())
 
-      override def receive(request: ReceiveMessageRequest): Stream[F, NJSqsMessage] =
+      override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] =
         Stream.fixedRate(duration).zipWithIndex.map { case (_, idx) =>
-          NJSqsMessage(
+          SqsMessage(
             request,
             new Message().withMessageId(idx.toString).withBody("hello, world").withReceiptHandle(idx.toString),
             0,
@@ -108,19 +108,19 @@ object SimpleQueueService {
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
-    override def receive(request: ReceiveMessageRequest): Stream[F, NJSqsMessage] =
+    override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] =
       Stream
         .fixedRate[F](pollingRate)
         .evalMap(_ => F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name)))
         .zipWithIndex
         .flatMap { case (response, batchId) =>
-          val responesMesssages = response.getMessages.asScala
-          Stream.emits(responesMesssages.zipWithIndex.map { case (respMessage, idx) =>
-            NJSqsMessage(request, respMessage, batchId, idx + 1, responesMesssages.size)
+          val responseMesssages = response.getMessages.asScala
+          Stream.emits(responseMesssages.zipWithIndex.map { case (respMessage, idx) =>
+            SqsMessage(request, respMessage, batchId, idx + 1, responseMesssages.size)
           })
         }
 
-    override def delete(msg: NJSqsMessage): F[DeleteMessageResult] =
+    override def delete(msg: SqsMessage): F[DeleteMessageResult] =
       F.blocking(client.deleteMessage(new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)))
         .onError(ex => logger.error(ex)(name))
 
@@ -142,7 +142,7 @@ object sqsS3Parser {
   /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore messages
     * which do not have s3 structure
     */
-  def apply(msg: NJSqsMessage): List[SqsS3File] =
+  def apply(msg: SqsMessage): List[SqsS3File] =
     Option(msg.response)
       .flatMap(m => parse(m.getBody).toOption)
       .traverse { json =>

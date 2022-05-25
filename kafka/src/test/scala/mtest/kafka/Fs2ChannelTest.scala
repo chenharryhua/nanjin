@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KUnknown, NJAvroCodec}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.{AutoOffsetReset, CommittableProducerRecords, ProducerRecord, TransactionalProducerRecords}
 import io.circe.generic.auto.*
@@ -23,6 +23,11 @@ class Fs2ChannelTest extends AnyFunSuite {
     TopicName("telecom_italia_data"),
     NJAvroCodec[Key](Key.schema).right.get,
     NJAvroCodec[smsCallInternet](smsCallInternet.schema).right.get)
+
+  test("unknown schema") {
+    val topic = ctx.topic[Array[Byte], KUnknown](nyc_taxi_trip.topicName)
+    topic.consume.stream.map(m => topic.decode(m)).take(1).debug().compile.drain.unsafeRunSync()
+  }
 
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
