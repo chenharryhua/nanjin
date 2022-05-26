@@ -22,14 +22,12 @@ final class NJRetry[F[_], A, B] private[guard] (
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
   kfab: Kleisli[F, A, B],
-  startUp: OptionT[F, Kleisli[F, A, Json]],
-  succ: OptionT[F, Kleisli[F, (A, B), String]],
-  fail: OptionT[F, Kleisli[F, (A, Throwable), String]],
+  transInput: OptionT[F, Kleisli[F, A, Json]],
+  transOutput: OptionT[F, Kleisli[F, B, Json]],
   isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
-    startUp: OptionT[F, Kleisli[F, A, Json]] = startUp,
-    succ: OptionT[F, Kleisli[F, (A, B), String]] = succ,
-    fail: OptionT[F, Kleisli[F, (A, Throwable), String]] = fail,
+    transInput: OptionT[F, Kleisli[F, A, Json]] = transInput,
+    transOutput: OptionT[F, Kleisli[F, B, Json]] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, A, B] =
     new NJRetry[F, A, B](
       serviceStatus,
@@ -37,25 +35,18 @@ final class NJRetry[F[_], A, B] private[guard] (
       channel,
       actionParams,
       kfab,
-      startUp,
-      succ,
-      fail,
+      transInput,
+      transOutput,
       isWorthRetry)
-
-  def withSuccNotesM(f: (A, B) => F[String]): NJRetry[F, A, B] =
-    copy(succ = OptionT.liftF(F.pure(Kleisli(f.tupled))))
-  def withSuccNotes(f: (A, B) => String): NJRetry[F, A, B] = withSuccNotesM((a, b) => F.pure(f(a, b)))
-
-  def withFailNotesM(f: (A, Throwable) => F[String]): NJRetry[F, A, B] =
-    copy(fail = OptionT.liftF(F.pure(Kleisli(f.tupled))))
-  def withFailNotes(f: (A, Throwable) => String): NJRetry[F, A, B] =
-    withFailNotesM((a, ex) => F.pure(f(a, ex)))
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry[F, A, B] = copy(isWorthRetry = Kleisli(f))
   def withWorthRetry(f: Throwable => Boolean): NJRetry[F, A, B] = withWorthRetryM(Kleisli.fromFunction(f).run)
 
-  def withStartUpInfoM(f: A => F[Json]): NJRetry[F, A, B] = copy(startUp = OptionT.liftF(F.pure(Kleisli(f))))
-  def withStartUpInfo(f: A => Json): NJRetry[F, A, B]     = withStartUpInfoM(Kleisli.fromFunction(f).run)
+  def withInputM(f: A => F[Json]): NJRetry[F, A, B] = copy(transInput = OptionT.liftF(F.pure(Kleisli(f))))
+  def withInput(f: A => Json): NJRetry[F, A, B]     = withInputM(Kleisli.fromFunction(f).run)
+
+  def withOutputM(f: B => F[Json]): NJRetry[F, A, B] = copy(transOutput = OptionT.liftF(F.pure(Kleisli(f))))
+  def withOutput(f: B => Json): NJRetry[F, A, B]     = withOutputM(b => F.pure(f(b)))
 
   private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
@@ -71,17 +62,11 @@ final class NJRetry[F[_], A, B] private[guard] (
     }
   }
 
-  private[this] val succNotes: (A, F[B]) => F[Option[Notes]] = (a: A, fb: F[B]) =>
-    fb.flatMap(b => succ.value.flatMap(_.traverse(_.run(a, b)))).map(_.map(Notes(_)))
-
-  private[this] val failNotes: (A, Throwable) => F[Option[Notes]] = (a: A, ex: Throwable) =>
-    fail.value.flatMap(_.traverse(_.run(a, ex).map(Notes(_))))
-
   def run(input: A): F[B] = for {
     publisher <- F
       .ref(0)
       .map(retryCounter => new ActionEventPublisher[F](serviceStatus, channel, retryCounter))
-    actionInfo <- publisher.actionStart(actionParams, input, startUp)
+    actionInfo <- publisher.actionStart(actionParams, input, transInput)
     res <- retry.mtl
       .retryingOnSomeErrors[B]
       .apply[F, Throwable](
@@ -96,15 +81,15 @@ final class NJRetry[F[_], A, B] private[guard] (
       .guaranteeCase {
         case Outcome.Canceled() =>
           publisher
-            .actionFail[A](actionInfo, input, ActionException.ActionCanceled, failNotes)
+            .actionFail(actionInfo, ActionException.ActionCanceled)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Errored(error) =>
           publisher
-            .actionFail[A](actionInfo, input, error, failNotes)
+            .actionFail(actionInfo, error)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
-            .actionSucc[A, B](actionInfo, input, output, succNotes)
+            .actionSucc[B](actionInfo, output, transOutput)
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
   } yield res
@@ -116,14 +101,12 @@ final class NJRetryUnit[F[_], B] private[guard] (
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
   fb: F[B],
-  startUp: OptionT[F, Json],
-  succ: OptionT[F, Kleisli[F, B, String]],
-  fail: OptionT[F, Kleisli[F, Throwable, String]],
+  transInput: OptionT[F, Json],
+  transOutput: OptionT[F, Kleisli[F, B, Json]],
   isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
-    startUp: OptionT[F, Json] = startUp,
-    succ: OptionT[F, Kleisli[F, B, String]] = succ,
-    fail: OptionT[F, Kleisli[F, Throwable, String]] = fail,
+    transInput: OptionT[F, Json] = transInput,
+    transOutput: OptionT[F, Kleisli[F, B, Json]] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
       serviceStatus,
@@ -131,25 +114,19 @@ final class NJRetryUnit[F[_], B] private[guard] (
       channel,
       actionParams,
       fb,
-      startUp,
-      succ,
-      fail,
+      transInput,
+      transOutput,
       isWorthRetry)
-
-  def withSuccNotesM(f: B => F[String]): NJRetryUnit[F, B] =
-    copy(succ = OptionT.liftF(F.pure(Kleisli(f))))
-  def withSuccNotes(f: B => String): NJRetryUnit[F, B] = withSuccNotesM(Kleisli.fromFunction(f).run)
-
-  def withFailNotesM(f: Throwable => F[String]): NJRetryUnit[F, B] =
-    copy(fail = OptionT.liftF(F.pure(Kleisli(f))))
-  def withFailNotes(f: Throwable => String): NJRetryUnit[F, B] = withFailNotesM(Kleisli.fromFunction(f).run)
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJRetryUnit[F, B] = copy(isWorthRetry = Kleisli(f))
   def withWorthRetry(f: Throwable => Boolean): NJRetryUnit[F, B] = withWorthRetryM(
     Kleisli.fromFunction(f).run)
 
-  def withStartUpInfoM(info: F[Json]): NJRetryUnit[F, B] = copy(startUp = OptionT.liftF(info))
-  def withStartUpInfo(info: Json): NJRetryUnit[F, B]     = withStartUpInfoM(F.pure(info))
+  def withInputM(info: F[Json]): NJRetryUnit[F, B] = copy(transInput = OptionT.liftF(info))
+  def withInput(info: Json): NJRetryUnit[F, B]     = withInputM(F.pure(info))
+
+  def withOutputM(f: B => F[Json]): NJRetryUnit[F, B] = copy(transOutput = OptionT.liftF(F.pure(Kleisli(f))))
+  def withOutput(f: B => Json): NJRetryUnit[F, B]     = withOutputM(Kleisli.fromFunction(f).run)
 
   val run: F[B] =
     new NJRetry[F, Unit, B](
@@ -158,9 +135,8 @@ final class NJRetryUnit[F[_], B] private[guard] (
       channel = channel,
       actionParams = actionParams,
       kfab = Kleisli(_ => fb),
-      startUp = startUp.map(su => Kleisli((_: Unit) => F.pure(su))),
-      succ = succ.map(_.local(_._2)),
-      fail = fail.map(_.local(_._2)),
+      transInput = transInput.map(js => Kleisli((_: Unit) => F.pure(js))),
+      transOutput = transOutput,
       isWorthRetry = isWorthRetry
     ).run(())
 

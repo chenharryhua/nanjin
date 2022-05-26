@@ -4,7 +4,7 @@ import cats.{Applicative, Eval, Monad}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, Notes}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
@@ -42,7 +42,6 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def notesText(n: Option[Notes]): Text.TypedTag[String]   = n.fold(p(""))( x => pre(x.value))
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
   private def pendingActions(oas: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {
@@ -141,7 +140,8 @@ private object HtmlTranslator extends all {
       p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show)
+      p(b("ServiceID: "), evt.serviceID.show),
+      evt.info.map(js => p(b("Info: "), js.noSpaces))
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
@@ -167,7 +167,6 @@ private object HtmlTranslator extends all {
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
-      notesText(evt.notes),
       causeText(evt.error)
     )
 
@@ -181,7 +180,7 @@ private object HtmlTranslator extends all {
       p(b("ServiceID: "), evt.serviceID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
-      notesText(evt.notes)
+      evt.info.map(js => p(b("Info: "), js.noSpaces))
     )
 
   def apply[F[_]: Monad]: Translator[F, Text.TypedTag[String]] =

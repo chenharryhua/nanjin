@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
+import io.circe.syntax.EncoderOps
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -32,7 +33,9 @@ import scala.concurrent.duration.*
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("performance").service("actions").updateConfig(_.withQueueCapacity(30).withMetricReport(10.seconds))
+    TaskGuard[IO]("performance")
+      .service("actions")
+      .updateConfig(_.withQueueCapacity(30).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
 
   def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
@@ -54,7 +57,7 @@ class PerformanceTest extends AnyFunSuite {
         .critical
         .updateConfig(_.withoutTiming.withoutCounting)
         .retry(IO(i += 1))
-        .withSuccNotes(_ => "ok")
+        .withOutput(_.asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
@@ -70,7 +73,7 @@ class PerformanceTest extends AnyFunSuite {
         .updateConfig(_.withoutTiming.withoutCounting)
         .expensive
         .retry(IO(i += 1))
-        .withSuccNotes(_ => "ok")
+        .withOutput(_.asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
@@ -98,7 +101,8 @@ class PerformanceTest extends AnyFunSuite {
   test("normal - expensive") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.span("ne").normal.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run
+      val ts =
+        ag.span("ne").normal.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} - normal expensive")

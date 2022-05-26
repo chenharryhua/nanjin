@@ -29,7 +29,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(3.second))
       .updateConfig(_.withQueueCapacity(1))
       .eventStream(gd =>
-        gd.span("normal-exit-action").max(10).retry(IO(1)).withSuccNotes(_ => null).run.delayBy(1.second))
+        gd.span("normal-exit-action").max(10).retry(IO(1)).withOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -177,8 +177,10 @@ class ServiceTest extends AnyFunSuite {
     val s1    = guard.service("s1")
     val s2    = guard.service("s2")
 
-    val ss1 = s1.eventStream(gd => gd.span("s1-a1").notice.retry(IO(1)).run >> gd.span("s1-a2").notice.retry(IO(2)).run)
-    val ss2 = s2.eventStream(gd => gd.span("s2-a1").notice.retry(IO(1)).run >> gd.span("s2-a2").notice.retry(IO(2)).run)
+    val ss1 = s1.eventStream(gd =>
+      gd.span("s1-a1").notice.retry(IO(1)).run >> gd.span("s1-a2").notice.retry(IO(2)).run)
+    val ss2 = s2.eventStream(gd =>
+      gd.span("s2-a1").notice.retry(IO(1)).run >> gd.span("s2-a2").notice.retry(IO(2)).run)
 
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucc]) == 4)
@@ -186,6 +188,10 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("print agent params") {
-    guard.eventStream(ag => IO.println(ag.digestedName) >> IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
+    guard
+      .eventStream(ag => IO.println(ag.digestedName) >> IO.println(ag.zoneId))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

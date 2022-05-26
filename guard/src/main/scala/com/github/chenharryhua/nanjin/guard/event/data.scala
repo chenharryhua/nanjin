@@ -16,14 +16,6 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 @JsonCodec
-final case class Notes private (value: String) extends AnyVal
-
-private[guard] object Notes {
-  def apply(str: String): Notes = new Notes(Option(str).getOrElse("null in notes"))
-  val empty: Notes              = Notes("")
-}
-
-@JsonCodec
 final case class NJError private (message: String, stackTrace: String)
 
 private[guard] object NJError {
@@ -36,8 +28,9 @@ private[guard] object NJError {
 sealed trait MetricResetType
 object MetricResetType extends localdatetime {
   implicit final val showMetricResetType: Show[MetricResetType] = {
-    case Adhoc           => s"Adhoc Metric Reset"
-    case Scheduled(next) => s"Scheduled Metric Reset(next=${next.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show})"
+    case Adhoc => s"Adhoc Metric Reset"
+    case Scheduled(next) =>
+      s"Scheduled Metric Reset(next=${next.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show})"
   }
   case object Adhoc extends MetricResetType
   final case class Scheduled(next: ZonedDateTime) extends MetricResetType

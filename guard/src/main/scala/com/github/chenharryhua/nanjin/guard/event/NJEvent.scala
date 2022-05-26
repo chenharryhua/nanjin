@@ -112,7 +112,6 @@ object NJEvent {
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before giving up
-    notes: Option[Notes], // failure notes
     error: NJError)
       extends ActionResultEvent {
     override val title: String = titles.actionFail
@@ -122,7 +121,7 @@ object NJEvent {
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before success
-    notes: Option[Notes])
+    info: Option[Json])
       extends ActionResultEvent {
     override val title: String = titles.actionSucc
   }

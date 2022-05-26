@@ -51,9 +51,8 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       actionParams = ActionParams(agentParams),
       kfab = Kleisli(f),
-      startUp = OptionT.none,
-      succ = OptionT.none,
-      fail = OptionT.none,
+      transInput = OptionT.none,
+      transOutput = OptionT.none,
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
@@ -63,9 +62,8 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       actionParams = ActionParams(agentParams),
       fb = fb,
-      startUp = OptionT.none,
-      succ = OptionT.none,
-      fail = OptionT.none,
+      transInput = OptionT.none,
+      transOutput = OptionT.none,
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run

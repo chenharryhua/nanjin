@@ -4,7 +4,7 @@ import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Notes}
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
@@ -41,8 +41,6 @@ private object SlackTranslator extends all {
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
   // don't trim string
-  private def noteSection(notes: Option[Notes]): Option[MarkdownSection] =
-    notes.filter(_.value.nonEmpty).map(n => MarkdownSection(abbreviate(n.value)))
 
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp =
@@ -234,7 +232,7 @@ private object SlackTranslator extends all {
               TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
-          ).appendedAll(noteSection(evt.notes))
+          )
         )
       )
     )
@@ -256,7 +254,7 @@ private object SlackTranslator extends all {
               TextField("Took", fmt.format(evt.took)),
               TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"*Service ID:* ${evt.serviceID.show}".stripMargin)
-          ).appendedAll(noteSection(evt.notes))
+          )
         )
       )
     )
