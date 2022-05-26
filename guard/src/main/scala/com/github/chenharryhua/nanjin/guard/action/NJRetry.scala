@@ -46,7 +46,7 @@ final class NJRetry[F[_], A, B] private[guard] (
   def withInput(f: A => Json): NJRetry[F, A, B]     = withInputM(Kleisli.fromFunction(f).run)
 
   def withOutputM(f: B => F[Json]): NJRetry[F, A, B] = copy(transOutput = OptionT.liftF(F.pure(Kleisli(f))))
-  def withOutput(f: B => Json): NJRetry[F, A, B]     = withOutputM(b => F.pure(f(b)))
+  def withOutput(f: B => Json): NJRetry[F, A, B]     = withOutputM(Kleisli.fromFunction(f).run)
 
   private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
@@ -66,7 +66,7 @@ final class NJRetry[F[_], A, B] private[guard] (
     publisher <- F
       .ref(0)
       .map(retryCounter => new ActionEventPublisher[F](serviceStatus, channel, retryCounter))
-    actionInfo <- publisher.actionStart(actionParams, input, transInput)
+    actionInfo <- publisher.actionStart(actionParams, transInput.value.flatMap(_.traverse(_.run(input))))
     res <- retry.mtl
       .retryingOnSomeErrors[B]
       .apply[F, Throwable](
@@ -89,7 +89,7 @@ final class NJRetry[F[_], A, B] private[guard] (
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
-            .actionSucc[B](actionInfo, output, transOutput)
+            .actionSucc(actionInfo, output.flatMap(fb => transOutput.value.flatMap(_.traverse(_.run(fb)))))
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
   } yield res
@@ -135,7 +135,7 @@ final class NJRetryUnit[F[_], B] private[guard] (
       channel = channel,
       actionParams = actionParams,
       kfab = Kleisli(_ => fb),
-      transInput = transInput.map(js => Kleisli((_: Unit) => F.pure(js))),
+      transInput = transInput.map(js => Kleisli(_ => F.pure(js))),
       transOutput = transOutput,
       isWorthRetry = isWorthRetry
     ).run(())
