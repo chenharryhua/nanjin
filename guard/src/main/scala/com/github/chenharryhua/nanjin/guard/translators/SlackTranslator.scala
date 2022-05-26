@@ -4,7 +4,7 @@ import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Notes}
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.all
 
 import java.text.NumberFormat
@@ -29,15 +29,18 @@ private object SlackTranslator extends all {
     } else {
       val fmt: NumberFormat = NumberFormat.getIntegerInstance
       val msg: String =
-        snapshot.counterMap.filter(_._2 > 0).map(x => s"${x._1}: ${fmt.format(x._2)}").toList.sorted.mkString("\n")
+        snapshot.counterMap
+          .filter(_._2 > 0)
+          .map(x => s"${x._1}: ${fmt.format(x._2)}")
+          .toList
+          .sorted
+          .mkString("\n")
       if (msg.isEmpty)
         KeyValueSection("Counters", "*No counter update*")
       else
         KeyValueSection("Counters", s"```${abbreviate(msg)}```")
     }
   // don't trim string
-  private def noteSection(notes: Notes): Option[MarkdownSection] =
-    if (notes.value.isEmpty) None else Some(MarkdownSection(abbreviate(notes.value)))
 
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp =
@@ -103,7 +106,8 @@ private object SlackTranslator extends all {
       case Importance.Medium   => ":information_source: Info"
       case Importance.Low      => "oops. should not happen"
     }
-    val msg: Option[Section] = if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
+    val msg: Option[Section] =
+      if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -223,10 +227,12 @@ private object SlackTranslator extends all {
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
-            JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
+            JuxtaposeSection(
+              TextField("Took", fmt.format(evt.took)),
+              TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin)
-          ).appendedAll(noteSection(evt.notes))
+          )
         )
       )
     )
@@ -244,9 +250,11 @@ private object SlackTranslator extends all {
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
-            JuxtaposeSection(TextField("Took", fmt.format(evt.took)), TextField("Retries", evt.numRetries.show)),
+            JuxtaposeSection(
+              TextField("Took", fmt.format(evt.took)),
+              TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"*Service ID:* ${evt.serviceID.show}".stripMargin)
-          ).appendedAll(noteSection(evt.notes))
+          )
         )
       )
     )

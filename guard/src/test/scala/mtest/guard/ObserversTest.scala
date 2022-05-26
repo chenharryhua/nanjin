@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import eu.timepit.refined.auto.*
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import skunk.Session
 
@@ -27,7 +28,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.hourly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag
+          .run(IO.raiseError(new Exception("oops")))
+          .attempt
       }
       .evalTap(logging.verbose[IO])
       .compile
@@ -41,7 +44,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+        ag.retry(IO(1)).withInput("hello, world".asJson).withOutput(_.asJson).run >> ag
+          .alert("notify")
+          .error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
       .evalTap(console.simple[IO])
       .compile
@@ -55,7 +60,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
+        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag
+          .run(IO.raiseError(new Exception("oops")))
+          .attempt
       }
       .evalTap(console(Translator.verboseJson[IO].map(_.noSpaces)))
       .compile
@@ -70,7 +77,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
+        ag.retry(IO(1)).withInput("hello world".asJson).withOutput(_.asJson).run >> ag
+          .alert("notify")
+          .error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
       .interruptAfter(7.seconds)
       .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
@@ -90,7 +99,8 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("ses")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
-      .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .eventStream(
+        _.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
       .compile
@@ -109,7 +119,8 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("sns")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
-      .eventStream(_.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .eventStream(
+        _.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .through(mail.observe(snsArn, "title"))
       .compile
@@ -121,7 +132,8 @@ class ObserversTest extends AnyFunSuite {
     val len =
       Translator
         .serviceStart[IO, SlackApp]
-        .modify(_.map(s => s.copy(attachments = Attachment("modified by lense", List.empty) :: s.attachments)))
+        .modify(_.map(s =>
+          s.copy(attachments = Attachment("modified by lense", List.empty) :: s.attachments)))
         .apply(Translator.slack[IO])
 
     TaskGuard[IO]("lense")

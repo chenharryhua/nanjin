@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.{Alternative, Endo, Traverse}
-import cats.data.{Ior, IorT, Kleisli}
+import cats.data.{Ior, IorT, Kleisli, OptionT}
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -51,8 +51,8 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       actionParams = ActionParams(agentParams),
       kfab = Kleisli(f),
-      succ = Kleisli(_ => F.pure("")),
-      fail = Kleisli(_ => F.pure("")),
+      transInput = OptionT.none,
+      transOutput = OptionT.none,
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
@@ -62,8 +62,8 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       actionParams = ActionParams(agentParams),
       fb = fb,
-      succ = Kleisli(_ => F.pure("")),
-      fail = Kleisli(_ => F.pure("")),
+      transInput = OptionT.none,
+      transOutput = OptionT.none,
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run
@@ -111,7 +111,10 @@ final class Agent[F[_]] private[service] (
 
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](
-      new MetricEventPublisher[F](channel = channel, metricRegistry = metricRegistry, serviceStatus = serviceStatus))
+      new MetricEventPublisher[F](
+        channel = channel,
+        metricRegistry = metricRegistry,
+        serviceStatus = serviceStatus))
 
   lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
 
@@ -141,12 +144,13 @@ final class Agent[F[_]] private[service] (
   def quasi[B](fbs: F[B]*): IorT[F, List[Throwable], List[B]] = quasi[List, B](fbs.toList)
 
   def quasi[G[_]: Traverse: Alternative, B](parallelism: Int, tfb: G[F[B]]): IorT[F, G[Throwable], G[B]] =
-    IorT(run(F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
-      (fail.size, succ.size) match {
-        case (0, _) => Ior.Right(succ)
-        case (_, 0) => Ior.left(fail)
-        case _      => Ior.Both(fail, succ)
-      }
+    IorT(run(F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map {
+      case (fail, succ) =>
+        (fail.size, succ.size) match {
+          case (0, _) => Ior.Right(succ)
+          case (_, 0) => Ior.left(fail)
+          case _      => Ior.Both(fail, succ)
+        }
     }))
 
   def quasi[B](parallelism: Int)(tfb: F[B]*): IorT[F, List[Throwable], List[B]] =

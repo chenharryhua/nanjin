@@ -26,8 +26,7 @@ class RetryTest extends AnyFunSuite {
       gd.span("succ-trivial")
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
-        .withSuccNotes((a, b) => s"$a -> $b")
-        .withFailNotes((a, e) => s"$a $e")
+        .withOutput(_.asJson)
         .withWorthRetry(_ => true)
         .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -43,19 +42,18 @@ class RetryTest extends AnyFunSuite {
         .notice
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int) => IO(x + 1))
-        .withSuccNotes((a, b) => s"$a->$b")
-        .withFailNotes((a, e) => "")
+        .withOutput(_.asJson)
         .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run(i))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].notes.value == "1->2")
+    assert(b.isInstanceOf[ActionSucc])
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucc].notes.value == "2->3")
+    assert(d.isInstanceOf[ActionSucc])
     assert(e.isInstanceOf[ActionStart])
-    assert(f.asInstanceOf[ActionSucc].notes.value == "3->4")
+    assert(f.isInstanceOf[ActionSucc])
     assert(g.isInstanceOf[ServiceStop])
   }
 
@@ -66,20 +64,19 @@ class RetryTest extends AnyFunSuite {
         .notice
         .updateConfig(_.withMaxRetries(1).withConstantDelay(0.1.second))
         .retry((x: Int) => IO.raiseError[Int](new Exception))
-        .withFailNotes((a, e) => a.toString)
       List(1, 2, 3).traverse(i => ag.run(i).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetry])
-    assert(c.asInstanceOf[ActionFail].notes.value == "1")
+    assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ActionStart])
     assert(e.isInstanceOf[ActionRetry])
-    assert(f.asInstanceOf[ActionFail].notes.value == "2")
+    assert(f.isInstanceOf[ActionFail])
     assert(g.isInstanceOf[ActionStart])
     assert(h.isInstanceOf[ActionRetry])
-    assert(i.asInstanceOf[ActionFail].notes.value == "3")
+    assert(i.isInstanceOf[ActionFail])
     assert(j.isInstanceOf[ServiceStop])
   }
 
@@ -94,6 +91,7 @@ class RetryTest extends AnyFunSuite {
           IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
+        .withOutput(_.asJson)
         .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -130,6 +128,8 @@ class RetryTest extends AnyFunSuite {
         gd.span("escalate-after-3-times")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
+          .withInput(_.asJson)
+          .withOutput(_.asJson)
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
