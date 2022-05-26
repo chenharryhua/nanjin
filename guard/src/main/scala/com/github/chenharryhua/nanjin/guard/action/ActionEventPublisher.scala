@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.{Kleisli, OptionT}
 import cats.effect.Unique
 import cats.effect.kernel.{Ref, Temporal}
 import cats.syntax.all.*
@@ -21,18 +20,12 @@ final private class ActionEventPublisher[F[_]](
   retryCount: Ref[F, Int]
 )(implicit F: Temporal[F]) {
 
-  def actionStart[A](
-    actionParams: ActionParams,
-    a: A,
-    startUp: OptionT[F, Kleisli[F, A, Json]]): F[ActionInfo] =
+  def actionStart(actionParams: ActionParams, info: F[Option[Json]]): F[ActionInfo] =
     for {
       ts <- F.realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams, token, ts)
-      _ <- (for {
-        info <- startUp.value.flatMap(_.traverse(_.run(a)))
-        _ <- channel.send(ActionStart(ai, info))
-      } yield ()).whenA(actionParams.isNotice)
+      _ <- info.flatMap(js => channel.send(ActionStart(ai, js))).whenA(actionParams.isNotice)
       _ <- serviceStatus.update(_.include(ai)).whenA(actionParams.isExpensive.value)
     } yield ai
 
@@ -52,18 +45,14 @@ final private class ActionEventPublisher[F[_]](
       _ <- retryCount.update(_ + 1)
     } yield ()
 
-  def actionSucc[B](
-    actionInfo: ActionInfo,
-    output: F[B],
-    outputInfo: OptionT[F, Kleisli[F, B, Json]]): F[ZonedDateTime] =
+  def actionSucc(actionInfo: ActionInfo, info: F[Option[Json]]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- {
         for {
           num <- retryCount.get
-          out <- output
-          notes <- outputInfo.value.flatMap(_.traverse(_.run(out)))
-          _ <- channel.send(ActionSucc(actionInfo, ts, num, notes))
+          js <- info
+          _ <- channel.send(ActionSucc(actionInfo, ts, num, js))
         } yield ()
       }.whenA(actionInfo.actionParams.isNotice)
       _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
