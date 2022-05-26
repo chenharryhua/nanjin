@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.data.{Kleisli, OptionT}
 import cats.effect.Unique
 import cats.effect.kernel.{Ref, Temporal}
 import cats.syntax.all.*
@@ -8,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent,
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc}
 import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
+import io.circe.Json
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
@@ -19,12 +21,18 @@ final private class ActionEventPublisher[F[_]](
   retryCount: Ref[F, Int]
 )(implicit F: Temporal[F]) {
 
-  def actionStart(actionParams: ActionParams): F[ActionInfo] =
+  def actionStart[A](
+    actionParams: ActionParams,
+    a: A,
+    startUp: OptionT[F, Kleisli[F, A, Json]]): F[ActionInfo] =
     for {
       ts <- F.realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams, token, ts)
-      _ <- channel.send(ActionStart(ai)).whenA(actionParams.isNotice)
+      _ <- (for {
+        info <- startUp.value.flatMap(_.traverse(_.run(a)))
+        _ <- channel.send(ActionStart(ai, info))
+      } yield ()).whenA(actionParams.isNotice)
       _ <- serviceStatus.update(_.include(ai)).whenA(actionParams.isExpensive.value)
     } yield ai
 
@@ -48,7 +56,7 @@ final private class ActionEventPublisher[F[_]](
     actionInfo: ActionInfo,
     input: A,
     output: F[B],
-    buildNotes: (A, F[B]) => F[Notes]): F[ZonedDateTime] =
+    buildNotes: (A, F[B]) => F[Option[Notes]]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- {
@@ -65,7 +73,7 @@ final private class ActionEventPublisher[F[_]](
     actionInfo: ActionInfo,
     input: A,
     ex: Throwable,
-    buildNotes: (A, Throwable) => F[Notes]): F[ZonedDateTime] =
+    buildNotes: (A, Throwable) => F[Option[Notes]]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       numRetries <- retryCount.get

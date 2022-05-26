@@ -83,6 +83,7 @@ private object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
+       |  ${evt.info.map(_.noSpaces)}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
@@ -97,14 +98,14 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
        |  ${errorStr(evt.error)}
-       |  ${evt.notes.value}
+       |  ${evt.notes.fold("")(_.value)}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
-       |  ${evt.notes.value}
+       |  ${evt.notes.fold("")(_.value)}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

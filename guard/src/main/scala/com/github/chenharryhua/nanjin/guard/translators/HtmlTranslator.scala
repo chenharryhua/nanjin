@@ -42,7 +42,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def notesText(n: Notes): Text.TypedTag[String]   = pre(n.value)
+  private def notesText(n: Option[Notes]): Text.TypedTag[String]   = n.fold(p(""))( x => pre(x.value))
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
   private def pendingActions(oas: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {

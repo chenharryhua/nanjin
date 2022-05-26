@@ -51,11 +51,11 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].notes.value == "1->2")
+    assert(b.asInstanceOf[ActionSucc].notes.exists(_.value == "1->2"))
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucc].notes.value == "2->3")
+    assert(d.asInstanceOf[ActionSucc].notes.exists(_.value == "2->3"))
     assert(e.isInstanceOf[ActionStart])
-    assert(f.asInstanceOf[ActionSucc].notes.value == "3->4")
+    assert(f.asInstanceOf[ActionSucc].notes.exists(_.value == "3->4"))
     assert(g.isInstanceOf[ServiceStop])
   }
 
@@ -73,13 +73,13 @@ class RetryTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetry])
-    assert(c.asInstanceOf[ActionFail].notes.value == "1")
+    assert(c.asInstanceOf[ActionFail].notes.exists(_.value == "1"))
     assert(d.isInstanceOf[ActionStart])
     assert(e.isInstanceOf[ActionRetry])
-    assert(f.asInstanceOf[ActionFail].notes.value == "2")
+    assert(f.asInstanceOf[ActionFail].notes.exists(_.value == "2"))
     assert(g.isInstanceOf[ActionStart])
     assert(h.isInstanceOf[ActionRetry])
-    assert(i.asInstanceOf[ActionFail].notes.value == "3")
+    assert(i.asInstanceOf[ActionFail].notes.exists(_.value == "3"))
     assert(j.isInstanceOf[ServiceStop])
   }
 

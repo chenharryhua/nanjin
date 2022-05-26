@@ -42,7 +42,10 @@ object NJEvent {
     override val title: String = titles.servicePanic
   }
 
-  final case class ServiceStop(serviceParams: ServiceParams, timestamp: ZonedDateTime, cause: ServiceStopCause)
+  final case class ServiceStop(
+    serviceParams: ServiceParams,
+    timestamp: ZonedDateTime,
+    cause: ServiceStopCause)
       extends ServiceEvent {
     override val title: String = titles.serviceStop
   }
@@ -86,7 +89,7 @@ object NJEvent {
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
-  final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
+  final case class ActionStart(actionInfo: ActionInfo, info: Option[Json]) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
   }
@@ -103,14 +106,13 @@ object NJEvent {
 
   sealed trait ActionResultEvent extends ActionEvent {
     def numRetries: Int
-    def notes: Notes
   }
 
   final case class ActionFail(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before giving up
-    notes: Notes, // failure notes
+    notes: Option[Notes], // failure notes
     error: NJError)
       extends ActionResultEvent {
     override val title: String = titles.actionFail
@@ -120,7 +122,7 @@ object NJEvent {
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before success
-    notes: Notes)
+    notes: Option[Notes])
       extends ActionResultEvent {
     override val title: String = titles.actionSucc
   }
