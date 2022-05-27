@@ -89,7 +89,7 @@ object NJEvent {
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
-  final case class ActionStart(actionInfo: ActionInfo, info: Option[Json]) extends ActionEvent {
+  final case class ActionStart(actionInfo: ActionInfo, info: Json) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
   }
@@ -106,12 +106,19 @@ object NJEvent {
 
   sealed trait ActionResultEvent extends ActionEvent {
     def numRetries: Int
+
+    /** When action fail it contains the input of the action
+      *
+      * When action succ it contains the output of the action
+      */
+    def info: Json
   }
 
   final case class ActionFail(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before giving up
+    info: Json, // input of the action
     error: NJError)
       extends ActionResultEvent {
     override val title: String = titles.actionFail
@@ -121,8 +128,8 @@ object NJEvent {
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before success
-    info: Option[Json])
-      extends ActionResultEvent {
+    info: Json // output of the action
+  ) extends ActionResultEvent {
     override val title: String = titles.actionSucc
   }
 

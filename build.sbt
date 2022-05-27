@@ -70,7 +70,7 @@ val circeLib = Seq(
   "io.circe" %% "circe-jawn"           % "0.14.2",
   "io.circe" %% "circe-optics"         % "0.14.1",
   "io.circe" %% "circe-jackson210"     % "0.14.0",
-  "io.circe" %% "circe-generic-extras" % "0.14.1",
+  "io.circe" %% "circe-generic-extras" % "0.14.2",
   "io.circe" %% "circe-refined"        % "0.14.2",
   "org.gnieh" %% "diffson-circe"       % "4.1.1"
 )
@@ -94,17 +94,17 @@ val kantanLib = Seq(
 ).map(_ % "0.6.2") ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.3")
 
 val pbLib = Seq(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.10",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.20.1",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.20.1",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.0",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.0",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
 val serdeLib = Seq(
   "com.sksamuel.avro4s" %% "avro4s-core" % "4.0.13",
-  "org.apache.parquet"                   % "parquet-common"           % "1.12.2",
-  "org.apache.parquet"                   % "parquet-hadoop"           % "1.12.2",
-  "org.apache.parquet"                   % "parquet-avro"             % "1.12.2",
+  "org.apache.parquet"                   % "parquet-common"           % "1.12.3",
+  "org.apache.parquet"                   % "parquet-hadoop"           % "1.12.3",
+  "org.apache.parquet"                   % "parquet-avro"             % "1.12.3",
   "org.apache.avro"                      % "avro"                     % avro,
   "io.confluent"                         % "kafka-streams-avro-serde" % confluent
 ) ++ jacksonLib ++ circeLib ++ pbLib
@@ -231,7 +231,7 @@ val http4sLib = Seq(
   "org.http4s" %% "http4s-blaze-client",
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "0.23.11")
+).map(_ % "0.23.12")
 
 val jwtLib = Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",

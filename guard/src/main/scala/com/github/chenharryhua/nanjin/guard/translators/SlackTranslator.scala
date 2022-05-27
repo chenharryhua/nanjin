@@ -231,7 +231,8 @@ private object SlackTranslator extends all {
               TextField("Took", fmt.format(evt.took)),
               TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Policy:* ${evt.actionParams.retry.policy[F].show}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin)
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+            KeyValueSection("Cause", s"```${evt.error.message}```")
           )
         )
       )

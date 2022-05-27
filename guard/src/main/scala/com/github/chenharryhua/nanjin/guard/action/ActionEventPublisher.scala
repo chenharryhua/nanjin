@@ -20,13 +20,13 @@ final private class ActionEventPublisher[F[_]](
   retryCount: Ref[F, Int]
 )(implicit F: Temporal[F]) {
 
-  def actionStart(actionParams: ActionParams, info: F[Option[Json]]): F[ActionInfo] =
+  def actionStart(actionParams: ActionParams, info: F[Json]): F[ActionInfo] =
     for {
       ts <- F.realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams, token, ts)
       _ <- info.flatMap(js => channel.send(ActionStart(ai, js))).whenA(actionParams.isNotice)
-      _ <- serviceStatus.update(_.include(ai)).whenA(actionParams.isExpensive.value)
+      _ <- serviceStatus.update(_.include(ai)).whenA(actionParams.isExpensive)
     } yield ai
 
   def actionRetry(actionInfo: ActionInfo, willDelayAndRetry: WillDelayAndRetry, ex: Throwable): F[Unit] =
@@ -45,7 +45,7 @@ final private class ActionEventPublisher[F[_]](
       _ <- retryCount.update(_ + 1)
     } yield ()
 
-  def actionSucc(actionInfo: ActionInfo, info: F[Option[Json]]): F[ZonedDateTime] =
+  def actionSucc(actionInfo: ActionInfo, info: F[Json]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- {
@@ -55,15 +55,21 @@ final private class ActionEventPublisher[F[_]](
           _ <- channel.send(ActionSucc(actionInfo, ts, num, js))
         } yield ()
       }.whenA(actionInfo.actionParams.isNotice)
-      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
+      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive)
     } yield ts
 
-  def actionFail(actionInfo: ActionInfo, ex: Throwable): F[ZonedDateTime] =
+  def actionFail(actionInfo: ActionInfo, ex: Throwable, inputInfo: F[Json]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       numRetries <- retryCount.get
+      info <- inputInfo
       _ <- channel.send(
-        ActionFail(actionInfo = actionInfo, timestamp = ts, numRetries = numRetries, error = NJError(ex)))
-      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive.value)
+        ActionFail(
+          actionInfo = actionInfo,
+          timestamp = ts,
+          numRetries = numRetries,
+          info = info,
+          error = NJError(ex)))
+      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive)
     } yield ts
 }

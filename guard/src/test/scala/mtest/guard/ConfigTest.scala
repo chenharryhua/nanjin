@@ -14,41 +14,41 @@ class ConfigTest extends AnyFunSuite {
     val as = service.eventStream { agent =>
       agent.notice.expensive.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.actionParams.isExpensive.value)
+    assert(as.actionInfo.actionParams.isExpensive)
   }
 
   test("cheap") {
     val as = service.eventStream { agent =>
       agent.notice.cheap.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(!as.actionInfo.actionParams.isExpensive.value)
+    assert(!as.actionInfo.actionParams.isExpensive)
   }
 
   test("counting") {
     val as = service.eventStream { agent =>
       agent.notice.updateConfig(_.withCounting).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.actionParams.isCounting.value)
+    assert(as.actionInfo.actionParams.isCounting)
   }
   test("without counting") {
     val as = service.eventStream { agent =>
       agent.notice.updateConfig(_.withoutCounting).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(!as.actionInfo.actionParams.isCounting.value)
+    assert(!as.actionInfo.actionParams.isCounting)
   }
 
   test("timing") {
     val as = service.eventStream { agent =>
       agent.notice.updateConfig(_.withTiming).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.actionParams.isTiming.value)
+    assert(as.actionInfo.actionParams.isTiming)
   }
 
   test("without timing") {
     val as = service.eventStream { agent =>
       agent.notice.updateConfig(_.withoutTiming).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(!as.actionInfo.actionParams.isTiming.value)
+    assert(!as.actionInfo.actionParams.isTiming)
   }
 
   test("notice") {

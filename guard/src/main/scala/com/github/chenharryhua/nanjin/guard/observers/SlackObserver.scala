@@ -69,11 +69,11 @@ final class SlackObserver[F[_]](
           translator.filter {
             case MetricReport(mrt, sp, _, ts, _, _) =>
               isShowMetrics(sp.metric.reportSchedule, ts, metricsInterval, sp.launchTime) || mrt.isShow
-            case ActionStart(ai, _)          => ai.actionParams.isCritical
-            case ActionSucc(ai, _, _, _)     => ai.actionParams.isCritical
-            case ActionRetry(ai, _, _, _, _) => ai.actionParams.isNotice
-            case ActionFail(ai, _, _, _)     => ai.actionParams.isNonTrivial
-            case _                           => true
+            case ai: ActionStart => ai.actionParams.isCritical
+            case ai: ActionSucc  => ai.actionParams.isCritical
+            case ai: ActionRetry => ai.actionParams.isNotice
+            case ai: ActionFail  => ai.actionParams.isNonTrivial
+            case _               => true
           }.translate(e).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
         .onFinalizeCase(
           ofm.terminated(_).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
