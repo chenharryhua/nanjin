@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.{Alternative, Endo, Traverse}
-import cats.data.{Ior, IorT, Kleisli, OptionT}
+import cats.data.{Ior, IorT, Kleisli}
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.concurrent.Channel
+import io.circe.Json
 
 import java.time.ZoneId
 import scala.concurrent.Future
@@ -50,9 +51,9 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = ActionParams(agentParams),
-      kfab = Kleisli(f),
-      transInput = OptionT.none,
-      transOutput = OptionT.none,
+      afb = f,
+      transInput = _ => F.pure(Json.Null),
+      transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
@@ -62,8 +63,8 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       actionParams = ActionParams(agentParams),
       fb = fb,
-      transInput = OptionT.none,
-      transOutput = OptionT.none,
+      transInput = F.pure(Json.Null),
+      transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def run[B](fb: F[B]): F[B]             = retry(fb).run
@@ -80,7 +81,7 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       serviceParams = agentParams.serviceParams,
       isError = false,
-      isCounting = CountAction.No)
+      isCounting = false)
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
@@ -88,7 +89,7 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
-      isCounting = CountAction.No)
+      isCounting = false)
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(
@@ -100,13 +101,13 @@ final class Agent[F[_]] private[service] (
     new NJMeter[F](
       metricName = Digested(agentParams.spans :+ meterName, serviceParams),
       metricRegistry = metricRegistry,
-      isCounting = CountAction.No)
+      isCounting = false)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
       metricName = Digested(agentParams.spans :+ histoName, serviceParams),
       metricRegistry = metricRegistry,
-      isCounting = CountAction.No
+      isCounting = false
     )
 
   lazy val metrics: NJMetrics[F] =

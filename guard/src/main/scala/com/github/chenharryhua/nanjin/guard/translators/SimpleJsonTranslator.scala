@@ -98,7 +98,7 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionStart",
             "name": ${evt.actionInfo.actionParams.metricName.origin},
-            "info": ${evt.info},
+            "input": ${evt.info},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},
             "serviceID": ${evt.serviceParams.serviceID},
@@ -124,6 +124,7 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionFail",
             "name": ${evt.actionInfo.actionParams.metricName.origin},
+            "input": ${evt.info},
             "cause" : ${evt.error.stackTrace},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},       
@@ -137,7 +138,7 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionSucc",
             "name": ${evt.actionInfo.actionParams.metricName.origin},
-            "info": ${evt.info},
+            "output": ${evt.info},
             "digest": ${evt.actionInfo.actionParams.metricName.digest},
             "id": ${evt.actionID},      
             "serviceID": ${evt.serviceParams.serviceID},

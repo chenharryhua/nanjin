@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Eval
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.LocalDateTime
 import java.util.Properties
@@ -23,8 +22,5 @@ object utils {
 
   final val random4d: Eval[Int]          = Eval.always(1000 + Random.nextInt(9000))
   final val defaultLocalParallelism: Int = Runtime.getRuntime.availableProcessors()
-
-  def mkExceptionString(err: Throwable, lines: Int = 2): String =
-    ExceptionUtils.getRootCauseStackTrace(err).take(lines).mkString("\n")
 
 }

@@ -141,7 +141,7 @@ private object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
-      evt.info.map(js => p(b("Info: "), js.spaces2))
+      p(b("Input: "), pre(evt.info.spaces2))
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
@@ -167,6 +167,7 @@ private object HtmlTranslator extends all {
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
+      p(b("Input: "), pre(evt.info.spaces2)),
       causeText(evt.error)
     )
 
@@ -180,7 +181,7 @@ private object HtmlTranslator extends all {
       p(b("ServiceID: "), evt.serviceID.show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
-      evt.info.map(js => p(b("Info: "), js.spaces2))
+      p(b("Output: "), pre(evt.info.spaces2))
     )
 
   def apply[F[_]: Monad]: Translator[F, Text.TypedTag[String]] =

@@ -4,7 +4,12 @@ import cats.{Endo, Show}
 import cats.effect.kernel.{Async, Resource, Temporal}
 import cats.syntax.all.*
 import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
-import com.amazonaws.services.sqs.model.{DeleteMessageRequest, DeleteMessageResult, Message, ReceiveMessageRequest}
+import com.amazonaws.services.sqs.model.{
+  DeleteMessageRequest,
+  DeleteMessageResult,
+  Message,
+  ReceiveMessageRequest
+}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import fs2.Stream
@@ -34,25 +39,23 @@ final case class SqsMessage(
   batchIndex: Long,
   messageIndex: Int,
   numInBatch: Int) {
-
+  private val om: ObjectMapper = new ObjectMapper()
   def asJson: Json = {
-    val om  = new ObjectMapper()
-    val req = Try(jacksonToCirce(om.valueToTree[JsonNode](request)))
     val resp = Try(jacksonToCirce(om.valueToTree[JsonNode](response))).map { js =>
       // replace the original body in case it is a json
       val body = parse(response.getBody).toOption.orElse(Option(response.getBody).map(Json.fromString))
       root.at("body").set(body)(js)
     }
-
-    json"""
-          {
-            "request":  ${req.toOption},
+    json"""{
             "response": ${resp.toOption},
             "batchIndex": $batchIndex,
-            "messageIndex": $messageIndex, 
+            "messageIndex": $messageIndex,
             "numInBatch": $numInBatch
           }"""
   }
+
+  def requestJson: Json =
+    Try(jacksonToCirce(om.valueToTree[JsonNode](request))).getOrElse(Json.Null)
 }
 
 sealed trait SimpleQueueService[F[_]] {
@@ -79,7 +82,10 @@ object SimpleQueueService {
         Stream.fixedRate(duration).zipWithIndex.map { case (_, idx) =>
           SqsMessage(
             request,
-            new Message().withMessageId(idx.toString).withBody("hello, world").withReceiptHandle(idx.toString),
+            new Message()
+              .withMessageId(idx.toString)
+              .withBody("hello, world")
+              .withReceiptHandle(idx.toString),
             0,
             idx.toInt,
             Int.MaxValue)
@@ -92,7 +98,8 @@ object SimpleQueueService {
   def apply[F[_]: Async](f: Endo[AmazonSQSClientBuilder]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      qr <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](30.second, f, logger))) {
+      qr <- Resource.makeCase(
+        logger.info(s"initialize $name").map(_ => new AwsSQS[F](30.second, f, logger))) {
         case (cw, quitCase) =>
           cw.shutdown(name, quitCase, logger)
       }
@@ -121,7 +128,9 @@ object SimpleQueueService {
         }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResult] =
-      F.blocking(client.deleteMessage(new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)))
+      F.blocking(
+        client.deleteMessage(
+          new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)))
         .onError(ex => logger.error(ex)(name))
 
     override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] =
@@ -139,8 +148,8 @@ object sqsS3Parser {
     implicit val showSqsS3File: Show[SqsS3File] = cats.derived.semiauto.show[SqsS3File]
   }
 
-  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore messages
-    * which do not have s3 structure
+  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore
+    * messages which do not have s3 structure
     */
   def apply(msg: SqsMessage): List[SqsS3File] =
     Option(msg.response)
@@ -150,7 +159,9 @@ object sqsS3Parser {
           val bucket = js.hcursor.downField("bucket").get[String]("name")
           val key    = js.hcursor.downField("object").get[String]("key")
           val size   = js.hcursor.downField("object").get[Long]("size")
-          (bucket, key, size).mapN((b, k, s) => SqsS3File(S3Path(b, URLDecoder.decode(k, "UTF-8")), s)).toOption
+          (bucket, key, size)
+            .mapN((b, k, s) => SqsS3File(S3Path(b, URLDecoder.decode(k, "UTF-8")), s))
+            .toOption
         }
       }
       .flatten

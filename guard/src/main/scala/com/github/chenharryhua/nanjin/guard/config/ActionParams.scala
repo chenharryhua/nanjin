@@ -23,7 +23,9 @@ sealed abstract class NJRetryPolicy {
     RetryPolicy.liftWithShow(
       _ =>
         DelayAndRetry(
-          FiniteDuration(ThreadLocalRandom.current().nextLong(min.toNanos, max.toNanos), TimeUnit.NANOSECONDS)),
+          FiniteDuration(
+            ThreadLocalRandom.current().nextLong(min.toNanos, max.toNanos),
+            TimeUnit.NANOSECONDS)),
       show"jitterBackoff(minDelay=${defaultFormatter.format(min)}, maxDelay=${defaultFormatter.format(max)})"
     )
 
@@ -66,9 +68,9 @@ object ActionRetryParams {
 final case class ActionParams private (
   metricName: Digested,
   importance: Importance,
-  isCounting: CountAction,
-  isTiming: TimeAction,
-  isExpensive: ExpensiveAction,
+  isCounting: Boolean,
+  isTiming: Boolean,
+  isExpensive: Boolean,
   retry: ActionRetryParams,
   serviceParams: ServiceParams) {
 
