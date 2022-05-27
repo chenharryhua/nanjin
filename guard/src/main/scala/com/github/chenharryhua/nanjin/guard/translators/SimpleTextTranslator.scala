@@ -97,8 +97,8 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
-       |  ${errorStr(evt.error)}
        |  Input: ${evt.info.noSpaces}
+       |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =

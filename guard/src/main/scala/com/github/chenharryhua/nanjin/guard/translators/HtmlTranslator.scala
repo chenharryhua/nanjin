@@ -167,8 +167,8 @@ private object HtmlTranslator extends all {
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
-      causeText(evt.error),
-      p(b("Input: "), pre(evt.info.spaces2))
+      p(b("Input: "), pre(evt.info.spaces2)),
+      causeText(evt.error)
     )
 
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
