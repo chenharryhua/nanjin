@@ -207,8 +207,8 @@ private object SlackTranslator extends all {
               TextField("Retries so far", evt.retriesSoFar.show)),
             MarkdownSection(s"""*${toOrdinalWords(evt.retriesSoFar)} retry:* at $lt, in $next
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
-            KeyValueSection("Cause", s"```${evt.error.message}```")
+                               |*Service ID:* ${evt.serviceID.show}
+                               |*Cause:* ${evt.error.message}""".stripMargin)
           )
         ))
     )
@@ -231,8 +231,8 @@ private object SlackTranslator extends all {
               TextField("Took", fmt.format(evt.took)),
               TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Policy:* ${evt.actionParams.retry.policy[F].show}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
-            KeyValueSection("Cause", s"```${evt.error.message}```")
+                               |*Service ID:* ${evt.serviceID.show}
+                               |*Cause:* ${evt.error.message}""".stripMargin)
           )
         )
       )
