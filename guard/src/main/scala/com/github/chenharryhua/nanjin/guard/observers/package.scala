@@ -17,9 +17,6 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object observers {
 
-  type Subject = Refined[String, NonEmpty And Trimmed]
-  object Subject extends RefinedTypeOps[Subject, String] with CatsRefinedTypeOpsSyntax
-
   def isShowMetrics(
     reportSchedule: Option[Either[FiniteDuration, CronExpr]],
     now: ZonedDateTime,

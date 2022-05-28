@@ -26,7 +26,7 @@ object EmailObserver {
     new SesEmailObserver[F](
       client = client,
       chunkSize = ChunkSize(60),
-      interval = 120.minutes,
+      interval = 180.minutes,
       isNewestFirst = true,
       translator = Translator.html[F])
 
@@ -68,15 +68,14 @@ final class SesEmailObserver[F[_]](
     ses: SimpleEmailService[F],
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
-    subject: Subject): F[Unit] = {
+    subject: String): F[Unit] = {
     val text: List[Text.TypedTag[String]] =
       if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
     val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-    ses.send(EmailContent(from.value, to.map(_.value), subject.value, content)).attempt.void
+    ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt.void
   }
 
-  // 'to' should better be a NonEmptySet but it need Order instance of EmailAddr.
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: Subject): Pipe[F, NJEvent, INothing] = {
+  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, INothing] = {
     (es: Stream[F, NJEvent]) =>
       val compu = for {
         ses <- Stream.resource(client)
@@ -120,19 +119,15 @@ final class SnsEmailObserver[F[_]](
     events: Chunk[Text.TypedTag[String]],
     sns: SimpleNotificationService[F],
     snsArn: SnsArn,
-    subject: Subject): F[Unit] = {
+    subject: String): F[Unit] = {
     val text: List[Text.TypedTag[String]] =
       if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-    val content = html(
-      body(
-        hr(h2(subject.value)),
-        text,
-        footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-    val req: PublishRequest = new PublishRequest(snsArn.value, content, subject.value)
+    val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+    val req: PublishRequest = new PublishRequest(snsArn.value, content, subject)
     sns.publish(req).attempt.void
   }
 
-  def observe(snsArn: SnsArn, subject: Subject): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
+  def observe(snsArn: SnsArn, subject: String): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
     Stream
       .resource(client)
       .flatMap(sns =>
