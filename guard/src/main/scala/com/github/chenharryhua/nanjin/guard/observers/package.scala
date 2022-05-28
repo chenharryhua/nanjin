@@ -16,8 +16,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object observers {
-  type Title = Refined[String, NonEmpty And Trimmed]
-  object Title extends RefinedTypeOps[Title, String] with CatsRefinedTypeOpsSyntax
 
   type Subject = Refined[String, NonEmpty And Trimmed]
   object Subject extends RefinedTypeOps[Subject, String] with CatsRefinedTypeOpsSyntax

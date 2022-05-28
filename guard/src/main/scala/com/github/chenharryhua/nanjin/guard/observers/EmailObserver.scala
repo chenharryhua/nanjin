@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
+import com.amazonaws.services.sns.model.PublishRequest
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.{EmailContent, SnsArn}
@@ -119,15 +120,19 @@ final class SnsEmailObserver[F[_]](
     events: Chunk[Text.TypedTag[String]],
     sns: SimpleNotificationService[F],
     snsArn: SnsArn,
-    title: Title): F[Unit] = {
+    subject: Subject): F[Unit] = {
     val text: List[Text.TypedTag[String]] =
       if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
     val content = html(
-      body(hr(h2(title.value)), text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-    sns.publish(snsArn, content).attempt.void
+      body(
+        hr(h2(subject.value)),
+        text,
+        footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+    val req: PublishRequest = new PublishRequest(snsArn.value, content, subject.value)
+    sns.publish(req).attempt.void
   }
 
-  def observe(snsArn: SnsArn, title: Title): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
+  def observe(snsArn: SnsArn, subject: Subject): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
     Stream
       .resource(client)
       .flatMap(sns =>
@@ -138,8 +143,9 @@ final class SnsEmailObserver[F[_]](
               .evalMap(translator.translate)
               .unNone
               .groupWithin(chunkSize.value, interval)
-              .evalTap(publish(_, sns, snsArn, title))
-              .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, sns, snsArn, "Service Termination Notice"))))
+              .evalTap(publish(_, sns, snsArn, subject))
+              .onFinalizeCase(
+                ofm.terminated(_).flatMap(publish(_, sns, snsArn, "Service Termination Notice"))))
           .drain)
 
 }

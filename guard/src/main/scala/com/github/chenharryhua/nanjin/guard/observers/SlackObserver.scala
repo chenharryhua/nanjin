@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
+import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
@@ -59,6 +60,11 @@ final class SlackObserver[F[_]](
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackObserver[F] =
     copy(translator = f(translator))
 
+  private def publish(client: SimpleNotificationService[F], snsArn: SnsArn, msg: String): F[PublishResult] = {
+    val req = new PublishRequest(snsArn.value, msg)
+    client.publish(req)
+  }
+
   def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
     for {
       sns <- Stream.resource(client)
@@ -74,8 +80,11 @@ final class SlackObserver[F[_]](
             case ai: ActionRetry => ai.actionParams.isNotice
             case ai: ActionFail  => ai.actionParams.isNonTrivial
             case _               => true
-          }.translate(e).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
+          }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces).attempt)).void)
         .onFinalizeCase(
-          ofm.terminated(_).flatMap(_.traverse(msg => sns.publish(snsArn, msg.asJson.noSpaces).attempt)).void)
+          ofm
+            .terminated(_)
+            .flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces).attempt))
+            .void)
     } yield event
 }
