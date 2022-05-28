@@ -5,12 +5,11 @@ import cats.syntax.all.*
 import cats.Endo
 import com.amazonaws.services.sns.{AmazonSNS, AmazonSNSClientBuilder}
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
-import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 sealed trait SimpleNotificationService[F[_]] {
-  def publish(snsArn: SnsArn, msg: String): F[PublishResult]
+  def publish(request: PublishRequest): F[PublishResult]
   def updateBuilder(f: Endo[AmazonSNSClientBuilder]): SimpleNotificationService[F]
 }
 
@@ -21,8 +20,8 @@ object SimpleNotificationService {
   def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     Resource.make(F.pure(new SimpleNotificationService[F] {
-      override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
-        logger.info(msg) *> F.pure(new PublishResult)
+      override def publish(request: PublishRequest): F[PublishResult] =
+        logger.info(request.toString) *> F.pure(new PublishResult)
 
       override def updateBuilder(f: Endo[AmazonSNSClientBuilder]): SimpleNotificationService[F] =
         this
@@ -37,13 +36,14 @@ object SimpleNotificationService {
       }
     } yield nr
 
-  final private class AwsSNS[F[_]](buildFrom: Endo[AmazonSNSClientBuilder], logger: Logger[F])(implicit F: Sync[F])
+  final private class AwsSNS[F[_]](buildFrom: Endo[AmazonSNSClientBuilder], logger: Logger[F])(implicit
+    F: Sync[F])
       extends ShutdownService[F] with SimpleNotificationService[F] {
 
     private lazy val client: AmazonSNS = buildFrom(AmazonSNSClientBuilder.standard()).build()
 
-    override def publish(snsArn: SnsArn, msg: String): F[PublishResult] =
-      F.blocking(client.publish(new PublishRequest(snsArn.value, msg))).onError(ex => logger.error(ex)(name))
+    override def publish(request: PublishRequest): F[PublishResult] =
+      F.blocking(client.publish(request)).onError(ex => logger.error(ex)(name))
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
