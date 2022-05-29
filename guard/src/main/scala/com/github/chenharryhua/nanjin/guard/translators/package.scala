@@ -22,7 +22,8 @@ package object translators {
     interval: Option[FiniteDuration],
     launchTime: ZonedDateTime): Option[ZonedDateTime] = {
     val nextBorder: Option[ZonedDateTime] =
-      interval.map(iv => launchTime.plus((((Duration.between(launchTime, now).toScala / iv).toLong + 1) * iv).toJava))
+      interval.map(iv =>
+        launchTime.plus((((Duration.between(launchTime, now).toScala / iv).toLong + 1) * iv).toJava))
     nextBorder match {
       case None =>
         reportSchedule.flatMap {
@@ -46,7 +47,8 @@ package object translators {
   private[translators] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
   private[translators] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
-    val sn: String = sp.taskParams.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
+    val sn: String =
+      sp.taskParams.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
     JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName.value))
   }
 
@@ -66,7 +68,9 @@ package object translators {
 
   private[translators] val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
-  private[translators] def localTimeAndDurationStr(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
+  private[translators] def localTimeAndDurationStr(
+    start: ZonedDateTime,
+    end: ZonedDateTime): (String, String) = {
     val duration = Duration.between(start, end)
     val localTime: String =
       if (duration.minus(Duration.ofHours(24)).isNegative)
@@ -78,7 +82,7 @@ package object translators {
   }
 
   private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
-    mr.serviceRestartTime match {
+    mr.restartTime match {
       case None => s"The service has been up and running for ${fmt.format(mr.upTime)}."
       case Some(zdt) =>
         val (time, dur) = localTimeAndDurationStr(mr.timestamp, zdt)

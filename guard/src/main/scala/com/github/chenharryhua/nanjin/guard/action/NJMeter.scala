@@ -6,14 +6,14 @@ import com.github.chenharryhua.nanjin.guard.config.Digested
 
 // counter can be reset, meter can't
 final class NJMeter[F[_]] private[guard] (
-  metricName: Digested,
+  digested: Digested,
   metricRegistry: MetricRegistry,
   isCounting: Boolean)(implicit F: Sync[F]) {
 
-  private lazy val meter: Meter     = metricRegistry.meter(meterMRName(metricName))
-  private lazy val counter: Counter = metricRegistry.counter(counterMRName(metricName, asError = false))
+  private lazy val meter: Meter     = metricRegistry.meter(meterMRName(digested))
+  private lazy val counter: Counter = metricRegistry.counter(counterMRName(digested, asError = false))
 
-  def withCounting: NJMeter[F] = new NJMeter[F](metricName, metricRegistry, true)
+  def withCounting: NJMeter[F] = new NJMeter[F](digested, metricRegistry, true)
 
   def mark(num: Long): F[Unit] = F.delay {
     meter.mark(num)

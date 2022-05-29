@@ -4,15 +4,15 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.action.NJRetry
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.parser.decode
-import scala.concurrent.duration.*
 import io.circe.syntax.*
+import org.scalatest.funsuite.AnyFunSuite
+
+import scala.concurrent.duration.*
 
 final case class MyException() extends Exception("my exception")
 
@@ -41,10 +41,10 @@ class RetryTest extends AnyFunSuite {
         .span("all-succ")
         .notice
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
-        .retry((x: Int) => IO(x + 1))
+        .retry((x: Int, y: Int) => IO(x + y))
         .withOutput(_.asJson)
         .withWorthRetry(_ => true)
-      List(1, 2, 3).traverse(i => ag.run(i))
+      List(1, 2, 3).traverse(i => ag.run((i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -59,12 +59,12 @@ class RetryTest extends AnyFunSuite {
 
   test("3.retry - all fail") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
-      val ag: NJRetry[IO, Int, Int] = gd
+      val ag = gd
         .span("all-fail")
         .notice
         .updateConfig(_.withMaxRetries(1).withConstantDelay(0.1.second))
-        .retry((x: Int) => IO.raiseError[Int](new Exception))
-      List(1, 2, 3).traverse(i => ag.run(i).attempt)
+        .retry((x: Int, y: Int, z: Int) => IO.raiseError[Int](new Exception))
+      List(1, 2, 3).traverse(i => ag.run((i, i, i)).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])

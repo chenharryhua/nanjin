@@ -35,7 +35,7 @@ final private class MetricEventPublisher[F[_]](
             case MetricSnapshotType.Delta =>
               MetricSnapshot.delta(ss.lastCounters, metricFilter, metricRegistry, ss.serviceParams)
           },
-          serviceRestartTime = ss.upcomingRestartTime
+          restartTime = ss.upcomingRestartTime
         ))
     } yield ()
 

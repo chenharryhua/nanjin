@@ -4,12 +4,7 @@ import cats.{Endo, Show}
 import cats.effect.kernel.{Async, Resource, Temporal}
 import cats.syntax.all.*
 import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
-import com.amazonaws.services.sqs.model.{
-  DeleteMessageRequest,
-  DeleteMessageResult,
-  Message,
-  ReceiveMessageRequest
-}
+import com.amazonaws.services.sqs.model.*
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import fs2.Stream
@@ -61,10 +56,15 @@ final case class SqsMessage(
 sealed trait SimpleQueueService[F[_]] {
 
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
+  final def receive(f: Endo[ReceiveMessageRequest]): Stream[F, SqsMessage] =
+    receive(f(new ReceiveMessageRequest()))
+
   final def receive(sqsUrl: SqsUrl): Stream[F, SqsMessage] =
     receive(new ReceiveMessageRequest(sqsUrl.value))
 
   def delete(msg: SqsMessage): F[DeleteMessageResult]
+
+  def sendMessage(msg: SendMessageRequest): F[SendMessageResult]
 
   def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F]
   def withPollingRate(pollingRate: FiniteDuration): SimpleQueueService[F]
@@ -93,6 +93,9 @@ object SimpleQueueService {
       override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] = this
 
       override def withPollingRate(pollingRate: FiniteDuration): SimpleQueueService[F] = this
+
+      override def sendMessage(msg: SendMessageRequest): F[SendMessageResult] =
+        F.pure(new SendMessageResult())
     }))(_ => F.unit)
 
   def apply[F[_]: Async](f: Endo[AmazonSQSClientBuilder]): Resource[F, SimpleQueueService[F]] =
@@ -133,11 +136,15 @@ object SimpleQueueService {
           new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)))
         .onError(ex => logger.error(ex)(name))
 
+    override def sendMessage(request: SendMessageRequest): F[SendMessageResult] =
+      F.blocking(client.sendMessage(request)).onError(ex => logger.error(ex)(name))
+
     override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] =
       new AwsSQS[F](pollingRate, buildFrom.andThen(f), logger)
 
     override def withPollingRate(pollingRate: FiniteDuration): SimpleQueueService[F] =
       new AwsSQS[F](pollingRate, buildFrom, logger)
+
   }
 }
 

@@ -9,11 +9,10 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto.*
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.parser.decode
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import io.circe.syntax.*
 
 class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
@@ -29,7 +28,8 @@ class CancellationTest extends AnyFunSuite {
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO(1) <* IO.canceled)
           .run)
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
@@ -38,6 +38,11 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByCancelation.type])
+
+    assert(a.asInstanceOf[ServiceStart].asJson === a.asJson)
+    assert(b.asInstanceOf[ActionStart].asJson === b.asJson)
+    assert(c.asInstanceOf[ActionFail].asJson === c.asJson)
+    assert(d.asInstanceOf[ServiceStop].asJson === d.asJson)
   }
 
   test("2.cancellation - can be canceled externally") {
@@ -47,7 +52,8 @@ class CancellationTest extends AnyFunSuite {
         val a1 = action.span("never").normal.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
@@ -63,7 +69,8 @@ class CancellationTest extends AnyFunSuite {
         val a1 = action.span("never").run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(3.seconds)
       .compile
       .toVector
@@ -71,6 +78,8 @@ class CancellationTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionFail])
     assert(c.isInstanceOf[ServicePanic])
+
+    assert(c.asInstanceOf[ServicePanic].asJson === c.asJson)
   }
 
   test("4.cancellation should propagate in right order") {
@@ -81,14 +90,25 @@ class CancellationTest extends AnyFunSuite {
         val a1     = action.span("inner").run(IO.never[Int])
         action.span("outer").retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))).run
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(10.second)
       .compile
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/inner][c60b4a00]")
-    assert(c.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/outer][a84e7ff2]")
+    assert(
+      b.asInstanceOf[ActionFail]
+        .actionInfo
+        .actionParams
+        .digested
+        .metricRepr == "[retry-test/inner][c60b4a00]")
+    assert(
+      c.asInstanceOf[ActionFail]
+        .actionInfo
+        .actionParams
+        .digested
+        .metricRepr == "[retry-test/outer][a84e7ff2]")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -101,16 +121,21 @@ class CancellationTest extends AnyFunSuite {
           IO.canceled >>
           action.span("a3").notice.retry(IO(1)).run
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a1][6f340f3f]")
+    assert(
+      b.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a1][6f340f3f]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
+    assert(
+      d.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
     assert(e.isInstanceOf[ServiceStop])
+
+    assert(b.asInstanceOf[ActionSucc].asJson === b.asJson)
   }
 
   test("6.cancellation - sequentially - no chance to cancel") {
@@ -127,7 +152,8 @@ class CancellationTest extends AnyFunSuite {
           IO.canceled >> // no chance to cancel since a2 never success
           action.span("a3").notice.retry(IO(1)).run
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.second)
       .compile
       .toVector
@@ -135,11 +161,16 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a1][6f340f3f]")
+    assert(
+      b.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a1][6f340f3f]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
-    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
+    assert(
+      d.asInstanceOf[ActionRetry].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
+    assert(
+      e.asInstanceOf[ActionFail].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
     assert(f.isInstanceOf[ServicePanic])
+
+    assert(d.asInstanceOf[ActionRetry].asJson === d.asJson)
   }
 
   test("7.cancellation - parallel") {
@@ -160,7 +191,8 @@ class CancellationTest extends AnyFunSuite {
             .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
             .run(IO.parSequenceN(5)(List(a1, a2, a3)))
         }
-        .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+        .map(_.asJson.noSpaces)
+        .evalMap(e => IO(decode[NJEvent](e)).rethrow)
         .interruptAfter(10.second)
         .compile
         .toVector
@@ -206,7 +238,8 @@ class CancellationTest extends AnyFunSuite {
           .run
         IO.parSequenceN(2)(List(IO.sleep(3.second) >> IO.canceled, a1))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
@@ -229,7 +262,8 @@ class CancellationTest extends AnyFunSuite {
           .run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -247,6 +281,8 @@ class CancellationTest extends AnyFunSuite {
     serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(_ => IO.never.onCancel(IO { i = 1 }))
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(2.seconds)
       .compile
       .drain

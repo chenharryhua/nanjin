@@ -6,17 +6,21 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
+import io.circe.parser.decode
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+
 final case class PassThroughObject(a: Int, b: String)
 
 class PassThroughTest extends AnyFunSuite {
@@ -24,10 +28,17 @@ class PassThroughTest extends AnyFunSuite {
   test("pass-through") {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
       List.range(0, 9).traverse(n => action.broker("pt").asError.passThrough(PassThroughObject(n, "a")))
-    }.map {
-      case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
-      case _                          => None
-    }.unNone.compile.toList.unsafeRunSync()
+    }.map(_.asJson.noSpaces)
+      .debug()
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+      .map {
+        case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
+        case _                          => None
+      }
+      .unNone
+      .compile
+      .toList
+      .unsafeRunSync()
     assert(a == 0)
     assert(b == "a")
     assert(rest.last.a == 8)
@@ -49,20 +60,28 @@ class PassThroughTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
     assert(
-      last.asInstanceOf[MetricReport].snapshot.counterMap("03.counter.[pass-throught/counter][0135a608].error") == 3)
+      last
+        .asInstanceOf[MetricReport]
+        .snapshot
+        .counterMap("03.counter.[pass-throught/counter][0135a608].error") == 3)
   }
 
   test("alert") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.c997))
       .eventStream(ag =>
-        ag.alert("oops").withCounting.error("message").delayBy(1.second) >> ag.metrics.report(MetricFilter.ALL))
+        ag.alert("oops").withCounting.error("message").delayBy(1.second) >> ag.metrics.report(
+          MetricFilter.ALL))
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[pass-throught/oops][a32b945e].error") == 1)
+    assert(
+      last
+        .asInstanceOf[MetricReport]
+        .snapshot
+        .counterMap("01.alert.[pass-throught/oops][a32b945e].error") == 1)
   }
 
   test("meter") {
@@ -70,7 +89,8 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
         val meter = agent.meter("nj.test.meter")
-        (meter.mark(1000) >> agent.metrics.reset.whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
+        (meter.mark(1000) >> agent.metrics.reset
+          .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.verboseText[IO]))
       .compile

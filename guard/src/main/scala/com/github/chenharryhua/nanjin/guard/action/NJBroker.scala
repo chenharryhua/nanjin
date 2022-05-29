@@ -10,7 +10,7 @@ import io.circe.Encoder
 import io.circe.syntax.*
 
 final class NJBroker[F[_]: Temporal] private[guard] (
-  metricName: Digested,
+  digested: Digested,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
@@ -19,15 +19,15 @@ final class NJBroker[F[_]: Temporal] private[guard] (
 
   private val publisher: InstantEventPublisher[F] = new InstantEventPublisher[F](channel, serviceParams)
 
-  private lazy val counter: Counter = metricRegistry.counter(passThroughMRName(metricName, isError))
+  private lazy val counter: Counter = metricRegistry.counter(passThroughMRName(digested, isError))
 
   def asError: NJBroker[F] =
-    new NJBroker[F](metricName, metricRegistry, channel, serviceParams, isError = true, isCounting)
+    new NJBroker[F](digested, metricRegistry, channel, serviceParams, isError = true, isCounting)
 
   def withCounting: NJBroker[F] =
-    new NJBroker[F](metricName, metricRegistry, channel, serviceParams, isError, true)
+    new NJBroker[F](digested, metricRegistry, channel, serviceParams, isError, true)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
-    publisher.passThrough(metricName, a.asJson, isError).map(_ => if (isCounting) counter.inc(1))
+    publisher.passThrough(digested, a.asJson, isError).map(_ => if (isCounting) counter.inc(1))
 
 }

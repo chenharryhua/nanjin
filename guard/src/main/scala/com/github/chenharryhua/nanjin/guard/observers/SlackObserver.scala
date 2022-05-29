@@ -60,15 +60,19 @@ final class SlackObserver[F[_]](
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackObserver[F] =
     copy(translator = f(translator))
 
-  private def publish(client: SimpleNotificationService[F], snsArn: SnsArn, msg: String): F[PublishResult] = {
+  private def publish(
+    client: SimpleNotificationService[F],
+    snsArn: SnsArn,
+    msg: String): F[Either[Throwable, PublishResult]] = {
     val req = new PublishRequest(snsArn.value, msg)
-    client.publish(req)
+    client.publish(req).attempt
   }
 
   def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
     for {
       sns <- Stream.resource(client)
-      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
+      ofm <- Stream.eval(
+        F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>
@@ -80,11 +84,8 @@ final class SlackObserver[F[_]](
             case ai: ActionRetry => ai.actionParams.isNotice
             case ai: ActionFail  => ai.actionParams.isNonTrivial
             case _               => true
-          }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces).attempt)).void)
+          }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
         .onFinalizeCase(
-          ofm
-            .terminated(_)
-            .flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces).attempt))
-            .void)
+          ofm.terminated(_).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
     } yield event
 }
