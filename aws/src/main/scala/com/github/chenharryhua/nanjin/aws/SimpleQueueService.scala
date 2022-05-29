@@ -4,14 +4,7 @@ import cats.{Endo, Show}
 import cats.effect.kernel.{Async, Resource, Temporal}
 import cats.syntax.all.*
 import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
-import com.amazonaws.services.sqs.model.{
-  DeleteMessageRequest,
-  DeleteMessageResult,
-  Message,
-  ReceiveMessageRequest,
-  SendMessageRequest,
-  SendMessageResult
-}
+import com.amazonaws.services.sqs.model.*
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
 import fs2.Stream
@@ -63,6 +56,9 @@ final case class SqsMessage(
 sealed trait SimpleQueueService[F[_]] {
 
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
+  final def receive(f: Endo[ReceiveMessageRequest]): Stream[F, SqsMessage] =
+    receive(f(new ReceiveMessageRequest()))
+
   final def receive(sqsUrl: SqsUrl): Stream[F, SqsMessage] =
     receive(new ReceiveMessageRequest(sqsUrl.value))
 
