@@ -30,7 +30,7 @@ final class Agent[F[_]] private[service] (
   private lazy val serviceParams: ServiceParams = agentParams.serviceParams
 
   def zoneId: ZoneId         = agentParams.serviceParams.taskParams.zoneId
-  def digestedName: Digested = Digested(agentParams.spans, agentParams.serviceParams)
+  def digestedName: Digested = agentParams.serviceParams.digestSpans(agentParams.spans)
 
   override def updateConfig(f: Endo[AgentConfig]): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, f(agentConfig))
@@ -76,7 +76,7 @@ final class Agent[F[_]] private[service] (
 
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
-      metricName = Digested(agentParams.spans :+ brokerName, serviceParams),
+      digested = serviceParams.digestSpans(agentParams.spans :+ brokerName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -85,7 +85,7 @@ final class Agent[F[_]] private[service] (
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
-      metricName = Digested(agentParams.spans :+ alertName, serviceParams),
+      digested = serviceParams.digestSpans(agentParams.spans :+ alertName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -93,19 +93,19 @@ final class Agent[F[_]] private[service] (
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(
-      metricName = Digested(agentParams.spans :+ counterName, serviceParams),
+      digested = serviceParams.digestSpans(agentParams.spans :+ counterName),
       metricRegistry = metricRegistry,
       isError = false)
 
   def meter(meterName: Span): NJMeter[F] =
     new NJMeter[F](
-      metricName = Digested(agentParams.spans :+ meterName, serviceParams),
+      digested = serviceParams.digestSpans(agentParams.spans :+ meterName),
       metricRegistry = metricRegistry,
       isCounting = false)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
-      metricName = Digested(agentParams.spans :+ histoName, serviceParams),
+      digested = serviceParams.digestSpans(agentParams.spans :+ histoName),
       metricRegistry = metricRegistry,
       isCounting = false
     )

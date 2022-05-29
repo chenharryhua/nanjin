@@ -177,7 +177,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.metricName.metricRepr),
+              TextField("Name", evt.digested.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
@@ -198,7 +198,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.metricName.metricRepr),
+              TextField("Name", evt.digested.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
@@ -223,7 +223,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.metricName.metricRepr),
+              TextField("Name", evt.digested.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
@@ -247,7 +247,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.metricName.metricRepr),
+              TextField("Name", evt.digested.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),

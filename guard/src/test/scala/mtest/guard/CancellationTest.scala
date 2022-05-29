@@ -87,8 +87,18 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/inner][c60b4a00]")
-    assert(c.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/outer][a84e7ff2]")
+    assert(
+      b.asInstanceOf[ActionFail]
+        .actionInfo
+        .actionParams
+        .digested
+        .metricRepr == "[retry-test/inner][c60b4a00]")
+    assert(
+      c.asInstanceOf[ActionFail]
+        .actionInfo
+        .actionParams
+        .digested
+        .metricRepr == "[retry-test/outer][a84e7ff2]")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -107,9 +117,11 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a1][6f340f3f]")
+    assert(
+      b.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a1][6f340f3f]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
+    assert(
+      d.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -135,10 +147,13 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a1][6f340f3f]")
+    assert(
+      b.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a1][6f340f3f]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
-    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.metricName.metricRepr == "[retry-test/a2][56199b40]")
+    assert(
+      d.asInstanceOf[ActionRetry].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
+    assert(
+      e.asInstanceOf[ActionFail].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
     assert(f.isInstanceOf[ServicePanic])
   }
 

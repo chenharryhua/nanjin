@@ -33,7 +33,7 @@ private object SimpleTextTranslator {
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
     s"""  Host:$host, ServiceID:${ae.serviceID.show}
-       |  Name:${ae.metricName.metricRepr}, ID:${ae.actionID}""".stripMargin
+       |  Name:${ae.digested.metricRepr}, ID:${ae.actionID}""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =

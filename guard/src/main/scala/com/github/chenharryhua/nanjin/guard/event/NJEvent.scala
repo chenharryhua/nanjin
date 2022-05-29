@@ -81,7 +81,7 @@ object NJEvent {
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
-    final def metricName: Digested       = actionInfo.actionParams.metricName
+    final def digested: Digested         = actionInfo.actionParams.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def launchTime: ZonedDateTime  = actionInfo.launchTime
     final def actionID: Int              = actionInfo.actionID
