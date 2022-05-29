@@ -56,6 +56,39 @@ final class Agent[F[_]] private[service] (
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
+  def retry[A, B, C](f: (A, B) => F[C]): NJRetry[F, Tuple2[A, B], C] =
+    new NJRetry[F, Tuple2[A, B], C](
+      serviceStatus = serviceStatus,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionParams = ActionParams(agentParams),
+      afb = f.tupled,
+      transInput = _ => F.pure(Json.Null),
+      transOutput = _ => F.pure(Json.Null),
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+
+  def retry[A, B, C, D](f: (A, B, C) => F[D]): NJRetry[F, Tuple3[A, B, C], D] =
+    new NJRetry[F, Tuple3[A, B, C], D](
+      serviceStatus = serviceStatus,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionParams = ActionParams(agentParams),
+      afb = f.tupled,
+      transInput = _ => F.pure(Json.Null),
+      transOutput = _ => F.pure(Json.Null),
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+
+  def retry[A, B, C, D, E](f: (A, B, C, D) => F[E]): NJRetry[F, Tuple4[A, B, C, D], E] =
+    new NJRetry[F, Tuple4[A, B, C, D], E](
+      serviceStatus = serviceStatus,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionParams = ActionParams(agentParams),
+      afb = f.tupled,
+      transInput = _ => F.pure(Json.Null),
+      transOutput = _ => F.pure(Json.Null),
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
     new NJRetryUnit[F, B](
       serviceStatus = serviceStatus,
