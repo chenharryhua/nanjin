@@ -25,7 +25,7 @@ private object SimpleTextTranslator {
   private def instantEvent(ie: InstantEvent): String = {
     val host: String = ie.serviceParams.taskParams.hostName.value
     s"""|  Host:$host, ServiceID:${ie.serviceID.show}
-        |  Name:${ie.metricName.metricRepr}""".stripMargin
+        |  Name:${ie.name.metricRepr}""".stripMargin
   }
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
@@ -33,7 +33,7 @@ private object SimpleTextTranslator {
   private def actionEvent(ae: ActionEvent): String = {
     val host: String = ae.serviceParams.taskParams.hostName.value
     s"""  Host:$host, ServiceID:${ae.serviceID.show}
-       |  Name:${ae.digested.metricRepr}, ID:${ae.actionID}""".stripMargin
+       |  Name:${ae.name.metricRepr}, ID:${ae.actionID}""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =

@@ -9,11 +9,10 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto.*
-import org.scalatest.funsuite.AnyFunSuite
 import io.circe.parser.decode
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import io.circe.syntax.*
 
 class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
@@ -39,6 +38,11 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByCancelation.type])
+
+    assert(a.asInstanceOf[ServiceStart].asJson === a.asJson)
+    assert(b.asInstanceOf[ActionStart].asJson === b.asJson)
+    assert(c.asInstanceOf[ActionFail].asJson === c.asJson)
+    assert(d.asInstanceOf[ServiceStop].asJson === d.asJson)
   }
 
   test("2.cancellation - can be canceled externally") {
@@ -74,6 +78,8 @@ class CancellationTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionFail])
     assert(c.isInstanceOf[ServicePanic])
+
+    assert(c.asInstanceOf[ServicePanic].asJson === c.asJson)
   }
 
   test("4.cancellation should propagate in right order") {
@@ -128,6 +134,8 @@ class CancellationTest extends AnyFunSuite {
     assert(
       d.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
     assert(e.isInstanceOf[ServiceStop])
+
+    assert(b.asInstanceOf[ActionSucc].asJson === b.asJson)
   }
 
   test("6.cancellation - sequentially - no chance to cancel") {
@@ -161,6 +169,8 @@ class CancellationTest extends AnyFunSuite {
     assert(
       e.asInstanceOf[ActionFail].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
     assert(f.isInstanceOf[ServicePanic])
+
+    assert(d.asInstanceOf[ActionRetry].asJson === d.asJson)
   }
 
   test("7.cancellation - parallel") {

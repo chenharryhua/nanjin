@@ -62,18 +62,27 @@ trait UpdateTranslator[F[_], A, B] {
   def traverse[G[_]](ge: G[NJEvent])(implicit F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =
     G.traverse(ge)(translate)
 
-  def skipServiceStart(implicit F: Applicative[F]): Translator[F, A]  = copy(serviceStart = Translator.noop[F, A])
-  def skipServicePanic(implicit F: Applicative[F]): Translator[F, A]  = copy(servicePanic = Translator.noop[F, A])
-  def skipServiceStop(implicit F: Applicative[F]): Translator[F, A]   = copy(serviceStop = Translator.noop[F, A])
-  def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A] = copy(metricReport = Translator.noop[F, A])
-  def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A]  = copy(metricReset = Translator.noop[F, A])
-  def skipInstantAlert(implicit F: Applicative[F]): Translator[F, A]  = copy(instantAlert = Translator.noop[F, A])
-  def skipPassThrough(implicit F: Applicative[F]): Translator[F, A]   = copy(passThrough = Translator.noop[F, A])
-  def skipActionStart(implicit F: Applicative[F]): Translator[F, A]   = copy(actionStart = Translator.noop[F, A])
-  def skipActionRetry(implicit F: Applicative[F]): Translator[F, A]   = copy(actionRetry = Translator.noop[F, A])
-  def skipActionFail(implicit F: Applicative[F]): Translator[F, A]    = copy(actionFail = Translator.noop[F, A])
-  def skipActionSucc(implicit F: Applicative[F]): Translator[F, A]    = copy(actionSucc = Translator.noop[F, A])
-  def skipAll(implicit F: Applicative[F]): Translator[F, A]           = Translator.empty[F, A]
+  def skipServiceStart(implicit F: Applicative[F]): Translator[F, A] =
+    copy(serviceStart = Translator.noop[F, A])
+  def skipServicePanic(implicit F: Applicative[F]): Translator[F, A] =
+    copy(servicePanic = Translator.noop[F, A])
+  def skipServiceStop(implicit F: Applicative[F]): Translator[F, A] =
+    copy(serviceStop = Translator.noop[F, A])
+  def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A] =
+    copy(metricReport = Translator.noop[F, A])
+  def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A] =
+    copy(metricReset = Translator.noop[F, A])
+  def skipInstantAlert(implicit F: Applicative[F]): Translator[F, A] =
+    copy(instantAlert = Translator.noop[F, A])
+  def skipPassThrough(implicit F: Applicative[F]): Translator[F, A] =
+    copy(passThrough = Translator.noop[F, A])
+  def skipActionStart(implicit F: Applicative[F]): Translator[F, A] =
+    copy(actionStart = Translator.noop[F, A])
+  def skipActionRetry(implicit F: Applicative[F]): Translator[F, A] =
+    copy(actionRetry = Translator.noop[F, A])
+  def skipActionFail(implicit F: Applicative[F]): Translator[F, A] = copy(actionFail = Translator.noop[F, A])
+  def skipActionSucc(implicit F: Applicative[F]): Translator[F, A] = copy(actionSucc = Translator.noop[F, A])
+  def skipAll(implicit F: Applicative[F]): Translator[F, A]        = Translator.empty[F, A]
 
   def withServiceStart(f: ServiceStart => F[Option[A]]): Translator[F, A] =
     copy(serviceStart = Kleisli(a => OptionT(f(a))))
@@ -229,7 +238,8 @@ object Translator extends zoneddatetime {
   implicit final def monadTranslator[F[_]](implicit
     F: Monad[F]): Monad[Translator[F, *]] & FunctorFilter[Translator[F, *]] =
     new Monad[Translator[F, *]] with FunctorFilter[Translator[F, *]] {
-      override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] = fa.flatMap(f)
+      override def flatMap[A, B](fa: Translator[F, A])(f: A => Translator[F, B]): Translator[F, B] =
+        fa.flatMap(f)
 
       override def tailRecM[A, B](a: A)(f: A => Translator[F, Either[A, B]]): Translator[F, B] = {
         def mapper(oeab: Option[Either[A, B]]): Either[A, Option[B]] =
@@ -240,31 +250,40 @@ object Translator extends zoneddatetime {
           }
 
         val serviceStart: Kleisli[OptionT[F, *], ServiceStart, B] =
-          Kleisli((ss: ServiceStart) => OptionT(F.tailRecM(a)(x => f(x).serviceStart.run(ss).value.map(mapper))))
+          Kleisli((ss: ServiceStart) =>
+            OptionT(F.tailRecM(a)(x => f(x).serviceStart.run(ss).value.map(mapper))))
 
         val servicePanic: Kleisli[OptionT[F, *], ServicePanic, B] =
-          Kleisli((ss: ServicePanic) => OptionT(F.tailRecM(a)(x => f(x).servicePanic.run(ss).value.map(mapper))))
+          Kleisli((ss: ServicePanic) =>
+            OptionT(F.tailRecM(a)(x => f(x).servicePanic.run(ss).value.map(mapper))))
 
         val serviceStop: Kleisli[OptionT[F, *], ServiceStop, B] =
-          Kleisli((ss: ServiceStop) => OptionT(F.tailRecM(a)(x => f(x).serviceStop.run(ss).value.map(mapper))))
+          Kleisli((ss: ServiceStop) =>
+            OptionT(F.tailRecM(a)(x => f(x).serviceStop.run(ss).value.map(mapper))))
 
-        val metricsReport: Kleisli[OptionT[F, *], MetricReport, B] =
-          Kleisli((ss: MetricReport) => OptionT(F.tailRecM(a)(x => f(x).metricReport.run(ss).value.map(mapper))))
+        val metricReport: Kleisli[OptionT[F, *], MetricReport, B] =
+          Kleisli((ss: MetricReport) =>
+            OptionT(F.tailRecM(a)(x => f(x).metricReport.run(ss).value.map(mapper))))
 
-        val metricsReset: Kleisli[OptionT[F, *], MetricReset, B] =
-          Kleisli((ss: MetricReset) => OptionT(F.tailRecM(a)(x => f(x).metricReset.run(ss).value.map(mapper))))
+        val metricReset: Kleisli[OptionT[F, *], MetricReset, B] =
+          Kleisli((ss: MetricReset) =>
+            OptionT(F.tailRecM(a)(x => f(x).metricReset.run(ss).value.map(mapper))))
 
         val instantAlert: Kleisli[OptionT[F, *], InstantAlert, B] =
-          Kleisli((ss: InstantAlert) => OptionT(F.tailRecM(a)(x => f(x).instantAlert.run(ss).value.map(mapper))))
+          Kleisli((ss: InstantAlert) =>
+            OptionT(F.tailRecM(a)(x => f(x).instantAlert.run(ss).value.map(mapper))))
 
         val passThrough: Kleisli[OptionT[F, *], PassThrough, B] =
-          Kleisli((ss: PassThrough) => OptionT(F.tailRecM(a)(x => f(x).passThrough.run(ss).value.map(mapper))))
+          Kleisli((ss: PassThrough) =>
+            OptionT(F.tailRecM(a)(x => f(x).passThrough.run(ss).value.map(mapper))))
 
         val actionStart: Kleisli[OptionT[F, *], ActionStart, B] =
-          Kleisli((ss: ActionStart) => OptionT(F.tailRecM(a)(x => f(x).actionStart.run(ss).value.map(mapper))))
+          Kleisli((ss: ActionStart) =>
+            OptionT(F.tailRecM(a)(x => f(x).actionStart.run(ss).value.map(mapper))))
 
         val actionRetry: Kleisli[OptionT[F, *], ActionRetry, B] =
-          Kleisli((ss: ActionRetry) => OptionT(F.tailRecM(a)(x => f(x).actionRetry.run(ss).value.map(mapper))))
+          Kleisli((ss: ActionRetry) =>
+            OptionT(F.tailRecM(a)(x => f(x).actionRetry.run(ss).value.map(mapper))))
 
         val actionFail: Kleisli[OptionT[F, *], ActionFail, B] =
           Kleisli((ss: ActionFail) => OptionT(F.tailRecM(a)(x => f(x).actionFail.run(ss).value.map(mapper))))
@@ -276,8 +295,8 @@ object Translator extends zoneddatetime {
           serviceStart,
           servicePanic,
           serviceStop,
-          metricsReport,
-          metricsReset,
+          metricReport,
+          metricReset,
           instantAlert,
           passThrough,
           actionStart,
@@ -354,9 +373,7 @@ object Translator extends zoneddatetime {
       Kleisli(x => OptionT(F.pure(Some(x))))
     )
 
-  def verboseJson[F[_]: Applicative]: Translator[F, Json] = {
-    import io.circe.generic.auto.*
-    import io.circe.syntax.*
+  def verboseJson[F[_]: Applicative]: Translator[F, Json] =
     empty[F, Json]
       .withServiceStart(_.asJson)
       .withServicePanic(_.asJson)
@@ -369,7 +386,6 @@ object Translator extends zoneddatetime {
       .withActionRetry(_.asJson)
       .withActionFail(_.asJson)
       .withActionSucc(_.asJson)
-  }
 
   def verboseText[F[_]: Applicative]: Translator[F, String] = {
     import cats.derived.auto.show.*

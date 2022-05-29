@@ -5,9 +5,7 @@ import cats.derived.auto.show.*
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
-import io.circe.generic.auto.*
-import io.circe.shapes.*
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 
 import java.time.{Duration, ZoneId, ZonedDateTime}
@@ -22,6 +20,8 @@ sealed trait NJEvent {
   final def zoneId: ZoneId   = serviceParams.taskParams.zoneId
   final def serviceID: UUID  = serviceParams.serviceID
   final def upTime: Duration = serviceParams.upTime(timestamp)
+
+  final def asJson: Json = Encoder[NJEvent].apply(this)
 }
 
 object NJEvent {
@@ -81,7 +81,7 @@ object NJEvent {
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
-    final def digested: Digested         = actionInfo.actionParams.digested
+    final def name: Digested             = actionInfo.actionParams.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def launchTime: ZonedDateTime  = actionInfo.launchTime
     final def actionID: Int              = actionInfo.actionID
@@ -134,11 +134,11 @@ object NJEvent {
   }
 
   sealed trait InstantEvent extends NJEvent {
-    def metricName: Digested
+    def name: Digested
   }
 
   final case class InstantAlert(
-    metricName: Digested,
+    name: Digested,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     importance: Importance,
@@ -148,7 +148,7 @@ object NJEvent {
   }
 
   final case class PassThrough(
-    metricName: Digested,
+    name: Digested,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     isError: Boolean, // the payload json represent an error
@@ -156,6 +156,7 @@ object NJEvent {
       extends InstantEvent {
     override val title: String = titles.passThrough
   }
+
 }
 
 private object titles {

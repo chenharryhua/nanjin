@@ -129,14 +129,14 @@ private object HtmlTranslator extends all {
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
       p(b("ServiceID: "), evt.serviceID.show),
-      p(b("Name: "), evt.metricName.metricRepr),
+      p(b("Name: "), evt.name.metricRepr),
       pre(evt.message)
     )
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
+      p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
@@ -147,7 +147,7 @@ private object HtmlTranslator extends all {
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
+      p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
@@ -159,7 +159,7 @@ private object HtmlTranslator extends all {
   private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
+      p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),
@@ -174,7 +174,7 @@ private object HtmlTranslator extends all {
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
+      p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
       timestampText(evt.timestamp),
       hostServiceText(evt.serviceParams),

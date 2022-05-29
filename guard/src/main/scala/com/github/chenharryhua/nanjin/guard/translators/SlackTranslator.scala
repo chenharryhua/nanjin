@@ -114,7 +114,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*$title:* ${evt.metricName.metricRepr}"),
+            MarkdownSection(s"*$title:* ${evt.name.metricRepr}"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*Service ID:* ${evt.serviceID.show}")
           ).appendedAll(msg)
@@ -177,7 +177,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.digested.metricRepr),
+              TextField("Name", evt.name.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
@@ -198,7 +198,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.digested.metricRepr),
+              TextField("Name", evt.name.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
@@ -223,7 +223,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.digested.metricRepr),
+              TextField("Name", evt.name.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),
@@ -247,7 +247,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             JuxtaposeSection(
-              TextField("Name", evt.digested.metricRepr),
+              TextField("Name", evt.name.metricRepr),
               TextField("ID", evt.actionInfo.actionID.show)
             ),
             hostServiceSection(evt.serviceParams),

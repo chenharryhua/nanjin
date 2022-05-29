@@ -71,10 +71,10 @@ private object SimpleJsonTranslator {
     json"""
           {
             "event": "PassThrough",
-            "name": ${evt.metricName.origin},
+            "name": ${evt.name.origin},
             "isError": ${evt.isError},
             "value": ${evt.value},
-            "digest": ${evt.metricName.digest},
+            "digest": ${evt.name.digest},
             "serviceID": ${evt.serviceParams.serviceID},
             "timestamp": ${evt.timestamp}
           }
@@ -84,10 +84,10 @@ private object SimpleJsonTranslator {
     json"""
           {       
             "event": "InstantAlert",
-            "name": ${evt.metricName.origin},
+            "name": ${evt.name.origin},
             "importance": ${evt.importance.value},
             "message": ${evt.message},
-            "digest": ${evt.metricName.digest},
+            "digest": ${evt.name.digest},
             "serviceID": ${evt.serviceParams.serviceID},
             "timestamp": ${evt.timestamp}
           }

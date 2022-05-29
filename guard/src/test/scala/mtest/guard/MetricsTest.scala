@@ -32,6 +32,7 @@ class MetricsTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
     assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.isEmpty))
+    assert(last.get.asInstanceOf[MetricReport].asJson === last.get.asJson)
   }
   test("full") {
     val last = sg
@@ -45,6 +46,7 @@ class MetricsTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
     assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.nonEmpty))
+    assert(last.get.asInstanceOf[MetricReport].asJson === last.get.asJson)
   }
 
   test("reset") {
@@ -64,6 +66,6 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(last.get.asInstanceOf[MetricReport].snapshot.counterMap.size === 0)
+    assert(last.get.asInstanceOf[MetricReport].asJson === last.get.asJson)
   }
-
 }
