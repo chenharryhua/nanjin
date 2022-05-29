@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.amazonaws.services.sns.model.PublishRequest
+import com.amazonaws.services.simpleemail.model.SendEmailResult
+import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.{EmailContent, SnsArn}
@@ -68,25 +69,27 @@ final class SesEmailObserver[F[_]](
     ses: SimpleEmailService[F],
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
-    subject: String): F[Unit] = {
+    subject: String): F[Either[Throwable, SendEmailResult]] = {
     val text: List[Text.TypedTag[String]] =
       if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
     val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-    ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt.void
+    ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt
   }
 
   def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, INothing] = {
     (es: Stream[F, NJEvent]) =>
       val compu = for {
         ses <- Stream.resource(client)
-        ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
+        ofm <- Stream.eval(
+          F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
         _ <- es
           .evalTap(ofm.monitoring)
           .evalMap(translator.translate)
           .unNone
           .groupWithin(chunkSize.value, interval)
-          .evalTap(publish(_, ses, from, to, subject))
-          .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, ses, from, to, "Service Termination Notice")))
+          .evalTap(publish(_, ses, from, to, subject).void)
+          .onFinalizeCase(
+            ofm.terminated(_).flatMap(publish(_, ses, from, to, "Service Termination Notice").void))
       } yield ()
       compu.drain
   }
@@ -119,12 +122,12 @@ final class SnsEmailObserver[F[_]](
     events: Chunk[Text.TypedTag[String]],
     sns: SimpleNotificationService[F],
     snsArn: SnsArn,
-    subject: String): F[Unit] = {
+    subject: String): F[Either[Throwable, PublishResult]] = {
     val text: List[Text.TypedTag[String]] =
       if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
     val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
     val req: PublishRequest = new PublishRequest(snsArn.value, content, subject)
-    sns.publish(req).attempt.void
+    sns.publish(req).attempt
   }
 
   def observe(snsArn: SnsArn, subject: String): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
@@ -132,15 +135,15 @@ final class SnsEmailObserver[F[_]](
       .resource(client)
       .flatMap(sns =>
         Stream
-          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
+          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
           .flatMap(ofm =>
             es.evalTap(ofm.monitoring)
               .evalMap(translator.translate)
               .unNone
               .groupWithin(chunkSize.value, interval)
-              .evalTap(publish(_, sns, snsArn, subject))
+              .evalTap(publish(_, sns, snsArn, subject).void)
               .onFinalizeCase(
-                ofm.terminated(_).flatMap(publish(_, sns, snsArn, "Service Termination Notice"))))
+                ofm.terminated(_).flatMap(publish(_, sns, snsArn, "Service Termination Notice").void)))
           .drain)
 
 }

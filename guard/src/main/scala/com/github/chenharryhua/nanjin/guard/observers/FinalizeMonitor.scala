@@ -5,13 +5,13 @@ import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.translators.Translator
 import fs2.Chunk
 
 import java.util.UUID
 
-final private class FinalizeMonitor[F[_], A](translator: Translator[F, A], ref: Ref[F, Map[UUID, ServiceStart]])(
-  implicit F: Temporal[F]) {
+final private class FinalizeMonitor[F[_], A](
+  translate: NJEvent => F[Option[A]],
+  ref: Ref[F, Map[UUID, ServiceStart]])(implicit F: Temporal[F]) {
   def monitoring(event: NJEvent): F[Unit] = event match {
     case ss: ServiceStart => ref.update(_.updated(ss.serviceID, ss))
     case ss: ServiceStop  => ref.update(_.removed(ss.serviceID))
@@ -24,7 +24,7 @@ final private class FinalizeMonitor[F[_], A](translator: Translator[F, A], ref: 
       Chunk
         .iterable(m.values)
         .traverseFilter(ss =>
-          translator.translate(
+          translate(
             ServiceStop(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ServiceStopCause(ec)))))
   } yield msgs
 }

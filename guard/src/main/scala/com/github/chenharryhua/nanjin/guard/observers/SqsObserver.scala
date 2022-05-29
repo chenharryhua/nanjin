@@ -14,12 +14,13 @@ import io.circe.Json
 import java.util.UUID
 object SqsObserver {
   def apply[F[_]: Temporal](client: Resource[F, SimpleQueueService[F]]) =
-    new SqsObserver[F](client, Translator.verboseJson[F])
+    new SqsObserver[F](client, Translator.idTranslator[F])
 }
-final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], translator: Translator[F, Json])(
+final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], translator: Translator[F, NJEvent])(
   implicit F: Temporal[F])
-    extends UpdateTranslator[F, Json, SqsObserver[F]] {
-
+    extends UpdateTranslator[F, NJEvent, SqsObserver[F]] {
+  private def translate(evt: NJEvent): F[Option[Json]] =
+    translator.translate(evt).flatMap(_.flatTraverse(Translator.verboseJson.translate))
   private def sendMessage(
     sqs: SimpleQueueService[F],
     sqsUrl: SqsUrl,
@@ -31,13 +32,13 @@ final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], transl
   def observe(sqsUrl: SqsUrl): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
     for {
       sqs <- Stream.resource(client)
-      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator, _)))
+      ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
       event <- es
         .evalTap(ofm.monitoring)
-        .evalTap(e => translator.translate(e).flatMap(_.traverse(sendMessage(sqs, sqsUrl, _))).void)
+        .evalTap(e => translate(e).flatMap(_.traverse(sendMessage(sqs, sqsUrl, _))).void)
         .onFinalizeCase(ofm.terminated(_).flatMap(_.traverse(sendMessage(sqs, sqsUrl, _))).void)
     } yield event
 
-  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): SqsObserver[F] =
+  override def updateTranslator(f: Translator[F, NJEvent] => Translator[F, NJEvent]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))
 }
