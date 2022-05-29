@@ -25,7 +25,8 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Delta))
       .eventStream(ag => ag.span("one").run(IO(0)) >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .last
@@ -37,7 +38,8 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Full))
       .eventStream(ag => ag.span("one").updateConfig(_.withCounting).run(IO(0)) >> IO.sleep(10.minutes))
       .evalTap(console(Translator.simpleText[IO]))
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .last
@@ -50,11 +52,12 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular))
       .eventStream { ag =>
         val metric = ag.metrics
-        ag.span("one").run(IO(0)) >> ag.span("two").run(IO(1)) >> metric.fullReport >> metric.reset >> IO.sleep(
-          10.minutes)
+        ag.span("one").run(IO(0)) >> ag.span("two").run(IO(1)) >> metric.fullReport >> metric.reset >> IO
+          .sleep(10.minutes)
       }
       .evalTap(console(Translator.simpleText[IO]))
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .last

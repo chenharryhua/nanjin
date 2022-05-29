@@ -29,7 +29,8 @@ class CancellationTest extends AnyFunSuite {
           .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
           .retry(IO(1) <* IO.canceled)
           .run)
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
@@ -47,7 +48,8 @@ class CancellationTest extends AnyFunSuite {
         val a1 = action.span("never").normal.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
@@ -63,7 +65,8 @@ class CancellationTest extends AnyFunSuite {
         val a1 = action.span("never").run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(3.seconds)
       .compile
       .toVector
@@ -81,7 +84,8 @@ class CancellationTest extends AnyFunSuite {
         val a1     = action.span("inner").run(IO.never[Int])
         action.span("outer").retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))).run
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(10.second)
       .compile
       .toVector
@@ -111,7 +115,8 @@ class CancellationTest extends AnyFunSuite {
           IO.canceled >>
           action.span("a3").notice.retry(IO(1)).run
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
@@ -139,7 +144,8 @@ class CancellationTest extends AnyFunSuite {
           IO.canceled >> // no chance to cancel since a2 never success
           action.span("a3").notice.retry(IO(1)).run
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.second)
       .compile
       .toVector
@@ -175,7 +181,8 @@ class CancellationTest extends AnyFunSuite {
             .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
             .run(IO.parSequenceN(5)(List(a1, a2, a3)))
         }
-        .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+        .map(_.asJson.noSpaces)
+        .evalMap(e => IO(decode[NJEvent](e)).rethrow)
         .interruptAfter(10.second)
         .compile
         .toVector
@@ -221,7 +228,8 @@ class CancellationTest extends AnyFunSuite {
           .run
         IO.parSequenceN(2)(List(IO.sleep(3.second) >> IO.canceled, a1))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
       .toVector
       .unsafeRunSync()
@@ -244,7 +252,8 @@ class CancellationTest extends AnyFunSuite {
           .run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
       }
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.seconds)
       .compile
       .toVector
@@ -262,6 +271,8 @@ class CancellationTest extends AnyFunSuite {
     serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(_ => IO.never.onCancel(IO { i = 1 }))
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(2.seconds)
       .compile
       .drain
