@@ -60,10 +60,10 @@ object NJEvent {
     ongoings: List[ActionInfo],
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot,
-    serviceRestartTime: Option[ZonedDateTime])
+    restartTime: Option[ZonedDateTime])
       extends MetricEvent {
-    val isPanic: Boolean       = serviceRestartTime.nonEmpty
-    val isUp: Boolean          = serviceRestartTime.isEmpty
+    val isPanic: Boolean       = restartTime.nonEmpty
+    val isUp: Boolean          = restartTime.isEmpty
     override val title: String = reportType.show
   }
 
