@@ -103,9 +103,9 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/inner][b47fff45]")
+    assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/inner][5646b97c]")
     assert(
-      c.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/three/outer][e023a23d]")
+      c.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/three/outer][f5929d49]")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -125,9 +125,9 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[root][1b004bc7]")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[][ea52920a]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[a2][d583715e]")
+    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[a2][56199b40]")
     assert(e.isInstanceOf[ServiceStop])
 
     assert(b.asInstanceOf[ActionSucc].asJson === b.asJson)
@@ -156,10 +156,10 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[a1][eb2b020b]")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[a1][6f340f3f]")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.name.metricRepr == "[a2][d583715e]")
-    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[a2][d583715e]")
+    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.name.metricRepr == "[a2][56199b40]")
+    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[a2][56199b40]")
     assert(f.isInstanceOf[ServicePanic])
 
     assert(d.asInstanceOf[ActionRetry].asJson === d.asJson)

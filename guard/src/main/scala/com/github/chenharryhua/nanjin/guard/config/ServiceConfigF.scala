@@ -1,18 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.derived.auto.show.*
 import cats.{Functor, Show}
-import cats.data.NonEmptyList
-import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
-import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName, Span}
+import cats.derived.auto.show.*
+import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}
+import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.cats.*
 import eu.timepit.refined.refineMV
-import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.refined.*
@@ -56,13 +54,6 @@ private[guard] object MetricParams {
   def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime
   def upTime(ts: ZonedDateTime): Duration         = Duration.between(launchTime, ts)
   def upTime(ts: Instant): Duration               = Duration.between(launchTime, ts)
-
-  def digestSpans(spans: NonEmptyList[Span]): Digested =
-    Digested(
-      spans,
-      DigestUtils
-        .sha1Hex(spans.toList.map(_.value).prepended(taskParams.taskName.value).mkString("/"))
-        .take(8))
 
 }
 

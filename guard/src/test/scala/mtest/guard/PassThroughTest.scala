@@ -24,7 +24,7 @@ final case class PassThroughObject(a: Int, b: String)
 
 class PassThroughTest extends AnyFunSuite {
   val guard: ServiceGuard[IO] = TaskGuard[IO]("test").service("pass-throught")
-  test("pass-through") {
+  test("1.pass-through") {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
       List.range(0, 9).traverse(n => action.broker("pt").asError.passThrough(PassThroughObject(n, "a")))
     }.map(_.asJson.noSpaces)
@@ -43,7 +43,7 @@ class PassThroughTest extends AnyFunSuite {
     assert(rest.size == 8)
   }
 
-  test("counter") {
+  test("2.counter") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.secondly))
       .eventStream(ag =>
@@ -64,10 +64,10 @@ class PassThroughTest extends AnyFunSuite {
       last
         .asInstanceOf[MetricReport]
         .snapshot
-        .counterMap("03.counter.[one/two/three/counter][7d59eece].error") == 3)
+        .counterMap("03.counter.[one/two/three/counter][aef1d85c].error") == 3)
   }
 
-  test("alert") {
+  test("3.alert") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.c997))
       .eventStream(ag =>
@@ -78,11 +78,10 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-
-    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[oops][934e7cd7].error") == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[oops][a32b945e].error") == 1)
   }
 
-  test("meter") {
+  test("4.meter") {
     guard
       .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
@@ -96,7 +95,7 @@ class PassThroughTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("histogram") {
+  test("5.histogram") {
     guard
       .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
