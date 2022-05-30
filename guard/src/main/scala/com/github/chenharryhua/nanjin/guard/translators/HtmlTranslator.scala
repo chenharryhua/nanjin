@@ -35,10 +35,10 @@ private object HtmlTranslator extends all {
         p(b("Sevice: "), a(href := hp.value)(evt.serviceParams.serviceName.value)))
     div(
       p(b("Timestamp: "), evt.timestamp.truncatedTo(ChronoUnit.SECONDS).show),
-      sn,
-      p(b("ServiceID: "), evt.serviceID.show),
       p(b("Host: "), evt.serviceParams.taskParams.hostName.value),
-      p(b("Task: "), evt.serviceParams.taskParams.taskName.value)
+      p(b("Task: "), evt.serviceParams.taskParams.taskName.value),
+      sn,
+      p(b("ServiceID: "), evt.serviceID.show)
     )
   }
 

@@ -22,7 +22,7 @@ import scala.concurrent.duration.*
 // sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
 
-  test("logging") {
+  test("1.logging") {
     TaskGuard[IO]("logging")
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.hourly).withQueueCapacity(20))
@@ -38,7 +38,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("console - text") {
+  test("2.console - text") {
     TaskGuard[IO]("console")
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
@@ -54,7 +54,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("console - json") {
+  test("3.console - json") {
     TaskGuard[IO]("console")
       .service("json")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
@@ -70,7 +70,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("slack") {
+  test("4.slack") {
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
@@ -88,7 +88,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("ses mail") {
+  test("5.ses mail") {
     val mail =
       EmailObserver(SimpleEmailService.fake[IO])
         .withInterval(5.seconds)
@@ -108,7 +108,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("sns mail") {
+  test("6.sns mail") {
     val mail =
       EmailObserver[IO](SimpleNotificationService.fake[IO])
         .withInterval(5.seconds)
@@ -128,7 +128,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("lense") {
+  test("7.lense") {
     val len =
       Translator
         .serviceStart[IO, SlackApp]
@@ -146,14 +146,14 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("syntax") {
+  test("8.syntax") {
     EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10)
     EmailObserver[IO](SimpleNotificationService.fake[IO]).withInterval(1.minute).withChunkSize(10)
     logging.simple[IO]
     console.verbose[IO]
   }
 
-  test("postgres") {
+  test("9.postgres") {
     import skunk.implicits.toStringOps
     import natchez.Trace.Implicits.noop
 

@@ -24,7 +24,7 @@ class ServiceTest extends AnyFunSuite {
     .service("service")
     .updateConfig(_.withConstantDelay(1.seconds))
 
-  test("should stopped if the operation normally exits") {
+  test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
       .updateConfig(_.withJitterBackoff(3.second))
       .updateConfig(_.withQueueCapacity(1))
@@ -39,7 +39,7 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("escalate to up level if retry failed") {
+  test("2.escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(2))
@@ -64,7 +64,7 @@ class ServiceTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("should throw exception when fatal error occurs") {
+  test("3.should throw exception when fatal error occurs") {
     var sStart = 0
     var sStop  = 0
     var aStart = 0
@@ -99,7 +99,7 @@ class ServiceTest extends AnyFunSuite {
     assert(others == 0)
   }
 
-  test("json codec") {
+  test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: rest = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(3))
@@ -123,7 +123,7 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServicePanic])
   }
 
-  test("should receive at least 3 report event") {
+  test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: rest = guard
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
@@ -140,7 +140,7 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[MetricReport])
   }
 
-  test("force reset") {
+  test("6.force reset") {
     val s :: b :: c :: rest = guard
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
@@ -155,7 +155,7 @@ class ServiceTest extends AnyFunSuite {
     assert(c.isInstanceOf[MetricReset])
   }
 
-  test("normal service stop after two operations") {
+  test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
       .updateConfig(_.withQueueCapacity(10))
       .eventStream(gd => gd.span("a").notice.retry(IO(1)).run >> gd.span("b").notice.retry(IO(2)).run)
@@ -172,7 +172,7 @@ class ServiceTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServiceStop])
   }
 
-  test("combine two event streams") {
+  test("8.combine two event streams") {
     val guard = TaskGuard[IO]("two service")
     val s1    = guard.service("s1")
     val s2    = guard.service("s2")
@@ -187,7 +187,7 @@ class ServiceTest extends AnyFunSuite {
     assert(vector.count(_.isInstanceOf[ServiceStop]) == 2)
   }
 
-  test("print agent params") {
+  test("9.print agent params") {
     guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
   }
 }

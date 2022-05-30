@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.{Alternative, Endo, Traverse}
-import cats.data.{Ior, IorT, Kleisli, NonEmptyList}
+import cats.data.{Ior, IorT, Kleisli}
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -119,7 +119,7 @@ final class Agent[F[_]] private[service] (
 
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
-      digested = serviceParams.digestSpans(NonEmptyList(brokerName, agentParams.spans)),
+      digested = Digested(serviceParams, brokerName :: agentParams.spans),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -128,7 +128,7 @@ final class Agent[F[_]] private[service] (
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
-      digested = serviceParams.digestSpans(NonEmptyList(alertName, agentParams.spans)),
+      digested = Digested(serviceParams, alertName :: agentParams.spans),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -136,19 +136,19 @@ final class Agent[F[_]] private[service] (
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(
-      digested = serviceParams.digestSpans(NonEmptyList(counterName, agentParams.spans)),
+      digested = Digested(serviceParams, counterName :: agentParams.spans),
       metricRegistry = metricRegistry,
       isError = false)
 
   def meter(meterName: Span): NJMeter[F] =
     new NJMeter[F](
-      digested = serviceParams.digestSpans(NonEmptyList(meterName, agentParams.spans)),
+      digested = Digested(serviceParams, meterName :: agentParams.spans),
       metricRegistry = metricRegistry,
       isCounting = false)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
-      digested = serviceParams.digestSpans(NonEmptyList(histoName, agentParams.spans)),
+      digested = Digested(serviceParams, histoName :: agentParams.spans),
       metricRegistry = metricRegistry,
       isCounting = false
     )

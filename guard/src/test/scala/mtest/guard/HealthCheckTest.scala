@@ -10,16 +10,16 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
-import io.circe.syntax.*
 
 class HealthCheckTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("health-check")
-  test("should receive 3 MetricsReport event") {
+  test("1.should receive 3 MetricsReport event") {
     val s :: a :: b :: c :: rest = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
       .service("normal")
@@ -42,7 +42,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(c.isInstanceOf[MetricReport])
   }
 
-  test("success-test") {
+  test("2.success-test") {
     val s :: a :: b :: c :: d :: rest = guard
       .service("success-test")
       .updateConfig(_.withMetricReport(1.second))
@@ -62,7 +62,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(d.isInstanceOf[MetricReport])
   }
 
-  test("never success") {
+  test("3.never success") {
     val s :: a :: b :: c :: rest = guard
       .service("metrics-report")
       .updateConfig(
@@ -91,7 +91,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(c.isInstanceOf[MetricReport])
   }
 
-  test("metrics reset") {
+  test("4.metrics reset") {
     val list = guard
       .service("metrics-reset-test")
       .updateConfig(_.withMetricReport(2.seconds).withMetricReset(crontabs.trisecondly))

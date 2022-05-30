@@ -20,7 +20,7 @@ private object SimpleTextTranslator {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
     val tn: String   = se.serviceParams.taskParams.taskName.value
-    s"  Host:$host, Task:$tn, ServiceID:${se.serviceID.show}, Service:$sn"
+    s"  Host:$host, Task:$tn, Service:$sn, ServiceID:${se.serviceID.show}"
   }
 
   private def instantEvent(ie: InstantEvent): String = {
@@ -35,7 +35,7 @@ private object SimpleTextTranslator {
     val host: String = ae.serviceParams.taskParams.hostName.value
     val sn: String   = ae.serviceParams.serviceName.value
     val tn: String   = ae.serviceParams.taskParams.taskName.value
-    s"""  Host:$host, Task:$tn, ServiceID:${ae.serviceID.show}, Service:$sn
+    s"""  Host:$host, Task:$tn, Service:$sn, ServiceID:${ae.serviceID.show}
        |  Name:${ae.name.metricRepr}, ID:${ae.actionID}""".stripMargin
   }
 

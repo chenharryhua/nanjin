@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Applicative, Show}
-import cats.data.NonEmptyList
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
@@ -67,7 +66,7 @@ object ActionRetryParams {
 
 @JsonCodec
 final case class ActionParams private (
-  spans: NonEmptyList[Span],
+  spans: List[Span],
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -79,20 +78,16 @@ final case class ActionParams private (
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
   val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 
-  val name: Digested = serviceParams.digestSpans(spans)
+  val name: Digested = Digested(serviceParams, spans)
 
 }
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
-  def apply(agentParams: AgentParams): ActionParams = {
-    val nel = agentParams.spans match {
-      case h :: t => NonEmptyList(h, t)
-      case Nil    => NonEmptyList.one(Span("root"))
-    }
+  def apply(agentParams: AgentParams): ActionParams =
     ActionParams(
-      spans = nel,
+      spans = agentParams.spans,
       importance = agentParams.importance,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
@@ -100,5 +95,4 @@ object ActionParams {
       retry = agentParams.retry,
       serviceParams = agentParams.serviceParams
     )
-  }
 }
