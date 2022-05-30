@@ -15,7 +15,6 @@ import eu.timepit.refined.auto.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import io.circe.parser.decode
-import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -29,7 +28,6 @@ class PassThroughTest extends AnyFunSuite {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
       List.range(0, 9).traverse(n => action.broker("pt").asError.passThrough(PassThroughObject(n, "a")))
     }.map(_.asJson.noSpaces)
-      .debug()
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .map {
         case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
@@ -50,6 +48,9 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(crontabs.secondly))
       .eventStream(ag =>
         ag.counter("counter").inc(100) >> ag.metrics.reset >> ag
+          .span("one")
+          .span("two")
+          .span("three")
           .counter("counter")
           .asError
           .inc(1)
@@ -63,7 +64,7 @@ class PassThroughTest extends AnyFunSuite {
       last
         .asInstanceOf[MetricReport]
         .snapshot
-        .counterMap("03.counter.[pass-throught/counter][0135a608].error") == 3)
+        .counterMap("03.counter.[one/two/three/counter][7d59eece].error") == 3)
   }
 
   test("alert") {
@@ -77,11 +78,8 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(
-      last
-        .asInstanceOf[MetricReport]
-        .snapshot
-        .counterMap("01.alert.[pass-throught/oops][a32b945e].error") == 1)
+
+    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[oops][934e7cd7].error") == 1)
   }
 
   test("meter") {
@@ -92,7 +90,7 @@ class PassThroughTest extends AnyFunSuite {
         (meter.mark(1000) >> agent.metrics.reset
           .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
-      .evalTap(logging(Translator.verboseText[IO]))
+      .evalTap(logging(Translator.simpleText[IO]))
       .compile
       .drain
       .unsafeRunSync()
@@ -105,7 +103,7 @@ class PassThroughTest extends AnyFunSuite {
         val meter = agent.histogram("nj.test.histogram")
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
-      .evalTap(logging(Translator.verboseJson[IO].map(_.noSpaces)))
+      .evalTap(logging(Translator.simpleText[IO]))
       .compile
       .drain
       .unsafeRunSync()

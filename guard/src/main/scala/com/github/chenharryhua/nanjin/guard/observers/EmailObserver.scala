@@ -26,7 +26,7 @@ object EmailObserver {
   def apply[F[_]: Async](client: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] =
     new SesEmailObserver[F](
       client = client,
-      chunkSize = ChunkSize(60),
+      chunkSize = ChunkSize(90),
       interval = 180.minutes,
       isNewestFirst = true,
       translator = Translator.html[F])

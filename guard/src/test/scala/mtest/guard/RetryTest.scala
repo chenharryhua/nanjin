@@ -25,10 +25,10 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd.span("succ-trivial")
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
-        .retry((x: Int) => IO(x + 1))
+        .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
         .withOutput(_.asJson)
         .withWorthRetry(_ => true)
-        .run(1)
+        .run(1, 1, 1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -41,10 +41,10 @@ class RetryTest extends AnyFunSuite {
         .span("all-succ")
         .notice
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
-        .retry((x: Int, y: Int) => IO(x + y))
+        .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
         .withOutput(_.asJson)
         .withWorthRetry(_ => true)
-      List(1, 2, 3).traverse(i => ag.run((i, i)))
+      List(1, 2, 3).traverse(i => ag.run(i, i, i, i, i))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])

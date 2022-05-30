@@ -21,7 +21,7 @@ final class NJRetry[F[_], A, B] private[guard] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  afb: A => F[B],
+  arrow: A => F[B],
   transInput: A => F[Json],
   transOutput: B => F[Json],
   isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
@@ -34,7 +34,7 @@ final class NJRetry[F[_], A, B] private[guard] (
       metricRegistry,
       channel,
       actionParams,
-      afb,
+      arrow,
       transInput,
       transOutput,
       isWorthRetry)
@@ -77,7 +77,7 @@ final class NJRetry[F[_], A, B] private[guard] (
             case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, wdr, error)
             case _: GivingUp            => F.unit
           }
-      )(afb(input))
+      )(arrow(input))
       .guaranteeCase {
         case Outcome.Canceled() =>
           publisher
@@ -134,7 +134,7 @@ final class NJRetryUnit[F[_], B] private[guard] (
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = actionParams,
-      afb = _ => fb,
+      arrow = _ => fb,
       transInput = _ => transInput,
       transOutput = transOutput,
       isWorthRetry = isWorthRetry

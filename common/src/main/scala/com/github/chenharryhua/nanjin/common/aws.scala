@@ -17,7 +17,8 @@ object aws {
   type SnsArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:sns:[A-Za-z0-9_-]+:\\d{12}:[A-Za-z0-9-]+$"]
   object SnsArn extends RefinedTypeOps[SnsArn, String] with CatsRefinedTypeOpsSyntax
 
-  type KmsArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:kms:[A-Za-z0-9-]+:\\d{12}:key/[A-Za-z0-9-]+$"]
+  type KmsArn =
+    String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:kms:[A-Za-z0-9-]+:\\d{12}:key/[A-Za-z0-9-]+$"]
   object KmsArn extends RefinedTypeOps[KmsArn, String] with CatsRefinedTypeOpsSyntax
 
   // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Namespace
@@ -41,5 +42,9 @@ object aws {
 
   @JsonCodec
   final case class EmailContent(from: String, to: NonEmptyList[String], subject: String, body: String)
+
+  object EmailContent {
+    implicit val showEmailContent: Show[EmailContent] = cats.derived.semiauto.show[EmailContent]
+  }
 
 }

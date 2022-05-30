@@ -6,7 +6,6 @@ import cats.Endo
 import com.amazonaws.services.simpleemail.{AmazonSimpleEmailService, AmazonSimpleEmailServiceClientBuilder}
 import com.amazonaws.services.simpleemail.model.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
-import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -31,14 +30,14 @@ object SimpleEmailService {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
     Resource.make(F.pure(new SimpleEmailService[F] {
       override def send(txt: EmailContent): F[SendEmailResult] =
-        logger.info(txt.asJson.noSpaces) *> F.pure(new SendEmailResult)
+        logger.info(txt.show) *> F.pure(new SendEmailResult)
 
       override def updateBuilder(f: Endo[AmazonSimpleEmailServiceClientBuilder]): SimpleEmailService[F] = this
     }))(_ => F.unit)
   }
 
-  final private class AwsSES[F[_]](buildFrom: Endo[AmazonSimpleEmailServiceClientBuilder], logger: Logger[F])(implicit
-    F: Sync[F])
+  final private class AwsSES[F[_]](buildFrom: Endo[AmazonSimpleEmailServiceClientBuilder], logger: Logger[F])(
+    implicit F: Sync[F])
       extends ShutdownService[F] with SimpleEmailService[F] {
 
     private lazy val client: AmazonSimpleEmailService =
