@@ -57,8 +57,8 @@ private object HtmlTranslator extends all {
           th(style := tds)("id")),
         oas.map(a =>
           tr(
-            td(style := tds)(a.actionParams.digested.origin),
-            td(style := tds)(a.actionParams.digested.digest),
+            td(style := tds)(a.actionParams.name.origin),
+            td(style := tds)(a.actionParams.name.digest),
             td(style := tds)(fmt.format(a.launchTime, now)),
             td(style := tds)(a.launchTime.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show),
             td(style := tds)(a.actionID.show)

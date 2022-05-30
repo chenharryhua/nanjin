@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.{Alternative, Endo, Traverse}
-import cats.data.{Ior, IorT, Kleisli}
+import cats.data.{Ior, IorT, Kleisli, NonEmptyList}
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -29,8 +29,7 @@ final class Agent[F[_]] private[service] (
   private lazy val agentParams: AgentParams     = agentConfig.evalConfig
   private lazy val serviceParams: ServiceParams = agentParams.serviceParams
 
-  def zoneId: ZoneId         = agentParams.serviceParams.taskParams.zoneId
-  def digestedName: Digested = agentParams.serviceParams.digestSpans(agentParams.spans)
+  def zoneId: ZoneId = agentParams.serviceParams.taskParams.zoneId
 
   override def updateConfig(f: Endo[AgentConfig]): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, f(agentConfig))
@@ -56,8 +55,8 @@ final class Agent[F[_]] private[service] (
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
-  def retry[A, B, Z](f: (A, B) => F[Z]): NJRetry[F, Tuple2[A, B], Z] =
-    new NJRetry[F, Tuple2[A, B], Z](
+  def retry[A, B, Z](f: (A, B) => F[Z]): NJRetry[F, (A, B), Z] =
+    new NJRetry[F, (A, B), Z](
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -67,8 +66,8 @@ final class Agent[F[_]] private[service] (
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
-  def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, Tuple3[A, B, C], Z] =
-    new NJRetry[F, Tuple3[A, B, C], Z](
+  def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, (A, B, C), Z] =
+    new NJRetry[F, (A, B, C), Z](
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -78,8 +77,8 @@ final class Agent[F[_]] private[service] (
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
-  def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, Tuple4[A, B, C, D], Z] =
-    new NJRetry[F, Tuple4[A, B, C, D], Z](
+  def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, (A, B, C, D), Z] =
+    new NJRetry[F, (A, B, C, D), Z](
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -89,8 +88,8 @@ final class Agent[F[_]] private[service] (
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
-  def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, Tuple5[A, B, C, D, E], Z] =
-    new NJRetry[F, Tuple5[A, B, C, D, E], Z](
+  def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, (A, B, C, D, E), Z] =
+    new NJRetry[F, (A, B, C, D, E), Z](
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -120,7 +119,7 @@ final class Agent[F[_]] private[service] (
 
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
-      digested = serviceParams.digestSpans(agentParams.spans :+ brokerName),
+      digested = serviceParams.digestSpans(NonEmptyList(brokerName, agentParams.spans)),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -129,7 +128,7 @@ final class Agent[F[_]] private[service] (
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
-      digested = serviceParams.digestSpans(agentParams.spans :+ alertName),
+      digested = serviceParams.digestSpans(NonEmptyList(alertName, agentParams.spans)),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -137,19 +136,19 @@ final class Agent[F[_]] private[service] (
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(
-      digested = serviceParams.digestSpans(agentParams.spans :+ counterName),
+      digested = serviceParams.digestSpans(NonEmptyList(counterName, agentParams.spans)),
       metricRegistry = metricRegistry,
       isError = false)
 
   def meter(meterName: Span): NJMeter[F] =
     new NJMeter[F](
-      digested = serviceParams.digestSpans(agentParams.spans :+ meterName),
+      digested = serviceParams.digestSpans(NonEmptyList(meterName, agentParams.spans)),
       metricRegistry = metricRegistry,
       isCounting = false)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
-      digested = serviceParams.digestSpans(agentParams.spans :+ histoName),
+      digested = serviceParams.digestSpans(NonEmptyList(histoName, agentParams.spans)),
       metricRegistry = metricRegistry,
       isCounting = false
     )

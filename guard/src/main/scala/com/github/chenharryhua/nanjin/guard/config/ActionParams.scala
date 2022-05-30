@@ -79,16 +79,20 @@ final case class ActionParams private (
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
   val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 
-  val digested: Digested = serviceParams.digestSpans(spans)
+  val name: Digested = serviceParams.digestSpans(spans)
 
 }
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
-  def apply(agentParams: AgentParams): ActionParams =
+  def apply(agentParams: AgentParams): ActionParams = {
+    val nel = agentParams.spans match {
+      case h :: t => NonEmptyList(h, t)
+      case Nil    => NonEmptyList.one(Span("root"))
+    }
     ActionParams(
-      spans = agentParams.spans,
+      spans = nel,
       importance = agentParams.importance,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
@@ -96,4 +100,5 @@ object ActionParams {
       retry = agentParams.retry,
       serviceParams = agentParams.serviceParams
     )
+  }
 }

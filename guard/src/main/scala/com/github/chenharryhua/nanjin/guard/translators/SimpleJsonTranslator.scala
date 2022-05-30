@@ -97,9 +97,9 @@ private object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionStart",
-            "name": ${evt.actionInfo.actionParams.digested.origin},
+            "name": ${evt.actionInfo.actionParams.name.origin},
             "input": ${evt.info},
-            "digest": ${evt.actionInfo.actionParams.digested.digest},
+            "digest": ${evt.actionInfo.actionParams.name.digest},
             "id": ${evt.actionID},
             "serviceID": ${evt.serviceParams.serviceID},
             "timestamp": ${evt.timestamp}
@@ -110,9 +110,9 @@ private object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionRetry",
-            "name": ${evt.actionInfo.actionParams.digested.origin},
+            "name": ${evt.actionInfo.actionParams.name.origin},
             "cause" : ${evt.error.message},
-            "digest": ${evt.actionInfo.actionParams.digested.digest},
+            "digest": ${evt.actionInfo.actionParams.name.digest},
             "id": ${evt.actionID},         
             "serviceID": ${evt.serviceParams.serviceID},
             "timestamp": ${evt.timestamp}
@@ -123,10 +123,10 @@ private object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionFail",
-            "name": ${evt.actionInfo.actionParams.digested.origin},
+            "name": ${evt.actionInfo.actionParams.name.origin},
             "input": ${evt.info},
             "cause" : ${evt.error.stackTrace},
-            "digest": ${evt.actionInfo.actionParams.digested.digest},
+            "digest": ${evt.actionInfo.actionParams.name.digest},
             "id": ${evt.actionID},       
             "serviceID": ${evt.serviceParams.serviceID},
             "timestamp": ${evt.timestamp}
@@ -137,9 +137,9 @@ private object SimpleJsonTranslator {
     json"""
           {       
             "event": "ActionSucc",
-            "name": ${evt.actionInfo.actionParams.digested.origin},
+            "name": ${evt.actionInfo.actionParams.name.origin},
             "output": ${evt.info},
-            "digest": ${evt.actionInfo.actionParams.digested.digest},
+            "digest": ${evt.actionInfo.actionParams.name.digest},
             "id": ${evt.actionID},      
             "serviceID": ${evt.serviceParams.serviceID},
             "timestamp": ${evt.timestamp}

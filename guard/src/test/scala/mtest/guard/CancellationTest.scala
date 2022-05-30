@@ -87,8 +87,14 @@ class CancellationTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
         val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
-        val a1     = action.span("inner").run(IO.never[Int])
-        action.span("outer").retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))).run
+        val a1     = action.span("one").span("two").span("inner").run(IO.never[Int])
+        action
+          .span("one")
+          .span("two")
+          .span("three")
+          .span("outer")
+          .retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1)))
+          .run
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -97,18 +103,9 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/inner][b47fff45]")
     assert(
-      b.asInstanceOf[ActionFail]
-        .actionInfo
-        .actionParams
-        .digested
-        .metricRepr == "[retry-test/inner][c60b4a00]")
-    assert(
-      c.asInstanceOf[ActionFail]
-        .actionInfo
-        .actionParams
-        .digested
-        .metricRepr == "[retry-test/outer][a84e7ff2]")
+      c.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/three/outer][e023a23d]")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -116,7 +113,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        action.span("a1").notice.retry(IO(1)).run >>
+        action.notice.retry(IO(1)).run >>
           action.span("a2").notice.retry(IO(1)).run >>
           IO.canceled >>
           action.span("a3").notice.retry(IO(1)).run
@@ -128,11 +125,9 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(
-      b.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a1][6f340f3f]")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[root][1b004bc7]")
     assert(c.isInstanceOf[ActionStart])
-    assert(
-      d.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
+    assert(d.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[a2][d583715e]")
     assert(e.isInstanceOf[ServiceStop])
 
     assert(b.asInstanceOf[ActionSucc].asJson === b.asJson)
@@ -161,13 +156,10 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(
-      b.asInstanceOf[ActionSucc].actionInfo.actionParams.digested.metricRepr == "[retry-test/a1][6f340f3f]")
+    assert(b.asInstanceOf[ActionSucc].actionInfo.actionParams.name.metricRepr == "[a1][eb2b020b]")
     assert(c.isInstanceOf[ActionStart])
-    assert(
-      d.asInstanceOf[ActionRetry].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
-    assert(
-      e.asInstanceOf[ActionFail].actionInfo.actionParams.digested.metricRepr == "[retry-test/a2][56199b40]")
+    assert(d.asInstanceOf[ActionRetry].actionInfo.actionParams.name.metricRepr == "[a2][d583715e]")
+    assert(e.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[a2][d583715e]")
     assert(f.isInstanceOf[ServicePanic])
 
     assert(d.asInstanceOf[ActionRetry].asJson === d.asJson)
