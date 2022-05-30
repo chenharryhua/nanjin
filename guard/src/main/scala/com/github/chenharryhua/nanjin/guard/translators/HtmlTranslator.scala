@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.{Applicative, Eval, Monad}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
@@ -27,18 +26,19 @@ private object HtmlTranslator extends all {
     }
     .value
 
-  private def timestampText(timestamp: ZonedDateTime): Text.TypedTag[String] =
-    p(b("Timestamp: "), timestamp.truncatedTo(ChronoUnit.SECONDS).show)
-
   private def retriesText(numRetry: Int): Text.TypedTag[String] =
     p(b("Number of retries: "), numRetry.toString)
 
-  private def hostServiceText(si: ServiceParams): Text.TypedTag[String] = {
-    val sn = si.taskParams.homePage.fold(p(b("Service: "), si.serviceName.value))(hp =>
-      p(b("Sevice: "), a(href := hp.value)(si.serviceName.value)))
+  private def hostServiceText(evt: NJEvent): Text.TypedTag[String] = {
+    val sn =
+      evt.serviceParams.taskParams.homePage.fold(p(b("Service: "), evt.serviceParams.serviceName.value))(hp =>
+        p(b("Sevice: "), a(href := hp.value)(evt.serviceParams.serviceName.value)))
     div(
+      p(b("Timestamp: "), evt.timestamp.truncatedTo(ChronoUnit.SECONDS).show),
       sn,
-      p(b("Host: "), si.taskParams.hostName.value)
+      p(b("ServiceID: "), evt.serviceID.show),
+      p(b("Host: "), evt.serviceParams.taskParams.hostName.value),
+      p(b("Task: "), evt.serviceParams.taskParams.taskName.value)
     )
   }
 
@@ -72,9 +72,7 @@ private object HtmlTranslator extends all {
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.serviceParams.brief)
     )
@@ -83,9 +81,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       p(b(upcomingRestartTimeInterpretation(evt))),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("Policy: "), evt.serviceParams.retry.policy[F].show),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       causeText(evt.error)
@@ -94,9 +90,7 @@ private object HtmlTranslator extends all {
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       p(b("Cause: "), evt.cause.show)
     )
@@ -105,9 +99,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       p(upcomingRestartTimeInterpretation(evt)),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       pre(evt.serviceParams.brief),
       pendingActions(evt.ongoings, evt.timestamp),
       pre(evt.snapshot.show)
@@ -116,8 +108,7 @@ private object HtmlTranslator extends all {
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
+      hostServiceText(evt),
       p(b("ServiceID: "), evt.serviceID.show),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.snapshot.show)
@@ -126,9 +117,7 @@ private object HtmlTranslator extends all {
   private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("Name: "), evt.name.metricRepr),
       pre(evt.message)
     )
@@ -138,9 +127,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("Input: "), pre(evt.info.spaces2))
     )
 
@@ -149,9 +136,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show),
       causeText(evt.error)
     )
@@ -161,9 +146,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
@@ -176,9 +159,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
-      timestampText(evt.timestamp),
-      hostServiceText(evt.serviceParams),
-      p(b("ServiceID: "), evt.serviceID.show),
+      hostServiceText(evt),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
       p(b("Output: "), pre(evt.info.spaces2))
