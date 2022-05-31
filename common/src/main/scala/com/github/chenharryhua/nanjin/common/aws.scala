@@ -4,12 +4,16 @@ import cats.Show
 import cats.data.NonEmptyList
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
-import eu.timepit.refined.string.{MatchesRegex, Url}
+import eu.timepit.refined.predicates.all.And
+import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
 import io.circe.generic.JsonCodec
 
 object aws {
   type SqsUrl = String Refined Url
   object SqsUrl extends RefinedTypeOps[SqsUrl, String] with CatsRefinedTypeOpsSyntax
+
+  type SqsFifoUrl = String Refined And[Url, EndsWith[".fifo"]]
+  object SqsFifoUrl extends RefinedTypeOps[SqsFifoUrl, String] with CatsRefinedTypeOpsSyntax
 
   type IamArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
   object IamArn extends RefinedTypeOps[IamArn, String] with CatsRefinedTypeOpsSyntax

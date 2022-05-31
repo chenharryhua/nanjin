@@ -1,6 +1,6 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.aws.{CloudWatchNamespace, IamArn, SnsArn, SqsUrl}
+import com.github.chenharryhua.nanjin.common.aws.{CloudWatchNamespace, IamArn, SnsArn, SqsFifoUrl, SqsUrl}
 import org.scalatest.funsuite.AnyFunSuite
 
 class AwsArnTest extends AnyFunSuite {
@@ -16,6 +16,13 @@ class AwsArnTest extends AnyFunSuite {
     SqsUrl("https://github.com")
     SqsUrl("http://github.com")
     shapeless.test.illTyped("""SqsUrl("abc")""")
+  }
+
+  test("sqs fifo") {
+    SqsFifoUrl("https://github.com/abc.fifo")
+
+    shapeless.test.illTyped(""" SqsFifoUrl("https://github.com/abc") """)
+    shapeless.test.illTyped(""" SqsFifoUrl("abc.fifo") """)
   }
 
   test("cloudwatch namespace") {
