@@ -7,6 +7,7 @@ import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
 import com.amazonaws.services.sqs.model.*
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
+import eu.timepit.refined.api.Refined
 import fs2.Stream
 import io.circe.generic.JsonCodec
 import io.circe.literal.*
@@ -60,7 +61,7 @@ sealed trait SimpleQueueService[F[_]] {
     receive(f(new ReceiveMessageRequest()))
 
   final def receive(sqsUrl: SqsUrl): Stream[F, SqsMessage] =
-    receive(new ReceiveMessageRequest(sqsUrl.value))
+    receive(new ReceiveMessageRequest(sqsUrl.queueUrl))
 
   def delete(msg: SqsMessage): F[DeleteMessageResult]
 

@@ -3,18 +3,14 @@ package com.github.chenharryhua.nanjin.common
 import cats.Show
 import cats.data.NonEmptyList
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
+import eu.timepit.refined.auto.*
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
-import eu.timepit.refined.predicates.all.And
+import eu.timepit.refined.collection.{MaxSize, NonEmpty}
+import eu.timepit.refined.predicates.all.{And, Not}
 import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
 import io.circe.generic.JsonCodec
 
 object aws {
-  type SqsUrl = String Refined Url
-  object SqsUrl extends RefinedTypeOps[SqsUrl, String] with CatsRefinedTypeOpsSyntax
-
-  type SqsFifoUrl = String Refined And[Url, EndsWith[".fifo"]]
-  object SqsFifoUrl extends RefinedTypeOps[SqsFifoUrl, String] with CatsRefinedTypeOpsSyntax
-
   type IamArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
   object IamArn extends RefinedTypeOps[IamArn, String] with CatsRefinedTypeOpsSyntax
 
@@ -51,4 +47,24 @@ object aws {
     implicit val showEmailContent: Show[EmailContent] = cats.derived.semiauto.show[EmailContent]
   }
 
+  sealed trait SqsUrl {
+    def queueUrl: String
+  }
+  object SqsUrl {
+
+    type StandardSqsUrl = String Refined And[Url, Not[EndsWith[".fifo"]]]
+    type FifoSqsUrl     = String Refined And[Url, EndsWith[".fifo"]]
+    type MessageGroupID = String Refined And[NonEmpty, MaxSize[128]]
+    final case class Standard(value: StandardSqsUrl) extends SqsUrl {
+      override val queueUrl: String = value.value
+    }
+    final case class Fifo(value: FifoSqsUrl, messageGroupId: MessageGroupID) extends SqsUrl {
+      override val queueUrl: String                      = value.value
+      def withMessageGroupId(mgId: MessageGroupID): Fifo = copy(messageGroupId = mgId)
+    }
+
+    object Fifo {
+      def apply(fifo: FifoSqsUrl): Fifo = Fifo(fifo, "nj.sqs.fifo.default.group")
+    }
+  }
 }
