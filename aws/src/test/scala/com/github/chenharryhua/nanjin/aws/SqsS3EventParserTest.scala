@@ -66,5 +66,4 @@ class SqsS3EventParserTest extends AnyFunSuite {
     assert(sqsS3Parser(SqsMessage(new ReceiveMessageRequest(), new Message(), 0, 0, 0)).isEmpty)
     assert(sqsS3Parser(SqsMessage(new ReceiveMessageRequest(), null, 0, 0, 0)).isEmpty)
   }
-
 }

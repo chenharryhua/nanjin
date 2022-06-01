@@ -6,7 +6,7 @@ import cats.Endo
 import cats.effect.std.UUIDGen
 import com.amazonaws.services.sqs.model.{SendMessageRequest, SendMessageResult}
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
-import com.github.chenharryhua.nanjin.common.aws.SqsUrl
+import com.github.chenharryhua.nanjin.common.aws.SqsConfig
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
@@ -42,7 +42,7 @@ final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], transl
 
   def observe(f: Endo[SendMessageRequest]): Pipe[F, NJEvent, NJEvent] = internal(m => F.pure(f(m)))
 
-  def observe(fifo: SqsUrl.Fifo): Pipe[F, NJEvent, NJEvent] = internal((req: SendMessageRequest) =>
+  def observe(fifo: SqsConfig.Fifo): Pipe[F, NJEvent, NJEvent] = internal((req: SendMessageRequest) =>
     UUIDGen
       .randomUUID[F]
       .map(uuid =>
