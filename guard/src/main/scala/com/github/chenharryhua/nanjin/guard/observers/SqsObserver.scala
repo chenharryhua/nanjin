@@ -21,8 +21,10 @@ object SqsObserver {
 final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], translator: Translator[F, NJEvent])(
   implicit F: Async[F])
     extends UpdateTranslator[F, NJEvent, SqsObserver[F]] {
+
   private def translate(evt: NJEvent): F[Option[Json]] =
     translator.translate(evt).flatMap(_.flatTraverse(Translator.verboseJson.translate))
+
   private def sendMessage(
     sqs: SimpleQueueService[F],
     f: SendMessageRequest => F[SendMessageRequest],
@@ -42,6 +44,7 @@ final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], transl
 
   def observe(f: Endo[SendMessageRequest]): Pipe[F, NJEvent, NJEvent] = internal(m => F.pure(f(m)))
 
+  // events order should be preserved
   def observe(fifo: SqsConfig.Fifo): Pipe[F, NJEvent, NJEvent] = internal((req: SendMessageRequest) =>
     UUIDGen
       .randomUUID[F]

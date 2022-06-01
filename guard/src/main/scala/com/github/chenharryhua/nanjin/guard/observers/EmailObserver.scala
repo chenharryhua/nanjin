@@ -88,8 +88,7 @@ final class SesEmailObserver[F[_]](
           .unNone
           .groupWithin(chunkSize.value, interval)
           .evalTap(publish(_, ses, from, to, subject).void)
-          .onFinalizeCase(
-            ofm.terminated(_).flatMap(publish(_, ses, from, to, "Service Termination Notice").void))
+          .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, ses, from, to, subject).void))
       } yield ()
       compu.drain
   }
@@ -142,8 +141,7 @@ final class SnsEmailObserver[F[_]](
               .unNone
               .groupWithin(chunkSize.value, interval)
               .evalTap(publish(_, sns, snsArn, subject).void)
-              .onFinalizeCase(
-                ofm.terminated(_).flatMap(publish(_, sns, snsArn, "Service Termination Notice").void)))
+              .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, sns, snsArn, subject).void)))
           .drain)
 
 }
