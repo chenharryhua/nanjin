@@ -6,8 +6,9 @@ import cats.syntax.all.*
 import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
 import com.amazonaws.services.sqs.model.*
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsUrl}
-import fs2.Stream
+import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
+import eu.timepit.refined.api.Refined
+import fs2.{Chunk, Pull, Stream}
 import io.circe.generic.JsonCodec
 import io.circe.literal.*
 import io.circe.optics.JsonPath.*
@@ -16,8 +17,10 @@ import io.circe.Json
 import io.circe.jackson.jacksonToCirce
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.Logger
+import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
 
 import java.net.URLDecoder
+import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.Try
@@ -54,20 +57,22 @@ final case class SqsMessage(
 }
 
 sealed trait SimpleQueueService[F[_]] {
-
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
   final def receive(f: Endo[ReceiveMessageRequest]): Stream[F, SqsMessage] =
     receive(f(new ReceiveMessageRequest()))
 
-  final def receive(sqsUrl: SqsUrl): Stream[F, SqsMessage] =
-    receive(new ReceiveMessageRequest(sqsUrl.value))
+  final def receive(sqs: SqsConfig): Stream[F, SqsMessage] =
+    receive(
+      new ReceiveMessageRequest(sqs.queueUrl)
+        .withWaitTimeSeconds(sqs.waitTimeSeconds.value)
+        .withMaxNumberOfMessages(sqs.maxNumberOfMessages.value)
+        .withVisibilityTimeout(sqs.visibilityTimeout.value))
 
   def delete(msg: SqsMessage): F[DeleteMessageResult]
-
   def sendMessage(msg: SendMessageRequest): F[SendMessageResult]
 
   def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F]
-  def withPollingRate(pollingRate: FiniteDuration): SimpleQueueService[F]
+  def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F]
 }
 
 object SimpleQueueService {
@@ -92,25 +97,28 @@ object SimpleQueueService {
         }
       override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] = this
 
-      override def withPollingRate(pollingRate: FiniteDuration): SimpleQueueService[F] = this
+      override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F] = this
 
       override def sendMessage(msg: SendMessageRequest): F[SendMessageResult] =
         F.pure(new SendMessageResult())
     }))(_ => F.unit)
 
-  def apply[F[_]: Async](f: Endo[AmazonSQSClientBuilder]): Resource[F, SimpleQueueService[F]] =
+  def apply[F[_]: Async](f: Endo[AmazonSQSClientBuilder]): Resource[F, SimpleQueueService[F]] = {
+    val defaultPolicy: DelayPolicy[F] =
+      RetryPolicies.capDelay(5.minutes, RetryPolicies.exponentialBackoff(10.seconds))
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       qr <- Resource.makeCase(
-        logger.info(s"initialize $name").map(_ => new AwsSQS[F](30.second, f, logger))) {
+        logger.info(s"initialize $name").map(_ => new AwsSQS[F](f, defaultPolicy, logger))) {
         case (cw, quitCase) =>
           cw.shutdown(name, quitCase, logger)
       }
     } yield qr
+  }
 
   final private class AwsSQS[F[_]](
-    pollingRate: FiniteDuration,
     buildFrom: Endo[AmazonSQSClientBuilder],
+    delayPolicy: DelayPolicy[F],
     logger: Logger[F])(implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
@@ -118,17 +126,33 @@ object SimpleQueueService {
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 
-    override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] =
-      Stream
-        .fixedRate[F](pollingRate)
-        .evalMap(_ => F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name)))
-        .zipWithIndex
-        .flatMap { case (response, batchId) =>
-          val responseMesssages = response.getMessages.asScala
-          Stream.emits(responseMesssages.zipWithIndex.map { case (respMessage, idx) =>
-            SqsMessage(request, respMessage, batchId, idx + 1, responseMesssages.size)
-          })
+    override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {
+
+      /** when no data can be retrieved, the delay policy will be applied
+        *
+        * https://cb372.github.io/cats-retry/docs/policies.html
+        */
+      def receiving(status: RetryStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
+        Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
+          rmr =>
+            val messages: mutable.Buffer[Message] = rmr.getMessages.asScala
+            val size: Int                         = messages.size
+            if (size > 0) {
+              val chunk: Chunk[SqsMessage] = Chunk.iterable(messages).zipWithIndex.map { case (msg, idx) =>
+                SqsMessage(request, msg, batchIndex, idx + 1, size) // one based index in a batch
+              }
+              Pull.output(chunk) >> receiving(RetryStatus.NoRetriesYet, batchIndex + 1)
+            } else {
+              Pull.eval(delayPolicy.decideNextRetry(status)).flatMap {
+                case PolicyDecision.GiveUp => Pull.done
+                case PolicyDecision.DelayAndRetry(delay) =>
+                  Pull.sleep(delay) >> receiving(status.addRetry(delay), batchIndex)
+              }
+            }
         }
+
+      receiving(RetryStatus.NoRetriesYet, 0L).stream
+    }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResult] =
       F.blocking(
@@ -140,10 +164,10 @@ object SimpleQueueService {
       F.blocking(client.sendMessage(request)).onError(ex => logger.error(ex)(name))
 
     override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] =
-      new AwsSQS[F](pollingRate, buildFrom.andThen(f), logger)
+      new AwsSQS[F](buildFrom.andThen(f), delayPolicy, logger)
 
-    override def withPollingRate(pollingRate: FiniteDuration): SimpleQueueService[F] =
-      new AwsSQS[F](pollingRate, buildFrom, logger)
+    override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F] =
+      new AwsSQS[F](buildFrom, delayPolicy, logger)
 
   }
 }

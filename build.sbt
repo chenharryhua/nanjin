@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.8"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.15.6-SNAPSHOT"
+ThisBuild / version            := "0.15.7-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val algebra      = "2.7.0"
@@ -261,8 +261,9 @@ val baseLib = Seq(
   "io.scalaland" %% "chimney"                      % "0.6.1",
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
-  "com.chuusai" %% "shapeless"                     % "2.3.9"
-) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib
+  "com.chuusai" %% "shapeless"                     % "2.3.9",
+  "com.github.cb372" %% "cats-retry-mtl"           % "3.1.0"
+) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
   .settings(commonSettings: _*)
@@ -278,13 +279,13 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
-  .settings(libraryDependencies ++= jwtLib ++ http4sLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib)
+  .settings(libraryDependencies ++= baseLib ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= awsLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib)
+  .settings(libraryDependencies ++= baseLib ++ awsLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -293,7 +294,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(
     libraryDependencies ++= Seq(
       "com.lihaoyi" %% "fastparse"   % "2.3.3",
-      "org.typelevel" %% "cats-time" % "0.5.0") ++ cronLib ++ testLib
+      "org.typelevel" %% "cats-time" % "0.5.0") ++ baseLib ++ cronLib ++ testLib
   )
 
 lazy val guard = (project in file("guard"))
@@ -303,11 +304,10 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.cb372" %% "cats-retry-mtl" % "3.1.0",
-      "com.lihaoyi" %% "scalatags"           % "0.11.1",
-      "org.tpolecat" %% "skunk-core"         % "0.3.1",
-      "org.tpolecat" %% "skunk-circe"        % "0.3.1"
-    ) ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
+      "com.lihaoyi" %% "scalatags"    % "0.11.1",
+      "org.tpolecat" %% "skunk-core"  % "0.3.1",
+      "org.tpolecat" %% "skunk-circe" % "0.3.1"
+    ) ++ baseLib ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ testLib
   )
 
 lazy val messages = (project in file("messages"))
@@ -322,8 +322,8 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= Seq("org.tukaani" % "xz" % "1.9") ++
-      kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++
-      serdeLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
+      baseLib ++ kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++
+      serdeLib ++ logLib ++ effectLib ++ testLib
   )
 
 lazy val database = (project in file("database"))
@@ -337,7 +337,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
       "org.tpolecat" %% "skunk-core"    % "0.3.1",
       "com.zaxxer"                      % "HikariCP" % "5.0.1"
-    ) ++ effectLib ++ fs2Lib ++ testLib
+    ) ++ baseLib ++ effectLib ++ testLib
   )
 
 lazy val kafka = (project in file("kafka"))
@@ -347,8 +347,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(
-    libraryDependencies ++= serdeLib ++ kafkaLib ++ akkaLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
-  )
+    libraryDependencies ++= baseLib ++ serdeLib ++ kafkaLib ++ akkaLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -360,8 +359,8 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= Seq(
       "io.netty"                               % "netty-all" % "4.1.77.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test) ++
-      sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
-      akkaLib ++ ftpLib ++ logLib ++ effectLib ++ fs2Lib ++ testLib
+      baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
+      akkaLib ++ ftpLib ++ logLib ++ effectLib ++ testLib
   )
 
 lazy val example = (project in file("example"))
@@ -381,4 +380,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
