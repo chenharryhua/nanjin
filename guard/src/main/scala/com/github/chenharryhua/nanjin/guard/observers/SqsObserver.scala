@@ -14,10 +14,12 @@ import fs2.{Pipe, Stream}
 import io.circe.Json
 
 import java.util.UUID
+
 object SqsObserver {
-  def apply[F[_]: Async](client: Resource[F, SimpleQueueService[F]]) =
+  def apply[F[_]: Async](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
     new SqsObserver[F](client, Translator.idTranslator[F])
 }
+
 final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], translator: Translator[F, NJEvent])(
   implicit F: Async[F])
     extends UpdateTranslator[F, NJEvent, SqsObserver[F]] {

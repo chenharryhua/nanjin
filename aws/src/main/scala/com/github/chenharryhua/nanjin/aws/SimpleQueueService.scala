@@ -20,6 +20,7 @@ import org.typelevel.log4cats.Logger
 import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
 
 import java.net.URLDecoder
+import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -40,7 +41,7 @@ final case class SqsMessage(
   private val om: ObjectMapper = new ObjectMapper()
   def asJson: Json = {
     val resp = Try(jacksonToCirce(om.valueToTree[JsonNode](response))).map { js =>
-      // replace the original body in case it is a json
+      // json-ize body
       val body = parse(response.getBody).toOption.orElse(Option(response.getBody).map(Json.fromString))
       root.at("body").set(body)(js)
     }
@@ -79,26 +80,27 @@ object SimpleQueueService {
 
   private val name: String = "aws.SQS"
 
-  def fake[F[_]](duration: FiniteDuration)(implicit F: Temporal[F]): Resource[F, SimpleQueueService[F]] =
+  def fake[F[_]](duration: FiniteDuration, body: String)(implicit
+    F: Temporal[F]): Resource[F, SimpleQueueService[F]] =
     Resource.make(F.pure(new SimpleQueueService[F] {
-      override def delete(msg: SqsMessage): F[DeleteMessageResult] = F.pure(new DeleteMessageResult())
 
       override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] =
         Stream.fixedRate(duration).zipWithIndex.map { case (_, idx) =>
           SqsMessage(
-            request,
-            new Message()
-              .withMessageId(idx.toString)
-              .withBody("hello, world")
+            request = request,
+            response = new Message()
+              .withMessageId(UUID.randomUUID().show)
+              .withBody(body)
               .withReceiptHandle(idx.toString),
-            0,
-            idx.toInt,
-            Int.MaxValue)
+            batchIndex = idx,
+            messageIndex = 1,
+            numInBatch = 1
+          )
         }
+
       override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] = this
-
-      override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F] = this
-
+      override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F]   = this
+      override def delete(msg: SqsMessage): F[DeleteMessageResult] = F.pure(new DeleteMessageResult())
       override def sendMessage(msg: SendMessageRequest): F[SendMessageResult] =
         F.pure(new SendMessageResult())
     }))(_ => F.unit)
@@ -108,12 +110,12 @@ object SimpleQueueService {
       RetryPolicies.capDelay(5.minutes, RetryPolicies.exponentialBackoff(10.seconds))
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      qr <- Resource.makeCase(
+      sqs <- Resource.makeCase(
         logger.info(s"initialize $name").map(_ => new AwsSQS[F](f, defaultPolicy, logger))) {
         case (cw, quitCase) =>
           cw.shutdown(name, quitCase, logger)
       }
-    } yield qr
+    } yield sqs
   }
 
   final private class AwsSQS[F[_]](
@@ -130,7 +132,7 @@ object SimpleQueueService {
 
       /** when no data can be retrieved, the delay policy will be applied
         *
-        * https://cb372.github.io/cats-retry/docs/policies.html
+        * [[https://cb372.github.io/cats-retry/docs/policies.html]]
         */
       def receiving(status: RetryStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
@@ -179,8 +181,9 @@ object sqsS3Parser {
     implicit val showSqsS3File: Show[SqsS3File] = cats.derived.semiauto.show[SqsS3File]
   }
 
-  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]] ignore
-    * messages which do not have s3 structure
+  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]]
+    *
+    * ignore messages which do not have s3 structure
     */
   def apply(msg: SqsMessage): List[SqsS3File] =
     Option(msg.response)
