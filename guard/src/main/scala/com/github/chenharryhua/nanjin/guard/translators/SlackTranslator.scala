@@ -176,12 +176,11 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
-            JuxtaposeSection(
-              TextField("Name", evt.name.metricRepr),
-              TextField("ID", evt.actionInfo.actionID.show)
-            ),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}".stripMargin)
+            MarkdownSection(s"""*Action Name:* ${evt.name.metricRepr}
+                               |*Action ID:* ${evt.actionID.show}
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+            KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
           )
         ))
     )
@@ -197,18 +196,15 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
-            JuxtaposeSection(
-              TextField("Name", evt.name.metricRepr),
-              TextField("ID", evt.actionInfo.actionID.show)
-            ),
             hostServiceSection(evt.serviceParams),
-            JuxtaposeSection(
-              TextField("Took so far", fmt.format(evt.took)),
-              TextField("Retries so far", evt.retriesSoFar.show)),
-            MarkdownSection(s"""*${toOrdinalWords(evt.retriesSoFar)} retry:* at $lt, in $next
+            MarkdownSection(s"""*Action Name:* ${evt.name.metricRepr}
+                               |*Action ID:* ${evt.actionID.show}
+                               |*${toOrdinalWords(evt.retriesSoFar)} retry:* at $lt, in $next
+                               |*Took so far:* ${fmt.format(evt.took)}
+                               |*Retries so far:* ${evt.retriesSoFar.show}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
-                               |*Service ID:* ${evt.serviceID.show}
-                               |*Cause:* ${evt.error.message}""".stripMargin)
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+            KeyValueSection("Cause", s"""```${abbreviate(evt.error.message)}```""")
           )
         ))
     )
@@ -222,17 +218,15 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
-            JuxtaposeSection(
-              TextField("Name", evt.name.metricRepr),
-              TextField("ID", evt.actionInfo.actionID.show)
-            ),
             hostServiceSection(evt.serviceParams),
-            JuxtaposeSection(
-              TextField("Took", fmt.format(evt.took)),
-              TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""*Policy:* ${evt.actionParams.retry.policy[F].show}
-                               |*Service ID:* ${evt.serviceID.show}
-                               |*Cause:* ${evt.error.message}""".stripMargin)
+            MarkdownSection(s"""*Action Name:* ${evt.name.metricRepr}
+                               |*Action ID:* ${evt.actionID.show}
+                               |*Took:* ${fmt.format(evt.took)}
+                               |*Retries:* ${evt.numRetries.show}
+                               |*Policy:* ${evt.actionParams.retry.policy[F].show}
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+            KeyValueSection("Cause", s"""```${abbreviate(evt.error.message)}```"""),
+            KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
           )
         )
       )
@@ -246,15 +240,13 @@ private object SlackTranslator extends all {
           color = coloring(evt),
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
-            JuxtaposeSection(
-              TextField("Name", evt.name.metricRepr),
-              TextField("ID", evt.actionInfo.actionID.show)
-            ),
             hostServiceSection(evt.serviceParams),
-            JuxtaposeSection(
-              TextField("Took", fmt.format(evt.took)),
-              TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}".stripMargin)
+            MarkdownSection(s"""*Action Name:* ${evt.name.metricRepr}
+                               |*Action ID:* ${evt.actionID.show}
+                               |*Took:* ${fmt.format(evt.took)}
+                               |*Retries:* ${evt.numRetries.show}
+                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+            KeyValueSection("Output", s"""```${abbreviate(evt.output.spaces2)}```""")
           )
         )
       )

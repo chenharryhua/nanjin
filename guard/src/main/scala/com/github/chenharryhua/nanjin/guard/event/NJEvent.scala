@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
+import monocle.macros.Lenses
 
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
@@ -89,6 +90,7 @@ object NJEvent {
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
+  @Lenses
   final case class ActionStart(actionInfo: ActionInfo, input: Json) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
@@ -108,6 +110,7 @@ object NJEvent {
     def numRetries: Int
   }
 
+  @Lenses
   final case class ActionFail(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
@@ -118,6 +121,7 @@ object NJEvent {
     override val title: String = titles.actionFail
   }
 
+  @Lenses
   final case class ActionSucc(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
@@ -141,6 +145,7 @@ object NJEvent {
     override val title: String = titles.instantAlert
   }
 
+  @Lenses
   final case class PassThrough(
     name: Digested,
     timestamp: ZonedDateTime,
