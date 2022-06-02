@@ -26,7 +26,7 @@ class RetryTest extends AnyFunSuite {
       gd.span("succ-trivial")
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
-        .withOutput(_.asJson)
+        .logOutput(_.asJson)
         .withWorthRetry(_ => true)
         .run(1, 1, 1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -42,7 +42,7 @@ class RetryTest extends AnyFunSuite {
         .notice
         .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
         .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
-        .withOutput(_.asJson)
+        .logOutput(_.asJson)
         .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run(i, i, i, i, i))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -91,7 +91,7 @@ class RetryTest extends AnyFunSuite {
           IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
-        .withOutput(_.asJson)
+        .logOutput(_.asJson)
         .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -128,8 +128,8 @@ class RetryTest extends AnyFunSuite {
         gd.span("escalate-after-3-times")
           .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
-          .withInput(_.asJson)
-          .withOutput(_.asJson)
+          .logInput(_.asJson)
+          .logOutput(_.asJson)
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
