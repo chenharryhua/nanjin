@@ -57,7 +57,7 @@ class PerformanceTest extends AnyFunSuite {
         .critical
         .updateConfig(_.withoutTiming.withoutCounting)
         .retry(IO(i += 1))
-        .withOutput(_.asJson)
+        .logOutput(_.asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
@@ -73,7 +73,7 @@ class PerformanceTest extends AnyFunSuite {
         .updateConfig(_.withoutTiming.withoutCounting)
         .expensive
         .retry(IO(i += 1))
-        .withOutput(_.asJson)
+        .logOutput(_.asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()

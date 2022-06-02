@@ -44,7 +44,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.retry(IO(1)).withInput("hello, world".asJson).withOutput(_.asJson).run >> ag
+        ag.retry(IO(1)).logInput("hello, world".asJson).logOutput(_.asJson).run >> ag
           .alert("notify")
           .error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
       }
@@ -77,7 +77,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
-        ag.retry(IO(1)).withInput("hello world".asJson).withOutput(_.asJson).run >> ag
+        ag.retry(IO(1)).logInput("hello world".asJson).logOutput(_.asJson).run >> ag
           .alert("notify")
           .error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }

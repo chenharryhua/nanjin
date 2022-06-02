@@ -20,46 +20,40 @@ private object SimpleTextTranslator {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
     val tn: String   = se.serviceParams.taskParams.taskName.value
-    s"  Host:$host, Task:$tn, Service:$sn, ServiceID:${se.serviceID.show}"
+    s"Task:$tn, Service:$sn, Host:$host, ServiceID:${se.serviceID.show}"
   }
 
-  private def instantEvent(ie: InstantEvent): String = {
-    val host: String = ie.serviceParams.taskParams.hostName.value
-    s"""|  Host:$host, ServiceID:${ie.serviceID.show}
+  private def instantEvent(ie: InstantEvent): String =
+    s"""|  ${serviceEvent(ie)}
         |  Name:${ie.name.metricRepr}""".stripMargin
-  }
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
-  private def actionEvent(ae: ActionEvent): String = {
-    val host: String = ae.serviceParams.taskParams.hostName.value
-    val sn: String   = ae.serviceParams.serviceName.value
-    val tn: String   = ae.serviceParams.taskParams.taskName.value
-    s"""  Host:$host, Task:$tn, Service:$sn, ServiceID:${ae.serviceID.show}
+  private def actionEvent(ae: ActionEvent): String =
+    s"""  ${serviceEvent(ae)}
        |  Name:${ae.name.metricRepr}, ID:${ae.actionID}""".stripMargin
-  }
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}
-       |${serviceEvent(evt)}
+       |  ${serviceEvent(evt)}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String =
     s"""${coloring(evt.title)(evt)}
-       |${serviceEvent(evt)}
+       |  ${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt.title)(evt)}
-       |${serviceEvent(evt)}
+       |  ${serviceEvent(evt)}
        |  Cause: ${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
     s"""${coloring(evt.title)(evt)}
-       |${serviceEvent(evt)}
+       |  ${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  Ongoings: ${evt.ongoings.map(_.actionID).mkString(",")}
        |${evt.snapshot.show}
@@ -67,7 +61,7 @@ private object SimpleTextTranslator {
 
   private def metricReset(evt: MetricReset): String =
     s"""${coloring(evt.title)(evt)}
-       |${serviceEvent(evt)}
+       |  ${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 
@@ -86,7 +80,7 @@ private object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Input: ${evt.info.noSpaces}
+       |  Input: ${evt.input.noSpaces}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
@@ -100,7 +94,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
-       |  Input: ${evt.info.noSpaces}
+       |  Input: ${evt.input.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
@@ -108,7 +102,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took: ${fmt.format(evt.took)}
-       |  Output: ${evt.info.noSpaces}
+       |  Output: ${evt.output.noSpaces}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

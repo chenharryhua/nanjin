@@ -42,11 +42,11 @@ final class NJRetry[F[_], A, B] private[guard] (
   def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry[F, A, B] = copy(isWorthRetry = Kleisli(f))
   def withWorthRetry(f: Throwable => Boolean): NJRetry[F, A, B] = withWorthRetryM(Kleisli.fromFunction(f).run)
 
-  def withInputM(f: A => F[Json]): NJRetry[F, A, B] = copy(transInput = f)
-  def withInput(f: A => Json): NJRetry[F, A, B]     = withInputM(f.map(F.pure))
+  def logInputM(f: A => F[Json]): NJRetry[F, A, B] = copy(transInput = f)
+  def logInput(f: A => Json): NJRetry[F, A, B]     = logInputM(f.map(F.pure))
 
-  def withOutputM(f: B => F[Json]): NJRetry[F, A, B] = copy(transOutput = f)
-  def withOutput(f: B => Json): NJRetry[F, A, B]     = withOutputM(f.map(F.pure))
+  def logOutputM(f: B => F[Json]): NJRetry[F, A, B] = copy(transOutput = f)
+  def logOutput(f: B => Json): NJRetry[F, A, B]     = logOutputM(f.map(F.pure))
 
   private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
@@ -122,11 +122,11 @@ final class NJRetryUnit[F[_], B] private[guard] (
   def withWorthRetry(f: Throwable => Boolean): NJRetryUnit[F, B] = withWorthRetryM(
     Kleisli.fromFunction(f).run)
 
-  def withInputM(info: F[Json]): NJRetryUnit[F, B] = copy(transInput = info)
-  def withInput(info: Json): NJRetryUnit[F, B]     = withInputM(F.pure(info))
+  def logInputM(info: F[Json]): NJRetryUnit[F, B] = copy(transInput = info)
+  def logInput(info: Json): NJRetryUnit[F, B]     = logInputM(F.pure(info))
 
-  def withOutputM(f: B => F[Json]): NJRetryUnit[F, B] = copy(transOutput = f)
-  def withOutput(f: B => Json): NJRetryUnit[F, B]     = withOutputM(f.map(F.pure))
+  def logOutputM(f: B => F[Json]): NJRetryUnit[F, B] = copy(transOutput = f)
+  def logOutput(f: B => Json): NJRetryUnit[F, B]     = logOutputM(f.map(F.pure))
 
   val run: F[B] =
     new NJRetry[F, Unit, B](

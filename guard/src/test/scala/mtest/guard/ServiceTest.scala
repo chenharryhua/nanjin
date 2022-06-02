@@ -29,7 +29,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(3.second))
       .updateConfig(_.withQueueCapacity(1))
       .eventStream(gd =>
-        gd.span("normal-exit-action").max(10).retry(IO(1)).withOutput(_ => null).run.delayBy(1.second))
+        gd.span("normal-exit-action").max(10).retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile

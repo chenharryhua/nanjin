@@ -42,7 +42,7 @@ package object translators {
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
-  final val MessageSizeLimits: Int = 2960
+  final val MessageSizeLimits: Int = 2500
 
   private[translators] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
 
