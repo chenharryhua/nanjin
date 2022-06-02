@@ -71,6 +71,7 @@ sealed trait SimpleQueueService[F[_]] {
 
   def delete(msg: SqsMessage): F[DeleteMessageResult]
   def sendMessage(msg: SendMessageRequest): F[SendMessageResult]
+  def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult]
 
   def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F]
   def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F]
@@ -103,6 +104,9 @@ object SimpleQueueService {
       override def delete(msg: SqsMessage): F[DeleteMessageResult] = F.pure(new DeleteMessageResult())
       override def sendMessage(msg: SendMessageRequest): F[SendMessageResult] =
         F.pure(new SendMessageResult())
+
+      override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult] =
+        F.pure(new ChangeMessageVisibilityResult())
     }))(_ => F.unit)
 
   def apply[F[_]: Async](f: Endo[AmazonSQSClientBuilder]): Resource[F, SimpleQueueService[F]] = {
@@ -164,6 +168,12 @@ object SimpleQueueService {
 
     override def sendMessage(request: SendMessageRequest): F[SendMessageResult] =
       F.blocking(client.sendMessage(request)).onError(ex => logger.error(ex)(name))
+
+    override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult] =
+      F.blocking(
+        client.changeMessageVisibility(
+          new ChangeMessageVisibilityRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle, 0)))
+        .onError(ex => logger.error(ex)(name))
 
     override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] =
       new AwsSQS[F](buildFrom.andThen(f), delayPolicy, logger)
