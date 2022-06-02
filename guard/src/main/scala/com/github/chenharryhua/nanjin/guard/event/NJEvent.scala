@@ -3,12 +3,13 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import cats.derived.auto.show.*
 import cats.implicits.toShow
+import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 
-import java.time.{Duration, ZoneId, ZonedDateTime}
+import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
 @JsonCodec
@@ -17,9 +18,9 @@ sealed trait NJEvent {
   def serviceParams: ServiceParams
   def title: String
 
-  final def zoneId: ZoneId   = serviceParams.taskParams.zoneId
-  final def serviceID: UUID  = serviceParams.serviceID
-  final def upTime: Duration = serviceParams.upTime(timestamp)
+  final def serviceID: UUID          = serviceParams.serviceID
+  final def serviceName: ServiceName = serviceParams.serviceName
+  final def upTime: Duration         = serviceParams.upTime(timestamp)
 
   final def asJson: Json = Encoder[NJEvent].apply(this)
 }
@@ -76,20 +77,19 @@ object NJEvent {
     override val title: String = resetType.show
   }
 
-  sealed trait ActionEvent extends NJEvent {
+  sealed trait ActionEvent extends ServiceEvent {
     def actionInfo: ActionInfo // action runtime information
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
     final def name: Digested             = actionInfo.actionParams.name
     final def actionParams: ActionParams = actionInfo.actionParams
-    final def launchTime: ZonedDateTime  = actionInfo.launchTime
     final def actionID: Int              = actionInfo.actionID
 
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
-  final case class ActionStart(actionInfo: ActionInfo, info: Json) extends ActionEvent {
+  final case class ActionStart(actionInfo: ActionInfo, input: Json) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
   }
@@ -106,19 +106,13 @@ object NJEvent {
 
   sealed trait ActionResultEvent extends ActionEvent {
     def numRetries: Int
-
-    /** When action fail it contains the input of the action
-      *
-      * When action succ it contains the output of the action
-      */
-    def info: Json
   }
 
   final case class ActionFail(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before giving up
-    info: Json, // input of the action
+    input: Json, // input of the action
     error: NJError)
       extends ActionResultEvent {
     override val title: String = titles.actionFail
@@ -128,12 +122,12 @@ object NJEvent {
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     numRetries: Int, // number of retries before success
-    info: Json // output of the action
+    output: Json // output of the action
   ) extends ActionResultEvent {
     override val title: String = titles.actionSucc
   }
 
-  sealed trait InstantEvent extends NJEvent {
+  sealed trait InstantEvent extends ServiceEvent {
     def name: Digested
   }
 

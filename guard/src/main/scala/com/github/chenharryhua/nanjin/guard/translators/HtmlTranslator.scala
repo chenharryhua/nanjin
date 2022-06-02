@@ -31,8 +31,8 @@ private object HtmlTranslator extends all {
 
   private def hostServiceText(evt: NJEvent): Text.TypedTag[String] = {
     val sn =
-      evt.serviceParams.taskParams.homePage.fold(p(b("Service: "), evt.serviceParams.serviceName.value))(hp =>
-        p(b("Sevice: "), a(href := hp.value)(evt.serviceParams.serviceName.value)))
+      evt.serviceParams.taskParams.homePage.fold(p(b("Service: "), evt.serviceName.value))(hp =>
+        p(b("Sevice: "), a(href := hp.value)(evt.serviceName.value)))
     div(
       p(b("Timestamp: "), evt.timestamp.truncatedTo(ChronoUnit.SECONDS).show),
       p(b("Host: "), evt.serviceParams.taskParams.hostName.value),
@@ -128,7 +128,7 @@ private object HtmlTranslator extends all {
       p(b("Name: "), evt.name.metricRepr),
       p(b("ID: "), evt.actionID.show),
       hostServiceText(evt),
-      p(b("Input: "), pre(evt.info.spaces2))
+      p(b("Input: "), pre(evt.input.spaces2))
     )
 
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
@@ -150,7 +150,7 @@ private object HtmlTranslator extends all {
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
-      p(b("Input: "), pre(evt.info.spaces2)),
+      p(b("Input: "), pre(evt.input.spaces2)),
       causeText(evt.error)
     )
 
@@ -162,7 +162,7 @@ private object HtmlTranslator extends all {
       hostServiceText(evt),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
-      p(b("Output: "), pre(evt.info.spaces2))
+      p(b("Output: "), pre(evt.output.spaces2))
     )
 
   def apply[F[_]: Monad]: Translator[F, Text.TypedTag[String]] =
