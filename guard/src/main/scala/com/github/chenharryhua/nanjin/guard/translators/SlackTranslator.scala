@@ -204,7 +204,7 @@ private object SlackTranslator extends all {
                                |*Retries so far:* ${evt.retriesSoFar.show}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
-            KeyValueSection("Cause", s"""```${abbreviate(evt.error.message)}```""")
+            KeyValueSection("Cause", s"""```${abbrev(evt.error.message)}```""")
           )
         ))
     )
@@ -225,7 +225,7 @@ private object SlackTranslator extends all {
                                |*Retries:* ${evt.numRetries.show}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
-            KeyValueSection("Cause", s"""```${abbreviate(evt.error.message)}```"""),
+            KeyValueSection("Cause", s"""```${abbrev(evt.error.message)}```"""),
             KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
           )
         )
