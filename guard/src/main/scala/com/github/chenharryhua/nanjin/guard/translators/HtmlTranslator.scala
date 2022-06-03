@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.{Applicative, Eval, Monad}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, OngoingAction}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
@@ -44,7 +44,7 @@ private object HtmlTranslator extends all {
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
-  private def pendingActions(oas: List[ActionInfo], now: ZonedDateTime): Text.TypedTag[String] = {
+  private def pendingActions(oas: List[OngoingAction], now: ZonedDateTime): Text.TypedTag[String] = {
     val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
     div(
       b("Ongoing actions:"),
@@ -57,8 +57,8 @@ private object HtmlTranslator extends all {
           th(style := tds)("id")),
         oas.map(a =>
           tr(
-            td(style := tds)(a.actionParams.name.origin),
-            td(style := tds)(a.actionParams.name.digest),
+            td(style := tds)(a.name.origin),
+            td(style := tds)(a.name.digest),
             td(style := tds)(fmt.format(a.launchTime, now)),
             td(style := tds)(a.launchTime.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show),
             td(style := tds)(a.actionID.show)

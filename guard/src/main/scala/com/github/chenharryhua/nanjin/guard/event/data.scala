@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.shapes.*
+import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
@@ -67,6 +68,13 @@ final case class ActionInfo(actionParams: ActionParams, actionID: Int, launchTim
 
 object ActionInfo extends zoneddatetime {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
+}
+
+@JsonCodec
+final case class OngoingAction(name: Digested, actionID: Int, launchTime: ZonedDateTime)
+object OngoingAction {
+  def apply(ai: ActionInfo): OngoingAction =
+    ai.into[OngoingAction].withFieldComputed(_.name, _.actionParams.name).transform
 }
 
 @JsonCodec
