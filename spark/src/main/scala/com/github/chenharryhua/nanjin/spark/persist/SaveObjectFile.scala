@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import org.apache.spark.rdd.RDD
 
-final class SaveObjectFile[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
+final class SaveObjectFile[F[_], A](val rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
