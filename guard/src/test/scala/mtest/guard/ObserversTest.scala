@@ -148,7 +148,12 @@ class ObserversTest extends AnyFunSuite {
 
   test("8.syntax") {
     EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10)
-    EmailObserver[IO](SimpleNotificationService.fake[IO]).withInterval(1.minute).withChunkSize(10)
+    val eo = EmailObserver[IO](SimpleNotificationService.fake[IO])
+      .withInterval(1.minute)
+      .withChunkSize(10)
+      .updateTranslator(
+        _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionSucc.skipInstantAlert.skipPassThrough.skipServiceStart.skipServicePanic.skipServiceStop.skipAll)
+
     logging.simple[IO]
     console.verbose[IO]
   }
