@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.github.chenharryhua.nanjin.common.HostName
+import com.github.chenharryhua.nanjin.common.guard.Span
 import com.github.chenharryhua.nanjin.datetime.{crontabs, DurationFormatter}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -189,5 +190,13 @@ class ServiceTest extends AnyFunSuite {
 
   test("9.print agent params") {
     guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
+  }
+
+  test("span") {
+    guard.eventStream { ag =>
+      val s1 = ag.span("a").span("b").span("c").agentParams.spans
+      val s2 = ag.span(List(Span("a"), Span("b"), Span("c"))).agentParams.spans
+      IO(assert(s1 === s2))
+    }.debug().compile.drain.unsafeRunSync()
   }
 }

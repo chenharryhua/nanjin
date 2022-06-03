@@ -103,9 +103,9 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/inner][5646b97c]")
+    assert(b.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/inner][89f90a0c]")
     assert(
-      c.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/three/outer][f5929d49]")
+      c.asInstanceOf[ActionFail].actionInfo.actionParams.name.metricRepr == "[one/two/three/outer][59553dec]")
     assert(d.isInstanceOf[ServiceStop])
   }
 

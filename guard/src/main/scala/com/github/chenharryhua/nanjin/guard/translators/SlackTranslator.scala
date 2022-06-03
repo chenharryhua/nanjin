@@ -197,11 +197,12 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
+            JuxtaposeSection(
+              TextField("Took so far", fmt.format(evt.took)),
+              TextField("Retries so far", evt.retriesSoFar.show)),
             MarkdownSection(s"""*Action Name:* ${evt.name.metricRepr}
                                |*Action ID:* ${evt.actionID.show}
-                               |*${toOrdinalWords(evt.retriesSoFar)} retry:* at $lt, in $next
-                               |*Took so far:* ${fmt.format(evt.took)}
-                               |*Retries so far:* ${evt.retriesSoFar.show}
+                               |*The ${toOrdinalWords(evt.retriesSoFar)} retry:* at $lt, in $next
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"""```${abbrev(evt.error.message)}```""")
@@ -219,10 +220,11 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
+            JuxtaposeSection(
+              TextField("Took", fmt.format(evt.took)),
+              TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Action Name:* ${evt.name.metricRepr}
                                |*Action ID:* ${evt.actionID.show}
-                               |*Took:* ${fmt.format(evt.took)}
-                               |*Retries:* ${evt.numRetries.show}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Cause", s"""```${abbrev(evt.error.message)}```"""),

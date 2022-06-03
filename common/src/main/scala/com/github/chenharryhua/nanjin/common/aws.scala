@@ -10,6 +10,8 @@ import eu.timepit.refined.numeric
 import eu.timepit.refined.predicates.all.{And, Not}
 import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
 import io.circe.generic.JsonCodec
+import io.circe.refined.*
+import io.circe.{Encoder, Json}
 
 object aws {
   type IamArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
@@ -58,6 +60,7 @@ object aws {
     object Fifo extends RefinedTypeOps[Fifo, String] with CatsRefinedTypeOpsSyntax
   }
 
+  @JsonCodec
   sealed trait SqsConfig {
     def queueUrl: String
 
@@ -69,6 +72,8 @@ object aws {
 
     def visibilityTimeout: SqsConfig.VisibilityTimeout
     def withVisibilityTimeout(seconds: SqsConfig.VisibilityTimeout): SqsConfig
+
+    final def asJson: Json = Encoder[SqsConfig].apply(this)
   }
 
   object SqsConfig {
@@ -84,7 +89,7 @@ object aws {
     private val defaultWaitTimeSeconds: WaitTimeSeconds         = 20 // 20 seconds
     private val defaultVisibilityTimeout: VisibilityTimeout     = 30 // 30 seconds
 
-    final case class Standard private (
+    final case class Standard(
       value: SqsUrl.Standard,
       maxNumberOfMessages: MaxNumberOfMessages,
       waitTimeSeconds: WaitTimeSeconds,
@@ -110,7 +115,7 @@ object aws {
           visibilityTimeout = defaultVisibilityTimeout)
     }
 
-    final case class Fifo private (
+    final case class Fifo(
       value: SqsUrl.Fifo,
       maxNumberOfMessages: MaxNumberOfMessages,
       waitTimeSeconds: WaitTimeSeconds,

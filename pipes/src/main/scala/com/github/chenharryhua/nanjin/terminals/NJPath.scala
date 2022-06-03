@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.Show
+import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import eu.timepit.refined.api.Refined
@@ -9,7 +9,7 @@ import io.circe.refined.*
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{LocatedFileStatus, Path}
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
-
+import cats.syntax.eq.*
 import java.net.URI
 import java.time.{LocalDate, ZonedDateTime}
 
@@ -58,5 +58,6 @@ object NJPath {
   def apply(lfs: LocatedFileStatus): NJPath = apply(lfs.getPath)
 
   implicit final val showNJPath: Show[NJPath] = _.pathStr
+  implicit final val eqNJPath: Eq[NJPath]     = (x: NJPath, y: NJPath) => x.pathStr === y.pathStr
 
 }

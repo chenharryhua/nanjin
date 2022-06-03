@@ -1,11 +1,14 @@
 package com.github.chenharryhua.nanjin.common
 
 import io.circe.generic.JsonCodec
+import io.circe.{Encoder, Json}
 
 @JsonCodec
 sealed trait NJCompression {
   def shortName: String
   def fileExtension: String
+
+  final def asJson: Json = Encoder[NJCompression].apply(this)
 }
 
 object NJCompression {

@@ -1,5 +1,6 @@
 package mtest.terminals
 
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -11,6 +12,7 @@ class NJPathTest extends AnyFunSuite {
     assert(r1.pathStr == "data/abc/efg")
     val r2: NJPath = NJPath("./data/abc/") / "efg"
     assert(r2.pathStr == "data/abc/efg")
+    assert(Eq[NJPath].eqv(r1, r2))
   }
 
   test("local absolute") {
@@ -18,6 +20,7 @@ class NJPathTest extends AnyFunSuite {
     assert(r1.pathStr == "/data/abc/efg")
     val r2: NJPath = NJPath("/data/abc/") / "efg"
     assert(r2.pathStr == "/data/abc/efg")
+    assert(Eq[NJPath].eqv(r1, r2))
   }
   test("norm") {
     val r1: NJPath = NJPath("s3a://bucket/folder")

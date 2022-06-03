@@ -26,15 +26,16 @@ final class Agent[F[_]] private[service] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
-  private lazy val agentParams: AgentParams     = agentConfig.evalConfig
-  private lazy val serviceParams: ServiceParams = agentParams.serviceParams
+  lazy val agentParams: AgentParams     = agentConfig.evalConfig
+  lazy val serviceParams: ServiceParams = agentParams.serviceParams
 
   def zoneId: ZoneId = agentParams.serviceParams.taskParams.zoneId
 
   override def updateConfig(f: Endo[AgentConfig]): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, f(agentConfig))
 
-  def span(name: Span): Agent[F] = updateConfig(_.withSpan(name))
+  def span(name: Span): Agent[F]     = updateConfig(_.withSpan(name))
+  def span(ls: List[Span]): Agent[F] = updateConfig(_.withSpan(ls))
 
   def trivial: Agent[F]  = updateConfig(_.withLowImportance)
   def normal: Agent[F]   = updateConfig(_.withMediumImportance)
@@ -119,7 +120,7 @@ final class Agent[F[_]] private[service] (
 
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
-      digested = Digested(serviceParams, brokerName :: agentParams.spans),
+      digested = Digested(serviceParams, agentParams.spans.appended(brokerName)),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -128,7 +129,7 @@ final class Agent[F[_]] private[service] (
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
-      digested = Digested(serviceParams, alertName :: agentParams.spans),
+      digested = Digested(serviceParams, agentParams.spans.appended(alertName)),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
@@ -136,19 +137,19 @@ final class Agent[F[_]] private[service] (
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(
-      digested = Digested(serviceParams, counterName :: agentParams.spans),
+      digested = Digested(serviceParams, agentParams.spans.appended(counterName)),
       metricRegistry = metricRegistry,
       isError = false)
 
   def meter(meterName: Span): NJMeter[F] =
     new NJMeter[F](
-      digested = Digested(serviceParams, meterName :: agentParams.spans),
+      digested = Digested(serviceParams, agentParams.spans.appended(meterName)),
       metricRegistry = metricRegistry,
       isCounting = false)
 
   def histogram(histoName: Span): NJHistogram[F] =
     new NJHistogram[F](
-      digested = Digested(serviceParams, histoName :: agentParams.spans),
+      digested = Digested(serviceParams, agentParams.spans.appended(histoName)),
       metricRegistry = metricRegistry,
       isCounting = false
     )
