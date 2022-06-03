@@ -40,7 +40,7 @@ class RetryTest extends AnyFunSuite {
       val ag = gd
         .span("all-succ")
         .notice
-        .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
+        .updateConfig(_.withMaxRetries(3).withExponentialBackoff(1.second))
         .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
         .logOutput(_.asJson)
         .withWorthRetry(_ => true)

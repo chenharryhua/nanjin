@@ -7,6 +7,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
+import io.circe.syntax.*
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.zoneddatetime
 import scalatags.Text
@@ -375,33 +376,31 @@ object Translator extends zoneddatetime {
 
   def verboseJson[F[_]: Applicative]: Translator[F, Json] =
     empty[F, Json]
-      .withServiceStart(_.asJson)
-      .withServicePanic(_.asJson)
-      .withServiceStop(_.asJson)
-      .withInstantAlert(_.asJson)
-      .withPassThrough(_.asJson)
-      .withMetricsReset(_.asJson)
-      .withMetricsReport(_.asJson)
-      .withActionStart(_.asJson)
-      .withActionRetry(_.asJson)
-      .withActionFail(_.asJson)
-      .withActionSucc(_.asJson)
+      .withServiceStart((_: NJEvent).asJson)
+      .withServicePanic((_: NJEvent).asJson)
+      .withServiceStop((_: NJEvent).asJson)
+      .withInstantAlert((_: NJEvent).asJson)
+      .withPassThrough((_: NJEvent).asJson)
+      .withMetricsReset((_: NJEvent).asJson)
+      .withMetricsReport((_: NJEvent).asJson)
+      .withActionStart((_: NJEvent).asJson)
+      .withActionRetry((_: NJEvent).asJson)
+      .withActionFail((_: NJEvent).asJson)
+      .withActionSucc((_: NJEvent).asJson)
 
-  def verboseText[F[_]: Applicative]: Translator[F, String] = {
-    import cats.derived.auto.show.*
+  def verboseText[F[_]: Applicative]: Translator[F, String] =
     empty[F, String]
-      .withServiceStart(_.show)
-      .withServicePanic(_.show)
-      .withServiceStop(_.show)
-      .withInstantAlert(_.show)
-      .withPassThrough(_.show)
-      .withMetricsReset(_.show)
-      .withMetricsReport(_.show)
-      .withActionStart(_.show)
-      .withActionRetry(_.show)
-      .withActionFail(_.show)
-      .withActionSucc(_.show)
-  }
+      .withServiceStart((_: NJEvent).show)
+      .withServicePanic((_: NJEvent).show)
+      .withServiceStop((_: NJEvent).show)
+      .withInstantAlert((_: NJEvent).show)
+      .withPassThrough((_: NJEvent).show)
+      .withMetricsReset((_: NJEvent).show)
+      .withMetricsReport((_: NJEvent).show)
+      .withActionStart((_: NJEvent).show)
+      .withActionRetry((_: NJEvent).show)
+      .withActionFail((_: NJEvent).show)
+      .withActionSucc((_: NJEvent).show)
 
   def simpleText[F[_]: Applicative]: Translator[F, String]    = SimpleTextTranslator[F]
   def simpleJson[F[_]: Applicative]: Translator[F, Json]      = SimpleJsonTranslator[F]

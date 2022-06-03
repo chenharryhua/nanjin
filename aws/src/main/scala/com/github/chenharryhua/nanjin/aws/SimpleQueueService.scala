@@ -28,7 +28,7 @@ import scala.util.Try
 
 /** @param messageIndex
   *   one based message index
-  * @param numInBatch
+  * @param batchSize
   *   number of messages in one request
   */
 
@@ -37,7 +37,7 @@ final case class SqsMessage(
   response: Message,
   batchIndex: Long,
   messageIndex: Int,
-  numInBatch: Int) {
+  batchSize: Int) {
   private val om: ObjectMapper = new ObjectMapper()
   def asJson: Json = {
     val resp = Try(jacksonToCirce(om.valueToTree[JsonNode](response))).map { js =>
@@ -49,7 +49,7 @@ final case class SqsMessage(
             "response": ${resp.toOption},
             "batchIndex": $batchIndex,
             "messageIndex": $messageIndex,
-            "numInBatch": $numInBatch
+            "batchSize": $batchSize
           }"""
   }
 
@@ -95,7 +95,7 @@ object SimpleQueueService {
               .withReceiptHandle(idx.toString),
             batchIndex = idx,
             messageIndex = 1,
-            numInBatch = 1
+            batchSize = 1
           )
         }
 
@@ -145,7 +145,13 @@ object SimpleQueueService {
             val size: Int                         = messages.size
             if (size > 0) {
               val chunk: Chunk[SqsMessage] = Chunk.iterable(messages).zipWithIndex.map { case (msg, idx) =>
-                SqsMessage(request, msg, batchIndex, idx + 1, size) // one based index in a batch
+                SqsMessage(
+                  request = request,
+                  response = msg,
+                  batchIndex = batchIndex,
+                  messageIndex = idx + 1, // one based index in a batch
+                  batchSize = size
+                )
               }
               Pull.output(chunk) >> receiving(RetryStatus.NoRetriesYet, batchIndex + 1)
             } else {

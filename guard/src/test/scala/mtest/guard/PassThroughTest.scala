@@ -19,6 +19,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
+import io.circe.syntax.*
 
 final case class PassThroughObject(a: Int, b: String)
 
@@ -57,6 +58,7 @@ class PassThroughTest extends AnyFunSuite {
           .delayBy(1.second)
           .replicateA(3) >> ag.metrics.fullReport)
       .filter(_.isInstanceOf[MetricReport])
+      .debug()
       .compile
       .last
       .unsafeRunSync()
@@ -64,15 +66,17 @@ class PassThroughTest extends AnyFunSuite {
       last
         .asInstanceOf[MetricReport]
         .snapshot
-        .counterMap("03.counter.[one/two/three/counter][aef1d85c].error") == 3)
+        .counterMap("03.counter.[one/two/three/counter][1a8af341].error") == 3)
   }
 
   test("3.alert") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.c997))
       .eventStream(ag =>
-        ag.alert("oops").withCounting.error("message").delayBy(1.second) >> ag.metrics.report(
-          MetricFilter.ALL))
+        ag.alert("oops").withCounting.error("message").delayBy(1.second) >>
+          ag.alert("either").either(Left(new Exception("either"))) >>
+          ag.alert("info").info("hello") >>
+          ag.metrics.report(MetricFilter.ALL))
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
       .compile

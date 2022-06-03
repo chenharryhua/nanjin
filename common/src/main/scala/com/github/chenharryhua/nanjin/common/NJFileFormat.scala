@@ -1,19 +1,25 @@
 package com.github.chenharryhua.nanjin.common
 
-import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
+import enumeratum.{CirceEnum, Enum, EnumEntry}
+import io.circe.Encoder
 import shapeless.{:+:, CNil}
 
 import scala.collection.immutable
 
 sealed abstract class NJFileFormat(val value: Int, val format: String, val alias: String)
-    extends IntEnumEntry with Serializable {
-  final override def toString: String = format
-  final def suffix: String            = s"$alias.$format"
+    extends EnumEntry with Serializable {
+
+  final def suffix: String = s"$alias.$format"
+
+  final override def toString: String = suffix
 }
 
-object NJFileFormat
-    extends CatsOrderValueEnum[Int, NJFileFormat] with IntEnum[NJFileFormat] with IntCirceEnum[NJFileFormat]
-    with CatsValueEnum[Int, NJFileFormat] {
+private[common] trait LowNJFileFormatCirceEncoder {
+  implicit final def subEncoderNJFileFormat[S <: NJFileFormat]: Encoder[S] = (s: S) =>
+    NJFileFormat.circeEncoder.apply(s)
+}
+
+object NJFileFormat extends Enum[NJFileFormat] with CirceEnum[NJFileFormat] with LowNJFileFormatCirceEncoder {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
   case object Unknown extends NJFileFormat(-1, "unknown", "unknown")
@@ -24,7 +30,7 @@ object NJFileFormat
   case object Text extends NJFileFormat(3, "txt", "plain")
   case object Kantan extends NJFileFormat(4, "csv", "kantan")
   case object SparkJson extends NJFileFormat(5, "json", "spark")
-  case object SparkCsv extends NJFileFormat(6, format = "csv", alias = "spark")
+  case object SparkCsv extends NJFileFormat(6, "csv", "spark")
 
   // binary
   case object Parquet extends NJFileFormat(11, "parquet", "apache")

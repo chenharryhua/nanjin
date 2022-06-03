@@ -1,6 +1,8 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.aws.{CloudWatchNamespace, IamArn, SnsArn, SqsConfig, SqsUrl}
+import com.github.chenharryhua.nanjin.common.aws.*
+import com.github.chenharryhua.nanjin.common.NJCompression
+import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class AwsArnTest extends AnyFunSuite {
@@ -18,8 +20,12 @@ class AwsArnTest extends AnyFunSuite {
     shapeless.test.illTyped(""" CloudWatchNamespace("a\b") """)
   }
 
+  test("kms") {
+    KmsArn("arn:aws:kms:ap-southeast-2:123456789012:key/1111-2222-3333-13d5b006fbbb")
+  }
+
   test("sqs url") {
-    import eu.timepit.refined.auto.*
+
     val fifo     = SqsUrl.Fifo("https://github.com/abc.fifo")
     val standard = SqsUrl.Standard("https://github.com/abc")
 
@@ -46,5 +52,21 @@ class AwsArnTest extends AnyFunSuite {
 
     SqsConfig(standard).withVisibilityTimeout(1).withWaitTimeSeconds(2).withMaxNumberOfMessages(3)
 
+  }
+  test("sqs json") {
+    import io.circe.parser.decode
+    val fifo  = SqsConfig.Fifo("https://abc.com/xyz.fifo")
+    val stand = SqsConfig.Standard("https://abc.com")
+
+    val ufifo: SqsConfig  = fifo
+    val sStand: SqsConfig = stand
+
+    assert(fifo.asJson === ufifo.asJson)
+    assert(sStand.asJson === stand.asJson)
+    assert(decode[SqsConfig](fifo.asJson.spaces2).toOption.get == fifo)
+  }
+
+  test("compression") {
+    println(NJCompression.Lzo.asJson)
   }
 }

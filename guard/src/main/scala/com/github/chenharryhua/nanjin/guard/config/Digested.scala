@@ -8,7 +8,7 @@ import io.circe.refined.*
 
 @JsonCodec
 final case class Digested private (spans: List[Span], digest: String) {
-  val origin: String     = spans.reverse.map(_.value).toList.mkString("/")
+  val origin: String     = spans.map(_.value).toList.mkString("/")
   val metricRepr: String = s"[$origin][$digest]"
 
   override val toString: String = metricRepr

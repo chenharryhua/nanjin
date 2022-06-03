@@ -52,7 +52,7 @@ private object AgentConfigF {
   final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
 
-  final case class WithSpan[K](value: Span, cont: K) extends AgentConfigF[K]
+  final case class WithSpans[K](value: List[Span], cont: K) extends AgentConfigF[K]
 
   final case class WithImportance[K](value: Importance, cont: K) extends AgentConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends AgentConfigF[K]
@@ -66,7 +66,7 @@ private object AgentConfigF {
       case WithMaxRetries(v, c)  => AgentParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
       case WithCapDelay(v, c)    => AgentParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
       case WithImportance(v, c)  => AgentParams.importance.set(v)(c)
-      case WithSpan(v, c)        => AgentParams.spans.modify(v :: _)(c)
+      case WithSpans(v, c)       => AgentParams.spans.modify(_ ::: v)(c)
       case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
       case WithExpensive(v, c)   => AgentParams.isExpensive.set(v)(c)
@@ -102,7 +102,8 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withoutTiming: AgentConfig                    = AgentConfig(Fix(WithTiming(value = false, value)))
   def withExpensive(isCostly: Boolean): AgentConfig = AgentConfig(Fix(WithExpensive(value = isCostly, value)))
 
-  def withSpan(name: Span): AgentConfig = AgentConfig(Fix(WithSpan(name, value)))
+  def withSpan(name: Span): AgentConfig        = AgentConfig(Fix(WithSpans(List(name), value)))
+  def withSpan(spans: List[Span]): AgentConfig = AgentConfig(Fix(WithSpans(spans, value)))
 
   def evalConfig: AgentParams = scheme.cata(algebra).apply(value)
 }

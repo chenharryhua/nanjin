@@ -45,6 +45,7 @@ package object translators {
   final val MessageSizeLimits: Int = 2500
 
   private[translators] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+  private[translators] def abbrev(msg: String): String     = StringUtils.abbreviate(msg, 260)
 
   private[translators] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =

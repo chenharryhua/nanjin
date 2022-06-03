@@ -5,7 +5,13 @@ import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, MetricReset}
-import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricResetType, MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{
+  MetricReportType,
+  MetricResetType,
+  MetricSnapshot,
+  NJEvent,
+  OngoingAction
+}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -25,7 +31,7 @@ final private class MetricEventPublisher[F[_]](
         MetricReport(
           serviceParams = ss.serviceParams,
           reportType = metricReportType,
-          ongoings = ss.ongoingActionSet.toList.sortBy(_.launchTime),
+          ongoings = ss.ongoingActionSet.toList.map(OngoingAction(_)).sortBy(_.launchTime),
           timestamp = ts,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>

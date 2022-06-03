@@ -6,7 +6,7 @@ import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
-import io.circe.{Encoder, Json}
+import io.circe.Json
 import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
 
@@ -23,7 +23,6 @@ sealed trait NJEvent {
   final def serviceName: ServiceName = serviceParams.serviceName
   final def upTime: Duration         = serviceParams.upTime(timestamp)
 
-  final def asJson: Json = Encoder[NJEvent].apply(this)
 }
 
 object NJEvent {
@@ -59,7 +58,7 @@ object NJEvent {
   final case class MetricReport(
     reportType: MetricReportType,
     serviceParams: ServiceParams,
-    ongoings: List[ActionInfo],
+    ongoings: List[OngoingAction],
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot,
     restartTime: Option[ZonedDateTime])
