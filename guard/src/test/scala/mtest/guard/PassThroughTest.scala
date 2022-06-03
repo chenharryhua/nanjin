@@ -73,8 +73,10 @@ class PassThroughTest extends AnyFunSuite {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(crontabs.c997))
       .eventStream(ag =>
-        ag.alert("oops").withCounting.error("message").delayBy(1.second) >> ag.metrics.report(
-          MetricFilter.ALL))
+        ag.alert("oops").withCounting.error("message").delayBy(1.second) >>
+          ag.alert("either").either(Left(new Exception("either"))) >>
+          ag.alert("info").info("hello") >>
+          ag.metrics.report(MetricFilter.ALL))
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
       .compile
