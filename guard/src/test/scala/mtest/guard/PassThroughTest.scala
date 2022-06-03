@@ -19,6 +19,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
+import io.circe.syntax.*
 
 final case class PassThroughObject(a: Int, b: String)
 
