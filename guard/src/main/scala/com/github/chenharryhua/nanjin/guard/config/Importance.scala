@@ -24,7 +24,7 @@ object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceE
   implicit final val orderImportance: Order[Importance]       = Order.fromOrdering[Importance]
 }
 
-sealed trait MetricSnapshotType extends EnumEntry
+sealed trait MetricSnapshotType extends EnumEntry with Lowercase
 object MetricSnapshotType
     extends CatsEnum[MetricSnapshotType] with Enum[MetricSnapshotType] with CirceEnum[MetricSnapshotType] {
   override val values: IndexedSeq[MetricSnapshotType] = findValues
