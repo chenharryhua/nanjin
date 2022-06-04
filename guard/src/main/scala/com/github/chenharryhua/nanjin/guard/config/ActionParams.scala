@@ -4,7 +4,7 @@ import cats.{Applicative, Show}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.datetime.instances.*
+import org.typelevel.cats.time.instances.duration
 import eu.timepit.refined.cats.*
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
@@ -41,7 +41,7 @@ sealed abstract class NJRetryPolicy {
   }
 }
 
-object NJRetryPolicy {
+object NJRetryPolicy extends duration {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
 
   // java.time.duration is supported natively by circe
@@ -54,16 +54,16 @@ object NJRetryPolicy {
 
 @Lenses @JsonCodec final case class ActionRetryParams(
   maxRetries: MaxRetry,
-  capDelay: Option[FiniteDuration],
+  capDelay: Option[Duration],
   njRetryPolicy: NJRetryPolicy) {
   def policy[F[_]: Applicative]: RetryPolicy[F] = {
     val limit: RetryPolicy[F] = RetryPolicies.limitRetries[F](maxRetries.value)
     capDelay.fold(njRetryPolicy.policy[F].join(limit))(cd =>
-      RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(limit))
+      RetryPolicies.capDelay[F](cd.toScala, njRetryPolicy.policy[F]).join(limit))
   }
 }
 
-object ActionRetryParams {
+object ActionRetryParams extends duration {
   implicit val showActionRetryParams: Show[ActionRetryParams] = cats.derived.semiauto.show[ActionRetryParams]
 }
 

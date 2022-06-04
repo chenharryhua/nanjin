@@ -4,11 +4,11 @@ import cats.Show
 import cats.derived.auto.show.*
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
+import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
@@ -25,7 +25,7 @@ sealed trait NJEvent {
 
 }
 
-object NJEvent {
+object NJEvent extends zoneddatetime {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
 
   sealed trait ServiceEvent extends NJEvent

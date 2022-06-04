@@ -2,13 +2,11 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.{Hash, Order, Show}
 import io.circe.{Decoder, Encoder}
-import io.scalaland.enumz.Enum
 import monocle.Iso
 import org.typelevel.cats.time.instances.all
 
 import java.sql.{Date, Timestamp}
 import java.time.*
-import java.util.concurrent.TimeUnit
 import scala.compat.java8.DurationConverters.*
 
 /** [[https://typelevel.org/cats-time/]]
@@ -28,12 +26,6 @@ private[datetime] trait DateTimeInstances extends all {
       override def compare(x: Date, y: Date): Int = x.compareTo(y)
       override def show(x: Date): String          = x.toString
     }
-
-  private[this] val enumTimeUnit: Enum[TimeUnit] = Enum[TimeUnit]
-
-  implicit final val encoderTimeUnit: Encoder[TimeUnit] = Encoder.encodeString.contramap(enumTimeUnit.getName)
-  implicit final val decoderTimeUnit: Decoder[TimeUnit] = Decoder.decodeString.map(enumTimeUnit.withName)
-  implicit final val showTimeUnit: Show[TimeUnit]       = enumTimeUnit.getName
 
 //  implicit final val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
 //  implicit final val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder

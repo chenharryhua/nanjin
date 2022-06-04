@@ -3,13 +3,13 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.guard.{HomePage, TaskName}
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import eu.timepit.refined.cats.*
-import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import monocle.macros.Lenses
+import org.typelevel.cats.time.instances.zoneid
 
 import java.time.ZoneId
 
@@ -19,7 +19,7 @@ import java.time.ZoneId
   hostName: HostName,
   homePage: Option[HomePage])
 
-private[guard] object TaskParams {
+private[guard] object TaskParams extends zoneid {
   implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
 
   def apply(taskName: TaskName, hostName: HostName): TaskParams = TaskParams(

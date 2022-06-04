@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Functor, Show}
 import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.{Cron, CronExpr}
 import cron4s.circe.*
 import cron4s.lib.javatime.javaTemporalInstance
@@ -15,7 +14,10 @@ import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.refined.*
+import io.circe.{Decoder, Encoder}
+import io.scalaland.enumz.Enum
 import monocle.macros.Lenses
+import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.*
 import java.util.UUID
@@ -36,6 +38,11 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 }
 
 private[guard] object MetricParams {
+  private[this] val enumTimeUnit: Enum[TimeUnit]        = Enum[TimeUnit]
+  implicit final val encoderTimeUnit: Encoder[TimeUnit] = Encoder.encodeString.contramap(enumTimeUnit.getName)
+  implicit final val decoderTimeUnit: Decoder[TimeUnit] = Decoder.decodeString.map(enumTimeUnit.withName)
+  implicit final val showTimeUnit: Show[TimeUnit]       = enumTimeUnit.getName
+
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
@@ -55,10 +62,9 @@ private[guard] object MetricParams {
   def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime
   def upTime(ts: ZonedDateTime): Duration         = Duration.between(launchTime, ts)
   def upTime(ts: Instant): Duration               = Duration.between(launchTime, ts)
-
 }
 
-private[guard] object ServiceParams {
+private[guard] object ServiceParams extends zoneddatetime {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 

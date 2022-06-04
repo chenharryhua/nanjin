@@ -12,7 +12,8 @@ import io.circe.generic.auto.*
 import io.circe.refined.*
 import monocle.macros.Lenses
 
-import scala.concurrent.duration.*
+import java.time.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @Lenses @JsonCodec final case class AgentParams private (
@@ -36,7 +37,7 @@ private[guard] object AgentParams {
     retry = ActionRetryParams(
       maxRetries = refineMV(0),
       capDelay = None,
-      njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds.toJava)
+      njRetryPolicy = NJRetryPolicy.ConstantDelay(Duration.ofSeconds(10)) // 10 seconds by default
     ),
     serviceParams = serviceParams
   )
@@ -50,7 +51,7 @@ private object AgentConfigF {
   final case class InitParams[K](serviceParams: ServiceParams) extends AgentConfigF[K]
 
   final case class WithMaxRetries[K](value: MaxRetry, cont: K) extends AgentConfigF[K]
-  final case class WithCapDelay[K](value: FiniteDuration, cont: K) extends AgentConfigF[K]
+  final case class WithCapDelay[K](value: Duration, cont: K) extends AgentConfigF[K]
   final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
 
   final case class WithSpans[K](value: List[Span], cont: K) extends AgentConfigF[K]
@@ -78,7 +79,7 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   import AgentConfigF.*
 
   def withMaxRetries(num: MaxRetry): AgentConfig     = AgentConfig(Fix(WithMaxRetries(num, value)))
-  def withCapDelay(dur: FiniteDuration): AgentConfig = AgentConfig(Fix(WithCapDelay(dur, value)))
+  def withCapDelay(dur: FiniteDuration): AgentConfig = AgentConfig(Fix(WithCapDelay(dur.toJava, value)))
 
   def withConstantDelay(delay: FiniteDuration): AgentConfig =
     AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay.toJava), value)))
