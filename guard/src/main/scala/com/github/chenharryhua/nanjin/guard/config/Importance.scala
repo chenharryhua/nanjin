@@ -1,19 +1,19 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Order
+import cats.{Order, Show}
 import cron4s.CronExpr
 import cron4s.circe.*
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import enumeratum.EnumEntry.Lowercase
 import io.circe.generic.JsonCodec
+import org.typelevel.cats.time.instances.duration
 
 import java.time.Duration
-import scala.collection.immutable
 
 sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercase
 
 object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
-  override val values: immutable.IndexedSeq[Importance] = findValues
+  override val values: IndexedSeq[Importance] = findValues
 
   case object Critical extends Importance(40)
   case object High extends Importance(30)
@@ -41,7 +41,9 @@ sealed trait ScheduleType {
   }
 }
 
-object ScheduleType {
+object ScheduleType extends duration {
+  implicit final val showSchedueType: Show[ScheduleType] = cats.derived.semiauto.show[ScheduleType]
+
   final case class Fixed(value: Duration) extends ScheduleType
   final case class Cron(value: CronExpr) extends ScheduleType
 }

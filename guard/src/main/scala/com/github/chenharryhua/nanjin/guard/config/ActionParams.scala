@@ -13,8 +13,10 @@ import monocle.macros.Lenses
 import retry.{RetryPolicies, RetryPolicy}
 import retry.PolicyDecision.DelayAndRetry
 
+import java.time.Duration
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
-import scala.concurrent.duration.*
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.JavaDurationOps
 
 @JsonCodec
 sealed abstract class NJRetryPolicy {
@@ -30,23 +32,24 @@ sealed abstract class NJRetryPolicy {
     )
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
-    case ConstantDelay(value)      => RetryPolicies.constantDelay(value)
-    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value)
-    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value)
-    case FullJitter(value)         => RetryPolicies.fullJitter(value)
+    case ConstantDelay(value)      => RetryPolicies.constantDelay(value.toScala)
+    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value.toScala)
+    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value.toScala)
+    case FullJitter(value)         => RetryPolicies.fullJitter(value.toScala)
     // https://cb372.github.io/cats-retry/docs/policies.html#writing-your-own-policy
-    case JitterBackoff(min, max) => jitterBackoff[F](min, max)
+    case JitterBackoff(min, max) => jitterBackoff[F](min.toScala, max.toScala)
   }
 }
 
 object NJRetryPolicy {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
 
-  final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
-  final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
-  final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
-  final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
-  final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends NJRetryPolicy
+  // java.time.duration is supported natively by circe
+  final case class ConstantDelay(value: Duration) extends NJRetryPolicy
+  final case class ExponentialBackoff(value: Duration) extends NJRetryPolicy
+  final case class FibonacciBackoff(value: Duration) extends NJRetryPolicy
+  final case class FullJitter(value: Duration) extends NJRetryPolicy
+  final case class JitterBackoff(min: Duration, max: Duration) extends NJRetryPolicy
 }
 
 @Lenses @JsonCodec final case class ActionRetryParams(

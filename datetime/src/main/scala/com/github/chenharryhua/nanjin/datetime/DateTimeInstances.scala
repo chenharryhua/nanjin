@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import cats.{Hash, Order, Show}
-import cron4s.CronExpr
 import io.circe.{Decoder, Encoder}
 import io.scalaland.enumz.Enum
 import monocle.Iso
@@ -11,7 +10,6 @@ import java.sql.{Date, Timestamp}
 import java.time.*
 import java.util.concurrent.TimeUnit
 import scala.compat.java8.DurationConverters.*
-import scala.concurrent.duration.FiniteDuration
 
 /** [[https://typelevel.org/cats-time/]]
   */
@@ -37,13 +35,15 @@ private[datetime] trait DateTimeInstances extends all {
   implicit final val decoderTimeUnit: Decoder[TimeUnit] = Decoder.decodeString.map(enumTimeUnit.withName)
   implicit final val showTimeUnit: Show[TimeUnit]       = enumTimeUnit.getName
 
-  implicit final val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
-  implicit final val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
-  implicit final val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
-  implicit final val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
+//  implicit final val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
+//  implicit final val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
+//  implicit final val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
+//  implicit final val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
 
-  implicit final val timestampCirceEncoder: Encoder[Timestamp] = Encoder.encodeInstant.contramap[Timestamp](_.toInstant)
-  implicit final val timestampCirceDecoder: Decoder[Timestamp] = Decoder.decodeInstant.map[Timestamp](Timestamp.from)
+  implicit final val timestampCirceEncoder: Encoder[Timestamp] =
+    Encoder.encodeInstant.contramap[Timestamp](_.toInstant)
+  implicit final val timestampCirceDecoder: Decoder[Timestamp] =
+    Decoder.decodeInstant.map[Timestamp](Timestamp.from)
 
   implicit final val dateCirceEncoder: Encoder[Date] = Encoder.encodeLocalDate.contramap[Date](_.toLocalDate)
   implicit final val dateCirceDecoder: Decoder[Date] = Decoder.decodeLocalDate.map[Date](Date.valueOf)

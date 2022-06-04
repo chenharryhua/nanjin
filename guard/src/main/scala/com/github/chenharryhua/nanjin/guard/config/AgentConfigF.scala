@@ -13,6 +13,7 @@ import io.circe.refined.*
 import monocle.macros.Lenses
 
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 @Lenses @JsonCodec final case class AgentParams private (
   spans: List[Span],
@@ -35,7 +36,7 @@ private[guard] object AgentParams {
     retry = ActionRetryParams(
       maxRetries = refineMV(0),
       capDelay = None,
-      njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds)
+      njRetryPolicy = NJRetryPolicy.ConstantDelay(10.seconds.toJava)
     ),
     serviceParams = serviceParams
   )
@@ -80,16 +81,16 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withCapDelay(dur: FiniteDuration): AgentConfig = AgentConfig(Fix(WithCapDelay(dur, value)))
 
   def withConstantDelay(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay.toJava), value)))
 
   def withExponentialBackoff(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ExponentialBackoff(delay), value)))
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ExponentialBackoff(delay.toJava), value)))
 
   def withFibonacciBackoff(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FibonacciBackoff(delay), value)))
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FibonacciBackoff(delay.toJava), value)))
 
   def withFullJitterBackoff(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(delay), value)))
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(delay.toJava), value)))
 
   def withLowImportance: AgentConfig      = AgentConfig(Fix(WithImportance(Importance.Low, value)))
   def withMediumImportance: AgentConfig   = AgentConfig(Fix(WithImportance(Importance.Medium, value)))

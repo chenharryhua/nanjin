@@ -5,6 +5,7 @@ import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.{Cron, CronExpr}
+import cron4s.circe.*
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.cats.*
@@ -69,7 +70,7 @@ private[guard] object ServiceParams {
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,
-      retry = NJRetryPolicy.ConstantDelay(30.seconds),
+      retry = NJRetryPolicy.ConstantDelay(30.seconds.toJava),
       queueCapacity = refineMV(0), // synchronous
       metric = MetricParams(
         reportSchedule = None,
@@ -153,11 +154,11 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     Fix(WithSnapshotType(mst, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay.toJava), value)))
 
   def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
     require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strictly bigger than minDelay($minDelay)")
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.JitterBackoff(minDelay, maxDelay), value)))
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.JitterBackoff(minDelay.toJava, maxDelay.toJava), value)))
   }
 
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
