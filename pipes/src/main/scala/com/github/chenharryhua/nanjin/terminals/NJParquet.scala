@@ -5,6 +5,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.stage.*
 import cats.data.Reader
 import cats.effect.kernel.Sync
+import cats.Endo
 import fs2.{INothing, Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -19,11 +20,10 @@ import scala.concurrent.{Future, Promise}
 final class NJParquet[F[_]] private (
   readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]],
   writeBuilder: Reader[NJPath, AvroParquetWriter.Builder[GenericRecord]])(implicit F: Sync[F]) {
-  def updateReader(f: ParquetReader.Builder[GenericRecord] => ParquetReader.Builder[GenericRecord]): NJParquet[F] =
+  def updateReader(f: Endo[ParquetReader.Builder[GenericRecord]]): NJParquet[F] =
     new NJParquet(readBuilder.map(f), writeBuilder)
 
-  def updateWriter(
-    f: AvroParquetWriter.Builder[GenericRecord] => AvroParquetWriter.Builder[GenericRecord]): NJParquet[F] =
+  def updateWriter(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): NJParquet[F] =
     new NJParquet(readBuilder, writeBuilder.map(f))
 
   def source(path: NJPath): Stream[F, GenericRecord] =
@@ -36,7 +36,7 @@ final class NJParquet[F[_]] private (
     def go(grs: Stream[F, GenericRecord], pw: ParquetWriter[GenericRecord]): Pull[F, INothing, Unit] =
       grs.pull.uncons.flatMap {
         case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(pw.write))) >> go(tl, pw)
-        case None         => Pull.done
+        case None           => Pull.done
       }
 
     (ss: Stream[F, GenericRecord]) =>
@@ -73,14 +73,18 @@ object NJParquet {
     )
 }
 
-private class AkkaParquetSource(readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]], path: NJPath)
+private class AkkaParquetSource(
+  readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]],
+  path: NJPath)
     extends GraphStageWithMaterializedValue[SourceShape[GenericRecord], Future[IOResult]] {
 
   private val out: Outlet[GenericRecord] = Outlet("akka.parquet.source")
 
-  override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
+  override protected val initialAttributes: Attributes =
+    super.initialAttributes.and(ActorAttributes.IODispatcher)
 
-  override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
+  override def createLogicAndMaterializedValue(
+    inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
 
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
@@ -120,14 +124,17 @@ private class AkkaParquetSource(readBuilder: Reader[NJPath, ParquetReader.Builde
   override val shape: SourceShape[GenericRecord] = SourceShape.of(out)
 }
 
-private class AkkaParquetSink(writeBuilder: Reader[NJPath, AvroParquetWriter.Builder[GenericRecord]], path: NJPath)
+private class AkkaParquetSink(
+  writeBuilder: Reader[NJPath, AvroParquetWriter.Builder[GenericRecord]],
+  path: NJPath)
     extends GraphStageWithMaterializedValue[SinkShape[GenericRecord], Future[IOResult]] {
 
   private val in: Inlet[GenericRecord] = Inlet("akka.parquet.sink")
 
   override val shape: SinkShape[GenericRecord] = SinkShape.of(in)
 
-  override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
+  override protected val initialAttributes: Attributes =
+    super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
