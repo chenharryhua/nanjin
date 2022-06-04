@@ -1,21 +1,23 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import enumeratum.values.*
+import cats.Order
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import enumeratum.EnumEntry.Lowercase
 
 import scala.collection.immutable
 
-sealed abstract class Importance(val value: Int) extends IntEnumEntry
+sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercase
 
-object Importance
-    extends CatsOrderValueEnum[Int, Importance] with IntEnum[Importance] with IntCirceEnum[Importance]
-    with CatsValueEnum[Int, Importance] {
+object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
   override val values: immutable.IndexedSeq[Importance] = findValues
 
   case object Critical extends Importance(40)
   case object High extends Importance(30)
   case object Medium extends Importance(20)
   case object Low extends Importance(10)
+
+  implicit final val orderingImportance: Ordering[Importance] = Ordering.by[Importance, Int](_.value)
+  implicit final val orderImportance: Order[Importance]       = Order.fromOrdering[Importance]
 }
 
 sealed trait MetricSnapshotType extends EnumEntry
