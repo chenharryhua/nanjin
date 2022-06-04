@@ -79,7 +79,10 @@ class ObserversTest extends AnyFunSuite {
           .error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
       .interruptAfter(7.seconds)
-      .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
+      .through(SlackObserver(SimpleNotificationService.fake[IO])
+        .withInterval(50.seconds)
+        .at("@chenh")
+        .observe(snsArn))
       .compile
       .drain
       .unsafeRunSync()
@@ -90,6 +93,7 @@ class ObserversTest extends AnyFunSuite {
       EmailObserver(SimpleEmailService.fake[IO])
         .withInterval(5.seconds)
         .withChunkSize(100)
+        .withOldestFirst
         .updateTranslator(_.skipActionStart)
 
     TaskGuard[IO]("ses")
@@ -109,6 +113,7 @@ class ObserversTest extends AnyFunSuite {
     val mail =
       EmailObserver[IO](SimpleNotificationService.fake[IO])
         .withInterval(5.seconds)
+        .withOldestFirst
         .withChunkSize(100)
         .updateTranslator(_.skipActionStart)
 

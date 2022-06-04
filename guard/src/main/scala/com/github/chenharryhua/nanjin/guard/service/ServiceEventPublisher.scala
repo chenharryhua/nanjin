@@ -9,8 +9,9 @@ import fs2.concurrent.Channel
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-final private class ServiceEventPublisher[F[_]](serviceStatus: Ref[F, ServiceStatus], channel: Channel[F, NJEvent])(
-  implicit F: Temporal[F]) {
+final private class ServiceEventPublisher[F[_]](
+  serviceStatus: Ref[F, ServiceStatus],
+  channel: Channel[F, NJEvent])(implicit F: Temporal[F]) {
 
   def serviceReStart: F[Unit] =
     for {
