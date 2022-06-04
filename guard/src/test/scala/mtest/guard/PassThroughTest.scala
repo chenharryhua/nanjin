@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
 import io.circe.Decoder
-import io.circe.generic.auto.*
+import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -20,6 +20,7 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Random
 import io.circe.syntax.*
 
+@JsonCodec
 final case class PassThroughObject(a: Int, b: String)
 
 class PassThroughTest extends AnyFunSuite {

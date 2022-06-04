@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxMonadErrorRethrow
-import com.github.chenharryhua.nanjin.common.{DurationFormatter, HostName}
+import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.guard.Span
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -22,12 +22,13 @@ class ServiceTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host).withHomePage("https://abc.com/efg"))
     .service("service")
-    .updateConfig(_.withConstantDelay(1.seconds))
+    .updateConfig(_.withConstantDelay(1.seconds).withBrief("test"))
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .updateConfig(_.withJitterBackoff(3.second))
-      .updateConfig(_.withQueueCapacity(1))
+      .updateConfig(_.withJitterBackoff(3.second).withMetricReport("*/30 * * ? * *"))
+      .updateConfig(_.withQueueCapacity(1).withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset
+        .withMetricReset("*/30 * * ? * *"))
       .eventStream(gd =>
         gd.span("normal-exit-action").max(10).retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)

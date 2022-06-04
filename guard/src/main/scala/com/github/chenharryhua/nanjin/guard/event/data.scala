@@ -70,7 +70,7 @@ object ActionInfo extends zoneddatetime {
 @JsonCodec
 final case class OngoingAction(name: Digested, actionID: Int, launchTime: ZonedDateTime)
 
-object OngoingAction {
+object OngoingAction extends zoneddatetime {
   implicit final val showOngoingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
 
   def apply(ai: ActionInfo): OngoingAction =
