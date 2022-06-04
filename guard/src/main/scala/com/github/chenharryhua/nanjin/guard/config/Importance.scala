@@ -1,9 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Order
+import cron4s.CronExpr
+import cron4s.circe.*
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import enumeratum.EnumEntry.Lowercase
+import io.circe.generic.JsonCodec
 
+import java.time.Duration
 import scala.collection.immutable
 
 sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercase
@@ -27,4 +31,17 @@ object MetricSnapshotType
   case object Full extends MetricSnapshotType // == MetricFilter.ALL
   case object Regular extends MetricSnapshotType // filter out zero
   case object Delta extends MetricSnapshotType // filter out unchanged and zero
+}
+
+@JsonCodec
+sealed trait ScheduleType {
+  final def fold[A](f: Duration => A, c: CronExpr => A): A = this match {
+    case ScheduleType.Fixed(value) => f(value)
+    case ScheduleType.Cron(value)  => c(value)
+  }
+}
+
+object ScheduleType {
+  final case class Fixed(value: Duration) extends ScheduleType
+  final case class Cron(value: CronExpr) extends ScheduleType
 }

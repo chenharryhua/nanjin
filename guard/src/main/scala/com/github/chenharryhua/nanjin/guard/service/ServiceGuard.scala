@@ -9,7 +9,7 @@ import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ServiceConfig}
+import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ScheduleType, ServiceConfig}
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
@@ -19,6 +19,7 @@ import fs2.concurrent.Channel
 import retry.RetryDetails
 
 import scala.concurrent.duration.DurationInt
+import scala.jdk.DurationConverters.*
 import scala.util.control.NonFatal
 
 // format: off
@@ -61,82 +62,88 @@ final class ServiceGuard[F[_]] private[guard] (
     for {
       serviceStatus <- Stream.eval(initStatus)
       serviceParams <- Stream.eval(serviceStatus.get.map(_.serviceParams))
-      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap { channel =>
-        val metricRegistry: MetricRegistry = new MetricRegistry
+      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap {
+        channel =>
+          val metricRegistry: MetricRegistry = new MetricRegistry
 
-        val runningService: Stream[F, INothing] = Stream
-          .eval[F, A] {
-            val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
+          val runningService: Stream[F, INothing] = Stream
+            .eval[F, A] {
+              val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
 
-            retry.mtl
-              .retryingOnSomeErrors[A](
-                serviceParams.retry.policy[F],
-                (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
-                (ex: Throwable, rd) =>
-                  rd match {
-                    case RetryDetails.GivingUp(_, _)                     => F.unit
-                    case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
-                  }
-              ) {
-                sep.serviceReStart *>
-                  runAgent(new Agent[F](metricRegistry, serviceStatus, channel, AgentConfig(serviceParams)))
-              }
-              .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
-          }
-          .onFinalize(F.sleep(1.second))
-          .drain
+              retry.mtl
+                .retryingOnSomeErrors[A](
+                  serviceParams.retry.policy[F],
+                  (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
+                  (ex: Throwable, rd) =>
+                    rd match {
+                      case RetryDetails.GivingUp(_, _)                     => F.unit
+                      case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
+                    }
+                ) {
+                  sep.serviceReStart *>
+                    runAgent(new Agent[F](metricRegistry, serviceStatus, channel, AgentConfig(serviceParams)))
+                }
+                .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
+            }
+            .onFinalize(F.sleep(1.second))
+            .drain
 
-        /** concurrent streams
-          */
-        val cronScheduler: Scheduler[F, CronExpr] = Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
+          /** concurrent streams
+            */
+          val cronScheduler: Scheduler[F, CronExpr] =
+            Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
-        val metricEventPublisher: MetricEventPublisher[F] =
-          new MetricEventPublisher[F](channel, metricRegistry, serviceStatus)
+          val metricEventPublisher: MetricEventPublisher[F] =
+            new MetricEventPublisher[F](channel, metricRegistry, serviceStatus)
 
-        val metricsReport: Stream[F, INothing] =
-          serviceParams.metric.reportSchedule match {
-            case Some(Left(dur)) =>
-              // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
-              Stream
-                .fixedRate[F](dur)
-                .zipWithIndex
-                .evalMap(t =>
-                  metricEventPublisher
-                    .metricsReport(metricFilter, MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
-                .drain
-            case Some(Right(cron)) =>
-              cronScheduler
-                .awakeEvery(cron)
-                .zipWithIndex
-                .evalMap(t =>
-                  metricEventPublisher
-                    .metricsReport(metricFilter, MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
-                .drain
-            case None => Stream.empty
-          }
+          val metricsReport: Stream[F, INothing] =
+            serviceParams.metric.reportSchedule match {
+              case Some(ScheduleType.Fixed(dur)) =>
+                // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
+                Stream
+                  .fixedRate[F](dur.toScala)
+                  .zipWithIndex
+                  .evalMap(t =>
+                    metricEventPublisher.metricsReport(
+                      metricFilter,
+                      MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
+                  .drain
+              case Some(ScheduleType.Cron(cron)) =>
+                cronScheduler
+                  .awakeEvery(cron)
+                  .zipWithIndex
+                  .evalMap(t =>
+                    metricEventPublisher.metricsReport(
+                      metricFilter,
+                      MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
+                  .drain
+              case None => Stream.empty
+            }
 
-        val metricsReset: Stream[F, INothing] = serviceParams.metric.resetSchedule.fold(Stream.empty.covary[F])(cron =>
-          cronScheduler.awakeEvery(cron).evalMap(_ => metricEventPublisher.metricsReset(Some(cron))).drain)
+          val metricsReset: Stream[F, INothing] = serviceParams.metric.resetSchedule.fold(
+            Stream.empty.covary[F])(cron =>
+            cronScheduler.awakeEvery(cron).evalMap(_ => metricEventPublisher.metricsReset(Some(cron))).drain)
 
-        val jmxReporting: Stream[F, INothing] =
-          jmxBuilder match {
-            case None => Stream.empty
-            case Some(builder) =>
-              Stream
-                .bracket(F.delay(builder(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(r =>
-                  F.delay(r.close()))
-                .evalMap(jr => F.delay(jr.start()))
-                .flatMap(_ => Stream.never[F])
-          }
+          val jmxReporting: Stream[F, INothing] =
+            jmxBuilder match {
+              case None => Stream.empty
+              case Some(builder) =>
+                Stream
+                  .bracket(
+                    F.delay(builder(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(
+                    r => F.delay(r.close()))
+                  .evalMap(jr => F.delay(jr.start()))
+                  .flatMap(_ => Stream.never[F])
+            }
 
-        // put together
+          // put together
 
-        channel.stream
-          .onFinalize(channel.close.void) // drain pending send operation
-          .concurrently(runningService)
-          .concurrently(metricsReport)
-          .concurrently(metricsReset)
-          .concurrently(jmxReporting)
+          channel.stream
+            .onFinalize(channel.close.void) // drain pending send operation
+            .concurrently(runningService)
+            .concurrently(metricsReport)
+            .concurrently(metricsReset)
+            .concurrently(jmxReporting)
       }
     } yield event
 }

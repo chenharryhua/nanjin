@@ -3,21 +3,21 @@ package com.github.chenharryhua.nanjin.guard
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServicePanic}
-import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
 
-import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object translators {
+  import ScheduleType.*
 
   def nextTime(
-    reportSchedule: Option[Either[FiniteDuration, CronExpr]],
+    reportSchedule: Option[ScheduleType],
     now: ZonedDateTime,
     interval: Option[FiniteDuration],
     launchTime: ZonedDateTime): Option[ZonedDateTime] = {
@@ -27,14 +27,14 @@ package object translators {
     nextBorder match {
       case None =>
         reportSchedule.flatMap {
-          case Left(fd)  => Some(now.plus(fd.toJava))
-          case Right(ce) => ce.next(now)
+          case Fixed(fd) => Some(now.plus(fd))
+          case Cron(ce)  => ce.next(now)
         }
       case Some(b) =>
         reportSchedule.flatMap {
-          case Left(fd) =>
-            LazyList.iterate(now)(_.plus(fd.toJava)).dropWhile(_.isBefore(b)).headOption
-          case Right(ce) =>
+          case Fixed(fd) =>
+            LazyList.iterate(now)(_.plus(fd)).dropWhile(_.isBefore(b)).headOption
+          case Cron(ce) =>
             LazyList.unfold(now)(dt => ce.next(dt).map(t => Tuple2(t, t))).dropWhile(_.isBefore(b)).headOption
         }
     }

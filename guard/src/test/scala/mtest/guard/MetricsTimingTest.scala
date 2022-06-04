@@ -4,6 +4,7 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.datetime.beijingTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.config.ScheduleType
 import com.github.chenharryhua.nanjin.guard.observers.isShowMetrics
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.nextTime
@@ -13,6 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZonedDateTime
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 class MetricsTimingTest extends AnyFunSuite {
   val launchTime: ZonedDateTime = ZonedDateTime.of(zzffEpoch, beijingTime)
@@ -25,44 +27,44 @@ class MetricsTimingTest extends AnyFunSuite {
   }
 
   test("cron secondly schedule without interval") {
-    val c = Some(Right(Cron.unsafeParse("* * * ? * *")))
+    val c = Some(ScheduleType.Cron(Cron.unsafeParse("* * * ? * *")))
     assert(nextTime(c, now, None, launchTime).get == now.plusSeconds(1))
     assert(isShowMetrics(c, now, None, launchTime))
   }
 
   test("cron minutely schedule without interval") {
-    val c = Some(Right(Cron.unsafeParse("0 * * ? * *")))
+    val c = Some(ScheduleType.Cron(Cron.unsafeParse("0 * * ? * *")))
     assert(nextTime(c, now, None, launchTime).get == now.plusMinutes(1))
     assert(isShowMetrics(c, now, None, launchTime))
   }
 
   test("cron hourly schedule without interval") {
-    val c = Some(Right(Cron.unsafeParse("0 0 * ? * *")))
+    val c = Some(ScheduleType.Cron(Cron.unsafeParse("0 0 * ? * *")))
     assert(nextTime(c, now, None, launchTime).get == now.plusHours(1))
     assert(isShowMetrics(c, now, None, launchTime))
   }
 
   test("fixed rate secondly") {
-    val m = Some(Left(1.second))
+    val m = Some(ScheduleType.Fixed(1.second.toJava))
     assert(nextTime(m, now, None, launchTime).get == now.plusSeconds(1))
     assert(isShowMetrics(m, now, None, launchTime))
   }
 
   test("fixed rate minutely") {
-    val m = Some(Left(1.minute))
+    val m = Some(ScheduleType.Fixed(1.minute.toJava))
     assert(nextTime(m, now, None, launchTime).get == now.plusMinutes(1))
     assert(isShowMetrics(m, now, None, launchTime))
   }
 
   test("fixed rate hourly") {
-    val m = Some(Left(1.hour))
+    val m = Some(ScheduleType.Fixed(1.hour.toJava))
     assert(nextTime(m, now, None, launchTime).get == now.plusHours(1))
     assert(isShowMetrics(m, now, None, launchTime))
   }
 
   test("fixed rate + interval - 1") {
     val interval = Some(1.minute)
-    val m        = Some(Left(1.second))
+    val m        = Some(ScheduleType.Fixed(1.second.toJava))
     assert(nextTime(m, now, interval, launchTime).get == now.plusMinutes(1))
     assert(isShowMetrics(m, now, interval, launchTime))
   }
@@ -70,7 +72,7 @@ class MetricsTimingTest extends AnyFunSuite {
   test("fixed rate + interval - 2") {
     val now2     = now.plusSeconds(10)
     val interval = Some(1.minute)
-    val m        = Some(Left(0.5.second))
+    val m        = Some(ScheduleType.Fixed(0.5.second.toJava))
 
     assert(nextTime(m, now2, interval, launchTime).get == now.plusMinutes(1))
     assert(!isShowMetrics(m, now2, interval, launchTime))
@@ -78,7 +80,7 @@ class MetricsTimingTest extends AnyFunSuite {
 
   test("cron + interval - 1") {
     val interval = Some(1.minute)
-    val c        = Some(Right(Cron.unsafeParse("* * * ? * *")))
+    val c        = Some(ScheduleType.Cron(Cron.unsafeParse("* * * ? * *")))
     assert(nextTime(c, now, interval, launchTime).get == now.plusMinutes(1))
     assert(isShowMetrics(c, now, interval, launchTime))
   }
@@ -86,14 +88,14 @@ class MetricsTimingTest extends AnyFunSuite {
   test("cron + interval - 2") {
     val now2     = now.plusSeconds(10)
     val interval = Some(1.minute)
-    val c        = Some(Right(Cron.unsafeParse("* * * ? * *")))
+    val c        = Some(ScheduleType.Cron(Cron.unsafeParse("* * * ? * *")))
     assert(nextTime(c, now2, interval, launchTime).get == now.plusMinutes(1))
     assert(!isShowMetrics(c, now2, interval, launchTime))
   }
 
   test("performance") {
     val interval = Some(240.hours)
-    val c        = Some(Right(Cron.unsafeParse("* * * ? * *")))
+    val c        = Some(ScheduleType.Cron(Cron.unsafeParse("* * * ? * *")))
     assert(
       nextTime(
         c,
