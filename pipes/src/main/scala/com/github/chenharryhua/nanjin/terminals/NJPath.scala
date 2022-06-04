@@ -58,6 +58,5 @@ object NJPath {
   def apply(lfs: LocatedFileStatus): NJPath = apply(lfs.getPath)
 
   implicit final val showNJPath: Show[NJPath] = _.pathStr
-  implicit final val eqNJPath: Eq[NJPath]     = (x: NJPath, y: NJPath) => x.pathStr === y.pathStr
-
+  implicit final val eqNJPath: Eq[NJPath]     = Eq.instance((a, b) => a.pathStr === b.pathStr)
 }
