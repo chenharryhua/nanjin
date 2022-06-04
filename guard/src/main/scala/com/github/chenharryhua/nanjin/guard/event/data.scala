@@ -1,14 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.derived.auto.show.*
 import cats.effect.kernel.Outcome
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
-import io.circe.shapes.*
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}

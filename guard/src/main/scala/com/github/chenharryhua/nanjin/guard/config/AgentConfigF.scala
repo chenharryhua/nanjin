@@ -7,7 +7,6 @@ import eu.timepit.refined.refineMV
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
 import io.circe.refined.*
 import monocle.macros.Lenses
 

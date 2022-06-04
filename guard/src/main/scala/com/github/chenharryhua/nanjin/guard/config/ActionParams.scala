@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import org.typelevel.cats.time.instances.duration
 import eu.timepit.refined.cats.*
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
 import io.circe.refined.*
 import monocle.macros.Lenses
 import retry.{RetryPolicies, RetryPolicy}

@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
-import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
 import cron4s.{Cron, CronExpr}
 import cron4s.circe.*
@@ -12,7 +11,6 @@ import eu.timepit.refined.refineMV
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
 import io.circe.refined.*
 import io.circe.{Decoder, Encoder}
 import io.scalaland.enumz.Enum
