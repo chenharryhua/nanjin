@@ -1,17 +1,16 @@
 package com.github.chenharryhua.nanjin.common
 
-import enumeratum.EnumEntry.Uppercase
-import enumeratum.values.*
+import cats.kernel.Order
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import enumeratum.EnumEntry.Lowercase
 import org.typelevel.log4cats.extras.LogLevel
 
 import scala.collection.immutable
 
 sealed abstract class NJLogLevel(val value: Int, val logLevel: LogLevel)
-    extends IntEnumEntry with Uppercase with Serializable
+    extends EnumEntry with Lowercase with Serializable
 
-object NJLogLevel
-    extends CatsOrderValueEnum[Int, NJLogLevel] with IntEnum[NJLogLevel] with IntCirceEnum[NJLogLevel]
-    with CatsValueEnum[Int, NJLogLevel] {
+object NJLogLevel extends Enum[NJLogLevel] with CirceEnum[NJLogLevel] with CatsEnum[NJLogLevel] {
   override val values: immutable.IndexedSeq[NJLogLevel] = findValues
 
   case object ALL extends NJLogLevel(1, LogLevel.Trace)
@@ -22,4 +21,9 @@ object NJLogLevel
   case object ERROR extends NJLogLevel(6, LogLevel.Error)
   case object FATAL extends NJLogLevel(7, LogLevel.Error)
   case object OFF extends NJLogLevel(8, LogLevel.Error)
+
+  implicit final val orderingNJLogLevel: Ordering[NJLogLevel] =
+    Ordering.by[NJLogLevel, Int](_.value)
+
+  implicit final val orderNJLogLevel: Order[NJLogLevel] = Order.fromOrdering[NJLogLevel]
 }
