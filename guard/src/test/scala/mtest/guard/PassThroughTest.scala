@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.codahale.metrics.MetricFilter
-import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -46,7 +45,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("2.counter") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(crontabs.secondly))
+      .updateConfig(_.withMetricReport(secondly))
       .eventStream(ag =>
         ag.counter("counter").inc(100) >> ag.metrics.reset >> ag
           .span("one")
@@ -71,10 +70,9 @@ class PassThroughTest extends AnyFunSuite {
 
   test("3.alert") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(crontabs.c997))
+      .updateConfig(_.withMetricReport(hourly))
       .eventStream(ag =>
         ag.alert("oops").withCounting.error("message").delayBy(1.second) >>
-          ag.alert("either").either(Left(new Exception("either"))) >>
           ag.alert("info").info("hello") >>
           ag.metrics.report(MetricFilter.ALL))
       .filter(_.isInstanceOf[MetricReport])

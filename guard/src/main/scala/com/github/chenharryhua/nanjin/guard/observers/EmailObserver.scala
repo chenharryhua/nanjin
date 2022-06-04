@@ -6,9 +6,8 @@ import cats.syntax.all.*
 import com.amazonaws.services.simpleemail.model.SendEmailResult
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
+import com.github.chenharryhua.nanjin.common.{ChunkSize, DurationFormatter, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.{EmailContent, SnsArn}
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}

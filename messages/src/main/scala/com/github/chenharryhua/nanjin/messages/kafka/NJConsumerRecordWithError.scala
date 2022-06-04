@@ -2,19 +2,10 @@ package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Show
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
-import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
-import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
-
-@JsonCodec
-final case class ConsumerRecordMetaInfo(topic: String, partition: Int, offset: Long, timestamp: ZonedDateTime)
-object ConsumerRecordMetaInfo extends zoneddatetime {
-  implicit val showConsumerRecordMetaInfo: Show[ConsumerRecordMetaInfo] =
-    cats.derived.semiauto.show[ConsumerRecordMetaInfo]
-}
 
 final case class NJConsumerRecordWithError[K, V](
   partition: Int,

@@ -106,6 +106,7 @@ object aws {
       override def withVisibilityTimeout(seconds: VisibilityTimeout): Standard =
         copy(visibilityTimeout = seconds)
     }
+
     object Standard {
       def apply(standard: SqsUrl.Standard): Standard =
         Standard(

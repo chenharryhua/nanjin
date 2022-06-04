@@ -69,9 +69,9 @@ trait UpdateTranslator[F[_], A, B] {
     copy(servicePanic = Translator.noop[F, A])
   def skipServiceStop(implicit F: Applicative[F]): Translator[F, A] =
     copy(serviceStop = Translator.noop[F, A])
-  def skipMetricsReport(implicit F: Applicative[F]): Translator[F, A] =
+  def skipMetricReport(implicit F: Applicative[F]): Translator[F, A] =
     copy(metricReport = Translator.noop[F, A])
-  def skipMetricsReset(implicit F: Applicative[F]): Translator[F, A] =
+  def skipMetricReset(implicit F: Applicative[F]): Translator[F, A] =
     copy(metricReset = Translator.noop[F, A])
   def skipInstantAlert(implicit F: Applicative[F]): Translator[F, A] =
     copy(instantAlert = Translator.noop[F, A])
@@ -81,9 +81,12 @@ trait UpdateTranslator[F[_], A, B] {
     copy(actionStart = Translator.noop[F, A])
   def skipActionRetry(implicit F: Applicative[F]): Translator[F, A] =
     copy(actionRetry = Translator.noop[F, A])
-  def skipActionFail(implicit F: Applicative[F]): Translator[F, A] = copy(actionFail = Translator.noop[F, A])
-  def skipActionSucc(implicit F: Applicative[F]): Translator[F, A] = copy(actionSucc = Translator.noop[F, A])
-  def skipAll(implicit F: Applicative[F]): Translator[F, A]        = Translator.empty[F, A]
+  def skipActionFail(implicit F: Applicative[F]): Translator[F, A] =
+    copy(actionFail = Translator.noop[F, A])
+  def skipActionSucc(implicit F: Applicative[F]): Translator[F, A] =
+    copy(actionSucc = Translator.noop[F, A])
+  def skipAll(implicit F: Applicative[F]): Translator[F, A] =
+    Translator.empty[F, A]
 
   def withServiceStart(f: ServiceStart => F[Option[A]]): Translator[F, A] =
     copy(serviceStart = Kleisli(a => OptionT(f(a))))
@@ -121,28 +124,28 @@ trait UpdateTranslator[F[_], A, B] {
   def withServiceStop(f: ServiceStop => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(serviceStop = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withMetricsReport(f: MetricReport => F[Option[A]]): Translator[F, A] =
+  def withMetricReport(f: MetricReport => F[Option[A]]): Translator[F, A] =
     copy(metricReport = Kleisli(a => OptionT(f(a))))
 
-  def withMetricsReport(f: MetricReport => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withMetricReport(f: MetricReport => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
     copy(metricReport = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withMetricsReport(f: MetricReport => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withMetricReport(f: MetricReport => F[A])(implicit F: Functor[F]): Translator[F, A] =
     copy(metricReport = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withMetricsReport(f: MetricReport => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withMetricReport(f: MetricReport => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(metricReport = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withMetricsReset(f: MetricReset => F[Option[A]]): Translator[F, A] =
+  def withMetricReset(f: MetricReset => F[Option[A]]): Translator[F, A] =
     copy(metricReset = Kleisli(a => OptionT(f(a))))
 
-  def withMetricsReset(f: MetricReset => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+  def withMetricReset(f: MetricReset => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
     copy(metricReset = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withMetricsReset(f: MetricReset => F[A])(implicit F: Functor[F]): Translator[F, A] =
+  def withMetricReset(f: MetricReset => F[A])(implicit F: Functor[F]): Translator[F, A] =
     copy(metricReset = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withMetricsReset(f: MetricReset => A)(implicit F: Pure[F]): Translator[F, A] =
+  def withMetricReset(f: MetricReset => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(metricReset = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withInstantAlert(f: InstantAlert => F[Option[A]]): Translator[F, A] =
@@ -218,20 +221,20 @@ trait UpdateTranslator[F[_], A, B] {
     copy(actionSucc = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def flatMap[B](f: A => Translator[F, B])(implicit F: Monad[F]): Translator[F, B] = {
-    val g: NJEvent => F[Option[Translator[F, B]]] = { (evt: NJEvent) => translate(evt).map(_.map(f)) }
+    val go: NJEvent => F[Option[Translator[F, B]]] = { (evt: NJEvent) => translate(evt).map(_.map(f)) }
     Translator
       .empty[F, B]
-      .withServiceStart(evt => g(evt).flatMap(_.flatTraverse(_.serviceStart.run(evt).value)))
-      .withServicePanic(evt => g(evt).flatMap(_.flatTraverse(_.servicePanic.run(evt).value)))
-      .withServiceStop(evt => g(evt).flatMap(_.flatTraverse(_.serviceStop.run(evt).value)))
-      .withInstantAlert(evt => g(evt).flatMap(_.flatTraverse(_.instantAlert.run(evt).value)))
-      .withPassThrough(evt => g(evt).flatMap(_.flatTraverse(_.passThrough.run(evt).value)))
-      .withMetricsReport(evt => g(evt).flatMap(_.flatTraverse(_.metricReport.run(evt).value)))
-      .withMetricsReset(evt => g(evt).flatMap(_.flatTraverse(_.metricReset.run(evt).value)))
-      .withActionStart(evt => g(evt).flatMap(_.flatTraverse(_.actionStart.run(evt).value)))
-      .withActionRetry(evt => g(evt).flatMap(_.flatTraverse(_.actionRetry.run(evt).value)))
-      .withActionFail(evt => g(evt).flatMap(_.flatTraverse(_.actionFail.run(evt).value)))
-      .withActionSucc(evt => g(evt).flatMap(_.flatTraverse(_.actionSucc.run(evt).value)))
+      .withServiceStart(evt => go(evt).flatMap(_.flatTraverse(_.serviceStart.run(evt).value)))
+      .withServicePanic(evt => go(evt).flatMap(_.flatTraverse(_.servicePanic.run(evt).value)))
+      .withServiceStop(evt => go(evt).flatMap(_.flatTraverse(_.serviceStop.run(evt).value)))
+      .withInstantAlert(evt => go(evt).flatMap(_.flatTraverse(_.instantAlert.run(evt).value)))
+      .withPassThrough(evt => go(evt).flatMap(_.flatTraverse(_.passThrough.run(evt).value)))
+      .withMetricReport(evt => go(evt).flatMap(_.flatTraverse(_.metricReport.run(evt).value)))
+      .withMetricReset(evt => go(evt).flatMap(_.flatTraverse(_.metricReset.run(evt).value)))
+      .withActionStart(evt => go(evt).flatMap(_.flatTraverse(_.actionStart.run(evt).value)))
+      .withActionRetry(evt => go(evt).flatMap(_.flatTraverse(_.actionRetry.run(evt).value)))
+      .withActionFail(evt => go(evt).flatMap(_.flatTraverse(_.actionFail.run(evt).value)))
+      .withActionSucc(evt => go(evt).flatMap(_.flatTraverse(_.actionSucc.run(evt).value)))
   }
 }
 
@@ -332,8 +335,8 @@ object Translator extends zoneddatetime {
           .withServiceStop(go)
           .withInstantAlert(go)
           .withPassThrough(go)
-          .withMetricsReport(go)
-          .withMetricsReset(go)
+          .withMetricReport(go)
+          .withMetricReset(go)
           .withActionStart(go)
           .withActionRetry(go)
           .withActionFail(go)
@@ -381,8 +384,8 @@ object Translator extends zoneddatetime {
       .withServiceStop((_: NJEvent).asJson)
       .withInstantAlert((_: NJEvent).asJson)
       .withPassThrough((_: NJEvent).asJson)
-      .withMetricsReset((_: NJEvent).asJson)
-      .withMetricsReport((_: NJEvent).asJson)
+      .withMetricReset((_: NJEvent).asJson)
+      .withMetricReport((_: NJEvent).asJson)
       .withActionStart((_: NJEvent).asJson)
       .withActionRetry((_: NJEvent).asJson)
       .withActionFail((_: NJEvent).asJson)
@@ -395,8 +398,8 @@ object Translator extends zoneddatetime {
       .withServiceStop((_: NJEvent).show)
       .withInstantAlert((_: NJEvent).show)
       .withPassThrough((_: NJEvent).show)
-      .withMetricsReset((_: NJEvent).show)
-      .withMetricsReport((_: NJEvent).show)
+      .withMetricReset((_: NJEvent).show)
+      .withMetricReport((_: NJEvent).show)
       .withActionStart((_: NJEvent).show)
       .withActionRetry((_: NJEvent).show)
       .withActionFail((_: NJEvent).show)

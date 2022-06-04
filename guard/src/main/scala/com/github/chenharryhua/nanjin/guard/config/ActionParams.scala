@@ -3,18 +3,19 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Applicative, Show}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.datetime.instances.*
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import org.typelevel.cats.time.instances.duration
 import eu.timepit.refined.cats.*
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
 import io.circe.refined.*
 import monocle.macros.Lenses
 import retry.{RetryPolicies, RetryPolicy}
 import retry.PolicyDecision.DelayAndRetry
 
+import java.time.Duration
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
-import scala.concurrent.duration.*
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.JavaDurationOps
 
 @JsonCodec
 sealed abstract class NJRetryPolicy {
@@ -30,37 +31,38 @@ sealed abstract class NJRetryPolicy {
     )
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
-    case ConstantDelay(value)      => RetryPolicies.constantDelay(value)
-    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value)
-    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value)
-    case FullJitter(value)         => RetryPolicies.fullJitter(value)
+    case ConstantDelay(value)      => RetryPolicies.constantDelay(value.toScala)
+    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value.toScala)
+    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value.toScala)
+    case FullJitter(value)         => RetryPolicies.fullJitter(value.toScala)
     // https://cb372.github.io/cats-retry/docs/policies.html#writing-your-own-policy
-    case JitterBackoff(min, max) => jitterBackoff[F](min, max)
+    case JitterBackoff(min, max) => jitterBackoff[F](min.toScala, max.toScala)
   }
 }
 
-object NJRetryPolicy {
+object NJRetryPolicy extends duration {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
 
-  final case class ConstantDelay(value: FiniteDuration) extends NJRetryPolicy
-  final case class ExponentialBackoff(value: FiniteDuration) extends NJRetryPolicy
-  final case class FibonacciBackoff(value: FiniteDuration) extends NJRetryPolicy
-  final case class FullJitter(value: FiniteDuration) extends NJRetryPolicy
-  final case class JitterBackoff(min: FiniteDuration, max: FiniteDuration) extends NJRetryPolicy
+  // java.time.duration is supported natively by circe
+  final case class ConstantDelay(value: Duration) extends NJRetryPolicy
+  final case class ExponentialBackoff(value: Duration) extends NJRetryPolicy
+  final case class FibonacciBackoff(value: Duration) extends NJRetryPolicy
+  final case class FullJitter(value: Duration) extends NJRetryPolicy
+  final case class JitterBackoff(min: Duration, max: Duration) extends NJRetryPolicy
 }
 
 @Lenses @JsonCodec final case class ActionRetryParams(
   maxRetries: MaxRetry,
-  capDelay: Option[FiniteDuration],
+  capDelay: Option[Duration],
   njRetryPolicy: NJRetryPolicy) {
   def policy[F[_]: Applicative]: RetryPolicy[F] = {
     val limit: RetryPolicy[F] = RetryPolicies.limitRetries[F](maxRetries.value)
     capDelay.fold(njRetryPolicy.policy[F].join(limit))(cd =>
-      RetryPolicies.capDelay[F](cd, njRetryPolicy.policy[F]).join(limit))
+      RetryPolicies.capDelay[F](cd.toScala, njRetryPolicy.policy[F]).join(limit))
   }
 }
 
-object ActionRetryParams {
+object ActionRetryParams extends duration {
   implicit val showActionRetryParams: Show[ActionRetryParams] = cats.derived.semiauto.show[ActionRetryParams]
 }
 

@@ -95,8 +95,8 @@ val kantanLib = Seq(
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.0",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.0",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.1",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.1",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
@@ -262,7 +262,8 @@ val baseLib = Seq(
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % "2.3.9",
-  "com.github.cb372" %% "cats-retry-mtl"           % "3.1.0"
+  "com.github.cb372" %% "cats-retry-mtl"           % "3.1.0",
+  "org.typelevel" %% "cats-time"                   % "0.5.0"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
@@ -292,14 +293,11 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= Seq(
-      "com.lihaoyi" %% "fastparse"   % "2.3.3",
-      "org.typelevel" %% "cats-time" % "0.5.0") ++ baseLib ++ cronLib ++ testLib
+    libraryDependencies ++= Seq("com.lihaoyi" %% "fastparse" % "2.3.3") ++ baseLib ++ cronLib ++ testLib
   )
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)
-  .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "nj-guard")
   .settings(

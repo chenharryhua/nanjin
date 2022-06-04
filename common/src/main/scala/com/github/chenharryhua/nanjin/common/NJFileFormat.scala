@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
-import enumeratum.{CirceEnum, Enum, EnumEntry}
-import io.circe.Encoder
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import shapeless.{:+:, CNil}
 
 import scala.collection.immutable
@@ -14,12 +13,7 @@ sealed abstract class NJFileFormat(val value: Int, val format: String, val alias
   final override def toString: String = suffix
 }
 
-private[common] trait LowNJFileFormatCirceEncoder {
-  implicit final def subEncoderNJFileFormat[S <: NJFileFormat]: Encoder[S] = (s: S) =>
-    NJFileFormat.circeEncoder.apply(s)
-}
-
-object NJFileFormat extends Enum[NJFileFormat] with CirceEnum[NJFileFormat] with LowNJFileFormatCirceEncoder {
+object NJFileFormat extends Enum[NJFileFormat] with CatsEnum[NJFileFormat] with CirceEnum[NJFileFormat] {
   override val values: immutable.IndexedSeq[NJFileFormat] = findValues
 
   case object Unknown extends NJFileFormat(-1, "unknown", "unknown")

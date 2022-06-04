@@ -9,7 +9,6 @@ import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 final class NJAlert[F[_]: Temporal] private[guard] (
   digested: Digested,
@@ -38,8 +37,5 @@ final class NJAlert[F[_]: Temporal] private[guard] (
   def info[S: Show](msg: S): F[Unit] =
     publisher.alert(digested, msg.show, Importance.Medium).map(_ => if (isCounting) infoCounter.inc(1))
   def info[S: Show](msg: Option[S]): F[Unit] = msg.traverse(info(_)).void
-
-  def either(e: Either[Throwable, ?]): F[Unit] =
-    error(e.swap.toOption.map(ExceptionUtils.getRootCauseMessage))
 
 }

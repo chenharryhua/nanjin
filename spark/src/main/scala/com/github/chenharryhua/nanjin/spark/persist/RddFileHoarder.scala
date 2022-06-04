@@ -11,7 +11,7 @@ import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 
-sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
+sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
 
 // 1
   final def circe(path: NJPath): SaveCirce[F, A] =
@@ -32,7 +32,8 @@ sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
   final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] = rdd.stream[F](chunkSize)
 }
 
-sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A]) extends RddFileHoarder[F, A](rdd) {
+sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A])
+    extends RddFileHoarder[F, A](rdd) {
 
 // 1
   final def jackson(path: NJPath): SaveJackson[F, A] =
@@ -59,7 +60,8 @@ final class DatasetFileHoarder[F[_], A](ds: Dataset[A]) extends RddFileHoarder[F
     new SaveSparkJson[F, A](ds, HoarderConfig(path).outputFormat(SparkJson), isKeepNull = true)
 
   // 3
-  def parquet(path: NJPath): SaveParquet[F, A] = new SaveParquet[F, A](ds, HoarderConfig(path).outputFormat(Parquet))
+  def parquet(path: NJPath): SaveParquet[F, A] =
+    new SaveParquet[F, A](ds, HoarderConfig(path).outputFormat(Parquet))
 }
 
 final class DatasetAvroFileHoarder[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A])
@@ -74,6 +76,7 @@ final class DatasetAvroFileHoarder[F[_], A](ds: Dataset[A], encoder: AvroEncoder
     new SaveSparkJson[F, A](ds, HoarderConfig(path).outputFormat(SparkJson), isKeepNull = true)
 
   // 3
-  def parquet(path: NJPath): SaveParquet[F, A] = new SaveParquet[F, A](ds, HoarderConfig(path).outputFormat(Parquet))
+  def parquet(path: NJPath): SaveParquet[F, A] =
+    new SaveParquet[F, A](ds, HoarderConfig(path).outputFormat(Parquet))
 
 }

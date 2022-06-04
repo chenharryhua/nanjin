@@ -22,7 +22,7 @@ sealed private[guard] trait ServiceStatus {
     */
   def upcomingRestartTime: Option[ZonedDateTime]
 
-  def ongoingActionSet: Set[ActionInfo] // list of expensive actions
+  def ongoingActionSet: Set[ActionInfo] // list of expensive ongoing actions
   def include(action: ActionInfo): ServiceStatus
   def exclude(action: ActionInfo): ServiceStatus
 
@@ -34,13 +34,16 @@ sealed private[guard] trait ServiceStatus {
 
   // state change
   private[service] def goUp(now: ZonedDateTime): ServiceStatus.Up
-  private[service] def goPanic(now: ZonedDateTime, restart: ZonedDateTime, cause: NJError): ServiceStatus.Panic
+  private[service] def goPanic(
+    now: ZonedDateTime,
+    restart: ZonedDateTime,
+    cause: NJError): ServiceStatus.Panic
 
   final def isPanic: Boolean = !isUp
-  final def fold[A](up: ServiceStatus.Up => A, down: ServiceStatus.Panic => A): A =
+  final def fold[A](up: ServiceStatus.Up => A, panic: ServiceStatus.Panic => A): A =
     this match {
       case s: ServiceStatus.Up    => up(s)
-      case s: ServiceStatus.Panic => down(s)
+      case s: ServiceStatus.Panic => panic(s)
     }
 }
 
@@ -65,7 +68,10 @@ private[guard] object ServiceStatus {
       extends ServiceStatus {
 
     override private[service] def goUp(now: ZonedDateTime): Up = this // no-op
-    override private[service] def goPanic(now: ZonedDateTime, restartTime: ZonedDateTime, cause: NJError): Panic =
+    override private[service] def goPanic(
+      now: ZonedDateTime,
+      restartTime: ZonedDateTime,
+      cause: NJError): Panic =
       Panic(
         serviceParams = serviceParams,
         lastCounters = lastCounters,
@@ -98,7 +104,8 @@ private[guard] object ServiceStatus {
         timestamp = now)
 
     // no-op
-    override private[service] def goPanic(now: ZonedDateTime, restart: ZonedDateTime, cause: NJError): Panic = this
+    override private[service] def goPanic(now: ZonedDateTime, restart: ZonedDateTime, cause: NJError): Panic =
+      this
 
     override def include(action: ActionInfo): Panic = this
     override def exclude(action: ActionInfo): Panic = this

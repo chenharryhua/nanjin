@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
-import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import cron4s.{Cron, CronExpr}
+import cron4s.circe.*
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.cats.*
@@ -12,9 +11,11 @@ import eu.timepit.refined.refineMV
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
 import io.circe.refined.*
+import io.circe.{Decoder, Encoder}
+import io.scalaland.enumz.Enum
 import monocle.macros.Lenses
+import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.*
 import java.util.UUID
@@ -23,18 +24,23 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @Lenses @JsonCodec final case class MetricParams private[guard] (
-  reportSchedule: Option[Either[FiniteDuration, CronExpr]],
+  reportSchedule: Option[ScheduleType],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit,
   snapshotType: MetricSnapshotType) {
   def nextReport(now: ZonedDateTime): Option[ZonedDateTime] =
-    reportSchedule.flatMap(_.fold(fd => Some(now.plus(fd.toJava)), _.next(now)))
+    reportSchedule.flatMap(_.fold(fd => Some(now.plus(fd)), _.next(now)))
   def nextReset(now: ZonedDateTime): Option[ZonedDateTime] =
     resetSchedule.flatMap(_.next(now))
 }
 
 private[guard] object MetricParams {
+  private[this] val enumTimeUnit: Enum[TimeUnit]        = Enum[TimeUnit]
+  implicit final val encoderTimeUnit: Encoder[TimeUnit] = Encoder.encodeString.contramap(enumTimeUnit.getName)
+  implicit final val decoderTimeUnit: Decoder[TimeUnit] = Decoder.decodeString.map(enumTimeUnit.withName)
+  implicit final val showTimeUnit: Show[TimeUnit]       = enumTimeUnit.getName
+
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
@@ -54,10 +60,9 @@ private[guard] object MetricParams {
   def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime
   def upTime(ts: ZonedDateTime): Duration         = Duration.between(launchTime, ts)
   def upTime(ts: Instant): Duration               = Duration.between(launchTime, ts)
-
 }
 
-private[guard] object ServiceParams {
+private[guard] object ServiceParams extends zoneddatetime {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
@@ -69,7 +74,7 @@ private[guard] object ServiceParams {
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,
-      retry = NJRetryPolicy.ConstantDelay(30.seconds),
+      retry = NJRetryPolicy.ConstantDelay(30.seconds.toJava),
       queueCapacity = refineMV(0), // synchronous
       metric = MetricParams(
         reportSchedule = None,
@@ -94,8 +99,7 @@ private object ServiceConfigF {
   final case class WithServiceName[K](value: ServiceName, cont: K) extends ServiceConfigF[K]
   final case class WithQueueCapacity[K](value: QueueCapacity, cont: K) extends ServiceConfigF[K]
 
-  final case class WithReportSchedule[K](value: Option[Either[FiniteDuration, CronExpr]], cont: K)
-      extends ServiceConfigF[K]
+  final case class WithReportSchedule[K](value: Option[ScheduleType], cont: K) extends ServiceConfigF[K]
   final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
@@ -131,10 +135,10 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withServiceName(name: ServiceName): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
 
   def withMetricReport(interval: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithReportSchedule(Some(Left(interval)), value)))
+    ServiceConfig(Fix(WithReportSchedule(Some(ScheduleType.Fixed(interval.toJava)), value)))
 
   def withMetricReport(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithReportSchedule(Some(Right(crontab)), value)))
+    ServiceConfig(Fix(WithReportSchedule(Some(ScheduleType.Cron(crontab)), value)))
 
   def withMetricReport(crontab: String): ServiceConfig =
     withMetricReport(Cron.unsafeParse(crontab))
@@ -154,11 +158,11 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     Fix(WithSnapshotType(mst, value)))
 
   def withConstantDelay(delay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay), value)))
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay.toJava), value)))
 
   def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
     require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strictly bigger than minDelay($minDelay)")
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.JitterBackoff(minDelay, maxDelay), value)))
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.JitterBackoff(minDelay.toJava, maxDelay.toJava), value)))
   }
 
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =

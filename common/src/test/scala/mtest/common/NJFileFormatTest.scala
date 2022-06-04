@@ -2,7 +2,6 @@ package mtest.common
 
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.common.NJFileFormat.*
-import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJFileFormatTest extends AnyFunSuite {
@@ -26,21 +25,29 @@ class NJFileFormatTest extends AnyFunSuite {
 
   test("json") {
     import io.circe.syntax.*
-    import io.circe.parser.decode
-    val kantan: NJFileFormat = NJFileFormat.Kantan
-    assert(decode[NJFileFormat](kantan.asJson.spaces2).toOption.get === kantan)
-    assert(decode[NJFileFormat](NJFileFormat.Kantan.asJson.spaces2).toOption.get === kantan)
-
-    assert(NJFileFormat.Unknown.asJson === Json.fromString("unknown.unknown"))
-    assert(NJFileFormat.Circe.asJson === Json.fromString("circe.json"))
-    assert(NJFileFormat.Text.asJson === Json.fromString("plain.txt"))
-    assert(NJFileFormat.Kantan.asJson === Json.fromString("kantan.csv"))
-    assert(NJFileFormat.SparkCsv.asJson === Json.fromString("spark.csv"))
-    assert(NJFileFormat.SparkJson.asJson === Json.fromString("spark.json"))
-    assert(NJFileFormat.Parquet.asJson === Json.fromString("apache.parquet"))
-    assert(NJFileFormat.Avro.asJson === Json.fromString("data.avro"))
-    assert(NJFileFormat.BinaryAvro.asJson === Json.fromString("binary.avro"))
-    assert(NJFileFormat.JavaObject.asJson === Json.fromString("java.obj"))
-    assert(NJFileFormat.ProtoBuf.asJson === Json.fromString("google.pb"))
+    val f1: NJFileFormat  = NJFileFormat.Unknown
+    val f2: NJFileFormat  = NJFileFormat.Jackson
+    val f3: NJFileFormat  = NJFileFormat.Circe
+    val f4: NJFileFormat  = NJFileFormat.Text
+    val f5: NJFileFormat  = NJFileFormat.Kantan
+    val f6: NJFileFormat  = NJFileFormat.SparkJson
+    val f7: NJFileFormat  = NJFileFormat.SparkCsv
+    val f8: NJFileFormat  = NJFileFormat.Parquet
+    val f9: NJFileFormat  = NJFileFormat.Avro
+    val f10: NJFileFormat = NJFileFormat.BinaryAvro
+    val f11: NJFileFormat = NJFileFormat.JavaObject
+    val f12: NJFileFormat = NJFileFormat.ProtoBuf
+    assert(f1.asJson.noSpaces === """ "unknown.unknown" """.trim)
+    assert(f2.asJson.noSpaces === """ "jackson.json" """.trim)
+    assert(f3.asJson.noSpaces === """ "circe.json" """.trim)
+    assert(f4.asJson.noSpaces === """ "plain.txt" """.trim)
+    assert(f5.asJson.noSpaces === """ "kantan.csv" """.trim)
+    assert(f6.asJson.noSpaces === """ "spark.json" """.trim)
+    assert(f7.asJson.noSpaces === """ "spark.csv" """.trim)
+    assert(f8.asJson.noSpaces === """ "apache.parquet" """.trim)
+    assert(f9.asJson.noSpaces === """ "data.avro" """.trim)
+    assert(f10.asJson.noSpaces === """ "binary.avro" """.trim)
+    assert(f11.asJson.noSpaces === """ "java.obj" """.trim)
+    assert(f12.asJson.noSpaces === """ "google.pb" """.trim)
   }
 }

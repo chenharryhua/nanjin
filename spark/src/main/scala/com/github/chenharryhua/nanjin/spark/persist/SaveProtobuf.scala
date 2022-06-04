@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
-final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
+final class SaveProtobuf[F[_], A](val rdd: RDD[A], cfg: HoarderConfig) extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.{DurationFormatter, NJLocalTime, NJLocalTimeRange}
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.all
@@ -261,8 +260,8 @@ private object SlackTranslator extends all {
       .withServiceStart(serviceStarted)
       .withServicePanic(servicePanic[F])
       .withServiceStop(serviceStopped)
-      .withMetricsReport(metricReport)
-      .withMetricsReset(metricReset)
+      .withMetricReport(metricReport)
+      .withMetricReset(metricReset)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying[F])

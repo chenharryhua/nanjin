@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval, Monad}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, OngoingAction}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
@@ -171,8 +170,8 @@ private object HtmlTranslator extends all {
       .withServiceStart(serviceStarted)
       .withServicePanic(servicePanic[F])
       .withServiceStop(serviceStopped)
-      .withMetricsReport(metricReport)
-      .withMetricsReset(metricReset)
+      .withMetricReport(metricReport)
+      .withMetricReset(metricReset)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying[F])
