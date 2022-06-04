@@ -1,14 +1,14 @@
-package mtest
+package mtest.common
 
-import com.github.chenharryhua.nanjin.datetime.beijingTime
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.Instant
+import java.time.{Instant, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 class DurationFormatterTest extends AnyFunSuite {
-  val fmt = com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
+  val fmt: DurationFormatter = DurationFormatter.defaultFormatter
   test("duration always positive") {
     val now   = Instant.now()
     val after = now.plusSeconds(100)
@@ -75,16 +75,23 @@ class DurationFormatterTest extends AnyFunSuite {
     val d4 = Duration(3600 * 24 * 5 + 3600, TimeUnit.SECONDS)
     assert(fmt.format(d4) == "5 days 1 hour")
   }
+
   test("month") {
     val d1 = Duration(30, TimeUnit.DAYS)
     assert(fmt.format(d1) == "30 days")
-    val d2 = Duration(260, TimeUnit.DAYS).plus(Duration(30, TimeUnit.HOURS)).plus(Duration(20, TimeUnit.MINUTES))
+    val d2 =
+      Duration(260, TimeUnit.DAYS).plus(Duration(30, TimeUnit.HOURS)).plus(Duration(20, TimeUnit.MINUTES))
     assert(fmt.format(d2) == "261 days 6 hours")
     val d3 = Duration(450, TimeUnit.DAYS).plus(Duration(30, TimeUnit.HOURS))
     assert(fmt.format(d3) == "451 days 6 hours")
   }
+
   test("two minutes ago") {
-    val zdt = Instant.now().atZone(beijingTime)
+    val zdt = Instant.now().atZone(ZoneId.of("Asia/Shanghai"))
     assert(fmt.format(zdt, zdt.minusSeconds(120)) == "2 minutes")
+  }
+
+  test("words") {
+    assert(DurationFormatter.words.format(Duration(3, TimeUnit.DAYS)) == "3 days")
   }
 }

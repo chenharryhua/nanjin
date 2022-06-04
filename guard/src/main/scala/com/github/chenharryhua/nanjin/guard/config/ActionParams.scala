@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Applicative, Show}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter.defaultFormatter
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import org.typelevel.cats.time.instances.duration
 import eu.timepit.refined.cats.*
 import io.circe.generic.JsonCodec

@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.datetime
 
+import cats.{PartialOrder, Show}
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.syntax.all.*
-import cats.{PartialOrder, Show}
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import monocle.Prism
 import monocle.macros.Lenses
-import shapeless.ops.coproduct.{Inject, Selector}
 import shapeless.{:+:, CNil, Poly1}
+import shapeless.ops.coproduct.{Inject, Selector}
 
 import java.sql.Timestamp
 import java.time.*
@@ -132,7 +133,8 @@ import scala.concurrent.duration.FiniteDuration
     }
 
   def duration: Option[FiniteDuration] = (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
-  override def toString: String        = duration.map(DurationFormatter.defaultFormatter.format).getOrElse("infinite")
+  override def toString: String =
+    duration.map(DurationFormatter.defaultFormatter.format).getOrElse("infinite")
 }
 
 object NJDateTimeRange {
@@ -164,9 +166,11 @@ object NJDateTimeRange {
         (x, y) match {
           case (a, b) if a.endTimestamp === b.endTimestamp && a.startTimestamp === b.startTimestamp =>
             0.0
-          case (a, b) if lessStart(a.startTimestamp, b.startTimestamp) && biggerEnd(a.endTimestamp, b.endTimestamp) =>
+          case (a, b)
+              if lessStart(a.startTimestamp, b.startTimestamp) && biggerEnd(a.endTimestamp, b.endTimestamp) =>
             1.0
-          case (a, b) if lessStart(b.startTimestamp, a.startTimestamp) && biggerEnd(b.endTimestamp, a.endTimestamp) =>
+          case (a, b)
+              if lessStart(b.startTimestamp, a.startTimestamp) && biggerEnd(b.endTimestamp, a.endTimestamp) =>
             -1.0
           case _ => Double.NaN
         }

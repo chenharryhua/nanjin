@@ -7,7 +7,6 @@ import org.typelevel.cats.time.instances.all
 
 import java.sql.{Date, Timestamp}
 import java.time.*
-import scala.compat.java8.DurationConverters.*
 
 /** [[https://typelevel.org/cats-time/]]
   */
@@ -26,11 +25,6 @@ private[datetime] trait DateTimeInstances extends all {
       override def compare(x: Date, y: Date): Int = x.compareTo(y)
       override def show(x: Date): String          = x.toString
     }
-
-//  implicit final val cronExprEncoder: Encoder[CronExpr]             = cron4s.circe.cronExprEncoder
-//  implicit final val cronExprDecoder: Decoder[CronExpr]             = cron4s.circe.cronExprDecoder
-//  implicit final val finiteDurationEncoder: Encoder[FiniteDuration] = Encoder[Duration].contramap(_.toJava)
-//  implicit final val finiteDurationDecoder: Decoder[FiniteDuration] = Decoder[Duration].map(_.toScala)
 
   implicit final val timestampCirceEncoder: Encoder[Timestamp] =
     Encoder.encodeInstant.contramap[Timestamp](_.toInstant)

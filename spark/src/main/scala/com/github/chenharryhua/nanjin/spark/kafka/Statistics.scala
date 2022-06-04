@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import io.circe.generic.JsonCodec
@@ -204,7 +205,9 @@ final class Statistics[F[_]] private[kafka] (
             ))
         }
       }
-    all.foldLeft(ds.sparkSession.emptyDataset[Disorder])(_.union(_)).orderBy(col("partition").asc, col("offset").asc)
+    all
+      .foldLeft(ds.sparkSession.emptyDataset[Disorder])(_.union(_))
+      .orderBy(col("partition").asc, col("offset").asc)
   }
 
   /** Notes: partition + offset supposed to be unique, of a topic

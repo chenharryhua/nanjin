@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
-import com.github.chenharryhua.nanjin.datetime.beijingTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ScheduleType
 import com.github.chenharryhua.nanjin.guard.observers.isShowMetrics

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval, Monad}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, OngoingAction}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text

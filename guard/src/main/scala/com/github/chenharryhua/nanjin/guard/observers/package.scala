@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.guard.config.ScheduleType
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
+import org.typelevel.cats.time.instances.zoneddatetime.*
 
 import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration

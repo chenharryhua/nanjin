@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import eu.timepit.refined.cats.*
 import eu.timepit.refined.refineMV
 import higherkindness.droste.{scheme, Algebra}

@@ -19,7 +19,7 @@ final case class HostName(value: String) extends AnyVal {
 }
 
 object HostName {
-  implicit final val showHostName: Show[HostName] = cats.derived.semiauto.show[HostName]
+  implicit final val showHostName: Show[HostName] = _.value
   implicit final val monoidHostName: Monoid[HostName] = new Monoid[HostName] {
     override val empty: HostName = HostName("")
 

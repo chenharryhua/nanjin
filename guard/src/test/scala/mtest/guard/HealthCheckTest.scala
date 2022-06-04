@@ -3,7 +3,6 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.codahale.metrics.MetricFilter
-import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -94,7 +93,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("4.metrics reset") {
     val list = guard
       .service("metrics-reset-test")
-      .updateConfig(_.withMetricReport(2.seconds).withMetricReset(crontabs.trisecondly))
+      .updateConfig(_.withMetricReport(2.seconds).withMetricReset(trisecondly))
       .eventStream(_.run(IO.never))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone

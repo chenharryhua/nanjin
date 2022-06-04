@@ -6,9 +6,6 @@ import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService}
-import com.github.chenharryhua.nanjin.common.aws.SnsArn
-import com.github.chenharryhua.nanjin.common.database.TableName
-import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
@@ -25,7 +22,7 @@ class ObserversTest extends AnyFunSuite {
   test("1.logging") {
     TaskGuard[IO]("logging")
       .service("text")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.hourly).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(hourly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag
@@ -41,7 +38,7 @@ class ObserversTest extends AnyFunSuite {
   test("2.console - text") {
     TaskGuard[IO]("console")
       .service("text")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.retry(IO(1)).logInput("hello, world".asJson).logOutput(_.asJson).run >> ag
@@ -57,7 +54,7 @@ class ObserversTest extends AnyFunSuite {
   test("3.console - json") {
     TaskGuard[IO]("console")
       .service("json")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag
@@ -74,7 +71,7 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(crontabs.secondly).withQueueCapacity(20))
+      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { root =>
         val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
         ag.retry(IO(1)).logInput("hello world".asJson).logOutput(_.asJson).run >> ag
@@ -159,8 +156,8 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("9.postgres") {
-    import skunk.implicits.toStringOps
     import natchez.Trace.Implicits.noop
+    import skunk.implicits.toStringOps
 
     val session: Resource[IO, Session[IO]] =
       Session.single[IO](
