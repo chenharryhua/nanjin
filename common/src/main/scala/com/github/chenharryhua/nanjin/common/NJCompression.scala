@@ -10,6 +10,9 @@ sealed trait NJCompression {
   def fileExtension: String
 }
 
+sealed trait AvroCompression extends NJCompression // mark trait, compressions supported by avro
+sealed trait ParquetCompression extends NJCompression // mark trait, compressions supported by parquet
+
 object NJCompression {
 
   implicit final val encoderNJCompression: Encoder[NJCompression] = Encoder.instance[NJCompression] {
@@ -39,32 +42,32 @@ object NJCompression {
     case unknown                => Left(s"unknown compression: $unknown")
   }
 
-  case object Uncompressed extends NJCompression {
+  case object Uncompressed extends NJCompression with AvroCompression with ParquetCompression {
     override val shortName: String     = "uncompressed"
     override val fileExtension: String = ""
   }
 
-  case object Snappy extends NJCompression {
+  case object Snappy extends NJCompression with AvroCompression with ParquetCompression {
     override val shortName: String     = "snappy"
     override val fileExtension: String = ".snappy"
   }
 
-  case object Bzip2 extends NJCompression {
+  case object Bzip2 extends NJCompression with AvroCompression {
     override val shortName: String     = "bzip2"
     override val fileExtension: String = ".bz2"
   }
 
-  case object Gzip extends NJCompression {
+  case object Gzip extends NJCompression with ParquetCompression {
     override val shortName: String     = "gzip"
     override val fileExtension: String = ".gz"
   }
 
-  case object Lz4 extends NJCompression {
+  case object Lz4 extends NJCompression with ParquetCompression {
     override val shortName: String     = "lz4"
     override val fileExtension: String = ".lz4"
   }
 
-  case object Brotli extends NJCompression {
+  case object Brotli extends NJCompression with ParquetCompression {
     override val shortName: String     = "brotli"
     override val fileExtension: String = ".brotli"
   }
@@ -74,17 +77,17 @@ object NJCompression {
     override def fileExtension: String = ".lzo"
   }
 
-  final case class Deflate(level: Int) extends NJCompression {
+  final case class Deflate(level: Int) extends NJCompression with AvroCompression {
     override val shortName: String     = "deflate"
     override val fileExtension: String = ".deflate"
   }
 
-  final case class Xz(level: Int) extends NJCompression {
+  final case class Xz(level: Int) extends NJCompression with AvroCompression {
     override val shortName: String     = "xz"
     override val fileExtension: String = ".xz"
   }
 
-  final case class Zstandard(level: Int) extends NJCompression {
+  final case class Zstandard(level: Int) extends NJCompression with AvroCompression with ParquetCompression {
     override val shortName: String     = "zstd"
     override val fileExtension: String = ".zst"
   }
