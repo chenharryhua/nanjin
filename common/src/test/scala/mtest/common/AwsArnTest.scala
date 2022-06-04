@@ -66,7 +66,4 @@ class AwsArnTest extends AnyFunSuite {
     assert(decode[SqsConfig](fifo.asJson.spaces2).toOption.get == fifo)
   }
 
-  test("compression") {
-    println(NJCompression.Lzo.asJson)
-  }
 }
