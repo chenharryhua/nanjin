@@ -35,7 +35,7 @@ private[guard] object AgentParams {
     retry = ActionRetryParams(
       maxRetries = refineMV(0),
       capDelay = None,
-      njRetryPolicy = NJRetryPolicy.ConstantDelay(Duration.ofSeconds(10)) // 10 seconds by default
+      njRetryPolicy = NJRetryPolicy.AlwaysGiveUp
     ),
     serviceParams = serviceParams
   )

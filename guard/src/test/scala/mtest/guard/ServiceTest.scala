@@ -192,11 +192,52 @@ class ServiceTest extends AnyFunSuite {
     guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
   }
 
-  test("span") {
+  test("10.span") {
     guard.eventStream { ag =>
       val s1 = ag.span("a").span("b").span("c").agentParams.spans
       val s2 = ag.span(List(Span("a"), Span("b"), Span("c"))).agentParams.spans
       IO(assert(s1 === s2))
     }.debug().compile.drain.unsafeRunSync()
+  }
+
+  test("11.should give up") {
+    var serviceStart    = 0
+    var actionStart     = 0
+    var actionRetry     = 0
+    var actionFail      = 0
+    var serviceStop     = 0
+    var shouldNotHappen = 0
+    val action = guard
+      .updateConfig(_.withAlwaysGiveUp)
+      .eventStream { gd =>
+        gd.span("give-up")
+          .notice
+          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .run(IO.raiseError(new Exception))
+      }
+      .evalTap { case event: ServiceEvent =>
+        event match {
+          case _: ServiceStart => IO(serviceStart += 1)
+          case _: ServicePanic => IO(shouldNotHappen += 1)
+          case _: ServiceStop  => IO(serviceStop += 1)
+          case _: MetricEvent  => IO(shouldNotHappen += 1)
+          case _: ActionStart  => IO(actionStart += 1)
+          case _: ActionRetry  => IO(actionRetry += 1)
+          case _: ActionFail   => IO(actionFail += 1)
+          case _: ActionSucc   => IO(shouldNotHappen += 1)
+          case _: InstantEvent => IO(shouldNotHappen += 1)
+        }
+      }
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .compile
+      .drain
+
+    assertThrows[Exception](action.unsafeRunSync())
+    assert(serviceStart == 1)
+    assert(actionStart == 1)
+    assert(actionRetry == 3)
+    assert(actionFail == 1)
+    assert(serviceStop == 1)
+    assert(shouldNotHappen == 0)
   }
 }

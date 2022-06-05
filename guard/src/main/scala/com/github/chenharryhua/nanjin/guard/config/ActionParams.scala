@@ -31,12 +31,13 @@ sealed abstract class NJRetryPolicy {
     )
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
-    case ConstantDelay(value)      => RetryPolicies.constantDelay(value.toScala)
-    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff(value.toScala)
-    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff(value.toScala)
-    case FullJitter(value)         => RetryPolicies.fullJitter(value.toScala)
+    case ConstantDelay(value)      => RetryPolicies.constantDelay[F](value.toScala)
+    case ExponentialBackoff(value) => RetryPolicies.exponentialBackoff[F](value.toScala)
+    case FibonacciBackoff(value)   => RetryPolicies.fibonacciBackoff[F](value.toScala)
+    case FullJitter(value)         => RetryPolicies.fullJitter[F](value.toScala)
     // https://cb372.github.io/cats-retry/docs/policies.html#writing-your-own-policy
     case JitterBackoff(min, max) => jitterBackoff[F](min.toScala, max.toScala)
+    case AlwaysGiveUp            => RetryPolicies.alwaysGiveUp[F]
   }
 }
 
@@ -49,6 +50,7 @@ object NJRetryPolicy extends duration {
   final case class FibonacciBackoff(value: Duration) extends NJRetryPolicy
   final case class FullJitter(value: Duration) extends NJRetryPolicy
   final case class JitterBackoff(min: Duration, max: Duration) extends NJRetryPolicy
+  case object AlwaysGiveUp extends NJRetryPolicy
 }
 
 @Lenses @JsonCodec final case class ActionRetryParams(
