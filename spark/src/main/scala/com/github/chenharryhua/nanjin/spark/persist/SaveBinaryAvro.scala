@@ -23,6 +23,7 @@ final class SaveBinaryAvro[F[_], A](val rdd: RDD[A], encoder: AvroEncoder[A], cf
     updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
   def gzip: SaveBinaryAvro[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveBinaryAvro[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
+  def snappy: SaveBinaryAvro[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def uncompress: SaveBinaryAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
 
   def withCompression(bc: BinaryAvroCompression): SaveBinaryAvro[F, A] =

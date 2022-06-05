@@ -12,8 +12,9 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.Json
 import mtest.spark.*
-import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.DoNotDiscover
+
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
 
@@ -42,7 +43,7 @@ class BinAvroTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/bin_avro/") / "rooster"
   test("binary avro - uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    saver(path).append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    saver(path).uncompress.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == t1)
@@ -86,6 +87,17 @@ class BinAvroTest extends AnyFunSuite {
   test("binary avro - deflate") {
     val path = root / "deflate"
     saver(path).deflate(2).run.unsafeRunSync()
+    val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    val t2 = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
+    assert(RoosterData.expected == t1)
+    assert(RoosterData.expected == t2)
+    val t3 = loadRooster(path).unsafeRunSync()
+    assert(RoosterData.expected == t3)
+  }
+
+  test("binary avro - snappy") {
+    val path = root / "snappy"
+    saver(path).snappy.run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == t1)
@@ -140,7 +152,8 @@ class BinAvroTest extends AnyFunSuite {
   }
 
   ignore("local") {
-    val path  = NJPath("/Users/chenh/Downloads/part-r-00000-9ed5fd81-6b1f-3708-a6a2-4d9c2392df33.binary.avro.bz2")
+    val path =
+      NJPath("/Users/chenh/Downloads/part-r-00000-9ed5fd81-6b1f-3708-a6a2-4d9c2392df33.binary.avro.bz2")
     val codec = NJAvroCodec[NJConsumerRecord[KJson[Json], KJson[Json]]]
     loaders.rdd.binAvro(path, codec.avroDecoder, sparkSession).count()
   }
