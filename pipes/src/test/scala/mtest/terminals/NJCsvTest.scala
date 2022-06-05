@@ -28,7 +28,7 @@ class NJCsvTest extends AnyFunSuite {
   def fs2(path: NJPath, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO]
-    val sink   = hdp.csv(csvConfiguration).sink[Tiger](path)
+    val sink   = hdp.csv(csvConfiguration).withChunkSize(100).withCompressionLevel(3).sink[Tiger](path)
     val src    = hdp.csv(csvConfiguration).source[Tiger](path)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)

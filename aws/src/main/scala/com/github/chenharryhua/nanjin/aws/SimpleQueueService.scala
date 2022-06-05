@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
 import cats.{Endo, Show}
-import cats.effect.kernel.{Async, Resource, Temporal}
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
 import com.amazonaws.services.sqs.model.*
@@ -15,8 +15,8 @@ import io.circe.optics.JsonPath.*
 import io.circe.parser.*
 import io.circe.Json
 import io.circe.jackson.jacksonToCirce
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import org.typelevel.log4cats.Logger
 import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
 
 import java.net.URLDecoder
@@ -82,9 +82,9 @@ object SimpleQueueService {
   private val name: String = "aws.SQS"
 
   def fake[F[_]](duration: FiniteDuration, body: String)(implicit
-    F: Temporal[F]): Resource[F, SimpleQueueService[F]] =
+    F: Async[F]): Resource[F, SimpleQueueService[F]] =
     Resource.make(F.pure(new SimpleQueueService[F] {
-
+      val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
       override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] =
         Stream.fixedRate(duration).zipWithIndex.map { case (_, idx) =>
           SqsMessage(
@@ -103,7 +103,7 @@ object SimpleQueueService {
       override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F]   = this
       override def delete(msg: SqsMessage): F[DeleteMessageResult] = F.pure(new DeleteMessageResult())
       override def sendMessage(msg: SendMessageRequest): F[SendMessageResult] =
-        F.pure(new SendMessageResult())
+        logger.info(msg.getMessageBody).map(_ => new SendMessageResult())
 
       override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult] =
         F.pure(new ChangeMessageVisibilityResult())

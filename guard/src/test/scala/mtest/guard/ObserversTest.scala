@@ -5,7 +5,8 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService}
+import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService, SimpleQueueService}
+import com.github.chenharryhua.nanjin.common.aws.{SqsConfig, SqsUrl}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
@@ -189,5 +190,18 @@ class ObserversTest extends AnyFunSuite {
         .drain
 
     run.unsafeRunSync()
+  }
+  test("10.sqs") {
+    val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionSucc)
+    TaskGuard[IO]("sqs")
+      .service("sqs")
+      .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second).withMetricDailyReset)
+      .eventStream(
+        _.span("sqs").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .interruptAfter(7.seconds)
+      .through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo")))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }
