@@ -91,6 +91,15 @@ class CsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
 
+  test("tablet read/write identity multi.snappy") {
+    val path = root / "snappy"
+    val s    = saver(path).snappy.withHeader
+    s.run.unsafeRunSync()
+    val t = loaders.csv(path, Tablet.ate, s.csvConfiguration, sparkSession)
+    assert(data.toSet == t.collect().toSet)
+    assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
+  }
+
   test("tablet read/write identity with-header") {
     val path = root / "with_header"
     val s    = saver(path).withHeader("x", "y", "z")

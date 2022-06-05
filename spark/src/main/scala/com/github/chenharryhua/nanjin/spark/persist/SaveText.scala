@@ -24,6 +24,7 @@ final class SaveText[F[_], A](val rdd: RDD[A], cfg: HoarderConfig, suffix: Strin
   def gzip: SaveText[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveText[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveText[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def snappy: SaveText[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
 
   def withCompression(tc: TextCompression): SaveText[F, A] = updateConfig(cfg.outputCompression(tc))
 

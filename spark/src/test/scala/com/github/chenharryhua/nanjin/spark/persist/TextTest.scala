@@ -42,6 +42,11 @@ class TextTest extends AnyFunSuite {
     saver(path).lz4.run.unsafeRunSync()
   }
 
+  test("tablet - snappy") {
+    val path = root / "snappy"
+    saver(path).snappy.run.unsafeRunSync()
+  }
+
   test("tablet - append") {
     val path = root / "append"
     val t1 =
