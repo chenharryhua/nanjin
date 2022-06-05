@@ -30,7 +30,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withQueueCapacity(1).withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset
         .withMetricReset("*/30 * * ? * *"))
       .eventStream(gd =>
-        gd.span("normal-exit-action").max(10).retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
+        gd.span("normal-exit-action").retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -47,7 +47,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.span("escalate-after-3-time")
           .notice
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new Exception("oops")))
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -77,7 +77,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd.notice
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new ControlThrowable("fatal error") {}))
       }
       .evalTap {
@@ -107,7 +107,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.span("json-codec")
           .notice
-          .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
+          .updateConfig(_.withConstantDelay(0.1.second, 3))
           .run(IO.raiseError(new Exception("oops")))
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -212,7 +212,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.span("give-up")
           .notice
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new Exception))
       }
       .evalTap { case event: ServiceEvent =>

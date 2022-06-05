@@ -26,7 +26,7 @@ class CancellationTest extends AnyFunSuite {
         action
           .span("canceled")
           .notice
-          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
+          .updateConfig(_.withConstantDelay(1.second, 3))
           .retry(IO(1) <* IO.canceled)
           .run)
       .map(_.asJson.noSpaces)
@@ -82,7 +82,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val action = ag.updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
+        val action = ag.updateConfig(_.withConstantDelay(1.second, 1))
         val a1     = action.span("one").span("two").span("inner").run(IO.never[Int])
         action
           .span("one")
@@ -136,7 +136,7 @@ class CancellationTest extends AnyFunSuite {
           action
             .span("a2")
             .notice
-            .updateConfig(_.withConstantDelay(1.second).withMaxRetries(1))
+            .updateConfig(_.withConstantDelay(1.second, 1))
             .retry(IO.raiseError(new Exception))
             .run >>
           IO.canceled >> // no chance to cancel since a2 never success
@@ -168,13 +168,13 @@ class CancellationTest extends AnyFunSuite {
           val a2 = action
             .span("fail-2")
             .notice
-            .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
+            .updateConfig(_.withConstantDelay(1.second, 3))
             .run(IO.raiseError[Int](new Exception))
           val a3 = action.span("cancel-3").notice.run(IO.never[Int])
           action
             .span("supervisor")
             .notice
-            .updateConfig(_.withMaxRetries(1).withConstantDelay(1.second))
+            .updateConfig(_.withConstantDelay(1.second, 1))
             .run(IO.parSequenceN(5)(List(a1, a2, a3)))
         }
         .map(_.asJson.noSpaces)
@@ -219,7 +219,7 @@ class CancellationTest extends AnyFunSuite {
         val a1 = action
           .span("exception")
           .notice
-          .updateConfig(_.withConstantDelay(2.second).withMaxRetries(100))
+          .updateConfig(_.withConstantDelay(2.second, 100))
           .retry(IO.raiseError[Int](new Exception))
           .run
         IO.parSequenceN(2)(List(IO.sleep(3.second) >> IO.canceled, a1))
@@ -243,7 +243,7 @@ class CancellationTest extends AnyFunSuite {
       .eventStream { action =>
         val a1 = action
           .span("exception")
-          .updateConfig(_.withConstantDelay(1.second).withMaxRetries(3))
+          .updateConfig(_.withConstantDelay(1.second, 3))
           .retry(IO.raiseError[Int](new Exception))
           .run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))

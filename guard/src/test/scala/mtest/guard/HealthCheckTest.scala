@@ -73,9 +73,8 @@ class HealthCheckTest extends AnyFunSuite {
         gd.span("not")
           .span("fail")
           .span("yet")
-          .updateConfig(_.withConstantDelay(300.second).withCapDelay(2.seconds))
+          .updateConfig(_.withConstantDelay(300.second, 10).withCapDelay(2.seconds))
           .notice
-          .max(10)
           .run(IO.raiseError(new Exception)))
       .interruptAfter(5.second)
       .evalTap(logging.simple[IO])

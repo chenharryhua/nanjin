@@ -6,11 +6,10 @@ import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
+import com.github.chenharryhua.nanjin.common.guard.Span
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -163,14 +162,11 @@ final class Agent[F[_]] private[service] (
 
   lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
 
-  // maximum retries
-  def max(retries: MaxRetry): Agent[F] = updateConfig(_.withMaxRetries(retries))
-
   def nonStop[B](fb: F[B]): F[Nothing] =
     updateConfig(
       _.withSpan(Span("nonStop")).withoutTiming.withoutCounting.withLowImportance
         .withExpensive(true)
-        .withMaxRetries(refineMV(0)))
+        .withAlwaysGiveUp)
       .retry(fb)
       .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))

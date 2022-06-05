@@ -24,7 +24,7 @@ class RetryTest extends AnyFunSuite {
   test("1.retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd.span("succ-trivial")
-        .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
+        .updateConfig(_.withFullJitterBackoff(1.second, 3))
         .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
         .logOutput(_.asJson)
         .withWorthRetry(_ => true)
@@ -40,7 +40,7 @@ class RetryTest extends AnyFunSuite {
       val ag = gd
         .span("all-succ")
         .notice
-        .updateConfig(_.withMaxRetries(3).withExponentialBackoff(1.second))
+        .updateConfig(_.withExponentialBackoff(1.second, 3))
         .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
         .logOutput(_.asJson)
         .withWorthRetry(_ => true)
@@ -62,7 +62,7 @@ class RetryTest extends AnyFunSuite {
       val ag = gd
         .span("all-fail")
         .notice
-        .updateConfig(_.withMaxRetries(1).withConstantDelay(0.1.second))
+        .updateConfig(_.withConstantDelay(0.1.second, 1))
         .retry((x: Int, y: Int, z: Int) => IO.raiseError[Int](new Exception))
       List(1, 2, 3).traverse(i => ag.run((i, i, i)).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -86,7 +86,7 @@ class RetryTest extends AnyFunSuite {
       gd.span("1-time-succ")
         .span("2-time-succ")
         .notice // funny syntax
-        .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
+        .updateConfig(_.withFullJitterBackoff(1.second, 3))
         .retry((x: Int) =>
           IO(if (i < 2) {
             i += 1; throw new Exception
@@ -107,7 +107,7 @@ class RetryTest extends AnyFunSuite {
     var i = 0
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
       gd.span("1-time-succ")
-        .updateConfig(_.withMaxRetries(3).withFullJitterBackoff(1.second))
+        .updateConfig(_.withFullJitterBackoff(1.second, 3))
         .retry((x: Int) =>
           IO(if (i < 2) {
             i += 1; throw new Exception
@@ -126,7 +126,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd.span("escalate-after-3-times")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
           .logInput(_.asJson)
           .logOutput(_.asJson)
@@ -151,7 +151,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
         ag.span("null exception")
-          .updateConfig(_.withCapDelay(1.second).withMaxRetries(2))
+          .updateConfig(_.withCapDelay(1.second).withConstantDelay(100.second, 2))
           .retry(IO.raiseError(new NullPointerException))
           .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -171,7 +171,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
         gd.span("predicate")
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
@@ -196,7 +196,7 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.span("predicate")
           .notice
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .retry(IO.raiseError(new Exception))
           .withWorthRetry(_.isInstanceOf[MyException])
           .run

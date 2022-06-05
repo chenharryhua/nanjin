@@ -96,7 +96,10 @@ object ActionParams {
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
       isExpensive = agentParams.isExpensive,
-      retry = agentParams.retry,
+      retry = ActionRetryParams(
+        maxRetries = agentParams.maxRetries,
+        capDelay = agentParams.capDelay,
+        njRetryPolicy = agentParams.njRetryPolicy),
       serviceParams = agentParams.serviceParams
     )
 }
