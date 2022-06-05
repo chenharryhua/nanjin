@@ -4,11 +4,11 @@ import cats.{Applicative, Show}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import org.typelevel.cats.time.instances.duration
 import eu.timepit.refined.cats.*
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import monocle.macros.Lenses
+import org.typelevel.cats.time.instances.duration
 import retry.{RetryPolicies, RetryPolicy}
 import retry.PolicyDecision.DelayAndRetry
 
@@ -20,15 +20,6 @@ import scala.jdk.DurationConverters.JavaDurationOps
 @JsonCodec
 sealed abstract class NJRetryPolicy {
   import NJRetryPolicy.*
-  private def jitterBackoff[F[_]: Applicative](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] =
-    RetryPolicy.liftWithShow(
-      _ =>
-        DelayAndRetry(
-          FiniteDuration(
-            ThreadLocalRandom.current().nextLong(min.toNanos, max.toNanos),
-            TimeUnit.NANOSECONDS)),
-      show"jitterBackoff(minDelay=${defaultFormatter.format(min)}, maxDelay=${defaultFormatter.format(max)})"
-    )
 
   final def policy[F[_]](implicit F: Applicative[F]): RetryPolicy[F] = this match {
     case ConstantDelay(value)      => RetryPolicies.constantDelay[F](value.toScala)
@@ -44,6 +35,16 @@ sealed abstract class NJRetryPolicy {
 object NJRetryPolicy extends duration {
   implicit val showNJRetryPolicy: Show[NJRetryPolicy] = cats.derived.semiauto.show[NJRetryPolicy]
 
+  def jitterBackoff[F[_]: Applicative](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] =
+    RetryPolicy.liftWithShow(
+      _ =>
+        DelayAndRetry(
+          FiniteDuration(
+            ThreadLocalRandom.current().nextLong(min.toNanos, max.toNanos),
+            TimeUnit.NANOSECONDS)),
+      show"jitterBackoff(minDelay=${defaultFormatter.format(min)}, maxDelay=${defaultFormatter.format(max)})"
+    )
+
   // java.time.duration is supported natively by circe
   final case class ConstantDelay(value: Duration) extends NJRetryPolicy
   final case class ExponentialBackoff(value: Duration) extends NJRetryPolicy
@@ -54,14 +55,35 @@ object NJRetryPolicy extends duration {
 }
 
 @Lenses @JsonCodec final case class ActionRetryParams(
-  maxRetries: MaxRetry,
+  maxRetries: Option[MaxRetry],
   capDelay: Option[Duration],
   njRetryPolicy: NJRetryPolicy) {
-  def policy[F[_]: Applicative]: RetryPolicy[F] = {
-    val limit: RetryPolicy[F] = RetryPolicies.limitRetries[F](maxRetries.value)
-    capDelay.fold(njRetryPolicy.policy[F].join(limit))(cd =>
-      RetryPolicies.capDelay[F](cd.toScala, njRetryPolicy.policy[F]).join(limit))
-  }
+  def policy[F[_]: Applicative]: RetryPolicy[F] =
+    maxRetries
+      .map(_.value)
+      .filter(_ > 0)
+      .map(RetryPolicies.limitRetries[F])
+      .map { limit =>
+        njRetryPolicy match {
+          case NJRetryPolicy.ConstantDelay(value) =>
+            val p = RetryPolicies.constantDelay[F](value.toScala)
+            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+          case NJRetryPolicy.ExponentialBackoff(value) =>
+            val p = RetryPolicies.exponentialBackoff[F](value.toScala)
+            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+          case NJRetryPolicy.FibonacciBackoff(value) =>
+            val p = RetryPolicies.fibonacciBackoff[F](value.toScala)
+            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+          case NJRetryPolicy.FullJitter(value) =>
+            val p = RetryPolicies.fullJitter[F](value.toScala)
+            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+          case NJRetryPolicy.JitterBackoff(min, max) =>
+            val p = NJRetryPolicy.jitterBackoff[F](min.toScala, max.toScala)
+            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+          case NJRetryPolicy.AlwaysGiveUp => RetryPolicies.alwaysGiveUp[F]
+        }
+      }
+      .getOrElse(RetryPolicies.alwaysGiveUp[F])
 }
 
 object ActionRetryParams extends duration {

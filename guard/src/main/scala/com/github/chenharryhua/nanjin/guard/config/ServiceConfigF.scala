@@ -162,8 +162,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     ServiceConfig(Fix(WithSnapshotType(mst, value)))
 
   // retries
-  def withConstantDelay(delay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay.toJava), value)))
+  def withConstantDelay(baseDelay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(baseDelay.toJava), value)))
 
   def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
     require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strictly bigger than minDelay($minDelay)")
