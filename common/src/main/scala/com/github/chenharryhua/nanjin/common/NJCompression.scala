@@ -123,7 +123,8 @@ object NJCompression {
   }
 
   case object Snappy
-      extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression {
+      extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression
+      with CirceCompression {
     override val shortName: String     = "snappy"
     override val fileExtension: String = ".snappy"
   }
