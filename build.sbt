@@ -49,7 +49,7 @@ lazy val commonSettings = Seq(
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.11.1034")
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.233")
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
@@ -209,7 +209,7 @@ val akkaLib = Seq(
 
 val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "1.0.14"  % Provided,
+  "dev.zio" %% "zio"               % "1.0.15"  % Provided,
   "dev.zio" %% "zio-interop-cats"  % "3.2.9.1" % Provided,
   "io.monix" %% "monix-eval"       % "3.4.1"   % Provided,
   "io.monix" %% "monix"            % "3.4.1"   % Provided

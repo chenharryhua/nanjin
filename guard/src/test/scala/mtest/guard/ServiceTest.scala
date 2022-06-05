@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxMonadErrorRethrow
-import com.github.chenharryhua.nanjin.common.{DurationFormatter, HostName}
+import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.guard.Span
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -22,14 +22,15 @@ class ServiceTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host).withHomePage("https://abc.com/efg"))
     .service("service")
-    .updateConfig(_.withConstantDelay(1.seconds))
+    .updateConfig(_.withConstantDelay(1.seconds).withBrief("test"))
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .updateConfig(_.withJitterBackoff(3.second))
-      .updateConfig(_.withQueueCapacity(1))
+      .updateConfig(_.withJitterBackoff(3.second).withMetricReport("*/30 * * ? * *"))
+      .updateConfig(_.withQueueCapacity(1).withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset
+        .withMetricReset("*/30 * * ? * *"))
       .eventStream(gd =>
-        gd.span("normal-exit-action").max(10).retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
+        gd.span("normal-exit-action").retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -46,7 +47,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.span("escalate-after-3-time")
           .notice
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new Exception("oops")))
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -76,7 +77,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd.notice
-          .updateConfig(_.withMaxRetries(3).withFibonacciBackoff(0.1.second))
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new ControlThrowable("fatal error") {}))
       }
       .evalTap {
@@ -106,7 +107,7 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.span("json-codec")
           .notice
-          .updateConfig(_.withMaxRetries(3).withConstantDelay(0.1.second))
+          .updateConfig(_.withConstantDelay(0.1.second, 3))
           .run(IO.raiseError(new Exception("oops")))
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -191,11 +192,52 @@ class ServiceTest extends AnyFunSuite {
     guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
   }
 
-  test("span") {
+  test("10.span") {
     guard.eventStream { ag =>
       val s1 = ag.span("a").span("b").span("c").agentParams.spans
       val s2 = ag.span(List(Span("a"), Span("b"), Span("c"))).agentParams.spans
       IO(assert(s1 === s2))
     }.debug().compile.drain.unsafeRunSync()
+  }
+
+  test("11.should give up") {
+    var serviceStart    = 0
+    var actionStart     = 0
+    var actionRetry     = 0
+    var actionFail      = 0
+    var serviceStop     = 0
+    var shouldNotHappen = 0
+    val action = guard
+      .updateConfig(_.withAlwaysGiveUp)
+      .eventStream { gd =>
+        gd.span("give-up")
+          .notice
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
+          .run(IO.raiseError(new Exception))
+      }
+      .evalTap { case event: ServiceEvent =>
+        event match {
+          case _: ServiceStart => IO(serviceStart += 1)
+          case _: ServicePanic => IO(shouldNotHappen += 1)
+          case _: ServiceStop  => IO(serviceStop += 1)
+          case _: MetricEvent  => IO(shouldNotHappen += 1)
+          case _: ActionStart  => IO(actionStart += 1)
+          case _: ActionRetry  => IO(actionRetry += 1)
+          case _: ActionFail   => IO(actionFail += 1)
+          case _: ActionSucc   => IO(shouldNotHappen += 1)
+          case _: InstantEvent => IO(shouldNotHappen += 1)
+        }
+      }
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .compile
+      .drain
+
+    assertThrows[Exception](action.unsafeRunSync())
+    assert(serviceStart == 1)
+    assert(actionStart == 1)
+    assert(actionRetry == 3)
+    assert(actionFail == 1)
+    assert(serviceStop == 1)
+    assert(shouldNotHappen == 0)
   }
 }

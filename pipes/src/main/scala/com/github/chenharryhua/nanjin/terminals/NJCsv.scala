@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.terminals
-
 import akka.stream.*
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.stage.*
+import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
@@ -22,15 +22,20 @@ final class NJCsv[F[_]] private (
   compressLevel: CompressionLevel,
   csvConfiguration: CsvConfiguration
 )(implicit F: Sync[F]) {
+
   def withChunkSize(cs: ChunkSize): NJCsv[F] =
     new NJCsv[F](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
+
   def withBlockSizeHint(bsh: Long): NJCsv[F] =
     new NJCsv[F](configuration, bsh, chunkSize, compressLevel, csvConfiguration)
+
   def withCompressionLevel(cl: CompressionLevel): NJCsv[F] =
     new NJCsv[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
+
   def withCompressionLevel(level: Int): NJCsv[F] =
     withCompressionLevel(Enum[CompressionLevel].withIndex(level))
-  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): NJCsv[F] =
+
+  def updateCsvConfig(f: Endo[CsvConfiguration]): NJCsv[F] =
     new NJCsv[F](configuration, blockSizeHint, chunkSize, compressLevel, f(csvConfiguration))
 
   def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Stream[F, A] =
@@ -42,9 +47,8 @@ final class NJCsv[F[_]] private (
   def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, INothing] = { (ss: Stream[F, A]) =>
     Stream
       .bracket(
-        F.blocking(
-          fileOutputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)))(r =>
-        F.blocking(r.close()))
+        F.blocking(fileOutputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](
+          csvConfiguration)))(r => F.blocking(r.close()))
       .flatMap(writer => ss.chunks.foreach(c => F.blocking(c.map(writer.write)).void))
   }
 
@@ -74,9 +78,11 @@ private class AkkaCsvSource[A: HeaderDecoder](
 
   override val shape: SourceShape[A] = SourceShape.of(out)
 
-  override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
+  override protected val initialAttributes: Attributes =
+    super.initialAttributes.and(ActorAttributes.IODispatcher)
 
-  override def createLogicAndMaterializedValue(inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
+  override def createLogicAndMaterializedValue(
+    inheritedAttributes: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
     val logic = new GraphStageLogicWithLogging(shape) {
       override protected val logSource: Class[AkkaParquetSource] = classOf[AkkaParquetSource]
@@ -132,7 +138,8 @@ private class AkkaCsvSink[A: HeaderEncoder](
 
   override val shape: SinkShape[A] = SinkShape.of(in)
 
-  override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
+  override protected val initialAttributes: Attributes =
+    super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()
@@ -144,7 +151,8 @@ private class AkkaCsvSink[A: HeaderEncoder](
           private var count: Long = 0
 
           private val writer: CsvWriter[A] =
-            fileOutputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](csvConfiguration)
+            fileOutputStream(path, configuration, compressLevel, blockSizeHint)
+              .asCsvWriter[A](csvConfiguration)
 
           override def onUpstreamFinish(): Unit =
             try {

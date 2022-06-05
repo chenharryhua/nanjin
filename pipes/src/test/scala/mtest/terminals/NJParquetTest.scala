@@ -29,7 +29,8 @@ class NJParquetTest extends AnyFunSuite {
     val sink = parquet.updateWriter(_.withCompressionCodec(name)).akka.sink(path)
     val src  = parquet.akka.source(path)
     val ts   = Source(data)
-    val rst  = IO.fromFuture(IO(ts.runWith(sink))) >> IO.fromFuture(IO(src.runFold(Set.empty[GenericRecord])(_ + _)))
+    val rst =
+      IO.fromFuture(IO(ts.runWith(sink))) >> IO.fromFuture(IO(src.runFold(Set.empty[GenericRecord])(_ + _)))
     assert(rst.unsafeRunSync() == data)
   }
 

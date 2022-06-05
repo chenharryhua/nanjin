@@ -7,9 +7,12 @@ import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 
+import java.time.ZoneId
+
 /** credit to the excellent retry lib [[https://github.com/cb372/cats-retry]]
   */
-final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig) extends UpdateConfig[TaskConfig, TaskGuard[F]] {
+final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig)
+    extends UpdateConfig[TaskConfig, TaskGuard[F]] {
 
   val params: TaskParams = taskConfig.evalConfig
 
@@ -24,5 +27,5 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig) extends Upda
 object TaskGuard {
 
   def apply[F[_]: Async](taskName: TaskName): TaskGuard[F] =
-    new TaskGuard[F](TaskConfig(taskName, HostName.local_host))
+    new TaskGuard[F](TaskConfig(taskName, HostName.local_host, ZoneId.systemDefault()))
 }

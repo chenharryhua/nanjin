@@ -4,13 +4,12 @@ import cats.{Order, Show}
 import cron4s.CronExpr
 import cron4s.circe.*
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
-import enumeratum.EnumEntry.Lowercase
 import io.circe.generic.JsonCodec
 import org.typelevel.cats.time.instances.duration
 
 import java.time.Duration
 
-sealed abstract class Importance(val value: Int) extends EnumEntry with Lowercase
+sealed abstract class Importance(val value: Int) extends EnumEntry
 
 object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
   override val values: IndexedSeq[Importance] = findValues

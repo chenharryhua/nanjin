@@ -5,7 +5,8 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService}
+import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService, SimpleQueueService}
+import com.github.chenharryhua.nanjin.common.aws.{SqsConfig, SqsUrl}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
@@ -24,7 +25,7 @@ class ObserversTest extends AnyFunSuite {
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(hourly).withQueueCapacity(20))
       .eventStream { root =>
-        val ag = root.span("logging").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
+        val ag = root.span("logging").critical.updateConfig(_.withConstantDelay(2.seconds, 1))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag
           .run(IO.raiseError(new Exception("oops")))
           .attempt
@@ -40,7 +41,7 @@ class ObserversTest extends AnyFunSuite {
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { root =>
-        val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
+        val ag = root.span("console").critical.updateConfig(_.withConstantDelay(2.seconds, 1))
         ag.retry(IO(1)).logInput("hello, world".asJson).logOutput(_.asJson).run >> ag
           .alert("notify")
           .error("error.msg") >> ag.run(IO.raiseError(new Exception("oops"))).attempt
@@ -56,7 +57,7 @@ class ObserversTest extends AnyFunSuite {
       .service("json")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { root =>
-        val ag = root.span("console").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
+        val ag = root.span("console").critical.updateConfig(_.withConstantDelay(2.seconds, 1))
         ag.run(IO(1)) >> ag.alert("notify").error("error.msg") >> ag
           .run(IO.raiseError(new Exception("oops")))
           .attempt
@@ -73,13 +74,16 @@ class ObserversTest extends AnyFunSuite {
       .service("slack")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { root =>
-        val ag = root.span("slack").max(1).critical.updateConfig(_.withConstantDelay(2.seconds))
+        val ag = root.span("slack").critical.updateConfig(_.withConstantDelay(2.seconds, 1))
         ag.retry(IO(1)).logInput("hello world".asJson).logOutput(_.asJson).run >> ag
           .alert("notify")
           .error("error.msg") >> ag.run(IO.raiseError(new Exception("oops")))
       }
       .interruptAfter(7.seconds)
-      .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
+      .through(SlackObserver(SimpleNotificationService.fake[IO])
+        .withInterval(50.seconds)
+        .at("@chenh")
+        .observe(snsArn))
       .compile
       .drain
       .unsafeRunSync()
@@ -90,14 +94,14 @@ class ObserversTest extends AnyFunSuite {
       EmailObserver(SimpleEmailService.fake[IO])
         .withInterval(5.seconds)
         .withChunkSize(100)
+        .withOldestFirst
         .updateTranslator(_.skipActionStart)
 
     TaskGuard[IO]("ses")
       .updateConfig(_.withHomePage("https://google.com"))
       .service("ses")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
-      .eventStream(
-        _.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .eventStream(_.span("mail").critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .take(2)
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
       .compile
@@ -109,6 +113,7 @@ class ObserversTest extends AnyFunSuite {
     val mail =
       EmailObserver[IO](SimpleNotificationService.fake[IO])
         .withInterval(5.seconds)
+        .withOldestFirst
         .withChunkSize(100)
         .updateTranslator(_.skipActionStart)
 
@@ -116,8 +121,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("sns")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
-      .eventStream(
-        _.span("mail").max(0).critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .eventStream(_.span("mail").critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .through(mail.observe(snsArn, "title"))
       .compile
@@ -184,5 +188,17 @@ class ObserversTest extends AnyFunSuite {
         .drain
 
     run.unsafeRunSync()
+  }
+  test("10.sqs") {
+    val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionSucc)
+    TaskGuard[IO]("sqs")
+      .service("sqs")
+      .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second).withMetricDailyReset)
+      .eventStream(_.span("sqs").critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .interruptAfter(7.seconds)
+      .through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo")))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

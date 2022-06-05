@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.NJCompression
+import com.github.chenharryhua.nanjin.common.{JacksonCompression, NJCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
@@ -24,6 +24,8 @@ final class SaveJackson[F[_], A](val rdd: RDD[A], encoder: AvroEncoder[A], cfg: 
   def gzip: SaveJackson[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveJackson[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+
+  def withCompression(jc: JacksonCompression): SaveJackson[F, A] = updateConfig(cfg.outputCompression(jc))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

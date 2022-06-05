@@ -3,6 +3,7 @@ package mtest.terminals
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.{AvroCompression, NJCompression}
 import com.github.chenharryhua.nanjin.terminals.{NJAvro, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -18,17 +19,17 @@ class NJAvroTest extends AnyFunSuite {
 
   def fs2(path: NJPath, codecFactory: CodecFactory, data: Set[GenericRecord]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val sink   = avro.withCodecFactory(codecFactory).sink(path)
+    val sink   = avro.withChunSize(100).withBlockSizeHint(1000).withCodecFactory(codecFactory).sink(path)
     val src    = avro.source(path)
     val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  def akka(path: NJPath, codecFactory: CodecFactory, data: Set[GenericRecord]): Assertion = {
+  def akka(path: NJPath, ac: AvroCompression, data: Set[GenericRecord]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts   = Source(data)
-    val sink = avro.withCodecFactory(codecFactory).akka.sink(path)
+    val sink = avro.withCodecFactory(ac).akka.sink(path)
     val src  = avro.akka.source(path)
     val action = IO.fromFuture(IO(ts.runWith(sink))) >>
       IO.fromFuture(IO(src.runFold(Set.empty[GenericRecord])(_ + _)))
@@ -41,31 +42,31 @@ class NJAvroTest extends AnyFunSuite {
 
   test("snappy avro") {
     fs2(fs2Root / "panda.snappy.avro", CodecFactory.snappyCodec, pandaSet)
-    akka(akkaRoot / "panda.snappy.avro", CodecFactory.snappyCodec, pandaSet)
+    akka(akkaRoot / "panda.snappy.avro", NJCompression.Snappy, pandaSet)
   }
 
   test("deflate 6 avro") {
     fs2(fs2Root / "panda.deflate.avro", CodecFactory.deflateCodec(6), pandaSet)
-    akka(akkaRoot / "panda.deflate.avro", CodecFactory.deflateCodec(6), pandaSet)
+    akka(akkaRoot / "panda.deflate.avro", NJCompression.Deflate(6), pandaSet)
   }
 
   test("uncompressed avro") {
     fs2(fs2Root / "panda.uncompressed.avro", CodecFactory.nullCodec(), pandaSet)
-    akka(akkaRoot / "panda.uncompressed.avro", CodecFactory.nullCodec(), pandaSet)
+    akka(akkaRoot / "panda.uncompressed.avro", NJCompression.Uncompressed, pandaSet)
   }
 
   test("xz 1 avro") {
     fs2(fs2Root / "panda.xz.avro", CodecFactory.xzCodec(1), pandaSet)
-    akka(akkaRoot / "panda.xz.avro", CodecFactory.xzCodec(1), pandaSet)
+    akka(akkaRoot / "panda.xz.avro", NJCompression.Xz(1), pandaSet)
   }
 
   test("bzip2 avro") {
     fs2(fs2Root / "panda.bz2.avro", CodecFactory.bzip2Codec(), pandaSet)
-    akka(akkaRoot / "panda.bz2.avro", CodecFactory.bzip2Codec, pandaSet)
+    akka(akkaRoot / "panda.bz2.avro", NJCompression.Bzip2, pandaSet)
   }
 
   test("zstandard avro") {
     fs2(fs2Root / "panda.zstandard.avro", CodecFactory.zstandardCodec(1), pandaSet)
-    akka(akkaRoot / "panda.zstandard.avro", CodecFactory.zstandardCodec(1), pandaSet)
+    akka(akkaRoot / "panda.zstandard.avro", NJCompression.Zstandard(1), pandaSet)
   }
 }

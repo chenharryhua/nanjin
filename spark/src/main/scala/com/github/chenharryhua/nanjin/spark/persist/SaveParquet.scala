@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.NJCompression
+import com.github.chenharryhua.nanjin.common.{NJCompression, ParquetCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.sql.Dataset
 
@@ -22,8 +22,10 @@ final class SaveParquet[F[_], A](val dataset: Dataset[A], cfg: HoarderConfig) ex
   def lz4: SaveParquet[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def snappy: SaveParquet[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def uncompress: SaveParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def zstd(level: Int): SaveParquet[F, A] = updateConfig(
-    cfg.outputCompression(NJCompression.Zstandard(level)))
+  def zstd(level: Int): SaveParquet[F, A] =
+    updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
+
+  def withCompression(pc: ParquetCompression): SaveParquet[F, A] = updateConfig(cfg.outputCompression(pc))
 
   def run(implicit F: Sync[F]): F[Unit] = {
     val conf = dataset.sparkSession.sparkContext.hadoopConfiguration

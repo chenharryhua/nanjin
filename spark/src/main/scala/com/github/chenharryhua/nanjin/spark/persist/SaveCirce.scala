@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.NJCompression
+import com.github.chenharryhua.nanjin.common.{CirceCompression, NJCompression}
 import io.circe.Encoder as JsonEncoder
 import org.apache.spark.rdd.RDD
 
@@ -28,6 +28,10 @@ final class SaveCirce[F[_], A](val rdd: RDD[A], cfg: HoarderConfig, isKeepNull: 
   def gzip: SaveCirce[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveCirce[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveCirce[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def snappy: SaveCirce[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
+
+  def withCompression(cc: CirceCompression): SaveCirce[F, A] =
+    updateConfig(cfg.outputCompression(cc))
 
   def run(implicit F: Sync[F], je: JsonEncoder[A]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

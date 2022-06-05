@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Span}
 import eu.timepit.refined.cats.*
-import eu.timepit.refined.refineMV
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import monocle.macros.Lenses
+import org.typelevel.cats.time.instances.duration
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -20,10 +20,12 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   isCounting: Boolean, // if counting the action?
   isTiming: Boolean, // if timing the action?
   isExpensive: Boolean, // if the action take long time to accomplish, like a few minutes or hours?
-  retry: ActionRetryParams,
+  capDelay: Option[Duration],
+  maxRetries: Option[MaxRetry],
+  njRetryPolicy: NJRetryPolicy,
   serviceParams: ServiceParams)
 
-private[guard] object AgentParams {
+private[guard] object AgentParams extends duration {
   implicit val showAgentParams: Show[AgentParams] = cats.derived.semiauto.show[AgentParams]
 
   def apply(serviceParams: ServiceParams): AgentParams = AgentParams(
@@ -32,11 +34,9 @@ private[guard] object AgentParams {
     isCounting = false,
     isTiming = false,
     isExpensive = false,
-    retry = ActionRetryParams(
-      maxRetries = refineMV(0),
-      capDelay = None,
-      njRetryPolicy = NJRetryPolicy.ConstantDelay(Duration.ofSeconds(10)) // 10 seconds by default
-    ),
+    capDelay = None,
+    maxRetries = None,
+    njRetryPolicy = NJRetryPolicy.AlwaysGiveUp,
     serviceParams = serviceParams
   )
 }
@@ -48,9 +48,9 @@ private object AgentConfigF {
 
   final case class InitParams[K](serviceParams: ServiceParams) extends AgentConfigF[K]
 
-  final case class WithMaxRetries[K](value: MaxRetry, cont: K) extends AgentConfigF[K]
   final case class WithCapDelay[K](value: Duration, cont: K) extends AgentConfigF[K]
-  final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends AgentConfigF[K]
+  final case class WithRetryPolicy[K](policy: NJRetryPolicy, max: Option[MaxRetry], cont: K)
+      extends AgentConfigF[K]
 
   final case class WithSpans[K](value: List[Span], cont: K) extends AgentConfigF[K]
 
@@ -61,35 +61,38 @@ private object AgentConfigF {
 
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
-      case InitParams(sp)        => AgentParams(sp)
-      case WithRetryPolicy(v, c) => AgentParams.retry.composeLens(ActionRetryParams.njRetryPolicy).set(v)(c)
-      case WithMaxRetries(v, c)  => AgentParams.retry.composeLens(ActionRetryParams.maxRetries).set(v)(c)
-      case WithCapDelay(v, c)    => AgentParams.retry.composeLens(ActionRetryParams.capDelay).set(Some(v))(c)
-      case WithImportance(v, c)  => AgentParams.importance.set(v)(c)
-      case WithSpans(v, c)       => AgentParams.spans.modify(_ ::: v)(c)
-      case WithTiming(v, c)      => AgentParams.isTiming.set(v)(c)
-      case WithCounting(v, c)    => AgentParams.isCounting.set(v)(c)
-      case WithExpensive(v, c)   => AgentParams.isExpensive.set(v)(c)
+      case InitParams(sp) => AgentParams(sp)
+      case WithRetryPolicy(p, m, c) =>
+        AgentParams.njRetryPolicy.set(p).andThen(AgentParams.maxRetries.set(m))(c)
+      case WithCapDelay(v, c)   => AgentParams.capDelay.set(Some(v))(c)
+      case WithImportance(v, c) => AgentParams.importance.set(v)(c)
+      case WithSpans(v, c)      => AgentParams.spans.modify(_ ::: v)(c)
+      case WithTiming(v, c)     => AgentParams.isTiming.set(v)(c)
+      case WithCounting(v, c)   => AgentParams.isCounting.set(v)(c)
+      case WithExpensive(v, c)  => AgentParams.isExpensive.set(v)(c)
     }
 }
 
 final case class AgentConfig private (value: Fix[AgentConfigF]) {
   import AgentConfigF.*
 
-  def withMaxRetries(num: MaxRetry): AgentConfig     = AgentConfig(Fix(WithMaxRetries(num, value)))
-  def withCapDelay(dur: FiniteDuration): AgentConfig = AgentConfig(Fix(WithCapDelay(dur.toJava, value)))
+  def withCapDelay(dur: FiniteDuration): AgentConfig =
+    AgentConfig(Fix(WithCapDelay(dur.toJava, value)))
 
-  def withConstantDelay(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay.toJava), value)))
+  def withConstantDelay(baseDelay: FiniteDuration, max: MaxRetry): AgentConfig =
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(baseDelay.toJava), Some(max), value)))
 
-  def withExponentialBackoff(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ExponentialBackoff(delay.toJava), value)))
+  def withExponentialBackoff(baseDelay: FiniteDuration, max: MaxRetry): AgentConfig =
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ExponentialBackoff(baseDelay.toJava), Some(max), value)))
 
-  def withFibonacciBackoff(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FibonacciBackoff(delay.toJava), value)))
+  def withFibonacciBackoff(baseDelay: FiniteDuration, max: MaxRetry): AgentConfig =
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FibonacciBackoff(baseDelay.toJava), Some(max), value)))
 
-  def withFullJitterBackoff(delay: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(delay.toJava), value)))
+  def withFullJitterBackoff(baseDelay: FiniteDuration, max: MaxRetry): AgentConfig =
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.FullJitter(baseDelay.toJava), Some(max), value)))
+
+  def withAlwaysGiveUp: AgentConfig =
+    AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.AlwaysGiveUp, None, value)))
 
   def withLowImportance: AgentConfig      = AgentConfig(Fix(WithImportance(Importance.Low, value)))
   def withMediumImportance: AgentConfig   = AgentConfig(Fix(WithImportance(Importance.Medium, value)))

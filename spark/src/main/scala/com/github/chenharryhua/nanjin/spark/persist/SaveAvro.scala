@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.NJCompression
+import com.github.chenharryhua.nanjin.common.{AvroCompression, NJCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
@@ -23,6 +23,8 @@ final class SaveAvro[F[_], A](val rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoa
   def snappy: SaveAvro[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def uncompress: SaveAvro[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
   def xz(level: Int): SaveAvro[F, A]      = updateConfig(cfg.outputCompression(NJCompression.Xz(level)))
+
+  def withCompression(ac: AvroCompression): SaveAvro[F, A] = updateConfig(cfg.outputCompression(ac))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

@@ -2,8 +2,6 @@ package com.github.chenharryhua.nanjin.common
 
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
-import eu.timepit.refined.char.LowerCase
-import eu.timepit.refined.collection.Forall
 import eu.timepit.refined.numeric.NonNegative
 import eu.timepit.refined.string.Url
 
@@ -19,6 +17,5 @@ object guard {
 
   type HomePage      = Refined[String, Url]
   type QueueCapacity = Refined[Int, NonNegative]
-  type Catalog       = Refined[String, Forall[LowerCase]]
   type MaxRetry      = Refined[Int, NonNegative]
 }

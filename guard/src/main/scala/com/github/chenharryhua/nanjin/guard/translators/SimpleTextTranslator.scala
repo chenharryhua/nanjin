@@ -55,7 +55,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
-       |  Ongoings: ${evt.ongoings.map(_.actionID).mkString(",")}
+       |  Ongoings: ${evt.ongoings.map(og => s"${og.name.origin}(${og.actionID})").mkString(",")}
        |${evt.snapshot.show}
        |""".stripMargin
 

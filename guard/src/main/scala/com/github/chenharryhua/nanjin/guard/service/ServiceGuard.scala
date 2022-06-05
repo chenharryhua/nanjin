@@ -44,7 +44,8 @@ final class ServiceGuard[F[_]] private[guard] (
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
     new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
 
-  def apply(serviceName: ServiceName): ServiceGuard[F] = updateConfig(_.withServiceName(serviceName))
+  def apply(serviceName: ServiceName): ServiceGuard[F] =
+    updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, metricFilter, Some(builder))

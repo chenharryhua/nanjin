@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.NJCompression
+import com.github.chenharryhua.nanjin.common.{NJCompression, SparkJsonCompression}
 import org.apache.spark.sql.Dataset
 
 final class SaveSparkJson[F[_], A](val dataset: Dataset[A], cfg: HoarderConfig, isKeepNull: Boolean)
@@ -22,6 +22,8 @@ final class SaveSparkJson[F[_], A](val dataset: Dataset[A], cfg: HoarderConfig, 
     cfg.outputCompression(NJCompression.Deflate(level)))
   def bzip2: SaveSparkJson[F, A]      = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
   def uncompress: SaveSparkJson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+
+  def withCompression(sc: SparkJsonCompression): SaveSparkJson[F, A] = updateConfig(cfg.outputCompression(sc))
 
   def keepNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](dataset, cfg, true)
   def dropNull: SaveSparkJson[F, A] = new SaveSparkJson[F, A](dataset, cfg, false)

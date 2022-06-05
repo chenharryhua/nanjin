@@ -4,7 +4,7 @@ import akka.stream.*
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.stage.*
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.common.{AvroCompression, ChunkSize, NJCompression}
 import fs2.{INothing, Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
@@ -20,23 +20,41 @@ final class NJAvro[F[_]] private (
   codecFactory: CodecFactory,
   blockSizeHint: Long,
   chunkSize: ChunkSize)(implicit F: Sync[F]) {
-  def withCodecFactory(cf: CodecFactory): NJAvro[F] = new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
-  def withChunSize(cs: ChunkSize): NJAvro[F]  = new NJAvro[F](configuration, schema, codecFactory, blockSizeHint, cs)
-  def withBlockSizeHint(bsh: Long): NJAvro[F] = new NJAvro[F](configuration, schema, codecFactory, bsh, chunkSize)
+
+  def withCodecFactory(cf: CodecFactory): NJAvro[F] =
+    new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
+
+  def withCodecFactory(ac: AvroCompression): NJAvro[F] = {
+    val cf: CodecFactory = ac match {
+      case NJCompression.Uncompressed     => CodecFactory.nullCodec()
+      case NJCompression.Snappy           => CodecFactory.snappyCodec()
+      case NJCompression.Bzip2            => CodecFactory.bzip2Codec()
+      case NJCompression.Deflate(level)   => CodecFactory.deflateCodec(level)
+      case NJCompression.Xz(level)        => CodecFactory.xzCodec(level)
+      case NJCompression.Zstandard(level) => CodecFactory.zstandardCodec(level)
+    }
+    new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
+  }
+
+  def withChunSize(cs: ChunkSize): NJAvro[F] =
+    new NJAvro[F](configuration, schema, codecFactory, blockSizeHint, cs)
+
+  def withBlockSizeHint(bsh: Long): NJAvro[F] =
+    new NJAvro[F](configuration, schema, codecFactory, bsh, chunkSize)
 
   def sink(path: NJPath): Pipe[F, GenericRecord, INothing] = {
     def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, INothing, Unit] =
       grs.pull.uncons.flatMap {
         case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
-        case None         => Pull.eval(F.blocking(writer.close())) >> Pull.done
+        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
       }
 
     val dataFileWriter: Stream[F, DataFileWriter[GenericRecord]] = for {
       dfw <- Stream.bracket[F, DataFileWriter[GenericRecord]](
         F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
         F.blocking(r.close()))
-      os <- Stream.bracket(F.blocking(path.hadoopOutputFile(configuration).createOrOverwrite(blockSizeHint)))(r =>
-        F.blocking(r.close()))
+      os <- Stream.bracket(F.blocking(path.hadoopOutputFile(configuration).createOrOverwrite(blockSizeHint)))(
+        r => F.blocking(r.close()))
       writer <- Stream.bracket(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
     } yield writer
 
@@ -45,7 +63,8 @@ final class NJAvro[F[_]] private (
 
   def source(path: NJPath): Stream[F, GenericRecord] =
     for {
-      is <- Stream.bracket(F.blocking(path.hadoopInputFile(configuration).newStream()))(r => F.blocking(r.close()))
+      is <- Stream.bracket(F.blocking(path.hadoopInputFile(configuration).newStream()))(r =>
+        F.blocking(r.close()))
       dfs <- Stream.bracket[F, DataFileStream[GenericRecord]](
         F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
       gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
@@ -70,7 +89,8 @@ private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)
 
   private val out: Outlet[GenericRecord] = Outlet("akka.avro.source")
 
-  override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
+  override protected val initialAttributes: Attributes =
+    super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
 
@@ -83,7 +103,9 @@ private class AkkaAvroSource(path: NJPath, schema: Schema, cfg: Configuration)
           private var count: Long = 0
 
           private val reader: DataFileStream[GenericRecord] =
-            new DataFileStream(path.hadoopInputFile(cfg).newStream(), new GenericDatumReader[GenericRecord](schema))
+            new DataFileStream(
+              path.hadoopInputFile(cfg).newStream(),
+              new GenericDatumReader[GenericRecord](schema))
 
           override def onDownstreamFinish(cause: Throwable): Unit =
             try {
@@ -125,7 +147,8 @@ private class AkkaAvroSink(
 
   override val shape: SinkShape[GenericRecord] = SinkShape.of(in)
 
-  override protected val initialAttributes: Attributes = super.initialAttributes.and(ActorAttributes.IODispatcher)
+  override protected val initialAttributes: Attributes =
+    super.initialAttributes.and(ActorAttributes.IODispatcher)
 
   override def createLogicAndMaterializedValue(attr: Attributes): (GraphStageLogic, Future[IOResult]) = {
     val promise: Promise[IOResult] = Promise[IOResult]()

@@ -130,10 +130,14 @@ private object ServiceConfigF {
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
-  def withQueueCapacity(size: QueueCapacity): ServiceConfig = ServiceConfig(
-    Fix(WithQueueCapacity(size, value)))
+  def withQueueCapacity(size: QueueCapacity): ServiceConfig =
+    ServiceConfig(Fix(WithQueueCapacity(size, value)))
+
   def withServiceName(name: ServiceName): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
 
+  def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
+
+  // metrics
   def withMetricReport(interval: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithReportSchedule(Some(ScheduleType.Fixed(interval.toJava)), value)))
 
@@ -143,8 +147,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricReport(crontab: String): ServiceConfig =
     withMetricReport(Cron.unsafeParse(crontab))
 
-  def withMetricReset(crontab: CronExpr): ServiceConfig = ServiceConfig(
-    Fix(WithResetSchedule(Some(crontab), value)))
+  def withMetricReset(crontab: CronExpr): ServiceConfig =
+    ServiceConfig(Fix(WithResetSchedule(Some(crontab), value)))
   def withMetricReset(crontab: String): ServiceConfig = withMetricReset(Cron.unsafeParse(crontab))
   def withMetricDailyReset: ServiceConfig             = withMetricReset(Cron.unsafeParse("1 0 0 ? * *"))
   def withMetricWeeklyReset: ServiceConfig            = withMetricReset(Cron.unsafeParse("1 0 0 ? * 0"))
@@ -154,11 +158,12 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(
     Fix(WithDurationTimeUnit(tu, value)))
 
-  def withMetricSnapshotType(mst: MetricSnapshotType): ServiceConfig = ServiceConfig(
-    Fix(WithSnapshotType(mst, value)))
+  def withMetricSnapshotType(mst: MetricSnapshotType): ServiceConfig =
+    ServiceConfig(Fix(WithSnapshotType(mst, value)))
 
-  def withConstantDelay(delay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(delay.toJava), value)))
+  // retries
+  def withConstantDelay(baseDelay: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(baseDelay.toJava), value)))
 
   def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
     require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strictly bigger than minDelay($minDelay)")
@@ -168,7 +173,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
     withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
 
-  def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
+  def withAlwaysGiveUp: ServiceConfig =
+    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.AlwaysGiveUp, value)))
 
   def evalConfig(serviceID: UUID, launchTime: Instant): ServiceParams =
     scheme.cata(algebra(serviceID, launchTime)).apply(value)
