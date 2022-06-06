@@ -12,12 +12,11 @@ private[dstream] object persist {
 
   def circe[A: JsonEncoder](
     ds: DStream[A],
-    compression: NJCompression,
     pathBuilder: Reader[NJTimestamp, NJPath],
     isKeepNull: Boolean): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
       val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
-      saveRDD.circe[A](rdd, path, compression, isKeepNull)
+      saveRDD.circe[A](rdd, path, NJCompression.Uncompressed, isKeepNull)
     }
     DStreamRunner.Mark
   }
@@ -25,11 +24,10 @@ private[dstream] object persist {
   def jackson[A](
     ds: DStream[A],
     encoder: AvroEncoder[A],
-    compression: NJCompression,
     pathBuilder: Reader[NJTimestamp, NJPath]): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
       val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
-      saveRDD.jackson[A](rdd, path, encoder, compression)
+      saveRDD.jackson[A](rdd, path, encoder, NJCompression.Uncompressed)
     }
     DStreamRunner.Mark
   }
@@ -37,11 +35,10 @@ private[dstream] object persist {
   def avro[A](
     ds: DStream[A],
     encoder: AvroEncoder[A],
-    compression: NJCompression,
     pathBuilder: Reader[NJTimestamp, NJPath]): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
       val path: NJPath = pathBuilder.run(NJTimestamp(time.milliseconds))
-      saveRDD.avro[A](rdd, path, encoder, compression)
+      saveRDD.avro[A](rdd, path, encoder, NJCompression.Uncompressed)
     }
     DStreamRunner.Mark
   }

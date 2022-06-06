@@ -4,7 +4,7 @@ import cats.data.Reader
 import cats.Endo
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner.Mark
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import io.circe.Encoder as JsonEncoder
 import org.apache.spark.streaming.dstream.DStream
@@ -63,15 +63,9 @@ final class DStreamCirce[A: JsonEncoder](
   private def updateConfig(f: Endo[SDConfig]): DStreamCirce[A] =
     new DStreamCirce[A](dstream, pathBuilder, f(cfg), isKeepNull)
 
-  def lz4: DStreamCirce[A]                 = updateConfig(_.withCompression(NJCompression.Lz4))
-  def bzip2: DStreamCirce[A]               = updateConfig(_.withCompression(NJCompression.Bzip2))
-  def gzip: DStreamCirce[A]                = updateConfig(_.withCompression(NJCompression.Gzip))
-  def deflate(level: Int): DStreamCirce[A] = updateConfig(_.withCompression(NJCompression.Deflate(level)))
-  def uncompress: DStreamCirce[A]          = updateConfig(_.withCompression(NJCompression.Uncompressed))
-
   def dropNull: DStreamCirce[A] = new DStreamCirce[A](dstream, pathBuilder, cfg, false)
 
-  def run: Mark = persist.circe(dstream, params.compression, pathBuilder, isKeepNull)
+  def run: Mark = persist.circe(dstream, pathBuilder, isKeepNull)
 }
 
 final class DStreamAvro[A](
@@ -85,13 +79,7 @@ final class DStreamAvro[A](
 
   val params: SDParams = cfg.evalConfig
 
-  def deflate(level: Int): DStreamAvro[A] = updateConfig(_.withCompression(NJCompression.Deflate(level)))
-  def xz(level: Int): DStreamAvro[A]      = updateConfig(_.withCompression(NJCompression.Xz(level)))
-  def snappy: DStreamAvro[A]              = updateConfig(_.withCompression(NJCompression.Snappy))
-  def bzip2: DStreamAvro[A]               = updateConfig(_.withCompression(NJCompression.Bzip2))
-  def uncompress: DStreamAvro[A]          = updateConfig(_.withCompression(NJCompression.Uncompressed))
-
-  def run: Mark = persist.avro(dstream, encoder, params.compression, pathBuilder)
+  def run: Mark = persist.avro(dstream, encoder, pathBuilder)
 
 }
 
@@ -106,11 +94,5 @@ final class DStreamJackson[A](
 
   val params: SDParams = cfg.evalConfig
 
-  def lz4: DStreamJackson[A]                 = updateConfig(_.withCompression(NJCompression.Lz4))
-  def bzip2: DStreamJackson[A]               = updateConfig(_.withCompression(NJCompression.Bzip2))
-  def gzip: DStreamJackson[A]                = updateConfig(_.withCompression(NJCompression.Gzip))
-  def deflate(level: Int): DStreamJackson[A] = updateConfig(_.withCompression(NJCompression.Deflate(level)))
-  def uncompress: DStreamJackson[A]          = updateConfig(_.withCompression(NJCompression.Uncompressed))
-
-  def run: Mark = persist.jackson(dstream, encoder, params.compression, pathBuilder)
+  def run: Mark = persist.jackson(dstream, encoder, pathBuilder)
 }
