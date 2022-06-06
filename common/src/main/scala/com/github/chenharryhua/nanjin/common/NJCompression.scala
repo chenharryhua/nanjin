@@ -155,7 +155,7 @@ object NJCompression {
     override val fileExtension: String = ".brotli"
   }
 
-  case object Lzo extends NJCompression {
+  case object Lzo extends NJCompression with ParquetCompression {
     override val shortName: String     = "lzo"
     override def fileExtension: String = ".lzo"
   }
