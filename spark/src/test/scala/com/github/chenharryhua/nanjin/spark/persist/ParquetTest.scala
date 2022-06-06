@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import mtest.spark.*
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -32,7 +33,7 @@ class ParquetTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/parquet")
   test("datetime read/write identity multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    roosterSaver(path).errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
+    roosterSaver(path).append.errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
     val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(expected == r)
   }
@@ -57,6 +58,20 @@ class ParquetTest extends AnyFunSuite {
     val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(expected == r)
   }
+
+  test("datetime read/write identity multi.zstd-2") {
+    val path = root / "rooster" / "zstandard"
+    roosterSaver(path).withCompression(CompressionCodecName.ZSTD).run.unsafeRunSync()
+    val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
+    assert(expected == r)
+  }
+
+//  test("datetime read/write identity multi.lzo") {
+//    val path = root / "rooster" / "lzo"
+//    roosterSaver(path).lzo.run.unsafeRunSync()
+//    val r = loaders.parquet[Rooster](path, Rooster.ate, sparkSession).collect().toSet
+//    assert(expected == r)
+//  }
 
   test("datetime read/write identity multi.gzip") {
     val path = root / "rooster" / "gzip"

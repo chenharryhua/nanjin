@@ -47,13 +47,14 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     val avro       = root / "avro"
     val checkpoint = root / "checkpont"
 
-    val runner: DStreamRunner[IO] = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
+    val runner: DStreamRunner[IO] =
+      DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
     sender
       .concurrently(
         runner.withFreshStart
-          .signup(topic.dstream)(_.avro(avro).snappy.run)
-          .signup(topic.dstream)(_.coalesce.jackson(jackson).deflate(2).run)
-          .signup(topic.dstream)(_.coalesce.circe(circe).gzip.run)
+          .signup(topic.dstream)(_.avro(avro).run)
+          .signup(topic.dstream)(_.coalesce.jackson(jackson).run)
+          .signup(topic.dstream)(_.coalesce.circe(circe).run)
           .stream
           .debug()
       )

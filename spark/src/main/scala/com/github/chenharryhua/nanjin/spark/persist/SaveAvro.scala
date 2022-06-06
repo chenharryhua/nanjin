@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.{AvroCompression, NJCompression}
+import com.github.chenharryhua.nanjin.terminals.{AvroCompression, NJCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 

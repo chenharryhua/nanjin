@@ -1,23 +1,62 @@
-package com.github.chenharryhua.nanjin.common
+package com.github.chenharryhua.nanjin.terminals
 
-import io.circe.{Decoder, Encoder, Json}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import io.circe.{Decoder, Encoder, Json}
+import org.apache.avro.file.CodecFactory
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
 import scala.util.Try
 
 sealed trait NJCompression {
   def shortName: String
   def fileExtension: String
+
+  final def fileName(fmt: NJFileFormat): String = fmt match {
+    case NJFileFormat.Unknown    => s"${NJFileFormat.Unknown.suffix}$fileExtension"
+    case NJFileFormat.Jackson    => s"${NJFileFormat.Jackson.suffix}$fileExtension"
+    case NJFileFormat.Circe      => s"${NJFileFormat.Circe.suffix}$fileExtension"
+    case NJFileFormat.Text       => s"${NJFileFormat.Text.suffix}$fileExtension"
+    case NJFileFormat.Kantan     => s"${NJFileFormat.Kantan.suffix}$fileExtension"
+    case NJFileFormat.SparkJson  => s"${NJFileFormat.SparkJson.suffix}$fileExtension"
+    case NJFileFormat.SparkCsv   => s"${NJFileFormat.SparkCsv.suffix}$fileExtension"
+    case NJFileFormat.BinaryAvro => s"${NJFileFormat.BinaryAvro.suffix}$fileExtension"
+    case NJFileFormat.JavaObject => s"${NJFileFormat.JavaObject.suffix}$fileExtension"
+    case NJFileFormat.ProtoBuf   => s"${NJFileFormat.ProtoBuf.suffix}$fileExtension"
+
+    case NJFileFormat.Parquet => s"$shortName.${NJFileFormat.Parquet.suffix}"
+    case NJFileFormat.Avro    => s"$shortName.${NJFileFormat.Avro.suffix}"
+  }
 }
 
-sealed trait AvroCompression extends NJCompression
-sealed trait BinaryAvroCompression extends NJCompression
-sealed trait CirceCompression extends NJCompression
-sealed trait JacksonCompression extends NJCompression
-sealed trait KantanCompression extends NJCompression
-sealed trait SparkJsonCompression extends NJCompression
-sealed trait TextCompression extends NJCompression
-sealed trait ParquetCompression extends NJCompression
+sealed trait BinaryAvroCompression extends NJCompression {}
+sealed trait CirceCompression extends NJCompression {}
+sealed trait JacksonCompression extends NJCompression {}
+sealed trait KantanCompression extends NJCompression {}
+sealed trait SparkJsonCompression extends NJCompression {}
+sealed trait TextCompression extends NJCompression {}
+sealed trait ParquetCompression extends NJCompression {
+  final def codecName: CompressionCodecName = this match {
+    case NJCompression.Uncompressed => CompressionCodecName.UNCOMPRESSED
+    case NJCompression.Snappy       => CompressionCodecName.SNAPPY
+    case NJCompression.Gzip         => CompressionCodecName.GZIP
+    case NJCompression.Lz4          => CompressionCodecName.LZ4
+    case NJCompression.Brotli       => CompressionCodecName.BROTLI
+    case NJCompression.Lzo          => CompressionCodecName.LZO
+    case NJCompression.Zstandard(_) => CompressionCodecName.ZSTD
+  }
+}
+
+sealed trait AvroCompression extends NJCompression {
+  final def codecFactory: CodecFactory = this match {
+    case NJCompression.Uncompressed     => CodecFactory.nullCodec()
+    case NJCompression.Snappy           => CodecFactory.snappyCodec()
+    case NJCompression.Bzip2            => CodecFactory.bzip2Codec()
+    case NJCompression.Deflate(level)   => CodecFactory.deflateCodec(level)
+    case NJCompression.Xz(level)        => CodecFactory.xzCodec(level)
+    case NJCompression.Zstandard(level) => CodecFactory.zstandardCodec(level)
+  }
+}
 
 object NJCompression {
 
@@ -124,7 +163,7 @@ object NJCompression {
 
   case object Snappy
       extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression
-      with CirceCompression {
+      with CirceCompression with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "snappy"
     override val fileExtension: String = ".snappy"
   }
@@ -155,7 +194,7 @@ object NJCompression {
     override val fileExtension: String = ".brotli"
   }
 
-  case object Lzo extends NJCompression {
+  case object Lzo extends NJCompression with ParquetCompression {
     override val shortName: String     = "lzo"
     override def fileExtension: String = ".lzo"
   }

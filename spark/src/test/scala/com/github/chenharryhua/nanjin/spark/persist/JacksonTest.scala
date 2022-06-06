@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.JacksonSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
@@ -15,7 +15,8 @@ import fs2.Stream
 class JacksonTest extends AnyFunSuite {
 
   def rooster(path: NJPath) =
-    new RddAvroFileHoarder[IO, Rooster](RoosterData.rdd.repartition(3), Rooster.avroCodec.avroEncoder).jackson(path)
+    new RddAvroFileHoarder[IO, Rooster](RoosterData.rdd.repartition(3), Rooster.avroCodec.avroEncoder)
+      .jackson(path)
 
   val hdp = sparkSession.hadoop[IO]
 
@@ -85,10 +86,19 @@ class JacksonTest extends AnyFunSuite {
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
+  test("byte-array read/write identity - multi.snappy") {
+    import cats.implicits.*
+    val path = root / "bee" / "snappy"
+    bee(path).snappy.run.unsafeRunSync()
+    val t = loaders.rdd.jackson[Bee](path, Bee.avroCodec.avroDecoder, sparkSession).collect().toList
+    assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
+  }
+
   test("jackson jacket") {
     val path = NJPath("./data/test/spark/persist/jackson/jacket.json")
     val saver =
-      new RddAvroFileHoarder[IO, Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec.avroEncoder).jackson(path)
+      new RddAvroFileHoarder[IO, Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec.avroEncoder)
+        .jackson(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.jackson(path, Jacket.avroCodec.avroDecoder, sparkSession)
     assert(JacketData.expected.toSet == t.collect().toSet)

@@ -41,9 +41,21 @@ class CirceTest extends AnyFunSuite {
   }
 
   val root = NJPath("./data/test/spark/persist/circe")
+
+  test("circe rooster rdd read/write identity multi.uncompressed") {
+    val path = root / "rooster" / "uncompressed"
+    rooster(path).errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
+    val t = loaders.rdd.circe[Rooster](path, sparkSession)
+    assert(RoosterData.expected == t.collect().toSet)
+    val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)
+    assert(RoosterData.expected == t2.collect().toSet)
+    val t3 = loadRoosters(path).unsafeRunSync().toSet
+    assert(RoosterData.expected == t3)
+  }
+
   test("circe rooster rdd read/write identity multi.gzip") {
     val path = root / "rooster" / "gzip"
-    rooster(path).errorIfExists.ignoreIfExists.overwrite.gzip.run.unsafeRunSync()
+    rooster(path).gzip.run.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.json[Rooster](path, Rooster.ate, sparkSession)

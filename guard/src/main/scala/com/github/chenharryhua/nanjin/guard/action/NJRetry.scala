@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.{Duration, ZonedDateTime}
@@ -42,11 +42,11 @@ final class NJRetry[F[_], A, B] private[guard] (
   def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry[F, A, B] = copy(isWorthRetry = Kleisli(f))
   def withWorthRetry(f: Throwable => Boolean): NJRetry[F, A, B] = withWorthRetryM(Kleisli.fromFunction(f).run)
 
-  def logInputM(f: A => F[Json]): NJRetry[F, A, B] = copy(transInput = f)
-  def logInput(f: A => Json): NJRetry[F, A, B]     = logInputM(f.map(F.pure))
+  def logInputM(f: A => F[Json]): NJRetry[F, A, B]        = copy(transInput = f)
+  def logInput(implicit ev: Encoder[A]): NJRetry[F, A, B] = logInputM((a: A) => F.pure(ev(a)))
 
-  def logOutputM(f: B => F[Json]): NJRetry[F, A, B] = copy(transOutput = f)
-  def logOutput(f: B => Json): NJRetry[F, A, B]     = logOutputM(f.map(F.pure))
+  def logOutputM(f: B => F[Json]): NJRetry[F, A, B]        = copy(transOutput = f)
+  def logOutput(implicit ev: Encoder[B]): NJRetry[F, A, B] = logOutputM((b: B) => F.pure(ev(b)))
 
   private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
@@ -125,8 +125,8 @@ final class NJRetryUnit[F[_], B] private[guard] (
   def logInputM(info: F[Json]): NJRetryUnit[F, B] = copy(transInput = info)
   def logInput(info: Json): NJRetryUnit[F, B]     = logInputM(F.pure(info))
 
-  def logOutputM(f: B => F[Json]): NJRetryUnit[F, B] = copy(transOutput = f)
-  def logOutput(f: B => Json): NJRetryUnit[F, B]     = logOutputM(f.map(F.pure))
+  def logOutputM(f: B => F[Json]): NJRetryUnit[F, B]        = copy(transOutput = f)
+  def logOutput(implicit ev: Encoder[B]): NJRetryUnit[F, B] = logOutputM((b: B) => F.pure(ev(b)))
 
   val run: F[B] =
     new NJRetry[F, Unit, B](

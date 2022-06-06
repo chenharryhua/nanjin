@@ -4,7 +4,7 @@ import akka.stream.*
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.stage.*
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.{AvroCompression, ChunkSize, NJCompression}
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{INothing, Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
@@ -23,18 +23,6 @@ final class NJAvro[F[_]] private (
 
   def withCodecFactory(cf: CodecFactory): NJAvro[F] =
     new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
-
-  def withCodecFactory(ac: AvroCompression): NJAvro[F] = {
-    val cf: CodecFactory = ac match {
-      case NJCompression.Uncompressed     => CodecFactory.nullCodec()
-      case NJCompression.Snappy           => CodecFactory.snappyCodec()
-      case NJCompression.Bzip2            => CodecFactory.bzip2Codec()
-      case NJCompression.Deflate(level)   => CodecFactory.deflateCodec(level)
-      case NJCompression.Xz(level)        => CodecFactory.xzCodec(level)
-      case NJCompression.Zstandard(level) => CodecFactory.zstandardCodec(level)
-    }
-    new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
-  }
 
   def withChunSize(cs: ChunkSize): NJAvro[F] =
     new NJAvro[F](configuration, schema, codecFactory, blockSizeHint, cs)

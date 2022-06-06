@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.{KantanCompression, NJCompression}
 import com.github.chenharryhua.nanjin.pipes.KantanSerde
+import com.github.chenharryhua.nanjin.terminals.{KantanCompression, NJCompression}
 import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
 import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.sql.Dataset
@@ -47,6 +47,7 @@ final class SaveKantanCsv[F[_], A](
   def gzip: SaveKantanCsv[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveKantanCsv[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def snappy: SaveKantanCsv[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
 
   def withCompression(kc: KantanCompression): SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(kc))
 
