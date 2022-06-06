@@ -42,7 +42,8 @@ class RetryTest extends AnyFunSuite {
         .notice
         .updateConfig(_.withExponentialBackoff(1.second, 3))
         .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
-        .logOutput(_.asJson)
+        .logInput
+        .logOutput
         .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run(i, i, i, i, i))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -112,6 +113,8 @@ class RetryTest extends AnyFunSuite {
           IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
+        .logOutput(_.asJson)
+        .logInput(_.asJson)
         .run(1)
     }.compile.toVector.unsafeRunSync()
 
@@ -128,8 +131,8 @@ class RetryTest extends AnyFunSuite {
         gd.span("escalate-after-3-times")
           .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
-          .logInput(_.asJson)
-          .logOutput(_.asJson)
+          .logInput
+          .logOutput
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -152,7 +155,8 @@ class RetryTest extends AnyFunSuite {
       .eventStream(ag =>
         ag.span("null exception")
           .updateConfig(_.withCapDelay(1.second).withConstantDelay(100.second, 2))
-          .retry(IO.raiseError(new NullPointerException))
+          .retry(IO.raiseError[Int](new NullPointerException))
+          .logOutput
           .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -258,7 +262,7 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.second))
       .eventStream(_.nonStop(IO(1) >> IO.canceled))
       .interruptAfter(5.seconds)
-      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .evalMap(e => IO(decode[NJEvent](e.asJson.spaces2)).rethrow)
       .compile
       .toList
       .unsafeRunSync()

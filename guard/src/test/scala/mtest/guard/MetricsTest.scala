@@ -47,6 +47,22 @@ class MetricsTest extends AnyFunSuite {
     assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.nonEmpty))
   }
 
+  test("ongoing action alignment") {
+    sg.updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular).withMetricReport(1.second))
+      .eventStream { ag =>
+        val one = ag.span("one").expensive.run(IO(0) <* IO.sleep(10.minutes))
+        val two = ag.span("two").expensive.run(IO(0) <* IO.sleep(10.minutes))
+        IO.parSequenceN(2)(List(one, two))
+      }
+      .map(_.asJson.noSpaces)
+      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+      .evalTap(console.simple[IO])
+      .interruptAfter(5.seconds)
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
   test("reset") {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular))
