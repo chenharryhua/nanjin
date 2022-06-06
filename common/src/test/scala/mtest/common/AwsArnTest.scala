@@ -1,7 +1,6 @@
 package mtest.common
 
 import com.github.chenharryhua.nanjin.common.aws.*
-import com.github.chenharryhua.nanjin.common.NJCompression
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 

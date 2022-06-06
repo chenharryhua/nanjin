@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Reader
-import com.github.chenharryhua.nanjin.common.NJCompression
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.persist.saveRDD
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import io.circe.Encoder as JsonEncoder
 import org.apache.spark.streaming.dstream.DStream

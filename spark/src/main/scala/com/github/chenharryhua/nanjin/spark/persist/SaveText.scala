@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.{NJCompression, TextCompression}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, TextCompression}
 import org.apache.spark.rdd.RDD
 
 final class SaveText[F[_], A](val rdd: RDD[A], cfg: HoarderConfig, suffix: String) extends Serializable {

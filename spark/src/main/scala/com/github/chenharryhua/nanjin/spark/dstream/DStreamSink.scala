@@ -2,10 +2,9 @@ package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.data.Reader
 import cats.Endo
-import com.github.chenharryhua.nanjin.common.NJCompression
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner.Mark
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import io.circe.Encoder as JsonEncoder
 import org.apache.spark.streaming.dstream.DStream
@@ -29,7 +28,8 @@ final class DStreamSink[A](dstream: DStream[A], cfg: SDConfig) extends Serializa
 
 }
 
-final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg: SDConfig) extends Serializable {
+final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg: SDConfig)
+    extends Serializable {
   val params: SDParams = cfg.evalConfig
 
   private def updateConfig(f: Endo[SDConfig]): AvroDStreamSink[A] =
@@ -45,7 +45,8 @@ final class AvroDStreamSink[A](dstream: DStream[A], encoder: AvroEncoder[A], cfg
   def circe(path: NJPath)(implicit enc: JsonEncoder[A]): DStreamCirce[A] =
     new DStreamCirce[A](dstream, Reader(params.pathBuilder(path)), cfg, true)
 
-  def avro(path: NJPath): DStreamAvro[A] = new DStreamAvro[A](dstream, Reader(params.pathBuilder(path)), encoder, cfg)
+  def avro(path: NJPath): DStreamAvro[A] =
+    new DStreamAvro[A](dstream, Reader(params.pathBuilder(path)), encoder, cfg)
 
   def jackson(path: NJPath): DStreamJackson[A] =
     new DStreamJackson[A](dstream, Reader(params.pathBuilder(path)), encoder, cfg)

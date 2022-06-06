@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.common.NJCompression
+import com.github.chenharryhua.nanjin.terminals.NJCompression
 import io.scalaland.enumz.Enum
 import org.apache.avro.file.DataFileConstants
 import org.apache.avro.mapred.AvroOutputFormat
@@ -55,10 +55,11 @@ private[persist] object compressionConfig {
     val ecl: Enum[CompressionLevel] = Enum[CompressionLevel]
     compression match {
       case NJCompression.Uncompressed => CompressionCodecs.setCodecConfiguration(config, null)
-      case NJCompression.Snappy       => CompressionCodecs.setCodecConfiguration(config, classOf[SnappyCodec].getName)
-      case NJCompression.Bzip2        => CompressionCodecs.setCodecConfiguration(config, classOf[BZip2Codec].getName)
-      case NJCompression.Gzip         => CompressionCodecs.setCodecConfiguration(config, classOf[GzipCodec].getName)
-      case NJCompression.Lz4          => CompressionCodecs.setCodecConfiguration(config, classOf[Lz4Codec].getName)
+      case NJCompression.Snappy =>
+        CompressionCodecs.setCodecConfiguration(config, classOf[SnappyCodec].getName)
+      case NJCompression.Bzip2 => CompressionCodecs.setCodecConfiguration(config, classOf[BZip2Codec].getName)
+      case NJCompression.Gzip  => CompressionCodecs.setCodecConfiguration(config, classOf[GzipCodec].getName)
+      case NJCompression.Lz4   => CompressionCodecs.setCodecConfiguration(config, classOf[Lz4Codec].getName)
       case NJCompression.Deflate(level) =>
         ZlibFactory.setCompressionLevel(config, ecl.withIndex(level))
         CompressionCodecs.setCodecConfiguration(config, classOf[DeflateCodec].getName)

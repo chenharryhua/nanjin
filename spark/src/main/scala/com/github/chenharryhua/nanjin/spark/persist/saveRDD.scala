@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.common.{NJCompression, NJFileFormat}
-import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPERATOR
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPERATOR, NJCompression}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
 import io.circe.{Encoder as JsonEncoder, Json}
@@ -21,7 +21,9 @@ import java.io.ByteArrayOutputStream
 
 private[spark] object saveRDD {
 
-  private def genericRecordPair[A](rdd: RDD[A], enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] =
+  private def genericRecordPair[A](
+    rdd: RDD[A],
+    enc: AvroEncoder[A]): RDD[(AvroKey[GenericRecord], NullWritable)] =
     rdd.mapPartitions { rcds =>
       val to: ToRecord[A] = ToRecord[A](enc)
       rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
@@ -66,8 +68,13 @@ private[spark] object saveRDD {
         config)
   }
 
-  def circe[A: JsonEncoder](rdd: RDD[A], path: NJPath, compression: NJCompression, isKeepNull: Boolean): Unit = {
-    val encode: A => Json = a => if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
+  def circe[A: JsonEncoder](
+    rdd: RDD[A],
+    path: NJPath,
+    compression: NJCompression,
+    isKeepNull: Boolean): Unit = {
+    val encode: A => Json = a =>
+      if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Circe.suffix)
@@ -75,7 +82,12 @@ private[spark] object saveRDD {
     // run
     rdd
       .map(x => (NullWritable.get(), new Text(encode(x).noSpaces + NEWLINE_SEPERATOR)))
-      .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
+      .saveAsNewAPIHadoopFile(
+        path.pathStr,
+        classOf[NullWritable],
+        classOf[Text],
+        classOf[NJTextOutputFormat],
+        config)
   }
 
   def jackson[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
@@ -93,7 +105,8 @@ private[spark] object saveRDD {
       job.getConfiguration)
   }
 
-  def protobuf[A](rdd: RDD[A], path: NJPath, compression: NJCompression)(implicit enc: A <:< GeneratedMessage): Unit = {
+  def protobuf[A](rdd: RDD[A], path: NJPath, compression: NJCompression)(implicit
+    enc: A <:< GeneratedMessage): Unit = {
     def bytesWritable(a: A): BytesWritable = {
       val os: ByteArrayOutputStream = new ByteArrayOutputStream
       enc(a).writeDelimitedTo(os)
@@ -123,7 +136,12 @@ private[spark] object saveRDD {
     // run
     rdd
       .map(a => (NullWritable.get(), new Text(a.show + NEWLINE_SEPERATOR)))
-      .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
+      .saveAsNewAPIHadoopFile(
+        path.pathStr,
+        classOf[NullWritable],
+        classOf[Text],
+        classOf[NJTextOutputFormat],
+        config)
   }
 
   def csv[A](
@@ -139,6 +157,11 @@ private[spark] object saveRDD {
     // run
     rdd
       .mapPartitions(iter => new KantanCsvIterator[A](encoder, csvCfg, iter), preservesPartitioning = true)
-      .saveAsNewAPIHadoopFile(path.pathStr, classOf[NullWritable], classOf[Text], classOf[NJTextOutputFormat], config)
+      .saveAsNewAPIHadoopFile(
+        path.pathStr,
+        classOf[NullWritable],
+        classOf[Text],
+        classOf[NJTextOutputFormat],
+        config)
   }
 }

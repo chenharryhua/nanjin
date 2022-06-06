@@ -3,8 +3,7 @@ package mtest.terminals
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.{AvroCompression, NJCompression}
-import com.github.chenharryhua.nanjin.terminals.{NJAvro, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{AvroCompression, NJAvro, NJCompression, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.file.CodecFactory
@@ -29,7 +28,7 @@ class NJAvroTest extends AnyFunSuite {
   def akka(path: NJPath, ac: AvroCompression, data: Set[GenericRecord]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts   = Source(data)
-    val sink = avro.withCodecFactory(ac).akka.sink(path)
+    val sink = avro.withCodecFactory(ac.codecFactory).akka.sink(path)
     val src  = avro.akka.source(path)
     val action = IO.fromFuture(IO(ts.runWith(sink))) >>
       IO.fromFuture(IO(src.runFold(Set.empty[GenericRecord])(_ + _)))

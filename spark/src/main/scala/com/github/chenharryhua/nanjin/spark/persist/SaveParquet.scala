@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.{NJCompression, ParquetCompression}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, ParquetCompression}
 import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.spark.sql.Dataset

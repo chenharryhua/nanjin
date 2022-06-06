@@ -1,9 +1,10 @@
-package mtest.common
+package mtest.terminals
 
-import com.github.chenharryhua.nanjin.common.*
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.*
 import io.circe.parser.decode
-import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.syntax.*
 
 class NJCompressionTest extends AnyFunSuite {
   test("json") {
@@ -34,5 +35,9 @@ class NJCompressionTest extends AnyFunSuite {
 
     assert(decode[CirceCompression](""" "lzo" """).toOption.isEmpty)
     assert(decode[CirceCompression](""" "gzip" """).toOption.nonEmpty)
+  }
+  test("filename") {
+    assert(NJCompression.Snappy.fileName(NJFileFormat.Avro) === "snappy.data.avro")
+    assert(NJCompression.Snappy.fileName(NJFileFormat.Circe) === "circe.json.snappy")
   }
 }

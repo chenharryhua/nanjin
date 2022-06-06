@@ -3,7 +3,7 @@ package mtest.terminals
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{NJParquet, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJParquet, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.GenericRecord
@@ -38,11 +38,11 @@ class NJParquetTest extends AnyFunSuite {
   val fs2Root: NJPath  = NJPath("./data/test/terminals/parquet/fs2")
 
   test("parquet snappy") {
-    fs2(fs2Root / "panda.snappy.parquet", CompressionCodecName.SNAPPY, pandaSet)
+    fs2(fs2Root / "panda.snappy.parquet", NJCompression.Snappy.codecName, pandaSet)
     akka(akkaRoot / "panda.snappy.parquet", CompressionCodecName.SNAPPY, pandaSet)
   }
   test("parquet gzip") {
-    fs2(fs2Root / "panda.gzip.parquet", CompressionCodecName.GZIP, pandaSet)
+    fs2(fs2Root / "panda.gzip.parquet", NJCompression.Gzip.codecName, pandaSet)
     akka(akkaRoot / "panda.gzip.parquet", CompressionCodecName.GZIP, pandaSet)
   }
 
