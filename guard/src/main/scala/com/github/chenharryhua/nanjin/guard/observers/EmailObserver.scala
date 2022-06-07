@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.amazonaws.services.simpleemail.model.SendEmailResult
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
@@ -10,7 +11,7 @@ import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.{EmailContent, SnsArn}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
-import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
 import eu.timepit.refined.auto.*
 import fs2.{Chunk, INothing, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
@@ -64,32 +65,59 @@ final class SesEmailObserver[F[_]](
     copy(translator = f(translator))
 
   private def publish(
-    events: Chunk[Text.TypedTag[String]],
+    eventTags: Chunk[(Text.TypedTag[String], ColorScheme)],
     ses: SimpleEmailService[F],
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
     subject: String): F[Either[Throwable, SendEmailResult]] = {
+    val (warns, errors) = eventTags.foldLeft((0, 0)) { case ((w, e), i) =>
+      i._2 match {
+        case ColorScheme.GoodColor  => (w, e)
+        case ColorScheme.InfoColor  => (w, e)
+        case ColorScheme.WarnColor  => (w + 1, e)
+        case ColorScheme.ErrorColor => (w, e + 1)
+      }
+    }
+
+    val notice =
+      if ((warns + errors) > 0) h2(style := "color:red")(s"Pay Attention - $errors Errors, $warns Warnings")
+      else h2("All Good")
+
     val text: List[Text.TypedTag[String]] =
-      if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-    val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+      if (isNewestFirst) eventTags.map(tag => hr(tag._1)).toList.reverse
+      else eventTags.map(tag => hr(tag._1)).toList
+    val content = html(
+      body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
     ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt
   }
 
   def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, INothing] = {
-    (es: Stream[F, NJEvent]) =>
-      val compu = for {
+    (events: Stream[F, NJEvent]) =>
+      val computation = for {
         ses <- Stream.resource(client)
         ofm <- Stream.eval(
           F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
-        _ <- es
+        _ <- events
           .evalTap(ofm.monitoring)
-          .evalMap(translator.translate)
+          .evalMap(evt =>
+            translator.translate(evt).map(_.map(tags => (tags, ColorScheme.decorate(evt).eval.value))))
           .unNone
           .groupWithin(chunkSize.value, interval)
           .evalTap(publish(_, ses, from, to, subject).void)
-          .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, ses, from, to, subject).void))
+          .onFinalizeCase(exitCase =>
+            ofm.terminated(exitCase).flatMap { chk =>
+              val tags: Chunk[(Text.TypedTag[String], ColorScheme)] = chk.map(tag =>
+                (
+                  tag,
+                  exitCase match {
+                    case ExitCase.Succeeded  => ColorScheme.GoodColor
+                    case ExitCase.Errored(_) => ColorScheme.ErrorColor
+                    case ExitCase.Canceled   => ColorScheme.ErrorColor
+                  }))
+              publish(tags, ses, from, to, subject).void
+            })
       } yield ()
-      compu.drain
+      computation.drain
   }
 }
 
