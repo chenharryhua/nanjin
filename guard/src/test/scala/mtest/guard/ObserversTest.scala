@@ -101,8 +101,8 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("ses")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
-      .eventStream(_.span("mail").critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
-      .take(2)
+      .eventStream(_.span("mail").critical.run(IO.raiseError(new Exception)).delayBy(1.seconds).foreverM)
+      .take(9)
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
       .compile
       .drain

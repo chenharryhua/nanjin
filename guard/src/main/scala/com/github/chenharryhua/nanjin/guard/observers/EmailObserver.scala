@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.{EmailContent, SnsArn}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
-import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
 import eu.timepit.refined.auto.*
 import fs2.{Chunk, INothing, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
@@ -64,14 +64,29 @@ final class SesEmailObserver[F[_]](
     copy(translator = f(translator))
 
   private def publish(
-    events: Chunk[Text.TypedTag[String]],
+    events: Chunk[(Text.TypedTag[String], ColorScheme)],
     ses: SimpleEmailService[F],
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
     subject: String): F[Either[Throwable, SendEmailResult]] = {
+    val (warns, errors) = events.foldLeft((0, 0)) { case ((w, e), i) =>
+      i._2 match {
+        case ColorScheme.GoodColor  => (w, e)
+        case ColorScheme.InfoColor  => (w, e)
+        case ColorScheme.WarnColor  => (w + 1, e)
+        case ColorScheme.ErrorColor => (w, e + 1)
+      }
+    }
+
+    val notice =
+      if ((warns + errors) > 0) h2(style := "color:red")(s"Pay Attention - $errors Errors, $warns Warnings")
+      else h2("No Error")
+
     val text: List[Text.TypedTag[String]] =
-      if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-    val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
+      if (isNewestFirst) events.map(tag => hr(tag._1)).toList.reverse
+      else events.map(tag => hr(tag._1)).toList
+    val content = html(
+      body(notice, text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
     ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt
   }
 
@@ -83,11 +98,14 @@ final class SesEmailObserver[F[_]](
           F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
         _ <- es
           .evalTap(ofm.monitoring)
-          .evalMap(translator.translate)
+          .evalMap(evt =>
+            translator.translate(evt).map(_.map(tag => (tag, ColorScheme.decorate(evt).eval.value))))
           .unNone
           .groupWithin(chunkSize.value, interval)
           .evalTap(publish(_, ses, from, to, subject).void)
-          .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, ses, from, to, subject).void))
+          .onFinalizeCase(ofm
+            .terminated(_)
+            .flatMap(chk => publish(chk.map((_, ColorScheme.ErrorColor)), ses, from, to, subject).void))
       } yield ()
       compu.drain
   }
