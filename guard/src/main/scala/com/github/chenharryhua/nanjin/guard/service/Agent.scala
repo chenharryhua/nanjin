@@ -25,6 +25,8 @@ final class Agent[F[_]] private[service] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, Agent[F]] {
 
+  // parameters
+
   lazy val agentParams: AgentParams     = agentConfig.evalConfig
   lazy val serviceParams: ServiceParams = agentParams.serviceParams
 
@@ -43,6 +45,19 @@ final class Agent[F[_]] private[service] (
 
   def expensive: Agent[F] = updateConfig(_.withExpensive(isCostly = true))
   def cheap: Agent[F]     = updateConfig(_.withExpensive(isCostly = false))
+
+  // retries
+
+  def retry[Z](fb: F[Z]): NJRetryUnit[F, Z] = // 0 arity
+    new NJRetryUnit[F, Z](
+      serviceStatus = serviceStatus,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionParams = ActionParams(agentParams),
+      arrow = fb,
+      transInput = F.pure(Json.Null),
+      transOutput = _ => F.pure(Json.Null),
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, Z](f: A => F[Z]): NJRetry[F, A, Z] =
     new NJRetry[F, A, Z](
@@ -63,7 +78,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = (_: Tuple2[A, B], _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, (A, B, C), Z] =
@@ -74,7 +89,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = (_: Tuple3[A, B, C], _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, (A, B, C, D), Z] =
@@ -85,7 +100,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = (_: Tuple4[A, B, C, D], _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, (A, B, C, D, E), Z] =
@@ -96,26 +111,30 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = (_: Tuple5[A, B, C, D, E], _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
-  def retry[B](fb: F[B]): NJRetryUnit[F, B] =
-    new NJRetryUnit[F, B](
-      serviceStatus = serviceStatus,
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = ActionParams(agentParams),
-      arrow = fb,
-      transInput = F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+  // future
 
-  def run[B](fb: F[B]): F[B]             = retry(fb).run
-  def run[B](sfb: Stream[F, B]): F[Unit] = run(sfb.compile.drain)
+  def retryFuture[Z](future: F[Future[Z]]): NJRetryUnit[F, Z] = // 0 arity
+    retry(F.fromFuture(future))
 
-  def retryFuture[A, B](f: A => Future[B]): NJRetry[F, A, B]  = retry((a: A) => F.fromFuture(F.delay(f(a))))
-  def retryFuture[B](future: F[Future[B]]): NJRetryUnit[F, B] = retry(F.fromFuture(future))
-  def runFuture[B](future: F[Future[B]]): F[B]                = retryFuture(future).run
+  def retryFuture[A, Z](f: A => Future[Z]): NJRetry[F, A, Z] =
+    retry((a: A) => F.fromFuture(F.delay(f(a))))
+
+  def retryFuture[A, B, Z](f: (A, B) => Future[Z]): NJRetry[F, (A, B), Z] =
+    retry((a: A, b: B) => F.fromFuture(F.delay(f(a, b))))
+
+  def retryFuture[A, B, C, Z](f: (A, B, C) => Future[Z]): NJRetry[F, (A, B, C), Z] =
+    retry((a: A, b: B, c: C) => F.fromFuture(F.delay(f(a, b, c))))
+
+  def retryFuture[A, B, C, D, Z](f: (A, B, C, D) => Future[Z]): NJRetry[F, (A, B, C, D), Z] =
+    retry((a: A, b: B, c: C, d: D) => F.fromFuture(F.delay(f(a, b, c, d))))
+
+  def retryFuture[A, B, C, D, E, Z](f: (A, B, C, D, E) => Future[Z]): NJRetry[F, (A, B, C, D, E), Z] =
+    retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
+
+  // others
 
   def broker(brokerName: Span): NJBroker[F] =
     new NJBroker[F](
@@ -161,6 +180,12 @@ final class Agent[F[_]] private[service] (
         serviceStatus = serviceStatus))
 
   lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
+
+  // for convenience
+
+  def run[Z](fb: F[Z]): F[Z]                   = retry(fb).run
+  def run[Z](sfb: Stream[F, Z]): F[Unit]       = run(sfb.compile.drain)
+  def runFuture[Z](future: F[Future[Z]]): F[Z] = retryFuture(future).run
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     updateConfig(

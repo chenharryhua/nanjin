@@ -26,7 +26,7 @@ class RetryTest extends AnyFunSuite {
       gd.span("succ-trivial")
         .updateConfig(_.withFullJitterBackoff(1.second, 3))
         .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
-        .logOutput(_.asJson)
+        .logOutput((a, b) => a.asJson)
         .withWorthRetry(_ => true)
         .run(1, 1, 1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -43,7 +43,6 @@ class RetryTest extends AnyFunSuite {
         .updateConfig(_.withExponentialBackoff(1.second, 3))
         .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
         .logInput
-        .logOutput
         .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run(i, i, i, i, i))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -65,10 +64,8 @@ class RetryTest extends AnyFunSuite {
         .notice
         .updateConfig(_.withConstantDelay(0.1.second, 1))
         .retry((x: Int, y: Int, z: Int) => IO.raiseError[Int](new Exception))
-        .logOutput
         .logOutput((in, out) => (in._3, out).asJson)
         .logOutput((in, out) => (in, out).asJson)
-        .logOutput(_.asJson)
 
       List(1, 2, 3).traverse(i => ag.run((i, i, i)).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -98,8 +95,6 @@ class RetryTest extends AnyFunSuite {
             i += 1; throw new Exception
           } else i))
         .logOutput((a, b) => a.asJson)
-        .logOutput
-        .logOutput(_.asJson)
         .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -120,7 +115,6 @@ class RetryTest extends AnyFunSuite {
           IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
-        .logOutput(_.asJson)
         .logInput(_.asJson)
         .run(1)
     }.compile.toVector.unsafeRunSync()
@@ -139,7 +133,6 @@ class RetryTest extends AnyFunSuite {
           .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .retry((x: Int) => IO.raiseError[Int](new Exception("oops")))
           .logInput
-          .logOutput
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)

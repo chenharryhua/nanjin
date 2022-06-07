@@ -47,8 +47,7 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
   def logInput(implicit ev: Encoder[IN]): NJRetry[F, IN, OUT] = logInputM((a: IN) => F.pure(ev(a)))
 
   def logOutputM(f: (IN, OUT) => F[Json]): NJRetry[F, IN, OUT] = copy(transOutput = f)
-  def logOutput(f: (IN, OUT) => Json): NJRetry[F, IN, OUT] = logOutputM((a: IN, b: OUT) => F.pure(f(a, b)))
-  def logOutput(implicit ev: Encoder[OUT]): NJRetry[F, IN, OUT] = logOutputM((_, b: OUT) => F.pure(ev(b)))
+  def logOutput(f: (IN, OUT) => Json): NJRetry[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
   private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
