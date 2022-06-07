@@ -16,20 +16,20 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
-final class NJRetry[F[_], A, B] private[guard] (
+final class NJRetry[F[_], IN, OUT] private[guard] (
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  arrow: A => F[B],
-  transInput: A => F[Json],
-  transOutput: B => F[Json],
+  arrow: IN => F[OUT],
+  transInput: IN => F[Json],
+  transOutput: (IN, OUT) => F[Json],
   isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
-    transInput: A => F[Json] = transInput,
-    transOutput: B => F[Json] = transOutput,
-    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, A, B] =
-    new NJRetry[F, A, B](
+    transInput: IN => F[Json] = transInput,
+    transOutput: (IN, OUT) => F[Json] = transOutput,
+    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, IN, OUT] =
+    new NJRetry[F, IN, OUT](
       serviceStatus,
       metricRegistry,
       channel,
@@ -39,14 +39,16 @@ final class NJRetry[F[_], A, B] private[guard] (
       transOutput,
       isWorthRetry)
 
-  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry[F, A, B] = copy(isWorthRetry = Kleisli(f))
-  def withWorthRetry(f: Throwable => Boolean): NJRetry[F, A, B] = withWorthRetryM(Kleisli.fromFunction(f).run)
+  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry[F, IN, OUT] = copy(isWorthRetry = Kleisli(f))
+  def withWorthRetry(f: Throwable => Boolean): NJRetry[F, IN, OUT] = withWorthRetryM(
+    Kleisli.fromFunction(f).run)
 
-  def logInputM(f: A => F[Json]): NJRetry[F, A, B]        = copy(transInput = f)
-  def logInput(implicit ev: Encoder[A]): NJRetry[F, A, B] = logInputM((a: A) => F.pure(ev(a)))
+  def logInputM(f: IN => F[Json]): NJRetry[F, IN, OUT]        = copy(transInput = f)
+  def logInput(implicit ev: Encoder[IN]): NJRetry[F, IN, OUT] = logInputM((a: IN) => F.pure(ev(a)))
 
-  def logOutputM(f: B => F[Json]): NJRetry[F, A, B]        = copy(transOutput = f)
-  def logOutput(implicit ev: Encoder[B]): NJRetry[F, A, B] = logOutputM((b: B) => F.pure(ev(b)))
+  def logOutputM(f: (IN, OUT) => F[Json]): NJRetry[F, IN, OUT] = copy(transOutput = f)
+  def logOutput(f: (IN, OUT) => Json): NJRetry[F, IN, OUT] = logOutputM((a: IN, b: OUT) => F.pure(f(a, b)))
+  def logOutput(implicit ev: Encoder[OUT]): NJRetry[F, IN, OUT] = logOutputM((_, b: OUT) => F.pure(ev(b)))
 
   private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
   private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
@@ -62,13 +64,13 @@ final class NJRetry[F[_], A, B] private[guard] (
     }
   }
 
-  def run(input: A): F[B] = for {
+  def run(input: IN): F[OUT] = for {
     publisher <- F
       .ref(0)
       .map(retryCounter => new ActionEventPublisher[F](serviceStatus, channel, retryCounter))
     actionInfo <- publisher.actionStart(actionParams, transInput(input))
     res <- retry.mtl
-      .retryingOnSomeErrors[B]
+      .retryingOnSomeErrors[OUT]
       .apply[F, Throwable](
         actionParams.retry.policy[F],
         isWorthRetry.run,
@@ -89,55 +91,54 @@ final class NJRetry[F[_], A, B] private[guard] (
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
-            .actionSucc(actionInfo, output.flatMap(transOutput))
+            .actionSucc(actionInfo, output.flatMap(transOutput(input, _)))
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
   } yield res
 }
 
-final class NJRetryUnit[F[_], B] private[guard] (
+final class NJRetryUnit[F[_], OUT] private[guard] (
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  fb: F[B],
+  arrow: F[OUT],
   transInput: F[Json],
-  transOutput: B => F[Json],
+  transOutput: OUT => F[Json],
   isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
     transInput: F[Json] = transInput,
-    transOutput: B => F[Json] = transOutput,
-    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, B] =
-    new NJRetryUnit[F, B](
+    transOutput: OUT => F[Json] = transOutput,
+    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, OUT] =
+    new NJRetryUnit[F, OUT](
       serviceStatus,
       metricRegistry,
       channel,
       actionParams,
-      fb,
+      arrow,
       transInput,
       transOutput,
       isWorthRetry)
 
-  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetryUnit[F, B] = copy(isWorthRetry = Kleisli(f))
-  def withWorthRetry(f: Throwable => Boolean): NJRetryUnit[F, B] = withWorthRetryM(
+  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetryUnit[F, OUT] = copy(isWorthRetry = Kleisli(f))
+  def withWorthRetry(f: Throwable => Boolean): NJRetryUnit[F, OUT] = withWorthRetryM(
     Kleisli.fromFunction(f).run)
 
-  def logInputM(info: F[Json]): NJRetryUnit[F, B] = copy(transInput = info)
-  def logInput(info: Json): NJRetryUnit[F, B]     = logInputM(F.pure(info))
+  def logInputM(info: F[Json]): NJRetryUnit[F, OUT] = copy(transInput = info)
+  def logInput(info: Json): NJRetryUnit[F, OUT]     = logInputM(F.pure(info))
 
-  def logOutputM(f: B => F[Json]): NJRetryUnit[F, B]        = copy(transOutput = f)
-  def logOutput(implicit ev: Encoder[B]): NJRetryUnit[F, B] = logOutputM((b: B) => F.pure(ev(b)))
+  def logOutputM(f: OUT => F[Json]): NJRetryUnit[F, OUT]        = copy(transOutput = f)
+  def logOutput(implicit ev: Encoder[OUT]): NJRetryUnit[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
-  val run: F[B] =
-    new NJRetry[F, Unit, B](
+  val run: F[OUT] =
+    new NJRetry[F, Unit, OUT](
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = actionParams,
-      arrow = _ => fb,
+      arrow = _ => arrow,
       transInput = _ => transInput,
-      transOutput = transOutput,
+      transOutput = (_, b: OUT) => transOutput(b),
       isWorthRetry = isWorthRetry
     ).run(())
-
 }

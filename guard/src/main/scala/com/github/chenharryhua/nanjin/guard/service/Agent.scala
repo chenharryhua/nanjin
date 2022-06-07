@@ -52,7 +52,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f,
       transInput = _ => F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
+      transOutput = (_: A, _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, B, Z](f: (A, B) => F[Z]): NJRetry[F, (A, B), Z] =
@@ -63,7 +63,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
+      transOutput = (_: Tuple2[A, B], _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, (A, B, C), Z] =
@@ -74,7 +74,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
+      transOutput = (_: Tuple3[A, B, C], _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, (A, B, C, D), Z] =
@@ -85,7 +85,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
+      transOutput = (_: Tuple4[A, B, C, D], _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, (A, B, C, D, E), Z] =
@@ -96,7 +96,7 @@ final class Agent[F[_]] private[service] (
       actionParams = ActionParams(agentParams),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
+      transOutput = (_: Tuple5[A, B, C, D, E], _: Z) => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
 
   def retry[B](fb: F[B]): NJRetryUnit[F, B] =
@@ -105,7 +105,7 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = ActionParams(agentParams),
-      fb = fb,
+      arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
