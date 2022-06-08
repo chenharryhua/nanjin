@@ -6,7 +6,8 @@ import org.typelevel.log4cats.extras.LogLevel
 
 import scala.collection.immutable
 
-sealed abstract class NJLogLevel(val value: Int, val logLevel: LogLevel) extends EnumEntry with Serializable
+sealed abstract class NJLogLevel(val value: Int, val logLevel: LogLevel)
+    extends EnumEntry with Product with Serializable
 
 object NJLogLevel extends Enum[NJLogLevel] with CirceEnum[NJLogLevel] with CatsEnum[NJLogLevel] {
   override val values: immutable.IndexedSeq[NJLogLevel] = findValues

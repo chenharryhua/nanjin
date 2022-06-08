@@ -269,6 +269,7 @@ class RetryTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionFail])
     assert(c.isInstanceOf[ServiceStop])
+    assert(a.productPrefix == "ServiceStart")
   }
 
   test("15.quasi syntax") {

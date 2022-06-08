@@ -8,7 +8,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
 import scala.util.Try
 
-sealed trait NJCompression {
+sealed trait NJCompression extends Product with Serializable {
   def shortName: String
   def fileExtension: String
 

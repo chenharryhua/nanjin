@@ -35,6 +35,6 @@ class NJLogLevelTest extends AnyFunSuite {
     assert(l6.asJson.noSpaces === """ "ERROR" """.trim)
     assert(l7.asJson.noSpaces === """ "FATAL" """.trim)
     assert(l8.asJson.noSpaces === """ "OFF" """.trim)
-
+    assert(l1.productPrefix === "ALL")
   }
 }

@@ -6,7 +6,7 @@ import shapeless.{:+:, CNil}
 import scala.collection.immutable
 
 sealed abstract class NJFileFormat(val value: Int, val format: String, val alias: String)
-    extends EnumEntry with Serializable {
+    extends EnumEntry with Product with Serializable {
 
   final def suffix: String = s"$alias.$format"
 

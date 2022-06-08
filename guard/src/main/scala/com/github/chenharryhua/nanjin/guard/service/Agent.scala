@@ -48,8 +48,8 @@ final class Agent[F[_]] private[service] (
 
   // retries
 
-  def retry[Z](fb: F[Z]): NJRetryUnit[F, Z] = // 0 arity
-    new NJRetryUnit[F, Z](
+  def retry[Z](fb: F[Z]): NJRetry0[F, Z] = // 0 arity
+    new NJRetry0[F, Z](
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -116,7 +116,7 @@ final class Agent[F[_]] private[service] (
 
   // future
 
-  def retryFuture[Z](future: F[Future[Z]]): NJRetryUnit[F, Z] = // 0 arity
+  def retryFuture[Z](future: F[Future[Z]]): NJRetry0[F, Z] = // 0 arity
     retry(F.fromFuture(future))
 
   def retryFuture[A, Z](f: A => Future[Z]): NJRetry[F, A, Z] =
