@@ -4,7 +4,7 @@ import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract class HttpProtocols(val value: String) extends EnumEntry with Serializable
+sealed abstract class HttpProtocols(val value: String) extends EnumEntry with Product with Serializable
 
 object HttpProtocols extends Enum[HttpProtocols] with CatsEnum[HttpProtocols] with CirceEnum[HttpProtocols] {
   override val values: immutable.IndexedSeq[HttpProtocols] = findValues
@@ -16,7 +16,7 @@ object HttpProtocols extends Enum[HttpProtocols] with CatsEnum[HttpProtocols] wi
   type HTTPS = HTTPS.type
 }
 
-sealed abstract class S3Protocols(val value: String) extends EnumEntry with Serializable
+sealed abstract class S3Protocols(val value: String) extends EnumEntry with Product with Serializable
 
 object S3Protocols extends Enum[S3Protocols] with CatsEnum[S3Protocols] with CirceEnum[S3Protocols] {
   override val values: immutable.IndexedSeq[S3Protocols] = findValues
@@ -28,7 +28,7 @@ object S3Protocols extends Enum[S3Protocols] with CatsEnum[S3Protocols] with Cir
   type S3A = S3A.type
 }
 
-sealed abstract class FtpProtocols(val value: String) extends EnumEntry with Serializable
+sealed abstract class FtpProtocols(val value: String) extends EnumEntry with Product with Serializable
 
 object FtpProtocols extends Enum[FtpProtocols] with CatsEnum[FtpProtocols] with CirceEnum[FtpProtocols] {
   override val values: immutable.IndexedSeq[FtpProtocols] = findValues

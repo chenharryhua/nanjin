@@ -23,7 +23,7 @@ private[guard] object NJError {
 }
 
 @JsonCodec
-sealed trait MetricResetType
+sealed trait MetricResetType extends Product with Serializable
 object MetricResetType extends localdatetime {
   implicit final val showMetricResetType: Show[MetricResetType] = {
     case Adhoc => s"Adhoc Metric Reset"
@@ -35,7 +35,7 @@ object MetricResetType extends localdatetime {
 }
 
 @JsonCodec
-sealed trait MetricReportType {
+sealed trait MetricReportType extends Product with Serializable {
   def isShow: Boolean
   def snapshotType: MetricSnapshotType
 
@@ -78,7 +78,7 @@ object OngoingAction extends zoneddatetime {
 }
 
 @JsonCodec
-sealed trait ServiceStopCause {
+sealed trait ServiceStopCause extends Product with Serializable {
   def exitCode: Int
 
   final override def toString: String = this match {

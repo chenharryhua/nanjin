@@ -13,7 +13,7 @@ import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
 @JsonCodec
-sealed trait NJEvent {
+sealed trait NJEvent extends Product with Serializable {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
   def title: String

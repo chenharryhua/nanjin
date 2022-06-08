@@ -35,6 +35,8 @@ class NJCompressionTest extends AnyFunSuite {
 
     assert(decode[CirceCompression](""" "lzo" """).toOption.isEmpty)
     assert(decode[CirceCompression](""" "gzip" """).toOption.nonEmpty)
+    assert(c10.productPrefix === "Zstandard")
+    assert(c7.productPrefix == "Lzo")
   }
   test("filename") {
     assert(NJCompression.Snappy.fileName(NJFileFormat.Avro) === "snappy.data.avro")

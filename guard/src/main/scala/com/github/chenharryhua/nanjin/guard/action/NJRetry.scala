@@ -96,7 +96,7 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
   } yield res
 }
 
-final class NJRetryUnit[F[_], OUT] private[guard] (
+final class NJRetry0[F[_], OUT] private[guard] (
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -108,8 +108,8 @@ final class NJRetryUnit[F[_], OUT] private[guard] (
   private def copy(
     transInput: F[Json] = transInput,
     transOutput: OUT => F[Json] = transOutput,
-    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetryUnit[F, OUT] =
-    new NJRetryUnit[F, OUT](
+    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry0[F, OUT] =
+    new NJRetry0[F, OUT](
       serviceStatus,
       metricRegistry,
       channel,
@@ -119,15 +119,14 @@ final class NJRetryUnit[F[_], OUT] private[guard] (
       transOutput,
       isWorthRetry)
 
-  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetryUnit[F, OUT] = copy(isWorthRetry = Kleisli(f))
-  def withWorthRetry(f: Throwable => Boolean): NJRetryUnit[F, OUT] = withWorthRetryM(
-    Kleisli.fromFunction(f).run)
+  def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry0[F, OUT] = copy(isWorthRetry = Kleisli(f))
+  def withWorthRetry(f: Throwable => Boolean): NJRetry0[F, OUT] = withWorthRetryM(Kleisli.fromFunction(f).run)
 
-  def logInputM(info: F[Json]): NJRetryUnit[F, OUT] = copy(transInput = info)
-  def logInput(info: Json): NJRetryUnit[F, OUT]     = logInputM(F.pure(info))
+  def logInputM(info: F[Json]): NJRetry0[F, OUT] = copy(transInput = info)
+  def logInput(info: Json): NJRetry0[F, OUT]     = logInputM(F.pure(info))
 
-  def logOutputM(f: OUT => F[Json]): NJRetryUnit[F, OUT]        = copy(transOutput = f)
-  def logOutput(implicit ev: Encoder[OUT]): NJRetryUnit[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
+  def logOutputM(f: OUT => F[Json]): NJRetry0[F, OUT]        = copy(transOutput = f)
+  def logOutput(implicit ev: Encoder[OUT]): NJRetry0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
   val run: F[OUT] =
     new NJRetry[F, Unit, OUT](
