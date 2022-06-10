@@ -5,7 +5,7 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.stage.*
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{INothing, Pipe, Pull, Stream}
+import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
@@ -30,8 +30,8 @@ final class NJAvro[F[_]] private (
   def withBlockSizeHint(bsh: Long): NJAvro[F] =
     new NJAvro[F](configuration, schema, codecFactory, bsh, chunkSize)
 
-  def sink(path: NJPath): Pipe[F, GenericRecord, INothing] = {
-    def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, INothing, Unit] =
+  def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = {
+    def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Nothing, Unit] =
       grs.pull.uncons.flatMap {
         case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
         case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done

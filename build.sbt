@@ -49,7 +49,7 @@ lazy val commonSettings = Seq(
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.235")
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.237")
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
@@ -113,7 +113,7 @@ val fs2Lib = Seq(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.7")
+).map(_ % "3.2.8")
 
 val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-core",

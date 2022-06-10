@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
-import fs2.{INothing, Stream}
+import fs2.Stream
 import fs2.concurrent.Channel
 import retry.RetryDetails
 
@@ -67,7 +67,7 @@ final class ServiceGuard[F[_]] private[guard] (
         channel =>
           val metricRegistry: MetricRegistry = new MetricRegistry
 
-          val runningService: Stream[F, INothing] = Stream
+          val runningService: Stream[F, Nothing] = Stream
             .eval[F, A] {
               val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
 
@@ -97,7 +97,7 @@ final class ServiceGuard[F[_]] private[guard] (
           val metricEventPublisher: MetricEventPublisher[F] =
             new MetricEventPublisher[F](channel, metricRegistry, serviceStatus)
 
-          val metricsReport: Stream[F, INothing] =
+          val metricsReport: Stream[F, Nothing] =
             serviceParams.metric.reportSchedule match {
               case Some(ScheduleType.Fixed(dur)) =>
                 // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
@@ -121,11 +121,11 @@ final class ServiceGuard[F[_]] private[guard] (
               case None => Stream.empty
             }
 
-          val metricsReset: Stream[F, INothing] = serviceParams.metric.resetSchedule.fold(
+          val metricsReset: Stream[F, Nothing] = serviceParams.metric.resetSchedule.fold(
             Stream.empty.covary[F])(cron =>
             cronScheduler.awakeEvery(cron).evalMap(_ => metricEventPublisher.metricsReset(Some(cron))).drain)
 
-          val jmxReporting: Stream[F, INothing] =
+          val jmxReporting: Stream[F, Nothing] =
             jmxBuilder match {
               case None => Stream.empty
               case Some(builder) =>
