@@ -50,4 +50,15 @@ class RetryPolicyTest extends AnyFunSuite {
       "jitterBackoff(minDelay=2 seconds, maxDelay=5 seconds).meet(constantDelay(1 second)).join(limitRetries(maxRetries=1))"
     assert(ActionRetryParams(Some(1), Some(1.second.toJava), p).policy[IO].show === res)
   }
+  test("8.max=Some(1),cap=Some(1 sec),policy=Exp") {
+    val p = NJRetryPolicy.ExponentialBackoff(2.second.toJava)
+    val res =
+      "exponentialBackOff(baseDelay=2 seconds).meet(constantDelay(1 second)).join(limitRetries(maxRetries=1))"
+    assert(ActionRetryParams(Some(1), Some(1.second.toJava), p).policy[IO].show === res)
+  }
+  test("9.max=Some(1),cap=Some(1 sec),policy=FullJitter") {
+    val p   = NJRetryPolicy.FullJitter(2.second.toJava)
+    val res = "fullJitter(baseDelay=2 seconds).meet(constantDelay(1 second)).join(limitRetries(maxRetries=1))"
+    assert(ActionRetryParams(Some(1), Some(1.second.toJava), p).policy[IO].show === res)
+  }
 }

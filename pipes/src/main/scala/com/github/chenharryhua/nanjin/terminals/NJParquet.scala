@@ -6,7 +6,7 @@ import akka.stream.stage.*
 import cats.data.Reader
 import cats.effect.kernel.Sync
 import cats.Endo
-import fs2.{INothing, Pipe, Pull, Stream}
+import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
@@ -32,8 +32,8 @@ final class NJParquet[F[_]] private (
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
-  def sink(path: NJPath): Pipe[F, GenericRecord, INothing] = {
-    def go(grs: Stream[F, GenericRecord], pw: ParquetWriter[GenericRecord]): Pull[F, INothing, Unit] =
+  def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = {
+    def go(grs: Stream[F, GenericRecord], pw: ParquetWriter[GenericRecord]): Pull[F, Nothing, Unit] =
       grs.pull.uncons.flatMap {
         case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(pw.write))) >> go(tl, pw)
         case None           => Pull.done

@@ -11,8 +11,8 @@ private object SimpleTextTranslator {
     .run {
       case ColorScheme.GoodColor  => Eval.now(Console.GREEN + msg + Console.RESET)
       case ColorScheme.InfoColor  => Eval.now(msg)
-      case ColorScheme.WarnColor  => Eval.now(Console.CYAN + msg + Console.RESET)
-      case ColorScheme.ErrorColor => Eval.now(Console.YELLOW + msg + Console.RESET)
+      case ColorScheme.WarnColor  => Eval.now(Console.YELLOW + msg + Console.RESET)
+      case ColorScheme.ErrorColor => Eval.now(Console.MAGENTA + msg + Console.RESET)
     }
     .value
 

@@ -6,7 +6,7 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{INothing, Pipe, Stream}
+import fs2.{Pipe, Stream}
 import io.scalaland.enumz.Enum
 import kantan.csv.*
 import kantan.csv.ops.{toCsvInputOps, toCsvOutputOps}
@@ -44,7 +44,7 @@ final class NJCsv[F[_]] private (
       a <- Stream.fromBlockingIterator(is.asCsvReader[A](csvConfiguration).iterator, chunkSize.value).rethrow
     } yield a
 
-  def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, INothing] = { (ss: Stream[F, A]) =>
+  def sink[A](path: NJPath)(implicit enc: HeaderEncoder[A]): Pipe[F, A, Nothing] = { (ss: Stream[F, A]) =>
     Stream
       .bracket(
         F.blocking(fileOutputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](

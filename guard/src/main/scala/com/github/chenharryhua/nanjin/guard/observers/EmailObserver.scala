@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
 import eu.timepit.refined.auto.*
-import fs2.{Chunk, INothing, Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
@@ -91,7 +91,7 @@ final class SesEmailObserver[F[_]](
     ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt
   }
 
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, INothing] = {
+  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, Nothing] = {
     (events: Stream[F, NJEvent]) =>
       val computation = for {
         ses <- Stream.resource(client)
@@ -156,7 +156,7 @@ final class SnsEmailObserver[F[_]](
     sns.publish(req).attempt
   }
 
-  def observe(snsArn: SnsArn, subject: String): Pipe[F, NJEvent, INothing] = (es: Stream[F, NJEvent]) =>
+  def observe(snsArn: SnsArn, subject: String): Pipe[F, NJEvent, Nothing] = (es: Stream[F, NJEvent]) =>
     Stream
       .resource(client)
       .flatMap(sns =>
