@@ -13,6 +13,6 @@ private[aws] trait ShutdownService[F[_]] {
     cause match {
       case ExitCase.Succeeded  => logger.info(s"$name was closed normally") *> closeService
       case ExitCase.Errored(e) => logger.warn(e)(s"$name was closed abnormally") *> closeService
-      case ExitCase.Canceled   => logger.info(s"$name was canceled") *> closeService
+      case ExitCase.Canceled   => logger.warn(s"$name was canceled") *> closeService
     }
 }

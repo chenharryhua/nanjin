@@ -27,7 +27,9 @@ class PassThroughTest extends AnyFunSuite {
   val guard: ServiceGuard[IO] = TaskGuard[IO]("test").service("pass-throught")
   test("1.pass-through") {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
-      List.range(0, 9).traverse(n => action.broker("pt").asError.passThrough(PassThroughObject(n, "a")))
+      List
+        .range(0, 9)
+        .traverse(n => action.broker("pt").withCounting.asError.passThrough(PassThroughObject(n, "a")))
     }.map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .map {
@@ -88,7 +90,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
-        val meter = agent.meter("nj.test.meter")
+        val meter = agent.meter("nj.test.meter").withCounting
         (meter.mark(1000) >> agent.metrics.reset
           .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
@@ -102,7 +104,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram")
+        val meter = agent.histogram("nj.test.histogram").withCounting
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))

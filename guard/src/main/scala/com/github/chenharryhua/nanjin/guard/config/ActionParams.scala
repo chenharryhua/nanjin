@@ -58,6 +58,10 @@ object NJRetryPolicy extends duration {
   maxRetries: Option[MaxRetry],
   capDelay: Option[Duration],
   njRetryPolicy: NJRetryPolicy) {
+
+  private def caping[F[_]: Applicative](policy: RetryPolicy[F], limit: RetryPolicy[F]): RetryPolicy[F] =
+    capDelay.fold(policy)(d => RetryPolicies.capDelay(d.toScala, policy)).join(limit)
+
   def policy[F[_]: Applicative]: RetryPolicy[F] =
     maxRetries
       .map(_.value)
@@ -66,20 +70,15 @@ object NJRetryPolicy extends duration {
       .map { limit =>
         njRetryPolicy match {
           case NJRetryPolicy.ConstantDelay(value) =>
-            val p = RetryPolicies.constantDelay[F](value.toScala)
-            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+            caping(RetryPolicies.constantDelay[F](value.toScala), limit)
           case NJRetryPolicy.ExponentialBackoff(value) =>
-            val p = RetryPolicies.exponentialBackoff[F](value.toScala)
-            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+            caping(RetryPolicies.exponentialBackoff[F](value.toScala), limit)
           case NJRetryPolicy.FibonacciBackoff(value) =>
-            val p = RetryPolicies.fibonacciBackoff[F](value.toScala)
-            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+            caping(RetryPolicies.fibonacciBackoff[F](value.toScala), limit)
           case NJRetryPolicy.FullJitter(value) =>
-            val p = RetryPolicies.fullJitter[F](value.toScala)
-            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+            caping(RetryPolicies.fullJitter[F](value.toScala), limit)
           case NJRetryPolicy.JitterBackoff(min, max) =>
-            val p = NJRetryPolicy.jitterBackoff[F](min.toScala, max.toScala)
-            capDelay.map(d => RetryPolicies.capDelay(d.toScala, p)).getOrElse(p).join(limit)
+            caping(NJRetryPolicy.jitterBackoff[F](min.toScala, max.toScala), limit)
           case NJRetryPolicy.AlwaysGiveUp => RetryPolicies.alwaysGiveUp[F]
         }
       }
