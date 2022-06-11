@@ -51,10 +51,10 @@ object AvroTypedEncoder {
     te: TypedEncoder[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](NJAvroCodec[A](sf, dec, enc), te)
 
-  def apply[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V])(implicit
-    tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
-    val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
+  def apply[K: TypedEncoder, V: TypedEncoder](
+    keyCodec: NJAvroCodec[K],
+    valCodec: NJAvroCodec[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
+    val ote: TypedEncoder[NJConsumerRecord[K, V]] = implicitly
     AvroTypedEncoder[NJConsumerRecord[K, V]](ote, NJConsumerRecord.avroCodec(keyCodec, valCodec))
   }
 

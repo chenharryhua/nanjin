@@ -19,7 +19,7 @@ import scala.concurrent.duration.*
 class HealthCheckTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("health-check")
   test("1.should receive 3 MetricsReport event") {
-    val s :: a :: b :: c :: rest = guard
+    val s :: a :: b :: c :: _ = guard
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
@@ -42,7 +42,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("2.success-test") {
-    val s :: a :: b :: c :: d :: rest = guard
+    val s :: a :: b :: c :: d :: _ = guard
       .service("success-test")
       .updateConfig(_.withMetricReport(1.second))
       .eventStream(gd => gd.notice.retry(IO(1)).run >> gd.notice.retry(IO.never).run)
@@ -62,7 +62,7 @@ class HealthCheckTest extends AnyFunSuite {
   }
 
   test("3.never success") {
-    val s :: a :: b :: c :: rest = guard
+    val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
       .updateConfig(
         _.withMetricReport(1.second)

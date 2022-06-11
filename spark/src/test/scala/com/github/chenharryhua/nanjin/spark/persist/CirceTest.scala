@@ -32,7 +32,7 @@ class CirceTest extends AnyFunSuite {
     val rst =
       hdp
         .filesSortByName(path)
-        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (ss, hif) =>
+        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (_, hif) =>
           hdp.bytes.source(hif).through(CirceSerde.fromBytes[IO, Bee])
         })
     fs2.Stream.force(rst).compile.toList

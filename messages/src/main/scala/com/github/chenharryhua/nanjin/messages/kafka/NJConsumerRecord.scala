@@ -14,7 +14,6 @@ import monocle.Optional
 import monocle.macros.Lenses
 import monocle.std.option.some
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import shapeless.cachedImplicit
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
@@ -75,20 +74,18 @@ object NJConsumerRecord {
     implicit val valDecoder: Decoder[V]      = valCodec.avroDecoder
     implicit val keyEncoder: Encoder[K]      = keyCodec.avroEncoder
     implicit val valEncoder: Encoder[V]      = valCodec.avroEncoder
-    val s: SchemaFor[NJConsumerRecord[K, V]] = cachedImplicit
-    val d: Decoder[NJConsumerRecord[K, V]]   = cachedImplicit
-    val e: Encoder[NJConsumerRecord[K, V]]   = cachedImplicit
+    val s: SchemaFor[NJConsumerRecord[K, V]] = implicitly
+    val d: Decoder[NJConsumerRecord[K, V]]   = implicitly
+    val e: Encoder[NJConsumerRecord[K, V]]   = implicitly
     NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
-  implicit def jsonEncoderNJConsumerRecord[K, V](implicit
-    jck: JsonEncoder[K],
-    jcv: JsonEncoder[V]): JsonEncoder[NJConsumerRecord[K, V]] =
+  implicit def jsonEncoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]
+    : JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
 
-  implicit def jsonDecoderNJConsumerRecord[K, V](implicit
-    jck: JsonDecoder[K],
-    jcv: JsonDecoder[V]): JsonDecoder[NJConsumerRecord[K, V]] =
+  implicit def jsonDecoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]
+    : JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =

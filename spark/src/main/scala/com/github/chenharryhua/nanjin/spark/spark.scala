@@ -35,7 +35,7 @@ package object spark {
 
     def source: Source[A, NotUsed] = Source.fromIterator(() => rdd.toLocalIterator)
 
-    def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] =
+    def dbUpload[F[_]](db: SparkDBTable[F, A]): DbUploader[F, A] =
       db.tableset(rdd).upload
 
     def save[F[_]]: RddFileHoarder[F, A] = new RddFileHoarder[F, A](rdd)
@@ -53,7 +53,7 @@ package object spark {
     def dismissNulls: Dataset[A] = ds.flatMap(Option(_))(ds.encoder)
     def numOfNulls: Long         = ds.except(dismissNulls).count()
 
-    def dbUpload[F[_]: Sync](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(ds).upload
+    def dbUpload[F[_]](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(ds).upload
 
     def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](ds)
 

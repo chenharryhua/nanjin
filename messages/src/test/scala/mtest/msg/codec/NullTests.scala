@@ -11,8 +11,8 @@ class NullTests extends AnyFunSuite {
     assert(floatCodec.decode(null) === 0)
     assert(strCodec.decode(null) === null)
     assert(byteArrayCodec.decode(null) === null)
-    assert(primitiviesCodec.decode(null) === null)
-    assert(jsonPrimCodec.decode(null) === null)
+    assert(PrimitiveTypeCombined.primitiviesCodec.decode(null) === null)
+    assert(PrimitiveTypeCombined.jsonPrimCodec.decode(null) === null)
   }
 
   test("tryDecode null should return failure") {
@@ -22,8 +22,8 @@ class NullTests extends AnyFunSuite {
     assert(floatCodec.tryDecode(null).isFailure)
     assert(strCodec.tryDecode(null).isFailure)
     assert(byteArrayCodec.tryDecode(null).isFailure)
-    assert(primitiviesCodec.tryDecode(null).isFailure)
-    assert(jsonPrimCodec.tryDecode(null).isFailure)
+    assert(PrimitiveTypeCombined.primitiviesCodec.tryDecode(null).isFailure)
+    assert(PrimitiveTypeCombined.jsonPrimCodec.tryDecode(null).isFailure)
   }
 
   test("encode null should return null") {
@@ -33,7 +33,7 @@ class NullTests extends AnyFunSuite {
     // assert(floatCodec.encode(null) === null)
     assert(strCodec.encode(null) === null)
     assert(byteArrayCodec.encode(null) === null)
-    assert(primitiviesCodec.encode(null) === null)
-    assert(jsonPrimCodec.encode(null) === null)
+    assert(PrimitiveTypeCombined.primitiviesCodec.encode(null) === null)
+    assert(PrimitiveTypeCombined.jsonPrimCodec.encode(null) === null)
   }
 }

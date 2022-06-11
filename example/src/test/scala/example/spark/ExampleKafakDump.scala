@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import example.sparKafka
 import example.topics.fooTopic
-import fs2.Stream
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
