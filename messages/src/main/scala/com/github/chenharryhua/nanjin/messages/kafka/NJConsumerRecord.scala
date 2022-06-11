@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaConsumerRec
 import com.sksamuel.avro4s.*
 import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
-import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
 import monocle.Optional
 import monocle.macros.Lenses
@@ -43,7 +42,7 @@ final case class NJConsumerRecord[K, V](
     NJProducerRecord[K, V](Some(partition), Some(offset), Some(timestamp), key, value)
 
   def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
-    JsonEncoder[NJConsumerRecord[K, V]].apply(this)
+    NJConsumerRecord.jsonEncoderNJConsumerRecord[K, V].apply(this)
 
   def metaInfo(zoneId: ZoneId): ConsumerRecordMetaInfo =
     this

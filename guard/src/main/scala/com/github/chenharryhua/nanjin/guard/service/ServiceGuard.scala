@@ -89,8 +89,8 @@ final class ServiceGuard[F[_]] private[guard] (
             .onFinalize(F.sleep(1.second))
             .drain
 
-          /** concurrent streams
-            */
+          // concurrent streams
+
           val cronScheduler: Scheduler[F, CronExpr] =
             Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
@@ -121,9 +121,12 @@ final class ServiceGuard[F[_]] private[guard] (
               case None => Stream.empty
             }
 
-          val metricsReset: Stream[F, Nothing] = serviceParams.metric.resetSchedule.fold(
-            Stream.empty.covary[F])(cron =>
-            cronScheduler.awakeEvery(cron).evalMap(_ => metricEventPublisher.metricsReset(Some(cron))).drain)
+          val metricsReset: Stream[F, Nothing] =
+            serviceParams.metric.resetSchedule.fold(Stream.empty.covaryAll[F, Nothing])(cron =>
+              cronScheduler
+                .awakeEvery(cron)
+                .evalMap(_ => metricEventPublisher.metricsReset(Some(cron)))
+                .drain)
 
           val jmxReporting: Stream[F, Nothing] =
             jmxBuilder match {

@@ -133,10 +133,8 @@ object SimpleQueueService {
 
     override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {
 
-      /** when no data can be retrieved, the delay policy will be applied
-        *
-        * [[https://cb372.github.io/cats-retry/docs/policies.html]]
-        */
+      // when no data can be retrieved, the delay policy will be applied
+      // [[https://cb372.github.io/cats-retry/docs/policies.html]]
       def receiving(status: RetryStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
           rmr =>

@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
 import fs2.kafka.ProducerRecord as Fs2ProducerRecord
-import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.scalaland.chimney.dsl.*
 import monocle.Optional
 import monocle.macros.Lenses
@@ -59,6 +59,9 @@ final case class NJProducerRecord[K, V](
 
   def toProducerRecord(topicName: TopicName): ProducerRecord[K, V] =
     toFs2ProducerRecord(topicName).transformInto[ProducerRecord[K, V]]
+
+  def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
+    NJProducerRecord.jsonEncoder[K, V].apply(this)
 }
 
 object NJProducerRecord {
