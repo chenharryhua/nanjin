@@ -132,6 +132,18 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
 
+    println(cr1.asJson.spaces2)
+    println(
+      cr1.toNJProducerRecord
+        .modifyKey(_ + 1)
+        .modifyValue(_ + 1)
+        .withKey(1)
+        .withValue(2)
+        .withTimestamp(3)
+        .withPartition(4)
+        .asJson
+        .spaces2)
+
     val t =
       sparKafka
         .topic[Int, Int]("some.value")
@@ -142,7 +154,6 @@ class SparKafkaTest extends AnyFunSuite {
         .transform(_.distinct())
     val rst = t.rdd.collect().flatMap(_.value)
     assert(rst === Seq(cr1.value.get))
-    println(cr1.toString)
   }
 
   test("should be able to save kunknown") {
