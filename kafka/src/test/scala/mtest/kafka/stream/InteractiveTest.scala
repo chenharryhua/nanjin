@@ -10,7 +10,6 @@ import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.scala.serialization.Serdes.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.TimeoutException

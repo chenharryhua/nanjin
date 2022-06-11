@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
@@ -97,8 +97,10 @@ private[kafka] object sk {
     }
   }
 
-  def kafkaSStream[F[_], K, V, A](topic: KafkaTopic[F, K, V], ate: AvroTypedEncoder[A], sparkSession: SparkSession)(
-    f: NJConsumerRecord[K, V] => A): Dataset[A] = {
+  def kafkaSStream[F[_], K, V, A](
+    topic: KafkaTopic[F, K, V],
+    ate: AvroTypedEncoder[A],
+    sparkSession: SparkSession)(f: NJConsumerRecord[K, V] => A): Dataset[A] = {
     import sparkSession.implicits.*
     sparkSession.readStream
       .format("kafka")

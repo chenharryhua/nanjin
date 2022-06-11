@@ -4,10 +4,8 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, utcTime, NJDateTimeRange, NJTimestamp}
 import org.apache.spark.streaming.kafka010.LocationStrategies
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.Kilobytes
 
 import java.time.{LocalDate, LocalDateTime}
-import scala.concurrent.duration.*
 
 class SKConfigTest extends AnyFunSuite {
   val skc: SKConfig = SKConfig(TopicName("config.test"), sydneyTime).zoneId(utcTime)

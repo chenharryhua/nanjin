@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.{Cont, Reader}
-import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import org.apache.kafka.streams.Topology

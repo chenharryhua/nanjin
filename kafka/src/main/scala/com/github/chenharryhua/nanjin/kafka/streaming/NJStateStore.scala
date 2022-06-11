@@ -4,8 +4,7 @@ import com.github.chenharryhua.nanjin.common.kafka.StoreName
 import com.github.chenharryhua.nanjin.kafka.{
   RawKeyValueSerdePair,
   RegisteredKeyValueSerdePair,
-  SchemaRegistrySettings,
-  TopicDef
+  SchemaRegistrySettings
 }
 import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
@@ -50,7 +49,9 @@ final class NJStateStore[K, V] private (storeName: StoreName, registered: Regist
     new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(storeName.value), registered)
 
   def persistentTimestampedKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.persistentTimestampedKeyValueStore(storeName.value), registered)
+    new KeyValueBytesStoreSupplierHelper(
+      Stores.persistentTimestampedKeyValueStore(storeName.value),
+      registered)
 
   def inMemoryKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
     new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(storeName.value), registered)
@@ -101,10 +102,14 @@ final class NJStateStore[K, V] private (storeName: StoreName, registered: Regist
     inMemoryWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
   def persistentSessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(Stores.persistentSessionStore(storeName.value, retentionPeriod), registered)
+    new SessionBytesStoreSupplierHelper(
+      Stores.persistentSessionStore(storeName.value, retentionPeriod),
+      registered)
 
   def inMemorySessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(Stores.inMemorySessionStore(storeName.value, retentionPeriod), registered)
+    new SessionBytesStoreSupplierHelper(
+      Stores.inMemorySessionStore(storeName.value, retentionPeriod),
+      registered)
 
   def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplierHelper[K, V] =
     inMemorySessionStore(retentionPeriod.toJava)
@@ -114,7 +119,9 @@ final class NJStateStore[K, V] private (storeName: StoreName, registered: Regist
       StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.keyValueStore[K, V])
 
     def timestampedKeyValueStore: StoreQueryParameters[ReadOnlyKeyValueStore[K, ValueAndTimestamp[V]]] =
-      StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.timestampedKeyValueStore[K, V])
+      StoreQueryParameters.fromNameAndType(
+        storeName.value,
+        QueryableStoreTypes.timestampedKeyValueStore[K, V])
 
     def windowStore: StoreQueryParameters[ReadOnlyWindowStore[K, V]] =
       StoreQueryParameters.fromNameAndType(storeName.value, QueryableStoreTypes.windowStore[K, V])

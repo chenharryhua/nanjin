@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite

@@ -43,6 +43,7 @@ lazy val commonSettings = Seq(
     "-Ywarn-dead-code",
     "-Ywarn-numeric-widen",
     "-Ywarn-value-discard",
+    "-Ywarn-unused:imports",
     "-Xsource:3"
   ),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import better.files.Resource
-import cats.effect.{Async, IO}
+import cats.effect.IO
 import cats.effect.std.Supervisor
 import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite

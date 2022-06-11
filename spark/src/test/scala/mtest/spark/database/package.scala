@@ -8,7 +8,6 @@ import eu.timepit.refined.auto.*
 import skunk.Session
 
 package object database {
-  import natchez.Trace.Implicits.noop
   val postgres: Postgres = Postgres(Username("postgres"), Password("postgres"), "localhost", 5432, "postgres")
 
   val dbSession: Resource[IO, Session[IO]] = SkunkSession[IO](postgres).single

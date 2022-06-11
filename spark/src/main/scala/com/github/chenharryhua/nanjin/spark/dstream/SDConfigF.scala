@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.dstream
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix

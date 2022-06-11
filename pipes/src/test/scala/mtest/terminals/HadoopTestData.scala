@@ -1,7 +1,6 @@
 package mtest.terminals
 
 import cats.effect.IO
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import eu.timepit.refined.auto.*
 import org.apache.avro.Schema

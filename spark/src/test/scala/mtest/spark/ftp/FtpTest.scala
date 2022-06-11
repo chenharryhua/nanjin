@@ -5,8 +5,8 @@ import akka.stream.alpakka.ftp.{FtpCredentials, FtpSettings, FtpsSettings, SftpS
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.ftp.{ftpSink, ftpSource}
-import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.{Tablet, TabletData}
+import eu.timepit.refined.auto.*
 import io.circe.generic.auto.*
 import kantan.csv.generic.*
 import kantan.csv.java8.*
@@ -14,11 +14,11 @@ import mtest.spark.akkaSystem
 import org.apache.commons.net.PrintCommandListener
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
+import squants.information.Kilobytes
 
 import java.io.PrintWriter
 import java.net.InetAddress
-import squants.information.Kilobytes
+
 class FtpTest extends AnyFunSuite {
   val cred = FtpCredentials.create("chenh", "test")
 

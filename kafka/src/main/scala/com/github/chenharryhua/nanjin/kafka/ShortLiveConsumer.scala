@@ -31,7 +31,8 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
 
 private[kafka] object KafkaPrimitiveConsumerApi {
 
-  def apply[F[_]: Monad](topicName: TopicName)(implicit F: Ask[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
+  def apply[F[_]: Monad](topicName: TopicName)(implicit
+    F: Ask[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
     new KafkaPrimitiveConsumerApiImpl[F](topicName)
 
   final private[this] class KafkaPrimitiveConsumerApiImpl[F[_]: Monad](topicName: TopicName)(implicit
@@ -54,7 +55,8 @@ private[kafka] object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.beginningOffsets(tps.asJava).asScala.toMap.view.mapValues(v => Option(v).map(x => KafkaOffset(x.toLong)))
+          _.beginningOffsets(tps.asJava).asScala.toMap.view.mapValues(v =>
+            Option(v).map(x => KafkaOffset(x.toLong)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -63,7 +65,8 @@ private[kafka] object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.endOffsets(tps.asJava).asScala.toMap.view.mapValues(v => Option(v).map(x => KafkaOffset(x.toLong)))
+          _.endOffsets(tps.asJava).asScala.toMap.view.mapValues(v =>
+            Option(v).map(x => KafkaOffset(x.toLong)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -71,7 +74,8 @@ private[kafka] object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.view.mapValues(Option(_).map(x => KafkaOffset(x.offset())))
+          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.view.mapValues(Option(_).map(x =>
+            KafkaOffset(x.offset())))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -113,9 +117,10 @@ object ShortLiveConsumer {
       })(a => Sync[F].delay(a.close()))
       .map(new KafkaConsumerApiImpl(topicName, _))
 
-  final private[this] class KafkaConsumerApiImpl[F[_]: Sync](topicName: TopicName, consumerClient: KafkaByteConsumer)
+  final private[this] class KafkaConsumerApiImpl[F[_]: Sync](
+    topicName: TopicName,
+    consumerClient: KafkaByteConsumer)
       extends ShortLiveConsumer[F] {
-    import cats.mtl.implicits.*
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)
@@ -137,7 +142,8 @@ object ShortLiveConsumer {
         for {
           end <- kpc.endOffsets
           rec <- end.value.toList.traverse { case (tp, of) =>
-            of.filter(_.value > 0).flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x.asLast))
+            of.filter(_.value > 0)
+              .flatTraverse(x => kpc.retrieveRecord(KafkaPartition(tp.partition), x.asLast))
           }
         } yield rec.flatten.sortBy(_.partition())
       }
@@ -198,7 +204,8 @@ object ShortLiveConsumer {
     override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
       execute(kpc.commitSync(offsets))
 
-    private def offsetsOf(offsets: KafkaTopicPartition[Option[KafkaOffset]]): Map[TopicPartition, OffsetAndMetadata] =
+    private def offsetsOf(
+      offsets: KafkaTopicPartition[Option[KafkaOffset]]): Map[TopicPartition, OffsetAndMetadata] =
       offsets.flatten.value.view.mapValues(x => new OffsetAndMetadata(x.value)).toMap
 
     override def resetOffsetsToBegin: F[Unit] =

@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder

@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.database.{Postgres, TableName}
+import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.common.transformers.*
 import com.github.chenharryhua.nanjin.database.NJHikari
 import com.github.chenharryhua.nanjin.datetime.*
@@ -112,7 +112,10 @@ class SparkTableTest extends AnyFunSuite {
         .map(_.repartition(1).typedDataset)
         .unsafeRunSync()
     val pt2: TableDef[PartialDBTable] =
-      TableDef[PartialDBTable](TableName("sparktest"), NJAvroCodec[PartialDBTable], "select a,b from sparktest")
+      TableDef[PartialDBTable](
+        TableName("sparktest"),
+        NJAvroCodec[PartialDBTable],
+        "select a,b from sparktest")
 
     val ptd2: TypedDataset[PartialDBTable] = sparkDB.table(pt2).fromDB.map(_.typedDataset).unsafeRunSync()
 

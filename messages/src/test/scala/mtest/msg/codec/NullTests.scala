@@ -1,6 +1,5 @@
 package mtest.msg.codec
 
-import io.circe.generic.auto._
 import org.scalatest.funsuite.AnyFunSuite
 
 class NullTests extends AnyFunSuite {

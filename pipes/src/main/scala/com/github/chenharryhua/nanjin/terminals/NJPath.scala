@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.{Eq, Show}
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
-import eu.timepit.refined.api.Refined
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import org.apache.hadoop.conf.Configuration

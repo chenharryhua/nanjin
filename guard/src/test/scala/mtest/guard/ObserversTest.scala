@@ -6,7 +6,7 @@ import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService, SimpleQueueService}
-import com.github.chenharryhua.nanjin.common.aws.{SqsConfig, SqsUrl}
+import com.github.chenharryhua.nanjin.common.aws.SqsConfig
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
@@ -149,7 +149,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("8.syntax") {
     EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10)
-    val eo = EmailObserver[IO](SimpleNotificationService.fake[IO])
+    EmailObserver[IO](SimpleNotificationService.fake[IO])
       .withInterval(1.minute)
       .withChunkSize(10)
       .updateTranslator(

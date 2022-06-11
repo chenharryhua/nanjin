@@ -4,12 +4,12 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.JacksonSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
+import fs2.Stream
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import fs2.Stream
 
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {

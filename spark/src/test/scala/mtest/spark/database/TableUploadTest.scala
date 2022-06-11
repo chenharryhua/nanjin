@@ -6,12 +6,11 @@ import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.database.{SparkDBTable, TableDef}
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.TypedEncoder
 import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 import scala.util.Random
 
@@ -66,7 +65,15 @@ class TableUploadTest extends AnyFunSuite {
   import TableUploadTestData.*
 
   test("upload") {
-    tds.dbUpload(table).append.errorIfExists.ignoreIfExists.overwrite.withTableName("upload").run.unsafeRunSync()
+    tds
+      .dbUpload(table)
+      .append
+      .errorIfExists
+      .ignoreIfExists
+      .overwrite
+      .withTableName("upload")
+      .run
+      .unsafeRunSync()
     tds.rdd
       .dbUpload(table)
       .append
@@ -79,6 +86,9 @@ class TableUploadTest extends AnyFunSuite {
   }
 
   test("dump and reload") {
-    table.dump.flatMap(_ => table.fromDisk.map(_.dataset.except(tds).count())).map(x => assert(x === 0)).unsafeRunSync()
+    table.dump
+      .flatMap(_ => table.fromDisk.map(_.dataset.except(tds).count()))
+      .map(x => assert(x === 0))
+      .unsafeRunSync()
   }
 }

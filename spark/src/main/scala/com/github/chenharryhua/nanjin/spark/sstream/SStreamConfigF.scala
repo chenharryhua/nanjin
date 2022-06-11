@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.{NJFileFormat, PathSegment}
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
@@ -34,7 +33,8 @@ private[sstream] object SStreamParams {
     SStreamParams(
       zoneId = zoneId,
       fileFormat = NJFileFormat.SparkJson,
-      checkpointBuilder = (fmt: NJFileFormat) => NJPath("data/checkpoint/sstream") / PathSegment.unsafeFrom(fmt.format),
+      checkpointBuilder =
+        (fmt: NJFileFormat) => NJPath("data/checkpoint/sstream") / PathSegment.unsafeFrom(fmt.format),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
       trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES),
@@ -98,8 +98,9 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def parquetFormat: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
   def avroFormat: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
 
-  def progressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(Fix(WithProgressInterval(fd, value)))
-  def progressInterval(ms: Long): SStreamConfig           = progressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
+  def progressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(
+    Fix(WithProgressInterval(fd, value)))
+  def progressInterval(ms: Long): SStreamConfig = progressInterval(FiniteDuration(ms, TimeUnit.MILLISECONDS))
 
   def queryName(name: String): SStreamConfig = SStreamConfig(Fix(WithQueryName(name, value)))
 

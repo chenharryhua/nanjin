@@ -10,10 +10,6 @@ import akka.kafka.ConsumerMessage.{
 import akka.kafka.ProducerMessage.{Message as AkkaProducerMessage, MultiMessage as AkkaMultiMessage}
 import cats.Eq
 import cats.syntax.all.*
-import fs2.kafka.{
-  ProducerRecords as Fs2ProducerRecords,
-  TransactionalProducerRecords as Fs2TransactionalProducerRecords
-}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -25,7 +21,8 @@ import scala.compat.java8.OptionConverters.*
 private[kafka] trait EqMessage {
 
   // kafka
-  implicit val eqHeader: Eq[Header] = (x: Header, y: Header) => x.key() === y.key() && x.value().sameElements(y.value())
+  implicit val eqHeader: Eq[Header] = (x: Header, y: Header) =>
+    x.key() === y.key() && x.value().sameElements(y.value())
 
   implicit val eqHeaders: Eq[Headers] = (x: Headers, y: Headers) => {
     val xa = x.toArray

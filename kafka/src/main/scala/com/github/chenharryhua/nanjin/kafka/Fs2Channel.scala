@@ -6,7 +6,6 @@ import cats.effect.kernel.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import fs2.{Pipe, Stream}
 import fs2.kafka.*
 

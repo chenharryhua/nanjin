@@ -4,11 +4,7 @@ import akka.kafka.ProducerMessage.MultiMessage as AkkaMultiMessage
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
-import fs2.kafka.{
-  CommittableProducerRecords as Fs2CommittableProducerRecords,
-  ProducerRecords as Fs2ProducerRecords,
-  TransactionalProducerRecords as Fs2TransactionalProducerRecords
-}
+import fs2.kafka.CommittableProducerRecords as Fs2CommittableProducerRecords
 import monocle.law.discipline.TraversalTests
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration

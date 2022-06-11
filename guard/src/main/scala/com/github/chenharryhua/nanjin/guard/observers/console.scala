@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Monad
 import cats.effect.std.Console
-import cats.implicits.{toFunctorOps, toShow}
+import cats.implicits.toFunctorOps
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
@@ -11,7 +11,8 @@ import fs2.Chunk
 import java.time.format.DateTimeFormatter
 
 object console {
-  def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] = new TextConsole[F](translator)
+  def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] =
+    new TextConsole[F](translator)
 
   def verbose[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseText[F])
   def simple[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleText[F])
