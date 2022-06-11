@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.time.{LocalDate, LocalDateTime}
 class NJPathTest extends AnyFunSuite {
   test("local") {
     val r1: NJPath = NJPath("./data/abc") / "efg"
@@ -42,11 +42,11 @@ class NJPathTest extends AnyFunSuite {
     val r2: NJPath = r1 / ld / "deflate-1"
     assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/deflate-1")
   }
-  test("zoned date time") {
+  test("local date time") {
     val r1: NJPath = NJPath("s3a://bucket")
-    val ld         = ZonedDateTime.of(2020, 1, 1, 0, 0, 0, 0, ZoneId.of("Australia/Sydney"))
-    val r2: NJPath = r1 / ld / "abc.json"
-    assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/Hour=00/abc.json")
+    val ld         = LocalDateTime.of(2020, 1, 1, 0, 0, 0, 0)
+    val r2: NJPath = r1 / ld / 32 / "abc.json"
+    assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/Hour=00/32/abc.json")
   }
   test("illegal") {
     assertDoesNotCompile(""" NJPath("s3a://bucket/") / " " """)
