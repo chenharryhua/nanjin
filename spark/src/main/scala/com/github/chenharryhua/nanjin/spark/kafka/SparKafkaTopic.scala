@@ -6,9 +6,13 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError, NJProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.{
+  NJConsumerRecord,
+  NJConsumerRecordWithError,
+  NJProducerRecord
+}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerde, CirceSerde, JacksonSerde, JavaObjectSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -29,7 +33,10 @@ import org.apache.spark.streaming.kafka010.LocationStrategy
 
 import java.time.LocalDate
 
-final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic: KafkaTopic[F, K, V], cfg: SKConfig)
+final class SparKafkaTopic[F[_], K, V](
+  val sparkSession: SparkSession,
+  val topic: KafkaTopic[F, K, V],
+  cfg: SKConfig)
     extends UpdateConfig[SKConfig, SparKafkaTopic[F, K, V]] with Serializable {
   override val toString: String = topic.topicName.value
 
@@ -39,14 +46,19 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     AvroTypedEncoder(topic.topicDef)
 
   val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(topic.topicDef.rawSerdes.keySerde.avroCodec, topic.topicDef.rawSerdes.valSerde.avroCodec)
+    NJConsumerRecord.avroCodec(
+      topic.topicDef.rawSerdes.keySerde.avroCodec,
+      topic.topicDef.rawSerdes.valSerde.avroCodec)
   val prCodec: NJAvroCodec[NJProducerRecord[K, V]] =
-    NJProducerRecord.avroCodec(topic.topicDef.rawSerdes.keySerde.avroCodec, topic.topicDef.rawSerdes.valSerde.avroCodec)
+    NJProducerRecord.avroCodec(
+      topic.topicDef.rawSerdes.keySerde.avroCodec,
+      topic.topicDef.rawSerdes.valSerde.avroCodec)
 
   object pipes {
     object circe {
-      def toBytes(
-        isKeepNull: Boolean)(implicit jk: JsonEncoder[K], jv: JsonEncoder[V]): Pipe[F, NJConsumerRecord[K, V], Byte] =
+      def toBytes(isKeepNull: Boolean)(implicit
+        jk: JsonEncoder[K],
+        jv: JsonEncoder[V]): Pipe[F, NJConsumerRecord[K, V], Byte] =
         CirceSerde.toBytes[F, NJConsumerRecord[K, V]](isKeepNull)
       def fromBytes(implicit
         F: RaiseThrowable[F],
@@ -85,11 +97,12 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   override def updateConfig(f: Endo[SKConfig]): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](sparkSession, topic, f(cfg))
 
-  def withStartTime(str: String): SparKafkaTopic[F, K, V]                 = updateConfig(_.startTime(str))
-  def withEndTime(str: String): SparKafkaTopic[F, K, V]                   = updateConfig(_.endTime(str))
-  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]                  = updateConfig(_.timeRangeOneDay(ld))
-  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V]         = updateConfig(_.timeRange(tr))
-  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(_.locationStrategy(ls))
+  def withStartTime(str: String): SparKafkaTopic[F, K, V]         = updateConfig(_.startTime(str))
+  def withEndTime(str: String): SparKafkaTopic[F, K, V]           = updateConfig(_.endTime(str))
+  def withOneDay(ld: LocalDate): SparKafkaTopic[F, K, V]          = updateConfig(_.timeRangeOneDay(ld))
+  def withTimeRange(tr: NJDateTimeRange): SparKafkaTopic[F, K, V] = updateConfig(_.timeRange(tr))
+  def withLocationStrategy(ls: LocationStrategy): SparKafkaTopic[F, K, V] = updateConfig(
+    _.locationStrategy(ls))
 
   val params: SKParams     = cfg.evalConfig
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
@@ -113,7 +126,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def replay(listener: ProducerResult[K, V] => F[Unit])(implicit F: Async[F]): F[Unit] =
     Stream
       .force(
-        fromDisk.map(_.prRdd.noMeta.producerRecords(topicName, 1000).through(topic.produce.pipe).evalMap(listener)))
+        fromDisk.map(
+          _.prRdd.noMeta.producerRecords(topicName, 1000).through(topic.produce.pipe).evalMap(listener)))
       .compile
       .drain
 
@@ -121,9 +135,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     */
   def replay(num: Long)(implicit F: Async[F]): F[Unit] =
     Stream
-      .force(
-        fromDisk.map(
-          _.prRdd.descendTimestamp.noMeta.producerRecords(topicName, 1).take(num).through(topic.produce.pipe)))
+      .force(fromDisk.map(
+        _.prRdd.descendTimestamp.noMeta.producerRecords(topicName, 1).take(num).through(topic.produce.pipe)))
       .compile
       .drain
 
@@ -185,7 +198,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
     implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
 
-    val ateNJ: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] = AvroTypedEncoder[KJson[K], KJson[V]](ack, acv)
+    val ateNJ: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] =
+      AvroTypedEncoder[KJson[K], KJson[V]](ack, acv)
 
     sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ateNJ)
   }

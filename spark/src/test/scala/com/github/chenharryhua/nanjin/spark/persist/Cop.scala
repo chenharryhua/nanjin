@@ -8,7 +8,6 @@ import io.circe.Codec
 import io.circe.generic.auto.*
 import io.circe.generic.semiauto.deriveCodec
 import io.circe.shapes.*
-import kantan.csv.generic.*
 import shapeless.{:+:, CNil}
 
 sealed trait CaseObjectCop

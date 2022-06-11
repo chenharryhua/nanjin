@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.messages.kafka
 
 import alleycats.Empty
 import cats.Bifunctor
-import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
@@ -46,7 +45,10 @@ final case class NJProducerRecord[K, V](
   @SuppressWarnings(Array("AsInstanceOf"))
   def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {
     val pr =
-      Fs2ProducerRecord(topicName.value, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
+      Fs2ProducerRecord(
+        topicName.value,
+        key.getOrElse(null.asInstanceOf[K]),
+        value.getOrElse(null.asInstanceOf[V]))
     (partition, timestamp) match {
       case (None, None)       => pr
       case (Some(p), None)    => pr.withPartition(p)
@@ -60,8 +62,9 @@ final case class NJProducerRecord[K, V](
 }
 
 object NJProducerRecord {
-  def optionalKey[K, V]: Optional[NJProducerRecord[K, V], K]   = NJProducerRecord.key[K, V].composePrism(some)
-  def optionalValue[K, V]: Optional[NJProducerRecord[K, V], V] = NJProducerRecord.value[K, V].composePrism(some)
+  def optionalKey[K, V]: Optional[NJProducerRecord[K, V], K] = NJProducerRecord.key[K, V].composePrism(some)
+  def optionalValue[K, V]: Optional[NJProducerRecord[K, V], V] =
+    NJProducerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(Option(pr.partition), None, Option(pr.timestamp), pr.key, pr.value)
@@ -72,7 +75,9 @@ object NJProducerRecord {
   def apply[K, V](v: V): NJProducerRecord[K, V] =
     NJProducerRecord(None, None, None, None, Option(v))
 
-  def avroCodec[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V]): NJAvroCodec[NJProducerRecord[K, V]] = {
+  def avroCodec[K, V](
+    keyCodec: NJAvroCodec[K],
+    valCodec: NJAvroCodec[V]): NJAvroCodec[NJProducerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
@@ -103,7 +108,8 @@ object NJProducerRecord {
   implicit val bifunctorNJProducerRecord: Bifunctor[NJProducerRecord] =
     new Bifunctor[NJProducerRecord] {
 
-      override def bimap[A, B, C, D](fab: NJProducerRecord[A, B])(f: A => C, g: B => D): NJProducerRecord[C, D] =
+      override def bimap[A, B, C, D](
+        fab: NJProducerRecord[A, B])(f: A => C, g: B => D): NJProducerRecord[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 }

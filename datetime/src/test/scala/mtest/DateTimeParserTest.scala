@@ -1,6 +1,5 @@
 package mtest
 
-import alleycats.Empty
 import cats.Alternative
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, DateTimeParser, NJDateTimeRange, NJTimestamp}
 import org.scalatest.funsuite.AnyFunSuite

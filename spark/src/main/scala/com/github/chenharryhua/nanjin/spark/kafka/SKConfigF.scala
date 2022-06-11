@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Functor
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.PathSegment
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
@@ -28,7 +28,8 @@ private[kafka] object SKParams {
       topicName = topicName,
       timeRange = NJDateTimeRange(zoneId),
       locationStrategy = LocationStrategies.PreferConsistent,
-      replayPathBuilder = topicName => NJPath("data/sparKafka") / PathSegment.unsafeFrom(topicName.value) / "replay"
+      replayPathBuilder =
+        topicName => NJPath("data/sparKafka") / PathSegment.unsafeFrom(topicName.value) / "replay"
     )
 }
 

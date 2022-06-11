@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Bifunctor
-import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.kernel.PartialOrder
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
@@ -57,8 +56,9 @@ final case class NJConsumerRecord[K, V](
 
 object NJConsumerRecord {
 
-  def optionalKey[K, V]: Optional[NJConsumerRecord[K, V], K]   = NJConsumerRecord.key[K, V].composePrism(some)
-  def optionalValue[K, V]: Optional[NJConsumerRecord[K, V], V] = NJConsumerRecord.value[K, V].composePrism(some)
+  def optionalKey[K, V]: Optional[NJConsumerRecord[K, V], K] = NJConsumerRecord.key[K, V].composePrism(some)
+  def optionalValue[K, V]: Optional[NJConsumerRecord[K, V], V] =
+    NJConsumerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)
@@ -66,7 +66,9 @@ object NJConsumerRecord {
   def apply[K, V](cr: Fs2ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     apply(cr.transformInto[ConsumerRecord[Option[K], Option[V]]])
 
-  def avroCodec[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V]): NJAvroCodec[NJConsumerRecord[K, V]] = {
+  def avroCodec[K, V](
+    keyCodec: NJAvroCodec[K],
+    valCodec: NJAvroCodec[V]): NJAvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
@@ -92,7 +94,8 @@ object NJConsumerRecord {
   implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {
 
-      override def bimap[A, B, C, D](fab: NJConsumerRecord[A, B])(f: A => C, g: B => D): NJConsumerRecord[C, D] =
+      override def bimap[A, B, C, D](
+        fab: NJConsumerRecord[A, B])(f: A => C, g: B => D): NJConsumerRecord[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 

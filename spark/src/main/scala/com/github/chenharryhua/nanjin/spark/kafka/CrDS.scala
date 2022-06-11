@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Eq
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -56,10 +56,9 @@ final class CrDS[F[_], K, V] private[kafka] (
     new CrDS[F, K2, V2](dataset.map(_.bimap(k, v))(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
 
-  def map[K2, V2](
-    f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2])(implicit
-    k2: TypedEncoder[K2],
-    v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
+  def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
+    ack2: NJAvroCodec[K2],
+    acv2: NJAvroCodec[V2])(implicit k2: TypedEncoder[K2], v2: TypedEncoder[V2]): CrDS[F, K2, V2] = {
     val ate: AvroTypedEncoder[NJConsumerRecord[K2, V2]] = AvroTypedEncoder(ack2, acv2)
     new CrDS[F, K2, V2](dataset.map(f)(ate.sparkEncoder), cfg, ack2, acv2, k2, v2).normalize
   }
@@ -85,14 +84,17 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   // statistics
   def stats: Statistics[F] =
-    new Statistics[F](dataset.map(CRMetaInfo(_))(TypedExpressionEncoder[CRMetaInfo]), cfg.evalConfig.timeRange.zoneId)
+    new Statistics[F](
+      dataset.map(CRMetaInfo(_))(TypedExpressionEncoder[CRMetaInfo]),
+      cfg.evalConfig.timeRange.zoneId)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 
   def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
     partitionOf(partition).offsetRange(offset, offset).dataset.collect().headOption
 
-  def diff(other: TypedDataset[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
+  def diff(
+    other: TypedDataset[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
     inv.diffDataset(typedDataset, other)(eqK, tek, eqV, tev).dataset
 
   def diff(other: CrDS[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
@@ -114,8 +116,8 @@ final class CrDS[F[_], K, V] private[kafka] (
     res.filter(res.col(_.count) > 1).orderBy(res.col(_.count).asc).dataset
   }
 
-  /** Notes: timestamp order should follow offset order: the larger the offset is the larger of timestamp should be, of
-    * the same key
+  /** Notes: timestamp order should follow offset order: the larger the offset is the larger of timestamp
+    * should be, of the same key
     */
   def misorderedKey: Dataset[MisorderedKey[K]] = {
     implicit val enc: TypedEncoder[K]             = tek

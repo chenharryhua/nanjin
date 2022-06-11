@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.kafka.*
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
@@ -41,7 +40,8 @@ object StreamJoinTestData {
 
   val rand = Random.nextInt()
 
-  val barDS: Dataset[Bar] = TypedDataset.create(List(Bar(rand + 1, 1), Bar(rand + 2, 2), Bar(rand + 3, 3))).dataset
+  val barDS: Dataset[Bar] =
+    TypedDataset.create(List(Bar(rand + 1, 1), Bar(rand + 2, 2), Bar(rand + 3, 3))).dataset
 
   val fooTopic = sparKafka.topic[Int, Foo]("spark.stream.table.join.test")
 

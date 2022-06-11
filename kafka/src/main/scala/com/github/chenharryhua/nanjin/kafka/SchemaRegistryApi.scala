@@ -10,7 +10,6 @@ import diffson.jsonpatch.Operation
 import diffson.jsonpatch.lcsdiff.*
 import diffson.lcs.*
 import io.circe.*
-import io.circe.generic.auto.*
 import io.circe.parser.parse
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
@@ -148,11 +147,15 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
     csrClient.use { client =>
       (
         F.delay(client.deleteSubject(loc.keyLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten),
-        F.delay(client.deleteSubject(loc.valLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten)).mapN((_, _))
+        F.delay(client.deleteSubject(loc.valLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten))
+        .mapN((_, _))
     }
   }
 
-  def testCompatibility(topicName: TopicName, keySchema: Schema, valSchema: Schema): F[CompatibilityTestReport] = {
+  def testCompatibility(
+    topicName: TopicName,
+    keySchema: Schema,
+    valSchema: Schema): F[CompatibilityTestReport] = {
     val loc = SchemaLocation(topicName)
     csrClient.use { client =>
       val ks = new AvroSchema(keySchema)

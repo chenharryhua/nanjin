@@ -8,13 +8,10 @@ import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
 import io.circe.Codec
 import kantan.csv.RowEncoder
-import kantan.csv.generic.*
-import kantan.csv.java8.*
 import org.apache.avro.Schema
 
 import java.sql.Timestamp
 import java.time.Instant
-import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
 final case class Rooster(index: Int, a: Instant, b: Timestamp, c: BigDecimal, d: BigDecimal, e: Option[Int])

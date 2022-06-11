@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.NJLogLevel
-import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -13,8 +12,8 @@ import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto.*
 import mtest.spark.kafka.sparKafka
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
+import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalDate
 import scala.concurrent.duration.*

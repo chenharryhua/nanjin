@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.implicits.{catsSyntaxEq, catsSyntaxSemigroup, toShow}
+import cats.implicits.{catsSyntaxEq, catsSyntaxSemigroup}
 import cats.kernel.Monoid
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
@@ -124,7 +124,11 @@ private[guard] object MetricSnapshot {
     filter: MetricFilter): MetricSnapshot =
     MetricSnapshot(
       counters(metricRegistry, filter),
-      toJson(metricRegistry, filter, serviceParams.metric.rateTimeUnit, serviceParams.metric.durationTimeUnit),
+      toJson(
+        metricRegistry,
+        filter,
+        serviceParams.metric.rateTimeUnit,
+        serviceParams.metric.durationTimeUnit),
       toText(
         metricRegistry,
         filter,

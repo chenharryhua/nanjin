@@ -12,14 +12,12 @@ import fs2.kafka.{
   CommittableConsumerRecord as Fs2CommittableConsumerRecord,
   CommittableProducerRecords as Fs2CommittableProducerRecords,
   ConsumerRecord as Fs2ConsumerRecord,
-  ProducerRecord as Fs2ProducerRecord,
-  ProducerRecords as Fs2ProducerRecords,
-  TransactionalProducerRecords as Fs2TransactionalProducerRecords
+  ProducerRecord as Fs2ProducerRecord
 }
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
@@ -52,11 +50,13 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
 
   checkAll(
     "akka.consumer.CommittableMessage",
-    BitraverseTests[AkkaConsumerMessage.CommittableMessage].bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
+    BitraverseTests[AkkaConsumerMessage.CommittableMessage]
+      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.consumer.TransactionalMessage",
-    BitraverseTests[AkkaConsumerMessage.TransactionalMessage].bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
+    BitraverseTests[AkkaConsumerMessage.TransactionalMessage]
+      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "akka.producer.MultiMessage",

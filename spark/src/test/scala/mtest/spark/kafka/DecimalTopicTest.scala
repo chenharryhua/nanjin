@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder

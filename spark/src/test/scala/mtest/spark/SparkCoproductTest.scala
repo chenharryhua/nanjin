@@ -3,7 +3,6 @@ package mtest.spark
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.test.illTyped
 import shapeless.{:+:, CNil}
-import com.github.chenharryhua.nanjin.spark.injection._
 import frameless.TypedEncoder
 
 object SparkCoproductTestData {

@@ -7,7 +7,6 @@ import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
 import com.amazonaws.services.sqs.model.*
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
-import eu.timepit.refined.api.Refined
 import fs2.{Chunk, Pull, Stream}
 import io.circe.generic.JsonCodec
 import io.circe.literal.*

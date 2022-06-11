@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import io.circe.generic.auto.*
 import kantan.csv.CsvConfiguration
 import kantan.csv.generic.*
 import mtest.pipes.TestData
