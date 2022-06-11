@@ -29,7 +29,8 @@ private[spark] object NJDataTypeF {
 
   final case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
 
-  final case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean) extends NJDataTypeF[K]
+  final case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean)
+      extends NJDataTypeF[K]
 
   final case class NJNullType[K]() extends NJDataTypeF[K]
 
@@ -64,6 +65,7 @@ private[spark] object NJDataTypeF {
       StructType(fields.map(a => StructField(a.colName, a.dataType.toSpark, a.nullable)))
 
     case NJNullType() => NullType
+
   }
 
   val stringAlgebra: Algebra[NJDataTypeF, String] = Algebra[NJDataTypeF, String] {
@@ -99,8 +101,8 @@ private[spark] object NJDataTypeF {
   private def unionNull(nullable: Boolean, sm: Schema): Schema =
     if (nullable) Schema.createUnion(sm, nullSchema) else sm
 
-  /** [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type which was not supported by
-    * avro-hugger yet
+  /** [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type which was not
+    * supported by avro-hugger yet
     */
   def schemaAlgebra(builder: SchemaBuilder.TypeBuilder[Schema]): Algebra[NJDataTypeF, Schema] =
     Algebra[NJDataTypeF, Schema] {
@@ -169,6 +171,7 @@ private[spark] object NJDataTypeF {
         )
 
       case NullType => NJNullType()
+      case unknown  => sys.error(s"unknown type ${unknown.toString}")
     }
 
   implicit val functorNJDataTypeF: Functor[NJDataTypeF] =

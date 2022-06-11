@@ -31,6 +31,7 @@ object privateKeys {
     new PEMParser(new StringReader(content)).readObject() match {
       case pem: PEMKeyPair      => converter.getKeyPair(pem).getPrivate
       case info: PrivateKeyInfo => converter.getPrivateKey(info)
+      case _                    => sys.error("should be PEMKeyPair or PrivateKeyInfo")
     }
   }
 
