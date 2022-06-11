@@ -8,14 +8,13 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.{stages, KafkaTopic, KafkaTopicPartition}
+import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.LocalDateTime
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.DurationInt
-import eu.timepit.refined.auto.*
 
 class AkkaChannelTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, String] = ctx.topic[Int, String]("akka.consumer.test")
@@ -45,8 +44,9 @@ class AkkaChannelTest extends AnyFunSuite {
         akkaConsumer.source
           .map(m => topic.decoder(m).nullableDecode)
           .map(m =>
-            ProducerMessage
-              .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
+            ProducerMessage.single(
+              new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()),
+              m.committableOffset))
           .take(2)
           .runWith(commitSink)))
 
@@ -59,8 +59,9 @@ class AkkaChannelTest extends AnyFunSuite {
         akkaConsumer.source
           .map(m => topic.decoder(m).nullableDecode)
           .map(m =>
-            ProducerMessage
-              .single(new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()), m.committableOffset))
+            ProducerMessage.single(
+              new ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()),
+              m.committableOffset))
           .via(akkaProducer.flexiFlow)
           .map(_.passThrough)
           .take(2)
@@ -71,12 +72,16 @@ class AkkaChannelTest extends AnyFunSuite {
 
   test("akka stream plainSink") {
     val run = IO.fromFuture(
-      IO(akkaConsumer.source
-        .map(m => topic.decoder(m).nullableDecode)
-        .map(m =>
-          new org.apache.kafka.clients.producer.ProducerRecord(topic.topicName.value, m.record.key(), m.record.value()))
-        .take(2)
-        .runWith(akkaProducer.plainSink)))
+      IO(
+        akkaConsumer.source
+          .map(m => topic.decoder(m).nullableDecode)
+          .map(m =>
+            new org.apache.kafka.clients.producer.ProducerRecord(
+              topic.topicName.value,
+              m.record.key(),
+              m.record.value()))
+          .take(2)
+          .runWith(akkaProducer.plainSink)))
     run.unsafeRunSync()
   }
   test("akka source error") {
@@ -91,7 +96,6 @@ class AkkaChannelTest extends AnyFunSuite {
 
   test("assignment") {
     implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-    val datetime                                       = LocalDateTime.now
     val ret = for {
       range <- topic.shortLiveConsumer.use(_.offsetRangeFor(NJDateTimeRange(sydneyTime)))
     } yield {
