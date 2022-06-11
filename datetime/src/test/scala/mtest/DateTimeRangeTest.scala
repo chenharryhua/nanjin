@@ -100,7 +100,9 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
   test("days") {
     val dr =
-      NJDateTimeRange(sydneyTime).withStartTime("2020-12-20T23:00:00+11:00").withEndTime("2020-12-29T01:00:00+11:00")
+      NJDateTimeRange(sydneyTime)
+        .withStartTime("2020-12-20T23:00:00+11:00")
+        .withEndTime("2020-12-29T01:00:00+11:00")
 
     assert((dr.endTimestamp, dr.startTimestamp).mapN { (e, s) =>
       assert(e.timeUnit == s.timeUnit)
@@ -159,12 +161,12 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   test("show sql date and timestamp") {
     val date = java.sql.Date.valueOf(LocalDate.now)
     val ts   = java.sql.Timestamp.from(Instant.now())
-    val utc  = NJTimestamp.now(Clock.systemUTC())
-    val nj   = NJTimestamp.now()
-    val njt  = NJTimestamp(ts)
-    val znj  = NJTimestamp(ZonedDateTime.now())
-    val onj2 = NJTimestamp("2020-12-20T23:00:00+11:00")
-    val onj  = NJTimestamp(OffsetDateTime.now()).atZone("Australia/Sydney")
+    NJTimestamp.now(Clock.systemUTC())
+    val nj = NJTimestamp.now()
+    NJTimestamp(ts)
+    NJTimestamp(ZonedDateTime.now())
+    NJTimestamp("2020-12-20T23:00:00+11:00")
+    NJTimestamp(OffsetDateTime.now()).atZone("Australia/Sydney")
     date.show
     ts.show
     nj.show

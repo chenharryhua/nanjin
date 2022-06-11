@@ -101,7 +101,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("4.json codec") {
-    val a :: b :: c :: d :: e :: f :: g :: rest = guard
+    val a :: b :: c :: d :: e :: f :: g :: _ = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
@@ -125,7 +125,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("5.should receive at least 3 report event") {
-    val s :: b :: c :: d :: rest = guard
+    val s :: b :: c :: d :: _ = guard
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.retry(IO.never).run)
@@ -142,7 +142,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("6.force reset") {
-    val s :: b :: c :: rest = guard
+    val s :: b :: c :: _ = guard
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)

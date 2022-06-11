@@ -231,6 +231,7 @@ class ConcurrencyTest extends AnyFunSuite {
       _ <- n.join
       _ <- o.join
       _ <- p.join
+      _ <- q.join
       _ <- r.join
       _ <- s.join
       _ <- t.join

@@ -67,7 +67,7 @@ object NJProducerRecord {
     NJProducerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
-    NJProducerRecord(Option(pr.partition), None, Option(pr.timestamp), pr.key, pr.value)
+    NJProducerRecord(Option(pr.partition.toInt), None, Option(pr.timestamp.toLong), pr.key, pr.value)
 
   def apply[K, V](k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(None, None, None, Option(k), Option(v))
@@ -90,14 +90,10 @@ object NJProducerRecord {
     NJAvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
-  implicit def jsonEncoder[K, V](implicit
-    jck: JsonEncoder[K],
-    jcv: JsonEncoder[V]): JsonEncoder[NJProducerRecord[K, V]] =
+  implicit def jsonEncoder[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJProducerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJProducerRecord[K, V]]
 
-  implicit def jsonDecoder[K, V](implicit
-    jck: JsonDecoder[K],
-    jcv: JsonDecoder[V]): JsonDecoder[NJProducerRecord[K, V]] =
+  implicit def jsonDecoder[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJProducerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJProducerRecord[K, V]]
 
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =

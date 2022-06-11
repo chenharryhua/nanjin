@@ -74,7 +74,7 @@ object genMessages {
     val genProducerRecord: Gen[ProducerRecord[Int, Int]] = for {
       topic <- Gen.asciiPrintableStr
       partition <- Gen.posNum[Int]
-      offset <- Gen.posNum[Long]
+      _ <- Gen.posNum[Long]
       timestamp <- Gen.posNum[Long]
       key <- arbitrary[Int]
       value <- arbitrary[Int]
@@ -103,7 +103,7 @@ object genMessages {
         new TopicPartition(topic, partition),
         new OffsetAndMetadata(offset, meta),
         consumerGroupId,
-        x => IO.unit)
+        _ => IO.unit)
 
     val genFs2ConsumerMessage: Gen[CommittableConsumerRecord[IO, Int, Int]] =
       for {

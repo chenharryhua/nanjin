@@ -63,7 +63,7 @@ object gendata {
           .withActionRetry(_ => add)))
 
   implicit val eqAbc: Eq[Translator[Option, (Int, Int, Int)]] =
-    (x: Translator[Option, (Int, Int, Int)], y: Translator[Option, (Int, Int, Int)]) => true
+    (_: Translator[Option, (Int, Int, Int)], _: Translator[Option, (Int, Int, Int)]) => true
 
   implicit val arbFOA: Arbitrary[Translator[Option, Option[Int]]] =
     Arbitrary(

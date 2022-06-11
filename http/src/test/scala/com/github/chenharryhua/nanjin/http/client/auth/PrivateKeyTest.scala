@@ -30,7 +30,7 @@ class PrivateKeyTest extends AnyFunSuite {
     val run = for {
       sv <- Supervisor[IO]
       ret <- Resource.eval(IO(1))
-      fib <- Resource.eval(sv.supervise(problemOperation.foreverM))
+      _ <- Resource.eval(sv.supervise(problemOperation.foreverM))
       _ <- Resource.eval(IO.println("main compute"))
     } yield ret
 

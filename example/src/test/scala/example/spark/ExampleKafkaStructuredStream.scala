@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import example.*
 import example.topics.fooTopic
-import io.circe.generic.auto.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 

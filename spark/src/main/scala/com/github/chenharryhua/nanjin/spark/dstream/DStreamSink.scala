@@ -60,9 +60,6 @@ final class DStreamCirce[A: JsonEncoder](
     extends Serializable {
   val params: SDParams = cfg.evalConfig
 
-  private def updateConfig(f: Endo[SDConfig]): DStreamCirce[A] =
-    new DStreamCirce[A](dstream, pathBuilder, f(cfg), isKeepNull)
-
   def dropNull: DStreamCirce[A] = new DStreamCirce[A](dstream, pathBuilder, cfg, false)
 
   def run: Mark = persist.circe(dstream, pathBuilder, isKeepNull)
@@ -74,8 +71,6 @@ final class DStreamAvro[A](
   encoder: AvroEncoder[A],
   cfg: SDConfig)
     extends Serializable {
-  private def updateConfig(f: Endo[SDConfig]): DStreamAvro[A] =
-    new DStreamAvro[A](dstream, pathBuilder, encoder, f(cfg))
 
   val params: SDParams = cfg.evalConfig
 
@@ -89,8 +84,6 @@ final class DStreamJackson[A](
   encoder: AvroEncoder[A],
   cfg: SDConfig)
     extends Serializable {
-  private def updateConfig(f: Endo[SDConfig]): DStreamJackson[A] =
-    new DStreamJackson[A](dstream, pathBuilder, encoder, f(cfg))
 
   val params: SDParams = cfg.evalConfig
 

@@ -83,7 +83,7 @@ class AkkaChannelTest extends AnyFunSuite {
     val run =
       akkaConsumer.source
         .map(m => topic.decoder(m).nullableDecode)
-        .map(m => throw new Exception("oops"))
+        .map(_ => throw new Exception("oops"))
         .runWith(Sink.ignore)
 
     assertThrows[Exception](Await.result(run, 10.seconds))
