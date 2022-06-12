@@ -77,7 +77,8 @@ class SparkTableTest extends AnyFunSuite {
       if (Random.nextBoolean()) Some(Instant.now.truncatedTo(ChronoUnit.MILLIS)) else None
     )
 
-  val dbData: DBTable = sample.transformInto[DBTable]
+  val dbData: DBTable =
+    sample.into[DBTable].withFieldComputed(_.c, _.c.toInstant).withFieldComputed(_.d, _.d.toInstant).transform
 
   val pg: Resource[IO, HikariTransactor[IO]] =
     NJHikari(postgres).transactorResource(ExecutionContexts.fixedThreadPool[IO](10))
@@ -85,7 +86,13 @@ class SparkTableTest extends AnyFunSuite {
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
   test("sparkTable upload dataset to table") {
-    val data = TypedDataset.create(List(sample.transformInto[DBTable]))
+    val data = TypedDataset.create(
+      List(
+        sample
+          .into[DBTable]
+          .withFieldComputed(_.c, _.c.toInstant)
+          .withFieldComputed(_.d, _.d.toInstant)
+          .transform))
     sparkDB.table(table).tableset(data).upload.overwrite.run.unsafeRunSync()
 
   }

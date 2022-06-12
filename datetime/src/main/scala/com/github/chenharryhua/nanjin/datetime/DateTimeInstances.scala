@@ -43,13 +43,4 @@ private[datetime] trait Isos {
   implicit final val isoLocalDate: Iso[LocalDate, Date] =
     Iso[LocalDate, Date](a => Date.valueOf(a))(b => b.toLocalDate)
 
-  implicit final def isoLocalDateTime(implicit zoneId: ZoneId): Iso[LocalDateTime, Instant] =
-    Iso[LocalDateTime, Instant](a => a.atZone(zoneId).toInstant)(b => LocalDateTime.ofInstant(b, zoneId))
-
-  implicit final def isoOffsetDatatime(implicit zoneId: ZoneId): Iso[OffsetDateTime, Instant] =
-    Iso[OffsetDateTime, Instant](_.toInstant)(_.atZone(zoneId).toOffsetDateTime)
-
-  implicit final def isoZonedDatatime(implicit zoneId: ZoneId): Iso[ZonedDateTime, Instant] =
-    Iso[ZonedDateTime, Instant](_.toInstant)(_.atZone(zoneId))
-
 }

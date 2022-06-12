@@ -58,7 +58,7 @@ private[guard] object MetricParams {
   def toLocalDate(ts: Instant): LocalDate         = toZonedDateTime(ts).toLocalDate
   def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime
   def upTime(ts: ZonedDateTime): Duration         = Duration.between(launchTime, ts)
-  def upTime(ts: Instant): Duration               = Duration.between(launchTime, ts.atZone(taskParams.zoneId))
+  def upTime(ts: Instant): Duration               = Duration.between(launchTime, toZonedDateTime(ts))
 }
 
 private[guard] object ServiceParams extends zoneddatetime {
