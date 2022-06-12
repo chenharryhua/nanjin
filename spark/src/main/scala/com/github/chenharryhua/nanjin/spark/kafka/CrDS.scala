@@ -12,6 +12,8 @@ import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
 
+import scala.annotation.nowarn
+
 final class CrDS[F[_], K, V] private[kafka] (
   val dataset: Dataset[NJConsumerRecord[K, V]],
   cfg: SKConfig,
@@ -109,7 +111,7 @@ final class CrDS[F[_], K, V] private[kafka] (
     */
   def misplacedKey: Dataset[MisplacedKey[K]] = {
     import frameless.functions.aggregate.countDistinct
-    implicit val enc: TypedEncoder[K]             = tek
+    @nowarn implicit val enc: TypedEncoder[K]     = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     val res: TypedDataset[MisplacedKey[K]] =
       tds.groupBy(tds.col(_.key)).agg(countDistinct(tds.col(_.partition))).as[MisplacedKey[K]]()
@@ -120,7 +122,7 @@ final class CrDS[F[_], K, V] private[kafka] (
     * should be, of the same key
     */
   def misorderedKey: Dataset[MisorderedKey[K]] = {
-    implicit val enc: TypedEncoder[K]             = tek
+    @nowarn implicit val enc: TypedEncoder[K]     = tek
     val tds: TypedDataset[NJConsumerRecord[K, V]] = typedDataset
     tds
       .groupBy(tds.col(_.key))

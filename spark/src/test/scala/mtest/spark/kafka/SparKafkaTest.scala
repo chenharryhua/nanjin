@@ -80,14 +80,11 @@ class SparKafkaTest extends AnyFunSuite {
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, String, Int]             = ctx.topic[String, Int]("target.topic")
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
     val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
     val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
     val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
-
-    val t = ctx.topic[String, Int]("tmp")
 
     val birst =
       sparKafka
@@ -102,14 +99,11 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka should be able to flatmap to other topic") {
     val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val tgt: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("target.topic")
     val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
     val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
     val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
     val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
     val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
-
-    val t = ctx.topic[Int, Int]("tmp")
 
     val birst =
       sparKafka

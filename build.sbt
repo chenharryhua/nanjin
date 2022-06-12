@@ -296,7 +296,6 @@ lazy val messages = (project in file("messages"))
   .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
-  .settings(tpolecatExcludeOptions ++= Set(ScalacOptions.warnUnusedLocals, ScalacOptions.warnUnusedParams))
   .settings(libraryDependencies ++= baseLib ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
@@ -338,7 +337,6 @@ lazy val spark = (project in file("spark"))
   .dependsOn(database)
   .settings(commonSettings: _*)
   .settings(name := "nj-spark")
-  .settings(tpolecatExcludeOptions ++= Set(ScalacOptions.warnUnusedLocals, ScalacOptions.warnUnusedParams))
   .settings(
     libraryDependencies ++= Seq(
       "io.netty"                               % "netty-all" % "4.1.77.Final",

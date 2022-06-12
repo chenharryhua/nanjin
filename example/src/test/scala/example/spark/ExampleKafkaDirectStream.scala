@@ -18,7 +18,7 @@ class ExampleKafkaDirectStream extends AnyFunSuite {
   test("persist messages using direct streaming") {
     val path = NJPath("./data/example/foo/dstream")
     val cp   = NJPath("./data/example/foo/checkpoint")
-    better.files.File(path.pathStr).delete(true)
+    better.files.File(path.pathStr).delete(swallowIOExceptions = true)
     val runner = DStreamRunner[IO](sparKafka.sparkSession.sparkContext, cp, 2.seconds)
     runner
       .signup(sparKafka.topic(fooTopic).dstream)(_.coalesce.circe(path).run)
