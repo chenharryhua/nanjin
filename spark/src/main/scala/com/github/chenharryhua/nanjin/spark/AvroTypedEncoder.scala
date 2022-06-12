@@ -56,7 +56,7 @@ object AvroTypedEncoder {
   def apply[K: TypedEncoder, V: TypedEncoder](
     keyCodec: NJAvroCodec[K],
     valCodec: NJAvroCodec[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
-    val ote: TypedEncoder[NJConsumerRecord[K, V]] = implicitly
+    val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
     AvroTypedEncoder[NJConsumerRecord[K, V]](ote, NJConsumerRecord.avroCodec(keyCodec, valCodec))
   }
 

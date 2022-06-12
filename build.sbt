@@ -29,8 +29,8 @@ lazy val commonSettings = Seq(
     "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
   ),
   scalacOptions ++= Seq("-Ymacro-annotations", "-Xsource:3"),
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+//  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
 val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.237")
@@ -146,10 +146,8 @@ val kafkaLib = Seq(
   "io.confluent"                              % "kafka-schema-serializer"      % confluent,
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
-  "com.typesafe.akka" %% "akka-stream-kafka"  % "3.0.0",
-  "com.github.fd4s" %% "fs2-kafka"            % "3.0.0-M7"
-).map(_.exclude("org.apache.kafka", "kafka-clients")) ++ Seq(
-  "org.apache.kafka" % "kafka-clients" % kafkaVersion
+  ("com.typesafe.akka" %% "akka-stream-kafka" % "3.0.0").exclude("org.apache.kafka", "kafka-clients"),
+  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M7").exclude("org.apache.kafka", "kafka-clients")
 )
 
 val enumLib = Seq(

@@ -27,7 +27,7 @@ class AvroTest extends AnyFunSuite {
   def rooster =
     new RddAvroFileHoarder[IO, Rooster](RoosterData.ds.rdd.repartition(3), Rooster.avroCodec.avroEncoder)
 
-  def loadRoosters(path: NJPath) = {
+  def loadRoosters(path: NJPath): IO[List[Rooster]] = {
     val rst =
       hadoop
         .filesSortByName(path)
@@ -124,7 +124,8 @@ class AvroTest extends AnyFunSuite {
     assert(BeeData.bees.sortBy(_.b).zip(r.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
-  /** the data saved to disk is correct. loaders.rdd.avro can not rightly read it back. loaders.avro can. avro4s
+  /** the data saved to disk is correct. loaders.rdd.avro can not rightly read it back. loaders.avro can.
+    * avro4s
     * decode:https://github.com/sksamuel/avro4s/blob/release/4.0.x/avro4s-core/src/main/scala/com/sksamuel/avro4s/ByteIterables.scala#L31
     * should follow spark's implementation:
     * https://github.com/apache/spark/blob/branch-3.0/external/avro/src/main/scala/org/apache/spark/sql/avro/AvroDeserializer.scala#L158
@@ -163,12 +164,22 @@ class AvroTest extends AnyFunSuite {
     //  assert(coCops.toSet == t)
   }
 
-  test("coproduct read/write identity - multi") {
+  test("coproduct read/write identity - rdd") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/avro/cpcop/multi.avro")
     val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder).avro(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(cpCops.toSet == t)
+  }
+
+  test("coproduct read/write identity - dataset - happy failure") {
+    import CopData.*
+    val path  = NJPath("./data/test/spark/persist/avro/cpcop/ds/multi.avro")
+    val saver = new DatasetAvroFileHoarder[IO, CpCop](cpDS, CpCop.avroCodec.avroEncoder).avro(path)
+    saver.run.unsafeRunSync()
+    val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec.avroDecoder, sparkSession).collect().toSet
+    assert(cpCops.toSet == t)
+    intercept[Throwable](loaders.avro[CpCop](path, CpCop.ate, sparkSession).collect().toSet)
   }
 }
