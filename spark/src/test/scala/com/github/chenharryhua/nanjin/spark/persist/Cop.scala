@@ -34,9 +34,10 @@ object CoCop {
   val avroCodec: NJAvroCodec[CoCop] = NJAvroCodec[CoCop]
 
   implicit val circe: Codec[CoCop] = deriveCodec[CoCop]
-
+  import frameless.TypedEncoder.injections.*
+  implicit val te: TypedEncoder[CoCop] = shapeless.cachedImplicit
+  val ate: AvroTypedEncoder[CoCop]     = AvroTypedEncoder(te, avroCodec)
   // won't compile
-  // implicit val te: TypedEncoder[CoCop] = shapeless.cachedImplicit
   // implicit val row   = RowEncoder[CoCop]
 }
 final case class EmCop(index: Int, cop: EnumCoproduct.Value)
@@ -56,8 +57,9 @@ final case class CpCop(index: Int, cop: CoproductCop.Cop)
 object CpCop {
   val avroCodec: NJAvroCodec[CpCop] = NJAvroCodec[CpCop]
   implicit val circe: Codec[CpCop]  = deriveCodec[CpCop]
-
+  import frameless.TypedEncoder.injections.*
+  implicit val te: TypedEncoder[CpCop] = shapeless.cachedImplicit
+  val ate: AvroTypedEncoder[CpCop]     = AvroTypedEncoder(te, avroCodec)
   // won't compile
-  // implicit val te: TypedEncoder[CpCop] = shapeless.cachedImplicit
   // implicit val row = RowEncoder[CpCop]
 }

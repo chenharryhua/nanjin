@@ -29,14 +29,14 @@ private object HtmlTranslator extends all {
     p(b("Number of retries: "), numRetry.toString)
 
   private def hostServiceText(evt: NJEvent): Text.TypedTag[String] = {
-    val sn =
+    val serviceName =
       evt.serviceParams.taskParams.homePage.fold(p(b("Service: "), evt.serviceName.value))(hp =>
         p(b("Sevice: "), a(href := hp.value)(evt.serviceName.value)))
     div(
-      p(b("Timestamp: "), evt.timestamp.truncatedTo(ChronoUnit.SECONDS).show),
+      p(b("Timestamp: "), evt.timestamp.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
       p(b("Host: "), evt.serviceParams.taskParams.hostName.value),
       p(b("Task: "), evt.serviceParams.taskParams.taskName.value),
-      sn,
+      serviceName,
       p(b("ServiceID: "), evt.serviceID.show)
     )
   }

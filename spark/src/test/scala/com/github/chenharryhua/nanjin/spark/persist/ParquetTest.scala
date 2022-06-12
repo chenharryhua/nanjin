@@ -110,13 +110,31 @@ class ParquetTest extends AnyFunSuite {
     assert(ants.toSet == t)
   }
 
-  test("enum read/write identity multi uncompress") {
+  test("enum cop read/write identity") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/parquet/emcop/multi.parquet")
     val saver = new DatasetAvroFileHoarder[IO, EmCop](emDS, EmCop.avroCodec.avroEncoder).parquet(path)
     saver.uncompress.run.unsafeRunSync()
     val t = loaders.parquet[EmCop](path, EmCop.ate, sparkSession).collect().toSet
     assert(emCops.toSet == t)
+  }
+
+  test("coproduct cop read/write identity - happy failure") {
+    import CopData.*
+    val path  = NJPath("./data/test/spark/persist/parquet/cpcop/multi.parquet")
+    val saver = new DatasetAvroFileHoarder[IO, CpCop](cpDS, CpCop.avroCodec.avroEncoder).parquet(path)
+    saver.uncompress.run.unsafeRunSync()
+    intercept[Throwable](loaders.parquet[CpCop](path, CpCop.ate, sparkSession).collect().toSet)
+    // assert(cpCops.toSet == t)
+  }
+
+  test("case object cop read/write identity - happy failure") {
+    import CopData.*
+    val path  = NJPath("./data/test/spark/persist/parquet/cocop/multi.parquet")
+    val saver = new DatasetAvroFileHoarder[IO, CoCop](coDS, CoCop.avroCodec.avroEncoder).parquet(path)
+    saver.uncompress.run.unsafeRunSync()
+    intercept[Throwable](loaders.parquet[CoCop](path, CoCop.ate, sparkSession).collect().toSet)
+    // assert(coCops.toSet == t)
   }
 
   /** frameless/spark does not support coproduct so cocop and cpcop do not compile

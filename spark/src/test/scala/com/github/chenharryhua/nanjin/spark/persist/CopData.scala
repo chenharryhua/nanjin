@@ -20,13 +20,15 @@ object CopData {
     CoCop(1, CaseObjectCop.Domestic),
     CoCop(2, CaseObjectCop.International)
   )
-  val coRDD: RDD[CoCop] = sparkSession.sparkContext.parallelize(coCops)
+  val coRDD: RDD[CoCop]    = sparkSession.sparkContext.parallelize(coCops)
+  val coDS: Dataset[CoCop] = TypedDataset.create(coRDD).dataset
 
   val cpCops = List(
     CpCop(1, Coproduct[CoproductCop.Cop](CoproductCop.Domestic())),
-    CpCop(1, Coproduct[CoproductCop.Cop](CoproductCop.International()))
+    CpCop(2, Coproduct[CoproductCop.Cop](CoproductCop.International()))
   )
 
-  val cpRDD: RDD[CpCop] = sparkSession.sparkContext.parallelize(cpCops)
+  val cpRDD: RDD[CpCop]    = sparkSession.sparkContext.parallelize(cpCops)
+  val cpDS: Dataset[CpCop] = TypedDataset.create(cpRDD).dataset
 
 }
