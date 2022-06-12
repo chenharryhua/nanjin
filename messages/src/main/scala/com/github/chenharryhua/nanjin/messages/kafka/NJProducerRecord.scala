@@ -15,6 +15,8 @@ import monocle.std.option.some
 import org.apache.kafka.clients.producer.ProducerRecord
 import shapeless.cachedImplicit
 
+import scala.annotation.nowarn
+
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJProducerRecord")
 @Lenses
@@ -81,21 +83,23 @@ object NJProducerRecord {
   def avroCodec[K, V](
     keyCodec: NJAvroCodec[K],
     valCodec: NJAvroCodec[V]): NJAvroCodec[NJProducerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
-    implicit val valDecoder: Decoder[V]      = valCodec.avroDecoder
-    implicit val keyEncoder: Encoder[K]      = keyCodec.avroEncoder
-    implicit val valEncoder: Encoder[V]      = valCodec.avroEncoder
-    val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
-    val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
-    val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
+    @nowarn implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
+    @nowarn implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
+    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
+    @nowarn implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
+    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
+    @nowarn implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+    val s: SchemaFor[NJProducerRecord[K, V]]        = cachedImplicit
+    val d: Decoder[NJProducerRecord[K, V]]          = cachedImplicit
+    val e: Encoder[NJProducerRecord[K, V]]          = cachedImplicit
     NJAvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
+  @nowarn
   implicit def jsonEncoder[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJProducerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJProducerRecord[K, V]]
 
+  @nowarn
   implicit def jsonDecoder[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJProducerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJProducerRecord[K, V]]
 

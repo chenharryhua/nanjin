@@ -4,10 +4,11 @@ import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract class AdobeMetascope(val name: String) extends EnumEntry
+sealed abstract class AdobeMetascope(val name: String) extends EnumEntry with Product
 
 // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/Scopes.md
-object AdobeMetascope extends Enum[AdobeMetascope] with CatsEnum[AdobeMetascope] with CirceEnum[AdobeMetascope] {
+object AdobeMetascope
+    extends Enum[AdobeMetascope] with CatsEnum[AdobeMetascope] with CirceEnum[AdobeMetascope] {
   override def values: immutable.IndexedSeq[AdobeMetascope] = findValues
   case object AdobeAnalytics extends AdobeMetascope("ent_analytics_bulk_ingest_sdk")
   case object ExperiencePlatform extends AdobeMetascope("ent_dataservices_sdk")

@@ -110,7 +110,7 @@ class ManualAvroSchemaTest extends AnyFunSuite {
   }
 
   test("incompatiable") {
-    val input = (new Schema.Parser).parse(UnderTest.schema3)
+    (new Schema.Parser).parse(UnderTest.schema3)
 
     val ms3: Ior[String, NJAvroCodec[UnderTest]] =
       NJAvroCodec[UnderTest](UnderTest.schema3)

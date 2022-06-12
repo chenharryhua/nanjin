@@ -36,7 +36,6 @@ object adobe {
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
 
-    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       token_type: String,
       expires_in: Long, // in milliseconds
@@ -103,7 +102,11 @@ object adobe {
   }
 
   object IMS {
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_code: String, client_secret: String): IMS[F] =
+    def apply[F[_]](
+      auth_endpoint: Uri,
+      client_id: String,
+      client_code: String,
+      client_secret: String): IMS[F] =
       new IMS[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -126,7 +129,6 @@ object adobe {
     middleware: Reader[Client[F], Resource[F, Client[F]]])
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
 
-    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       token_type: String,
       expires_in: Long, // in milliseconds

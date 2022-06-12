@@ -15,6 +15,7 @@ import monocle.std.option.some
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
+import scala.annotation.nowarn
 
 @Lenses
 @AvroDoc("kafka record, optional Key and Value")
@@ -67,22 +68,24 @@ object NJConsumerRecord {
   def avroCodec[K, V](
     keyCodec: NJAvroCodec[K],
     valCodec: NJAvroCodec[V]): NJAvroCodec[NJConsumerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K]      = keyCodec.avroDecoder
-    implicit val valDecoder: Decoder[V]      = valCodec.avroDecoder
-    implicit val keyEncoder: Encoder[K]      = keyCodec.avroEncoder
-    implicit val valEncoder: Encoder[V]      = valCodec.avroEncoder
-    val s: SchemaFor[NJConsumerRecord[K, V]] = implicitly
-    val d: Decoder[NJConsumerRecord[K, V]]   = implicitly
-    val e: Encoder[NJConsumerRecord[K, V]]   = implicitly
+    @nowarn implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
+    @nowarn implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
+    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
+    @nowarn implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
+    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
+    @nowarn implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+    val s: SchemaFor[NJConsumerRecord[K, V]]        = implicitly
+    val d: Decoder[NJConsumerRecord[K, V]]          = implicitly
+    val e: Encoder[NJConsumerRecord[K, V]]          = implicitly
     NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
+  @nowarn
   implicit def jsonEncoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
 
+  @nowarn
   implicit def jsonDecoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]
     : JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]

@@ -1,16 +1,17 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.{Eq, Show}
-import com.github.chenharryhua.nanjin.common.aws.S3Path
+import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
+import com.github.chenharryhua.nanjin.common.aws.S3Path
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{LocatedFileStatus, Path}
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
-import cats.syntax.eq.*
+
 import java.net.URI
-import java.time.{LocalDate, ZonedDateTime}
+import java.time.{LocalDate, LocalDateTime}
 
 @JsonCodec
 final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
@@ -27,11 +28,11 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
   }
 
   // Year=2020/Month=01/Day=05/Hour=23
-  def /(zdt: ZonedDateTime): NJPath = {
-    val year  = PathSegment.unsafeFrom(f"Year=${zdt.getYear}%4d")
-    val month = PathSegment.unsafeFrom(f"Month=${zdt.getMonthValue}%02d")
-    val day   = PathSegment.unsafeFrom(f"Day=${zdt.getDayOfMonth}%02d")
-    val hour  = PathSegment.unsafeFrom(f"Hour=${zdt.getHour}%02d")
+  def /(ldt: LocalDateTime): NJPath = {
+    val year  = PathSegment.unsafeFrom(f"Year=${ldt.getYear}%4d")
+    val month = PathSegment.unsafeFrom(f"Month=${ldt.getMonthValue}%02d")
+    val day   = PathSegment.unsafeFrom(f"Day=${ldt.getDayOfMonth}%02d")
+    val hour  = PathSegment.unsafeFrom(f"Hour=${ldt.getHour}%02d")
     NJPath(root, segments ::: List(year, month, day, hour))
   }
 

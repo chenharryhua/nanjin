@@ -6,6 +6,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 
+import scala.annotation.nowarn
+
 final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long, timestampType: Int)
 
 object CRMetaInfo {
@@ -19,7 +21,7 @@ final case class KvDiffResult[K, V](key: Option[K], value: Option[V])
 final case class DiffResult[K, V](left: NJConsumerRecord[K, V], right: Option[NJConsumerRecord[K, V]])
 
 object inv {
-
+  @nowarn
   def diffDataset[K: Eq: TypedEncoder, V: Eq: TypedEncoder](
     left: TypedDataset[NJConsumerRecord[K, V]],
     right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[DiffResult[K, V]] =
@@ -54,6 +56,7 @@ object inv {
     }
   }
 
+  @nowarn
   def kvDiffDataset[K: TypedEncoder, V: TypedEncoder](
     left: TypedDataset[NJConsumerRecord[K, V]],
     right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[KvDiffResult[K, V]] = {

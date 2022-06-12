@@ -25,9 +25,9 @@ final class RefreshableToken[F[_]] private (
   client_secret: String,
   cfg: AuthConfig,
   middleware: Reader[Client[F], Resource[F, Client[F]]])
-    extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]] with UpdateConfig[AuthConfig, RefreshableToken[F]] {
+    extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]]
+    with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
-  @SuppressWarnings(Array("FinalModifierOnCaseClass"))
   private case class Token(
     token_type: String,
     access_token: String,
@@ -45,7 +45,10 @@ final class RefreshableToken[F[_]] private (
         .authClient(client)
         .expect[Token](
           POST(
-            UrlForm("grant_type" -> "client_credentials", "client_id" -> client_id, "client_secret" -> client_secret),
+            UrlForm(
+              "grant_type" -> "client_credentials",
+              "client_id" -> client_id,
+              "client_secret" -> client_secret),
             authURI).putHeaders("Cache-Control" -> "no-cache"))
 
     def refreshToken(pre: Token): F[Token] =
@@ -77,7 +80,8 @@ final class RefreshableToken[F[_]] private (
     } yield Client[F] { req =>
       for {
         token <- Resource.eval(ref.get.rethrow)
-        out <- c.run(req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
+        out <- c.run(
+          req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
       } yield out
     }
   }

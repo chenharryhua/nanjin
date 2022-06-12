@@ -6,6 +6,7 @@ import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
+import scala.annotation.nowarn
 
 final case class NJConsumerRecordWithError[K, V](
   partition: Int,
@@ -33,10 +34,12 @@ object NJConsumerRecordWithError {
   implicit def showNJConsumerRecordWithError[K: Show, V: Show]: Show[NJConsumerRecordWithError[K, V]] =
     cats.derived.semiauto.show[NJConsumerRecordWithError[K, V]]
 
+  @nowarn
   implicit def jsonEncoderNJConsumerRecordWithError[K: JsonEncoder, V: JsonEncoder]
     : JsonEncoder[NJConsumerRecordWithError[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecordWithError[K, V]]
 
+  @nowarn
   implicit def jsonDecoderNJConsumerRecordWithError[K: JsonDecoder, V: JsonDecoder]
     : JsonDecoder[NJConsumerRecordWithError[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecordWithError[K, V]]

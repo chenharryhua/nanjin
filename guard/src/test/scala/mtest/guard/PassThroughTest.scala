@@ -49,16 +49,11 @@ class PassThroughTest extends AnyFunSuite {
   test("2.counter") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(secondly))
-      .eventStream(ag =>
-        ag.counter("counter").inc(100) >> ag.metrics.reset >> ag
-          .span("one")
-          .span("two")
-          .span("three")
-          .counter("counter")
-          .asError
-          .inc(1)
-          .delayBy(1.second)
-          .replicateA(3) >> ag.metrics.fullReport)
+      .eventStream { ag =>
+        val counter =
+          ag.span("one").span("two").span("three").counter("counter").asError
+        (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.fullReport
+      }
       .filter(_.isInstanceOf[MetricReport])
       .debug()
       .compile
@@ -68,16 +63,19 @@ class PassThroughTest extends AnyFunSuite {
       last
         .asInstanceOf[MetricReport]
         .snapshot
-        .counterMap("03.counter.[one/two/three/counter][1a8af341].error") == 3)
+        .counterMap("03.counter.[one/two/three/counter][1a8af341].error") == 1)
   }
 
   test("3.alert") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(hourly))
-      .eventStream(ag =>
-        ag.alert("oops").withCounting.error("message").delayBy(1.second) >>
-          ag.alert("info").info("hello") >>
-          ag.metrics.report(MetricFilter.ALL))
+      .eventStream { ag =>
+        val alert = ag.alert("oops").withCounting
+        alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
+          ag.metrics.fullReport >>
+          ag.metrics.deltaReport(MetricFilter.ALL) >>
+          ag.metrics.report(MetricFilter.ALL)
+      }
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
       .compile
@@ -106,6 +104,20 @@ class PassThroughTest extends AnyFunSuite {
       .eventStream { agent =>
         val meter = agent.histogram("nj.test.histogram").withCounting
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
+      }
+      .evalTap(logging(Translator.simpleText[IO]))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("6.runtime") {
+    guard
+      .updateConfig(_.withMetricReport(1.second))
+      .eventStream { agent =>
+        val rt = agent.runtime
+        rt.upTime >> rt.downCause >> rt.isServicePanic >> rt.isServiceUp >> rt.pendingActions >> IO(
+          rt.serviceID)
       }
       .evalTap(logging(Translator.simpleText[IO]))
       .compile

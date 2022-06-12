@@ -176,11 +176,11 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   }
 
   test("other primitive types") {
-    val ate1 = AvroTypedEncoder[Byte]
-    val ate2 = AvroTypedEncoder[BigDecimal]
-    val ate3 = AvroTypedEncoder[Float]
-    val ate4 = AvroTypedEncoder[Double]
-    val ate5 = AvroTypedEncoder[Long]
-    val ate6 = AvroTypedEncoder[Boolean]
+    AvroTypedEncoder[Byte]
+    AvroTypedEncoder[BigDecimal]
+    AvroTypedEncoder[Float]
+    AvroTypedEncoder[Double]
+    AvroTypedEncoder[Long]
+    AvroTypedEncoder[Boolean]
   }
 }

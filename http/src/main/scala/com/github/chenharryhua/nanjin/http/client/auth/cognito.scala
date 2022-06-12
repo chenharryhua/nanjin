@@ -36,7 +36,6 @@ object cognito {
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
-    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       access_token: String,
       refresh_token: String,
@@ -70,7 +69,10 @@ object cognito {
         params
           .authClient(client)
           .expect[Token](POST(
-            UrlForm("grant_type" -> "refresh_token", "client_id" -> client_id, "refresh_token" -> pre.refresh_token),
+            UrlForm(
+              "grant_type" -> "refresh_token",
+              "client_id" -> client_id,
+              "refresh_token" -> pre.refresh_token),
             authURI,
             Authorization(BasicCredentials(client_id, client_secret))
           ).putHeaders("Cache-Control" -> "no-cache"))
@@ -91,7 +93,8 @@ object cognito {
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
-          out <- c.run(req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
+          out <- c.run(
+            req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
         } yield out
       }
     }
@@ -148,7 +151,6 @@ object cognito {
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
 
-    @SuppressWarnings(Array("FinalModifierOnCaseClass"))
     private case class Token(
       access_token: String,
       token_type: String,
@@ -188,7 +190,8 @@ object cognito {
       } yield Client[F] { req =>
         for {
           token <- Resource.eval(ref.get.rethrow)
-          out <- c.run(req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
+          out <- c.run(
+            req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
         } yield out
       }
     }
@@ -228,7 +231,11 @@ object cognito {
         cfg = AuthConfig(1.day),
         Reader(Resource.pure))
 
-    def apply[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String, scope: String): ClientCredentials[F] =
+    def apply[F[_]](
+      auth_endpoint: Uri,
+      client_id: String,
+      client_secret: String,
+      scope: String): ClientCredentials[F] =
       apply(auth_endpoint, client_id, client_secret, NonEmptyList.one(scope))
   }
 }

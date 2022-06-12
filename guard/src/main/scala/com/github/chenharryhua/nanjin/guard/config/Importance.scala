@@ -9,7 +9,7 @@ import org.typelevel.cats.time.instances.duration
 
 import java.time.Duration
 
-sealed abstract class Importance(val value: Int) extends EnumEntry
+sealed abstract class Importance(val value: Int) extends EnumEntry with Product
 
 object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
   override val values: IndexedSeq[Importance] = findValues
@@ -23,7 +23,7 @@ object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceE
   implicit final val orderImportance: Order[Importance]       = Order.fromOrdering[Importance]
 }
 
-sealed trait MetricSnapshotType extends EnumEntry
+sealed trait MetricSnapshotType extends EnumEntry with Product
 object MetricSnapshotType
     extends CatsEnum[MetricSnapshotType] with Enum[MetricSnapshotType] with CirceEnum[MetricSnapshotType] {
   override val values: IndexedSeq[MetricSnapshotType] = findValues
@@ -33,7 +33,7 @@ object MetricSnapshotType
 }
 
 @JsonCodec
-sealed trait ScheduleType {
+sealed trait ScheduleType extends Product {
   final def fold[A](f: Duration => A, c: CronExpr => A): A = this match {
     case ScheduleType.Fixed(value) => f(value)
     case ScheduleType.Cron(value)  => c(value)
