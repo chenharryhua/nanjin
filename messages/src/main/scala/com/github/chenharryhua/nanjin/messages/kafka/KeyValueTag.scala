@@ -7,7 +7,7 @@ import monocle.macros.GenPrism
 import scala.collection.immutable
 
 sealed abstract class KeyValueTag(override val value: Int, val name: String, val isKey: Boolean)
-    extends IntEnumEntry with Serializable
+    extends IntEnumEntry with Product with Serializable
 
 object KeyValueTag extends CatsValueEnum[Int, KeyValueTag] with IntEnum[KeyValueTag] {
   override val values: immutable.IndexedSeq[KeyValueTag] = findValues
