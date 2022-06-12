@@ -7,8 +7,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.common.transformers.*
 import com.github.chenharryhua.nanjin.database.NJHikari
-import com.github.chenharryhua.nanjin.datetime.*
-import com.github.chenharryhua.nanjin.datetime.instances.*
+import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.injection.*
@@ -33,7 +32,19 @@ import java.time.*
 import java.time.temporal.ChronoUnit
 import scala.util.Random
 
-final case class DomainObject(a: LocalDate, b: Date, c: ZonedDateTime, d: OffsetDateTime, e: Option[Instant])
+final case class DomainObject(
+  a: LocalDate,
+  b: Date,
+  c: ZonedDateTime,
+  d: OffsetDateTime,
+  e: Option[Instant]) {
+  def toDB: DBTable = this
+    .into[DBTable]
+    .withFieldComputed(_.b, _.b.toLocalDate)
+    .withFieldComputed(_.c, _.c.toInstant)
+    .withFieldComputed(_.d, _.d.toInstant)
+    .transform
+}
 
 final case class DBTable(a: LocalDate, b: LocalDate, c: Instant, d: Instant, e: Option[Instant])
 final case class PartialDBTable(a: LocalDate, b: LocalDate)
@@ -57,8 +68,6 @@ object DBTable {
 class SparkTableTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/database/postgres/")
 
-  implicit val zoneId: ZoneId = beijingTime
-
   implicit val ss: SparkSession = sparkSession
 
   val codec: NJAvroCodec[DBTable]                = NJAvroCodec[DBTable]
@@ -72,13 +81,12 @@ class SparkTableTest extends AnyFunSuite {
     DomainObject(
       LocalDate.now,
       Date.valueOf(LocalDate.now),
-      ZonedDateTime.now(zoneId).truncatedTo(ChronoUnit.MILLIS),
-      OffsetDateTime.now(zoneId).truncatedTo(ChronoUnit.MILLIS),
+      ZonedDateTime.now(sydneyTime).truncatedTo(ChronoUnit.MILLIS),
+      OffsetDateTime.now(sydneyTime).truncatedTo(ChronoUnit.MILLIS),
       if (Random.nextBoolean()) Some(Instant.now.truncatedTo(ChronoUnit.MILLIS)) else None
     )
 
-  val dbData: DBTable =
-    sample.into[DBTable].withFieldComputed(_.c, _.c.toInstant).withFieldComputed(_.d, _.d.toInstant).transform
+  val dbData: DBTable = sample.toDB
 
   val pg: Resource[IO, HikariTransactor[IO]] =
     NJHikari(postgres).transactorResource(ExecutionContexts.fixedThreadPool[IO](10))
@@ -86,15 +94,8 @@ class SparkTableTest extends AnyFunSuite {
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
   test("sparkTable upload dataset to table") {
-    val data = TypedDataset.create(
-      List(
-        sample
-          .into[DBTable]
-          .withFieldComputed(_.c, _.c.toInstant)
-          .withFieldComputed(_.d, _.d.toInstant)
-          .transform))
+    val data = TypedDataset.create(List(sample.toDB))
     sparkDB.table(table).tableset(data).upload.overwrite.run.unsafeRunSync()
-
   }
 
   test("dump and count") {
