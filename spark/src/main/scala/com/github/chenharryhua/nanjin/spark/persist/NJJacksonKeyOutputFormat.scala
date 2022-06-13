@@ -26,10 +26,12 @@ final class NJJacksonKeyOutputFormat extends AvroOutputFormatBase[AvroKey[Generi
     val outDir = FileOutputFormat.getOutputPath(job)
     if (outDir == null) throw new InvalidJobConfException("Output directory not set.")
     TokenCache.obtainTokensForNamenodes(job.getCredentials, Array[Path](outDir), job.getConfiguration)
-    if (AvroJob.getOutputKeySchema(job.getConfiguration) == null) throw new InvalidJobConfException("schema not set")
+    if (AvroJob.getOutputKeySchema(job.getConfiguration) == null)
+      throw new InvalidJobConfException("schema not set")
   }
 
-  override def getRecordWriter(job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
+  override def getRecordWriter(
+    job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
     val suffix: String        = s"-${utils.uuidStr(job)}.${NJFileFormat.Jackson.suffix}"
     val schema: Schema        = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf: Configuration   = job.getConfiguration
@@ -52,7 +54,7 @@ final class NJJacksonKeyOutputFormat extends AvroOutputFormatBase[AvroKey[Generi
   }
 }
 
-final class JacksonKeyRecordWriter(schema: Schema, os: OutputStream)
+final private class JacksonKeyRecordWriter(schema: Schema, os: OutputStream)
     extends RecordWriter[AvroKey[GenericRecord], NullWritable] {
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =

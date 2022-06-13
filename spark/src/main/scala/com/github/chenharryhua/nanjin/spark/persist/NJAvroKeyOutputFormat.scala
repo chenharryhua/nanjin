@@ -26,19 +26,21 @@ final class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRe
     val outDir = FileOutputFormat.getOutputPath(job)
     if (outDir == null) throw new InvalidJobConfException("Output directory not set.")
     TokenCache.obtainTokensForNamenodes(job.getCredentials, Array[Path](outDir), job.getConfiguration)
-    if (AvroJob.getOutputKeySchema(job.getConfiguration) == null) throw new InvalidJobConfException("schema not set")
+    if (AvroJob.getOutputKeySchema(job.getConfiguration) == null)
+      throw new InvalidJobConfException("schema not set")
   }
 
-  override def getRecordWriter(job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
+  override def getRecordWriter(
+    job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
     val schema: Schema        = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf: Configuration   = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
     val syncInterval: Int     = getSyncInterval(job)
     if (isCompressed) {
-      val cf: CodecFactory            = getCompressionCodec(job)
-      val suffix: String              = s"-${utils.uuidStr(job)}.${cf.toString.toLowerCase}.${NJFileFormat.Avro.suffix}"
-      val file: Path                  = getDefaultWorkFile(job, suffix)
-      val fs: FileSystem              = file.getFileSystem(conf)
+      val cf: CodecFactory = getCompressionCodec(job)
+      val suffix: String   = s"-${utils.uuidStr(job)}.${cf.toString.toLowerCase}.${NJFileFormat.Avro.suffix}"
+      val file: Path       = getDefaultWorkFile(job, suffix)
+      val fs: FileSystem   = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
       val out: DataOutputStream       = new DataOutputStream(fileOut)
       new AvroKeyRecordWriter(schema, out, cf, syncInterval)
@@ -52,14 +54,17 @@ final class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRe
   }
 }
 
-final class AvroKeyRecordWriter(schema: Schema, os: OutputStream, cf: CodecFactory, syncInterval: Int)
+final private class AvroKeyRecordWriter(schema: Schema, os: OutputStream, cf: CodecFactory, syncInterval: Int)
     extends RecordWriter[AvroKey[GenericRecord], NullWritable] with Syncable {
 
   private val datumWriter: GenericDatumWriter[GenericRecord] =
     new GenericDatumWriter[GenericRecord](schema)
 
   private val dataFileWriter: DataFileWriter[GenericRecord] =
-    new DataFileWriter[GenericRecord](datumWriter).setCodec(cf).setSyncInterval(syncInterval).create(schema, os)
+    new DataFileWriter[GenericRecord](datumWriter)
+      .setCodec(cf)
+      .setSyncInterval(syncInterval)
+      .create(schema, os)
 
   override def write(key: AvroKey[GenericRecord], value: NullWritable): Unit =
     dataFileWriter.append(key.datum())
