@@ -26,11 +26,12 @@ final class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
     val isCompressed: Boolean = FileOutputFormat.getCompressOutput(job)
     val suffix: String        = s"-${utils.uuidStr(job)}.${conf.get(NJTextOutputFormat.suffix, "")}"
     if (isCompressed) {
-      val codecClass: Class[? <: CompressionCodec] = FileOutputFormat.getOutputCompressorClass(job, classOf[GzipCodec])
-      val codec: CompressionCodec                  = ReflectionUtils.newInstance(codecClass, conf)
-      val file: Path                               = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
-      val fs: FileSystem                           = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream              = fs.create(file, false)
+      val codecClass: Class[? <: CompressionCodec] =
+        FileOutputFormat.getOutputCompressorClass(job, classOf[GzipCodec])
+      val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
+      val file: Path                  = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
+      val fs: FileSystem              = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream = fs.create(file, false)
       new NJTextRecordWriter(new DataOutputStream(codec.createOutputStream(fileOut)))
     } else {
       val file: Path                  = getDefaultWorkFile(job, suffix)
@@ -45,7 +46,7 @@ object NJTextOutputFormat {
   val suffix: String = "nj.mapreduce.output.textoutputformat.suffix"
 }
 
-final class NJTextRecordWriter(out: DataOutputStream) extends RecordWriter[NullWritable, Text] {
+final private class NJTextRecordWriter(out: DataOutputStream) extends RecordWriter[NullWritable, Text] {
   override def write(key: NullWritable, value: Text): Unit = out.write(value.getBytes, 0, value.getLength)
   override def close(context: TaskAttemptContext): Unit    = out.close()
 }

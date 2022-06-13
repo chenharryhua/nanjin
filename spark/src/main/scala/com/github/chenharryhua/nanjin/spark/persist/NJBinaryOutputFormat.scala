@@ -29,10 +29,10 @@ final class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWri
     if (isCompressed) {
       val codecClass: Class[? <: CompressionCodec] = getOutputCompressorClass(job, classOf[GzipCodec])
       val codec: CompressionCodec                  = ReflectionUtils.newInstance(codecClass, conf)
-      val file: Path                               = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
-      val fs: FileSystem                           = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream              = fs.create(file, false)
-      val out: DataOutputStream                    = new DataOutputStream(codec.createOutputStream(fileOut))
+      val file: Path                  = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
+      val fs: FileSystem              = file.getFileSystem(conf)
+      val fileOut: FSDataOutputStream = fs.create(file, false)
+      val out: DataOutputStream       = new DataOutputStream(codec.createOutputStream(fileOut))
       new NJBinaryRecordWriter(out)
     } else {
       val file: Path                  = getDefaultWorkFile(job, suffix)
@@ -47,7 +47,8 @@ object NJBinaryOutputFormat {
   val suffix: String = "nj.mapreduce.output.binoutputformat.suffix"
 }
 
-final class NJBinaryRecordWriter(out: DataOutputStream) extends RecordWriter[NullWritable, BytesWritable] {
+final private class NJBinaryRecordWriter(out: DataOutputStream)
+    extends RecordWriter[NullWritable, BytesWritable] {
 
   override def write(key: NullWritable, value: BytesWritable): Unit =
     out.write(value.getBytes, 0, value.getLength)
