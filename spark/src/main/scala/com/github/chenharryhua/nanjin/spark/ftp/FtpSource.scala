@@ -13,17 +13,17 @@ import kantan.csv.{CsvConfiguration, RowDecoder}
 
 final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloader[F, C, S]) {
 
-  def csv[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: ChunkSize)(implicit
+  def kantan[A](pathStr: String, csvConfig: CsvConfiguration, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] =
     downloader.download(pathStr, chunkSize).through(KantanSerde.fromBytes[F, A](csvConfig, chunkSize))
 
-  def csv[A](pathStr: String, chunkSize: ChunkSize)(implicit
+  def kantan[A](pathStr: String, chunkSize: ChunkSize)(implicit
     dec: RowDecoder[A],
     F: Async[F],
     mat: Materializer): Stream[F, A] =
-    csv[A](pathStr, CsvConfiguration.rfc, chunkSize)
+    kantan[A](pathStr, CsvConfiguration.rfc, chunkSize)
 
   def json[A: JsonDecoder](pathStr: String, chunkSize: ChunkSize)(implicit
     F: Async[F],
@@ -35,6 +35,8 @@ final class FtpSource[F[_], C, S <: RemoteFileSettings](downloader: FtpDownloade
     mat: Materializer): Stream[F, A] =
     downloader.download(pathStr, chunkSize).through(JacksonSerde.fromBytes(dec.schema)).map(dec.decode)
 
-  def text(pathStr: String, chunkSize: ChunkSize)(implicit F: Async[F], mat: Materializer): Stream[F, String] =
+  def text(pathStr: String, chunkSize: ChunkSize)(implicit
+    F: Async[F],
+    mat: Materializer): Stream[F, String] =
     downloader.download(pathStr, chunkSize).through(TextSerde.fromBytes)
 }

@@ -171,9 +171,9 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save csv") {
-    val csv = saver.csv(root / "multi.csv").run
+    val csv = saver.kantan(root / "multi.csv").run
     csv.unsafeRunSync()
-    val mhead = tb.load.csv(root / "multi.csv").map(_.dataset.collect().head)
+    val mhead = tb.load.kantan(root / "multi.csv").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
   }
 

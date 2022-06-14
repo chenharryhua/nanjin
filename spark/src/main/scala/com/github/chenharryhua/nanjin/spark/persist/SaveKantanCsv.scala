@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.pipes.KantanSerde
 import com.github.chenharryhua.nanjin.terminals.{KantanCompression, NJCompression}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
-import org.apache.hadoop.io.{NullWritable, Text}
 import org.apache.spark.rdd.RDD
-
+import shapeless.{HList, LabelledGeneric}
+import shapeless.ops.record.Keys
+import shapeless.ops.hlist.ToTraversable
+import scala.annotation.nowarn
 final class SaveKantanCsv[F[_], A](
   val rdd: RDD[A],
   val csvConfiguration: CsvConfiguration,
@@ -17,9 +18,15 @@ final class SaveKantanCsv[F[_], A](
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveKantanCsv[F, A] =
     new SaveKantanCsv[F, A](rdd, f(csvConfiguration), cfg, encoder)
 
-  // header
-  def withHeader: SaveKantanCsv[F, A] =
-    updateCsvConfig(_.withHeader("place hold"))
+  // https://svejcar.dev/posts/2019/10/22/extracting-case-class-field-names-with-shapeless/
+  @nowarn
+  def withHeader[Repr <: HList, KeysRepr <: HList](implicit
+    gen: LabelledGeneric.Aux[A, Repr],
+    keys: Keys.Aux[Repr, KeysRepr],
+    traversable: ToTraversable.Aux[KeysRepr, List, Symbol]): SaveKantanCsv[F, A] = {
+    def fieldNames: List[String] = keys().toList.map(_.name)
+    updateCsvConfig(_.withHeader(fieldNames*))
+  }
 
   def withHeader(ss: String*): SaveKantanCsv[F, A] =
     updateCsvConfig(_.withHeader(CsvConfiguration.Header.Explicit(ss)))
@@ -49,35 +56,13 @@ final class SaveKantanCsv[F[_], A](
   def gzip: SaveKantanCsv[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveKantanCsv[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
   def uncompress: SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def snappy: SaveKantanCsv[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
+  // def snappy: SaveKantanCsv[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
 
   def withCompression(kc: KantanCompression): SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(kc))
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptibleMany {
-        saveRDD.csv[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)
+        saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)
       })
-}
-
-private class KantanCsvIterator[A](
-  headerEncoder: HeaderEncoder[A],
-  csvCfg: CsvConfiguration,
-  iter: Iterator[A])
-    extends Iterator[(NullWritable, Text)] {
-
-  private[this] val nullWritable: NullWritable = NullWritable.get()
-
-  private[this] var isFirstTimeAccess: Boolean = true
-
-  private[this] def nextText(): Text = new Text(
-    KantanSerde.rowEncode(iter.next(), csvCfg, headerEncoder.rowEncoder))
-
-  override def hasNext: Boolean = iter.hasNext
-
-  override def next(): (NullWritable, Text) =
-    if (isFirstTimeAccess) {
-      isFirstTimeAccess = false
-      (nullWritable, new Text(KantanSerde.headerStr(csvCfg, headerEncoder)))
-    } else (nullWritable, nextText())
 }

@@ -29,7 +29,7 @@ sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
     new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf))
 
 // 5
-  final def csv(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
+  final def kantan(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
     new SaveKantanCsv[F, A](rdd, CsvConfiguration.rfc, HoarderConfig(path).outputFormat(Kantan), encoder)
 
   final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] = rdd.stream[F](chunkSize)

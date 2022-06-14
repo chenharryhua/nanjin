@@ -113,10 +113,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("csv") {
     val root = NJPath("./data/test/spark/persist/interlope/csv/rooster/")
     val run = for {
-      d <- rooster.csv(root / "bzip2").bzip2.run.start
-      b <- rooster.csv(root / "deflate").deflate(1).run.start
-      c <- rooster.csv(root / "gzip").gzip.run.start
-      a <- rooster.csv(root / "uncompress").run.start
+      d <- rooster.kantan(root / "bzip2").bzip2.run.start
+      b <- rooster.kantan(root / "deflate").deflate(1).run.start
+      c <- rooster.kantan(root / "gzip").gzip.run.start
+      a <- rooster.kantan(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -202,9 +202,9 @@ class ConcurrencyTest extends AnyFunSuite {
       s <- rooster.text(root / "text2").gzip.run.start
       t <- rooster.text(root / "text3").bzip2.run.start
 
-      u <- rooster.csv(root / "csv1").deflate(5).run.start
-      v <- rooster.csv(root / "csv2").gzip.run.start
-      w <- rooster.csv(root / "csv3").bzip2.run.start
+      u <- rooster.kantan(root / "csv1").deflate(5).run.start
+      v <- rooster.kantan(root / "csv2").gzip.run.start
+      w <- rooster.kantan(root / "csv3").bzip2.run.start
 
       _ <- a.join
       _ <- b.join

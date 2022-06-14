@@ -61,7 +61,7 @@ class FtpTest extends AnyFunSuite {
 
   test("csv") {
     val path = "tablet.csv"
-    val rst  = roosterSteam.through(sink.csv(path, Kilobytes(10))) >> source.csv[Tablet](path, 100)
+    val rst  = roosterSteam.through(sink.kantan(path, Kilobytes(10))) >> source.kantan[Tablet](path, 100)
     assert(rst.compile.toList.unsafeRunSync() == TabletData.data)
   }
 

@@ -62,8 +62,8 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
   def filesSortByName(path: NJPath): F[List[NJPath]] = filesIn(path, _.getPath.getName)
 
   // sources and sinks
-  def bytes: NJBytes[F]                     = NJBytes[F](config)
-  def avro(schema: Schema): NJAvro[F]       = NJAvro[F](schema, config)
-  def parquet(schema: Schema): NJParquet[F] = NJParquet[F](schema, config)
-  def csv(cfg: CsvConfiguration): NJCsv[F]  = NJCsv[F](cfg, config)
+  def bytes: NJBytes[F]                       = NJBytes[F](config)
+  def avro(schema: Schema): NJAvro[F]         = NJAvro[F](schema, config)
+  def parquet(schema: Schema): NJParquet[F]   = NJParquet[F](schema, config)
+  def kantan(cfg: CsvConfiguration): NJCsv[F] = NJCsv[F](cfg, config)
 }

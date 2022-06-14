@@ -13,17 +13,17 @@ import squants.information.Information
 
 final class FtpSink[F[_], C, S <: RemoteFileSettings](uploader: FtpUploader[F, C, S]) {
 
-  def csv[A](pathStr: String, csvConfig: CsvConfiguration, byteBuffer: Information)(implicit
+  def kantan[A](pathStr: String, csvConfig: CsvConfiguration, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] =
     _.through(KantanSerde.toBytes[F, A](csvConfig, byteBuffer)).through(uploader.upload(pathStr))
 
-  def csv[A](pathStr: String, byteBuffer: Information)(implicit
+  def kantan[A](pathStr: String, byteBuffer: Information)(implicit
     enc: RowEncoder[A],
     F: Async[F],
     mat: Materializer): Pipe[F, A, IOResult] =
-    csv[A](pathStr, CsvConfiguration.rfc, byteBuffer)
+    kantan[A](pathStr, CsvConfiguration.rfc, byteBuffer)
 
   def json[A: JsonEncoder](pathStr: String, isKeepNull: Boolean = true)(implicit
     F: Async[F],

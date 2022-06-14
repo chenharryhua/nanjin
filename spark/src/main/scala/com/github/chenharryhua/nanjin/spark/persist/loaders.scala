@@ -34,12 +34,12 @@ object loaders {
   def parquet[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.parquet(path.pathStr))
 
-  def csv[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession)(
+  def kantan[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession)(
     implicit dec: RowDecoder[A]): Dataset[A] =
-    ate.normalize(rdd.csv(path, csvConfiguration, ss)(ate.classTag, dec), ss)
+    ate.normalize(rdd.kantan(path, csvConfiguration, ss)(ate.classTag, dec), ss)
 
-  def csv[A: RowDecoder](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    csv[A](path, ate, CsvConfiguration.rfc, ss)
+  def kantan[A: RowDecoder](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    kantan[A](path, ate, CsvConfiguration.rfc, ss)
 
   def json[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(path.pathStr))
@@ -62,7 +62,7 @@ object loaders {
     def objectFile[A: ClassTag](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext.objectFile[A](path.pathStr)
 
-    def csv[A: ClassTag](path: NJPath, csvConfiguration: CsvConfiguration, ss: SparkSession)(implicit
+    def kantan[A: ClassTag](path: NJPath, csvConfiguration: CsvConfiguration, ss: SparkSession)(implicit
       dec: RowDecoder[A]): RDD[A] =
       ss.sparkContext.textFile(path.pathStr).mapPartitions { rows =>
         val itor = if (csvConfiguration.hasHeader) rows.drop(1) else rows
