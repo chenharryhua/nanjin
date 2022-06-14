@@ -13,6 +13,8 @@ import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.{BytesWritable, NullWritable, Text}
 import org.apache.hadoop.mapreduce.Job
+import org.apache.parquet.avro.AvroParquetOutputFormat
+import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
@@ -60,6 +62,23 @@ private[spark] object saveRDD {
         classOf[BytesWritable],
         classOf[NJBinaryOutputFormat],
         config)
+  }
+
+  def parquet[A](rdd: RDD[A], path: NJPath, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
+    val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
+    val job: Job              = Job.getInstance(config)
+    AvroParquetOutputFormat.setSchema(job, encoder.schema)
+    ParquetOutputFormat.setCompression(job, compressionConfig.parquet(config, compression))
+    // run
+    rdd.mapPartitions { rcds =>
+      val to: ToRecord[A] = ToRecord[A](encoder)
+      rcds.map(rcd => (null, to.to(rcd)))
+    }.saveAsNewAPIHadoopFile(
+      path.pathStr,
+      classOf[Void],
+      classOf[GenericRecord],
+      classOf[AvroParquetOutputFormat[GenericRecord]],
+      job.getConfiguration)
   }
 
   def circe[A: JsonEncoder](
