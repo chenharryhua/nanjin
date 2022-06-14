@@ -29,6 +29,10 @@ sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
   final def protobuf(path: NJPath): SaveProtobuf[F, A] =
     new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf))
 
+// 5
+  def csv(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
+    new SaveKantanCsv[F, A](rdd, CsvConfiguration.rfc, HoarderConfig(path).outputFormat(Kantan), encoder)
+
   final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] = rdd.stream[F](chunkSize)
 }
 
@@ -47,36 +51,24 @@ sealed class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A])
   final def binAvro(path: NJPath): SaveBinaryAvro[F, A] =
     new SaveBinaryAvro[F, A](rdd, encoder, HoarderConfig(path).outputFormat(BinaryAvro))
 
+// 4
+  final def parquet(path: NJPath): SaveParquet[F, A] =
+    new SaveParquet[F, A](rdd, encoder, HoarderConfig(path).outputFormat(Parquet))
 }
 
 final class DatasetFileHoarder[F[_], A](ds: Dataset[A]) extends RddFileHoarder[F, A](ds.rdd) {
-
-  // 1
-  def csv(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](ds, CsvConfiguration.rfc, HoarderConfig(path).outputFormat(Kantan), encoder)
 
   // 2
   def json(path: NJPath): SaveSparkJson[F, A] =
     new SaveSparkJson[F, A](ds, HoarderConfig(path).outputFormat(SparkJson), isKeepNull = true)
 
-  // 3
-  def parquet(path: NJPath): SaveParquet[F, A] =
-    new SaveParquet[F, A](ds, HoarderConfig(path).outputFormat(Parquet))
 }
 
 final class DatasetAvroFileHoarder[F[_], A](ds: Dataset[A], encoder: AvroEncoder[A])
     extends RddAvroFileHoarder[F, A](ds.rdd, encoder) {
 
-  // 1
-  def csv(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](ds, CsvConfiguration.rfc, HoarderConfig(path).outputFormat(Kantan), encoder)
-
   // 2
   def json(path: NJPath): SaveSparkJson[F, A] =
     new SaveSparkJson[F, A](ds, HoarderConfig(path).outputFormat(SparkJson), isKeepNull = true)
-
-  // 3
-  def parquet(path: NJPath): SaveParquet[F, A] =
-    new SaveParquet[F, A](ds, HoarderConfig(path).outputFormat(Parquet))
 
 }

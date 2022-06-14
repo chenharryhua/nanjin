@@ -3,24 +3,26 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.pipes.KantanSerde
 import com.github.chenharryhua.nanjin.terminals.{KantanCompression, NJCompression}
-import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
+import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.hadoop.io.{NullWritable, Text}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.rdd.RDD
 
 final class SaveKantanCsv[F[_], A](
-  val dataset: Dataset[A],
+  val rdd: RDD[A],
   val csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   encoder: HeaderEncoder[A])
     extends Serializable {
 
   def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](dataset, f(csvConfiguration), cfg, encoder)
+    new SaveKantanCsv[F, A](rdd, f(csvConfiguration), cfg, encoder)
 
   // header
-  def withHeader: SaveKantanCsv[F, A] = updateCsvConfig(_.withHeader)
-  def withHeader(ss: String*): SaveKantanCsv[F, A] = updateCsvConfig(
-    _.withHeader(CsvConfiguration.Header.Explicit(ss)))
+  def withHeader: SaveKantanCsv[F, A] =
+    updateCsvConfig(_.withHeader("place hold"))
+
+  def withHeader(ss: String*): SaveKantanCsv[F, A] =
+    updateCsvConfig(_.withHeader(CsvConfiguration.Header.Explicit(ss)))
   def withoutHeader: SaveKantanCsv[F, A] = updateCsvConfig(_.withoutHeader)
 
   // quote
@@ -34,7 +36,7 @@ final class SaveKantanCsv[F[_], A](
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](dataset, csvConfiguration, cfg, encoder)
+    new SaveKantanCsv[F, A](rdd, csvConfiguration, cfg, encoder)
 
   def append: SaveKantanCsv[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveKantanCsv[F, A]      = updateConfig(cfg.overwriteMode)
@@ -51,25 +53,11 @@ final class SaveKantanCsv[F[_], A](
 
   def withCompression(kc: KantanCompression): SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(kc))
 
-  private def withOptionalHeader(encoder: HeaderEncoder[A]): HeaderEncoder[A] =
-    new HeaderEncoder[A] {
-      override val header: Option[Seq[String]] =
-        encoder.header.orElse(Some(dataset.schema.fields.map(_.name).toIndexedSeq))
-      override val rowEncoder: RowEncoder[A] = encoder.rowEncoder
-    }
-
   def run(implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](
-      params.saveMode,
-      params.outPath,
-      dataset.sparkSession.sparkContext.hadoopConfiguration).checkAndRun(F.interruptibleMany {
-      saveRDD.csv[A](
-        dataset.rdd,
-        params.outPath,
-        params.compression,
-        csvConfiguration,
-        withOptionalHeader(encoder))
-    })
+    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+      .checkAndRun(F.interruptibleMany {
+        saveRDD.csv[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)
+      })
 }
 
 private class KantanCsvIterator[A](

@@ -21,7 +21,7 @@ class CsvTest extends AnyFunSuite {
   implicit val encoderTablet: HeaderEncoder[Tablet] = shapeless.cachedImplicit
   implicit val decoderTablet: RowDecoder[Tablet]    = shapeless.cachedImplicit
 
-  def saver(path: NJPath) = new DatasetFileHoarder[IO, Tablet](ds.repartition(3)).csv(path)
+  def saver(path: NJPath) = new RddFileHoarder[IO, Tablet](rdd).csv(path)
 
   val hdp = sparkSession.hadoop[IO]
 

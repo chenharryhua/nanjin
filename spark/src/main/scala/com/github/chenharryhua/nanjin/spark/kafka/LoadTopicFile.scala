@@ -91,6 +91,12 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (
         new CrRdd[F, K, V](rdd, ack, acv, cfg, ss)
       }
 
+    def parquet(path: NJPath)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
+      F.blocking {
+        val rdd = loaders.rdd.parquet[NJConsumerRecord[K, V]](path, decoder, ss)
+        new CrRdd[F, K, V](rdd, ack, acv, cfg, ss)
+      }
+
     def jackson(path: NJPath)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
       F.blocking {
         val rdd = loaders.rdd.jackson[NJConsumerRecord[K, V]](path, decoder, ss)

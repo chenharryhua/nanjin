@@ -2,16 +2,17 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{NJCompression, ParquetCompression}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.apache.spark.sql.Dataset
-
-final class SaveParquet[F[_], A](val dataset: Dataset[A], cfg: HoarderConfig) extends Serializable {
+import org.apache.spark.rdd.RDD
+final class SaveParquet[F[_], A](val rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+    extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
-    new SaveParquet[F, A](dataset, cfg)
+    new SaveParquet[F, A](rdd, encoder, cfg)
 
   def append: SaveParquet[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveParquet[F, A]      = updateConfig(cfg.overwriteMode)
@@ -38,19 +39,12 @@ final class SaveParquet[F[_], A](val dataset: Dataset[A], cfg: HoarderConfig) ex
       case CompressionCodecName.LZ4          => NJCompression.Lz4
       case CompressionCodecName.ZSTD =>
         NJCompression.Zstandard(
-          ZlibFactory.getCompressionLevel(dataset.sparkSession.sparkContext.hadoopConfiguration).ordinal())
+          ZlibFactory.getCompressionLevel(rdd.sparkContext.hadoopConfiguration).ordinal())
     }
     withCompression(pc)
   }
 
-  def run(implicit F: Sync[F]): F[Unit] = {
-    val conf = dataset.sparkSession.sparkContext.hadoopConfiguration
-
-    new SaveModeAware[F](params.saveMode, params.outPath, conf).checkAndRun(F.interruptibleMany {
-      dataset.write
-        .option("compression", compressionConfig.parquet(conf, params.compression).name)
-        .mode(params.saveMode)
-        .parquet(params.outPath.pathStr)
-    })
-  }
+  def run(implicit F: Sync[F]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+      .checkAndRun(F.interruptibleMany(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)))
 }
