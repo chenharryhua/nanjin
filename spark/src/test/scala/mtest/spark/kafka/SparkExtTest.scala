@@ -83,10 +83,10 @@ class SparkExtTest extends AnyFunSuite {
       .unsafeRunSync()
     rdd.save[IO].circe(NJPath("./data/test/spark/sytax/rdd/circe")).run.unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
-    ds.save[IO](ate.avroCodec.avroEncoder)
+    ds.rdd
+      .save[IO](ate.avroCodec.avroEncoder)
       .parquet(NJPath("./data/test/spark/sytax/ds/parquet"))
       .run
       .unsafeRunSync()
-    ds.save[IO].json(NJPath("./data/test/spark/sytax/ds/json")).run.unsafeRunSync()
   }
 }

@@ -117,7 +117,7 @@ class ParquetTest extends AnyFunSuite {
   test("collection read/write identity multi uncompress") {
     import AntData.*
     val path  = NJPath("./data/test/spark/persist/parquet/ant/multi.parquet")
-    val saver = new DatasetAvroFileHoarder[IO, Ant](ds, Ant.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, Ant](rdd, Ant.avroEncoder).parquet(path)
     saver.uncompress.run.unsafeRunSync()
     val t = loaders.parquet[Ant](path, Ant.ate, sparkSession).collect().toSet
     assert(ants.toSet == t)

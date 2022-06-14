@@ -32,7 +32,7 @@ private[sstream] object SStreamParams {
   def apply(zoneId: ZoneId): SStreamParams =
     SStreamParams(
       zoneId = zoneId,
-      fileFormat = NJFileFormat.SparkJson,
+      fileFormat = NJFileFormat.Jackson,
       checkpointBuilder =
         (fmt: NJFileFormat) => NJPath("data/checkpoint/sstream") / PathSegment.unsafeFrom(fmt.format),
       dataLoss = NJFailOnDataLoss(true),
@@ -94,7 +94,6 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
 
   def triggerMode(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
 
-  def jsonFormat: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.SparkJson, value)))
   def parquetFormat: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
   def avroFormat: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
 

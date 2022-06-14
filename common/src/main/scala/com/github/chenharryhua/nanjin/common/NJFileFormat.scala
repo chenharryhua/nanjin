@@ -23,8 +23,6 @@ object NJFileFormat extends Enum[NJFileFormat] with CatsEnum[NJFileFormat] with 
   case object Circe extends NJFileFormat(2, "json", "circe")
   case object Text extends NJFileFormat(3, "txt", "plain")
   case object Kantan extends NJFileFormat(4, "csv", "kantan")
-  case object SparkJson extends NJFileFormat(5, "json", "spark")
-  case object SparkCsv extends NJFileFormat(6, "csv", "spark")
 
   // binary
   case object Parquet extends NJFileFormat(11, "parquet", "apache")
@@ -36,7 +34,6 @@ object NJFileFormat extends Enum[NJFileFormat] with CatsEnum[NJFileFormat] with 
   // types
   type Jackson    = Jackson.type
   type Circe      = Circe.type
-  type SparkJson  = SparkJson.type
   type Text       = Text.type
   type Kantan     = Kantan.type
   type Parquet    = Parquet.type
@@ -45,9 +42,9 @@ object NJFileFormat extends Enum[NJFileFormat] with CatsEnum[NJFileFormat] with 
   type JavaObject = JavaObject.type
   type ProtoBuf   = ProtoBuf.type
 
-  type JsonFamily = Jackson :+: Circe :+: SparkJson :+: CNil
+  type JsonFamily = Jackson :+: Circe :+: CNil
 
-  type TextFamily = Jackson :+: Circe :+: Text :+: Kantan :+: SparkJson :+: CNil
+  type TextFamily = Jackson :+: Circe :+: Text :+: Kantan :+: CNil
 
   type BinaryFamily =
     Parquet :+: Avro :+: BinaryAvro :+: JavaObject :+: ProtoBuf :+: CNil

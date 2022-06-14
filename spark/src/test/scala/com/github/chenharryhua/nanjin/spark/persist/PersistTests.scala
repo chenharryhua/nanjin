@@ -12,7 +12,6 @@ class PersistTests
       new ParquetTest,
       new CirceTest,
       new JacksonTest,
-      new JsonTest,
       new CsvTest,
       new TextTest,
       new ObjectFileTest

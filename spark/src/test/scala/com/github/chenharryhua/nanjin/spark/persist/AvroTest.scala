@@ -185,7 +185,7 @@ class AvroTest extends AnyFunSuite {
   test("coproduct read/write identity - dataset - happy failure") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/avro/cpcop/ds/multi.avro")
-    val saver = new DatasetAvroFileHoarder[IO, CpCop](cpDS, CpCop.avroCodec.avroEncoder).avro(path)
+    val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder).avro(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(cpCops.toSet == t)

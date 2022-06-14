@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
@@ -76,8 +76,8 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   // transition
 
-  def save: DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder)
+  def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset.rdd, ate.avroCodec.avroEncoder)
 
   def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, ack, acv, cfg, dataset.sparkSession)
 
