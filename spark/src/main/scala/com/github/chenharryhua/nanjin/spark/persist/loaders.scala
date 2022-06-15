@@ -16,7 +16,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.mapreduce.Job
-import org.apache.parquet.avro.{AvroParquetInputFormat, AvroReadSupport}
+import org.apache.parquet.avro.{AvroParquetInputFormat, AvroReadSupport, GenericDataSupplier}
 import org.apache.parquet.hadoop.ParquetInputFormat
 import org.apache.spark.input.PortableDataStream
 import org.apache.spark.rdd.RDD
@@ -95,7 +95,8 @@ object loaders {
     def parquet[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroParquetInputFormat.setAvroReadSchema(job, decoder.schema)
-      ParquetInputFormat.setReadSupportClass(job, classOf[AvroReadSupport[?]])
+      ParquetInputFormat.setReadSupportClass(job, classOf[AvroReadSupport[GenericRecord]])
+      AvroReadSupport.setAvroDataSupplier(job.getConfiguration, classOf[GenericDataSupplier])
       ss.sparkContext
         .newAPIHadoopFile(
           path.pathStr,
