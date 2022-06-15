@@ -97,7 +97,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def diff(
     other: TypedDataset[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
-    inv.diffDataset(typedDataset, other)(eqK, tek, eqV, tev).dataset
+    inv.diffDataset(typedDataset, other)(eqK, eqV, tek, tev).dataset
 
   def diff(other: CrDS[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
     diff(other.typedDataset)

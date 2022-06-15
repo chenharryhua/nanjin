@@ -40,11 +40,12 @@ class AvroTest extends AnyFunSuite {
 
   val root = NJPath("./data/test/spark/persist/avro/")
 
-  test("spark avro =!= apache avro") {
+  test("spark agree apache on avro") {
     val path = root / "rooster" / "spark"
     hadoop.delete(path).unsafeRunSync()
-    RoosterData.ds.write.format("avro").save(path.pathStr)
-    intercept[Throwable](loaders.rdd.avro(path, Rooster.avroCodec.avroDecoder, sparkSession).collect())
+    RoosterData.ds.write.option("avroSchema", Rooster.schema.toString()).format("avro").save(path.pathStr)
+    val r = loaders.rdd.avro(path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    assert(RoosterData.expected == r)
   }
 
   test("datetime read/write identity - multi.uncompressed") {

@@ -38,6 +38,12 @@ class ParquetTest extends AnyFunSuite {
     intercept[Throwable](loaders.rdd.parquet(path, Rooster.avroCodec.avroDecoder, sparkSession).collect())
   }
 
+  test("apache parquet =!= spark parquet") {
+    val path = root / "rooster" / "spark2"
+    roosterSaver(path).uncompress.run.unsafeRunSync()
+    intercept[Throwable](sparkSession.read.parquet(path.pathStr).show())
+  }
+
   test("datetime read/write identity multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
     roosterSaver(path).uncompress.run.unsafeRunSync()

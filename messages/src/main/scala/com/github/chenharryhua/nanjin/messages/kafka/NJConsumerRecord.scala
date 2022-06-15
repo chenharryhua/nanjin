@@ -80,14 +80,14 @@ object NJConsumerRecord {
     NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
-  @nowarn
-  implicit def jsonEncoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[NJConsumerRecord[K, V]] =
+  implicit def jsonEncoderNJConsumerRecord[K, V](implicit
+    @nowarn jk: JsonEncoder[K],
+    @nowarn jv: JsonEncoder[V]): JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
 
-  @nowarn
-  implicit def jsonDecoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[NJConsumerRecord[K, V]] =
+  implicit def jsonDecoderNJConsumerRecord[K, V](implicit
+    @nowarn jk: JsonDecoder[K],
+    @nowarn jv: JsonDecoder[V]): JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =

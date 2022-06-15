@@ -34,13 +34,13 @@ object NJConsumerRecordWithError {
   implicit def showNJConsumerRecordWithError[K: Show, V: Show]: Show[NJConsumerRecordWithError[K, V]] =
     cats.derived.semiauto.show[NJConsumerRecordWithError[K, V]]
 
-  @nowarn
-  implicit def jsonEncoderNJConsumerRecordWithError[K: JsonEncoder, V: JsonEncoder]
-    : JsonEncoder[NJConsumerRecordWithError[K, V]] =
+  implicit def jsonEncoderNJConsumerRecordWithError[K, V](implicit
+    @nowarn jk: JsonEncoder[K],
+    @nowarn jv: JsonEncoder[V]): JsonEncoder[NJConsumerRecordWithError[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecordWithError[K, V]]
 
-  @nowarn
-  implicit def jsonDecoderNJConsumerRecordWithError[K: JsonDecoder, V: JsonDecoder]
-    : JsonDecoder[NJConsumerRecordWithError[K, V]] =
+  implicit def jsonDecoderNJConsumerRecordWithError[K, V](implicit
+    @nowarn jk: JsonDecoder[K],
+    @nowarn jv: JsonDecoder[V]): JsonDecoder[NJConsumerRecordWithError[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecordWithError[K, V]]
 }

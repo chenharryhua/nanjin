@@ -95,12 +95,14 @@ object NJProducerRecord {
     NJAvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
-  @nowarn
-  implicit def jsonEncoder[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJProducerRecord[K, V]] =
+  implicit def jsonEncoder[K, V](implicit
+    @nowarn jk: JsonEncoder[K],
+    @nowarn jv: JsonEncoder[V]): JsonEncoder[NJProducerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJProducerRecord[K, V]]
 
-  @nowarn
-  implicit def jsonDecoder[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJProducerRecord[K, V]] =
+  implicit def jsonDecoder[K, V](implicit
+    @nowarn jk: JsonDecoder[K],
+    @nowarn jv: JsonDecoder[V]): JsonDecoder[NJProducerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJProducerRecord[K, V]]
 
   implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =

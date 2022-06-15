@@ -21,10 +21,12 @@ final case class KvDiffResult[K, V](key: Option[K], value: Option[V])
 final case class DiffResult[K, V](left: NJConsumerRecord[K, V], right: Option[NJConsumerRecord[K, V]])
 
 object inv {
-  @nowarn
-  def diffDataset[K: Eq: TypedEncoder, V: Eq: TypedEncoder](
+
+  def diffDataset[K: Eq, V: Eq](
     left: TypedDataset[NJConsumerRecord[K, V]],
-    right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[DiffResult[K, V]] =
+    right: TypedDataset[NJConsumerRecord[K, V]])(implicit
+    @nowarn tek: TypedEncoder[K],
+    @nowarn tev: TypedEncoder[V]): TypedDataset[DiffResult[K, V]] =
     left
       .joinLeft(right)(
         left.col(Symbol("partition")) === right.col(Symbol("partition")) &&
@@ -56,10 +58,11 @@ object inv {
     }
   }
 
-  @nowarn
-  def kvDiffDataset[K: TypedEncoder, V: TypedEncoder](
+  def kvDiffDataset[K, V](
     left: TypedDataset[NJConsumerRecord[K, V]],
-    right: TypedDataset[NJConsumerRecord[K, V]]): TypedDataset[KvDiffResult[K, V]] = {
+    right: TypedDataset[NJConsumerRecord[K, V]])(implicit
+    @nowarn tek: TypedEncoder[K],
+    @nowarn tev: TypedEncoder[V]): TypedDataset[KvDiffResult[K, V]] = {
     val mine: TypedDataset[KvDiffResult[K, V]] =
       left.select(left.col(_.key), left.col(_.value)).distinct.as[KvDiffResult[K, V]]()
     val yours: TypedDataset[KvDiffResult[K, V]] =

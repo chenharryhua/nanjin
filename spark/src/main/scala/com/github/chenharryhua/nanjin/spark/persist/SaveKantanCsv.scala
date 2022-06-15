@@ -19,9 +19,8 @@ final class SaveKantanCsv[F[_], A](
     new SaveKantanCsv[F, A](rdd, f(csvConfiguration), cfg, encoder)
 
   // https://svejcar.dev/posts/2019/10/22/extracting-case-class-field-names-with-shapeless/
-  @nowarn
   def withHeader[Repr <: HList, KeysRepr <: HList](implicit
-    gen: LabelledGeneric.Aux[A, Repr],
+    @nowarn gen: LabelledGeneric.Aux[A, Repr],
     keys: Keys.Aux[Repr, KeysRepr],
     traversable: ToTraversable.Aux[KeysRepr, List, Symbol]): SaveKantanCsv[F, A] = {
     def fieldNames: List[String] = keys().toList.map(_.name)
