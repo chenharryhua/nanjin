@@ -132,7 +132,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     sparKafka
       .topic(rooster)
       .load
-      .json(NJPath(PathRoot.unsafeFrom(todayPath)))
+      .avro(NJPath(PathRoot.unsafeFrom(todayPath)))
       .flatMap(_.count.map(println))
       .unsafeRunSync()
   }

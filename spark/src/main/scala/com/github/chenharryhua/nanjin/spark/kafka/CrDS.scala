@@ -5,9 +5,8 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
@@ -73,16 +72,6 @@ final class CrDS[F[_], K, V] private[kafka] (
   }
 
   val params: SKParams = cfg.evalConfig
-
-  // transition
-
-  def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset.rdd, ate.avroCodec.avroEncoder)
-
-  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, ack, acv, cfg, dataset.sparkSession)
-
-  def prRdd: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(ack, acv), cfg)
 
   // statistics
   def stats: Statistics[F] =

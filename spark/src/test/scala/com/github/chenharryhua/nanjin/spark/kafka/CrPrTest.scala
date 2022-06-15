@@ -60,7 +60,8 @@ class CrPrTest extends AnyFunSuite {
       StructField("key", LongType, true),
       StructField(
         "value",
-        StructType(List(StructField("c", DecimalType(8, 2), false), StructField("d", DecimalType(8, 2), false))),
+        StructType(
+          List(StructField("c", DecimalType(8, 2), false), StructField("d", DecimalType(8, 2), false))),
         true),
       StructField("topic", StringType, false),
       StructField("timestampType", IntegerType, false)
@@ -71,25 +72,6 @@ class CrPrTest extends AnyFunSuite {
   val topic                           = roosterLike.in(ctx)
   val ack                             = topic.topicDef.rawSerdes.keySerde.avroCodec
   val acv                             = topic.topicDef.rawSerdes.keySerde.avroCodec
-
-  test("bimap") {
-    val cr = crDS
-      .repartition(1)
-      .crRdd
-      .bimap(identity, RoosterLike(_))(ack, NJAvroCodec[RoosterLike])
-      .rdd
-      .collect()
-      .flatMap(_.value)
-      .toSet
-
-    val ds = crDS.bimap(identity, RoosterLike(_))(ack, NJAvroCodec[RoosterLike]).dataset
-    val d  = ds.collect().flatMap(_.value).toSet
-
-    crRdd.rdd.take(3).foreach(println)
-    assert(ds.schema == expectSchema)
-    assert(cr == d)
-
-  }
 
   test("map") {
     val cr =
@@ -131,7 +113,9 @@ class CrPrTest extends AnyFunSuite {
 
   test("time range") {
     val dr =
-      NJDateTimeRange(sydneyTime).withStartTime(Instant.now.minusSeconds(50)).withEndTime(Instant.now().plusSeconds(10))
+      NJDateTimeRange(sydneyTime)
+        .withStartTime(Instant.now.minusSeconds(50))
+        .withEndTime(Instant.now().plusSeconds(10))
     assert(crRdd.timeRange(dr).rdd.collect().size == 4)
     assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect().size == 4)
     assert(crRdd.crDS.timeRange(dr).dataset.collect().size == 4)

@@ -60,7 +60,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2
       .Stream(
         ProducerRecords(
-          List(ProducerRecord(topicCO.topicName.value, 0, co1), ProducerRecord(topicCO.topicName.value, 1, co2))))
+          List(
+            ProducerRecord(topicCO.topicName.value, 0, co1),
+            ProducerRecord(topicCO.topicName.value, 1, co2))))
       .covary[IO]
       .through(topicCO.produce.updateConfig(_.withClientId("kafka.avro.test1")).pipe)
     val path = NJPath("./data/test/spark/kafka/coproduct/caseobject.avro")
@@ -70,7 +72,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicCO.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).run) >>
-      sk.load.rdd.avro(path).map(_.rdd.collect().toSet)
+      sk.load.avro(path).map(_.rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -78,7 +80,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2
       .Stream(
         ProducerRecords(
-          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+          List(
+            ProducerRecord(topicEnum.topicName.value, 0, en1),
+            ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test2")).pipe)
     val avroPath    = NJPath("./data/test/spark/kafka/coproduct/scalaenum.avro")
@@ -92,7 +96,7 @@ class KafkaAvroTest extends AnyFunSuite {
       sk.fromKafka.flatMap(_.save.avro(avroPath).run) >>
       sk.fromKafka.flatMap(_.save.jackson(jacksonPath).run) >>
       sk.fromKafka.flatMap(_.save.circe(circePath).run) >>
-      sk.load.rdd.avro(avroPath).map(_.rdd.take(10).toSet)
+      sk.load.avro(avroPath).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
   }
@@ -101,7 +105,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2
       .Stream(
         ProducerRecords(
-          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+          List(
+            ProducerRecord(topicEnum.topicName.value, 0, en1),
+            ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test3")).pipe)
 
@@ -112,7 +118,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).run) >>
-      sk.load.rdd.avro(path).map(_.rdd.take(10).toSet)
+      sk.load.avro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -120,7 +126,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2
       .Stream(
         ProducerRecords(
-          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+          List(
+            ProducerRecord(topicEnum.topicName.value, 0, en1),
+            ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test4")).pipe)
 
@@ -131,14 +139,16 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.avro(path).snappy.run) >>
-      sk.load.rdd.avro(path).map(_.rdd.take(10).toSet)
+      sk.load.avro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to binary bzip2 avro") {
     val data = fs2
       .Stream(
         ProducerRecords(
-          List(ProducerRecord(topicEnum.topicName.value, 0, en1), ProducerRecord(topicEnum.topicName.value, 1, en2))))
+          List(
+            ProducerRecord(topicEnum.topicName.value, 0, en1),
+            ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test5")).pipe)
     val path = NJPath("./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2")
@@ -148,7 +158,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.flatMap(_.save.binAvro(path).bzip2.run) >>
-      sk.load.rdd.binAvro(path).map(_.rdd.take(10).toSet)
+      sk.load.binAvro(path).map(_.rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
