@@ -37,7 +37,17 @@ class AvroTest extends AnyFunSuite {
 
     fs2.Stream.force(rst).compile.toList
   }
+
   val root = NJPath("./data/test/spark/persist/avro/")
+
+  test("spark agree apache on avro") {
+    val path = root / "rooster" / "spark"
+    hadoop.delete(path).unsafeRunSync()
+    RoosterData.ds.write.option("avroSchema", Rooster.schema.toString()).format("avro").save(path.pathStr)
+    val r = loaders.rdd.avro(path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    assert(RoosterData.expected == r)
+  }
+
   test("datetime read/write identity - multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
     rooster.avro(path).uncompress.run.unsafeRunSync()
@@ -176,7 +186,7 @@ class AvroTest extends AnyFunSuite {
   test("coproduct read/write identity - dataset - happy failure") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/avro/cpcop/ds/multi.avro")
-    val saver = new DatasetAvroFileHoarder[IO, CpCop](cpDS, CpCop.avroCodec.avroEncoder).avro(path)
+    val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder).avro(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, CpCop.avroCodec.avroDecoder, sparkSession).collect().toSet
     assert(cpCops.toSet == t)

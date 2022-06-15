@@ -5,9 +5,8 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.col
@@ -74,16 +73,6 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   val params: SKParams = cfg.evalConfig
 
-  // transition
-
-  def save: DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new DatasetAvroFileHoarder[F, NJConsumerRecord[K, V]](dataset, ate.avroCodec.avroEncoder)
-
-  def crRdd: CrRdd[F, K, V] = new CrRdd[F, K, V](dataset.rdd, ack, acv, cfg, dataset.sparkSession)
-
-  def prRdd: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](dataset.rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(ack, acv), cfg)
-
   // statistics
   def stats: Statistics[F] =
     new Statistics[F](
@@ -97,7 +86,7 @@ final class CrDS[F[_], K, V] private[kafka] (
 
   def diff(
     other: TypedDataset[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
-    inv.diffDataset(typedDataset, other)(eqK, tek, eqV, tev).dataset
+    inv.diffDataset(typedDataset, other)(eqK, eqV, tek, tev).dataset
 
   def diff(other: CrDS[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): Dataset[DiffResult[K, V]] =
     diff(other.typedDataset)

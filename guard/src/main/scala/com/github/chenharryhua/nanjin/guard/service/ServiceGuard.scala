@@ -59,6 +59,13 @@ final class ServiceGuard[F[_]] private[guard] (
     ssRef <- F.ref[ServiceStatus](ServiceStatus.initialize(serviceConfig.evalConfig(uuid, ts)))
   } yield ssRef
 
+  def dummyAgent: F[Agent[F]] = for {
+    ss <- initStatus
+    sp <- ss.get.map(_.serviceParams)
+    chn <- Channel.bounded[F, NJEvent](0)
+    _ <- chn.close
+  } yield new Agent[F](new MetricRegistry, ss, chn, AgentConfig(sp))
+
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceStatus <- Stream.eval(initStatus)

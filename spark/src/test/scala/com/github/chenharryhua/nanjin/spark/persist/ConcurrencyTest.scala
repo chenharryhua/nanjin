@@ -12,7 +12,9 @@ import org.scalatest.funsuite.AnyFunSuite
 class ConcurrencyTest extends AnyFunSuite {
 
   def rooster =
-    new DatasetAvroFileHoarder[IO, Rooster](RoosterData.bigset.repartition(2).persist(), Rooster.avroCodec.avroEncoder)
+    new RddAvroFileHoarder[IO, Rooster](
+      RoosterData.bigset.repartition(2).persist().rdd,
+      Rooster.avroCodec.avroEncoder)
   test("avro") {
     val root = NJPath("./data/test/spark/persist/interlope/avro/rooster/")
     val run = for {
@@ -55,25 +57,6 @@ class ConcurrencyTest extends AnyFunSuite {
     }
     run.unsafeRunSync()
   }
-  test("spark json") {
-    val root = NJPath("./data/test/spark/persist/interlope/json/rooster/")
-    val run = for {
-      a <- rooster.json(root / "bzip2").bzip2.run.start
-      b <- rooster.json(root / "deflate").deflate(1).run.start
-      c <- rooster.json(root / "gzip").gzip.run.start
-      d <- rooster.json(root / "uncompress").run.start
-      _ <- a.join
-      _ <- b.join
-      _ <- d.join
-      _ <- c.join
-    } yield {
-      (File(root.pathStr) / "bzip2").list.toList.filter(_.name.contains(".json.bz2")).ensuring(_.nonEmpty)
-      (File(root.pathStr) / "deflate").list.toList.filter(_.name.contains(".json.deflate")).ensuring(_.nonEmpty)
-      (File(root.pathStr) / "gzip").list.toList.filter(_.name.contains(".json.gz")).ensuring(_.nonEmpty)
-      (File(root.pathStr) / "uncompress").list.toList.filter(_.extension().contains(".json")).ensuring(_.nonEmpty)
-    }
-    run.unsafeRunSync()
-  }
 
   test("circe") {
     val root = NJPath("./data/test/spark/persist/interlope/circe/rooster/")
@@ -87,10 +70,16 @@ class ConcurrencyTest extends AnyFunSuite {
       _ <- c.join
       _ <- d.join
     } yield {
-      (File(root.pathStr) / "bzip2").list.toList.filter(_.name.contains(".circe.json.bz2")).ensuring(_.nonEmpty)
-      (File(root.pathStr) / "deflate").list.toList.filter(_.name.contains(".circe.json.deflate")).ensuring(_.nonEmpty)
+      (File(root.pathStr) / "bzip2").list.toList
+        .filter(_.name.contains(".circe.json.bz2"))
+        .ensuring(_.nonEmpty)
+      (File(root.pathStr) / "deflate").list.toList
+        .filter(_.name.contains(".circe.json.deflate"))
+        .ensuring(_.nonEmpty)
       (File(root.pathStr) / "gzip").list.toList.filter(_.name.contains(".circe.json.gz")).ensuring(_.nonEmpty)
-      (File(root.pathStr) / "uncompress").list.toList.filter(_.name.contains(".circe.json")).ensuring(_.nonEmpty)
+      (File(root.pathStr) / "uncompress").list.toList
+        .filter(_.name.contains(".circe.json"))
+        .ensuring(_.nonEmpty)
     }
     run.unsafeRunSync()
   }
@@ -107,10 +96,16 @@ class ConcurrencyTest extends AnyFunSuite {
       _ <- c.join
       _ <- d.join
     } yield {
-      File(root.pathStr + "bzip2").list.toList.filter(_.name.contains(".jackson.json.bz2")).ensuring(_.nonEmpty)
-      File(root.pathStr + "deflate").list.toList.filter(_.name.contains(".jackson.json.deflate")).ensuring(_.nonEmpty)
+      File(root.pathStr + "bzip2").list.toList
+        .filter(_.name.contains(".jackson.json.bz2"))
+        .ensuring(_.nonEmpty)
+      File(root.pathStr + "deflate").list.toList
+        .filter(_.name.contains(".jackson.json.deflate"))
+        .ensuring(_.nonEmpty)
       File(root.pathStr + "gzip").list.toList.filter(_.name.contains(".jackson.json.gz")).ensuring(_.nonEmpty)
-      File(root.pathStr + "uncompress").list.toList.filter(_.name.contains(".jackson.json")).ensuring(_.nonEmpty)
+      File(root.pathStr + "uncompress").list.toList
+        .filter(_.name.contains(".jackson.json"))
+        .ensuring(_.nonEmpty)
     }
     run.unsafeRunSync()
   }
@@ -118,10 +113,10 @@ class ConcurrencyTest extends AnyFunSuite {
   test("csv") {
     val root = NJPath("./data/test/spark/persist/interlope/csv/rooster/")
     val run = for {
-      d <- rooster.csv(root / "bzip2").bzip2.run.start
-      b <- rooster.csv(root / "deflate").deflate(1).run.start
-      c <- rooster.csv(root / "gzip").gzip.run.start
-      a <- rooster.csv(root / "uncompress").run.start
+      d <- rooster.kantan(root / "bzip2").bzip2.run.start
+      b <- rooster.kantan(root / "deflate").deflate(1).run.start
+      c <- rooster.kantan(root / "gzip").gzip.run.start
+      a <- rooster.kantan(root / "uncompress").run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -203,17 +198,13 @@ class ConcurrencyTest extends AnyFunSuite {
       m <- rooster.circe(root / "circe2").gzip.run.start
       n <- rooster.circe(root / "circe3").bzip2.run.start
 
-      o <- rooster.json(root / "json1").deflate(3).run.start
-      p <- rooster.json(root / "json2").bzip2.run.start
-      q <- rooster.json(root / "json3").gzip.run.start
-
       r <- rooster.text(root / "text1").deflate(5).run.start
       s <- rooster.text(root / "text2").gzip.run.start
       t <- rooster.text(root / "text3").bzip2.run.start
 
-      u <- rooster.csv(root / "csv1").deflate(5).run.start
-      v <- rooster.csv(root / "csv2").gzip.run.start
-      w <- rooster.csv(root / "csv3").bzip2.run.start
+      u <- rooster.kantan(root / "csv1").deflate(5).run.start
+      v <- rooster.kantan(root / "csv2").gzip.run.start
+      w <- rooster.kantan(root / "csv3").bzip2.run.start
 
       _ <- a.join
       _ <- b.join
@@ -229,9 +220,6 @@ class ConcurrencyTest extends AnyFunSuite {
       _ <- l.join
       _ <- m.join
       _ <- n.join
-      _ <- o.join
-      _ <- p.join
-      _ <- q.join
       _ <- r.join
       _ <- s.join
       _ <- t.join

@@ -16,6 +16,8 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.mapreduce.Job
+import org.apache.parquet.avro.{AvroParquetInputFormat, AvroReadSupport, GenericDataSupplier}
+import org.apache.parquet.hadoop.ParquetInputFormat
 import org.apache.spark.input.PortableDataStream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -32,12 +34,12 @@ object loaders {
   def parquet[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.parquet(path.pathStr))
 
-  def csv[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession)(implicit
-    dec: RowDecoder[A]): Dataset[A] =
-    ate.normalize(rdd.csv(path, csvConfiguration, ss)(ate.classTag, dec), ss)
+  def kantan[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession)(
+    implicit dec: RowDecoder[A]): Dataset[A] =
+    ate.normalize(rdd.kantan(path, csvConfiguration, ss)(ate.classTag, dec), ss)
 
-  def csv[A: RowDecoder](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    csv[A](path, ate, CsvConfiguration.rfc, ss)
+  def kantan[A: RowDecoder](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+    kantan[A](path, ate, CsvConfiguration.rfc, ss)
 
   def json[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(path.pathStr))
@@ -45,7 +47,8 @@ object loaders {
   def objectFile[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalize(rdd.objectFile[A](path, ss)(ate.classTag), ss)
 
-  def circe[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession)(implicit dec: JsonDecoder[A]): Dataset[A] =
+  def circe[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession)(implicit
+    dec: JsonDecoder[A]): Dataset[A] =
     ate.normalize(rdd.circe[A](path, ss)(ate.classTag, dec), ss)
 
   def jackson[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
@@ -59,7 +62,7 @@ object loaders {
     def objectFile[A: ClassTag](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext.objectFile[A](path.pathStr)
 
-    def csv[A: ClassTag](path: NJPath, csvConfiguration: CsvConfiguration, ss: SparkSession)(implicit
+    def kantan[A: ClassTag](path: NJPath, csvConfiguration: CsvConfiguration, ss: SparkSession)(implicit
       dec: RowDecoder[A]): RDD[A] =
       ss.sparkContext.textFile(path.pathStr).mapPartitions { rows =>
         val itor = if (csvConfiguration.hasHeader) rows.drop(1) else rows
@@ -78,15 +81,30 @@ object loaders {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
       AvroJob.setInputKeySchema(job, decoder.schema)
-      ss.sparkContext.hadoopConfiguration.addResource(job.getConfiguration)
 
       ss.sparkContext
         .newAPIHadoopFile(
           path.pathStr,
           classOf[AvroKeyInputFormat[GenericRecord]],
           classOf[AvroKey[GenericRecord]],
-          classOf[NullWritable])
+          classOf[NullWritable],
+          job.getConfiguration)
         .map { case (gr, _) => decoder.decode(gr.datum()) }
+    }
+
+    def parquet[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {
+      val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
+      AvroParquetInputFormat.setAvroReadSchema(job, decoder.schema)
+      ParquetInputFormat.setReadSupportClass(job, classOf[AvroReadSupport[GenericRecord]])
+      AvroReadSupport.setAvroDataSupplier(job.getConfiguration, classOf[GenericDataSupplier])
+      ss.sparkContext
+        .newAPIHadoopFile(
+          path.pathStr,
+          classOf[ParquetInputFormat[GenericRecord]],
+          classOf[Void],
+          classOf[GenericRecord],
+          job.getConfiguration)
+        .map { case (_, gr) => decoder.decode(gr) }
     }
 
     def jackson[A: ClassTag](path: NJPath, decoder: AvroDecoder[A], ss: SparkSession): RDD[A] = {

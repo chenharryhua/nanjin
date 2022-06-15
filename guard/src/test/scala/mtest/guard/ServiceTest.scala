@@ -240,4 +240,9 @@ class ServiceTest extends AnyFunSuite {
     assert(serviceStop == 1)
     assert(shouldNotHappen == 0)
   }
+
+  test("12.dummy agent should not block") {
+    val dummy = guard.dummyAgent.unsafeRunSync()
+    dummy.critical.retry(IO(1)).run.replicateA(1000).unsafeRunSync()
+  }
 }

@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.database.*
 import com.github.chenharryhua.nanjin.spark.injection.*
-import com.github.chenharryhua.nanjin.spark.persist.DatasetAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import doobie.ExecutionContexts
 import doobie.hikari.HikariTransactor
@@ -141,7 +141,7 @@ class SparkTableTest extends AnyFunSuite {
 
   val tb: SparkDBTable[IO, DBTable] = sparkDB.table(table)
 
-  def saver: DatasetAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save).unsafeRunSync()
+  def saver: RddAvroFileHoarder[IO, DBTable] = tb.fromDB.map(_.save).unsafeRunSync()
 
   test("save avro") {
     val avro = saver.avro(root / "multi.raw.avro").run
@@ -171,15 +171,10 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save csv") {
-    val csv = saver.csv(root / "multi.csv").run
+    val csv = saver.kantan(root / "multi.csv").run
     csv.unsafeRunSync()
-    val mhead = tb.load.csv(root / "multi.csv").map(_.dataset.collect().head)
+    val mhead = tb.load.kantan(root / "multi.csv").map(_.dataset.collect().head)
     assert(mhead.unsafeRunSync() == dbData)
   }
-  test("save spark json") {
-    val json = saver.json(root / "spark.json").run
-    json.unsafeRunSync()
-    val head = tb.load.json(root / "spark.json").map(_.dataset.collect().head)
-    assert(head.unsafeRunSync() == dbData)
-  }
+
 }

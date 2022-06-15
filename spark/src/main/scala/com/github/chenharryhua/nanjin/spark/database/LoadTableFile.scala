@@ -34,14 +34,16 @@ final class LoadTableFile[F[_], A] private[database] (
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def csv(path: NJPath, csvConfiguration: CsvConfiguration)(implicit F: Sync[F], dec: RowDecoder[A]): F[TableDS[F, A]] =
+  def kantan(path: NJPath, csvConfiguration: CsvConfiguration)(implicit
+    F: Sync[F],
+    dec: RowDecoder[A]): F[TableDS[F, A]] =
     F.blocking {
-      val tds = loaders.csv[A](path, ate, csvConfiguration, ss)
+      val tds = loaders.kantan[A](path, ate, csvConfiguration, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 
-  def csv(path: NJPath)(implicit F: Sync[F], dec: RowDecoder[A]): F[TableDS[F, A]] =
-    csv(path, CsvConfiguration.rfc)
+  def kantan(path: NJPath)(implicit F: Sync[F], dec: RowDecoder[A]): F[TableDS[F, A]] =
+    kantan(path, CsvConfiguration.rfc)
 
   def json(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {

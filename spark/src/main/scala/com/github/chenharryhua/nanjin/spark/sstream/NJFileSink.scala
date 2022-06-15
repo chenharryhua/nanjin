@@ -8,7 +8,8 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQu
 
 import scala.concurrent.duration.FiniteDuration
 
-final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, path: NJPath) extends NJStreamSink[F] {
+final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, path: NJPath)
+    extends NJStreamSink[F] {
 
   override val params: SStreamParams = cfg.evalConfig
 
@@ -16,7 +17,6 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
     new NJFileSink[F, A](dsw, f(cfg), path)
 
   def parquet: NJFileSink[F, A] = updateCfg(_.parquetFormat)
-  def json: NJFileSink[F, A]    = updateCfg(_.jsonFormat)
   def avro: NJFileSink[F, A]    = updateCfg(_.avroFormat)
 
   def triggerEvery(duration: FiniteDuration): NJFileSink[F, A] =

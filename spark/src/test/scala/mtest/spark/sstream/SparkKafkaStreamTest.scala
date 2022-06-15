@@ -82,7 +82,6 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .ignoreDataLoss
       .fileSink(path)
       .triggerEvery(500.millisecond)
-      .json
       .parquet
       .avro
       .withOptions(identity)
@@ -113,7 +112,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .failOnDataLoss
       .datePartitionSink(path)
       .triggerEvery(1.seconds)
-      .json // last one wins
+      .avro // last one wins
       .showProgress
 
     val upload =
@@ -133,7 +132,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
     sparKafka
       .topic(rooster)
       .load
-      .json(NJPath(PathRoot.unsafeFrom(todayPath)))
+      .avro(NJPath(PathRoot.unsafeFrom(todayPath)))
       .flatMap(_.count.map(println))
       .unsafeRunSync()
   }

@@ -55,10 +55,6 @@ package object spark {
 
     def dbUpload[F[_]](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(ds).upload
 
-    def save[F[_]]: DatasetFileHoarder[F, A] = new DatasetFileHoarder[F, A](ds)
-
-    def save[F[_]](encoder: AvroEncoder[A]): DatasetAvroFileHoarder[F, A] =
-      new DatasetAvroFileHoarder[F, A](ds, encoder)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {

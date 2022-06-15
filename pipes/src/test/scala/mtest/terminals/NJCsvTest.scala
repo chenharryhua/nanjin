@@ -17,8 +17,8 @@ class NJCsvTest extends AnyFunSuite {
   def akka(path: NJPath, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts   = Source(data)
-    val sink = hdp.csv(csvConfiguration).akka.sink[Tiger](path)
-    val src  = hdp.csv(csvConfiguration).akka.source[Tiger](path)
+    val sink = hdp.kantan(csvConfiguration).akka.sink[Tiger](path)
+    val src  = hdp.kantan(csvConfiguration).akka.source[Tiger](path)
     val action = IO.fromFuture(IO(ts.runWith(sink))) >>
       IO.fromFuture(IO(src.runFold(Set.empty[Tiger]) { case (ss, i) => ss + i }))
     assert(action.unsafeRunSync() == data)
@@ -27,8 +27,8 @@ class NJCsvTest extends AnyFunSuite {
   def fs2(path: NJPath, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO]
-    val sink   = hdp.csv(csvConfiguration).withChunkSize(100).withCompressionLevel(3).sink[Tiger](path)
-    val src    = hdp.csv(csvConfiguration).source[Tiger](path)
+    val sink   = hdp.kantan(csvConfiguration).withChunkSize(100).withCompressionLevel(3).sink[Tiger](path)
+    val src    = hdp.kantan(csvConfiguration).source[Tiger](path)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }

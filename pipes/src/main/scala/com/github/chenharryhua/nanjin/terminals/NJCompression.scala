@@ -18,8 +18,6 @@ sealed trait NJCompression extends Product with Serializable {
     case NJFileFormat.Circe      => s"${NJFileFormat.Circe.suffix}$fileExtension"
     case NJFileFormat.Text       => s"${NJFileFormat.Text.suffix}$fileExtension"
     case NJFileFormat.Kantan     => s"${NJFileFormat.Kantan.suffix}$fileExtension"
-    case NJFileFormat.SparkJson  => s"${NJFileFormat.SparkJson.suffix}$fileExtension"
-    case NJFileFormat.SparkCsv   => s"${NJFileFormat.SparkCsv.suffix}$fileExtension"
     case NJFileFormat.BinaryAvro => s"${NJFileFormat.BinaryAvro.suffix}$fileExtension"
     case NJFileFormat.JavaObject => s"${NJFileFormat.JavaObject.suffix}$fileExtension"
     case NJFileFormat.ProtoBuf   => s"${NJFileFormat.ProtoBuf.suffix}$fileExtension"
@@ -33,7 +31,6 @@ sealed trait BinaryAvroCompression extends NJCompression {}
 sealed trait CirceCompression extends NJCompression {}
 sealed trait JacksonCompression extends NJCompression {}
 sealed trait KantanCompression extends NJCompression {}
-sealed trait SparkJsonCompression extends NJCompression {}
 sealed trait TextCompression extends NJCompression {}
 sealed trait ParquetCompression extends NJCompression {
   final def codecName: CompressionCodecName = this match {
@@ -137,14 +134,6 @@ object NJCompression {
       case unknown                        => Left(s"kantan csv does not support: $unknown")
     }
 
-  implicit final val encoerSparkJsonCompression: Encoder[SparkJsonCompression] =
-    encoderNJCompression.contramap(identity)
-  implicit final val decoderSparkJsonCompression: Decoder[SparkJsonCompression] =
-    decoderNJCompression.emap {
-      case compression: SparkJsonCompression => Right(compression)
-      case unknown                           => Left(s"spark json does not support: $unknown")
-    }
-
   implicit final val encoerTextCompression: Encoder[TextCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderTextCompression: Decoder[TextCompression] =
@@ -155,29 +144,28 @@ object NJCompression {
 
   case object Uncompressed
       extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression
-      with CirceCompression with JacksonCompression with KantanCompression with SparkJsonCompression
-      with TextCompression {
+      with CirceCompression with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "uncompressed"
     override val fileExtension: String = ""
   }
 
   case object Snappy
       extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression
-      with CirceCompression with JacksonCompression with KantanCompression with TextCompression {
+      with CirceCompression with JacksonCompression with TextCompression {
     override val shortName: String     = "snappy"
     override val fileExtension: String = ".snappy"
   }
 
   case object Bzip2
       extends NJCompression with AvroCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with SparkJsonCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "bzip2"
     override val fileExtension: String = ".bz2"
   }
 
   case object Gzip
       extends NJCompression with ParquetCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with SparkJsonCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "gzip"
     override val fileExtension: String = ".gz"
   }
@@ -201,7 +189,7 @@ object NJCompression {
 
   final case class Deflate(level: Int)
       extends NJCompression with BinaryAvroCompression with AvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with SparkJsonCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "deflate"
     override val fileExtension: String = ".deflate"
   }

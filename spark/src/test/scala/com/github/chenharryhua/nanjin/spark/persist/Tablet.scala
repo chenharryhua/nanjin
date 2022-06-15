@@ -1,18 +1,17 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import java.time.{Instant, LocalDate}
 import cats.Show
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
 import kantan.csv.RowEncoder
-import kantan.csv.java8.*
 import kantan.csv.generic.*
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Dataset
+import kantan.csv.java8.*
 import mtest.spark.*
+import org.apache.spark.rdd.RDD
 
+import java.time.{Instant, LocalDate}
 import java.time.temporal.ChronoUnit
 import scala.util.Random
 
@@ -38,7 +37,6 @@ object TabletData {
         Instant.now.truncatedTo(ChronoUnit.MILLIS),
         """a_"b?c\n*\r'|,"""))
 
-  val rdd: RDD[Tablet]    = sparkSession.sparkContext.parallelize(data)
-  val ds: Dataset[Tablet] = Tablet.ate.normalize(rdd, sparkSession)
+  val rdd: RDD[Tablet] = sparkSession.sparkContext.parallelize(data)
 
 }
