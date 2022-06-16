@@ -10,7 +10,7 @@ import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
-import java.time.ZonedDateTime
+import java.time.{Duration, ZonedDateTime}
 import java.time.temporal.ChronoUnit
 
 @JsonCodec
@@ -68,7 +68,9 @@ object ActionInfo extends zoneddatetime {
 }
 
 @JsonCodec
-final case class OngoingAction(name: Digested, actionID: Int, launchTime: ZonedDateTime)
+final case class OngoingAction(name: Digested, actionID: Int, launchTime: ZonedDateTime) {
+  def took(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
+}
 
 object OngoingAction extends zoneddatetime {
   implicit final val showOngoingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]

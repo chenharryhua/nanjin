@@ -52,14 +52,19 @@ private object SimpleTextTranslator {
        |  Cause: ${evt.cause.show}
        |""".stripMargin
 
-  private def metricReport(evt: MetricReport): String =
+  private def metricReport(evt: MetricReport): String = {
+    val ongoings: List[String] =
+      evt.ongoings.map(og =>
+        s"${og.name.metricRepr}(id:${og.actionID},upTime:${fmt.format(og.took(evt.timestamp))})")
+
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
        |  Ongoings: 
-       |    ${evt.ongoings.map(og => s"${og.name.metricRepr}(id=${og.actionID})").mkString("\n    ")}
+       |    ${ongoings.mkString("\n    ")}
        |${evt.snapshot.show}
        |""".stripMargin
+  }
 
   private def metricReset(evt: MetricReset): String =
     s"""${coloring(evt.title)(evt)}
