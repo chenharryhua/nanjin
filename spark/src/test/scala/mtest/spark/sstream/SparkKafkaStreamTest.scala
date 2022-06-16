@@ -1,10 +1,7 @@
 package mtest.spark.sstream
 
-import better.files.*
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.common.PathRoot
-import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
@@ -98,43 +95,6 @@ class SparkKafkaStreamTest extends AnyFunSuite {
 
     (ss.concurrently(upload).interruptAfter(6.seconds).compile.drain >>
       sparKafka.topic(rooster).load.avro(path).flatMap(_.count).map(println)).unsafeRunSync()
-  }
-
-  test("date partition sink json - should be read back") {
-    val rooster = roosterTopic.withTopicName("sstream.datepartition.rooster").in(ctx)
-
-    val path = root / "date_partition"
-
-    val ss = sparKafka
-      .topic(rooster)
-      .jsonStream
-      .progressInterval(1000)
-      .failOnDataLoss
-      .datePartitionSink(path)
-      .triggerEvery(1.seconds)
-      .avro // last one wins
-      .showProgress
-
-    val upload =
-      sparKafka
-        .topic(rooster)
-        .prRdd(data)
-        .replicate(5)
-        .producerRecords(rooster.topicName, 1)
-        .metered(0.5.seconds)
-        .through(rooster.produce.pipe)
-        .delayBy(1.second)
-        .debug()
-    ss.concurrently(upload).interruptAfter(6.seconds).compile.drain.unsafeRunSync()
-    val ts        = NJTimestamp(Instant.now()).`Year=yyyy/Month=mm/Day=dd`(sydneyTime)
-    val todayPath = path.pathStr + "/" + ts
-    assert(!File(todayPath).isEmpty, s"$todayPath does not exist")
-    sparKafka
-      .topic(rooster)
-      .load
-      .avro(NJPath(PathRoot.unsafeFrom(todayPath)))
-      .flatMap(_.count.map(println))
-      .unsafeRunSync()
   }
 
   test("memory sink - validate kafka timestamp") {

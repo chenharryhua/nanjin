@@ -6,7 +6,8 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkDatetimeConversionConstant}
+import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
+import frameless.{TypedEncoder, TypedExpressionEncoder}
 import monocle.function.At.{atMap, remove}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -99,7 +100,7 @@ private[kafka] object sk {
 
   def kafkaSStream[F[_], K, V, A](
     topic: KafkaTopic[F, K, V],
-    ate: AvroTypedEncoder[A],
+    te: TypedEncoder[A],
     sparkSession: SparkSession)(f: NJConsumerRecord[K, V] => A): Dataset[A] = {
     import sparkSession.implicits.*
     sparkSession.readStream
@@ -115,6 +116,6 @@ private[kafka] object sk {
               .flatten[K, V]
           f(NJConsumerRecord.timestamp.modify(_ * SparkDatetimeConversionConstant)(njcr))
         }
-      }(ate.sparkEncoder)
+      }(TypedExpressionEncoder(te))
   }
 }
