@@ -119,7 +119,7 @@ class AvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/persist/avro/rooster/spark-write-no-schema.avro")
     val tds  = Rooster.ate.normalize(RoosterData.rdd, sparkSession)
     tds.repartition(1).write.mode(SaveMode.Overwrite).format("avro").save(path.pathStr)
-    val t = loaders.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
+    val t = loaders.spark.avro[Rooster](path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == t)
   }
 

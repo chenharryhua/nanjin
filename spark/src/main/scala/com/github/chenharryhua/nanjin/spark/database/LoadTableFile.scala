@@ -47,7 +47,7 @@ final class LoadTableFile[F[_], A] private[database] (
 
   def json(path: NJPath)(implicit F: Sync[F]): F[TableDS[F, A]] =
     F.blocking {
-      val tds: Dataset[A] = loaders.json[A](path, ate, ss)
+      val tds: Dataset[A] = loaders.spark.json[A](path, ate, ss)
       new TableDS[F, A](tds, td, hikariConfig, cfg)
     }
 

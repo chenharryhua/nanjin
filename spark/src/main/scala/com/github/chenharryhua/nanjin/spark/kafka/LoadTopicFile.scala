@@ -19,9 +19,7 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (
   private val ack: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
   private val acv: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
 
-  private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord
-    .avroCodec(topic.topicDef.rawSerdes.keySerde.avroCodec, topic.topicDef.rawSerdes.valSerde.avroCodec)
-    .avroDecoder
+  private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv).avroDecoder
 
   def avro(path: NJPath)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
     F.blocking {
