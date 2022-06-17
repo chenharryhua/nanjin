@@ -4,8 +4,8 @@ import cats.{Endo, Foldable}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{PathSegment, UpdateConfig}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{
@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   NJConsumerRecordWithError,
   NJProducerRecord
 }
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerde, CirceSerde, JacksonSerde, JavaObjectSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.{AvroDStreamSink, SDConfig}
@@ -22,8 +22,8 @@ import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
-import fs2.kafka.ProducerResult
 import fs2.{Pipe, RaiseThrowable, Stream}
+import fs2.kafka.ProducerResult
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.spark.rdd.RDD
@@ -32,6 +32,7 @@ import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.kafka010.LocationStrategy
 
 import java.time.LocalDate
+import scala.annotation.nowarn
 
 final class SparKafkaTopic[F[_], K, V](
   val sparkSession: SparkSession,
@@ -178,29 +179,16 @@ final class SparKafkaTopic[F[_], K, V](
   /** structured stream
     */
 
-  def sstream[A](f: NJConsumerRecord[K, V] => A, ate: AvroTypedEncoder[A]): SparkSStream[F, A] =
+  def sstream[A](f: NJConsumerRecord[K, V] => A, te: TypedEncoder[A]): SparkSStream[F, A] =
     new SparkSStream[F, A](
-      sk.kafkaSStream[F, K, V, A](topic, ate, sparkSession)(f),
+      sk.kafkaSStream[F, K, V, A](topic, te, sparkSession)(f),
       SStreamConfig(params.timeRange.zoneId).checkpointBuilder(fmt =>
         NJPath("./data/checkpoint") / "sstream" / "kafka" / segment / PathSegment.unsafeFrom(fmt.format)))
 
-  def sstream(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] =
-    sstream(identity[NJConsumerRecord[K, V]], ate)
-
-  def jsonStream(implicit
-    jek: JsonEncoder[K],
-    jev: JsonEncoder[V],
-    jdk: JsonDecoder[K],
-    jdv: JsonDecoder[V]): SparkSStream[F, NJConsumerRecord[KJson[K], KJson[V]]] = {
-    import com.github.chenharryhua.nanjin.spark.injection.kjsonInjection
-    val ack: NJAvroCodec[KJson[K]]           = NJAvroCodec[KJson[K]]
-    val acv: NJAvroCodec[KJson[V]]           = NJAvroCodec[KJson[V]]
-    implicit val kte: TypedEncoder[KJson[K]] = shapeless.cachedImplicit
-    implicit val vte: TypedEncoder[KJson[V]] = shapeless.cachedImplicit
-
-    val ateNJ: AvroTypedEncoder[NJConsumerRecord[KJson[K], KJson[V]]] =
-      AvroTypedEncoder[KJson[K], KJson[V]](ack, acv)
-
-    sstream[NJConsumerRecord[KJson[K], KJson[V]]](_.bimap(KJson(_), KJson(_)), ateNJ)
+  def sstream(implicit
+    @nowarn tek: TypedEncoder[K],
+    @nowarn tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] = {
+    val te: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
+    sstream[NJConsumerRecord[K, V]](identity[NJConsumerRecord[K, V]], te)
   }
 }

@@ -16,7 +16,7 @@ import scala.reflect.ClassTag
 final class AvroTypedEncoder[A] private (val avroCodec: NJAvroCodec[A], val typedEncoder: TypedEncoder[A])
     extends Serializable {
 
-  private val avroStructType: StructType =
+  private val avroSchema: StructType =
     SchemaConverters.toSqlType(avroCodec.schema).dataType match {
       case st: StructType => st
       case primitive      => StructType(Array(StructField("value", primitive)))
@@ -28,8 +28,8 @@ final class AvroTypedEncoder[A] private (val avroCodec: NJAvroCodec[A], val type
   val sparkSchema: StructType  = sparkEncoder.schema
 
   def normalize(rdd: RDD[A], ss: SparkSession): Dataset[A] = {
-    val ds: Dataset[A] = ss.createDataset(rdd)(sparkEncoder).map(avroCodec.idConversion)(sparkEncoder)
-    ss.createDataFrame(ds.toDF().rdd, avroStructType).as[A](sparkEncoder)
+    val ds: Dataset[A] = ss.createDataset(rdd.map(avroCodec.idConversion)(classTag))(sparkEncoder)
+    ss.createDataFrame(ds.toDF().rdd, avroSchema).as[A](sparkEncoder)
   }
 
   def normalize(ds: Dataset[A]): Dataset[A]      = normalize(ds.rdd, ds.sparkSession)

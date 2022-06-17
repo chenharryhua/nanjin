@@ -29,10 +29,10 @@ import scala.reflect.ClassTag
 object loaders {
 
   def avro[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalizeDF(ss.read.format("avro").load(path.pathStr))
+    ate.normalize(rdd.avro(path, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
   def parquet[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalizeDF(ss.read.parquet(path.pathStr))
+    ate.normalize(rdd.parquet(path, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
 
   def kantan[A](path: NJPath, ate: AvroTypedEncoder[A], csvConfiguration: CsvConfiguration, ss: SparkSession)(
     implicit dec: RowDecoder[A]): Dataset[A] =
@@ -40,9 +40,6 @@ object loaders {
 
   def kantan[A: RowDecoder](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     kantan[A](path, ate, CsvConfiguration.rfc, ss)
-
-  def json[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-    ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(path.pathStr))
 
   def objectFile[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalize(rdd.objectFile[A](path, ss)(ate.classTag), ss)
@@ -56,6 +53,21 @@ object loaders {
 
   def binAvro[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
     ate.normalize(rdd.binAvro[A](path, ate.avroCodec.avroDecoder, ss)(ate.classTag), ss)
+
+  object spark {
+    def avro[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+      ate.normalizeDF(ss.read.schema(ate.sparkSchema).format("avro").load(path.pathStr))
+
+    def parquet[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+      ate.normalizeDF(ss.read.schema(ate.sparkSchema).parquet(path.pathStr))
+
+    def json[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+      ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(path.pathStr))
+
+    def csv[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
+      ate.normalizeDF(ss.read.schema(ate.sparkSchema).csv(path.pathStr))
+
+  }
 
   object rdd {
 

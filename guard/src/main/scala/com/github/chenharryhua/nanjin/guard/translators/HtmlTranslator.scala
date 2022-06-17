@@ -49,16 +49,16 @@ private object HtmlTranslator extends all {
       b("Ongoing actions:"),
       table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 100%;")(
         tr(
-          th(style := tds)("name"),
-          th(style := tds)("digest"),
-          th(style := tds)("so far took"),
-          th(style := tds)("launch time"),
-          th(style := tds)("id")),
+          th(style := tds)("Name"),
+          th(style := tds)("Digest"),
+          th(style := tds)("Up Time"),
+          th(style := tds)("Launch Time"),
+          th(style := tds)("ID")),
         oas.map(a =>
           tr(
             td(style := tds)(a.name.origin),
             td(style := tds)(a.name.digest),
-            td(style := tds)(fmt.format(a.launchTime, now)),
+            td(style := tds)(fmt.format(a.took(now))),
             td(style := tds)(a.launchTime.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show),
             td(style := tds)(a.actionID.show)
           ))
@@ -108,7 +108,6 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       hostServiceText(evt),
-      p(b("ServiceID: "), evt.serviceID.show),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.snapshot.show)
     )

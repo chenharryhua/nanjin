@@ -5,8 +5,8 @@ ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / version            := "0.15.7-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
-val algebra      = "2.7.0"
-val catsCore     = "2.7.0"
+val algebra      = "2.8.0"
+val catsCore     = "2.8.0"
 val monocle      = "2.1.0"
 val catsEffect   = "3.3.12"
 val akka26       = "2.6.19"
@@ -33,7 +33,7 @@ lazy val commonSettings = Seq(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.237")
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.241")
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
@@ -116,7 +116,7 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % "3.2.1") ++ Seq(
+).map(_ % "3.3.0") ++ Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
 ).map(_ % "0.12.0") ++ Seq(
@@ -337,7 +337,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= Seq(
-      "io.netty"                               % "netty-all" % "4.1.77.Final",
+      "io.netty"                               % "netty-all" % "4.1.78.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test) ++
       baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
       akkaLib ++ ftpLib ++ logLib ++ effectLib ++ testLib
