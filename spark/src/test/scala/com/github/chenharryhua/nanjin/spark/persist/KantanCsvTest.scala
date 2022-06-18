@@ -39,11 +39,13 @@ class KantanCsvTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/csv/tablet")
   test("tablet read/write identity multi.uncompressed") {
     val path = root / "uncompressed"
-    val s    = saver(path).uncompress.withHeader.withCellSeparator('*').quoteAll
+    val s    = saver(path).uncompress
     s.run.unsafeRunSync()
     val t = loaders.rdd.kantan[Tablet](path, s.csvConfiguration, sparkSession)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
+    //  val t3 = loaders.spark.csv(path, Tablet.ate, sparkSession).collect().toSet
+    //  assert(data.toSet == t3)
   }
 
   test("tablet read/write identity multi.gzip") {
@@ -59,9 +61,11 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "deflate1"
     val s    = saver(path).deflate(1)
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, CsvConfiguration.rfc, sparkSession)
-    assert(data.toSet == t.collect().toSet)
-    assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
+    val t  = loaders.rdd.kantan[Tablet](path, CsvConfiguration.rfc, sparkSession).collect().toSet
+    val t2 = loadTablet(path, s.csvConfiguration).unsafeRunSync()
+
+    assert(data.toSet == t)
+    assert(data.toSet == t2)
   }
 
   test("tablet read/write identity multi.9.deflate") {

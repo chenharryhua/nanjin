@@ -56,10 +56,10 @@ object loaders {
 
   object spark {
     def avro[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-      ate.normalizeDF(ss.read.schema(ate.sparkSchema).format("avro").load(path.pathStr))
+      ate.normalizeDF(ss.read.format("avro").load(path.pathStr))
 
     def parquet[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
-      ate.normalizeDF(ss.read.schema(ate.sparkSchema).parquet(path.pathStr))
+      ate.normalizeDF(ss.read.parquet(path.pathStr))
 
     def json[A](path: NJPath, ate: AvroTypedEncoder[A], ss: SparkSession): Dataset[A] =
       ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(path.pathStr))
