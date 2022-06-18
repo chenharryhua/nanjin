@@ -47,9 +47,7 @@ class StatisticsTest extends AnyFunSuite {
 
   test("disorders") {
     val res = stats.disorders.collect().toSet
-    assert(
-      res == Set(
-        Disorder(0, 3, 1351620000000L, "2012-10-31T05:00+11:00[Australia/Sydney]", 1351360800000L, 259200000L, 0)))
+    assert(res == Set(Disorder(0, 3, 1351620000000L, "2012-10-31T05:00", "2012-10-28T05:00", 259200000L, 0)))
 
     assert(emptyStats.disorders.count() == 0)
   }

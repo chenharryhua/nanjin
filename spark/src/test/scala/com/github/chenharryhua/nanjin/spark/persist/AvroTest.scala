@@ -44,8 +44,10 @@ class AvroTest extends AnyFunSuite {
     val path = root / "rooster" / "spark"
     hadoop.delete(path).unsafeRunSync()
     RoosterData.ds.write.option("avroSchema", Rooster.schema.toString()).format("avro").save(path.pathStr)
-    val r = loaders.rdd.avro(path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    val r  = loaders.rdd.avro(path, Rooster.avroCodec.avroDecoder, sparkSession).collect().toSet
+    val r2 = loaders.avro(path, Rooster.ate, sparkSession).collect().toSet
     assert(RoosterData.expected == r)
+    assert(RoosterData.expected == r2)
   }
 
   test("datetime read/write identity - multi.uncompressed") {

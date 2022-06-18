@@ -35,6 +35,8 @@ class ParquetTest extends AnyFunSuite {
     val path = root / "rooster" / "spark"
     hdp.delete(path).unsafeRunSync()
     ds.write.parquet(path.pathStr)
+    val r = loaders.spark.parquet(path, Rooster.ate, sparkSession).collect().toSet
+    assert(expected == r)
     intercept[Throwable](loaders.rdd.parquet(path, Rooster.avroCodec.avroDecoder, sparkSession).collect())
   }
 

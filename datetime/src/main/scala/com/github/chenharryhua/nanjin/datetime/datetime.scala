@@ -27,4 +27,12 @@ package object datetime {
   final val oneHour: FiniteDuration     = Duration(1, TimeUnit.HOURS)
   final val oneDay: FiniteDuration      = Duration(1, TimeUnit.DAYS)
 
+  def dayResolution(localDateTime: LocalDateTime): LocalDate = localDateTime.toLocalDate
+
+  def hourResolution(localDateTime: LocalDateTime): LocalDateTime =
+    localDateTime.withMinute(0).withSecond(0).withNano(0)
+
+  def minuteResolution(localDateTime: LocalDateTime): LocalDateTime =
+    localDateTime.withSecond(0).withNano(0)
+
 }

@@ -42,15 +42,8 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh/Minute=mm`(zoneId: ZoneId): String =
-    s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(zoneId)}/Minute=${minuteStr(zoneId)}"
-
-  def dayResolution(zoneId: ZoneId): LocalDate = atZone(zoneId).toLocalDate
-
-  def hourResolution(zoneId: ZoneId): ZonedDateTime =
-    atZone(zoneId).withMinute(0).withSecond(0).withNano(0)
-
-  def minuteResolution(zoneId: ZoneId): ZonedDateTime =
-    atZone(zoneId).withSecond(0).withNano(0)
+    s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(
+        zoneId)}/Minute=${minuteStr(zoneId)}"
 
   def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.minus(amount, unit))
