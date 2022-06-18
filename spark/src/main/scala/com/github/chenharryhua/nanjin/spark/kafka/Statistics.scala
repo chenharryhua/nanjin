@@ -3,12 +3,14 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Show
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.datetime.*
+import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
 import io.circe.generic.JsonCodec
 import org.apache.spark.sql.Dataset
 
-import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import cats.syntax.show.*
+import org.typelevel.cats.time.instances.{localdatetime, zoneid}
 
 final private[kafka] case class MinutelyAggResult(minute: Int, count: Int)
 final private[kafka] case class HourlyAggResult(hour: Int, count: Int)
@@ -33,8 +35,9 @@ final private case class KafkaSummaryInternal(
     distance,
     count,
     count - distance,
-    NJTimestamp(startTs).atZone(zoneId),
-    NJTimestamp(endTs).atZone(zoneId),
+    zoneId,
+    Instant.ofEpochMilli(startTs).atZone(zoneId).toLocalDateTime,
+    Instant.ofEpochMilli(endTs).atZone(zoneId).toLocalDateTime,
     DurationFormatter.defaultFormatter.format(timeDistance)
   )
 }
@@ -47,13 +50,12 @@ final case class KafkaSummary(
   offset_distance: Long,
   records_count: Long,
   count_distance_gap: Long,
-  start_ts: ZonedDateTime,
-  end_ts: ZonedDateTime,
-  period: String) {
-  def show: String = KafkaSummary.showKafkaSummary.show(this)
-}
+  zoneId: ZoneId,
+  start_ts: LocalDateTime,
+  end_ts: LocalDateTime,
+  period: String)
 
-object KafkaSummary {
+object KafkaSummary extends localdatetime with zoneid {
   implicit val showKafkaSummary: Show[KafkaSummary] = ks =>
     s"""
        |partition:     ${ks.partition}
@@ -64,8 +66,9 @@ object KafkaSummary {
        |gap:           ${ks.count_distance_gap} (${if (ks.count_distance_gap == 0) "perfect"
       else if (ks.count_distance_gap < 0) "probably lost data or its a compact topic"
       else "duplicates in the dataset"})
-       |first TS:      ${ks.start_ts} not necessarily of the first offset)
-       |last TS:       ${ks.end_ts} not necessarily of the last offset)
+       |zoneId:        ${ks.zoneId.show}
+       |first TS:      ${ks.start_ts.show} not necessarily of the first offset)
+       |last TS:       ${ks.end_ts.show} not necessarily of the last offset)
        |period:        ${ks.period}
        |""".stripMargin
 }
@@ -76,8 +79,8 @@ final case class Disorder(
   partition: Int,
   offset: Long,
   timestamp: Long,
-  ts: String,
-  nextTS: Long,
+  currTs: String,
+  nextTS: String,
   msGap: Long,
   tsType: Int)
 
@@ -97,7 +100,7 @@ final class Statistics[F[_]] private[kafka] (
   def minutely(implicit F: Sync[F]): F[Unit] = {
     import ds.sparkSession.implicits.*
     F.delay(
-      ds.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getMinute)
+      ds.map(m => m.localDateTime(zoneId).getMinute)
         .groupByKey(identity)
         .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
         .orderBy("minute")
@@ -107,7 +110,7 @@ final class Statistics[F[_]] private[kafka] (
   def hourly(implicit F: Sync[F]): F[Unit] = {
     import ds.sparkSession.implicits.*
     F.delay(
-      ds.map(m => NJTimestamp(m.timestamp).atZone(zoneId).getHour)
+      ds.map(m => m.localDateTime(zoneId).getHour)
         .groupByKey(identity)
         .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
         .orderBy("hour")
@@ -117,7 +120,7 @@ final class Statistics[F[_]] private[kafka] (
   def daily(implicit F: Sync[F]): F[Unit] = {
     import ds.sparkSession.implicits.*
     F.delay(
-      ds.map(m => NJTimestamp(m.timestamp).dayResolution(zoneId))
+      ds.map(m => dayResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyAggResult(m, iter.size))
         .orderBy("date")
@@ -127,7 +130,7 @@ final class Statistics[F[_]] private[kafka] (
   def dailyHour(implicit F: Sync[F]): F[Unit] = {
     import ds.sparkSession.implicits.*
     F.delay(
-      ds.map(m => NJTimestamp(m.timestamp).hourResolution(zoneId).toString)
+      ds.map(m => hourResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
         .orderBy("dateTime")
@@ -137,7 +140,7 @@ final class Statistics[F[_]] private[kafka] (
   def dailyMinute(implicit F: Sync[F]): F[Unit] = {
     import ds.sparkSession.implicits.*
     F.delay(
-      ds.map(m => NJTimestamp(m.timestamp).minuteResolution(zoneId).toString)
+      ds.map(m => minuteResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
         .orderBy("dateTime")
@@ -197,8 +200,8 @@ final class Statistics[F[_]] private[kafka] (
               partition = pt,
               offset = p.offset,
               timestamp = p.timestamp,
-              ts = NJTimestamp(p.timestamp).atZone(zoneId).toString,
-              nextTS = c.timestamp,
+              currTs = p.localDateTime(zoneId).toString,
+              nextTS = c.localDateTime(zoneId).toString,
               msGap = p.timestamp - c.timestamp,
               tsType = p.timestampType
             ))

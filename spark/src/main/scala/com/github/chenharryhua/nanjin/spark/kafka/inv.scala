@@ -6,9 +6,18 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 
+import java.time.{Instant, LocalDateTime, ZoneId}
 import scala.annotation.nowarn
 
-final case class CRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: Long, timestampType: Int)
+final case class CRMetaInfo(
+  topic: String,
+  partition: Int,
+  offset: Long,
+  timestamp: Long,
+  timestampType: Int) {
+  def localDateTime(zoneId: ZoneId): LocalDateTime =
+    Instant.ofEpochMilli(timestamp).atZone(zoneId).toLocalDateTime
+}
 
 object CRMetaInfo {
   implicit val typedEncoder: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
