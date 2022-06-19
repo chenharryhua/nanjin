@@ -41,6 +41,9 @@ final class LoadTable[A] private[spark] (ate: AvroTypedEncoder[A], ss: SparkSess
   def binAvro(path: NJPath): NJTable[A] =
     new NJTable[A](loaders.binAvro[A](path, ate, ss), ate)
 
+  def objectFile(path: NJPath): NJTable[A] =
+    new NJTable[A](loaders.objectFile(path, ate, ss), ate)
+
   object spark {
     def json(path: NJPath): NJTable[A] =
       new NJTable[A](loaders.spark.json[A](path, ate, ss), ate)

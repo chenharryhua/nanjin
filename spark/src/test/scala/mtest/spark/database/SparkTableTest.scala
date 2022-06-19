@@ -121,6 +121,7 @@ class SparkTableTest extends AnyFunSuite {
     loader.avro(root / "avro").save[IO].circe(root / "circe").run.unsafeRunSync()
     loader.avro(root / "avro").save[IO].kantan(root / "kantan").run.unsafeRunSync()
     loader.avro(root / "avro").save[IO].parquet(root / "parquet").run.unsafeRunSync()
+    loader.avro(root / "avro").save[IO].objectFile(root / "obj").run.unsafeRunSync()
 
     val avro    = loader.avro(root / "avro")
     val binAvro = loader.binAvro(root / "bin.avro")
@@ -128,9 +129,11 @@ class SparkTableTest extends AnyFunSuite {
     val circe   = loader.circe(root / "circe")
     val kantan  = loader.kantan(root / "kantan")
     val parquet = loader.parquet(root / "parquet")
+    val obj     = loader.objectFile(root / "obj")
     assert(avro.diff(binAvro).dataset.count() == 0)
     assert(jackson.diff(circe).dataset.count() == 0)
     assert(kantan.diff(parquet).dataset.count() == 0)
+    assert(kantan.diff(obj).dataset.count() == 0)
   }
 
   test("spark") {
