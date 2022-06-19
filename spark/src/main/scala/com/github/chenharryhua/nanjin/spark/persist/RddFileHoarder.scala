@@ -9,12 +9,12 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
-
+import io.circe.Encoder as JsonEncoder
 sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
 
 // 1
-  final def circe(path: NJPath): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, HoarderConfig(path).outputFormat(Circe), isKeepNull = true)
+  final def circe(path: NJPath)(implicit encoder: JsonEncoder[A]): SaveCirce[F, A] =
+    new SaveCirce[F, A](rdd, HoarderConfig(path).outputFormat(Circe), isKeepNull = true, encoder)
 
 // 2
   final def text(path: NJPath): SaveText[F, A] =
