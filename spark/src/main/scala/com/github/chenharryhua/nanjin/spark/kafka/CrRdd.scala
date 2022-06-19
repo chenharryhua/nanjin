@@ -63,9 +63,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K2, V2](rdd.flatMap(f), ack2, acv2, cfg, ss).normalize
 
   // transition
-  def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
+  def crDataset(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDataset[F, K, V] = {
     val ate = AvroTypedEncoder(ack, acv)
-    new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), cfg, ack, acv, tek, tev)
+    new CrDataset[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), cfg, ack, acv, tek, tev)
   }
 
   def prRdd: PrRdd[F, K, V] =

@@ -5,11 +5,7 @@ import com.github.chenharryhua.nanjin.terminals.{CirceCompression, NJCompression
 import io.circe.Encoder as JsonEncoder
 import org.apache.spark.rdd.RDD
 
-final class SaveCirce[F[_], A](
-  val rdd: RDD[A],
-  cfg: HoarderConfig,
-  isKeepNull: Boolean,
-  encoder: JsonEncoder[A])
+final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean, encoder: JsonEncoder[A])
     extends Serializable {
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, true, encoder)
   def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](rdd, cfg, false, encoder)

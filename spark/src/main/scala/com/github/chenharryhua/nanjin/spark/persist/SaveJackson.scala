@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.terminals.{JacksonCompression, NJCompressi
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
-final class SaveJackson[F[_], A](val rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig

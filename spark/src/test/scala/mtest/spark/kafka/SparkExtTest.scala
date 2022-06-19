@@ -33,7 +33,11 @@ class SparkExtTest extends AnyFunSuite {
   val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = AvroTypedEncoder(topic.topicDef)
 
   test("stream") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.crDS.dataset.stream[IO](100).compile.drain).unsafeRunSync()
+    sparKafka
+      .topic(topic)
+      .fromKafka
+      .flatMap(_.crDataset.dataset.stream[IO](100).compile.drain)
+      .unsafeRunSync()
   }
   /*
   test("source") {

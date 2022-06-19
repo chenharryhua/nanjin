@@ -9,7 +9,7 @@ import shapeless.ops.record.Keys
 import shapeless.ops.hlist.ToTraversable
 import scala.annotation.nowarn
 final class SaveKantanCsv[F[_], A](
-  val rdd: RDD[A],
+  rdd: RDD[A],
   val csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   encoder: HeaderEncoder[A])

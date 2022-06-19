@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import akka.stream.scaladsl.Source
+import akka.NotUsed
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.NJFileFormat.*
-import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
@@ -12,7 +13,7 @@ import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
-sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
+sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
 
 // 1
   final def circe(path: NJPath)(implicit encoder: JsonEncoder[A]): SaveCirce[F, A] =
@@ -34,7 +35,10 @@ sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
   final def kantan(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
     new SaveKantanCsv[F, A](rdd, CsvConfiguration.rfc, HoarderConfig(path).outputFormat(Kantan), encoder)
 
-  final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] = rdd.stream[F](chunkSize)
+  final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =
+    Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
+
+  final def source: Source[A, NotUsed] = Source.fromIterator(() => rdd.toLocalIterator)
 }
 
 final class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A])

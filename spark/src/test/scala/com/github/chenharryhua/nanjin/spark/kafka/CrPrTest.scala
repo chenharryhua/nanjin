@@ -67,11 +67,11 @@ class CrPrTest extends AnyFunSuite {
       StructField("timestampType", IntegerType, false)
     ))
 
-  val crDS: CrDS[IO, Long, Rooster]   = crRdd.crDS.partitionOf(0)
-  val prRdd: PrRdd[IO, Long, Rooster] = crRdd.prRdd.partitionOf(0)
-  val topic                           = roosterLike.in(ctx)
-  val ack                             = topic.topicDef.rawSerdes.keySerde.avroCodec
-  val acv                             = topic.topicDef.rawSerdes.keySerde.avroCodec
+  val crDS: CrDataset[IO, Long, Rooster] = crRdd.crDataset.partitionOf(0)
+  val prRdd: PrRdd[IO, Long, Rooster]    = crRdd.prRdd.partitionOf(0)
+  val topic                              = roosterLike.in(ctx)
+  val ack                                = topic.topicDef.rawSerdes.keySerde.avroCodec
+  val acv                                = topic.topicDef.rawSerdes.keySerde.avroCodec
 
   test("map") {
     val cr =
@@ -118,16 +118,16 @@ class CrPrTest extends AnyFunSuite {
         .withEndTime(Instant.now().plusSeconds(10))
     assert(crRdd.timeRange(dr).rdd.collect().size == 4)
     assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect().size == 4)
-    assert(crRdd.crDS.timeRange(dr).dataset.collect().size == 4)
+    assert(crRdd.crDataset.timeRange(dr).dataset.collect().size == 4)
     assert(crRdd.timeRange.rdd.collect().size == 4)
     assert(crRdd.prRdd.timeRange(dr).rdd.collect().size == 4)
-    assert(crRdd.crDS.timeRange.dataset.collect().size == 4)
+    assert(crRdd.crDataset.timeRange.dataset.collect().size == 4)
   }
 
   test("offset range") {
     assert(crRdd.offsetRange(0, 2).rdd.collect().size == 3)
     assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect().size == 3)
-    assert(crRdd.crDS.offsetRange(0, 2).dataset.collect().size == 3)
+    assert(crRdd.crDataset.offsetRange(0, 2).dataset.collect().size == 3)
   }
   test("cherry-pick") {
     assert(crRdd.normalize.cherrypick(0, 0).map(_.value) == crDS.normalize.cherrypick(0, 0).map(_.value))
