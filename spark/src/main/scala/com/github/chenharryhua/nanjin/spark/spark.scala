@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
-import com.github.chenharryhua.nanjin.spark.database.{DbUploader, SparkDBTable}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.*
+import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import com.zaxxer.hikari.HikariConfig
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -26,9 +25,6 @@ package object spark {
     def dismissNulls(implicit ev: ClassTag[A]): RDD[A] = rdd.flatMap(Option(_))
     def numOfNulls(implicit ev: ClassTag[A]): Long     = rdd.subtract(dismissNulls).count()
 
-    def dbUpload[F[_]](db: SparkDBTable[F, A]): DbUploader[F, A] =
-      db.tableset(rdd).upload
-
     def save[F[_]]: RddFileHoarder[F, A] = new RddFileHoarder[F, A](rdd)
 
     def save[F[_]](encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
@@ -45,7 +41,6 @@ package object spark {
 
     def asSource[F[_]]: RddStreamSource[F, A] = new RddStreamSource[F, A](ds.rdd)
 
-    def dbUpload[F[_]](db: SparkDBTable[F, A]): DbUploader[F, A] = db.tableset(ds).upload
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
@@ -58,8 +53,7 @@ package object spark {
 
   implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {
 
-    def alongWith[F[_]](hikariConfig: HikariConfig): SparkDBContext[F] =
-      new SparkDBContext[F](ss, hikariConfig)
+    def loadWith[A](ate: AvroTypedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
       new SparKafkaContext[F](ss, ctx)
