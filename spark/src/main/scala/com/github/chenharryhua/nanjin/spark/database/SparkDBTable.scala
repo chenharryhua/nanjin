@@ -43,7 +43,11 @@ final class SparkDBTable[F[_], A](
 
   def countDB(implicit F: Sync[F]): F[Long] =
     F.blocking(
-      sd.unloadDF(hikariConfig, tableDef.tableName, Some(s"select count(*) from ${tableDef.tableName.value}"), ss)
+      sd.unloadDF(
+        hikariConfig,
+        tableDef.tableName,
+        Some(s"select count(*) from ${tableDef.tableName.value}"),
+        ss)
         .as[Long](TypedExpressionEncoder[Long])
         .head())
 

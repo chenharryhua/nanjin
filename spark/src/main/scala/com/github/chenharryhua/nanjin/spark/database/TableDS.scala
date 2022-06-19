@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.database
 
 import cats.Endo
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
 import com.zaxxer.hikari.HikariConfig
 import frameless.TypedDataset
 import org.apache.spark.sql.Dataset
@@ -36,4 +36,5 @@ final class TableDS[F[_], A] private[database] (
   def save: RddAvroFileHoarder[F, A] =
     new RddAvroFileHoarder[F, A](dataset.rdd, tableDef.ate.avroCodec.avroEncoder)
 
+  def asSource: RddStreamSource[F, A] = new RddStreamSource[F, A](dataset.rdd)
 }

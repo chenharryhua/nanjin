@@ -36,25 +36,9 @@ class SparkExtTest extends AnyFunSuite {
     sparKafka
       .topic(topic)
       .fromKafka
-      .flatMap(_.crDataset.dataset.stream[IO](100).compile.drain)
+      .flatMap(_.crDataset.dataset.asSource[IO].fss(100).compile.drain)
       .unsafeRunSync()
   }
-  /*
-  test("source") {
-    sparKafka
-      .topic(topic)
-      .withStartTime("2012-10-26")
-      .withEndTime("2012-10-28")
-      .fromKafka.flatMap(
-      _.crDS
-      .ascendTimestamp
-      .typedDataset
-      .source[IO]
-      .map(println)
-      .take(10)
-      .runWith(stages.ignore[IO])
-      ).unsafeRunSync
-  } */
 
   test("sparKafka rdd deal with primitive null ") {
     val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(List(1, null.asInstanceOf[Int], 3))
