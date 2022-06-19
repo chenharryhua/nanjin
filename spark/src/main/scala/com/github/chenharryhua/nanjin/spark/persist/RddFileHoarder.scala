@@ -7,9 +7,11 @@ import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
+import io.circe.Encoder as JsonEncoder
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
-import io.circe.Encoder as JsonEncoder
+import scalapb.GeneratedMessage
+
 sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
 
 // 1
@@ -25,8 +27,8 @@ sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
     new SaveObjectFile[F, A](rdd, HoarderConfig(path).outputFormat(JavaObject))
 
 // 4
-  final def protobuf(path: NJPath): SaveProtobuf[F, A] =
-    new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf))
+  final def protobuf(path: NJPath)(implicit evidence: A <:< GeneratedMessage): SaveProtobuf[F, A] =
+    new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf), evidence)
 
 // 5
   final def kantan(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
