@@ -29,6 +29,8 @@ object database {
   type Port = net.PortNumber
   final val Port = net.PortNumber
 
+  final case class TableQuery(value: String)
+
   @JsonCodec final case class Postgres(
     username: Username,
     password: Password,

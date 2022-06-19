@@ -1,20 +1,18 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.NJFileFormat.*
-import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import fs2.Stream
+import io.circe.Encoder as JsonEncoder
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
+import scalapb.GeneratedMessage
 
-sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
+sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
 
 // 1
-  final def circe(path: NJPath): SaveCirce[F, A] =
-    new SaveCirce[F, A](rdd, HoarderConfig(path).outputFormat(Circe), isKeepNull = true)
+  final def circe(path: NJPath)(implicit encoder: JsonEncoder[A]): SaveCirce[F, A] =
+    new SaveCirce[F, A](rdd, HoarderConfig(path).outputFormat(Circe), isKeepNull = true, encoder)
 
 // 2
   final def text(path: NJPath): SaveText[F, A] =
@@ -25,14 +23,14 @@ sealed class RddFileHoarder[F[_], A](val rdd: RDD[A]) extends Serializable {
     new SaveObjectFile[F, A](rdd, HoarderConfig(path).outputFormat(JavaObject))
 
 // 4
-  final def protobuf(path: NJPath): SaveProtobuf[F, A] =
-    new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf))
+  final def protobuf(path: NJPath)(implicit evidence: A <:< GeneratedMessage): SaveProtobuf[F, A] =
+    new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf), evidence)
 
 // 5
   final def kantan(path: NJPath)(implicit encoder: HeaderEncoder[A]): SaveKantanCsv[F, A] =
     new SaveKantanCsv[F, A](rdd, CsvConfiguration.rfc, HoarderConfig(path).outputFormat(Kantan), encoder)
 
-  final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] = rdd.stream[F](chunkSize)
+  final val asSource: RddStreamSource[F, A] = new RddStreamSource[F, A](rdd)
 }
 
 final class RddAvroFileHoarder[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A])

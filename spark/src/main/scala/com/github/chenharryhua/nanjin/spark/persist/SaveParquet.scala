@@ -6,7 +6,7 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.spark.rdd.RDD
-final class SaveParquet[F[_], A](val rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+final class SaveParquet[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig

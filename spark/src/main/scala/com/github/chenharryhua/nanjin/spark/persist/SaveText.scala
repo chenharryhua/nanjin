@@ -5,7 +5,7 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{NJCompression, TextCompression}
 import org.apache.spark.rdd.RDD
 
-final class SaveText[F[_], A](val rdd: RDD[A], cfg: HoarderConfig, suffix: String) extends Serializable {
+final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) extends Serializable {
 
   def withSuffix(suffix: String): SaveText[F, A] = new SaveText[F, A](rdd, cfg, suffix)
 

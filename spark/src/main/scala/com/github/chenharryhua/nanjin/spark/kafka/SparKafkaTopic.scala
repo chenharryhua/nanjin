@@ -27,7 +27,7 @@ import fs2.kafka.ProducerResult
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.kafka010.LocationStrategy
 
@@ -155,9 +155,6 @@ final class SparKafkaTopic[F[_], K, V](
     */
   def crRdd(rdd: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, avroKeyCodec, avroValCodec, cfg, sparkSession)
-
-  def crDS(df: DataFrame)(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] =
-    new CrDS(ate.normalizeDF(df), cfg, avroKeyCodec, avroValCodec, tek, tev)
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, prCodec, cfg)

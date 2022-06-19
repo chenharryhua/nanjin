@@ -5,8 +5,7 @@ import com.github.chenharryhua.nanjin.terminals.{AvroCompression, NJCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
-final class SaveAvro[F[_], A](val rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
-    extends Serializable {
+final class SaveAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig) extends Serializable {
 
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
     new SaveAvro[F, A](rdd, encoder, cfg)

@@ -11,8 +11,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
 import fs2.kafka.ProducerRecords
 import fs2.Stream
 import org.apache.spark.rdd.RDD
@@ -55,10 +54,13 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder)
 
+  lazy val asSource: RddStreamSource[F, NJProducerRecord[K, V]] =
+    new RddStreamSource[F, NJProducerRecord[K, V]](rdd)
+
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
-    rdd.stream[F](chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
+    asSource.fss(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
   def producerMessages(topicName: TopicName, chunkSize: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
-    rdd.source.grouped(chunkSize.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))
+    asSource.akka.grouped(chunkSize.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))
 }

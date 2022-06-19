@@ -8,7 +8,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProduc
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
+import com.github.chenharryhua.nanjin.spark.table.NJTable
 import frameless.{TypedDataset, TypedEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -63,9 +64,14 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K2, V2](rdd.flatMap(f), ack2, acv2, cfg, ss).normalize
 
   // transition
-  def crDS(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDS[F, K, V] = {
+  def crDataset(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDataset[F, K, V] = {
     val ate = AvroTypedEncoder(ack, acv)
-    new CrDS[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), cfg, ack, acv, tek, tev)
+    new CrDataset[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), cfg, ack, acv, tek, tev)
+  }
+
+  def toTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): NJTable[NJConsumerRecord[K, V]] = {
+    val ate = AvroTypedEncoder(ack, acv)
+    new NJTable[NJConsumerRecord[K, V]](ss.createDataset(rdd)(ate.sparkEncoder), ate)
   }
 
   def prRdd: PrRdd[F, K, V] =
@@ -80,7 +86,10 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def stats: Statistics[F] =
     new Statistics[F](
       TypedDataset.create(rdd.map(CRMetaInfo(_)))(TypedEncoder[CRMetaInfo], ss).dataset,
-      cfg.evalConfig.timeRange.zoneId)
+      params.timeRange.zoneId)
+
+  def asSource: RddStreamSource[F, NJConsumerRecord[K, V]] =
+    new RddStreamSource[F, NJConsumerRecord[K, V]](rdd)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
