@@ -59,8 +59,8 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
-    asSource.fss(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
+    asSource.stream(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
   def producerMessages(topicName: TopicName, chunkSize: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
-    asSource.akka.grouped(chunkSize.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))
+    asSource.source.grouped(chunkSize.value).map(ms => multi(ms.map(_.toProducerRecord(topicName))))
 }

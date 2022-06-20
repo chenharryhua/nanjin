@@ -22,8 +22,8 @@ import com.github.chenharryhua.nanjin.spark.sstream.{SStreamConfig, SparkSStream
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
-import fs2.{Pipe, RaiseThrowable, Stream}
 import fs2.kafka.ProducerResult
+import fs2.{Pipe, RaiseThrowable, Stream}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.spark.rdd.RDD
@@ -45,6 +45,9 @@ final class SparKafkaTopic[F[_], K, V](
 
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
     AvroTypedEncoder(topic.topicDef)
+
+  val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
+  val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
 
   val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
     NJConsumerRecord.avroCodec(
@@ -114,8 +117,8 @@ final class SparKafkaTopic[F[_], K, V](
   def fromKafka(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
     rawKafka.map(rdd => crRdd(rdd.map(_.toNJConsumerRecord)))
 
-  def fromDisk(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
-    F.blocking(crRdd(loaders.rdd.objectFile[NJConsumerRecord[K, V]](params.replayPath, sparkSession)))
+  def fromDisk: CrRdd[F, K, V] =
+    crRdd(loaders.rdd.objectFile[NJConsumerRecord[K, V]](params.replayPath, sparkSession))
 
   /** shorthand
     */
@@ -124,32 +127,18 @@ final class SparKafkaTopic[F[_], K, V](
 
   def dumpToday(implicit F: Sync[F]): F[Unit] = withOneDay(LocalDate.now()).dump
 
-  def replay(listener: ProducerResult[K, V] => F[Unit])(implicit F: Async[F]): F[Unit] =
-    Stream
-      .force(
-        fromDisk.map(
-          _.prRdd.noMeta.producerRecords(topicName, 1000).through(topic.produce.pipe).evalMap(listener)))
-      .compile
-      .drain
+  def replay(implicit F: Async[F]): Stream[F, ProducerResult[K, V]] =
+    fromDisk.prRdd.noMeta.producerRecords(topicName, 1000).through(topic.produce.pipe)
 
   /** replay last num records
     */
-  def replay(num: Long)(implicit F: Async[F]): F[Unit] =
-    Stream
-      .force(fromDisk.map(
-        _.prRdd.descendTimestamp.noMeta.producerRecords(topicName, 1).take(num).through(topic.produce.pipe)))
-      .compile
-      .drain
-
-  def replay(implicit F: Async[F]): F[Unit] = replay(_ => F.unit)
+  def replay(num: Long)(implicit F: Async[F]): Stream[F, ProducerResult[K, V]] =
+    fromDisk.prRdd.descendTimestamp.noMeta.producerRecords(topicName, 1).take(num).through(topic.produce.pipe)
 
   def countKafka(implicit F: Sync[F]): F[Long] = fromKafka.flatMap(_.count)
-  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.flatMap(_.count)
+  def countDisk(implicit F: Sync[F]): F[Long]  = fromDisk.count
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, cfg, sparkSession)
-
-  val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
-  val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
 
   /** rdd and dataset
     */

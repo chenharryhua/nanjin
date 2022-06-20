@@ -110,7 +110,7 @@ class BinAvroTest extends AnyFunSuite {
     val path = reverseRoot / "rooster.binary.avro.gz"
     RoosterData.rdd
       .asSource[IO]
-      .fss(100)
+      .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.sink(path))
@@ -125,7 +125,7 @@ class BinAvroTest extends AnyFunSuite {
     val path = reverseRoot / "rooster.binary.avro.bz2"
     RoosterData.rdd
       .asSource[IO]
-      .fss(100)
+      .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.sink(path))
@@ -141,7 +141,7 @@ class BinAvroTest extends AnyFunSuite {
     val path = reverseRoot / "rooster.binary.avro"
     RoosterData.rdd
       .asSource[IO]
-      .fss(100)
+      .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.sink(path))
