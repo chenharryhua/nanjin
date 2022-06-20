@@ -1,4 +1,4 @@
-package mtest.spark.database
+package mtest.spark.table
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
@@ -10,7 +10,9 @@ import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.spark.injection.*
+import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.zaxxer.hikari.HikariConfig
 import doobie.ExecutionContexts
 import doobie.hikari.HikariTransactor
 import doobie.implicits.*
@@ -91,8 +93,8 @@ class SparkTableTest extends AnyFunSuite {
 
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
-  val hikari = NJHikari(postgres).hikariConfig
-  val loader = ss.loadWith(ate)
+  val hikari: HikariConfig           = NJHikari(postgres).hikariConfig
+  val loader: LoadTable[IO, DBTable] = ss.loadWith[IO](ate)
 
   test("load data") {
     val tds = TypedDataset.create(List(dbData))
@@ -106,7 +108,7 @@ class SparkTableTest extends AnyFunSuite {
 
   test("upload dataset to table") {
     val data = TypedDataset.create(List(dbData))
-    loader.data(data).upload[IO](hikari, "sparktest", SaveMode.Overwrite).unsafeRunSync()
+    loader.data(data).upload(hikari, "sparktest", SaveMode.Overwrite).unsafeRunSync()
   }
 
   test("dump and count") {
@@ -115,13 +117,13 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save/load") {
-    loader.jdbc(hikari, "sparktest").save[IO].avro(root / "avro").run.unsafeRunSync()
-    loader.avro(root / "avro").save[IO].binAvro(root / "bin.avro").run.unsafeRunSync()
-    loader.avro(root / "avro").save[IO].jackson(root / "jackson").run.unsafeRunSync()
-    loader.avro(root / "avro").save[IO].circe(root / "circe").run.unsafeRunSync()
-    loader.avro(root / "avro").save[IO].kantan(root / "kantan").run.unsafeRunSync()
-    loader.avro(root / "avro").save[IO].parquet(root / "parquet").run.unsafeRunSync()
-    loader.avro(root / "avro").save[IO].objectFile(root / "obj").run.unsafeRunSync()
+    loader.jdbc(hikari, "sparktest").save.avro(root / "avro").run.unsafeRunSync()
+    loader.avro(root / "avro").save.binAvro(root / "bin.avro").run.unsafeRunSync()
+    loader.avro(root / "avro").save.jackson(root / "jackson").run.unsafeRunSync()
+    loader.avro(root / "avro").save.circe(root / "circe").run.unsafeRunSync()
+    loader.avro(root / "avro").save.kantan(root / "kantan").run.unsafeRunSync()
+    loader.avro(root / "avro").save.parquet(root / "parquet").run.unsafeRunSync()
+    loader.avro(root / "avro").save.objectFile(root / "obj").run.unsafeRunSync()
 
     val avro    = loader.avro(root / "avro")
     val binAvro = loader.binAvro(root / "bin.avro")
