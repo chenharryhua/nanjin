@@ -31,27 +31,6 @@ class SortTest extends AnyFunSuite {
   val crDS  = crRdd.crDataset
   val prRdd = crRdd.prRdd
 
-  test("offset") {
-    val asRDD = crRdd.ascendOffset.rdd.collect().toList
-    val asDS  = crDS.ascendOffset.dataset.collect().toList
-
-    val dsRDD = crRdd.descendOffset.rdd.collect().toList
-    val dsDS  = crDS.descendOffset.dataset.collect().toList
-
-    assert(asRDD == asDS)
-    assert(dsRDD == dsDS)
-  }
-  test("timestamp") {
-    val asRDD = crRdd.ascendTimestamp.rdd.collect().toList
-    val asDS  = crDS.ascendTimestamp.dataset.collect().toList
-
-    val dsRDD = crRdd.descendTimestamp.rdd.collect().toList
-    val dsDS  = crDS.descendTimestamp.dataset.collect().toList
-
-    assert(asRDD == asDS)
-    assert(dsRDD == dsDS)
-  }
-
   test("produce record") {
     assert(
       prRdd.ascendTimestamp.rdd.collect().toList.map(_.key) == crRdd.ascendTimestamp.rdd

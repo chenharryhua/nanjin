@@ -66,7 +66,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   // transition
   def crDataset(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDataset[F, K, V] = {
     val ate = AvroTypedEncoder(ack, acv)
-    new CrDataset[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), cfg, ack, acv, tek, tev)
+    new CrDataset[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), ack, acv, tek, tev)
   }
 
   def toTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): NJTable[F, NJConsumerRecord[K, V]] = {
