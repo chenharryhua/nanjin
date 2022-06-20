@@ -52,9 +52,11 @@ package object spark {
   }
 
   implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {
+
     final class PartialApplyAvroTypedEncoder[F[_]] {
       def apply[A](ate: AvroTypedEncoder[A]) = new LoadTable[F, A](ate, ss)
     }
+
     def loadWith[F[_]]: PartialApplyAvroTypedEncoder[F] = new PartialApplyAvroTypedEncoder[F]
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
