@@ -94,7 +94,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .delayBy(3.second)
 
     (ss.concurrently(upload).interruptAfter(6.seconds).compile.drain >>
-      sparKafka.topic(rooster).load.avro(path).flatMap(_.count).map(println)).unsafeRunSync()
+      sparKafka.topic(rooster).load.avro(path).count.map(println)).unsafeRunSync()
   }
 
   test("memory sink - validate kafka timestamp") {

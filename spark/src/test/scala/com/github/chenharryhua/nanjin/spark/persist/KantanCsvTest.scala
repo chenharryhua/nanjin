@@ -41,7 +41,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "uncompressed"
     val s    = saver(path).uncompress
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, s.csvConfiguration, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, s.csvConfiguration)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
     //  val t3 = loaders.spark.csv(path, Tablet.ate, sparkSession).collect().toSet
@@ -52,7 +52,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "gzip"
     val s    = saver(path).gzip
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, CsvConfiguration.rfc, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, CsvConfiguration.rfc)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
@@ -61,7 +61,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "deflate1"
     val s    = saver(path).deflate(1)
     s.run.unsafeRunSync()
-    val t  = loaders.rdd.kantan[Tablet](path, CsvConfiguration.rfc, sparkSession).collect().toSet
+    val t  = loaders.rdd.kantan[Tablet](path, sparkSession, CsvConfiguration.rfc).collect().toSet
     val t2 = loadTablet(path, s.csvConfiguration).unsafeRunSync()
 
     assert(data.toSet == t)
@@ -72,7 +72,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "deflate9"
     val s    = saver(path)
     s.deflate(9).run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, CsvConfiguration.rfc, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, CsvConfiguration.rfc)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
@@ -81,7 +81,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "bzip2"
     val s    = saver(path).bzip2.withHeader
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, s.csvConfiguration, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, s.csvConfiguration)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
@@ -90,7 +90,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "lz4"
     val s    = saver(path).lz4.withHeader
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, s.csvConfiguration, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, s.csvConfiguration)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
@@ -108,7 +108,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "with_header"
     val s    = saver(path).withHeader("x", "y", "z")
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, s.csvConfiguration, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, s.csvConfiguration)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
@@ -118,7 +118,7 @@ class KantanCsvTest extends AnyFunSuite {
     val rfc  = CsvConfiguration.rfc.withCellSeparator('|')
     val s    = saver(path).updateCsvConfig(_ => rfc)
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, rfc, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, rfc)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }
@@ -127,7 +127,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "with_quote"
     val s    = saver(path).withHeader.withCellSeparator('|').withQuote('*').quoteAll
     s.run.unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, s.csvConfiguration, sparkSession)
+    val t = loaders.rdd.kantan[Tablet](path, sparkSession, s.csvConfiguration)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
   }

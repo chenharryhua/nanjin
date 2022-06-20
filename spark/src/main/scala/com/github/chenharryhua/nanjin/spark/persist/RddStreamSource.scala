@@ -10,10 +10,10 @@ import org.apache.spark.rdd.RDD
 final class RddStreamSource[F[_], A](rdd: RDD[A]) extends Serializable {
 
   // fs2 stream
-  def fss(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =
+  def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =
     Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
 
   // akka source
-  def akka: Source[A, NotUsed] = Source.fromIterator(() => rdd.toLocalIterator)
+  def source: Source[A, NotUsed] = Source.fromIterator(() => rdd.toLocalIterator)
 
 }

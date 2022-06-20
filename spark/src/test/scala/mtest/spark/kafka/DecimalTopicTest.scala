@@ -102,48 +102,48 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/decimal.circe")
     stopic.fromKafka.flatMap(_.save.circe(path).run).unsafeRunSync()
 
-    val res = stopic.load.circe(path).map(_.rdd.collect().head.value.get == expected)
-    assert(res.unsafeRunSync())
+    val res = stopic.load.circe(path).rdd.collect().head.value.get
+    assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on parquet") {
     val path = NJPath("./data/test/spark/kafka/decimal.parquet")
     stopic.fromKafka.flatMap(_.save.parquet(path).run).unsafeRunSync()
 
-    val res = stopic.load.parquet(path).map(_.rdd.collect().head.value.get == expected)
-    assert(res.unsafeRunSync())
+    val res = stopic.load.parquet(path).rdd.collect().head.value.get
+    assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on jackson") {
     val path = NJPath("./data/test/spark/kafka/decimal.jackson")
     stopic.fromKafka.flatMap(_.save.jackson(path).run).unsafeRunSync()
 
-    val res = stopic.load.jackson(path).map(_.rdd.collect().head.value.get == expected)
-    assert(res.unsafeRunSync())
+    val res = stopic.load.jackson(path).rdd.collect().head.value.get
+    assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on avro") {
     val path = NJPath("./data/test/spark/kafka/decimal.avro")
     stopic.fromKafka.flatMap(_.save.avro(path).run).unsafeRunSync()
 
-    val res = stopic.load.avro(path).map(_.rdd.collect().head.value.get == expected)
-    assert(res.unsafeRunSync())
+    val res = stopic.load.avro(path).rdd.collect().head.value.get
+    assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on obj") {
     val path = NJPath("./data/test/spark/kafka/decimal.obj")
     stopic.fromKafka.flatMap(_.save.objectFile(path).run).unsafeRunSync()
 
-    val res = stopic.load.objectFile(path).map(_.rdd.collect().head.value.get == expected)
-    assert(res.unsafeRunSync())
+    val res = stopic.load.objectFile(path).rdd.collect().head.value.get
+    assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on binavro") {
     val path = NJPath("./data/test/spark/kafka/decimal.bin.avro")
     stopic.fromKafka.flatMap(_.save.binAvro(path).run).unsafeRunSync()
 
-    val res = stopic.load.binAvro(path).map(_.rdd.collect().head.value.get == expected)
-    assert(res.unsafeRunSync())
+    val res = stopic.load.binAvro(path).rdd.collect().head.value.get
+    assert(res == expected)
   }
 
 }

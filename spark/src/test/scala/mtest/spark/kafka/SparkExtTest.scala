@@ -36,7 +36,7 @@ class SparkExtTest extends AnyFunSuite {
     sparKafka
       .topic(topic)
       .fromKafka
-      .flatMap(_.crDataset.dataset.asSource[IO].fss(100).compile.drain)
+      .flatMap(_.crDataset.dataset.asSource[IO].stream(100).compile.drain)
       .unsafeRunSync()
   }
 
