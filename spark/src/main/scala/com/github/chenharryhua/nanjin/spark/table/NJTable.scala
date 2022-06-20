@@ -34,6 +34,8 @@ final class NJTable[F[_], A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) 
 
   def asSource: RddStreamSource[F, A] = new RddStreamSource[F, A](dataset.rdd)
 
+  def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
+
   def upload(hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode)(implicit
     F: Sync[F]): F[Unit] =
     F.delay {
