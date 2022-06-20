@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
 import com.zaxxer.hikari.HikariConfig
 import frameless.TypedDataset
-import org.apache.spark.sql.{Dataset, SaveMode}
+import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 final class NJTable[F[_], A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
 
@@ -49,4 +49,9 @@ final class NJTable[F[_], A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) 
         .option("dbtable", tableName.value)
         .save()
     }
+}
+
+object NJTable {
+  def empty[F[_], A](ate: AvroTypedEncoder[A], ss: SparkSession): NJTable[F, A] =
+    new NJTable[F, A](ate.emptyDataset(ss), ate)
 }

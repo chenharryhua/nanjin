@@ -21,22 +21,22 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (
   private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv).avroDecoder
 
   def avro(path: NJPath): CrRdd[F, K, V] = {
-    val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](path, decoder, ss)
+    val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[F, K, V](rdd, ack, acv, cfg, ss)
   }
 
   def parquet(path: NJPath): CrRdd[F, K, V] = {
-    val rdd = loaders.rdd.parquet[NJConsumerRecord[K, V]](path, decoder, ss)
+    val rdd = loaders.rdd.parquet[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[F, K, V](rdd, ack, acv, cfg, ss)
   }
 
   def jackson(path: NJPath): CrRdd[F, K, V] = {
-    val rdd = loaders.rdd.jackson[NJConsumerRecord[K, V]](path, decoder, ss)
+    val rdd = loaders.rdd.jackson[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[F, K, V](rdd, ack, acv, cfg, ss)
   }
 
   def binAvro(path: NJPath): CrRdd[F, K, V] = {
-    val rdd = loaders.rdd.binAvro[NJConsumerRecord[K, V]](path, decoder, ss)
+    val rdd = loaders.rdd.binAvro[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[F, K, V](rdd, ack, acv, cfg, ss)
   }
 

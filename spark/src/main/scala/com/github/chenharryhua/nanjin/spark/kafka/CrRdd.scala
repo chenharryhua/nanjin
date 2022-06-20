@@ -104,4 +104,5 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def diffKV(other: RDD[NJConsumerRecord[K, V]]): RDD[KvDiffResult[K, V]] = inv.kvDiffRdd(rdd, other)
   def diffKV(other: CrRdd[F, K, V]): RDD[KvDiffResult[K, V]]              = diffKV(other.rdd)
+
 }

@@ -119,7 +119,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded json should be normalized") {
     val path: NJPath = root / "json"
     ds.write.mode(SaveMode.Overwrite).json(path.pathStr)
-    val r = loaders.spark.json[Lion](path, ate, sparkSession)
+    val r = loaders.spark.json[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
@@ -135,14 +135,14 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded avro should be normalized") {
     val path = root / "spark" / "avro"
     ds.write.format("avro").mode(SaveMode.Overwrite).save(path.pathStr)
-    val r = loaders.spark.avro[Lion](path, ate, sparkSession)
+    val r = loaders.spark.avro[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded parquet should be normalized") {
     val path = root / "spark" / "parquet"
     ds.write.mode(SaveMode.Overwrite).parquet(path.pathStr)
-    val r = loaders.spark.parquet[Lion](path, ate, sparkSession)
+    val r = loaders.spark.parquet[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
@@ -151,7 +151,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     val path = root / "apache" / "avro"
     hdp.delete(path).unsafeRunSync()
     saveRDD.avro(rdd, path, ate.avroCodec.avroEncoder, NJCompression.Uncompressed)
-    val r = loaders.avro[Lion](path, ate, sparkSession)
+    val r = loaders.avro[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
@@ -159,7 +159,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
     val path = root / "apache" / "parquet"
     hdp.delete(path).unsafeRunSync()
     saveRDD.parquet(rdd, path, ate.avroCodec.avroEncoder, NJCompression.Uncompressed)
-    val r = loaders.parquet[Lion](path, ate, sparkSession)
+    val r = loaders.parquet[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
