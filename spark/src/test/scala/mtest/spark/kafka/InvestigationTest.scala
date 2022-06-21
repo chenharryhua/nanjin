@@ -1,13 +1,14 @@
 package mtest.spark.kafka
 
-import cats.derived.auto.eq.kittensMkEq
+import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.spark.kafka.*
-import frameless.TypedDataset
+import com.github.chenharryhua.nanjin.spark.table.LoadTable
+import eu.timepit.refined.auto.*
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
 
 object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)
@@ -68,65 +69,29 @@ object InvestigationTestData {
 class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData.*
   implicit val ss: SparkSession = sparkSession
+  val table: LoadTable[IO, NJConsumerRecord[String, Mouse]] =
+    ss.loadTable[IO](AvroTypedEncoder[NJConsumerRecord[String, Mouse]])
 
   test("sparKafka identical") {
-    val m1 = TypedDataset.create(mouses1)
-    val m2 = TypedDataset.create(mouses2)
-    assert(0 === inv.diffDataset(m1, m2).dataset.count())
-    assert(0 === inv.diffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
-
-    assert(0 === inv.kvDiffDataset(m1, m2).dataset.count())
-    assert(0 === inv.kvDiffRdd(m1.dataset.rdd, m2.dataset.rdd).count())
+    val m1 = table.data(mouses1)
+    val m2 = table.data(mouses2)
+    assert(0 === m1.diff(m2).dataset.count())
   }
 
   test("sparKafka one mismatch") {
-    val m1 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses1)
-    val m3 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses3)
-
-    val rst: Set[DiffResult[String, Mouse]] =
-      inv.diffDataset(m1, m3).dataset.collect().toSet
-
-    val rst2: Set[DiffResult[String, Mouse]] =
-      inv.diffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
-
-    val tup: DiffResult[String, Mouse] = DiffResult(
-      NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0),
-      Some(NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)))
-
-    assert(Set(tup) == rst)
-    assert(Set(tup) == rst2)
-
-    val kv: Set[KvDiffResult[String, Mouse]] =
-      Set(KvDiffResult(Some("mike6"), Some(Mouse(6, 0.6f))))
-    val rst3: Set[KvDiffResult[String, Mouse]] =
-      inv.kvDiffDataset(m1, m3).dataset.collect().toSet
-
-    val rst4: Set[KvDiffResult[String, Mouse]] =
-      inv.kvDiffRdd(m1.dataset.rdd, m3.dataset.rdd).collect().toSet
-    assert(rst3 == kv)
-    assert(rst4 == kv)
+    val m1  = table.data(mouses1)
+    val m3  = table.data(mouses3)
+    val rst = m1.diff(m3).dataset.collect().toSet
+    assert(rst === Set(NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)))
   }
 
   test("sparKafka one lost") {
-    val m1 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses1)
-    val m4 = TypedDataset.create[NJConsumerRecord[String, Mouse]](mouses4)
+    val m1 = table.data(mouses1)
+    val m4 = table.data(mouses4)
 
-    val rst: Set[DiffResult[String, Mouse]] =
-      inv.diffDataset(m1, m4).dataset.collect().toSet
-    val rst2: Set[DiffResult[String, Mouse]] =
-      inv.diffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
-    val tup =
-      DiffResult(NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0), None)
-    assert(Set(tup) == rst)
-    assert(Set(tup) == rst2)
-
-    val rst3: Set[KvDiffResult[String, Mouse]] =
-      inv.kvDiffDataset(m1, m4).dataset.collect().toSet
-    val rst4: Set[KvDiffResult[String, Mouse]] =
-      inv.kvDiffRdd(m1.dataset.rdd, m4.dataset.rdd).collect().toSet
-    val kv = Set(KvDiffResult(Some("mike5"), Some(Mouse(5, 0.5f))))
-    assert(rst3 == kv)
-    assert(rst4 == kv)
+    assert(
+      m1.diff(m4).dataset.collect().toSet === Set(
+        NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0)))
   }
 
 }

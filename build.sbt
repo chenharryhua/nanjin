@@ -33,7 +33,7 @@ lazy val commonSettings = Seq(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.241")
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.239")
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
@@ -204,7 +204,7 @@ val ftpLib = Seq(
 )
 
 val logLib = Seq(
-  "org.typelevel" %% "log4cats-slf4j" % "2.3.1",
+  "org.typelevel" %% "log4cats-slf4j" % "2.3.2",
   "org.slf4j"                         % "slf4j-api" % "1.7.36"
 )
 
@@ -254,7 +254,7 @@ lazy val common = (project in file("common"))
   .settings(
     libraryDependencies ++= Seq(
       "io.dropwizard.metrics"             % "metrics-core" % "4.2.10" % Provided,
-      "org.typelevel" %% "log4cats-slf4j" % "2.3.1"        % Provided) ++
+      "org.typelevel" %% "log4cats-slf4j" % "2.3.2"        % Provided) ++
       baseLib ++ testLib
   )
 
@@ -362,4 +362,3 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-

@@ -3,8 +3,7 @@ package mtest.spark.sstream
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.loaders
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.{TypedDataset, TypedEncoder}
@@ -75,8 +74,9 @@ class SparkStreamJoinTest extends AnyFunSuite {
 
     ss.concurrently(sender.delayBy(3.seconds)).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
 
-    val ate = AvroTypedEncoder[FooBar]
-    val res = loaders.spark.json(path, sparkSession, ate).map(_.index).distinct().collect().toSet
+    val ate    = AvroTypedEncoder[FooBar]
+    val loader = sparkSession.loadTable[IO](ate)
+    val res    = loader.spark.json(path).dataset.map(_.index).distinct().collect().toSet
     assert(res.contains(rand + 1))
     assert(res.contains(rand + 2))
     assert(res.contains(rand + 3))

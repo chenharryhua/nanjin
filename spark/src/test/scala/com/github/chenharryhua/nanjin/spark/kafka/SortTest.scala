@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.effect.IO
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import mtest.spark.kafka.sparKafka
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -28,8 +29,9 @@ class SortTest extends AnyFunSuite {
   )
   val rdd   = sparKafka.sparkSession.sparkContext.parallelize(data)
   val crRdd = sparKafka.topic(topic).crRdd(rdd)
-  val crDS  = crRdd.crDataset
   val prRdd = crRdd.prRdd
+
+  val njDataset = sparKafka.sparkSession.loadTable[IO](ate).data(rdd).dataset
 
   test("produce record") {
     assert(
@@ -62,12 +64,17 @@ class SortTest extends AnyFunSuite {
     assert(crRdd.stats.dupRecords.count() == 1)
   }
   test("missing offsets") {
+
     assert(crRdd.stats.missingOffsets.count() == 1)
   }
+
   test("misorder keys") {
-    assert(crDS.misorderedKey.count() == 4)
+    import com.github.chenharryhua.nanjin.spark.kafka.functions.NJConsumerRecordDatasetExt
+    assert(njDataset.misorderedKey.count() == 4)
   }
+
   test("misplaced keys") {
-    assert(crDS.misplacedKey.count() == 1)
+    import com.github.chenharryhua.nanjin.spark.kafka.functions.NJConsumerRecordDatasetExt
+    assert(njDataset.misplacedKey.count() == 1)
   }
 }

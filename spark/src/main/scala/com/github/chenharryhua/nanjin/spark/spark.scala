@@ -57,7 +57,7 @@ package object spark {
       def apply[A](ate: AvroTypedEncoder[A]) = new LoadTable[F, A](ate, ss)
     }
 
-    def loadWith[F[_]]: PartialApplyAvroTypedEncoder[F] = new PartialApplyAvroTypedEncoder[F]
+    def loadTable[F[_]]: PartialApplyAvroTypedEncoder[F] = new PartialApplyAvroTypedEncoder[F]
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
       new SparKafkaContext[F](ss, ctx)

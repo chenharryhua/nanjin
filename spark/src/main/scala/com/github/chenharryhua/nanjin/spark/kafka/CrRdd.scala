@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.{Endo, Eq}
+import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
 import com.github.chenharryhua.nanjin.spark.table.NJTable
 import frameless.{TypedDataset, TypedEncoder}
@@ -64,12 +63,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new CrRdd[F, K2, V2](rdd.flatMap(f), ack2, acv2, cfg, ss).normalize
 
   // transition
-  def crDataset(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): CrDataset[F, K, V] = {
-    val ate = AvroTypedEncoder(ack, acv)
-    new CrDataset[F, K, V](ss.createDataset(rdd)(ate.sparkEncoder), ack, acv, tek, tev)
-  }
 
-  def toTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): NJTable[F, NJConsumerRecord[K, V]] = {
+  def asTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): NJTable[F, NJConsumerRecord[K, V]] = {
     val ate = AvroTypedEncoder(ack, acv)
     new NJTable[F, NJConsumerRecord[K, V]](ss.createDataset(rdd)(ate.sparkEncoder), ate)
   }
@@ -83,8 +78,8 @@ final class CrRdd[F[_], K, V] private[kafka] (
     new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)
 
   // statistics
-  def stats: Statistics[F] =
-    new Statistics[F](
+  def stats: Statistics =
+    new Statistics(
       TypedDataset.create(rdd.map(CRMetaInfo(_)))(TypedEncoder[CRMetaInfo], ss).dataset,
       params.timeRange.zoneId)
 
@@ -96,13 +91,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def cherrypick(partition: Int, offset: Long): Option[NJConsumerRecord[K, V]] =
     partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption
 
-  def diff(other: RDD[NJConsumerRecord[K, V]])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[DiffResult[K, V]] =
-    inv.diffRdd(rdd, other)
-
-  def diff(other: CrRdd[F, K, V])(implicit eqK: Eq[K], eqV: Eq[V]): RDD[DiffResult[K, V]] =
-    diff(other.rdd)
-
-  def diffKV(other: RDD[NJConsumerRecord[K, V]]): RDD[KvDiffResult[K, V]] = inv.kvDiffRdd(rdd, other)
-  def diffKV(other: CrRdd[F, K, V]): RDD[KvDiffResult[K, V]]              = diffKV(other.rdd)
-
+  def diff(other: RDD[NJConsumerRecord[K, V]]): RDD[NJConsumerRecord[K, V]] = rdd.subtract(other)
+  def diff(other: CrRdd[F, K, V]): RDD[NJConsumerRecord[K, V]]              = diff(other.rdd)
 }
