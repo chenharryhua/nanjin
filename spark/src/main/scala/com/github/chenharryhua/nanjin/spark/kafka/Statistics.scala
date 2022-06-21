@@ -1,22 +1,21 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
-import cats.effect.kernel.Sync
+import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
 import io.circe.generic.JsonCodec
 import org.apache.spark.sql.Dataset
+import org.typelevel.cats.time.instances.{localdatetime, zoneid}
 
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
-import cats.syntax.show.*
-import org.typelevel.cats.time.instances.{localdatetime, zoneid}
 
-final private[kafka] case class MinutelyAggResult(minute: Int, count: Int)
-final private[kafka] case class HourlyAggResult(hour: Int, count: Int)
-final private[kafka] case class DailyAggResult(date: LocalDate, count: Int)
-final private[kafka] case class DailyHourAggResult(dateTime: String, count: Int)
-final private[kafka] case class DailyMinuteAggResult(dateTime: String, count: Int)
+final case class MinutelyAggResult(minute: Int, count: Int)
+final case class HourlyAggResult(hour: Int, count: Int)
+final case class DailyAggResult(date: LocalDate, count: Int)
+final case class DailyHourAggResult(dateTime: String, count: Int)
+final case class DailyMinuteAggResult(dateTime: String, count: Int)
 
 final private case class KafkaSummaryInternal(
   partition: Int,
@@ -86,65 +85,46 @@ final case class Disorder(
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
-final class Statistics[F[_]] private[kafka] (
-  ds: Dataset[CRMetaInfo],
-  zoneId: ZoneId,
-  rowNum: Int = 1500,
-  isTruncate: Boolean = false)
-    extends Serializable {
+final class Statistics private[kafka] (ds: Dataset[CRMetaInfo], zoneId: ZoneId) extends Serializable {
 
-  def rows(rowNum: Int): Statistics[F] = new Statistics[F](ds, zoneId, rowNum, isTruncate)
-  def truncate: Statistics[F]          = new Statistics[F](ds, zoneId, rowNum, true)
-  def untruncate: Statistics[F]        = new Statistics[F](ds, zoneId, rowNum, false)
-
-  def minutely(implicit F: Sync[F]): F[Unit] = {
+  def minutely: Dataset[MinutelyAggResult] = {
     import ds.sparkSession.implicits.*
-    F.delay(
-      ds.map(m => m.localDateTime(zoneId).getMinute)
-        .groupByKey(identity)
-        .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
-        .orderBy("minute")
-        .show(rowNum, isTruncate))
+    ds.map(m => m.localDateTime(zoneId).getMinute)
+      .groupByKey(identity)
+      .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
+      .orderBy("minute")
   }
 
-  def hourly(implicit F: Sync[F]): F[Unit] = {
+  def hourly: Dataset[HourlyAggResult] = {
     import ds.sparkSession.implicits.*
-    F.delay(
-      ds.map(m => m.localDateTime(zoneId).getHour)
-        .groupByKey(identity)
-        .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
-        .orderBy("hour")
-        .show(rowNum, isTruncate))
+    ds.map(m => m.localDateTime(zoneId).getHour)
+      .groupByKey(identity)
+      .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
+      .orderBy("hour")
   }
 
-  def daily(implicit F: Sync[F]): F[Unit] = {
+  def daily: Dataset[DailyAggResult] = {
     import ds.sparkSession.implicits.*
-    F.delay(
-      ds.map(m => dayResolution(m.localDateTime(zoneId)))
-        .groupByKey(identity)
-        .mapGroups((m, iter) => DailyAggResult(m, iter.size))
-        .orderBy("date")
-        .show(rowNum, isTruncate))
+    ds.map(m => dayResolution(m.localDateTime(zoneId)))
+      .groupByKey(identity)
+      .mapGroups((m, iter) => DailyAggResult(m, iter.size))
+      .orderBy("date")
   }
 
-  def dailyHour(implicit F: Sync[F]): F[Unit] = {
+  def dailyHour: Dataset[DailyHourAggResult] = {
     import ds.sparkSession.implicits.*
-    F.delay(
-      ds.map(m => hourResolution(m.localDateTime(zoneId)).toString)
-        .groupByKey(identity)
-        .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
-        .orderBy("dateTime")
-        .show(rowNum, isTruncate))
+    ds.map(m => hourResolution(m.localDateTime(zoneId)).toString)
+      .groupByKey(identity)
+      .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
+      .orderBy("dateTime")
   }
 
-  def dailyMinute(implicit F: Sync[F]): F[Unit] = {
+  def dailyMinute: Dataset[DailyMinuteAggResult] = {
     import ds.sparkSession.implicits.*
-    F.delay(
-      ds.map(m => minuteResolution(m.localDateTime(zoneId)).toString)
-        .groupByKey(identity)
-        .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
-        .orderBy("dateTime")
-        .show(rowNum, isTruncate))
+    ds.map(m => minuteResolution(m.localDateTime(zoneId)).toString)
+      .groupByKey(identity)
+      .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
+      .orderBy("dateTime")
   }
 
   private def internalSummary: List[KafkaSummaryInternal] = {
@@ -167,7 +147,6 @@ final class Statistics[F[_]] private[kafka] (
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
-  @SuppressWarnings(Array("UnnecessaryConversion")) // convert java long to scala long
   def missingOffsets: Dataset[MissingOffset] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col

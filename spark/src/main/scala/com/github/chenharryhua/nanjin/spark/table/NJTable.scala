@@ -21,6 +21,8 @@ final class NJTable[F[_], A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) 
 
   def transform(f: Endo[Dataset[A]]): NJTable[F, A] = new NJTable[F, A](f(dataset), ate)
 
+  def repartition(numPartitions: Int): NJTable[F, A] = transform(_.repartition(numPartitions))
+
   def normalize: NJTable[F, A] = transform(ate.normalize)
 
   def diff(other: Dataset[A]): NJTable[F, A]    = transform(_.except(other))

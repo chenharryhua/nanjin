@@ -94,7 +94,7 @@ class SparkTableTest extends AnyFunSuite {
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
   val hikari: HikariConfig           = NJHikari(postgres).hikariConfig
-  val loader: LoadTable[IO, DBTable] = ss.loadWith[IO](ate)
+  val loader: LoadTable[IO, DBTable] = ss.loadTable[IO](ate)
 
   test("load data") {
     val tds = TypedDataset.create(List(dbData))

@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.IO
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJTimestamp}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.Dataset
@@ -35,9 +34,9 @@ object StatisticsTestData {
 
 class StatisticsTest extends AnyFunSuite {
   import StatisticsTestData.*
-  val stats = new Statistics[IO](ds, sydneyTime)
+  val stats = new Statistics(ds, sydneyTime)
 
-  val emptyStats = new Statistics[IO](empty, sydneyTime)
+  val emptyStats = new Statistics(empty, sydneyTime)
 
   test("dupRecords") {
     val res = stats.dupRecords.collect().toSet

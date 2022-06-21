@@ -1,8 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
@@ -67,49 +65,10 @@ class CrPrTest extends AnyFunSuite {
       StructField("timestampType", IntegerType, false)
     ))
 
-  val crDS: CrDataset[IO, Long, Rooster] = crRdd.crDataset.partitionOf(0)
-  val prRdd: PrRdd[IO, Long, Rooster]    = crRdd.prRdd.partitionOf(0)
-  val topic                              = roosterLike.in(ctx)
-  val ack                                = topic.topicDef.rawSerdes.keySerde.avroCodec
-  val acv                                = topic.topicDef.rawSerdes.keySerde.avroCodec
-
-  test("map") {
-    val cr =
-      crRdd
-        .map(x => x.newValue(x.value.map(RoosterLike(_))))(ack, NJAvroCodec[RoosterLike])
-        .rdd
-        .collect()
-        .flatMap(_.value)
-        .toSet
-
-    val ds = crDS.map(_.bimap(identity, RoosterLike(_)))(ack, NJAvroCodec[RoosterLike]).dataset
-    val d  = ds.collect().flatMap(_.value).toSet
-    assert(ds.schema == expectSchema)
-    assert(cr == d)
-  }
-
-  test("flatMap") {
-    val cr = crRdd.flatMap { x =>
-      x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)).newKey(x.key))
-    }(ack, NJAvroCodec[RoosterLike2]).rdd.collect().flatMap(_.value).toSet
-
-    val d = crDS.flatMap { x =>
-      x.value.flatMap(RoosterLike2(_)).map(y => x.newValue(Some(y)))
-    }(ack, NJAvroCodec[RoosterLike2]).dataset.collect().flatMap(_.value).toSet
-
-    assert(cr == d)
-  }
-
-  test("union") {
-    val r = crRdd.union(crRdd)
-    val d = crDS.union(crDS)
-    assert(r.count.unsafeRunSync() == d.count.unsafeRunSync())
-  }
-
-  test("stats") {
-    crDS.stats.daily.unsafeRunSync()
-    crRdd.stats.daily.unsafeRunSync()
-  }
+  val prRdd: PrRdd[IO, Long, Rooster] = crRdd.prRdd.partitionOf(0)
+  val topic                           = roosterLike.in(ctx)
+  val ack                             = topic.topicDef.rawSerdes.keySerde.avroCodec
+  val acv                             = topic.topicDef.rawSerdes.keySerde.avroCodec
 
   test("time range") {
     val dr =
@@ -118,23 +77,16 @@ class CrPrTest extends AnyFunSuite {
         .withEndTime(Instant.now().plusSeconds(10))
     assert(crRdd.timeRange(dr).rdd.collect().size == 4)
     assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect().size == 4)
-    assert(crRdd.crDataset.timeRange(dr).dataset.collect().size == 4)
     assert(crRdd.timeRange.rdd.collect().size == 4)
     assert(crRdd.prRdd.timeRange(dr).rdd.collect().size == 4)
-    assert(crRdd.crDataset.timeRange.dataset.collect().size == 4)
   }
 
   test("offset range") {
     assert(crRdd.offsetRange(0, 2).rdd.collect().size == 3)
     assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect().size == 3)
-    assert(crRdd.crDataset.offsetRange(0, 2).dataset.collect().size == 3)
-  }
-  test("cherry-pick") {
-    assert(crRdd.normalize.cherrypick(0, 0).map(_.value) == crDS.normalize.cherrypick(0, 0).map(_.value))
   }
   test("replicate") {
     assert(crRdd.replicate(3).rdd.count() == 12)
     assert(prRdd.replicate(3).rdd.count() == 12)
-    assert(crDS.replicate(3).dataset.count() == 12)
   }
 }

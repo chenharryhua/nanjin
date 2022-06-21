@@ -60,20 +60,20 @@ class SparKafkaTest extends AnyFunSuite {
       .topic(topic.topicDef)
       .withOneDay(LocalDate.now())
       .fromKafka
-      .flatMap(_.stats.rows(100).untruncate.truncate.minutely)
+      .map(_.stats.minutely.count())
       .unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyHour).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.map(_.stats.dailyHour.collect()).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyMinute).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.map(_.stats.dailyMinute.count()).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.daily).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.map(_.stats.daily.count()).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.hourly).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.map(_.stats.hourly.count()).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
     sparKafka.topic(topic).fromKafka.map(_.stats.summary).flatMap(IO.println).unsafeRunSync()
