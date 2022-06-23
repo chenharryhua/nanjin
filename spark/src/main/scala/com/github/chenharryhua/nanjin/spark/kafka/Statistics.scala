@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Show
+import cats.implicits.catsSyntaxEq
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
+import com.github.chenharryhua.nanjin.spark.SPARK_ZONE_ID
 import io.circe.generic.JsonCodec
 import org.apache.spark.sql.Dataset
 import org.typelevel.cats.time.instances.{localdatetime, zoneid}
@@ -85,7 +87,8 @@ final case class Disorder(
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
-final class Statistics private[kafka] (ds: Dataset[CRMetaInfo], zoneId: ZoneId) extends Serializable {
+final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializable {
+  private val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
 
   def minutely: Dataset[MinutelyAggResult] = {
     import ds.sparkSession.implicits.*
@@ -127,10 +130,11 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo], zoneId: ZoneId) 
       .orderBy("dateTime")
   }
 
-  private def internalSummary: List[KafkaSummaryInternal] = {
-    import ds.sparkSession.implicits.*
-    import org.apache.spark.sql.functions.*
-    ds.groupBy("partition")
+  private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
+    import ids.sparkSession.implicits.*
+    import org.apache.spark.sql.functions.{min, max, count, lit, asc}
+    ids
+      .groupBy("partition")
       .agg(
         min("offset").as("startOffset"),
         max("offset").as("endOffset"),
@@ -143,16 +147,16 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo], zoneId: ZoneId) 
       .toList
   }
 
-  def summary: List[KafkaSummary] = internalSummary.map(_.toKafkaSummary(zoneId))
+  def summary: List[KafkaSummary] = internalSummary(ds).map(_.toKafkaSummary(zoneId))
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
   def missingOffsets: Dataset[MissingOffset] = {
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
-    val all: List[Dataset[MissingOffset]] = internalSummary.map { kds =>
+    val all: List[Dataset[MissingOffset]] = internalSummary(ds).map { kds =>
       val expect: Dataset[Long] = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
-      val exist: Dataset[Long]  = ds.filter(col("partition") === kds.partition).map(_.offset)
+      val exist: Dataset[Long]  = ds.filter(_.partition === kds.partition).map(_.offset)
       expect.except(exist).map(os => MissingOffset(partition = kds.partition, offset = os))
     }
     all
@@ -169,7 +173,7 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo], zoneId: ZoneId) 
     import org.apache.spark.sql.functions.col
     val all: Array[Dataset[Disorder]] =
       ds.map(_.partition).distinct().collect().map { pt =>
-        val curr: Dataset[(Long, CRMetaInfo)] = ds.filter(ds("partition") === pt).map(x => (x.offset, x))
+        val curr: Dataset[(Long, CRMetaInfo)] = ds.filter(_.partition === pt).map(x => (x.offset, x))
         val pre: Dataset[(Long, CRMetaInfo)]  = curr.map { case (index, crm) => (index + 1, crm) }
 
         curr.joinWith(pre, curr("_1") === pre("_1"), "inner").flatMap { case ((_, c), (_, p)) =>

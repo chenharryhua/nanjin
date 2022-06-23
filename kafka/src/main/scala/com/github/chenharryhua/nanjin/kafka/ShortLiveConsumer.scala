@@ -96,10 +96,11 @@ private[kafka] object KafkaPrimitiveConsumerApi {
 
 sealed trait ShortLiveConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
   def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
+  def offsetRangeFor(start: NJTimestamp, end: NJTimestamp): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
+  def offsetRangeForAll: F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
-  def numOfRecords: F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
   def numOfRecordsSince(ts: NJTimestamp): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
 
   def resetOffsetsToBegin: F[Unit]
@@ -137,6 +138,16 @@ object ShortLiveConsumer {
         } yield offsetRange(from, end, to)
       }
 
+    override def offsetRangeFor(
+      start: NJTimestamp,
+      end: NJTimestamp): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
+      execute {
+        for {
+          from <- kpc.offsetsForTimes(start)
+          to <- kpc.offsetsForTimes(end)
+        } yield offsetRange(from, to)
+      }
+
     override def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       execute {
         for {
@@ -168,7 +179,7 @@ object ShortLiveConsumer {
         } yield rec.flatten
       }
 
-    override def numOfRecords: F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
+    override def offsetRangeForAll: F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
       execute {
         for {
           beg <- kpc.beginningOffsets

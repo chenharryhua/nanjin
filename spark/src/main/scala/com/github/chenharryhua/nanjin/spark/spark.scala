@@ -15,6 +15,7 @@ import org.apache.spark.sql.types.DataType
 import scala.reflect.ClassTag
 
 package object spark {
+  final val SPARK_ZONE_ID: String = "spark.sql.session.timeZone"
 
   object injection extends InjectionInstances
 

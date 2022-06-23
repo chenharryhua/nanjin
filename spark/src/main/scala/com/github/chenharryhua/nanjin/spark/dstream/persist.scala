@@ -14,14 +14,14 @@ private[dstream] object persist {
   private def getPath(builder: Reader[LocalDateTime, NJPath], time: Time, zoneId: ZoneId): NJPath =
     builder.run(Instant.ofEpochMilli(time.milliseconds).atZone(zoneId).toLocalDateTime)
 
-  def circe[A: JsonEncoder](
+  def circe[A](
     ds: DStream[A],
     zoneId: ZoneId,
-    pathBuilder: Reader[LocalDateTime, NJPath],
-    isKeepNull: Boolean): DStreamRunner.Mark = {
+    enc: JsonEncoder[A],
+    pathBuilder: Reader[LocalDateTime, NJPath]): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
       val path: NJPath = getPath(pathBuilder, time, zoneId)
-      saveRDD.circe[A](rdd, path, NJCompression.Uncompressed, isKeepNull)
+      saveRDD.circe[A](rdd, path, NJCompression.Uncompressed, isKeepNull = true)(enc)
     }
     DStreamRunner.Mark
   }

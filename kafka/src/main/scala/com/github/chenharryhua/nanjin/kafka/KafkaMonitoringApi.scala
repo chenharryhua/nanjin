@@ -85,7 +85,7 @@ object KafkaMonitoringApi {
     override def summaries(implicit C: Console[F]): F[Unit] =
       topic.shortLiveConsumer.use { consumer =>
         for {
-          num <- consumer.numOfRecords
+          num <- consumer.offsetRangeForAll
           first <- consumer.retrieveFirstRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
           last <- consumer.retrieveLastRecords.map(_.map(cr => topic.decoder(cr).tryDecodeKeyValue))
           _ <- C.println(s"""

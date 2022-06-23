@@ -56,12 +56,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka
-      .topic(topic.topicDef)
-      .withOneDay(LocalDate.now())
-      .fromKafka
-      .map(_.stats.minutely.count())
-      .unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.map(_.stats.minutely.count()).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
     sparKafka.topic(topic).fromKafka.map(_.stats.dailyHour.collect()).unsafeRunSync()
@@ -109,7 +104,6 @@ class SparKafkaTest extends AnyFunSuite {
       sparKafka
         .topic(src)
         .crRdd(ds.rdd)
-        .timeRange
         .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(
           NJAvroCodec[Int],
           NJAvroCodec[Int])

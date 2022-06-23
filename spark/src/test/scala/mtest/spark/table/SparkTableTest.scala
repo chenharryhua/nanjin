@@ -141,43 +141,7 @@ class SparkTableTest extends AnyFunSuite {
     assert(kantan.diff(obj).dataset.count() == 0)
   }
 
-  test("save/load all") {
-    loader.avro(root / "base").save.avro(root / "avro" / 2).run.unsafeRunSync()
-    loader.avro(root / "base").save.binAvro(root / "bin.avro" / 2).run.unsafeRunSync()
-    loader.avro(root / "base").save.jackson(root / "jackson" / 2).run.unsafeRunSync()
-    loader.avro(root / "base").save.circe(root / "circe" / 2).run.unsafeRunSync()
-    loader.avro(root / "base").save.kantan(root / "kantan" / 2).run.unsafeRunSync()
-    loader.avro(root / "base").save.parquet(root / "parquet" / 2).run.unsafeRunSync()
-    loader.avro(root / "base").save.objectFile(root / "obj" / 2).run.unsafeRunSync()
-
-    //  val obj = loader.objectFileAll(root / "obj")
-
-    val avro_bin = for {
-      a <- loader.avroAll(root / "avro")
-      b <- loader.binAvroAll(root / "bin.avro")
-    } yield a.diff(b).dataset.count()
-
-    val jackson_circe = for {
-      a <- loader.jacksonAll(root / "jackson")
-      b <- loader.circeAll(root / "circe")
-    } yield a.diff(b).dataset.count()
-
-    val kantan_parquet = for {
-      a <- loader.kantanAll(root / "kantan", CsvConfiguration.rfc)
-      b <- loader.parquetAll(root / "parquet")
-    } yield a.diff(b).dataset.count()
-
-    val avro_obj = for {
-      a <- loader.avroAll(root / "avro")
-      b <- loader.objectFileAll(root / "obj")
-    } yield a.diff(b).dataset.count()
-
-    assert(avro_bin.unsafeRunSync() == 0)
-    assert(jackson_circe.unsafeRunSync() == 0)
-    assert(kantan_parquet.unsafeRunSync() == 0)
-    assert(avro_obj.unsafeRunSync() == 0)
-  }
-
+ 
   test("spark") {
     val parquet = root / "spark" / "parquet"
     val json    = root / "spark" / "json"

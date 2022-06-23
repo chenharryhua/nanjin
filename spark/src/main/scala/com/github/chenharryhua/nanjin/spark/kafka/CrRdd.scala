@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
 import com.github.chenharryhua.nanjin.spark.table.NJTable
-import frameless.{TypedDataset, TypedEncoder}
+import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -17,7 +17,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
   val rdd: RDD[NJConsumerRecord[K, V]],
   ack: NJAvroCodec[K],
   acv: NJAvroCodec[V],
-  cfg: SKConfig,
   ss: SparkSession)
     extends Serializable {
 
@@ -25,13 +24,12 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   // transforms
   def transform(f: Endo[RDD[NJConsumerRecord[K, V]]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](f(rdd), ack, acv, cfg, ss)
+    new CrRdd[F, K, V](f(rdd), ack, acv, ss)
 
   def partitionOf(num: Int): CrRdd[F, K, V] = transform(_.filter(_.partition === num))
 
   def offsetRange(start: Long, end: Long): CrRdd[F, K, V] = transform(range.cr.offset(start, end))
   def timeRange(dr: NJDateTimeRange): CrRdd[F, K, V]      = transform(range.cr.timestamp(dr))
-  def timeRange: CrRdd[F, K, V]                           = timeRange(cfg.evalConfig.timeRange)
 
   def ascendTimestamp: CrRdd[F, K, V]  = transform(sort.ascend.cr.timestamp)
   def descendTimestamp: CrRdd[F, K, V] = transform(sort.descend.cr.timestamp)
@@ -50,17 +48,17 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), ack2, acv2, cfg, ss).normalize
+    new CrRdd[F, K2, V2](rdd.map(_.bimap(k, v)), ack2, acv2, ss).normalize
 
   def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
     ack2: NJAvroCodec[K2],
     acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.map(f), ack2, acv2, cfg, ss).normalize
+    new CrRdd[F, K2, V2](rdd.map(f), ack2, acv2, ss).normalize
 
   def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
     ack2: NJAvroCodec[K2],
     acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] =
-    new CrRdd[F, K2, V2](rdd.flatMap(f), ack2, acv2, cfg, ss).normalize
+    new CrRdd[F, K2, V2](rdd.flatMap(f), ack2, acv2, ss).normalize
 
   // transition
 
@@ -70,18 +68,16 @@ final class CrRdd[F[_], K, V] private[kafka] (
   }
 
   def prRdd: PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(ack, acv), cfg)
-
-  val params: SKParams = cfg.evalConfig
+    new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(ack, acv))
 
   def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)
 
   // statistics
-  def stats: Statistics =
-    new Statistics(
-      TypedDataset.create(rdd.map(CRMetaInfo(_)))(TypedEncoder[CRMetaInfo], ss).dataset,
-      params.timeRange.zoneId)
+  def stats: Statistics = {
+    val te = TypedEncoder[CRMetaInfo]
+    new Statistics(ss.createDataset(rdd.map(CRMetaInfo(_)))(TypedExpressionEncoder(te)))
+  }
 
   def asSource: RddStreamSource[F, NJConsumerRecord[K, V]] =
     new RddStreamSource[F, NJConsumerRecord[K, V]](rdd)
