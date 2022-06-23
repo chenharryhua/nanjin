@@ -25,11 +25,13 @@ final private case class KafkaSummaryInternal(
   endOffset: Long,
   count: Long,
   startTs: Long,
-  endTs: Long) {
+  endTs: Long,
+  topic: String) {
   val distance: Long               = endOffset - startOffset + 1L
   val timeDistance: FiniteDuration = FiniteDuration(endTs - startTs, MILLISECONDS)
 
   def toKafkaSummary(zoneId: ZoneId): KafkaSummary = KafkaSummary(
+    topic,
     partition,
     startOffset,
     endOffset,
@@ -45,6 +47,7 @@ final private case class KafkaSummaryInternal(
 
 @JsonCodec
 final case class KafkaSummary(
+  topic: String,
   partition: Int,
   start_offset: Long,
   end_offset: Long,
@@ -59,6 +62,7 @@ final case class KafkaSummary(
 object KafkaSummary extends localdatetime with zoneid {
   implicit val showKafkaSummary: Show[KafkaSummary] = ks =>
     s"""
+       |topic:         ${ks.topic}
        |partition:     ${ks.partition}
        |first_offset:  ${ks.start_offset}
        |last_offset:   ${ks.end_offset}
@@ -132,7 +136,7 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializ
 
   private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
     import ids.sparkSession.implicits.*
-    import org.apache.spark.sql.functions.{min, max, count, lit, asc}
+    import org.apache.spark.sql.functions.{min, max, count, lit, asc, first}
     ids
       .groupBy("partition")
       .agg(
@@ -140,7 +144,9 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializ
         max("offset").as("endOffset"),
         count(lit(1)).as("count"),
         min("timestamp").as("startTs"),
-        max("timestamp").as("endTs"))
+        max("timestamp").as("endTs"),
+        first("topic").as("topic")
+      )
       .as[KafkaSummaryInternal]
       .orderBy(asc("partition"))
       .collect()

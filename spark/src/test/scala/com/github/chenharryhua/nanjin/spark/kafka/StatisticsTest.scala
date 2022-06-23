@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import mtest.spark.sparkSession
 import org.apache.spark.sql.Dataset
@@ -42,6 +43,7 @@ class StatisticsTest extends AnyFunSuite {
     val res = stats.dupRecords.collect().toSet
     assert(res == Set(DuplicateRecord(0, 7, 3)))
     assert(emptyStats.dupRecords.count() == 0)
+    stats.summary.foreach(x => println(x.show))
   }
 
   test("disorders") {
