@@ -5,6 +5,7 @@ import cats.implicits.catsSyntaxEq
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
+import com.github.chenharryhua.nanjin.spark.SPARK_ZONE_ID
 import io.circe.generic.JsonCodec
 import org.apache.spark.sql.Dataset
 import org.typelevel.cats.time.instances.{localdatetime, zoneid}
@@ -86,7 +87,8 @@ final case class Disorder(
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
-final class Statistics private[kafka] (ds: Dataset[CRMetaInfo], zoneId: ZoneId) extends Serializable {
+final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializable {
+  private val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
 
   def minutely: Dataset[MinutelyAggResult] = {
     import ds.sparkSession.implicits.*

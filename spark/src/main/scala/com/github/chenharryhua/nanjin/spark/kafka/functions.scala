@@ -81,10 +81,8 @@ object functions {
     }
 
     def stats: Statistics = {
-      val te: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
-      new Statistics(
-        dataset.map(CRMetaInfo(_))(TypedExpressionEncoder(te)),
-        ZoneId.of(dataset.sparkSession.conf.get("spark.sql.session.timeZone")))
+      val te = TypedEncoder[CRMetaInfo]
+      new Statistics(dataset.map(CRMetaInfo(_))(TypedExpressionEncoder(te)))
     }
   }
 }

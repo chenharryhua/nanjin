@@ -77,7 +77,6 @@ class CrPrTest extends AnyFunSuite {
         .withEndTime(Instant.now().plusSeconds(10))
     assert(crRdd.timeRange(dr).rdd.collect().size == 4)
     assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect().size == 4)
-    assert(crRdd.timeRange.rdd.collect().size == 4)
     assert(crRdd.prRdd.timeRange(dr).rdd.collect().size == 4)
   }
 

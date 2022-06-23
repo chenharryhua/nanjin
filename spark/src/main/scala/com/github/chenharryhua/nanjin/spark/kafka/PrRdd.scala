@@ -18,15 +18,12 @@ import org.apache.spark.rdd.RDD
 
 final class PrRdd[F[_], K, V] private[kafka] (
   val rdd: RDD[NJProducerRecord[K, V]],
-  codec: NJAvroCodec[NJProducerRecord[K, V]],
-  cfg: SKConfig
+  codec: NJAvroCodec[NJProducerRecord[K, V]]
 ) extends Serializable {
-
-  val params: SKParams = cfg.evalConfig
 
   // transform
   def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](f(rdd), codec, cfg)
+    new PrRdd[F, K, V](f(rdd), codec)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))
 

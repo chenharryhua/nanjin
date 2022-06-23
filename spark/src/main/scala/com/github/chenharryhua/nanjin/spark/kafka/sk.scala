@@ -1,10 +1,16 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.data.Kleisli
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaOffsetRange, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.kafka.{
+  KafkaContext,
+  KafkaOffsetRange,
+  KafkaTopic,
+  KafkaTopicPartition,
+  ShortLiveConsumer
+}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
 import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
 import frameless.{TypedEncoder, TypedExpressionEncoder}
@@ -39,43 +45,36 @@ private[kafka] object sk {
   private def kafkaBinaryRDD[F[_]: Sync](
     topicName: TopicName,
     ctx: KafkaContext[F],
-    timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    ctx.byteTopic(topicName).shortLiveConsumer.use(_.offsetRangeFor(timeRange)).map { gtp =>
+    ss: SparkSession,
+    getOffsetRange: Kleisli[F, ShortLiveConsumer[F], KafkaTopicPartition[Option[KafkaOffsetRange]]])
+    : F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    ctx.byteTopic(topicName).shortLiveConsumer.use(getOffsetRange.run).map { gtp =>
       KafkaUtils.createRDD[Array[Byte], Array[Byte]](
-        sparkSession.sparkContext,
+        ss.sparkContext,
         props(ctx.settings.consumerSettings.config),
         offsetRanges(gtp),
-        locationStrategy)
+        LocationStrategies.PreferConsistent)
     }
+
+  def kafkaBatch[F[_]: Sync, K, V](
+    topic: KafkaTopic[F, K, V],
+    ss: SparkSession,
+    getOffsetRange: Kleisli[F, ShortLiveConsumer[F], KafkaTopicPartition[Option[KafkaOffsetRange]]])
+    : F[RDD[NJConsumerRecordWithError[K, V]]] =
+    kafkaBinaryRDD[F](topic.topicName, topic.context, ss, getOffsetRange).map(_.map(topic.decode(_)))
 
   def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
-    streamingContext: StreamingContext,
-    locationStrategy: LocationStrategy,
-    listener: NJConsumerRecordWithError[K, V] => Unit): F[DStream[NJConsumerRecord[K, V]]] =
+    streamingContext: StreamingContext): F[DStream[NJConsumerRecord[K, V]]] =
     topic.shortLiveConsumer.use(_.partitionsFor).map { topicPartitions =>
       val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
         ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
           topicPartitions.value,
           props(topic.context.settings.consumerSettings.config).asScala)
-      KafkaUtils.createDirectStream(streamingContext, locationStrategy, consumerStrategy).mapPartitions {
-        _.map { m =>
-          val decoded: NJConsumerRecordWithError[K, V] = topic.decode(m)
-          listener(decoded)
-          decoded.toNJConsumerRecord
-        }
-      }
+      KafkaUtils
+        .createDirectStream(streamingContext, LocationStrategies.PreferConsistent, consumerStrategy)
+        .map(m => topic.decode(m).toNJConsumerRecord)
     }
-
-  def kafkaBatch[F[_]: Sync, K, V](
-    topic: KafkaTopic[F, K, V],
-    timeRange: NJDateTimeRange,
-    locationStrategy: LocationStrategy,
-    sparkSession: SparkSession): F[RDD[NJConsumerRecordWithError[K, V]]] =
-    kafkaBinaryRDD[F](topic.topicName, topic.context, timeRange, locationStrategy, sparkSession)
-      .map(_.map(topic.decode(_)))
 
   /** streaming
     */
@@ -98,12 +97,10 @@ private[kafka] object sk {
     }
   }
 
-  def kafkaSStream[F[_], K, V, A](
-    topic: KafkaTopic[F, K, V],
-    te: TypedEncoder[A],
-    sparkSession: SparkSession)(f: NJConsumerRecord[K, V] => A): Dataset[A] = {
-    import sparkSession.implicits.*
-    sparkSession.readStream
+  def kafkaSStream[F[_], K, V, A](topic: KafkaTopic[F, K, V], te: TypedEncoder[A], ss: SparkSession)(
+    f: NJConsumerRecord[K, V] => A): Dataset[A] = {
+    import ss.implicits.*
+    ss.readStream
       .format("kafka")
       .options(consumerOptions(topic.context.settings.consumerSettings.config))
       .option("subscribe", topic.topicName.value)

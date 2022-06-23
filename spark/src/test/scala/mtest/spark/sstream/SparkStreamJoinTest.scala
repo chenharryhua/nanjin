@@ -1,21 +1,14 @@
 package mtest.spark.sstream
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.{TypedDataset, TypedEncoder}
-import fs2.Stream
 import mtest.spark.kafka.sparKafka
 import mtest.spark.sparkSession
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.sql.streaming.StreamingQueryProgress
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration.*
 import scala.util.Random
 
 object StreamJoinTestData {
@@ -53,32 +46,29 @@ object StreamJoinTestData {
 
 @DoNotDiscover
 class SparkStreamJoinTest extends AnyFunSuite {
-
-  import StreamJoinTestData.*
-  import sparkSession.implicits.*
   test("spark kafka stream-table join") {
-    val path = NJPath("./data/test/spark/sstream/stream-table-join")
-    val sender =
-      fooTopic
-        .prRdd(fooData)
-        .producerRecords(fooTopic.topicName, 1)
-        .through(fooTopic.topic.produce.pipe)
-        .metered(0.5.seconds)
-
-    val ss: Stream[IO, StreamingQueryProgress] =
-      fooTopic.sstream.transform { fooDS =>
-        fooDS.joinWith(barDS, fooDS("value.index") === barDS("index"), "inner").flatMap { case (foo, bar) =>
-          foo.value.map(x => FooBar(bar.index, x.name, bar.age))
-        }
-      }.fileSink(path).triggerEvery(1.seconds).stream
-
-    ss.concurrently(sender.delayBy(3.seconds)).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
-
-    val ate    = AvroTypedEncoder[FooBar]
-    val loader = sparkSession.loadTable[IO](ate)
-    val res    = loader.spark.json(path).dataset.map(_.index).distinct().collect().toSet
-    assert(res.contains(rand + 1))
-    assert(res.contains(rand + 2))
-    assert(res.contains(rand + 3))
+//    val path = NJPath("./data/test/spark/sstream/stream-table-join")
+//    val sender =
+//      fooTopic
+//        .prRdd(fooData)
+//        .producerRecords(fooTopic.topicName, 1)
+//        .through(fooTopic.topic.produce.pipe)
+//        .metered(0.5.seconds)
+//
+//    val ss: Stream[IO, StreamingQueryProgress] =
+//      fooTopic.sstream.transform { fooDS =>
+//        fooDS.joinWith(barDS, fooDS("value.index") === barDS("index"), "inner").flatMap { case (foo, bar) =>
+//          foo.value.map(x => FooBar(bar.index, x.name, bar.age))
+//        }
+//      }.fileSink(path).triggerEvery(1.seconds).stream
+//
+//    ss.concurrently(sender.delayBy(3.seconds)).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
+//
+//    val ate    = AvroTypedEncoder[FooBar]
+//    val loader = sparkSession.loadTable[IO](ate)
+//    val res    = loader.spark.json(path).dataset.map(_.index).distinct().collect().toSet
+//    assert(res.contains(rand + 1))
+//    assert(res.contains(rand + 2))
+//    assert(res.contains(rand + 3))
   }
 }
