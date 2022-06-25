@@ -37,24 +37,28 @@ object KafkaMonitoringApi {
         .map(m => topic.decode(m))
 
     private def printJackson(cr: NJConsumerRecordWithError[K, V])(implicit C: Console[F]): F[Unit] =
-      Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use { bos =>
-        for {
-          _ <- C.println(s"timestamp: ${cr.metaInfo(topic.context.settings.zoneId).timestamp.toLocalTime.show}")
-          _ <- cr.key.leftTraverse(C.println)
-          _ <- cr.value.leftTraverse(C.println)
-          _ <- C.println {
-            val aos: AvroOutputStream[NJConsumerRecord[K, V]] = AvroOutputStream
-              .json[NJConsumerRecord[K, V]](
-                NJConsumerRecord.avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec).avroEncoder)
-              .to(bos)
-              .build()
-            aos.write(cr.toNJConsumerRecord)
-            aos.close()
-            bos.flush()
-            bos.toString()
-          }
-          _ <- C.println("----------------------------------------")
-        } yield ()
+      Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use {
+        bos =>
+          for {
+            _ <- C.println(
+              s"timestamp: ${cr.metaInfo(topic.context.settings.zoneId).timestamp.toLocalTime.show}")
+            _ <- cr.key.leftTraverse(C.println)
+            _ <- cr.value.leftTraverse(C.println)
+            _ <- C.println {
+              val aos: AvroOutputStream[NJConsumerRecord[K, V]] = AvroOutputStream
+                .json[NJConsumerRecord[K, V]](
+                  NJConsumerRecord
+                    .avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
+                    .avroEncoder)
+                .to(bos)
+                .build()
+              aos.write(cr.toNJConsumerRecord)
+              aos.close()
+              bos.flush()
+              bos.toString()
+            }
+            _ <- C.println("----------------------------------------")
+          } yield ()
       }
 
     override def watchFrom(njt: NJTimestamp)(implicit C: Console[F]): F[Unit] = {
@@ -108,7 +112,8 @@ object KafkaMonitoringApi {
           .stream
           .map { m =>
             val cr = other.decoder(m).nullableDecode.record
-            val ts = cr.timestamp.createTime.orElse(cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
+            val ts =
+              cr.timestamp.createTime.orElse(cr.timestamp.logAppendTime.orElse(cr.timestamp.unknownTime))
             val pr =
               ProducerRecord(other.topicName.value, cr.key, cr.value)
                 .withHeaders(cr.headers)

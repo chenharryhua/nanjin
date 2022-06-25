@@ -242,7 +242,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("12.dummy agent should not block") {
-    val dummy = guard.dummyAgent.unsafeRunSync()
-    dummy.critical.retry(IO(1)).run.replicateA(1000).unsafeRunSync()
+    val dummy = TaskGuard.dummyAgent[IO].unsafeRunSync()
+    dummy.span("dummy").critical.retry(IO(1)).run.replicateA(10).unsafeRunSync()
   }
 }

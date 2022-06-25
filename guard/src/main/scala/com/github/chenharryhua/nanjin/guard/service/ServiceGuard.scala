@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Ref}
-import cats.effect.std.UUIDGen
+import cats.effect.std.{Console, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ScheduleType, ServiceConfig}
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
@@ -59,11 +60,15 @@ final class ServiceGuard[F[_]] private[guard] (
     ssRef <- F.ref[ServiceStatus](ServiceStatus.initialize(serviceConfig.evalConfig(uuid, ts)))
   } yield ssRef
 
-  def dummyAgent: F[Agent[F]] = for {
+  def dummyAgent(implicit C: Console[F]): F[Agent[F]] = for {
     ss <- initStatus
     sp <- ss.get.map(_.serviceParams)
     chn <- Channel.bounded[F, NJEvent](0)
-    _ <- chn.close
+    _ <- chn.stream
+      .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
+      .compile
+      .drain
+      .start
   } yield new Agent[F](new MetricRegistry, ss, chn, AgentConfig(sp))
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
