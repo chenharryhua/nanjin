@@ -39,7 +39,7 @@ final class Agent[F[_]] private[service] (
   def span(ls: List[Span]): Agent[F] = updateConfig(_.withSpan(ls))
 
   def trivial: Agent[F]  = updateConfig(_.withLowImportance)
-  def normal: Agent[F]   = updateConfig(_.withMediumImportance)
+  def silent: Agent[F]   = updateConfig(_.withMediumImportance)
   def notice: Agent[F]   = updateConfig(_.withHighImportance)
   def critical: Agent[F] = updateConfig(_.withCriticalImportance)
 

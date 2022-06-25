@@ -5,21 +5,15 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
-import zio.blocking.Blocking
-import zio.clock.Clock
-import zio.console.Console
 import zio.interop.catz.*
-import zio.random.Random
-import zio.system.System
-import zio.{Runtime, Task}
+import zio.Task
 
 import scala.concurrent.Await
 import scala.concurrent.duration.*
 
 class ZioTest extends AnyFunSuite {
-  type Environment = Clock & Console & System & Random & Blocking
 
-  implicit val runtime: Runtime[zio.ZEnv] = Runtime.default
+  val runtime = zio.Runtime.default
 
   val ctx: KafkaContext[Task] =
     KafkaSettings.local.withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest").zioContext
@@ -38,8 +32,7 @@ class ZioTest extends AnyFunSuite {
       .interruptAfter(5.seconds)
       .compile
       .drain
-      .run
-    runtime.unsafeRun(task)
+    runtime.run(task.exitCode)
   }
 
   test("zio should work for akka.") {

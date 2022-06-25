@@ -92,7 +92,7 @@ class PerformanceTest extends AnyFunSuite {
   test("normal") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.span("n").normal.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.span("n").silent.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} normal")
@@ -102,7 +102,7 @@ class PerformanceTest extends AnyFunSuite {
     var i: Int = 0
     service.eventStream { ag =>
       val ts =
-        ag.span("ne").normal.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run
+        ag.span("ne").silent.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} - normal expensive")

@@ -14,6 +14,14 @@ import retry.RetryDetails.WillDelayAndRetry
 import java.time.ZonedDateTime
 import scala.jdk.DurationConverters.ScalaDurationOps
 
+/** fire action start when it is noticalbe
+  *
+  * fire action retry when it is non-trivial
+  *
+  * fire action succ when it is noticable
+  *
+  * fire action fail unconditionally
+  */
 final private class ActionEventPublisher[F[_]](
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
