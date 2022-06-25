@@ -37,7 +37,8 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  private class Listener(dispatcher: Dispatcher[F], bus: Channel[F, StreamingListenerEvent]) extends StreamingListener {
+  private class Listener(dispatcher: Dispatcher[F], bus: Channel[F, StreamingListenerEvent])
+      extends StreamingListener {
 
     override def onStreamingStarted(event: StreamingListenerStreamingStarted): Unit =
       dispatcher.unsafeRunSync(bus.send(event).void)

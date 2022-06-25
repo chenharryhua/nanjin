@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.guard
 import cats.Endo
 import cats.effect.kernel.Async
+import cats.effect.std.Console
 import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 
 import java.time.ZoneId
 
@@ -28,4 +29,7 @@ object TaskGuard {
 
   def apply[F[_]: Async](taskName: TaskName): TaskGuard[F] =
     new TaskGuard[F](TaskConfig(taskName, HostName.local_host, ZoneId.systemDefault()))
+
+  def dummyAgent[F[_]: Async: Console]: F[Agent[F]] =
+    apply(TaskName("dummy")).service(ServiceName("dummy")).dummyAgent
 }

@@ -33,7 +33,8 @@ final case class KafkaAppId(value: String) extends AnyVal
   def javaProperties: Properties = utils.toProperties(config)
 }
 object KafkaStreamSettings {
-  implicit val showKafkaStreamSettings: Show[KafkaStreamSettings] = cats.derived.semiauto.show[KafkaStreamSettings]
+  implicit val showKafkaStreamSettings: Show[KafkaStreamSettings] =
+    cats.derived.semiauto.show[KafkaStreamSettings]
 }
 
 @Lenses final case class KafkaAdminSettings(config: Map[String, String])
@@ -67,9 +68,11 @@ object KafkaStreamSettings {
 
   def withZoneId(zoneId: ZoneId): KafkaSettings = KafkaSettings.zoneId.set(zoneId)(this)
 
-  def withBrokers(brokers: String): KafkaSettings   = updateAll(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokers)
-  def withSaslJaas(sasl: String): KafkaSettings     = updateAll(SaslConfigs.SASL_JAAS_CONFIG, sasl)
-  def withClientID(clientID: String): KafkaSettings = updateAll(CommonClientConfigs.CLIENT_ID_CONFIG, clientID)
+  def withBrokers(brokers: String): KafkaSettings =
+    updateAll(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokers)
+  def withSaslJaas(sasl: String): KafkaSettings = updateAll(SaslConfigs.SASL_JAAS_CONFIG, sasl)
+  def withClientID(clientID: String): KafkaSettings =
+    updateAll(CommonClientConfigs.CLIENT_ID_CONFIG, clientID)
 
   def withSecurityProtocol(sp: SecurityProtocol): KafkaSettings =
     updateAll(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name)
@@ -81,13 +84,33 @@ object KafkaStreamSettings {
       .set(Some(value))(this)
 
   def withProducerProperty(key: String, value: String): KafkaSettings =
-    KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.config).composeLens(at(key)).set(Some(value))(this)
+    KafkaSettings.producerSettings
+      .composeLens(KafkaProducerSettings.config)
+      .composeLens(at(key))
+      .set(Some(value))(this)
 
   def withConsumerProperty(key: String, value: String): KafkaSettings =
-    KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config).composeLens(at(key)).set(Some(value))(this)
+    KafkaSettings.consumerSettings
+      .composeLens(KafkaConsumerSettings.config)
+      .composeLens(at(key))
+      .set(Some(value))(this)
 
   def withStreamingProperty(key: String, value: String): KafkaSettings =
-    KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config).composeLens(at(key)).set(Some(value))(this)
+    KafkaSettings.streamSettings
+      .composeLens(KafkaStreamSettings.config)
+      .composeLens(at(key))
+      .set(Some(value))(this)
+
+  private def auto_offset_reset(value: String): KafkaSettings =
+    Traversal
+      .applyN[KafkaSettings, Map[String, String]](
+        KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
+        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config))
+      .composeLens(at(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG))
+      .set(Some(value))(this)
+
+  def withLatestAutoOffset: KafkaSettings   = auto_offset_reset("latest")
+  def withEarliestAutoOffset: KafkaSettings = auto_offset_reset("earliest")
 
   def withGroupId(groupId: String): KafkaSettings =
     withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId)
