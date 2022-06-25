@@ -45,7 +45,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { action =>
-        val a1 = action.span("never").normal.run(IO.never[Int])
+        val a1 = action.span("never").silent.run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .map(_.asJson.noSpaces)

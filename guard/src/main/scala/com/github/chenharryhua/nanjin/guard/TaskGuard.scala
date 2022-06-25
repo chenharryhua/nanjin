@@ -30,6 +30,7 @@ object TaskGuard {
   def apply[F[_]: Async](taskName: TaskName): TaskGuard[F] =
     new TaskGuard[F](TaskConfig(taskName, HostName.local_host, ZoneId.systemDefault()))
 
+  // for repl
   def dummyAgent[F[_]: Async: Console]: F[Agent[F]] =
     apply(TaskName("dummy")).service(ServiceName("dummy")).dummyAgent
 }

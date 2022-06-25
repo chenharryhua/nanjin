@@ -72,7 +72,7 @@ class ConfigTest extends AnyFunSuite {
   }
   test("normal") {
     val as = service.eventStream { agent =>
-      agent.normal.run(IO(1))
+      agent.silent.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }

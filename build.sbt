@@ -5,7 +5,6 @@ ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / version            := "0.15.7-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
-val algebra      = "2.8.0"
 val catsCore     = "2.8.0"
 val monocle      = "2.1.0"
 val catsEffect   = "3.3.12"
@@ -79,8 +78,8 @@ val kantanLib = Seq(
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.1",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.1",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.2",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.2",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
@@ -135,7 +134,7 @@ val testLib = Seq(
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
   "com.typesafe.akka" %% "akka-stream-testkit"                % akka26,
-  "org.typelevel" %% "algebra-laws"                           % algebra,
+  "org.typelevel" %% "algebra-laws"                           % "2.8.0",
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "3.0.0",
   "com.github.pathikrit" %% "better-files"                    % "3.9.1",
   "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.36"
@@ -172,7 +171,7 @@ val catsLib = Seq(
     "org.typelevel" %% "cats-mtl"              % "1.2.1",
     "org.typelevel" %% "kittens"               % "2.3.2",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
-    "org.typelevel" %% "algebra"               % algebra,
+    "org.typelevel" %% "algebra"               % "2.8.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.3"
   )
 
@@ -191,10 +190,10 @@ val akkaLib = Seq(
 
 val effectLib = Seq(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "1.0.15"  % Provided,
-  "dev.zio" %% "zio-interop-cats"  % "3.2.9.1" % Provided,
-  "io.monix" %% "monix-eval"       % "3.4.1"   % Provided,
-  "io.monix" %% "monix"            % "3.4.1"   % Provided
+  "dev.zio" %% "zio"               % "2.0.0" % Provided,
+  "dev.zio" %% "zio-interop-cats"  % "3.3.0" % Provided,
+  "io.monix" %% "monix-eval"       % "3.4.1" % Provided,
+  "io.monix" %% "monix"            % "3.4.1" % Provided
 )
 
 val ftpLib = Seq(
@@ -209,11 +208,11 @@ val logLib = Seq(
 )
 
 val http4sLib = Seq(
-  "org.http4s" %% "http4s-blaze-server",
-  "org.http4s" %% "http4s-blaze-client",
-  "org.http4s" %% "http4s-circe",
-  "org.http4s" %% "http4s-dsl"
-).map(_ % "0.23.12")
+  "org.http4s" %% "http4s-blaze-server" % "0.23.12",
+  "org.http4s" %% "http4s-blaze-client" % "0.23.12",
+  "org.http4s" %% "http4s-circe"        % "0.23.13",
+  "org.http4s" %% "http4s-dsl"          % "0.23.13"
+)
 
 val jwtLib = Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -360,5 +359,14 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)

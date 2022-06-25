@@ -19,9 +19,7 @@ object ColorScheme {
       case _: ServicePanic          => ErrorColor
       case ServiceStop(_, _, cause) => if (cause.exitCode === 0) GoodColor else ErrorColor
       case mr @ MetricReport(_, _, _, _, snapshot, _) =>
-        if (mr.isPanic) ErrorColor
-        else if (snapshot.isContainErrors) WarnColor
-        else InfoColor
+        if (mr.isPanic) ErrorColor else if (snapshot.isContainErrors) WarnColor else InfoColor
       case _: MetricReset => InfoColor
       case _: ActionStart => InfoColor
       case _: ActionRetry => WarnColor
