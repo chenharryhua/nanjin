@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 
-sealed trait ColorScheme
+sealed trait ColorScheme extends Product with Serializable
 object ColorScheme {
   import NJEvent.*
   case object GoodColor extends ColorScheme // successful-ish

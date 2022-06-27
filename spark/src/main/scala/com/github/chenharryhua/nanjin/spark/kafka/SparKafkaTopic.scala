@@ -90,19 +90,33 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     F: Sync[F]): F[CrRdd[F, K, V]] =
     sk.kafkaBatch(topic, sparkSession, getOffsetRange).map(rdd => crRdd(rdd.map(_.toNJConsumerRecord)))
 
+  /** download all topic data, up to now
+    */
   def fromKafka(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
     downloadKafka(Kleisli(_.offsetRangeForAll))
 
+  /** download topic according to datetime
+    * @param dtr:
+    *   datetime
+    */
   def fromKafka(dtr: NJDateTimeRange)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
     downloadKafka(Kleisli(_.offsetRangeFor(dtr)))
 
+  /** download topic according to offset range
+    * @param offsets
+    *
+    * partition -> (start-offset(inclusive), end-offset(inclusive))
+    *
+    * @return
+    *   CrRdd
+    */
   def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Sync[F]): F[CrRdd[F, K, V]] = {
     def getRange(consumer: ShortLiveConsumer[F]): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
       consumer.partitionsFor.map { partitions =>
         val topicPartition = partitions.value.map { tp =>
           val ofs = offsets
             .get(tp.partition())
-            .flatMap(se => KafkaOffsetRange(KafkaOffset(se._1), KafkaOffset(se._2)))
+            .flatMap(se => KafkaOffsetRange(KafkaOffset(se._1), KafkaOffset(se._2 + 1)))
           tp -> ofs
         }.toMap
         KafkaTopicPartition(topicPartition)
@@ -110,7 +124,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     downloadKafka(Kleisli(getRange))
   }
 
-  /** shorthand
+  /** load topic data from disk
     */
 
   def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, sparkSession)
