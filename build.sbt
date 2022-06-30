@@ -7,10 +7,10 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCore     = "2.8.0"
 val monocle      = "2.1.0"
-val catsEffect   = "3.3.12"
+val catsEffect   = "3.3.13"
 val akka26       = "2.6.19"
-val confluent    = "7.1.1"
-val kafkaVersion = "7.1.1-ce"
+val confluent    = "7.1.2"
+val kafkaVersion = "7.1.2-ce"
 val avro         = "1.11.0"
 
 lazy val commonSettings = Seq(
@@ -32,7 +32,7 @@ lazy val commonSettings = Seq(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.239")
+val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.251")
 
 val hadoopLib = Seq(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
@@ -168,7 +168,7 @@ val catsLib = Seq(
   "org.typelevel" %% "alleycats-core"
 ).map(_ % catsCore) ++
   Seq(
-    "org.typelevel" %% "cats-mtl"              % "1.2.1",
+    "org.typelevel" %% "cats-mtl"              % "1.3.0",
     "org.typelevel" %% "kittens"               % "2.3.2",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
     "org.typelevel" %% "algebra"               % "2.8.0",
@@ -178,7 +178,7 @@ val catsLib = Seq(
 val refinedLib = Seq(
   "eu.timepit" %% "refined",
   "eu.timepit" %% "refined-cats"
-).map(_ % "0.9.29")
+).map(_ % "0.10.0")
 
 val akkaLib = Seq(
   "com.typesafe.akka" %% "akka-actor-typed",
