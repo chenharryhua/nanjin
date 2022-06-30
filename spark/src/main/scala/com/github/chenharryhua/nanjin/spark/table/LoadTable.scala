@@ -15,11 +15,11 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class LoadTable[F[_], A] private[spark] (ate: AvroTypedEncoder[A], ss: SparkSession) {
 
-  def data(ds: Dataset[A]): NJTable[F, A]       = new NJTable[F, A](ds, ate)
-  def data(tds: TypedDataset[A]): NJTable[F, A] = new NJTable[F, A](tds.dataset, ate)
-  def data(rdd: RDD[A]): NJTable[F, A] = new NJTable[F, A](ss.createDataset(rdd)(ate.sparkEncoder), ate)
+  def data(ds: Dataset[A]): NJTable[F, A]       = new NJTable[F, A](ate.normalize(ds), ate)
+  def data(tds: TypedDataset[A]): NJTable[F, A] = new NJTable[F, A](ate.normalize(tds.dataset), ate)
+  def data(rdd: RDD[A]): NJTable[F, A]          = new NJTable[F, A](ate.normalize(rdd, ss), ate)
   def data[G[_]: Foldable](list: G[A]): NJTable[F, A] =
-    new NJTable[F, A](ss.createDataset(list.toList)(ate.sparkEncoder), ate)
+    new NJTable[F, A](ate.normalize(ss.createDataset(list.toList)(ate.sparkEncoder)), ate)
 
   def parquet(path: NJPath): NJTable[F, A] =
     new NJTable[F, A](loaders.parquet[A](path, ss, ate), ate)
