@@ -70,11 +70,12 @@ val jacksonLib = Seq(
 )
 
 val kantanLib = Seq(
-  "com.nrinaudo" %% "kantan.csv",
-  "com.nrinaudo" %% "kantan.csv-java8",
-  "com.nrinaudo" %% "kantan.csv-generic",
-  "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % "0.6.2") ++ Seq("com.nrinaudo" %% "kantan.codecs" % "0.5.3")
+  "com.nrinaudo" %% "kantan.csv"         % "0.6.2",
+  "com.nrinaudo" %% "kantan.csv-java8"   % "0.6.2",
+  "com.nrinaudo" %% "kantan.csv-generic" % "0.6.2",
+  "com.nrinaudo" %% "kantan.csv-cats"    % "0.6.2",
+  "com.nrinaudo" %% "kantan.codecs"      % "0.5.3"
+)
 
 val pbLib = Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
@@ -254,8 +255,8 @@ lazy val common = (project in file("common"))
   .settings(
     libraryDependencies ++= Seq(
       "io.dropwizard.metrics"             % "metrics-core" % "4.2.10" % Provided,
-      "org.typelevel" %% "log4cats-slf4j" % "2.3.2"        % Provided) ++
-      baseLib ++ testLib
+      "org.typelevel" %% "log4cats-slf4j" % "2.3.2"        % Provided
+    ) ++ baseLib ++ testLib
   )
 
 lazy val http = (project in file("http"))
