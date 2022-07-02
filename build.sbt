@@ -255,7 +255,7 @@ lazy val common = (project in file("common"))
     libraryDependencies ++= Seq(
       "io.dropwizard.metrics"             % "metrics-core" % "4.2.10" % Provided,
       "org.typelevel" %% "log4cats-slf4j" % "2.3.2"        % Provided) ++
-      baseLib ++ testLib ++ logLib
+      baseLib ++ testLib
   )
 
 lazy val http = (project in file("http"))
