@@ -84,19 +84,19 @@ val pbLib = Seq(
 )
 
 val serdeLib = Seq(
-  "com.sksamuel.avro4s" %% "avro4s-core" % "4.1.0" excludeAll(ExclusionRule("org.json4s")),
-  "org.apache.parquet"                   % "parquet-common"           % "1.12.3",
-  "org.apache.parquet"                   % "parquet-hadoop"           % "1.12.3",
-  "org.apache.parquet"                   % "parquet-avro"             % "1.12.3",
-  "org.apache.avro"                      % "avro"                     % avro,
-  "io.confluent"                         % "kafka-streams-avro-serde" % confluent
+  ("com.sksamuel.avro4s" %% "avro4s-core" % "4.1.0").excludeAll(ExclusionRule("org.json4s")),
+  "org.apache.parquet"                    % "parquet-common"           % "1.12.3",
+  "org.apache.parquet"                    % "parquet-hadoop"           % "1.12.3",
+  "org.apache.parquet"                    % "parquet-avro"             % "1.12.3",
+  "org.apache.avro"                       % "avro"                     % avro,
+  "io.confluent"                          % "kafka-streams-avro-serde" % confluent
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = Seq(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.8")
+).map(_ % "3.2.9")
 
 val monocleLib = Seq(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -137,7 +137,8 @@ val testLib = Seq(
   "org.typelevel" %% "algebra-laws"                           % "2.8.0",
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "3.0.0",
   "com.github.pathikrit" %% "better-files"                    % "3.9.1",
-  "org.slf4j"                                                 % "slf4j-log4j12" % "1.7.36"
+  "org.slf4j"                                                 % "slf4j-reload4j" % "1.7.36",
+  "ch.qos.reload4j"                                           % "reload4j"       % "1.2.21"
 ).map(_ % Test)
 
 val kafkaLib = Seq(
@@ -315,7 +316,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
       "org.tpolecat" %% "skunk-core"    % "0.3.1",
-      "com.zaxxer"                      % "HikariCP" % "5.0.1"
+      ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
     ) ++ baseLib ++ effectLib ++ testLib
   )
 
@@ -338,8 +339,9 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= Seq(
       "io.netty"                               % "netty-all" % "4.1.78.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test) ++
-      baseLib ++ sparkLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
-      akkaLib ++ ftpLib ++ logLib ++ effectLib ++ testLib
+      baseLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
+      akkaLib ++ ftpLib ++ logLib ++ effectLib ++ testLib ++
+      sparkLib
   )
 
 lazy val example = (project in file("example"))
@@ -359,14 +361,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := Seq(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    guard,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
