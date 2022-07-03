@@ -12,6 +12,7 @@ val akka26       = "2.6.19"
 val confluent    = "7.1.2"
 val kafkaVersion = "7.1.2-ce"
 val avro         = "1.11.0"
+val slf4jV       = "1.7.36"
 
 lazy val commonSettings = Seq(
   organization := "com.github.chenharryhua",
@@ -35,14 +36,21 @@ lazy val commonSettings = Seq(
 val awsLib = Seq("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.251")
 
 val hadoopLib = Seq(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core",
-  "org.apache.hadoop" % "hadoop-aws",
-  "org.apache.hadoop" % "hadoop-auth",
-  "org.apache.hadoop" % "hadoop-annotations",
-  "org.apache.hadoop" % "hadoop-common",
-  "org.apache.hadoop" % "hadoop-client",
-  "org.apache.hadoop" % "hadoop-hdfs"
-).map(_ % "3.3.3") ++ awsLib
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.3",
+  "org.apache.hadoop" % "hadoop-aws"                   % "3.3.3",
+  "org.apache.hadoop" % "hadoop-auth"                  % "3.3.3",
+  "org.apache.hadoop" % "hadoop-annotations"           % "3.3.3",
+  "org.apache.hadoop" % "hadoop-common"                % "3.3.3",
+  "org.apache.hadoop" % "hadoop-client"                % "3.3.3",
+  "org.apache.hadoop" % "hadoop-client-runtime"        % "3.3.3",
+  "org.apache.hadoop" % "hadoop-hdfs"                  % "3.3.3",
+  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
+).map(
+  _.exclude("log4j", "log4j")
+    .exclude("org.slf4j", "slf4j-reload4j")
+    .exclude("org.slf4j", "slf4j-log4j12")
+    .exclude("ch.qos.reload4j", "reload4j")
+    .exclude("commons-logging", "commons-logging"))
 
 val circeLib = Seq(
   "io.circe" %% "circe-literal"        % "0.14.2",
@@ -116,7 +124,7 @@ val sparkLib = Seq(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % "3.3.0") ++ Seq(
+).map(_ % "3.3.0").map(_.exclude("commons-logging", "commons-logging")) ++ Seq(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
 ).map(_ % "0.12.0") ++ Seq(
@@ -138,7 +146,7 @@ val testLib = Seq(
   "org.typelevel" %% "algebra-laws"                           % "2.8.0",
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "3.0.0",
   "com.github.pathikrit" %% "better-files"                    % "3.9.1",
-  "org.slf4j"                                                 % "slf4j-reload4j" % "1.7.36",
+  "org.slf4j"                                                 % "slf4j-reload4j" % slf4jV,
   "ch.qos.reload4j"                                           % "reload4j"       % "1.2.21"
 ).map(_ % Test)
 
@@ -206,7 +214,7 @@ val ftpLib = Seq(
 
 val logLib = Seq(
   "org.typelevel" %% "log4cats-slf4j" % "2.3.2",
-  "org.slf4j"                         % "slf4j-api" % "1.7.36"
+  "org.slf4j"                         % "slf4j-api" % slf4jV
 )
 
 val http4sLib = Seq(
@@ -263,20 +271,20 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
-  .settings(libraryDependencies ++= baseLib ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
+  .settings(libraryDependencies ++= jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= baseLib ++ awsLib ++ logLib ++ effectLib ++ testLib)
+  .settings(libraryDependencies ++= awsLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= Seq("com.lihaoyi" %% "fastparse" % "2.3.3") ++ baseLib ++ cronLib ++ testLib
+    libraryDependencies ++= Seq("com.lihaoyi" %% "fastparse" % "2.3.3") ++ cronLib ++ testLib
   )
 
 lazy val guard = (project in file("guard"))
@@ -288,14 +296,14 @@ lazy val guard = (project in file("guard"))
       "com.lihaoyi" %% "scalatags"    % "0.11.1",
       "org.tpolecat" %% "skunk-core"  % "0.3.1",
       "org.tpolecat" %% "skunk-circe" % "0.3.1"
-    ) ++ baseLib ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ testLib
+    ) ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ testLib
   )
 
 lazy val messages = (project in file("messages"))
   .dependsOn(datetime)
   .settings(commonSettings: _*)
   .settings(name := "nj-messages")
-  .settings(libraryDependencies ++= baseLib ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
+  .settings(libraryDependencies ++= serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
   .dependsOn(common)
@@ -303,7 +311,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= Seq("org.tukaani" % "xz" % "1.9") ++
-      baseLib ++ kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++
+      kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++ awsLib ++
       serdeLib ++ logLib ++ effectLib ++ testLib
   )
 
@@ -318,7 +326,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
       "org.tpolecat" %% "skunk-core"    % "0.3.1",
       ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
-    ) ++ baseLib ++ effectLib ++ testLib
+    ) ++ effectLib ++ testLib
   )
 
 lazy val kafka = (project in file("kafka"))
@@ -327,8 +335,7 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
-  .settings(
-    libraryDependencies ++= baseLib ++ serdeLib ++ kafkaLib ++ akkaLib ++ logLib ++ effectLib ++ testLib)
+  .settings(libraryDependencies ++= kafkaLib ++ akkaLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -340,9 +347,7 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= Seq(
       "io.netty"                               % "netty-all" % "4.1.78.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test) ++
-      baseLib ++ serdeLib ++ kantanLib ++ hadoopLib ++ kafkaLib ++
-      akkaLib ++ ftpLib ++ logLib ++ effectLib ++ testLib ++
-      sparkLib
+      sparkLib ++ testLib
   )
 
 lazy val example = (project in file("example"))
