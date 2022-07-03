@@ -1,3 +1,0 @@
-package mtest
-
-class Dummy {}
