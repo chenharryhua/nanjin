@@ -349,7 +349,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "io.netty"                               % "netty-all"      % "4.1.78.Final",
-      "org.slf4j"                              % "slf4j-reload4j" % "1.7.36",
+      "org.slf4j"                              % "slf4j-reload4j" % slf4jV,
       "ch.qos.reload4j"                        % "reload4j"       % "1.2.21",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0"          % Test
     ) ++ testLib ++
