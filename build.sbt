@@ -348,13 +348,9 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all"      % "4.1.78.Final",
-      "org.slf4j"                              % "slf4j-reload4j" % slf4jV,
-      "ch.qos.reload4j"                        % "reload4j"       % "1.2.21",
-      "com.julianpeeters" %% "avrohugger-core" % "1.0.0"          % Test
-    ) ++ testLib ++
-      sparkLib.map(_.exclude("commons-logging", "commons-logging")
-        .exclude("org.apache.logging.log4j", "log4j-slf4j-impl"))
+      "io.netty"                               % "netty-all" % "4.1.78.Final",
+      "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test
+    ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
 lazy val example = (project in file("example"))
