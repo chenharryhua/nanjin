@@ -9,8 +9,8 @@ val catsCore     = "2.8.0"
 val monocle      = "2.1.0"
 val catsEffect   = "3.3.13"
 val akka26       = "2.6.19"
-val confluent    = "7.1.2"
-val kafkaVersion = "7.1.2-ce"
+val confluent    = "7.2.0"
+val kafkaVersion = "7.2.0-ce"
 val avro         = "1.11.0"
 val slf4jV       = "1.7.36"
 
@@ -135,7 +135,7 @@ val sparkLib = List(
 val testLib = List(
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffect,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
-  "org.typelevel" %% "discipline-scalatest"                   % "2.1.5",
+  "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
   "org.typelevel" %% "cats-laws"                              % catsCore,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.12",
@@ -186,7 +186,7 @@ val catsLib = List(
 val refinedLib = List(
   "eu.timepit" %% "refined",
   "eu.timepit" %% "refined-cats"
-).map(_ % "0.10.0")
+).map(_ % "0.10.1")
 
 val akkaLib = List(
   "com.typesafe.akka" %% "akka-actor-typed",
