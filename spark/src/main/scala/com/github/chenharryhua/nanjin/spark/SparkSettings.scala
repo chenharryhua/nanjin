@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.kernel.{Resource, Sync}
 import cats.Endo
-import com.github.chenharryhua.nanjin.common.{NJLogLevel, UpdateConfig}
-import fs2.Stream
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
@@ -12,8 +10,8 @@ import java.time.ZoneId
 /** [[http://spark.apache.org/]]
   */
 
-final case class SparkSettings private (conf: SparkConf, logLevel: NJLogLevel)
-    extends UpdateConfig[SparkConf, SparkSettings] {
+final class SparkSettings private (sparkConf: SparkConf) extends UpdateConfig[SparkConf, SparkSettings] {
+  def updateConfig(f: Endo[SparkConf]): SparkSettings = new SparkSettings(sparkConf = f(sparkConf))
 
   def withAppName(appName: String): SparkSettings = updateConfig(_.setAppName(appName))
   def withMaster(master: String): SparkSettings   = updateConfig(_.setMaster(master))
@@ -26,31 +24,19 @@ final case class SparkSettings private (conf: SparkConf, logLevel: NJLogLevel)
         .set("spark.hadoop.fs.s3a.server-side-encryption.key", kms))
   }
 
-  def withLogLevel(njLogLevel: NJLogLevel): SparkSettings = copy(logLevel = njLogLevel)
-
   def withUI: SparkSettings    = updateConfig(_.set("spark.ui.enabled", "true"))
   def withoutUI: SparkSettings = updateConfig(_.set("spark.ui.enabled", "false"))
 
-  def withZoneId(zoneId: ZoneId): SparkSettings = updateConfig(_.set("spark.sql.session.timeZone", zoneId.getId))
+  def withZoneId(zoneId: ZoneId): SparkSettings =
+    updateConfig(_.set("spark.sql.session.timeZone", zoneId.getId))
 
-  def updateConfig(f: Endo[SparkConf]): SparkSettings = copy(conf = f(conf))
-
-  def unsafeSession: SparkSession = {
-    val spk: SparkSession = SparkSession.builder().config(conf).getOrCreate()
-    spk.sparkContext.setLogLevel(logLevel.entryName)
-    spk
-  }
-
-  def sessionResource[F[_]](implicit F: Sync[F]): Resource[F, SparkSession] =
-    Resource.make(F.blocking(unsafeSession))(spk => F.blocking(spk.close()))
-
-  def sessionStream[F[_]: Sync]: Stream[F, SparkSession] = Stream.resource(sessionResource)
+  def sparkSession: SparkSession = SparkSession.builder().config(sparkConf).getOrCreate()
 }
 
 object SparkSettings {
 
   def apply(zoneId: ZoneId): SparkSettings =
-    SparkSettings(new SparkConf, NJLogLevel.WARN)
+    new SparkSettings(new SparkConf)
       .withAppName("nj-spark")
       .withMaster("local[*]")
       .withUI
@@ -58,7 +44,9 @@ object SparkSettings {
       .updateConfig(
         _.set("spark.network.timeout", "800")
           .set("spark.debug.maxToStringFields", "1000")
-          .set("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+          .set(
+            "spark.hadoop.fs.s3a.aws.credentials.provider",
+            "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
           .set("spark.hadoop.fs.s3a.connection.maximum", "100")
           .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
           .set("spark.hadoop.fs.s3a.committer.name", "directory")
