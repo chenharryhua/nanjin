@@ -17,11 +17,10 @@ val slf4jV       = "1.7.36"
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
   scalaVersion := scalaVersion.value,
-  resolvers ++= List(
-    Resolver.sonatypeRepo("public"),
-    Resolver.sonatypeRepo("releases"),
-    "Confluent Maven Repo".at("https://packages.confluent.io/maven/")
-  ),
+  resolvers ++=
+    Resolver.sonatypeOssRepos("public") ++
+      Resolver.sonatypeOssRepos("releases") :+
+      "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
   addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.2").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   libraryDependencies ++= List(
@@ -348,7 +347,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all" % "4.1.78.Final",
+      "io.netty"                               % "netty-all" % "4.1.79.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
