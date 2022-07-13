@@ -7,7 +7,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCore     = "2.8.0"
 val monocle      = "2.1.0"
-val catsEffect   = "3.3.13"
+val catsEffect   = "3.3.14"
 val akka26       = "2.6.19"
 val confluent    = "7.2.0"
 val kafkaVersion = "7.2.0-ce"
