@@ -7,7 +7,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCore     = "2.8.0"
 val monocle      = "2.1.0"
-val catsEffect   = "3.3.13"
+val catsEffect   = "3.3.14"
 val akka26       = "2.6.19"
 val confluent    = "7.2.0"
 val kafkaVersion = "7.2.0-ce"
@@ -32,7 +32,7 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.257")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.260")
 
 val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.3",
@@ -210,7 +210,7 @@ val ftpLib = List(
 )
 
 val logLib = List(
-  "org.typelevel" %% "log4cats-slf4j" % "2.3.2",
+  "org.typelevel" %% "log4cats-slf4j" % "2.4.0",
   "org.slf4j"                         % "slf4j-api" % slf4jV
 )
 
