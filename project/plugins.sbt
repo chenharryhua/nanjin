@@ -1,5 +1,5 @@
   
-resolvers += Resolver.sonatypeRepo("releases")
+resolvers ++= Resolver.sonatypeOssRepos("releases")
 
 addDependencyTreePlugin
 
