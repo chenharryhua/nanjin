@@ -246,7 +246,7 @@ val baseLib = List(
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
   "org.typelevel" %% "case-insensitive"            % "1.2.0",
-  "io.scalaland" %% "chimney"                      % "0.6.1",
+  "io.scalaland" %% "chimney"                      % "0.6.2",
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % "2.3.9",
@@ -268,7 +268,8 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
-  .settings(libraryDependencies ++= jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "org.slf4j" % "slf4j-reload4j" % "1.7.36" % Test) ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
