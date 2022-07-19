@@ -153,7 +153,7 @@ val kafkaLib = List(
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   ("com.typesafe.akka" %% "akka-stream-kafka" % "3.0.0").exclude("org.apache.kafka", "kafka-clients"),
-  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M7").exclude("org.apache.kafka", "kafka-clients")
+  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M8").exclude("org.apache.kafka", "kafka-clients")
 )
 
 val enumLib = List(
