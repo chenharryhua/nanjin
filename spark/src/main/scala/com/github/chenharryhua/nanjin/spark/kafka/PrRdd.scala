@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
 import fs2.kafka.ProducerRecords
-import fs2.Stream
 import org.apache.spark.rdd.RDD
 
 final class PrRdd[F[_], K, V] private[kafka] (
@@ -55,7 +54,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
     new RddStreamSource[F, NJProducerRecord[K, V]](rdd)
 
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
+    F: Sync[F]): fs2.Stream[F, ProducerRecords[Unit, K, V]] =
     asSource.stream(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
   def producerMessages(topicName: TopicName, chunkSize: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =

@@ -67,13 +67,14 @@ object ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMes
   implicit val cogenFs2ProducerRecordF: Cogen[Fs2ConsumerRecord[Int, Int]] =
     Cogen(m => m.key.toLong + m.offset)
 
-  implicit val abFs2ProducerRecords: Arbitrary[Fs2ProducerRecords[Int, Int]] =
+  implicit val abFs2ProducerRecords: Arbitrary[Fs2ProducerRecords[Unit, Int, Int]] =
     Arbitrary(genFs2ProducerRecords)
 
   implicit val abFs2CommittableProducerRecords: Arbitrary[Fs2CommittableProducerRecords[IO, Int, Int]] =
     Arbitrary(genFs2CommittableProducerRecords)
 
-  implicit val abFs2TransactionalProducerRecords: Arbitrary[Fs2TransactionalProducerRecords[IO, Int, Int]] =
+  implicit val abFs2TransactionalProducerRecords
+    : Arbitrary[Fs2TransactionalProducerRecords[IO, Unit, Int, Int]] =
     Arbitrary(genFs2TransactionalProducerRecords)
 
   // akka

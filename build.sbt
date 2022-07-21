@@ -9,8 +9,8 @@ val catsCore     = "2.8.0"
 val monocle      = "2.1.0"
 val catsEffect   = "3.3.14"
 val akka26       = "2.6.19"
-val confluent    = "7.2.0"
-val kafkaVersion = "7.2.0-ce"
+val confluent    = "7.2.1"
+val kafkaVersion = "7.2.1-ce"
 val avro         = "1.11.0"
 val slf4jV       = "1.7.36"
 
@@ -153,7 +153,7 @@ val kafkaLib = List(
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   ("com.typesafe.akka" %% "akka-stream-kafka" % "3.0.0").exclude("org.apache.kafka", "kafka-clients"),
-  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M7").exclude("org.apache.kafka", "kafka-clients")
+  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M8").exclude("org.apache.kafka", "kafka-clients")
 )
 
 val enumLib = List(

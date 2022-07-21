@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions.*
@@ -32,7 +32,7 @@ object KafkaStreamingData {
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
 
-  val sendT2Data: Stream[IO, ProducerResult[Int, TableTwo]] =
+  val sendT2Data =
     Stream(
       ProducerRecords(List(
         ProducerRecord(t2Topic.topicName, 1, TableTwo("x", 0)),
@@ -47,7 +47,8 @@ object KafkaStreamingData {
       .map(_.record.value)
       .debug(o => s"harvest: $o")
 
-  val expected: Set[StreamTarget] = Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
+  val expected: Set[StreamTarget] =
+    Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
 }
 
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
@@ -59,7 +60,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   before(sendT2Data.compile.drain.unsafeRunSync())
 
   test("stream-table join") {
-    val sendS1Data: Stream[IO, ProducerResult[Int, StreamOne]] = Stream
+    val sendS1Data = Stream
       .emits(List(
         s1Topic.fs2ProducerRecord(101, StreamOne("na", -1)),
         s1Topic.fs2ProducerRecord(102, StreamOne("na", -1)),
@@ -69,7 +70,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         s1Topic.fs2ProducerRecord(3, StreamOne("c", 2)),
         s1Topic.fs2ProducerRecord(201, StreamOne("d", 3)),
         s1Topic.fs2ProducerRecord(202, StreamOne("e", 4))
-      ).map(ProducerRecords.one))
+      ).map(ProducerRecords.one(_)))
       .covary[IO]
       .metered(1.seconds)
       .through(s1Topic.produce.pipe)
@@ -107,7 +108,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .peek((k, v) => println(s"out=($k, $v)"))
       .to(tgt.topicName)(tgt.asProduced)
 
-    val sendS1Data: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream
+    val sendS1Data = Stream
       .emits(List(
         s1TopicBin.fs2ProducerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
         s1TopicBin.fs2ProducerRecord(2, "exception1".getBytes),
@@ -115,7 +116,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         s1TopicBin.fs2ProducerRecord(4, s1Topic.serializeVal(StreamOne("d", 4))),
         s1TopicBin.fs2ProducerRecord(5, "exception2".getBytes),
         s1TopicBin.fs2ProducerRecord(6, s1Topic.serializeVal(StreamOne("f", 6)))
-      ).map(ProducerRecords.one))
+      ).map(ProducerRecords.one(_)))
       .covary[IO]
       .metered(1.seconds)
       .through(s1TopicBin.produce.pipe)
@@ -144,12 +145,12 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .peek((k, v) => println(s"out=($k, $v)"))
       .to(tgt.topicName)(tgt.asProduced)
 
-    val sendS1Data: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream
+    val sendS1Data = Stream
       .emits(List(
         s1TopicBin.fs2ProducerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
         s1TopicBin.fs2ProducerRecord(2, "exception1".getBytes),
         s1TopicBin.fs2ProducerRecord(3, s1Topic.serializeVal(StreamOne("c", 3)))
-      ).map(ProducerRecords.one))
+      ).map(ProducerRecords.one(_)))
       .covary[IO]
       .metered(1.seconds)
       .through(s1TopicBin.produce.pipe)
