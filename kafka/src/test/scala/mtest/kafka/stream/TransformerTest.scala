@@ -80,13 +80,13 @@ class TransformerTest extends AnyFunSuite {
       .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)
 
     val res =
-      (havest
+      havest
         .concurrently(kafkaStreamService.stream)
         .concurrently(t2Data)
         .concurrently(s1Data)
         .interruptAfter(15.seconds)
         .compile
-        .toList)
+        .toList
         .unsafeRunSync()
 
     println(Console.CYAN + "stream transformer" + Console.RESET)

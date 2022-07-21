@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerRecords}
+import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -16,7 +16,7 @@ class MonitorApiTest extends AnyFunSuite {
 
   val st = ctx.topic[Int, Array[Byte]]("monitor.test")
 
-  val sender = Stream
+  val sender: Stream[IO, ProducerResult[Unit, Int, Array[Byte]]] = Stream
     .emits(
       List(
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)),
@@ -26,9 +26,9 @@ class MonitorApiTest extends AnyFunSuite {
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 4, Array(0, 0, 0, 5)),
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 5, Array(0, 0, 0, 6)),
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 6, Array(0, 0, 0, 7))
-      ).map(ProducerRecords.one))
+      ).map(ProducerRecords.one(_)))
     .covary[IO]
-    .through(st.produce.pipe)
+    .through(st.produce.pipe[Unit])
 
   test("realtime filter and watch") {
     val w  = topic.monitor.watch
