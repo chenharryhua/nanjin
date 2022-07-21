@@ -16,7 +16,7 @@ class MonitorApiTest extends AnyFunSuite {
 
   val st = ctx.topic[Int, Array[Byte]]("monitor.test")
 
-  val sender: Stream[IO, ProducerResult[Unit, Int, Array[Byte]]] = Stream
+  val sender: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream
     .emits(
       List(
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)),
@@ -26,9 +26,9 @@ class MonitorApiTest extends AnyFunSuite {
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 4, Array(0, 0, 0, 5)),
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 5, Array(0, 0, 0, 6)),
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 6, Array(0, 0, 0, 7))
-      ).map(ProducerRecords.one(_)))
+      ).map(ProducerRecords.one))
     .covary[IO]
-    .through(st.produce.pipe[Unit])
+    .through(st.produce.pipe)
 
   test("realtime filter and watch") {
     val w  = topic.monitor.watch

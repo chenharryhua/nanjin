@@ -54,7 +54,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
     new RddStreamSource[F, NJProducerRecord[K, V]](rdd)
 
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): fs2.Stream[F, ProducerRecords[Unit, K, V]] =
+    F: Sync[F]): fs2.Stream[F, ProducerRecords[K, V]] =
     asSource.stream(chunkSize).chunks.map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
 
   def producerMessages(topicName: TopicName, chunkSize: ChunkSize): Source[Envelope[K, V, NotUsed], NotUsed] =
