@@ -49,8 +49,8 @@ final class Fs2Produce[F[_], K, V] private[kafka] (producerSettings: ProducerSet
   def resource(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.resource(producerSettings)
 
-  def pipe[P](implicit F: Async[F]): Pipe[F, ProducerRecords[P, K, V], ProducerResult[P, K, V]] =
-    KafkaProducer.pipe[F, K, V, P](producerSettings)
+  def pipe(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
+    KafkaProducer.pipe[F, K, V](producerSettings)
 
   def stream(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)

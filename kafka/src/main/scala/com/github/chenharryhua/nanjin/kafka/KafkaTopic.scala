@@ -165,7 +165,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       .traverse(produceOne)
       .rethrow
 
-  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[Fs2ProducerResult[Unit, K, V]] = {
+  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[Fs2ProducerResult[K, V]] = {
     val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
       NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>

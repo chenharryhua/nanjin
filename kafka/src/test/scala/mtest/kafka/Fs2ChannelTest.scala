@@ -32,7 +32,9 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
     val consumer =
-      topic.consume.updateConfig(_.withGroupId("fs2")).updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+      topic.consume
+        .updateConfig(_.withGroupId("fs2"))
+        .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
 
     val ret =
       consumer.stream
@@ -107,8 +109,9 @@ class Fs2ChannelTest extends AnyFunSuite {
       cr <- src.consume.stream.map(src.decoder(_).decode).take(10)
       producer <- txntopic.stream
       pr = TransactionalProducerRecords.one(
-        CommittableProducerRecords
-          .one[IO, Key, smsCallInternet](ProducerRecord("txn-target", cr.record.key, cr.record.value), cr.offset))
+        CommittableProducerRecords.one[IO, Key, smsCallInternet](
+          ProducerRecord("txn-target", cr.record.key, cr.record.value),
+          cr.offset))
       _ <- fs2.Stream.eval(producer.produce(pr))
     } yield pr
 

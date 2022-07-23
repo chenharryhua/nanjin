@@ -86,8 +86,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.2",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.2",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.3",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.3",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
@@ -153,7 +153,7 @@ val kafkaLib = List(
   "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
   ("com.typesafe.akka" %% "akka-stream-kafka" % "3.0.0").exclude("org.apache.kafka", "kafka-clients"),
-  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M8").exclude("org.apache.kafka", "kafka-clients")
+  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M9").exclude("org.apache.kafka", "kafka-clients")
 )
 
 val enumLib = List(
