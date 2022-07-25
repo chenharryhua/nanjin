@@ -126,7 +126,7 @@ val sparkLib = List(
 ).map(_ % "3.3.0") ++ List(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
-).map(_ % "0.12.0") ++ List(
+).map(_ % "0.13.0") ++ List(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
 ).map(_ % avro)
