@@ -32,7 +32,7 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.260")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.269")
 
 val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.3",
