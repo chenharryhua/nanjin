@@ -217,8 +217,8 @@ val logLib = List(
 val http4sLib = List(
   "org.http4s" %% "http4s-blaze-server" % "0.23.12",
   "org.http4s" %% "http4s-blaze-client" % "0.23.12",
-  "org.http4s" %% "http4s-circe"        % "0.23.13",
-  "org.http4s" %% "http4s-dsl"          % "0.23.13"
+  "org.http4s" %% "http4s-circe"        % "0.23.14",
+  "org.http4s" %% "http4s-dsl"          % "0.23.14"
 )
 
 val jwtLib = List(
