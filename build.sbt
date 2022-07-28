@@ -32,7 +32,7 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.260")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.270")
 
 val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.3",
@@ -86,8 +86,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.3",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.3",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.4",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.4",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
@@ -104,7 +104,7 @@ val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.10")
+).map(_ % "3.2.11")
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -215,11 +215,10 @@ val logLib = List(
 )
 
 val http4sLib = List(
-  "org.http4s" %% "http4s-blaze-server" % "0.23.12",
-  "org.http4s" %% "http4s-blaze-client" % "0.23.12",
-  "org.http4s" %% "http4s-circe"        % "0.23.13",
-  "org.http4s" %% "http4s-dsl"          % "0.23.13"
-)
+  "org.http4s" %% "http4s-circe",
+  "org.http4s" %% "http4s-client",
+  "org.http4s" %% "http4s-dsl"
+).map(_ % "0.23.14")
 
 val jwtLib = List(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -269,6 +268,8 @@ lazy val http = (project in file("http"))
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
   .settings(libraryDependencies ++= List(
+    "org.http4s" %% "http4s-blaze-server" % "0.23.12" % Test,
+    "org.http4s" %% "http4s-blaze-client" % "0.23.12" % Test,
     "org.slf4j" % "slf4j-reload4j" % "1.7.36" % Test) ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
