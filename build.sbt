@@ -11,7 +11,7 @@ val catsEffect   = "3.3.14"
 val akka26       = "2.6.19"
 val confluent    = "7.2.1"
 val kafkaVersion = "7.2.1-ce"
-val avro         = "1.11.0"
+val avro         = "1.11.1"
 val slf4jV       = "1.7.36"
 
 lazy val commonSettings = List(
