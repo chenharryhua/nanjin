@@ -11,7 +11,7 @@ val catsEffect   = "3.3.14"
 val akka26       = "2.6.19"
 val confluent    = "7.2.1"
 val kafkaVersion = "7.2.1-ce"
-val avro         = "1.11.0"
+val avro         = "1.11.1"
 val slf4jV       = "1.7.36"
 
 lazy val commonSettings = List(
@@ -35,14 +35,14 @@ lazy val commonSettings = List(
 val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.270")
 
 val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.3",
-  "org.apache.hadoop" % "hadoop-aws"                   % "3.3.3",
-  "org.apache.hadoop" % "hadoop-auth"                  % "3.3.3",
-  "org.apache.hadoop" % "hadoop-annotations"           % "3.3.3",
-  "org.apache.hadoop" % "hadoop-common"                % "3.3.3",
-  "org.apache.hadoop" % "hadoop-client"                % "3.3.3",
-  "org.apache.hadoop" % "hadoop-client-runtime"        % "3.3.3",
-  "org.apache.hadoop" % "hadoop-hdfs"                  % "3.3.3",
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.4",
+  "org.apache.hadoop" % "hadoop-aws"                   % "3.3.4",
+  "org.apache.hadoop" % "hadoop-auth"                  % "3.3.4",
+  "org.apache.hadoop" % "hadoop-annotations"           % "3.3.4",
+  "org.apache.hadoop" % "hadoop-common"                % "3.3.4",
+  "org.apache.hadoop" % "hadoop-client"                % "3.3.4",
+  "org.apache.hadoop" % "hadoop-client-runtime"        % "3.3.4",
+  "org.apache.hadoop" % "hadoop-hdfs"                  % "3.3.4",
   "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
 ).map(
   _.exclude("log4j", "log4j")
@@ -137,7 +137,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
   "org.typelevel" %% "cats-laws"                              % catsCore,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.12",
+  "org.scalatest" %% "scalatest"                              % "3.2.13",
   "com.github.julien-truffaut" %% "monocle-law"               % monocle,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
@@ -228,10 +228,10 @@ val jwtLib = List(
 )
 
 val metricLib = List(
-  "io.dropwizard.metrics" % "metrics-core" % "4.2.10",
-  "io.dropwizard.metrics" % "metrics-json" % "4.2.10",
-  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.10",
-  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.10"
+  "io.dropwizard.metrics" % "metrics-core" % "4.2.11",
+  "io.dropwizard.metrics" % "metrics-json" % "4.2.11",
+  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.11",
+  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.11"
 )
 
 val cronLib = List(
@@ -258,7 +258,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.dropwizard.metrics"             % "metrics-core" % "4.2.10" % Provided,
+      "io.dropwizard.metrics"             % "metrics-core" % "4.2.11" % Provided,
       "org.typelevel" %% "log4cats-slf4j" % "2.4.0"        % Provided
     ) ++ baseLib ++ testLib
   )
