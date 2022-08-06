@@ -11,7 +11,7 @@ val catsEffect   = "3.3.14"
 val akka26       = "2.6.19"
 val confluent    = "7.2.1"
 val kafkaVersion = "7.2.1-ce"
-val avro         = "1.11.0"
+val avro         = "1.11.1"
 val slf4jV       = "1.7.36"
 
 lazy val commonSettings = List(
@@ -32,17 +32,17 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.260")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.270")
 
 val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.3",
-  "org.apache.hadoop" % "hadoop-aws"                   % "3.3.3",
-  "org.apache.hadoop" % "hadoop-auth"                  % "3.3.3",
-  "org.apache.hadoop" % "hadoop-annotations"           % "3.3.3",
-  "org.apache.hadoop" % "hadoop-common"                % "3.3.3",
-  "org.apache.hadoop" % "hadoop-client"                % "3.3.3",
-  "org.apache.hadoop" % "hadoop-client-runtime"        % "3.3.3",
-  "org.apache.hadoop" % "hadoop-hdfs"                  % "3.3.3",
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.4",
+  "org.apache.hadoop" % "hadoop-aws"                   % "3.3.4",
+  "org.apache.hadoop" % "hadoop-auth"                  % "3.3.4",
+  "org.apache.hadoop" % "hadoop-annotations"           % "3.3.4",
+  "org.apache.hadoop" % "hadoop-common"                % "3.3.4",
+  "org.apache.hadoop" % "hadoop-client"                % "3.3.4",
+  "org.apache.hadoop" % "hadoop-client-runtime"        % "3.3.4",
+  "org.apache.hadoop" % "hadoop-hdfs"                  % "3.3.4",
   "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
 ).map(
   _.exclude("log4j", "log4j")
@@ -86,8 +86,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.3",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.3",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.4",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.4",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
@@ -104,7 +104,7 @@ val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.10")
+).map(_ % "3.2.11")
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -126,7 +126,7 @@ val sparkLib = List(
 ).map(_ % "3.3.0") ++ List(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
-).map(_ % "0.12.0") ++ List(
+).map(_ % "0.13.0") ++ List(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
 ).map(_ % avro)
@@ -137,7 +137,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
   "org.typelevel" %% "cats-laws"                              % catsCore,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.12",
+  "org.scalatest" %% "scalatest"                              % "3.2.13",
   "com.github.julien-truffaut" %% "monocle-law"               % monocle,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
@@ -215,11 +215,10 @@ val logLib = List(
 )
 
 val http4sLib = List(
-  "org.http4s" %% "http4s-blaze-server" % "0.23.12",
-  "org.http4s" %% "http4s-blaze-client" % "0.23.12",
-  "org.http4s" %% "http4s-circe"        % "0.23.13",
-  "org.http4s" %% "http4s-dsl"          % "0.23.13"
-)
+  "org.http4s" %% "http4s-circe",
+  "org.http4s" %% "http4s-client",
+  "org.http4s" %% "http4s-dsl"
+).map(_ % "0.23.14")
 
 val jwtLib = List(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -229,10 +228,10 @@ val jwtLib = List(
 )
 
 val metricLib = List(
-  "io.dropwizard.metrics" % "metrics-core" % "4.2.10",
-  "io.dropwizard.metrics" % "metrics-json" % "4.2.10",
-  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.10",
-  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.10"
+  "io.dropwizard.metrics" % "metrics-core" % "4.2.11",
+  "io.dropwizard.metrics" % "metrics-json" % "4.2.11",
+  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.11",
+  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.11"
 )
 
 val cronLib = List(
@@ -259,7 +258,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.dropwizard.metrics"             % "metrics-core" % "4.2.10" % Provided,
+      "io.dropwizard.metrics"             % "metrics-core" % "4.2.11" % Provided,
       "org.typelevel" %% "log4cats-slf4j" % "2.4.0"        % Provided
     ) ++ baseLib ++ testLib
   )
@@ -269,6 +268,8 @@ lazy val http = (project in file("http"))
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
   .settings(libraryDependencies ++= List(
+    "org.http4s" %% "http4s-blaze-server" % "0.23.12" % Test,
+    "org.http4s" %% "http4s-blaze-client" % "0.23.12" % Test,
     "org.slf4j" % "slf4j-reload4j" % "1.7.36" % Test) ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val aws = (project in file("aws"))

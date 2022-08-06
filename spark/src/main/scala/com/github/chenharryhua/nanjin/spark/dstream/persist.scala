@@ -17,11 +17,11 @@ private[dstream] object persist {
   def circe[A](
     ds: DStream[A],
     zoneId: ZoneId,
-    enc: JsonEncoder[A],
+    encoder: JsonEncoder[A],
     pathBuilder: Reader[LocalDateTime, NJPath]): DStreamRunner.Mark = {
     ds.foreachRDD { (rdd, time) =>
       val path: NJPath = getPath(pathBuilder, time, zoneId)
-      saveRDD.circe[A](rdd, path, NJCompression.Uncompressed, isKeepNull = true)(enc)
+      saveRDD.circe[A](rdd, path, NJCompression.Uncompressed, isKeepNull = true)(encoder)
     }
     DStreamRunner.Mark
   }
