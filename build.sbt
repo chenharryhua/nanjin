@@ -205,7 +205,7 @@ val effectLib = List(
 
 val ftpLib = List(
   "commons-net"                                     % "commons-net" % "3.8.0",
-  "com.hierynomus"                                  % "sshj"        % "0.33.0",
+  "com.hierynomus"                                  % "sshj"        % "0.34.0",
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "3.0.4"
 )
 
