@@ -86,8 +86,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.4",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.4",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.5",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.5",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
