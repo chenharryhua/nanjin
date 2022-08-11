@@ -86,8 +86,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.4",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.4",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.5",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.5",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluent
 )
 
@@ -104,7 +104,7 @@ val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.11")
+).map(_ % "3.2.12")
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -205,7 +205,7 @@ val effectLib = List(
 
 val ftpLib = List(
   "commons-net"                                     % "commons-net" % "3.8.0",
-  "com.hierynomus"                                  % "sshj"        % "0.33.0",
+  "com.hierynomus"                                  % "sshj"        % "0.34.0",
   "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "3.0.4"
 )
 
