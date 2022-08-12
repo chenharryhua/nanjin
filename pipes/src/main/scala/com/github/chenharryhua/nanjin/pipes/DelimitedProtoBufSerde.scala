@@ -10,9 +10,10 @@ import squants.information.Information
 
 object DelimitedProtoBufSerde {
 
-  def toBytes[F[_], A](bufferSize: Information)(implicit cc: Async[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = {
-    (ss: Stream[F, A]) =>
-      readOutputStream[F](bufferSize.toBytes.toInt)(os => ss.map(_.writeDelimitedTo(os)).compile.drain)
+  def toBytes[F[_], A](bufferSize: Information)(implicit
+    cc: Async[F],
+    ev: A <:< GeneratedMessage): Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
+    readOutputStream[F](bufferSize.toBytes.toInt)(os => ss.map(_.writeDelimitedTo(os)).compile.drain)
   }
 
   def toBytes[F[_], A](implicit cc: Async[F], ev: A <:< GeneratedMessage): Pipe[F, A, Byte] =
@@ -30,6 +31,7 @@ object ProtoBufSerde {
   def toBytes[F[_], A](implicit ev: A <:< GeneratedMessage): Pipe[F, A, Array[Byte]] =
     _.map(_.toByteArray)
 
-  def fromBytes[F[_], A <: GeneratedMessage](implicit gmc: GeneratedMessageCompanion[A]): Pipe[F, Array[Byte], A] =
+  def fromBytes[F[_], A <: GeneratedMessage](implicit
+    gmc: GeneratedMessageCompanion[A]): Pipe[F, Array[Byte], A] =
     _.map(gmc.parseFrom)
 }

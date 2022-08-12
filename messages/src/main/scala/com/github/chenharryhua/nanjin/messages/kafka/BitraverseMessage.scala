@@ -49,19 +49,28 @@ object NJConsumerMessage {
   implicit val icrbi1: Aux[ConsumerRecord] =
     new NJConsumerMessage[ConsumerRecord] {
 
-      override def lens[K1, V1, K2, V2]
-        : PLens[ConsumerRecord[K1, V1], ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]] =
-        PLens[ConsumerRecord[K1, V1], ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]](s => s)(
-          b => _ => b)
+      override def lens[K1, V1, K2, V2]: PLens[
+        ConsumerRecord[K1, V1],
+        ConsumerRecord[K2, V2],
+        ConsumerRecord[K1, V1],
+        ConsumerRecord[K2, V2]] =
+        PLens[ConsumerRecord[K1, V1], ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]](
+          s => s)(b => _ => b)
     }
 
   implicit val icrbi2: Aux[Fs2ConsumerRecord] =
     new NJConsumerMessage[Fs2ConsumerRecord] {
 
-      override def lens[K1, V1, K2, V2]
-        : PLens[Fs2ConsumerRecord[K1, V1], Fs2ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]] =
-        PLens[Fs2ConsumerRecord[K1, V1], Fs2ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]](
-          _.transformInto)(b => _ => b.transformInto)
+      override def lens[K1, V1, K2, V2]: PLens[
+        Fs2ConsumerRecord[K1, V1],
+        Fs2ConsumerRecord[K2, V2],
+        ConsumerRecord[K1, V1],
+        ConsumerRecord[K2, V2]] =
+        PLens[
+          Fs2ConsumerRecord[K1, V1],
+          Fs2ConsumerRecord[K2, V2],
+          ConsumerRecord[K1, V1],
+          ConsumerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
 
     }
 
@@ -128,19 +137,28 @@ object NJProducerMessage {
   implicit val iprbi1: Aux[ProducerRecord] =
     new NJProducerMessage[ProducerRecord] {
 
-      override def lens[K1, V1, K2, V2]
-        : PLens[ProducerRecord[K1, V1], ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]] =
-        PLens[ProducerRecord[K1, V1], ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]](s => s)(
-          b => _ => b)
+      override def lens[K1, V1, K2, V2]: PLens[
+        ProducerRecord[K1, V1],
+        ProducerRecord[K2, V2],
+        ProducerRecord[K1, V1],
+        ProducerRecord[K2, V2]] =
+        PLens[ProducerRecord[K1, V1], ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]](
+          s => s)(b => _ => b)
     }
 
   implicit val iprbi2: Aux[Fs2ProducerRecord] =
     new NJProducerMessage[Fs2ProducerRecord] {
 
-      override def lens[K1, V1, K2, V2]
-        : PLens[Fs2ProducerRecord[K1, V1], Fs2ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]] =
-        PLens[Fs2ProducerRecord[K1, V1], Fs2ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]](
-          _.transformInto)(b => _ => b.transformInto)
+      override def lens[K1, V1, K2, V2]: PLens[
+        Fs2ProducerRecord[K1, V1],
+        Fs2ProducerRecord[K2, V2],
+        ProducerRecord[K1, V1],
+        ProducerRecord[K2, V2]] =
+        PLens[
+          Fs2ProducerRecord[K1, V1],
+          Fs2ProducerRecord[K2, V2],
+          ProducerRecord[K1, V1],
+          ProducerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
     }
 
   implicit def iprbi3[P]: Aux[AkkaProducerMessage[*, *, P]] =

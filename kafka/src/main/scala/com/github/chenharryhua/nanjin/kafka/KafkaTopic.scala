@@ -97,7 +97,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       topicName,
       Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
         Fs2Deserializer[F, Array[Byte]],
-        Fs2Deserializer[F, Array[Byte]]).withProperties(context.settings.consumerSettings.config))
+        Fs2Deserializer[F, Array[Byte]]).withProperties(context.settings.consumerSettings.config)
+    )
 
   def produce(implicit F: Sync[F]): Fs2Produce[F, K, V] =
     new Fs2Produce[F, K, V](

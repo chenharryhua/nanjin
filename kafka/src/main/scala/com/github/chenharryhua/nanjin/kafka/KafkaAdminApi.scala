@@ -24,10 +24,12 @@ object KafkaAdminApi {
   def apply[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]): KafkaAdminApi[F] =
     new KafkaTopicAdminApiImpl(topic)
 
-  final private class KafkaTopicAdminApiImpl[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]) extends KafkaAdminApi[F] {
+  final private class KafkaTopicAdminApiImpl[F[_]: Async, K, V](topic: KafkaTopic[F, K, V])
+      extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
-      KafkaAdminClient.resource[F](AdminClientSettings("").withProperties(topic.context.settings.adminSettings.config))
+      KafkaAdminClient.resource[F](
+        AdminClientSettings("").withProperties(topic.context.settings.adminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
       adminResource.use(_.deleteTopic(topic.topicName.value))

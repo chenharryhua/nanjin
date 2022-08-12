@@ -36,8 +36,8 @@ object CloudWatchClient {
       }
     } yield acw
 
-  final private class AwsCloudWatch[F[_]](buildFrom: Endo[AmazonCloudWatchClientBuilder], logger: Logger[F])(implicit
-    F: Sync[F])
+  final private class AwsCloudWatch[F[_]](buildFrom: Endo[AmazonCloudWatchClientBuilder], logger: Logger[F])(
+    implicit F: Sync[F])
       extends ShutdownService[F] with CloudWatchClient[F] {
 
     private lazy val client: AmazonCloudWatch = buildFrom(AmazonCloudWatchClientBuilder.standard()).build()

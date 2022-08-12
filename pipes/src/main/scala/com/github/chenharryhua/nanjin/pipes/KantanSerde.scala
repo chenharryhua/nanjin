@@ -34,7 +34,8 @@ object KantanSerde {
     }
   }
 
-  def toBytes[F[_], A](conf: CsvConfiguration)(implicit enc: HeaderEncoder[A], F: Async[F]): Pipe[F, A, Byte] =
+  def toBytes[F[_], A](
+    conf: CsvConfiguration)(implicit enc: HeaderEncoder[A], F: Async[F]): Pipe[F, A, Byte] =
     toBytes[F, A](conf, BUFFER_SIZE)
 
   def fromBytes[F[_], A](conf: CsvConfiguration, chunkSize: ChunkSize)(implicit
@@ -43,7 +44,8 @@ object KantanSerde {
     _.through(toInputStream[F]).flatMap(is =>
       Stream.fromBlockingIterator[F](is.asCsvReader[A](conf).iterator, chunkSize.value).rethrow)
 
-  def fromBytes[F[_], A](conf: CsvConfiguration)(implicit dec: HeaderDecoder[A], F: Async[F]): Pipe[F, Byte, A] =
+  def fromBytes[F[_], A](
+    conf: CsvConfiguration)(implicit dec: HeaderDecoder[A], F: Async[F]): Pipe[F, Byte, A] =
     fromBytes[F, A](conf, CHUNK_SIZE)
 
   def rowDecode[A](rowStr: String, conf: CsvConfiguration, dec: RowDecoder[A]): A = {
@@ -83,20 +85,24 @@ object KantanSerde {
   }
 
   object akka {
-    def toByteString[A](conf: CsvConfiguration)(implicit enc: HeaderEncoder[A]): Flow[A, ByteString, NotUsed] =
+    def toByteString[A](conf: CsvConfiguration)(implicit
+      enc: HeaderEncoder[A]): Flow[A, ByteString, NotUsed] =
       Flow[A]
         .map(a => ByteString.fromString(rowEncode(a, conf, enc.rowEncoder)))
         .prepend(Source(List(ByteString.fromString(headerStr(conf, enc)))))
 
-    def fromByteString[A](conf: CsvConfiguration)(implicit dec: HeaderDecoder[A]): Flow[ByteString, A, NotUsed] =
+    def fromByteString[A](conf: CsvConfiguration)(implicit
+      dec: HeaderDecoder[A]): Flow[ByteString, A, NotUsed] =
       if (conf.hasHeader)
         Flow[ByteString]
-          .via(Framing.delimiter(ByteString.fromString(NEWLINE_SEPERATOR), Int.MaxValue, allowTruncation = true))
+          .via(
+            Framing.delimiter(ByteString.fromString(NEWLINE_SEPERATOR), Int.MaxValue, allowTruncation = true))
           .drop(1)
           .map(bs => rowDecode(bs.utf8String, conf, dec.noHeader))
       else
         Flow[ByteString]
-          .via(Framing.delimiter(ByteString.fromString(NEWLINE_SEPERATOR), Int.MaxValue, allowTruncation = true))
+          .via(
+            Framing.delimiter(ByteString.fromString(NEWLINE_SEPERATOR), Int.MaxValue, allowTruncation = true))
           .map(bs => rowDecode(bs.utf8String, conf, dec.noHeader))
   }
 }

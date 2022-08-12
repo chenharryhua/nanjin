@@ -39,13 +39,15 @@ object ParameterStore {
   def apply[F[_]: Sync](f: Endo[AWSSimpleSystemsManagementClientBuilder]): Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      ps <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(f, logger))) { case (cw, quitCase) =>
-        cw.shutdown(name, quitCase, logger)
+      ps <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsPS(f, logger))) {
+        case (cw, quitCase) =>
+          cw.shutdown(name, quitCase, logger)
       }
     } yield ps
 
-  final private class AwsPS[F[_]](buildFrom: Endo[AWSSimpleSystemsManagementClientBuilder], logger: Logger[F])(implicit
-    F: Sync[F])
+  final private class AwsPS[F[_]](
+    buildFrom: Endo[AWSSimpleSystemsManagementClientBuilder],
+    logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with ParameterStore[F] {
     private lazy val client: AWSSimpleSystemsManagement =
       buildFrom(AWSSimpleSystemsManagementClientBuilder.standard()).build()

@@ -11,7 +11,12 @@ import java.time.*
 class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   val postgres: Postgres =
-    Postgres(Username("postgres"), Password("postgres"), Host("localhost"), Port(5432), DatabaseName("postgres"))
+    Postgres(
+      Username("postgres"),
+      Password("postgres"),
+      Host("localhost"),
+      Port(5432),
+      DatabaseName("postgres"))
 
   implicit val zoneId: ZoneId = ZoneId.systemDefault()
 

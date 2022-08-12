@@ -204,7 +204,8 @@ object salesforce {
         username = username,
         password = password,
         cfg = cfg,
-        middleware = compose(f, middleware))
+        middleware = compose(f, middleware)
+      )
   }
 
   object Iot {
@@ -221,6 +222,7 @@ object salesforce {
         username = username,
         password = password,
         cfg = AuthConfig(2.hours),
-        middleware = Reader(Resource.pure))
+        middleware = Reader(Resource.pure)
+      )
   }
 }

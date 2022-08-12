@@ -57,7 +57,8 @@ final class Agent[F[_]] private[service] (
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
+    )
 
   def retry[A, Z](f: A => F[Z]): NJRetry[F, A, Z] =
     new NJRetry[F, A, Z](
@@ -68,7 +69,8 @@ final class Agent[F[_]] private[service] (
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
+    )
 
   def retry[A, B, Z](f: (A, B) => F[Z]): NJRetry[F, (A, B), Z] =
     new NJRetry[F, (A, B), Z](
@@ -79,7 +81,8 @@ final class Agent[F[_]] private[service] (
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
+    )
 
   def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, (A, B, C), Z] =
     new NJRetry[F, (A, B, C), Z](
@@ -90,7 +93,8 @@ final class Agent[F[_]] private[service] (
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
+    )
 
   def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, (A, B, C, D), Z] =
     new NJRetry[F, (A, B, C, D), Z](
@@ -101,7 +105,8 @@ final class Agent[F[_]] private[service] (
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
+    )
 
   def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, (A, B, C, D, E), Z] =
     new NJRetry[F, (A, B, C, D, E), Z](
@@ -112,7 +117,8 @@ final class Agent[F[_]] private[service] (
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex))))
+      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
+    )
 
   // future
 
@@ -143,7 +149,8 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       serviceParams = agentParams.serviceParams,
       isError = false,
-      isCounting = false)
+      isCounting = false
+    )
 
   def alert(alertName: Span): NJAlert[F] =
     new NJAlert(
@@ -151,7 +158,8 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = agentParams.serviceParams,
-      isCounting = false)
+      isCounting = false
+    )
 
   def counter(counterName: Span): NJCounter[F] =
     new NJCounter(

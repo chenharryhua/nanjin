@@ -43,7 +43,8 @@ private[spark] trait InjectionInstances extends Serializable {
     }
 
   // enums
-  implicit def enumToStringInjection[E <: Enumeration](implicit w: Witness.Aux[E]): Injection[E#Value, String] =
+  implicit def enumToStringInjection[E <: Enumeration](implicit
+    w: Witness.Aux[E]): Injection[E#Value, String] =
     Injection(_.toString, w.value.withName(_))
 
   implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): JsonEncoder[E#Value] =

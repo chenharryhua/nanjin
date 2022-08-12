@@ -21,7 +21,8 @@ trait TransformersTrait extends ReverseTransformers {
   implicit final def aISOb[A, B](implicit iso: Iso[A, B]): Transformer[A, B] =
     (src: A) => iso.get(src)
 
-  implicit final def transformToTimestamp[A](implicit trans: Transformer[A, Instant]): Transformer[A, Timestamp] =
+  implicit final def transformToTimestamp[A](implicit
+    trans: Transformer[A, Instant]): Transformer[A, Timestamp] =
     (src: A) => Timestamp.from(trans.transform(src))
 
   implicit final val transformerArrow: Arrow[Transformer] =
@@ -50,7 +51,8 @@ trait ReverseTransformers {
   implicit final def bISOa[A, B](implicit iso: Iso[A, B]): Transformer[B, A] =
     (src: B) => iso.reverseGet(src)
 
-  implicit final def transformFromTimestamp[A](implicit trans: Transformer[Instant, A]): Transformer[Timestamp, A] =
+  implicit final def transformFromTimestamp[A](implicit
+    trans: Transformer[Instant, A]): Transformer[Timestamp, A] =
     (src: Timestamp) => trans.transform(src.toInstant)
 
 }

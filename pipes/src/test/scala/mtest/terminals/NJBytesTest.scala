@@ -22,9 +22,10 @@ class NJBytesTest extends AnyFunSuite {
     val sink = hdp.bytes.akka.sink(path)
     val src  = hdp.bytes.akka.source(path)
     val action = IO.fromFuture(IO(ts.via(CirceSerde.akka.toByteString(true)).runWith(sink))) >>
-      IO.fromFuture(IO(src.via(CirceSerde.akka.fromByteString[Tiger]).runFold(Set.empty[Tiger]) { case (ss, i) =>
-        ss + i
-      }))
+      IO.fromFuture(
+        IO(src.via(CirceSerde.akka.fromByteString[Tiger]).runFold(Set.empty[Tiger]) { case (ss, i) =>
+          ss + i
+        }))
     assert(action.unsafeRunSync() == data)
   }
 

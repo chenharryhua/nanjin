@@ -39,8 +39,9 @@ object JacksonSerde {
     })
   }
 
-  def prettyJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String]  = toJsonStr[F](schema, isPretty = true)
-  def compactJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String] = toJsonStr[F](schema, isPretty = false)
+  def prettyJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String] = toJsonStr[F](schema, isPretty = true)
+  def compactJson[F[_]](schema: Schema): Pipe[F, GenericRecord, String] =
+    toJsonStr[F](schema, isPretty = false)
 
   def toBytes[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
@@ -55,20 +56,21 @@ object JacksonSerde {
       }.intersperse(NEWLINE_BYTES_SEPERATOR).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
-  def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
-    ss.through(toInputStream).flatMap { is =>
-      val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
-      def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
-        Pull
-          .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
-          catch { case _: EOFException => None }))
-          .flatMap {
-            case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
-            case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
-          }
-      Pull.loop(pullAll)(is).void.stream
-    }
+  def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = {
+    (ss: Stream[F, Byte]) =>
+      ss.through(toInputStream).flatMap { is =>
+        val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
+        val datumReader = new GenericDatumReader[GenericRecord](schema)
+        def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
+          Pull
+            .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
+            catch { case _: EOFException => None }))
+            .flatMap {
+              case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
+              case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
+            }
+        Pull.loop(pullAll)(is).void.stream
+      }
   }
 
   object akka {

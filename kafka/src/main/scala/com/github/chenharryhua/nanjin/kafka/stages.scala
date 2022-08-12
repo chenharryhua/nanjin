@@ -39,7 +39,8 @@ object stages {
         *
         * '''true''' end offset has been reached
         */
-      private var topicStates: Map[TopicPartition, Boolean] = endOffsets.value.view.mapValues(_ => false).toMap
+      private var topicStates: Map[TopicPartition, Boolean] =
+        endOffsets.value.view.mapValues(_ => false).toMap
 
       /** Notes:
         *
@@ -85,8 +86,8 @@ object stages {
     }
   }
 
-  def takeUntilEnd(
-    endOffsets: KafkaTopicPartition[KafkaOffset]): Flow[KafkaByteConsumerRecord, KafkaByteConsumerRecord, NotUsed] =
+  def takeUntilEnd(endOffsets: KafkaTopicPartition[KafkaOffset])
+    : Flow[KafkaByteConsumerRecord, KafkaByteConsumerRecord, NotUsed] =
     Flow.fromGraph(new KafkaTakeUntilEnd(endOffsets))
 
 }

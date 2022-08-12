@@ -12,7 +12,8 @@ import org.apache.kafka.clients.producer.ProducerRecord
 
 sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKafkaRecord {
 
-  def traversal[K1, V1, K2, V2]: PTraversal[F[K1, V1], F[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]]
+  def traversal[K1, V1, K2, V2]
+    : PTraversal[F[K1, V1], F[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]]
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(implicit
     G: Applicative[G]): G[F[C, D]] =

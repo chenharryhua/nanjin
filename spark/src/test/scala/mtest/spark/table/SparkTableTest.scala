@@ -141,7 +141,6 @@ class SparkTableTest extends AnyFunSuite {
     assert(kantan.diff(obj).dataset.count() == 0)
   }
 
- 
   test("spark") {
     val parquet = root / "spark" / "parquet"
     val json    = root / "spark" / "json"

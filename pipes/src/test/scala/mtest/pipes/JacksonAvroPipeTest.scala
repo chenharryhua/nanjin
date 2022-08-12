@@ -41,10 +41,18 @@ class JacksonAvroPipeTest extends AnyFunSuite {
   }
 
   test("jackson-compact-string size") {
-    assert(data.map(encoder.to).through(JacksonSerde.compactJson(schema)).compile.toList.unsafeRunSync().size == 10)
+    assert(
+      data
+        .map(encoder.to)
+        .through(JacksonSerde.compactJson(schema))
+        .compile
+        .toList
+        .unsafeRunSync()
+        .size == 10)
   }
   test("jackson-pretty-string size") {
-    assert(data.map(encoder.to).through(JacksonSerde.prettyJson(schema)).compile.toList.unsafeRunSync().size == 10)
+    assert(
+      data.map(encoder.to).through(JacksonSerde.prettyJson(schema)).compile.toList.unsafeRunSync().size == 10)
   }
 
 }

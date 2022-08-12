@@ -16,7 +16,8 @@ object CirceSerde {
 
   def toBytes[F[_], A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Pipe[F, A, Byte] = {
     val encode = encoder[A](isKeepNull, enc)
-    (ss: Stream[F, A]) => ss.mapChunks(_.map(encode(_).noSpaces)).intersperse(NEWLINE_SEPERATOR).through(utf8.encode)
+    (ss: Stream[F, A]) =>
+      ss.mapChunks(_.map(encode(_).noSpaces)).intersperse(NEWLINE_SEPERATOR).through(utf8.encode)
   }
 
   def fromBytes[F[_], A](implicit ev: RaiseThrowable[F], dec: JsonDecoder[A]): Pipe[F, Byte, A] =
@@ -26,7 +27,10 @@ object CirceSerde {
   object akka {
     def toByteString[A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Flow[A, ByteString, NotUsed] = {
       val encode = encoder[A](isKeepNull, enc)
-      Flow[A].map(encode).map(js => ByteString.fromString(js.noSpaces)).intersperse(ByteString(NEWLINE_SEPERATOR))
+      Flow[A]
+        .map(encode)
+        .map(js => ByteString.fromString(js.noSpaces))
+        .intersperse(ByteString(NEWLINE_SEPERATOR))
     }
 
     def fromByteString[A](implicit dec: JsonDecoder[A]): Flow[ByteString, A, NotUsed] =

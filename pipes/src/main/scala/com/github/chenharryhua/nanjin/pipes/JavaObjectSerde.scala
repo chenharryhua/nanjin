@@ -25,7 +25,8 @@ object JavaObjectSerde {
   /** rely on EOFException.. not sure it is the right way
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  private def pullAll[F[_], A](ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
+  private def pullAll[F[_], A](ois: ObjectInputStream)(implicit
+    F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
         F.delay(try Some(ois.readObject().asInstanceOf[A])

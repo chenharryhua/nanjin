@@ -26,20 +26,21 @@ object BinaryAvroSerde {
     }
   }
 
-  def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = { (ss: Stream[F, Byte]) =>
-    val datumReader = new GenericDatumReader[GenericRecord](schema)
-    ss.through(toInputStream).flatMap { is =>
-      val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
-      def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
-        Pull
-          .functionKInstance(F.delay(try Option(datumReader.read(null, avroDecoder))
-          catch { case _: EOFException => None }))
-          .flatMap {
-            case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
-            case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
-          }
-      Pull.loop(pullAll)(is).void.stream
-    }
+  def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = {
+    (ss: Stream[F, Byte]) =>
+      val datumReader = new GenericDatumReader[GenericRecord](schema)
+      ss.through(toInputStream).flatMap { is =>
+        val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
+        def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
+          Pull
+            .functionKInstance(F.delay(try Option(datumReader.read(null, avroDecoder))
+            catch { case _: EOFException => None }))
+            .flatMap {
+              case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
+              case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
+            }
+        Pull.loop(pullAll)(is).void.stream
+      }
   }
 
   object akka {

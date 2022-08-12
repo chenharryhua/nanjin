@@ -15,8 +15,10 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 
 package object middleware {
-  def exponentialRetry[F[_]: Temporal](maxWait: FiniteDuration, maxRetries: Int)(client: Client[F]): Client[F] =
-    Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(client)
+  def exponentialRetry[F[_]: Temporal](maxWait: FiniteDuration, maxRetries: Int)(
+    client: Client[F]): Client[F] =
+    Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(
+      client)
 
   def logUnsecurely[F[_]: Async](client: Client[F]): Client[F] =
     Logger(logHeaders = true, logBody = true, _ => false)(client)

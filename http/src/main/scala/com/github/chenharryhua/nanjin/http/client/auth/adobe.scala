@@ -113,7 +113,8 @@ object adobe {
         client_code = client_code,
         client_secret = client_secret,
         cfg = AuthConfig(2.hours),
-        middleware = Reader(Resource.pure))
+        middleware = Reader(Resource.pure)
+      )
   }
 
   // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
@@ -198,7 +199,8 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         cfg = f(cfg),
-        middleware = middleware)
+        middleware = middleware
+      )
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): JWT[F] =
       new JWT[F](
@@ -210,7 +212,8 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         cfg = cfg,
-        middleware = compose(f, middleware))
+        middleware = compose(f, middleware)
+      )
   }
 
   object JWT {
@@ -231,7 +234,8 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         cfg = AuthConfig(2.hours),
-        middleware = Reader(Resource.pure))
+        middleware = Reader(Resource.pure)
+      )
 
     def apply[F[_]](
       auth_endpoint: Uri,
