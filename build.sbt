@@ -32,7 +32,7 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.270")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.280")
 
 val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.4",
@@ -350,7 +350,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "io.netty"                               % "netty-all" % "4.1.79.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.0.0"     % Test
+      "com.julianpeeters" %% "avrohugger-core" % "1.1.0"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
