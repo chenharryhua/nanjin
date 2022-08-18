@@ -24,8 +24,6 @@ final class KafkaStreamsBuilder[F[_]] private (
   localStateStores: Cont[StreamsBuilder, StreamsBuilder],
   startUpTimeout: FiniteDuration)(implicit F: Async[F]) {
 
-  def showSettings: String = settings.show
-
   final private class StateChange(
     dispatcher: Dispatcher[F],
     latch: CountDownLatch[F],
@@ -89,7 +87,8 @@ final class KafkaStreamsBuilder[F[_]] private (
       settings = KafkaStreamSettings.config.composeLens(at(key)).set(Some(value))(settings),
       top = top,
       localStateStores = localStateStores,
-      startUpTimeout = startUpTimeout)
+      startUpTimeout = startUpTimeout
+    )
 
   def addStateStore[S <: StateStore](storeBuilder: StoreBuilder[S]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
@@ -106,6 +105,8 @@ final class KafkaStreamsBuilder[F[_]] private (
 }
 
 object KafkaStreamsBuilder {
-  def apply[F[_]: Async](settings: KafkaStreamSettings, top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
+  def apply[F[_]: Async](
+    settings: KafkaStreamSettings,
+    top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](settings, top, Cont.defer(new StreamsBuilder()), 180.minutes)
 }
