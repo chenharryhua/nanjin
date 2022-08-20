@@ -197,7 +197,7 @@ val akkaLib = List(
 
 val effectLib = List(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "2.0.0" % Provided,
+  "dev.zio" %% "zio"               % "2.0.1" % Provided,
   "dev.zio" %% "zio-interop-cats"  % "3.3.0" % Provided,
   "io.monix" %% "monix-eval"       % "3.4.1" % Provided,
   "io.monix" %% "monix"            % "3.4.1" % Provided
