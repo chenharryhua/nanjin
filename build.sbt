@@ -179,7 +179,7 @@ val catsLib = List(
     "org.typelevel" %% "kittens"               % "2.3.2",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
     "org.typelevel" %% "algebra"               % "2.8.0",
-    "org.typelevel" %% "cats-collections-core" % "0.9.3"
+    "org.typelevel" %% "cats-collections-core" % "0.9.4"
   )
 
 val refinedLib = List(
@@ -197,7 +197,7 @@ val akkaLib = List(
 
 val effectLib = List(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "2.0.0" % Provided,
+  "dev.zio" %% "zio"               % "2.0.1" % Provided,
   "dev.zio" %% "zio-interop-cats"  % "3.3.0" % Provided,
   "io.monix" %% "monix-eval"       % "3.4.1" % Provided,
   "io.monix" %% "monix"            % "3.4.1" % Provided
@@ -270,7 +270,7 @@ lazy val http = (project in file("http"))
   .settings(libraryDependencies ++= List(
     "org.http4s" %% "http4s-blaze-server" % "0.23.12" % Test,
     "org.http4s" %% "http4s-blaze-client" % "0.23.12" % Test,
-    "org.slf4j" % "slf4j-reload4j" % "1.7.36" % Test) ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
+    "org.slf4j" % "slf4j-reload4j" % slf4jV % Test) ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
@@ -295,7 +295,7 @@ lazy val guard = (project in file("guard"))
       "com.lihaoyi" %% "scalatags"    % "0.11.1",
       "org.tpolecat" %% "skunk-core"  % "0.3.1",
       "org.tpolecat" %% "skunk-circe" % "0.3.1",
-      "org.slf4j"                     % "slf4j-reload4j" % "1.7.36" % Test
+      "org.slf4j"                     % "slf4j-reload4j" % slf4jV % Test
     ) ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ testLib
   )
 
@@ -310,9 +310,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(
-    libraryDependencies ++= List(
-      "org.tukaani" % "xz"          % "1.9",
-      "org.slf4j"   % "slf4j-jdk14" % "1.7.36" % Test) ++
+    libraryDependencies ++= List("org.tukaani" % "xz" % "1.9", "org.slf4j" % "slf4j-jdk14" % slf4jV % Test) ++
       kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++ awsLib ++
       serdeLib ++ logLib ++ effectLib ++ testLib
   )
@@ -350,7 +348,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "io.netty"                               % "netty-all" % "4.1.79.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.1.0"     % Test
+      "com.julianpeeters" %% "avrohugger-core" % "1.1.1"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
