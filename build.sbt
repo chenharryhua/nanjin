@@ -179,7 +179,7 @@ val catsLib = List(
     "org.typelevel" %% "kittens"               % "2.3.2",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
     "org.typelevel" %% "algebra"               % "2.8.0",
-    "org.typelevel" %% "cats-collections-core" % "0.9.3"
+    "org.typelevel" %% "cats-collections-core" % "0.9.4"
   )
 
 val refinedLib = List(
@@ -310,9 +310,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(commonSettings: _*)
   .settings(name := "nj-pipes")
   .settings(
-    libraryDependencies ++= List(
-      "org.tukaani" % "xz"          % "1.9",
-      "org.slf4j"   % "slf4j-jdk14" % slf4jV % Test) ++
+    libraryDependencies ++= List("org.tukaani" % "xz" % "1.9", "org.slf4j" % "slf4j-jdk14" % slf4jV % Test) ++
       kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++ awsLib ++
       serdeLib ++ logLib ++ effectLib ++ testLib
   )
