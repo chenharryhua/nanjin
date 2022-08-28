@@ -32,7 +32,7 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.280")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.290")
 
 val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.4",
@@ -218,7 +218,7 @@ val http4sLib = List(
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-client",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "0.23.14")
+).map(_ % "0.23.15")
 
 val jwtLib = List(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -244,7 +244,7 @@ val baseLib = List(
   "org.apache.commons"                             % "commons-lang3" % "3.12.0",
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
-  "org.typelevel" %% "case-insensitive"            % "1.2.0",
+  "org.typelevel" %% "case-insensitive"            % "1.3.0",
   "io.scalaland" %% "chimney"                      % "0.6.2",
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
@@ -347,7 +347,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all" % "4.1.79.Final",
+      "io.netty"                               % "netty-all" % "4.1.80.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.1.1"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
