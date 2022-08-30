@@ -197,7 +197,7 @@ val akkaLib = List(
 
 val effectLib = List(
   "org.typelevel" %% "cats-effect" % catsEffect,
-  "dev.zio" %% "zio"               % "2.0.1" % Provided,
+  "dev.zio" %% "zio"               % "2.0.2" % Provided,
   "dev.zio" %% "zio-interop-cats"  % "3.3.0" % Provided,
   "io.monix" %% "monix-eval"       % "3.4.1" % Provided,
   "io.monix" %% "monix"            % "3.4.1" % Provided
@@ -336,7 +336,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
+    "ch.qos.logback" % "logback-classic" % "1.4.0" % Test
   ) ++ kafkaLib ++ akkaLib ++ logLib ++ effectLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
@@ -348,7 +348,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "io.netty"                               % "netty-all" % "4.1.80.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.1.1"     % Test
+      "com.julianpeeters" %% "avrohugger-core" % "1.2.0"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
