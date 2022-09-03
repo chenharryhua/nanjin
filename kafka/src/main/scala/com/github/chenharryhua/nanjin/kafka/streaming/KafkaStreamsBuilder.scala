@@ -7,6 +7,8 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.kafka.KafkaStreamSettings
 import fs2.Stream
 import fs2.concurrent.Channel
+import io.circe.{Encoder, Json}
+import io.scalaland.enumz.Enum
 import monocle.function.At.at
 import org.apache.kafka.streams.{KafkaStreams, Topology}
 import org.apache.kafka.streams.KafkaStreams.State
@@ -18,6 +20,18 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 case object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were stopped abnormally")
 
+final case class StateUpdate(newState: State, oldState: State)
+
+object StateUpdate {
+  private val es: Enum[State] = Enum[State]
+
+  implicit final val stateUpdateEncoder: Encoder[StateUpdate] = (a: StateUpdate) =>
+    Json.obj(
+      ("oldState", Json.fromString(es.getName(a.oldState))),
+      ("newState", Json.fromString(es.getName(a.newState)))
+    )
+}
+
 final class KafkaStreamsBuilder[F[_]] private (
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
@@ -28,12 +42,12 @@ final class KafkaStreamsBuilder[F[_]] private (
     dispatcher: Dispatcher[F],
     latch: CountDownLatch[F],
     stop: Deferred[F, Either[Throwable, Unit]],
-    bus: Option[Channel[F, State]]
+    bus: Option[Channel[F, StateUpdate]]
   ) extends KafkaStreams.StateListener {
 
     override def onChange(newState: State, oldState: State): Unit =
       dispatcher.unsafeRunSync(
-        bus.traverse(_.send(newState)) >>
+        bus.traverse(_.send(StateUpdate(newState, oldState))) >>
           (newState match {
             case State.RUNNING     => latch.release
             case State.NOT_RUNNING => stop.complete(Right(())).void
@@ -43,7 +57,7 @@ final class KafkaStreamsBuilder[F[_]] private (
       )
   }
 
-  private def kickoff(bus: Option[Channel[F, State]]): Stream[F, KafkaStreams] = {
+  private def kickoff(bus: Option[Channel[F, StateUpdate]]): Stream[F, KafkaStreams] = {
     def startKS(
       ks: KafkaStreams,
       dispatcher: Dispatcher[F],
@@ -69,8 +83,8 @@ final class KafkaStreamsBuilder[F[_]] private (
     */
   val kafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
 
-  val stream: Stream[F, State] = for {
-    bus <- Stream.eval(Channel.unbounded[F, State])
+  val stream: Stream[F, StateUpdate] = for {
+    bus <- Stream.eval(Channel.unbounded[F, StateUpdate])
     _ <- kickoff(Some(bus))
     state <- bus.stream
   } yield state
