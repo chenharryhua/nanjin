@@ -17,6 +17,8 @@ sealed trait KafkaMonitoringApi[F[_], K, V] {
   def watchFrom(njt: NJTimestamp)(implicit C: Console[F]): F[Unit]
   def watchFrom(njt: String)(implicit C: Console[F]): F[Unit]
 
+  def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean)(implicit F: Console[F]): F[Unit]
+
   def summaries(implicit C: Console[F]): F[Unit]
 
   def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit]
@@ -82,6 +84,9 @@ object KafkaMonitoringApi {
 
     override def watch(implicit F: Console[F]): F[Unit] =
       fetchData(AutoOffsetReset.Latest).evalMap(printJackson).compile.drain
+
+    override def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean)(implicit F: Console[F]): F[Unit] =
+      fetchData(AutoOffsetReset.Latest).filter(f).evalMap(printJackson).compile.drain
 
     override def watchFromEarliest(implicit F: Console[F]): F[Unit] =
       fetchData(AutoOffsetReset.Earliest).evalMap(printJackson).compile.drain
