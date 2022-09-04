@@ -12,24 +12,25 @@ import org.typelevel.cats.time.instances.localtime
 import java.io.ByteArrayOutputStream
 
 sealed trait KafkaMonitoringApi[F[_], K, V] {
-  def watch(implicit F: Console[F]): F[Unit]
-  def watchFromEarliest(implicit F: Console[F]): F[Unit]
-  def watchFrom(njt: NJTimestamp)(implicit C: Console[F]): F[Unit]
-  def watchFrom(njt: String)(implicit C: Console[F]): F[Unit]
+  def watch: F[Unit]
+  def watchFromEarliest: F[Unit]
+  def watchFrom(njt: NJTimestamp): F[Unit]
+  def watchFrom(njt: String): F[Unit]
 
-  def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean)(implicit F: Console[F]): F[Unit]
+  def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean): F[Unit]
 
-  def summaries(implicit C: Console[F]): F[Unit]
+  def summaries: F[Unit]
 
   def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit]
 }
 
 object KafkaMonitoringApi {
 
-  def apply[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
+  def apply[F[_]: Async: Console, K, V](topic: KafkaTopic[F, K, V]): KafkaMonitoringApi[F, K, V] =
     new KafkaTopicMonitoring[F, K, V](topic)
 
-  final private class KafkaTopicMonitoring[F[_]: Async, K, V](topic: KafkaTopic[F, K, V])
+  final private class KafkaTopicMonitoring[F[_]: Async, K, V](topic: KafkaTopic[F, K, V])(implicit
+    C: Console[F])
       extends KafkaMonitoringApi[F, K, V] with localtime {
 
     private def fetchData(aor: AutoOffsetReset): Stream[F, NJConsumerRecordWithError[K, V]] =
@@ -38,8 +39,7 @@ object KafkaMonitoringApi {
         .stream
         .map(m => topic.decode(m))
 
-    private def printJackson(cr: NJConsumerRecordWithError[K, V], index: Long)(implicit
-      C: Console[F]): F[Unit] =
+    private def printJackson(cr: NJConsumerRecordWithError[K, V], index: Long): F[Unit] =
       Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use {
         bos =>
           for {
@@ -64,7 +64,7 @@ object KafkaMonitoringApi {
           } yield ()
       }
 
-    override def watchFrom(njt: NJTimestamp)(implicit C: Console[F]): F[Unit] = {
+    override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
         kcs <- Stream.resource(topic.shortLiveConsumer)
         gtp <- Stream.eval(for {
@@ -81,13 +81,13 @@ object KafkaMonitoringApi {
       run.compile.drain
     }
 
-    override def watchFrom(njt: String)(implicit C: Console[F]): F[Unit] =
+    override def watchFrom(njt: String): F[Unit] =
       watchFrom(NJTimestamp(njt, topic.context.settings.zoneId))
 
-    override def watch(implicit F: Console[F]): F[Unit] =
+    override def watch: F[Unit] =
       fetchData(AutoOffsetReset.Latest).zipWithIndex.evalMap(x => printJackson(x._1, x._2)).compile.drain
 
-    override def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean)(implicit F: Console[F]): F[Unit] =
+    override def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean): F[Unit] =
       fetchData(AutoOffsetReset.Latest)
         .filter(f)
         .zipWithIndex
@@ -95,10 +95,10 @@ object KafkaMonitoringApi {
         .compile
         .drain
 
-    override def watchFromEarliest(implicit F: Console[F]): F[Unit] =
+    override def watchFromEarliest: F[Unit] =
       fetchData(AutoOffsetReset.Earliest).zipWithIndex.evalMap(x => printJackson(x._1, x._2)).compile.drain
 
-    override def summaries(implicit C: Console[F]): F[Unit] =
+    override def summaries: F[Unit] =
       topic.shortLiveConsumer.use { consumer =>
         for {
           num <- consumer.offsetRangeForAll
@@ -134,7 +134,7 @@ object KafkaMonitoringApi {
           }
           .through(other.produce.pipe)
       } yield ()
-      run.chunkN(10000).map(_ => print(".")).compile.drain
+      run.chunkN(10000).map(_ => C.print(".")).compile.drain
     }
   }
 }
