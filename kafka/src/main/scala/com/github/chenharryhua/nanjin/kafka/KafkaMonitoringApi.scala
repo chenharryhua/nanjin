@@ -38,7 +38,8 @@ object KafkaMonitoringApi {
         .stream
         .map(m => topic.decode(m))
 
-    private def printJackson(cr: NJConsumerRecordWithError[K, V])(implicit C: Console[F]): F[Unit] =
+    private def printJackson(cr: NJConsumerRecordWithError[K, V], index: Long)(implicit
+      C: Console[F]): F[Unit] =
       Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use {
         bos =>
           for {
@@ -59,7 +60,7 @@ object KafkaMonitoringApi {
               bos.flush()
               bos.toString()
             }
-            _ <- C.println("----------------------------------------")
+            _ <- C.println(f"$index%20d-------------------".replace(" ", "-"))
           } yield ()
       }
 
@@ -74,7 +75,8 @@ object KafkaMonitoringApi {
           .updateConfig(_.withEnableAutoCommit(false))
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decode(m))
-          .evalMap(printJackson)
+          .zipWithIndex
+          .evalMap(x => printJackson(x._1, x._2))
       } yield ()
       run.compile.drain
     }
@@ -83,13 +85,18 @@ object KafkaMonitoringApi {
       watchFrom(NJTimestamp(njt, topic.context.settings.zoneId))
 
     override def watch(implicit F: Console[F]): F[Unit] =
-      fetchData(AutoOffsetReset.Latest).evalMap(printJackson).compile.drain
+      fetchData(AutoOffsetReset.Latest).zipWithIndex.evalMap(x => printJackson(x._1, x._2)).compile.drain
 
     override def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean)(implicit F: Console[F]): F[Unit] =
-      fetchData(AutoOffsetReset.Latest).filter(f).evalMap(printJackson).compile.drain
+      fetchData(AutoOffsetReset.Latest)
+        .filter(f)
+        .zipWithIndex
+        .evalMap(x => printJackson(x._1, x._2))
+        .compile
+        .drain
 
     override def watchFromEarliest(implicit F: Console[F]): F[Unit] =
-      fetchData(AutoOffsetReset.Earliest).evalMap(printJackson).compile.drain
+      fetchData(AutoOffsetReset.Earliest).zipWithIndex.evalMap(x => printJackson(x._1, x._2)).compile.drain
 
     override def summaries(implicit C: Console[F]): F[Unit] =
       topic.shortLiveConsumer.use { consumer =>

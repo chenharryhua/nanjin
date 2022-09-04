@@ -66,15 +66,15 @@ val circeLib = List(
 )
 
 val jacksonLib = List(
-  "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.13.3",
-  "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.13.3",
-  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.3",
-  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.13.3",
-  "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.13.3",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.13.3",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.13.3",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.3"
-)
+  "com.fasterxml.jackson.core"     % "jackson-annotations",
+  "com.fasterxml.jackson.core"     % "jackson-core",
+  "com.fasterxml.jackson.core"     % "jackson-databind",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala"
+).map(_ % "2.13.4")
 
 val kantanLib = List(
   "com.nrinaudo" %% "kantan.csv"         % "0.6.2",
