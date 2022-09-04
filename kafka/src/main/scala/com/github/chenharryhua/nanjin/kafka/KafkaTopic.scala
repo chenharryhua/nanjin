@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
@@ -75,7 +76,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
     ShortLiveConsumer(topicName, context.settings.consumerSettings.javaProperties)
 
-  def monitor(implicit F: Async[F]): KafkaMonitoringApi[F, K, V] =
+  def monitor(implicit F: Async[F], C: Console[F]): KafkaMonitoringApi[F, K, V] =
     KafkaMonitoringApi[F, K, V](this)
 
   val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
@@ -97,7 +98,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       topicName,
       Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
         Fs2Deserializer[F, Array[Byte]],
-        Fs2Deserializer[F, Array[Byte]]).withProperties(context.settings.consumerSettings.config))
+        Fs2Deserializer[F, Array[Byte]]).withProperties(context.settings.consumerSettings.config)
+    )
 
   def produce(implicit F: Sync[F]): Fs2Produce[F, K, V] =
     new Fs2Produce[F, K, V](
