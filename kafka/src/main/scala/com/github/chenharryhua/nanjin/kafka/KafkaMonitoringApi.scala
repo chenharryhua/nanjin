@@ -39,30 +39,31 @@ object KafkaMonitoringApi {
         .stream
         .map(m => topic.decode(m))
 
-    private def printJackson(cr: NJConsumerRecordWithError[K, V], index: Long): F[Unit] =
-      Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use {
-        bos =>
-          for {
-            _ <- C.println(
-              s"timestamp: ${cr.metaInfo(topic.context.settings.zoneId).timestamp.toLocalTime.show}")
-            _ <- cr.key.leftTraverse(C.println)
-            _ <- cr.value.leftTraverse(C.println)
-            _ <- C.println {
-              val aos: AvroOutputStream[NJConsumerRecord[K, V]] = AvroOutputStream
-                .json[NJConsumerRecord[K, V]](
-                  NJConsumerRecord
-                    .avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
-                    .avroEncoder)
-                .to(bos)
-                .build()
-              aos.write(cr.toNJConsumerRecord)
-              aos.close()
-              bos.flush()
-              bos.toString()
-            }
-            _ <- C.println(f"$index%20d-------------------".replace(" ", "-"))
-          } yield ()
-      }
+    private val printJackson: (NJConsumerRecordWithError[K, V], Long) => F[Unit] =
+      (cr: NJConsumerRecordWithError[K, V], index: Long) =>
+        Resource.fromAutoCloseable[F, ByteArrayOutputStream](Async[F].pure(new ByteArrayOutputStream)).use {
+          bos =>
+            for {
+              _ <- C.println(
+                s"timestamp: ${cr.metaInfo(topic.context.settings.zoneId).timestamp.toLocalTime.show}")
+              _ <- cr.key.leftTraverse(C.println)
+              _ <- cr.value.leftTraverse(C.println)
+              _ <- C.println {
+                val aos: AvroOutputStream[NJConsumerRecord[K, V]] = AvroOutputStream
+                  .json[NJConsumerRecord[K, V]](
+                    NJConsumerRecord
+                      .avroCodec(topic.codec.keySerde.avroCodec, topic.codec.valSerde.avroCodec)
+                      .avroEncoder)
+                  .to(bos)
+                  .build()
+                aos.write(cr.toNJConsumerRecord)
+                aos.close()
+                bos.flush()
+                bos.toString()
+              }
+              _ <- C.println(f"$index%20d-------------------".replace(" ", "-"))
+            } yield ()
+        }
 
     override def watchFrom(njt: NJTimestamp): F[Unit] = {
       val run: Stream[F, Unit] = for {
@@ -76,7 +77,7 @@ object KafkaMonitoringApi {
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decode(m))
           .zipWithIndex
-          .evalMap(x => printJackson(x._1, x._2))
+          .evalMap(printJackson.tupled)
       } yield ()
       run.compile.drain
     }
@@ -85,18 +86,13 @@ object KafkaMonitoringApi {
       watchFrom(NJTimestamp(njt, topic.context.settings.zoneId))
 
     override def watch: F[Unit] =
-      fetchData(AutoOffsetReset.Latest).zipWithIndex.evalMap(x => printJackson(x._1, x._2)).compile.drain
+      fetchData(AutoOffsetReset.Latest).zipWithIndex.evalMap(printJackson.tupled).compile.drain
 
     override def watchFilter(f: NJConsumerRecordWithError[K, V] => Boolean): F[Unit] =
-      fetchData(AutoOffsetReset.Latest)
-        .filter(f)
-        .zipWithIndex
-        .evalMap(x => printJackson(x._1, x._2))
-        .compile
-        .drain
+      fetchData(AutoOffsetReset.Latest).filter(f).zipWithIndex.evalMap(printJackson.tupled).compile.drain
 
     override def watchFromEarliest: F[Unit] =
-      fetchData(AutoOffsetReset.Earliest).zipWithIndex.evalMap(x => printJackson(x._1, x._2)).compile.drain
+      fetchData(AutoOffsetReset.Earliest).zipWithIndex.evalMap(printJackson.tupled).compile.drain
 
     override def summaries: F[Unit] =
       topic.shortLiveConsumer.use { consumer =>
@@ -134,7 +130,7 @@ object KafkaMonitoringApi {
           }
           .through(other.produce.pipe)
       } yield ()
-      run.chunkN(10000).map(_ => C.print(".")).compile.drain
+      run.chunkN(1000).map(_ => C.print(".")).compile.drain
     }
   }
 }

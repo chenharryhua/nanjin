@@ -5,14 +5,15 @@ ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / version            := "0.15.7-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
-val catsCore     = "2.8.0"
-val monocle      = "2.1.0"
-val catsEffect   = "3.3.14"
-val akka26       = "2.6.19"
-val confluent    = "7.2.1"
-val kafkaVersion = "7.2.1-ce"
-val avro         = "1.11.1"
-val slf4jV       = "1.7.36"
+val catsCoreV   = "2.8.0"
+val catsEffectV = "3.3.14"
+val monocleV    = "2.1.0"
+val akka26V     = "2.6.20"
+val confluentV  = "7.2.1"
+val kafkaV      = "7.2.1-ce"
+val avroV       = "1.11.1"
+val slf4jV      = "1.7.36"
+val metricsV    = "4.2.12"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -77,18 +78,17 @@ val jacksonLib = List(
 ).map(_ % "2.13.4")
 
 val kantanLib = List(
-  "com.nrinaudo" %% "kantan.csv"         % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-java8"   % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-generic" % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-cats"    % "0.6.2",
-  "com.nrinaudo" %% "kantan.codecs"      % "0.5.3"
-)
+  "com.nrinaudo" %% "kantan.csv",
+  "com.nrinaudo" %% "kantan.csv-java8",
+  "com.nrinaudo" %% "kantan.csv-generic",
+  "com.nrinaudo" %% "kantan.csv-cats"
+).map(_ % "0.7.0")
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
   "com.google.protobuf"                       % "protobuf-java"             % "3.21.5",
   "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.5",
-  "io.confluent"                              % "kafka-protobuf-serializer" % confluent
+  "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
 )
 
 val serdeLib = List(
@@ -96,15 +96,15 @@ val serdeLib = List(
   "org.apache.parquet"                   % "parquet-common"           % "1.12.3",
   "org.apache.parquet"                   % "parquet-hadoop"           % "1.12.3",
   "org.apache.parquet"                   % "parquet-avro"             % "1.12.3",
-  "org.apache.avro"                      % "avro"                     % avro,
-  "io.confluent"                         % "kafka-streams-avro-serde" % confluent
+  "org.apache.avro"                      % "avro"                     % avroV,
+  "io.confluent"                         % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.12")
+).map(_ % "3.2.14")
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -112,7 +112,7 @@ val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-macro",
   "com.github.julien-truffaut" %% "monocle-state",
   "com.github.julien-truffaut" %% "monocle-unsafe"
-).map(_ % monocle)
+).map(_ % monocleV)
 
 val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
@@ -129,29 +129,29 @@ val sparkLib = List(
 ).map(_ % "0.13.0") ++ List(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
-).map(_ % avro)
+).map(_ % avroV)
 
 val testLib = List(
-  "org.typelevel" %% "cats-effect-testkit"                    % catsEffect,
+  "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
   "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
-  "org.typelevel" %% "cats-laws"                              % catsCore,
+  "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.13",
-  "com.github.julien-truffaut" %% "monocle-law"               % monocle,
+  "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
-  "com.typesafe.akka" %% "akka-stream-testkit"                % akka26,
+  "com.typesafe.akka" %% "akka-stream-testkit"                % akka26V,
   "org.typelevel" %% "algebra-laws"                           % "2.8.0",
   "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "3.0.1",
   "com.github.pathikrit" %% "better-files"                    % "3.9.1"
 ).map(_ % Test)
 
 val kafkaLib = List(
-  "io.confluent"                              % "kafka-schema-registry-client" % confluent,
-  "io.confluent"                              % "kafka-schema-serializer"      % confluent,
-  "org.apache.kafka"                          % "kafka-streams"                % kafkaVersion,
-  "org.apache.kafka" %% "kafka-streams-scala" % kafkaVersion,
+  "io.confluent"                              % "kafka-schema-registry-client" % confluentV,
+  "io.confluent"                              % "kafka-schema-serializer"      % confluentV,
+  "org.apache.kafka"                          % "kafka-streams"                % kafkaV,
+  "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
   ("com.typesafe.akka" %% "akka-stream-kafka" % "3.0.1").exclude("org.apache.kafka", "kafka-clients"),
   ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M9").exclude("org.apache.kafka", "kafka-clients")
 )
@@ -173,7 +173,7 @@ val catsLib = List(
   "org.typelevel" %% "cats-core",
   "org.typelevel" %% "cats-free",
   "org.typelevel" %% "alleycats-core"
-).map(_ % catsCore) ++
+).map(_ % catsCoreV) ++
   List(
     "org.typelevel" %% "cats-mtl"              % "1.3.0",
     "org.typelevel" %% "kittens"               % "2.3.2",
@@ -193,10 +193,10 @@ val akkaLib = List(
   "com.typesafe.akka" %% "akka-protobuf",
   "com.typesafe.akka" %% "akka-stream-typed",
   "com.typesafe.akka" %% "akka-stream"
-).map(_ % akka26)
+).map(_ % akka26V)
 
 val effectLib = List(
-  "org.typelevel" %% "cats-effect" % catsEffect,
+  "org.typelevel" %% "cats-effect" % catsEffectV,
   "dev.zio" %% "zio"               % "2.0.2" % Provided,
   "dev.zio" %% "zio-interop-cats"  % "3.3.0" % Provided,
   "io.monix" %% "monix-eval"       % "3.4.1" % Provided,
@@ -206,7 +206,7 @@ val effectLib = List(
 val ftpLib = List(
   "commons-net"                                     % "commons-net" % "3.8.0",
   "com.hierynomus"                                  % "sshj"        % "0.34.0",
-  "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "3.0.4"
+  "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "4.0.0"
 )
 
 val logLib = List(
@@ -228,11 +228,11 @@ val jwtLib = List(
 )
 
 val metricLib = List(
-  "io.dropwizard.metrics" % "metrics-core" % "4.2.11",
-  "io.dropwizard.metrics" % "metrics-json" % "4.2.11",
-  "io.dropwizard.metrics" % "metrics-jmx"  % "4.2.11",
-  "io.dropwizard.metrics" % "metrics-jvm"  % "4.2.11"
-)
+  "io.dropwizard.metrics" % "metrics-core",
+  "io.dropwizard.metrics" % "metrics-json",
+  "io.dropwizard.metrics" % "metrics-jmx",
+  "io.dropwizard.metrics" % "metrics-jvm"
+).map(_ % metricsV)
 
 val cronLib = List(
   "eu.timepit" %% "fs2-cron-cron4s"                 % "0.7.2",
@@ -258,7 +258,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.dropwizard.metrics"             % "metrics-core" % "4.2.11" % Provided,
+      "io.dropwizard.metrics"             % "metrics-core" % metricsV % Provided,
       "org.typelevel" %% "log4cats-slf4j" % "2.4.0"        % Provided
     ) ++ baseLib ++ testLib
   )

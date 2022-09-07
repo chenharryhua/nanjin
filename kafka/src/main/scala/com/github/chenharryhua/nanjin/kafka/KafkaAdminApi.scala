@@ -17,6 +17,8 @@ sealed trait KafkaAdminApi[F[_]] {
 
   def newTopic(numPartition: Int, numReplica: Short): F[Unit]
   def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
+
+  def deleteConsumerGroupOffsets(groupId: String): F[Unit]
 }
 
 object KafkaAdminApi {
@@ -24,10 +26,12 @@ object KafkaAdminApi {
   def apply[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]): KafkaAdminApi[F] =
     new KafkaTopicAdminApiImpl(topic)
 
-  final private class KafkaTopicAdminApiImpl[F[_]: Async, K, V](topic: KafkaTopic[F, K, V]) extends KafkaAdminApi[F] {
+  final private class KafkaTopicAdminApiImpl[F[_]: Async, K, V](topic: KafkaTopic[F, K, V])
+      extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
-      KafkaAdminClient.resource[F](AdminClientSettings("").withProperties(topic.context.settings.adminSettings.config))
+      KafkaAdminClient.resource[F](
+        AdminClientSettings("").withProperties(topic.context.settings.adminSettings.config))
 
     override def idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
       adminResource.use(_.deleteTopic(topic.topicName.value))
@@ -58,5 +62,10 @@ object KafkaAdminApi {
               .map(m => KafkaConsumerGroupInfo(gid, end, m)))
         } yield all.filter(_.lag.nonEmpty)
       }
+
+    override def deleteConsumerGroupOffsets(groupId: String): F[Unit] =
+      topic.shortLiveConsumer.use(_.partitionsFor.flatMap(tps =>
+        adminResource.use(_.deleteConsumerGroupOffsets(groupId, tps.value.toSet))))
+
   }
 }

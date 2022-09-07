@@ -30,7 +30,8 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
   final def asValue[V](avro: NJAvroCodec[V]): Serde[V] =
     SerdeOf[V](avro).asValue(settings.schemaRegistrySettings.config).serde
 
-  final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] = new KafkaTopic[F, K, V](topicDef, this)
+  final def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef, this)
 
   final def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
@@ -45,13 +46,19 @@ sealed abstract class KafkaContext[F[_]](val settings: KafkaSettings) extends Se
     topic(TopicDef[String, String](topicName))
 
   final def store[K: SerdeOf, V: SerdeOf](storeName: StoreName): NJStateStore[K, V] =
-    NJStateStore[K, V](storeName, settings.schemaRegistrySettings, RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
+    NJStateStore[K, V](
+      storeName,
+      settings.schemaRegistrySettings,
+      RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
 
-  final def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
+  final def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit
+    F: Async[F]): KafkaStreamsBuilder[F] =
     streaming.KafkaStreamsBuilder[F](settings.streamSettings, topology)
 
   final def schema(topicName: String)(implicit F: Sync[F]): F[String] =
-    new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(TopicName.unsafeFrom(topicName)).map(_.show)
+    new SchemaRegistryApi[F](settings.schemaRegistrySettings)
+      .kvSchema(TopicName.unsafeFrom(topicName))
+      .map(_.show)
 }
 
 private[kafka] object KafkaContext {
