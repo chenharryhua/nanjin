@@ -104,7 +104,7 @@ val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.13")
+).map(_ % "3.2.14")
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
