@@ -77,10 +77,10 @@ val jacksonLib = List(
 ).map(_ % "2.13.4")
 
 val kantanLib = List(
-  "com.nrinaudo" %% "kantan.csv"         % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-java8"   % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-generic" % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-cats"    % "0.6.2",
+  "com.nrinaudo" %% "kantan.csv"         % "0.7.0",
+  "com.nrinaudo" %% "kantan.csv-java8"   % "0.7.0",
+  "com.nrinaudo" %% "kantan.csv-generic" % "0.7.0",
+  "com.nrinaudo" %% "kantan.csv-cats"    % "0.7.0",
   "com.nrinaudo" %% "kantan.codecs"      % "0.5.3"
 )
 
