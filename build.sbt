@@ -8,7 +8,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 val catsCoreV   = "2.8.0"
 val catsEffectV = "3.3.14"
 val monocleV    = "2.1.0"
-val akka26V     = "2.6.19"
+val akka26V     = "2.6.20"
 val confluentV  = "7.2.1"
 val kafkaV      = "7.2.1-ce"
 val avroV       = "1.11.1"
@@ -78,12 +78,11 @@ val jacksonLib = List(
 ).map(_ % "2.13.4")
 
 val kantanLib = List(
-  "com.nrinaudo" %% "kantan.csv"         % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-java8"   % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-generic" % "0.6.2",
-  "com.nrinaudo" %% "kantan.csv-cats"    % "0.6.2",
-  "com.nrinaudo" %% "kantan.codecs"      % "0.5.3"
-)
+  "com.nrinaudo" %% "kantan.csv",
+  "com.nrinaudo" %% "kantan.csv-java8",
+  "com.nrinaudo" %% "kantan.csv-generic",
+  "com.nrinaudo" %% "kantan.csv-cats"
+).map(_ % "0.7.0")
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
@@ -105,7 +104,7 @@ val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.12")
+).map(_ % "3.2.13")
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -207,7 +206,7 @@ val effectLib = List(
 val ftpLib = List(
   "commons-net"                                     % "commons-net" % "3.8.0",
   "com.hierynomus"                                  % "sshj"        % "0.34.0",
-  "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "3.0.4"
+  "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "4.0.0"
 )
 
 val logLib = List(
