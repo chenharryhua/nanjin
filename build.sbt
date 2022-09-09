@@ -347,7 +347,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all" % "4.1.80.Final",
+      "io.netty"                               % "netty-all" % "4.1.81.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.2.0"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
