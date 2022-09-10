@@ -1,17 +1,12 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import akka.stream.IOResult
-import akka.stream.scaladsl.{Sink, Source, StreamConverters}
-import akka.util.ByteString
 import cats.effect.kernel.Sync
-import fs2.io.{readInputStream, writeOutputStream}
 import fs2.{Pipe, Stream}
+import fs2.io.{readInputStream, writeOutputStream}
 import io.scalaland.enumz.Enum
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.Information
-
-import scala.concurrent.Future
 
 final class NJBytes[F[_]] private (
   configuration: Configuration,
@@ -43,14 +38,6 @@ final class NJBytes[F[_]] private (
       .flatMap(os => ss.through(writeOutputStream(F.pure(os), closeAfterUse = false))) // avoid double close
   }
 
-  object akka {
-    def source(path: NJPath): Source[ByteString, Future[IOResult]] =
-      StreamConverters.fromInputStream(() => fileInputStream(path, configuration))
-
-    def sink(path: NJPath): Sink[ByteString, Future[IOResult]] =
-      StreamConverters.fromOutputStream(() =>
-        fileOutputStream(path, configuration, compressLevel, blockSizeHint))
-  }
 }
 
 object NJBytes {

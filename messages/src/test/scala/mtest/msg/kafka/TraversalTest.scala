@@ -1,6 +1,5 @@
 package mtest.msg.kafka
 
-import akka.kafka.ProducerMessage.MultiMessage as AkkaMultiMessage
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
@@ -11,9 +10,6 @@ import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 class TraversalTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
   import ArbitraryData.*
-  checkAll(
-    "akka.producer.MultiMessage",
-    TraversalTests(BitraverseMessages[AkkaMultiMessage[*, *, String]].traversal[Int, Int, Int, Int]))
 
 //  checkAll(
 //    "fs2.producer.ProducerRecords",

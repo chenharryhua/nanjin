@@ -1,6 +1,5 @@
 package mtest.kafka
 
-import akka.stream.scaladsl.Sink
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -8,7 +7,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import zio.interop.catz.*
 import zio.Task
 
-import scala.concurrent.Await
 import scala.concurrent.duration.*
 
 class ZioTest extends AnyFunSuite {
@@ -35,16 +33,4 @@ class ZioTest extends AnyFunSuite {
     runtime.run(task.exitCode)
   }
 
-  test("zio should work for akka.") {
-    val task = topic.akka
-      .comsume(akkaSystem)
-      .updateConfig(_.withClientId("akka-test"))
-      .source
-      .map(x => topic.decoder(x).decodeValue)
-      .take(1)
-      .map(_.toString)
-      .map(println)
-      .runWith(Sink.ignore)
-    Await.result(task, 10.seconds)
-  }
 }

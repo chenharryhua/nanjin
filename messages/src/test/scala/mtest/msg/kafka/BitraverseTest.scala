@@ -1,6 +1,5 @@
 package mtest.msg.kafka
 
-import akka.kafka.{ConsumerMessage as AkkaConsumerMessage, ProducerMessage as AkkaProducerMessage}
 import cats.Id
 import cats.effect.IO
 import cats.laws.discipline.BitraverseTests
@@ -42,26 +41,6 @@ class BitraverseTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
   checkAll(
     "fs2.producer.CommittableProducerRecords",
     BitraverseTests[Fs2CommittableProducerRecords[IO, *, *]].bitraverse[Option, Int, Int, Int, Int, Int, Int])
-
-  checkAll(
-    "akka.producer.ProducerMessage",
-    BitraverseTests[AkkaProducerMessage.Message[*, *, String]]
-      .bitraverse[Either[String, *], Int, Int, Int, Int, Int, Int])
-
-  checkAll(
-    "akka.consumer.CommittableMessage",
-    BitraverseTests[AkkaConsumerMessage.CommittableMessage]
-      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
-
-  checkAll(
-    "akka.consumer.TransactionalMessage",
-    BitraverseTests[AkkaConsumerMessage.TransactionalMessage]
-      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
-
-  checkAll(
-    "akka.producer.MultiMessage",
-    BitraverseTests[AkkaProducerMessage.MultiMessage[*, *, String]]
-      .bitraverse[Either[Long, *], Int, Int, Int, Int, Int, Int])
 
   checkAll(
     "kafka.consumer.ConsumerRecord",

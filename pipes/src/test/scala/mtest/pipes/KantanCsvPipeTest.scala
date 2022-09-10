@@ -1,6 +1,5 @@
 package mtest.pipes
 
-import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.KantanSerde
@@ -8,10 +7,10 @@ import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.CsvConfiguration
+import kantan.csv.generic.*
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.InformationConversions.*
-import kantan.csv.generic.*
 
 class KantanCsvPipeTest extends AnyFunSuite {
   import TestData.*
@@ -26,31 +25,6 @@ class KantanCsvPipeTest extends AnyFunSuite {
         .through(KantanSerde.fromBytes[IO, Tiger](CsvConfiguration.rfc, 5))
         .compile
         .toList
-        .unsafeRunSync() === tigers)
-  }
-
-  test("csv identity akka") {
-    import mtest.terminals.mat
-    assert(
-      IO.fromFuture(
-        IO(
-          Source(tigers)
-            .via(KantanSerde.akka.toByteString(CsvConfiguration.rfc))
-            .via(KantanSerde.akka.fromByteString[Tiger](CsvConfiguration.rfc))
-            .runFold(List.empty[Tiger]) { case (ss, i) => ss.appended(i) }))
-        .unsafeRunSync() === tigers)
-  }
-
-  test("csv identity akka header") {
-    import mtest.terminals.mat
-    val rfc = CsvConfiguration.rfc.withHeader("a", "b", "c")
-    assert(
-      IO.fromFuture(
-        IO(
-          Source(tigers)
-            .via(KantanSerde.akka.toByteString(rfc))
-            .via(KantanSerde.akka.fromByteString[Tiger](rfc))
-            .runFold(List.empty[Tiger]) { case (ss, i) => ss.appended(i) }))
         .unsafeRunSync() === tigers)
   }
 

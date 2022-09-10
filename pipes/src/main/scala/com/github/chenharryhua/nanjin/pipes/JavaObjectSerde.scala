@@ -1,11 +1,8 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import akka.NotUsed
-import akka.stream.scaladsl.Flow
-import akka.util.ByteString
 import cats.effect.kernel.{Async, Sync}
-import fs2.io.toInputStream
 import fs2.{Pipe, Pull, Stream}
+import fs2.io.toInputStream
 
 import java.io.*
 
@@ -25,7 +22,8 @@ object JavaObjectSerde {
   /** rely on EOFException.. not sure it is the right way
     */
   @SuppressWarnings(Array("AsInstanceOf"))
-  private def pullAll[F[_], A](ois: ObjectInputStream)(implicit F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
+  private def pullAll[F[_], A](ois: ObjectInputStream)(implicit
+    F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
         F.delay(try Some(ois.readObject().asInstanceOf[A])
@@ -45,15 +43,4 @@ object JavaObjectSerde {
     ss.through(toInputStream[F]).flatMap(readInputStream[F, A])
   }
 
-  object akka {
-
-    def toByteString[A]: Flow[A, ByteString, NotUsed] = Flow[A].map { a =>
-      val bos = new ByteArrayOutputStream
-      val oos = new ObjectOutputStream(bos)
-      oos.writeObject(a)
-      oos.close()
-      bos.close()
-      ByteString(bos.toByteArray)
-    }
-  }
 }

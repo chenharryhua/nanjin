@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.spark.table.NJTable
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
@@ -78,9 +78,6 @@ final class CrRdd[F[_], K, V] private[kafka] (
     val te = TypedEncoder[CRMetaInfo]
     new Statistics(ss.createDataset(rdd.map(CRMetaInfo(_)))(TypedExpressionEncoder(te)))
   }
-
-  def asSource: RddStreamSource[F, NJConsumerRecord[K, V]] =
-    new RddStreamSource[F, NJConsumerRecord[K, V]](rdd)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 

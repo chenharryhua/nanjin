@@ -6,8 +6,6 @@ import eu.timepit.refined.auto.*
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 package object kafka {
-  import akka.actor.ActorSystem
-  implicit val akkaSystem: ActorSystem = ActorSystem("nj-test")
 
   val ctx: KafkaContext[IO] =
     KafkaSettings.local
