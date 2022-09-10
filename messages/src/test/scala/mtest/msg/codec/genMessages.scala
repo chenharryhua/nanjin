@@ -1,12 +1,5 @@
 package mtest.msg.codec
 
-import akka.kafka.ConsumerMessage
-import akka.kafka.ConsumerMessage.{
-  CommittableMessage as AkkaConsumerMessage,
-  TransactionalMessage as AkkaTransactionalMessage
-}
-import akka.kafka.ProducerMessage.{Message as AkkaProducerMessage, MultiMessage as AkkaMultiMessage}
-import akka.kafka.testkit.ConsumerResultFactory
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
@@ -128,36 +121,4 @@ object genMessages {
 
   }
 
-  trait GenAkkaMessage extends GenKafkaMessage { self =>
-    import akka.kafka.ConsumerMessage.{GroupTopicPartition, PartitionOffset}
-
-    val genAkkaGroupTopicPartition: Gen[GroupTopicPartition] = for {
-      groupId <- Gen.asciiPrintableStr
-      topic <- Gen.asciiPrintableStr
-      partition <- Gen.posNum[Int]
-    } yield GroupTopicPartition(groupId, topic, partition)
-
-    val genAkkaConsumerMessage: Gen[AkkaConsumerMessage[Int, Int]] = for {
-      cr <- genConsumerRecord
-      gtp <- genAkkaGroupTopicPartition
-      offset <- Gen.posNum[Long]
-    } yield AkkaConsumerMessage(
-      cr,
-      ConsumerResultFactory.committableOffset(ConsumerMessage.PartitionOffset(gtp, offset), ""))
-
-    val genAkkaProducerMessage: Gen[AkkaProducerMessage[Int, Int, String]] = for {
-      cr <- genProducerRecord
-    } yield AkkaProducerMessage(cr, "pass-through-akka")
-
-    val genAkkaProducerMultiMessage: Gen[AkkaMultiMessage[Int, Int, String]] =
-      Gen
-        .containerOfN[List, ProducerRecord[Int, Int]](10, genProducerRecord)
-        .map(rs => AkkaMultiMessage(rs, "pass-through-multi"))
-
-    val genAkkaTransactionalMessage: Gen[AkkaTransactionalMessage[Int, Int]] = for {
-      cr <- genConsumerRecord
-      gtp <- genAkkaGroupTopicPartition
-      offset <- Gen.posNum[Long]
-    } yield AkkaTransactionalMessage(cr, new PartitionOffset(gtp, offset))
-  }
 }

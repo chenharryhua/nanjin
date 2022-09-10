@@ -1,6 +1,5 @@
 package mtest.pipes
 
-import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.CirceSerde
@@ -34,31 +33,6 @@ class CircePipeTest extends AnyFunSuite {
         .compile
         .toList
         .unsafeRunSync() === tigers)
-  }
-
-  test("circe identity - remove null akka") {
-    import mtest.terminals.mat
-    val rst = IO.fromFuture(
-      IO(
-        Source(tigers)
-          .via(CirceSerde.akka.toByteString(isKeepNull = false))
-          .via(CirceSerde.akka.fromByteString[Tiger])
-          .runFold(List.empty[Tiger]) { case (ss, i) => ss :+ i }))
-
-    assert(rst.unsafeRunSync() === tigers)
-  }
-
-  test("circe identity - keep null akka") {
-    import mtest.terminals.*
-    val src = Source(tigers)
-    val rst = IO.fromFuture(
-      IO(
-        src
-          .via(CirceSerde.akka.toByteString(isKeepNull = true))
-          .via(CirceSerde.akka.fromByteString[Tiger])
-          .runFold(List.empty[Tiger]) { case (ss, i) => ss :+ i }))
-
-    assert(rst.unsafeRunSync() === tigers)
   }
 
   test("read/write test uncompressed") {

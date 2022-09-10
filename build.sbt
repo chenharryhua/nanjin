@@ -2,13 +2,12 @@ ThisBuild / scalaVersion       := "2.13.8"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.15.7-SNAPSHOT"
+ThisBuild / version            := "0.16.0-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.8.0"
 val catsEffectV = "3.3.14"
 val monocleV    = "2.1.0"
-val akka26V     = "2.6.20"
 val confluentV  = "7.2.1"
 val kafkaV      = "7.2.1-ce"
 val avroV       = "1.11.1"
@@ -141,9 +140,7 @@ val testLib = List(
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
-  "com.typesafe.akka" %% "akka-stream-testkit"                % akka26V,
   "org.typelevel" %% "algebra-laws"                           % "2.8.0",
-  "com.typesafe.akka" %% "akka-stream-kafka-testkit"          % "3.0.1",
   "com.github.pathikrit" %% "better-files"                    % "3.9.1"
 ).map(_ % Test)
 
@@ -152,7 +149,6 @@ val kafkaLib = List(
   "io.confluent"                              % "kafka-schema-serializer"      % confluentV,
   "org.apache.kafka"                          % "kafka-streams"                % kafkaV,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
-  ("com.typesafe.akka" %% "akka-stream-kafka" % "3.0.1").exclude("org.apache.kafka", "kafka-clients"),
   ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M9").exclude("org.apache.kafka", "kafka-clients")
 )
 
@@ -187,26 +183,12 @@ val refinedLib = List(
   "eu.timepit" %% "refined-cats"
 ).map(_ % "0.10.1")
 
-val akkaLib = List(
-  "com.typesafe.akka" %% "akka-actor-typed",
-  "com.typesafe.akka" %% "akka-actor",
-  "com.typesafe.akka" %% "akka-protobuf",
-  "com.typesafe.akka" %% "akka-stream-typed",
-  "com.typesafe.akka" %% "akka-stream"
-).map(_ % akka26V)
-
 val effectLib = List(
   "org.typelevel" %% "cats-effect" % catsEffectV,
   "dev.zio" %% "zio"               % "2.0.2" % Provided,
   "dev.zio" %% "zio-interop-cats"  % "3.3.0" % Provided,
   "io.monix" %% "monix-eval"       % "3.4.1" % Provided,
   "io.monix" %% "monix"            % "3.4.1" % Provided
-)
-
-val ftpLib = List(
-  "commons-net"                                     % "commons-net" % "3.8.0",
-  "com.hierynomus"                                  % "sshj"        % "0.34.0",
-  "com.lightbend.akka" %% "akka-stream-alpakka-ftp" % "4.0.0"
 )
 
 val logLib = List(
@@ -311,7 +293,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List("org.tukaani" % "xz" % "1.9", "org.slf4j" % "slf4j-jdk14" % slf4jV % Test) ++
-      kantanLib ++ ftpLib ++ akkaLib ++ hadoopLib ++ awsLib ++
+      kantanLib ++ hadoopLib ++ awsLib ++
       serdeLib ++ logLib ++ effectLib ++ testLib
   )
 
@@ -337,7 +319,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % "1.4.0" % Test
-  ) ++ kafkaLib ++ akkaLib ++ logLib ++ effectLib ++ testLib)
+  ) ++ kafkaLib  ++ logLib ++ effectLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)

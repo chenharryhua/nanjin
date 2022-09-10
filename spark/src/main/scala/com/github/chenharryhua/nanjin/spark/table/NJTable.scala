@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, RddStreamSource}
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.zaxxer.hikari.HikariConfig
 import frameless.TypedDataset
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
@@ -33,8 +33,6 @@ final class NJTable[F[_], A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) 
 
   def save: RddAvroFileHoarder[F, A] =
     new RddAvroFileHoarder[F, A](dataset.rdd, ate.avroCodec.avroEncoder)
-
-  def asSource: RddStreamSource[F, A] = new RddStreamSource[F, A](dataset.rdd)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
 

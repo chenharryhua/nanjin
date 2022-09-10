@@ -21,7 +21,7 @@ class KantanCsvTest extends AnyFunSuite {
   implicit val encoderTablet: HeaderEncoder[Tablet] = shapeless.cachedImplicit
   implicit val decoderTablet: RowDecoder[Tablet]    = shapeless.cachedImplicit
 
-  def saver(path: NJPath) = new RddFileHoarder[IO, Tablet](rdd).kantan(path)
+  def saver(path: NJPath): SaveKantanCsv[IO, Tablet] = new RddFileHoarder[IO, Tablet](rdd).kantan(path)
 
   val hdp = sparkSession.hadoop[IO]
 

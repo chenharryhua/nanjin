@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import akka.kafka.ProducerMessage.MultiMessage as AkkaMultiMessage
 import cats.syntax.all.*
 import cats.{Applicative, Bitraverse, Eval}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
@@ -12,7 +11,8 @@ import org.apache.kafka.clients.producer.ProducerRecord
 
 sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKafkaRecord {
 
-  def traversal[K1, V1, K2, V2]: PTraversal[F[K1, V1], F[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]]
+  def traversal[K1, V1, K2, V2]
+    : PTraversal[F[K1, V1], F[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]]
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(implicit
     G: Applicative[G]): G[F[C, D]] =
@@ -47,20 +47,4 @@ object BitraverseMessages {
         }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
-  implicit def imsbi4[P]: BitraverseMessages[AkkaMultiMessage[*, *, P]] =
-    new BitraverseMessages[AkkaMultiMessage[*, *, P]] {
-
-      override def traversal[K1, V1, K2, V2]: PTraversal[
-        AkkaMultiMessage[K1, V1, P],
-        AkkaMultiMessage[K2, V2, P],
-        ProducerRecord[K1, V1],
-        ProducerRecord[K2, V2]] =
-        PLens[
-          AkkaMultiMessage[K1, V1, P],
-          AkkaMultiMessage[K2, V2, P],
-          Chunk[ProducerRecord[K1, V1]],
-          Chunk[ProducerRecord[K2, V2]]](prs => Chunk.seq(prs.records)) { b => s =>
-          s.copy(records = b.toList)
-        }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
-    }
 }

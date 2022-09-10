@@ -1,12 +1,14 @@
 package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
+import fs2.Stream
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -31,7 +33,8 @@ package object spark {
     def save[F[_]](encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
       new RddAvroFileHoarder[F, A](rdd, encoder)
 
-    def asSource[F[_]]: RddStreamSource[F, A] = new RddStreamSource[F, A](rdd)
+    def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
+      Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
 
   }
 
@@ -40,8 +43,8 @@ package object spark {
     def dismissNulls: Dataset[A] = ds.flatMap(Option(_))(ds.encoder)
     def numOfNulls: Long         = ds.except(dismissNulls).count()
 
-    def asSource[F[_]]: RddStreamSource[F, A] = new RddStreamSource[F, A](ds.rdd)
-
+    def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
+      Stream.fromBlockingIterator(ds.rdd.toLocalIterator, chunkSize.value)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {

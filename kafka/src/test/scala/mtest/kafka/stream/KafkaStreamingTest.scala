@@ -43,9 +43,10 @@ object KafkaStreamingData {
   val harvest: Stream[IO, StreamTarget] =
     tgt.consume.stream
       .map(x => tgt.decoder(x).decode)
-      .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 1.seconds)).drain)
+      .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
       .map(_.record.value)
       .debug(o => s"harvest: $o")
+      .onFinalize(IO.sleep(1.seconds))
 
   val expected: Set[StreamTarget] =
     Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
@@ -70,7 +71,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         s1Topic.fs2ProducerRecord(3, StreamOne("c", 2)),
         s1Topic.fs2ProducerRecord(201, StreamOne("d", 3)),
         s1Topic.fs2ProducerRecord(202, StreamOne("e", 4))
-      ).map(ProducerRecords.one(_)))
+      ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
       .through(s1Topic.produce.pipe)
@@ -87,8 +88,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .buildStreams(top)
       .kafkaStreams
       .concurrently(sendS1Data)
-      .flatMap(_ => harvest)
-      .interruptAfter(10.seconds)
+      .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
       .toList).unsafeRunSync().toSet
     assert(res == expected)
@@ -116,7 +116,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         s1TopicBin.fs2ProducerRecord(4, s1Topic.serializeVal(StreamOne("d", 4))),
         s1TopicBin.fs2ProducerRecord(5, "exception2".getBytes),
         s1TopicBin.fs2ProducerRecord(6, s1Topic.serializeVal(StreamOne("f", 6)))
-      ).map(ProducerRecords.one(_)))
+      ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
       .through(s1TopicBin.produce.pipe)
@@ -126,7 +126,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .buildStreams(top)
       .kafkaStreams
       .concurrently(sendS1Data)
-      .flatMap(_ => harvest.interruptAfter(6.seconds))
+      .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
       .toList).unsafeRunSync()
     assert(res == List(StreamTarget("a", 0, 0), StreamTarget("c", 0, 2)))
@@ -150,7 +150,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         s1TopicBin.fs2ProducerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
         s1TopicBin.fs2ProducerRecord(2, "exception1".getBytes),
         s1TopicBin.fs2ProducerRecord(3, s1Topic.serializeVal(StreamOne("c", 3)))
-      ).map(ProducerRecords.one(_)))
+      ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
       .through(s1TopicBin.produce.pipe)

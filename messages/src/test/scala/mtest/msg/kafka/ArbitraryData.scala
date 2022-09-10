@@ -1,10 +1,5 @@
 package mtest.msg.kafka
 
-import akka.kafka.ConsumerMessage.{
-  CommittableMessage as AkkaConsumerMessage,
-  TransactionalMessage as AkkaTransactionalMessage
-}
-import akka.kafka.ProducerMessage.{Message as AkkaProducerMessage, MultiMessage as AkkaMultiMessage}
 import cats.effect.IO
 import fs2.Chunk
 import fs2.kafka.{
@@ -27,7 +22,7 @@ final case class PrimitiveTypeCombined(
   e: String
 )
 
-object ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMessage {
+object ArbitraryData extends genMessage.GenFs2Message {
 
   // kafka
   implicit val abKafkaConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] =
@@ -75,24 +70,5 @@ object ArbitraryData extends genMessage.GenFs2Message with genMessage.GenAkkaMes
 
   implicit val abFs2TransactionalProducerRecords: Arbitrary[Fs2TransactionalProducerRecords[IO, Int, Int]] =
     Arbitrary(genFs2TransactionalProducerRecords)
-
-  // akka
-  implicit val abAkkaConsumerRecord: Arbitrary[AkkaConsumerMessage[Int, Int]] =
-    Arbitrary(genAkkaConsumerMessage)
-
-  implicit val cogenAkkaConsumerRecordF: Cogen[AkkaConsumerMessage[Int, Int]] =
-    Cogen(_.record.key().toLong)
-
-  implicit val abAkkaProducerRecord: Arbitrary[AkkaProducerMessage[Int, Int, String]] =
-    Arbitrary(genAkkaProducerMessage)
-
-  implicit val cogenAkkaProducerRecordF: Cogen[AkkaProducerMessage[Int, Int, String]] =
-    Cogen(_.record.value().toLong)
-
-  implicit val abAkkaProducerRecords: Arbitrary[AkkaMultiMessage[Int, Int, String]] =
-    Arbitrary(genAkkaProducerMultiMessage)
-
-  implicit val abAkkaTransactionalMessage: Arbitrary[AkkaTransactionalMessage[Int, Int]] =
-    Arbitrary(genAkkaTransactionalMessage)
 
 }
