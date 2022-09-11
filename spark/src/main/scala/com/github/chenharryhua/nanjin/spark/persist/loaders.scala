@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.pipes.KantanSerde
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import io.circe.Decoder as JsonDecoder
 import io.circe.parser.decode
 import kantan.csv.{CsvConfiguration, RowDecoder}
+import kantan.csv.ops.toCsvInputOps
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
@@ -73,13 +73,6 @@ private[spark] object loaders {
 
     def objectFile[A: ClassTag](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext.objectFile[A](path.pathStr)
-
-    def kantan[A: ClassTag](path: NJPath, ss: SparkSession, cfg: CsvConfiguration)(implicit
-      dec: RowDecoder[A]): RDD[A] =
-      ss.sparkContext.textFile(path.pathStr).mapPartitions { rows =>
-        val itor = if (cfg.hasHeader) rows.drop(1) else rows
-        itor.map(KantanSerde.rowDecode(_, cfg, dec))
-      }
 
     def circe[A: ClassTag: JsonDecoder](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext
@@ -175,5 +168,18 @@ private[spark] object loaders {
             new ClosableIterator[A](is, itor)
           }
         )
+
+    def kantan[A: ClassTag](path: NJPath, ss: SparkSession, cfg: CsvConfiguration)(implicit
+      dec: RowDecoder[A]): RDD[A] =
+      ss.sparkContext
+        .binaryFiles(path.pathStr)
+        .mapPartitions(_.flatMap { case (_, pds) =>
+          val is: InputStream = decompressedInputStream(pds)
+          val itor: Iterator[A] = is.asCsvReader[A](cfg).iterator.map {
+            case Left(ex)     => throw ex
+            case Right(value) => value
+          }
+          new ClosableIterator[A](is, itor)
+        })
   }
 }
