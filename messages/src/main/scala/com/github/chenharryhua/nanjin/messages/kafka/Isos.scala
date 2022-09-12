@@ -30,14 +30,16 @@ private[kafka] trait Isos {
   implicit def isoFs2ComsumerRecord[K, V]: Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
     Iso[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]](_.transformInto)(_.transformInto)
 
-  implicit def fromJavaProducerRecordTransformer[K, V]: Transformer[ProducerRecord[K, V], Fs2ProducerRecord[K, V]] =
+  implicit def fromJavaProducerRecordTransformer[K, V]
+    : Transformer[ProducerRecord[K, V], Fs2ProducerRecord[K, V]] =
     (pr: ProducerRecord[K, V]) =>
       Fs2ProducerRecord(pr.topic, pr.key, pr.value)
         .withPartition(pr.partition)
         .withTimestamp(pr.timestamp)
         .withHeaders(pr.headers.toArray.foldLeft(Fs2Headers.empty)((t, i) => t.append(i.key, i.value)))
 
-  implicit def toJavaProducerRecordTransformer[K, V]: Transformer[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
+  implicit def toJavaProducerRecordTransformer[K, V]
+    : Transformer[Fs2ProducerRecord[K, V], ProducerRecord[K, V]] =
     (fpr: Fs2ProducerRecord[K, V]) =>
       new ProducerRecord[K, V](
         fpr.topic,
@@ -47,7 +49,8 @@ private[kafka] trait Isos {
         fpr.value,
         fpr.headers.asJava)
 
-  implicit def fromJavaConsumerRecordTransformer[K, V]: Transformer[ConsumerRecord[K, V], Fs2ConsumerRecord[K, V]] =
+  implicit def fromJavaConsumerRecordTransformer[K, V]
+    : Transformer[ConsumerRecord[K, V], Fs2ConsumerRecord[K, V]] =
     (cr: ConsumerRecord[K, V]) => {
       val epoch: Option[Int] = cr.leaderEpoch().asScala.map(_.intValue())
       val fcr =
@@ -63,7 +66,8 @@ private[kafka] trait Isos {
       epoch.fold[Fs2ConsumerRecord[K, V]](fcr)(e => fcr.withLeaderEpoch(e))
     }
 
-  implicit def toJavaConsumerRecordTransformer[K, V]: Transformer[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
+  implicit def toJavaConsumerRecordTransformer[K, V]
+    : Transformer[Fs2ConsumerRecord[K, V], ConsumerRecord[K, V]] =
     (fcr: Fs2ConsumerRecord[K, V]) =>
       new ConsumerRecord[K, V](
         fcr.topic,

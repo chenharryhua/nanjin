@@ -8,7 +8,9 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 final case class RawKeyValueSerdePair[K, V](keySerde: SerdeOf[K], valSerde: SerdeOf[V]) {
   def register(srs: SchemaRegistrySettings, name: TopicName): KeyValueCodecPair[K, V] =
-    KeyValueCodecPair(keySerde.asKey(srs.config).codec(name.value), valSerde.asValue(srs.config).codec(name.value))
+    KeyValueCodecPair(
+      keySerde.asKey(srs.config).codec(name.value),
+      valSerde.asValue(srs.config).codec(name.value))
 }
 
 final case class KeyValueCodecPair[K, V](keyCodec: NJCodec[K], valCodec: NJCodec[V]) {
@@ -26,7 +28,8 @@ final case class KeyValueCodecPair[K, V](keyCodec: NJCodec[K], valCodec: NJCodec
   val keyDeserializer: Deserializer[K] = keySerde.deserializer
   val valDeserializer: Deserializer[V] = valSerde.deserializer
 
-  def asRegisteredKeyValueSerdePair: RegisteredKeyValueSerdePair[K, V] = RegisteredKeyValueSerdePair(keySerde, valSerde)
+  def asRegisteredKeyValueSerdePair: RegisteredKeyValueSerdePair[K, V] =
+    RegisteredKeyValueSerdePair(keySerde, valSerde)
 }
 
-private [kafka]final case class RegisteredKeyValueSerdePair[K, V](keySerde: Serde[K], valSerde: Serde[V])
+final case class RegisteredKeyValueSerdePair[K, V](keySerde: Serde[K], valSerde: Serde[V])

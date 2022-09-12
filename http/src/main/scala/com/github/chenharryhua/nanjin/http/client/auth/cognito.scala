@@ -108,7 +108,8 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = cfg,
-        middleware = compose(f, middleware))
+        middleware = compose(f, middleware)
+      )
 
     override def updateConfig(f: Endo[AuthConfig]): AuthorizationCode[F] =
       new AuthorizationCode[F](
@@ -119,7 +120,8 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = f(cfg),
-        middleware = middleware)
+        middleware = middleware
+      )
   }
 
   object AuthorizationCode {
@@ -138,7 +140,8 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = AuthConfig(1.day),
-        middleware = Reader(Resource.pure))
+        middleware = Reader(Resource.pure)
+      )
   }
 
   final class ClientCredentials[F[_]] private (

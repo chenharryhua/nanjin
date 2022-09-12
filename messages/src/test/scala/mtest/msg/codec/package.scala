@@ -2,7 +2,6 @@ package mtest.msg
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, SerdeOf}
 
-
 package object codec {
   val sr: Map[String, String] = Map("schema.registry.url" -> "http://localhost:8081")
 

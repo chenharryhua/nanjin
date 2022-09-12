@@ -24,7 +24,8 @@ object Fractual {
   implicit val platedFractual: Plated[Fractual] =
     Plated[Fractual](new Traversal[Fractual, Fractual] {
 
-      override def modifyF[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit ev: Applicative[F]): F[Fractual] =
+      override def modifyF[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit
+        ev: Applicative[F]): F[Fractual] =
         s.value match {
           case None => ev.pure(Fractual(None))
           case Some(pl) =>

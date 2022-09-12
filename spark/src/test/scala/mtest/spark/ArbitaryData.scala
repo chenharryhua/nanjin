@@ -48,7 +48,8 @@ object ArbitaryData {
     Arbitrary(arbitrary[Int].map(SQLDate))
 
   implicit val arbLocalDateTime: Arbitrary[LocalDateTime] =
-    Arbitrary(arbitrary[Long].map(d => LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneId.of("Etc/UTC"))))
+    Arbitrary(
+      arbitrary[Long].map(d => LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneId.of("Etc/UTC"))))
 
   implicit val arbSQLTimestamp: Arbitrary[SQLTimestamp] = Arbitrary(arbitrary[Long].map(d => SQLTimestamp(d)))
 

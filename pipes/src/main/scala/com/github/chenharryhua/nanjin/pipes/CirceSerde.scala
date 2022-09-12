@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.pipes
 import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPERATOR
 import fs2.{Pipe, RaiseThrowable, Stream}
 import fs2.text.{lines, utf8}
-import io.circe.{Json, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.circe.parser.decode
 
 object CirceSerde {

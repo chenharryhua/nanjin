@@ -38,7 +38,8 @@ final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedM
 object KPB {
   def apply[A <: GeneratedMessage](a: A): KPB[A] = new KPB(a)
 
-  implicit def eqKPB[A <: GeneratedMessage: Eq]: Eq[KPB[A]] = (x: KPB[A], y: KPB[A]) => Eq[A].eqv(x.value, y.value)
+  implicit def eqKPB[A <: GeneratedMessage: Eq]: Eq[KPB[A]] = (x: KPB[A], y: KPB[A]) =>
+    Eq[A].eqv(x.value, y.value)
 
   implicit def showKPB[A <: GeneratedMessage: Show]: Show[KPB[A]] =
     (t: KPB[A]) => s"KPB(value=${Show[A].show(t.value)})"

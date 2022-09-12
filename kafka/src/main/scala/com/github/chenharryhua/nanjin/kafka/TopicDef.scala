@@ -37,7 +37,10 @@ object TopicDef {
         x.schemaForKey.schema == y.schemaForKey.schema &&
         x.schemaForVal.schema == y.schemaForVal.schema
 
-  def apply[K, V](topicName: TopicName, keySchema: NJAvroCodec[K], valSchema: NJAvroCodec[V]): TopicDef[K, V] = {
+  def apply[K, V](
+    topicName: TopicName,
+    keySchema: NJAvroCodec[K],
+    valSchema: NJAvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf(keySchema)
     val sv = SerdeOf(valSchema)
     new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))

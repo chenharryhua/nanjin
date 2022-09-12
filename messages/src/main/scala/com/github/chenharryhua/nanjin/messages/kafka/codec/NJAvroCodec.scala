@@ -23,7 +23,10 @@ import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
 import scala.util.Try
 
-final case class NJAvroCodec[A](schemaFor: SchemaFor[A], avroDecoder: AvroDecoder[A], avroEncoder: AvroEncoder[A]) {
+final case class NJAvroCodec[A](
+  schemaFor: SchemaFor[A],
+  avroDecoder: AvroDecoder[A],
+  avroEncoder: AvroEncoder[A]) {
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 

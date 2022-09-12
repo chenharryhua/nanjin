@@ -49,7 +49,8 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
     keyMap.foldLeft((List.empty[MetricDatum], last)) { case ((mds, last), (key, count)) =>
       last.get(key) match {
         case Some(old) =>
-          if (count > old) (key.metricDatum(report.timestamp.toInstant, count - old) :: mds, last.updated(key, count))
+          if (count > old)
+            (key.metricDatum(report.timestamp.toInstant, count - old) :: mds, last.updated(key, count))
           else if (count === old) (mds, last)
           else (key.metricDatum(report.timestamp.toInstant, count) :: mds, last.updated(key, count))
         case None =>
@@ -59,14 +60,18 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
   }
 
   def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
-    def go(cwc: CloudWatchClient[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
+    def go(
+      cwc: CloudWatchClient[F],
+      ss: Stream[F, NJEvent],
+      last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
-          val (mds, next) = events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
-            case ((lmd, last), mr) =>
-              val (mds, newLast) = buildMetricDatum(mr, last)
-              (mds ::: lmd, newLast)
-          }
+          val (mds, next) =
+            events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
+              case ((lmd, last), mr) =>
+                val (mds, newLast) = buildMetricDatum(mr, last)
+                (mds ::: lmd, newLast)
+            }
 
           val publish: F[List[Either[Throwable, PutMetricDataResult]]] =
             mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
