@@ -7,6 +7,7 @@ import io.circe.Decoder as JsonDecoder
 import io.circe.parser.decode
 import kantan.csv.{CsvConfiguration, RowDecoder}
 import kantan.csv.ops.toCsvInputOps
+import kantan.csv.CsvConfiguration.QuotePolicy
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
@@ -64,9 +65,20 @@ private[spark] object loaders {
     def json[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A]): Dataset[A] =
       ate.normalizeDF(ss.read.schema(ate.sparkSchema).json(path.pathStr))
 
-    def csv[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A]): Dataset[A] =
-      ate.normalizeDF(ss.read.schema(ate.sparkSchema).csv(path.pathStr))
-
+    def csv[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A], cfg: CsvConfiguration): Dataset[A] =
+      ate.normalizeDF(
+        ss.read
+          .schema(ate.sparkSchema)
+          .option("sep", cfg.cellSeparator.toString)
+          .option("quote", cfg.quote.toString)
+          .option(
+            "quoteAll",
+            cfg.quotePolicy match {
+              case QuotePolicy.Always     => true
+              case QuotePolicy.WhenNeeded => false
+            })
+          .option("header", cfg.hasHeader)
+          .csv(path.pathStr))
   }
 
   object rdd {

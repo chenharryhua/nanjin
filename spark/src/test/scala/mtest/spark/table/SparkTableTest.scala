@@ -152,7 +152,7 @@ class SparkTableTest extends AnyFunSuite {
     loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).csv(csv.pathStr)
     loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).format("avro").save(avro.pathStr)
 
-    assert(loader.spark.csv(csv).diff(loader.spark.json(json)).dataset.count() == 0)
+    assert(loader.spark.csv(csv, CsvConfiguration.rfc).diff(loader.spark.json(json)).dataset.count() == 0)
     assert(loader.spark.avro(avro).diff(loader.spark.parquet(parquet)).dataset.count() == 0)
   }
 

@@ -52,8 +52,8 @@ final class LoadTable[F[_], A] private[spark] (ate: AvroTypedEncoder[A], ss: Spa
     def avro(path: NJPath): NJTable[F, A] =
       new NJTable[F, A](loaders.spark.avro[A](path, ss, ate), ate)
 
-    def csv(path: NJPath): NJTable[F, A] =
-      new NJTable[F, A](loaders.spark.csv[A](path, ss, ate), ate)
+    def csv(path: NJPath, cfg: CsvConfiguration): NJTable[F, A] =
+      new NJTable[F, A](loaders.spark.csv[A](path, ss, ate, cfg), ate)
 
   }
 
