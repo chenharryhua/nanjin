@@ -1,7 +1,7 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.CsvConfiguration
@@ -9,6 +9,7 @@ import kantan.csv.generic.*
 import mtest.pipes.TestData
 import mtest.pipes.TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
+import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -56,5 +57,23 @@ class NJCsvTest extends AnyFunSuite {
   ignore("ZSTANDARD") {
     val cfg = CsvConfiguration.rfc
     fs2(fs2Root / "tiger.csv.zst", cfg, TestData.tigerSet)
+  }
+
+  test("ftp") {
+    val path = NJPath("ftp://localhost/data/tiger.csv")
+    val conf = new Configuration()
+    conf.set("fs.ftp.host", "localhost");
+    conf.set("fs.ftp.user.localhost", "chenh");
+    conf.set("fs.ftp.password.localhost", "test");
+    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE");
+    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem");
+    val hdp = NJHadoop[IO](conf)
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .through(hdp.kantan(CsvConfiguration.rfc).sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }
