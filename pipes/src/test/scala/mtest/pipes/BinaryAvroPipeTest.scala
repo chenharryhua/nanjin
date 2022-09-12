@@ -49,9 +49,15 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     val path = NJPath("data/pipe/bin-avro.avro")
     hd.delete(path).unsafeRunSync()
     val write =
-      data.map(encoder.to).through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger])).through(hd.bytes.sink(path))
+      data
+        .map(encoder.to)
+        .through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger]))
+        .through(hd.bytes.sink(path))
     val read =
-      hd.bytes.source(path).through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger])).map(Tiger.avroDecoder.decode)
+      hd.bytes
+        .source(path)
+        .through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger]))
+        .map(Tiger.avroDecoder.decode)
     val run = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)
   }

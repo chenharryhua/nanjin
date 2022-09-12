@@ -53,7 +53,8 @@ class NJComsumerRecordProp extends Properties("ConsumerRecord") {
 
   property("fs2.producer.record.conversion") = forAll { (op: NJProducerRecord[Int, Int]) =>
     val fpr = op.toFs2ProducerRecord("topic")
-    val re  = NJProducerRecord[Int, Int](fpr.partition, None, fpr.timestamp, Option(fpr.key), Option(fpr.value))
+    val re =
+      NJProducerRecord[Int, Int](fpr.partition, None, fpr.timestamp, Option(fpr.key), Option(fpr.value))
     re == op
   }
 }

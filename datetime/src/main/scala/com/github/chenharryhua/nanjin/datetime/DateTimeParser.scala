@@ -11,7 +11,10 @@ final case class FailedParsers(parsers: NonEmptyList[String]) extends AnyVal {
   def concat(other: FailedParsers): FailedParsers = FailedParsers(parsers ::: other.parsers)
 
   def parseException(str: String): DateTimeParseException =
-    new DateTimeParseException(s"""can not parse "$str" by any of [${parsers.toList.mkString(",")}]""", str, -1)
+    new DateTimeParseException(
+      s"""can not parse "$str" by any of [${parsers.toList.mkString(",")}]""",
+      str,
+      -1)
 }
 
 object FailedParsers {

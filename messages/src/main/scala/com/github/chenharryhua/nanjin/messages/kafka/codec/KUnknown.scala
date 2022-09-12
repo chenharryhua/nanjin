@@ -32,8 +32,9 @@ object KUnknown {
     // allow serialize to disk, forbid read back
     private val codec: Codec[KUnknown] = new Codec[KUnknown] {
       override def encode(value: KUnknown): String = value.value
-      override def decode(value: Any): KUnknown    = sys.error("KUknown is not allowed to do decode because schema is unknown")
-      override def schemaFor: SchemaFor[KUnknown]  = avroKUnknownSchemaFor
+      override def decode(value: Any): KUnknown =
+        sys.error("KUknown is not allowed to do decode because schema is unknown")
+      override def schemaFor: SchemaFor[KUnknown] = avroKUnknownSchemaFor
     }
     override val avroCodec: NJAvroCodec[KUnknown] = NJAvroCodec(codec.schemaFor, codec, codec)
 
@@ -50,7 +51,8 @@ object KUnknown {
       override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
         deSer.configure(configs, isKey)
 
-      @transient private[this] lazy val gdw: GenericDatumWriter[GenericRecord] = new GenericDatumWriter[GenericRecord]
+      @transient private[this] lazy val gdw: GenericDatumWriter[GenericRecord] =
+        new GenericDatumWriter[GenericRecord]
 
       override def deserialize(topic: String, data: Array[Byte]): KUnknown = {
         val gr: GenericRecord = deSer.deserialize(topic, data)

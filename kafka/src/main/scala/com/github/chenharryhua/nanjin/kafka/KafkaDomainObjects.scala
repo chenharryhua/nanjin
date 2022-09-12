@@ -109,11 +109,13 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) {
 
 object KafkaTopicPartition {
 
-  implicit final class KafkaTopicPartitionOps1[V](private val self: KafkaTopicPartition[Option[V]]) extends AnyVal {
+  implicit final class KafkaTopicPartitionOps1[V](private val self: KafkaTopicPartition[Option[V]])
+      extends AnyVal {
     def flatten: KafkaTopicPartition[V] =
       self.copy(value = self.value.mapFilter(identity))
   }
-  implicit final class KafkaTopicPartitionOps2(private val self: KafkaTopicPartition[Option[OffsetAndTimestamp]])
+  implicit final class KafkaTopicPartitionOps2(
+    private val self: KafkaTopicPartition[Option[OffsetAndTimestamp]])
       extends AnyVal {
     def offsets: KafkaTopicPartition[Option[KafkaOffset]] =
       self.copy(value = self.value.view.mapValues(_.map(x => KafkaOffset(x.offset))).toMap)
@@ -123,7 +125,9 @@ object KafkaTopicPartition {
   val emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]
 }
 
-final case class KafkaConsumerGroupInfo(groupId: KafkaGroupId, lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
+final case class KafkaConsumerGroupInfo(
+  groupId: KafkaGroupId,
+  lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
 
 object KafkaConsumerGroupInfo {
 

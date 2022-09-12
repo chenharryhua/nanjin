@@ -28,10 +28,7 @@ object Bee {
   implicit val eqBee: Eq[Bee] = new Eq[Bee] {
 
     override def eqv(x: Bee, y: Bee): Boolean =
-      x.a.length == y.a.length && x.a
-        .zip(y.a)
-        .forall(
-        a => a._1 === a._2) && x.b === y.b
+      x.a.length == y.a.length && x.a.zip(y.a).forall(a => a._1 === a._2) && x.b === y.b
   }
 
   val schemaText: String =

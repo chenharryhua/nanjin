@@ -25,27 +25,27 @@ object Key {
   * @param SquareId
   *   The id of the square that is part of the Milano GRID
   * @param TimeInterval
-  *   The beginning of the time interval expressed as the number of millisecond elapsed from the Unix Epoch on January
-  *   1st, 1970 at UTC. The end of the time interval can be obtained by adding 600000 milliseconds (10 minutes) to this
-  *   value.
+  *   The beginning of the time interval expressed as the number of millisecond elapsed from the Unix Epoch on
+  *   January 1st, 1970 at UTC. The end of the time interval can be obtained by adding 600000 milliseconds (10
+  *   minutes) to this value.
   * @param CountryCode
-  *   The phone country code of a nation. Depending on the measured activity this value assumes different meanings that
-  *   are explained later.
+  *   The phone country code of a nation. Depending on the measured activity this value assumes different
+  *   meanings that are explained later.
   * @param SmsInActivity
-  *   The activity in terms of received SMS inside the Square id, during the Time interval and sent from the nation
-  *   identified by the Country code.
+  *   The activity in terms of received SMS inside the Square id, during the Time interval and sent from the
+  *   nation identified by the Country code.
   * @param SmsOutActivity
-  *   The activity in terms of sent SMS inside the Square id, during the Time interval and received by the nation
-  *   identified by the Country code.
+  *   The activity in terms of sent SMS inside the Square id, during the Time interval and received by the
+  *   nation identified by the Country code.
   * @param CallInActivity
-  *   The activity in terms of received calls inside the Square id, during the Time interval and issued from the nation
-  *   identified by the Country code.
+  *   The activity in terms of received calls inside the Square id, during the Time interval and issued from
+  *   the nation identified by the Country code.
   * @param CallOutActivity
-  *   The activity in terms of issued calls inside the Square id, during the Time interval and received by the nation
-  *   identified by the Country code.
+  *   The activity in terms of issued calls inside the Square id, during the Time interval and received by the
+  *   nation identified by the Country code.
   * @param InternetTrafficActivity
-  *   The activity in terms of performed internet traffic inside the Square id, during the Time interval and by the
-  *   nation of the users performing the connection identified by the Country code.
+  *   The activity in terms of performed internet traffic inside the Square id, during the Time interval and
+  *   by the nation of the users performing the connection identified by the Country code.
   */
 final case class smsCallInternet(
   SquareId: Int,

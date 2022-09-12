@@ -5,10 +5,22 @@ import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsumerRecord, NJConsumerRecordWithError}
+import com.github.chenharryhua.nanjin.messages.kafka.{
+  NJConsumerMessage,
+  NJConsumerRecord,
+  NJConsumerRecordWithError
+}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.sksamuel.avro4s.AvroInputStream
-import fs2.kafka.{ConsumerSettings as Fs2ConsumerSettings, Deserializer as Fs2Deserializer, ProducerRecord as Fs2ProducerRecord, ProducerRecords as Fs2ProducerRecords, ProducerResult as Fs2ProducerResult, ProducerSettings as Fs2ProducerSettings, Serializer as Fs2Serializer}
+import fs2.kafka.{
+  ConsumerSettings as Fs2ConsumerSettings,
+  Deserializer as Fs2Deserializer,
+  ProducerRecord as Fs2ProducerRecord,
+  ProducerRecords as Fs2ProducerRecords,
+  ProducerResult as Fs2ProducerResult,
+  ProducerSettings as Fs2ProducerSettings,
+  Serializer as Fs2Serializer
+}
 import io.circe.Decoder
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord

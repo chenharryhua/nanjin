@@ -64,5 +64,7 @@ class KJsonEqTest extends CatsSuite with FunSuiteDiscipline {
   implicit val infereq0: Eq[CompositionType] = cats.derived.semiauto.eq[CompositionType]
 
   checkAll("KJson", EqTests[KJson[CompositionType]].eqv)
-  checkAll("KJson", DistributiveTests[KJson].distributive[CompositionType, CompositionType, CompositionType, List, Id])
+  checkAll(
+    "KJson",
+    DistributiveTests[KJson].distributive[CompositionType, CompositionType, CompositionType, List, Id])
 }

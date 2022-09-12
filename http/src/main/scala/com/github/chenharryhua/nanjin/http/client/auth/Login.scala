@@ -9,7 +9,8 @@ import scala.concurrent.duration.FiniteDuration
 
 trait Login[F[_], A] {
   def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]]
-  final def loginS(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = Stream.resource(loginR(client))
+  final def loginS(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] =
+    Stream.resource(loginR(client))
 
   final protected def compose(
     f: Client[F] => Resource[F, Client[F]],
