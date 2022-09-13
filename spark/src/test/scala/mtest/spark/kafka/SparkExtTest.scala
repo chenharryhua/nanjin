@@ -33,7 +33,7 @@ class SparkExtTest extends AnyFunSuite {
   val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = AvroTypedEncoder(topic.topicDef)
 
   test("stream") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.save.stream(100).compile.drain).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.output.stream(100).compile.drain).unsafeRunSync()
   }
 
   test("sparKafka rdd deal with primitive null ") {
@@ -61,14 +61,14 @@ class SparkExtTest extends AnyFunSuite {
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
     rdd
-      .save[IO](ate.avroCodec.avroEncoder)
+      .output[IO](ate.avroCodec.avroEncoder)
       .avro(NJPath("./data/test/spark/sytax/rdd/avro"))
       .run
       .unsafeRunSync()
-    rdd.save[IO].circe(NJPath("./data/test/spark/sytax/rdd/circe")).run.unsafeRunSync()
+    rdd.output[IO].circe(NJPath("./data/test/spark/sytax/rdd/circe")).run.unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
     ds.rdd
-      .save[IO](ate.avroCodec.avroEncoder)
+      .output[IO](ate.avroCodec.avroEncoder)
       .parquet(NJPath("./data/test/spark/sytax/ds/parquet"))
       .run
       .unsafeRunSync()

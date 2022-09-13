@@ -175,7 +175,7 @@ private[spark] object saveRDD {
     rdd
       .mapPartitions(
         iter =>
-          Iterator((NullWritable.get(), new Text(KantanSerde.headerStr(csvCfg, encoder)))) ++ // header
+          Iterator(Tuple2(NullWritable.get(), new Text(KantanSerde.headerStr(csvCfg, encoder)))) ++ // header
             iter.map(r => // body
               (NullWritable.get(), new Text(KantanSerde.rowEncode(r, csvCfg, encoder.rowEncoder)))),
         preservesPartitioning = true

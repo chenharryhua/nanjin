@@ -117,15 +117,15 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("save/load") {
-    loader.jdbc(hikari, "sparktest").save.avro(root / "base").run.unsafeRunSync()
+    loader.jdbc(hikari, "sparktest").output.avro(root / "base").run.unsafeRunSync()
 
-    loader.avro(root / "base").save.avro(root / "avro" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").save.binAvro(root / "bin.avro" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").save.jackson(root / "jackson" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").save.circe(root / "circe" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").save.kantan(root / "kantan" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").save.parquet(root / "parquet" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").save.objectFile(root / "obj" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.avro(root / "avro" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.binAvro(root / "bin.avro" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.jackson(root / "jackson" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.circe(root / "circe" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.kantan(root / "kantan" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.parquet(root / "parquet" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.objectFile(root / "obj" / 1).run.unsafeRunSync()
 
     val avro    = loader.avro(root / "avro" / 1)
     val binAvro = loader.binAvro(root / "bin.avro" / 1)

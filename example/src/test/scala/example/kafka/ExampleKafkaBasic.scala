@@ -43,7 +43,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("persist messages to local disk and then load data back into kafka") {
     val path = NJPath("./data/example/foo.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.save.circe(path).run).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run).unsafeRunSync()
     sparKafka
       .topic(fooTopic)
       .load

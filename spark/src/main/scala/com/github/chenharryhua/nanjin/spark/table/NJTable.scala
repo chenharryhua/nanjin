@@ -31,7 +31,7 @@ final class NJTable[F[_], A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) 
   def union(other: Dataset[A]): NJTable[F, A]    = transform(_.union(other))
   def union(other: NJTable[F, A]): NJTable[F, A] = union(other.dataset)
 
-  def save: RddAvroFileHoarder[F, A] =
+  def output: RddAvroFileHoarder[F, A] =
     new RddAvroFileHoarder[F, A](dataset.rdd, ate.avroCodec.avroEncoder)
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(dataset.count())

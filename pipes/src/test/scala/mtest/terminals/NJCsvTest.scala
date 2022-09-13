@@ -62,11 +62,11 @@ class NJCsvTest extends AnyFunSuite {
   test("ftp") {
     val path = NJPath("ftp://localhost/data/tiger.csv")
     val conf = new Configuration()
-    conf.set("fs.ftp.host", "localhost");
-    conf.set("fs.ftp.user.localhost", "chenh");
-    conf.set("fs.ftp.password.localhost", "test");
-    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE");
-    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem");
+    conf.set("fs.ftp.host", "localhost")
+    conf.set("fs.ftp.user.localhost", "chenh")
+    conf.set("fs.ftp.password.localhost", "test")
+    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
+    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
     val hdp = NJHadoop[IO](conf)
     Stream
       .emits(TestData.tigerSet.toList)
