@@ -21,6 +21,8 @@ final class LoadTable[F[_], A] private[spark] (ate: AvroTypedEncoder[A], ss: Spa
   def data[G[_]: Foldable](list: G[A]): NJTable[F, A] =
     new NJTable[F, A](ate.normalize(ss.createDataset(list.toList)(ate.sparkEncoder)), ate)
 
+  def empty: NJTable[F, A] = new NJTable[F, A](ate.emptyDataset(ss), ate)
+
   def parquet(path: NJPath): NJTable[F, A] =
     new NJTable[F, A](loaders.parquet[A](path, ss, ate), ate)
 
@@ -52,8 +54,8 @@ final class LoadTable[F[_], A] private[spark] (ate: AvroTypedEncoder[A], ss: Spa
     def avro(path: NJPath): NJTable[F, A] =
       new NJTable[F, A](loaders.spark.avro[A](path, ss, ate), ate)
 
-    def csv(path: NJPath): NJTable[F, A] =
-      new NJTable[F, A](loaders.spark.csv[A](path, ss, ate), ate)
+    def csv(path: NJPath, cfg: CsvConfiguration): NJTable[F, A] =
+      new NJTable[F, A](loaders.spark.csv[A](path, ss, ate, cfg), ate)
 
   }
 

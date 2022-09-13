@@ -150,22 +150,22 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka
       .topic[Int, KUnknown]("duck.test")
       .fromKafka
-      .flatMap(_.save.circe(path / "circe").run)
+      .flatMap(_.output.circe(path / "circe").run)
       .unsafeRunSync()
     sparKafka
       .topic[Int, KUnknown]("duck.test")
       .fromKafka
-      .flatMap(_.save.jackson(path / "jackson").run)
+      .flatMap(_.output.jackson(path / "jackson").run)
       .unsafeRunSync()
     sparKafka
       .topic[Int, HasDuck]("duck.test")
       .fromKafka
-      .flatMap(_.save.circe(path / "typed" / "circe").run)
+      .flatMap(_.output.circe(path / "typed" / "circe").run)
       .unsafeRunSync()
     sparKafka
       .topic[Int, HasDuck]("duck.test")
       .fromKafka
-      .flatMap(_.save.jackson(path / "typed" / "jackson").run)
+      .flatMap(_.output.jackson(path / "typed" / "jackson").run)
       .unsafeRunSync()
   }
 }

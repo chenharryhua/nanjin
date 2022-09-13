@@ -45,7 +45,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
 
-  def save: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
+  def output: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder)
 
   def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit

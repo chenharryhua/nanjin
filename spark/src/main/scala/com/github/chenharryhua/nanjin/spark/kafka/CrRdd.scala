@@ -63,14 +63,14 @@ final class CrRdd[F[_], K, V] private[kafka] (
   // transition
 
   def asTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): NJTable[F, NJConsumerRecord[K, V]] = {
-    val ate = AvroTypedEncoder(ack, acv)
+    val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = AvroTypedEncoder(ack, acv)
     new NJTable[F, NJConsumerRecord[K, V]](ss.createDataset(rdd)(ate.sparkEncoder), ate)
   }
 
   def prRdd: PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd.map(_.toNJProducerRecord), NJProducerRecord.avroCodec(ack, acv))
 
-  def save: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
+  def output: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](rdd, codec.avroEncoder)
 
   // statistics

@@ -2,14 +2,11 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.pipes.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import io.circe.Json
 import mtest.spark.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.DoNotDiscover
@@ -109,7 +106,8 @@ class BinAvroTest extends AnyFunSuite {
   test("reverse read/write gzip") {
     val path = reverseRoot / "rooster.binary.avro.gz"
     RoosterData.rdd
-      .stream[IO](100)
+      .output[IO]
+      .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.sink(path))
@@ -123,7 +121,8 @@ class BinAvroTest extends AnyFunSuite {
   test("reverse read/write bzip2") {
     val path = reverseRoot / "rooster.binary.avro.bz2"
     RoosterData.rdd
-      .stream[IO](100)
+      .output[IO]
+      .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.sink(path))
@@ -138,7 +137,8 @@ class BinAvroTest extends AnyFunSuite {
   test("reverse read/write uncompress") {
     val path = reverseRoot / "rooster.binary.avro"
     RoosterData.rdd
-      .stream[IO](100)
+      .output[IO]
+      .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
       .through(hdp.bytes.sink(path))
@@ -150,10 +150,19 @@ class BinAvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t1)
   }
 
-  ignore("local") {
-    val path =
-      NJPath("/Users/chenh/Downloads/part-r-00000-9ed5fd81-6b1f-3708-a6a2-4d9c2392df33.binary.avro.bz2")
-    val codec = NJAvroCodec[NJConsumerRecord[KJson[Json], KJson[Json]]]
-    loaders.rdd.binAvro(path, sparkSession, codec.avroDecoder).count()
+  test("ftp") {
+    val path = NJPath("ftp://localhost/data2/bin_avro.avro")
+    RoosterData.rdd
+      .output[IO]
+      .stream(100)
+      .map(Rooster.avroCodec.toRecord)
+      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
+      .through(hdp.bytes.sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    assert(RoosterData.expected == t1)
   }
 }
