@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
+import kantan.csv.CsvConfiguration
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -112,11 +113,12 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("csv") {
     val root = NJPath("./data/test/spark/persist/interlope/csv/rooster/")
+    val cfg  = CsvConfiguration.rfc
     val run = for {
-      d <- rooster.kantan(root / "bzip2").bzip2.run.start
-      b <- rooster.kantan(root / "deflate").deflate(1).run.start
-      c <- rooster.kantan(root / "gzip").gzip.run.start
-      a <- rooster.kantan(root / "uncompress").run.start
+      d <- rooster.kantan(root / "bzip2", cfg).bzip2.run.start
+      b <- rooster.kantan(root / "deflate", cfg).deflate(1).run.start
+      c <- rooster.kantan(root / "gzip", cfg).gzip.run.start
+      a <- rooster.kantan(root / "uncompress", cfg).run.start
       _ <- a.join
       _ <- b.join
       _ <- c.join
@@ -178,6 +180,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("mix multi") {
     val root = NJPath("./data/test/spark/persist/interlope/mix-multi/")
+    val cfg  = CsvConfiguration.rfc
     val run = for {
       a <- rooster.avro(root / "avro1").bzip2.run.start
       b <- rooster.avro(root / "avro2").deflate(1).run.start
@@ -202,9 +205,9 @@ class ConcurrencyTest extends AnyFunSuite {
       s <- rooster.text(root / "text2").gzip.run.start
       t <- rooster.text(root / "text3").bzip2.run.start
 
-      u <- rooster.kantan(root / "csv1").deflate(5).run.start
-      v <- rooster.kantan(root / "csv2").gzip.run.start
-      w <- rooster.kantan(root / "csv3").bzip2.run.start
+      u <- rooster.kantan(root / "csv1", cfg).deflate(5).run.start
+      v <- rooster.kantan(root / "csv2", cfg).gzip.run.start
+      w <- rooster.kantan(root / "csv3", cfg).bzip2.run.start
 
       _ <- a.join
       _ <- b.join
