@@ -173,34 +173,18 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .mapPartitions(iter => new KantanCsvIterator[A](encoder, csvCfg, iter), preservesPartitioning = true)
+      .mapPartitions(
+        iter =>
+          Iterator((NullWritable.get(), new Text(KantanSerde.headerStr(csvCfg, encoder)))) ++ // header
+            iter.map(r => // body
+              (NullWritable.get(), new Text(KantanSerde.rowEncode(r, csvCfg, encoder.rowEncoder)))),
+        preservesPartitioning = true
+      )
       .saveAsNewAPIHadoopFile(
         path.pathStr,
         classOf[NullWritable],
         classOf[Text],
         classOf[NJTextOutputFormat],
         config)
-  }
-
-  private class KantanCsvIterator[A](
-    headerEncoder: HeaderEncoder[A],
-    csvCfg: CsvConfiguration,
-    iter: Iterator[A])
-      extends Iterator[(NullWritable, Text)] {
-
-    private[this] val nullWritable: NullWritable = NullWritable.get()
-
-    private[this] var isFirstTimeAccess: Boolean = true
-
-    private[this] def nextText(): Text = new Text(
-      KantanSerde.rowEncode(iter.next(), csvCfg, headerEncoder.rowEncoder))
-
-    override def hasNext: Boolean = iter.hasNext
-
-    override def next(): (NullWritable, Text) =
-      if (isFirstTimeAccess) {
-        isFirstTimeAccess = false
-        (nullWritable, new Text(KantanSerde.headerStr(csvCfg, headerEncoder)))
-      } else (nullWritable, nextText())
   }
 }
