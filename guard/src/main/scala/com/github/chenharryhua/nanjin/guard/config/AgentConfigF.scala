@@ -76,8 +76,7 @@ private object AgentConfigF {
 final case class AgentConfig private (value: Fix[AgentConfigF]) {
   import AgentConfigF.*
 
-  def withCapDelay(dur: FiniteDuration): AgentConfig =
-    AgentConfig(Fix(WithCapDelay(dur.toJava, value)))
+  def withCapDelay(fd: FiniteDuration): AgentConfig = AgentConfig(Fix(WithCapDelay(fd.toJava, value)))
 
   def withConstantDelay(baseDelay: FiniteDuration, max: MaxRetry): AgentConfig =
     AgentConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(baseDelay.toJava), Some(max), value)))
