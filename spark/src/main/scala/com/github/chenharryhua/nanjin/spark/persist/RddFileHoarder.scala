@@ -3,18 +3,14 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.NJFileFormat.*
+import com.github.chenharryhua.nanjin.terminals.NJHeaderEncoder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import io.circe.Encoder as JsonEncoder
-import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
+import kantan.csv.CsvConfiguration
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
-import shapeless.{HList, LabelledGeneric}
-import shapeless.ops.hlist.ToTraversable
-import shapeless.ops.record.Keys
-
-import scala.annotation.nowarn
 
 sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
 
@@ -35,21 +31,9 @@ sealed class RddFileHoarder[F[_], A](rdd: RDD[A]) extends Serializable {
     new SaveProtobuf[F, A](rdd, HoarderConfig(path).outputFormat(ProtoBuf), evidence)
 
 // 5
-// https://svejcar.dev/posts/2019/10/22/extracting-case-class-field-names-with-shapeless/
-  final def kantan[Repr <: HList, KeysRepr <: HList](path: NJPath, cfg: CsvConfiguration)(implicit
-    encoder: RowEncoder[A],
-    @nowarn gen: LabelledGeneric.Aux[A, Repr],
-    keys: Keys.Aux[Repr, KeysRepr],
-    traversable: ToTraversable.Aux[KeysRepr, List, Symbol]): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](
-      rdd,
-      cfg,
-      HoarderConfig(path).outputFormat(Kantan),
-      new HeaderEncoder[A] {
-        override def header: Option[Seq[String]] = Some(keys().toList.map(_.name))
-        override def rowEncoder: RowEncoder[A]   = encoder
-      }
-    )
+  final def kantan(path: NJPath, cfg: CsvConfiguration)(implicit
+    encoder: NJHeaderEncoder[A]): SaveKantanCsv[F, A] =
+    new SaveKantanCsv[F, A](rdd, cfg, HoarderConfig(path).outputFormat(Kantan), encoder)
 
   final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =
     Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
