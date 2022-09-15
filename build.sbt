@@ -183,14 +183,6 @@ val refinedLib = List(
   "eu.timepit" %% "refined-cats"
 ).map(_ % "0.10.1")
 
-val effectLib = List(
-  "org.typelevel" %% "cats-effect" % catsEffectV,
-  "dev.zio" %% "zio"               % "2.0.2" % Provided,
-  "dev.zio" %% "zio-interop-cats"  % "3.3.0" % Provided,
-  "io.monix" %% "monix-eval"       % "3.4.1" % Provided,
-  "io.monix" %% "monix"            % "3.4.1" % Provided
-)
-
 val logLib = List(
   "org.typelevel" %% "log4cats-slf4j" % "2.4.0",
   "org.slf4j"                         % "slf4j-api" % slf4jV
@@ -223,6 +215,7 @@ val cronLib = List(
 )
 
 val baseLib = List(
+  "org.typelevel" %% "cats-effect"                 % catsEffectV,
   "org.apache.commons"                             % "commons-lang3" % "3.12.0",
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
@@ -249,16 +242,17 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-http")
-  .settings(libraryDependencies ++= List(
-    "org.http4s" %% "http4s-blaze-server" % "0.23.12" % Test,
-    "org.http4s" %% "http4s-blaze-client" % "0.23.12" % Test,
-    "org.slf4j" % "slf4j-reload4j" % slf4jV % Test) ++ jwtLib ++ http4sLib ++ logLib ++ effectLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-blaze-server" % "0.23.12" % Test,
+      "org.http4s" %% "http4s-blaze-client" % "0.23.12" % Test,
+      "org.slf4j" % "slf4j-reload4j" % slf4jV % Test) ++ jwtLib ++ http4sLib ++ logLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= awsLib ++ logLib ++ effectLib ++ testLib)
+  .settings(libraryDependencies ++= awsLib ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -274,11 +268,12 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "scalatags"    % "0.11.1",
-      "org.tpolecat" %% "skunk-core"  % "0.3.1",
-      "org.tpolecat" %% "skunk-circe" % "0.3.1",
-      "org.slf4j"                     % "slf4j-reload4j" % slf4jV % Test
-    ) ++ cronLib ++ metricLib ++ logLib ++ effectLib ++ testLib
+      "com.lihaoyi" %% "scalatags"     % "0.11.1",
+      "org.tpolecat" %% "skunk-core"   % "0.3.1",
+      "org.tpolecat" %% "skunk-circe"  % "0.3.1",
+      "org.tpolecat" %% "natchez-core" % "0.1.6",
+      "org.slf4j"                      % "slf4j-reload4j" % slf4jV % Test
+    ) ++ cronLib ++ metricLib ++ logLib ++ testLib
   )
 
 lazy val messages = (project in file("messages"))
@@ -294,7 +289,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(
     libraryDependencies ++= List("org.tukaani" % "xz" % "1.9", "org.slf4j" % "slf4j-jdk14" % slf4jV % Test) ++
       kantanLib ++ hadoopLib ++ awsLib ++
-      serdeLib ++ logLib ++ effectLib ++ testLib
+      serdeLib ++ logLib ++ testLib
   )
 
 lazy val database = (project in file("database"))
@@ -308,7 +303,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
       "org.tpolecat" %% "skunk-core"    % "0.3.1",
       ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
-    ) ++ effectLib ++ testLib
+    ) ++ testLib
   )
 
 lazy val kafka = (project in file("kafka"))
@@ -319,7 +314,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % "1.4.0" % Test
-  ) ++ kafkaLib  ++ logLib ++ effectLib ++ testLib)
+  ) ++ kafkaLib ++ logLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)

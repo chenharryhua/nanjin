@@ -118,9 +118,8 @@ object KafkaStreamSettings {
   def withApplicationId(appId: String): KafkaSettings =
     withStreamingProperty(StreamsConfig.APPLICATION_ID_CONFIG, appId)
 
-  def ioContext: KafkaContext[IO]                 = KafkaContext.ioContext(this)
-  def zioContext: KafkaContext[zio.Task]          = KafkaContext.zioContext(this)
-  def monixContext: KafkaContext[monix.eval.Task] = KafkaContext.monixContext(this)
+  def ioContext: KafkaContext[IO]    = new KafkaContext[IO](this)
+  def context[F[_]]: KafkaContext[F] = new KafkaContext[F](this)
 }
 
 object KafkaSettings extends zoneid {
