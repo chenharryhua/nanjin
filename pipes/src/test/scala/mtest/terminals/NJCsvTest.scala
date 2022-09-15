@@ -1,7 +1,7 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJHeaderEncoder, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.CsvConfiguration
@@ -14,6 +14,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJCsvTest extends AnyFunSuite {
+  implicit val tigerEncoder: NJHeaderEncoder[Tiger] = shapeless.cachedImplicit
 
   def fs2(path: NJPath, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()

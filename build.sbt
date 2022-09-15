@@ -85,8 +85,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.5",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.5",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.6",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.6",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
 )
 
@@ -329,7 +329,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all" % "4.1.81.Final",
+      "io.netty"                               % "netty-all" % "4.1.82.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.2.0"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

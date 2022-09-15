@@ -123,7 +123,7 @@ class SparkTableTest extends AnyFunSuite {
     loader.avro(root / "base").output.binAvro(root / "bin.avro" / 1).run.unsafeRunSync()
     loader.avro(root / "base").output.jackson(root / "jackson" / 1).run.unsafeRunSync()
     loader.avro(root / "base").output.circe(root / "circe" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").output.kantan(root / "kantan" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.kantan(root / "kantan" / 1, CsvConfiguration.rfc).run.unsafeRunSync()
     loader.avro(root / "base").output.parquet(root / "parquet" / 1).run.unsafeRunSync()
     loader.avro(root / "base").output.objectFile(root / "obj" / 1).run.unsafeRunSync()
 

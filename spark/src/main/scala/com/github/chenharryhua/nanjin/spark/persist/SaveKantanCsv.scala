@@ -4,40 +4,13 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{KantanCompression, NJCompression}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
-import shapeless.{HList, LabelledGeneric}
-import shapeless.ops.record.Keys
-import shapeless.ops.hlist.ToTraversable
-import scala.annotation.nowarn
+
 final class SaveKantanCsv[F[_], A](
   rdd: RDD[A],
-  val csvConfiguration: CsvConfiguration,
+  csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   encoder: HeaderEncoder[A])
     extends Serializable {
-
-  def updateCsvConfig(f: CsvConfiguration => CsvConfiguration): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](rdd, f(csvConfiguration), cfg, encoder)
-
-  // https://svejcar.dev/posts/2019/10/22/extracting-case-class-field-names-with-shapeless/
-  def withHeader[Repr <: HList, KeysRepr <: HList](implicit
-    @nowarn gen: LabelledGeneric.Aux[A, Repr],
-    keys: Keys.Aux[Repr, KeysRepr],
-    traversable: ToTraversable.Aux[KeysRepr, List, Symbol]): SaveKantanCsv[F, A] = {
-    def fieldNames: List[String] = keys().toList.map(_.name)
-    updateCsvConfig(_.withHeader(fieldNames*))
-  }
-
-  def withHeader(ss: String*): SaveKantanCsv[F, A] =
-    updateCsvConfig(_.withHeader(CsvConfiguration.Header.Explicit(ss)))
-  def withoutHeader: SaveKantanCsv[F, A] = updateCsvConfig(_.withoutHeader)
-
-  // quote
-  def quoteAll: SaveKantanCsv[F, A]              = updateCsvConfig(_.quoteAll)
-  def quoteWhenNeeded: SaveKantanCsv[F, A]       = updateCsvConfig(_.quoteWhenNeeded)
-  def withQuote(char: Char): SaveKantanCsv[F, A] = updateCsvConfig(_.withQuote(char))
-
-  // seperator
-  def withCellSeparator(char: Char): SaveKantanCsv[F, A] = updateCsvConfig(_.withCellSeparator(char))
 
   val params: HoarderParams = cfg.evalConfig
 
