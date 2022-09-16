@@ -25,13 +25,13 @@ private object SimpleTextTranslator {
 
   private def instantEvent(ie: InstantEvent): String =
     s"""|  ${serviceEvent(ie)}
-        |  Name:${ie.name.metricRepr}""".stripMargin
+        |  Name:${ie.digested.metricRepr}""".stripMargin
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
   private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
-       |  Name:${ae.name.metricRepr}, ID:${ae.actionID}""".stripMargin
+       |  Name:${ae.digested.metricRepr}, ID:${ae.actionID}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}
@@ -55,7 +55,7 @@ private object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String = {
     val ongoings: List[String] =
       evt.ongoings.map(og =>
-        s"${og.name.metricRepr}(id:${og.actionID}, upTime:${fmt.format(og.took(evt.timestamp))})")
+        s"${og.digested.metricRepr}(id:${og.actionID}, upTime:${fmt.format(og.took(evt.timestamp))})")
 
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}

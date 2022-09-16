@@ -50,28 +50,28 @@ object ActionRetryParams extends duration {
 
 @JsonCodec
 final case class ActionParams private (
-                                        spans: List[Name],
-                                        importance: Importance,
-                                        isCounting: Boolean,
-                                        isTiming: Boolean,
-                                        isExpensive: Boolean,
-                                        retry: ActionRetryParams,
-                                        serviceParams: ServiceParams) {
+  actionName: Name,
+  importance: Importance,
+  isCounting: Boolean,
+  isTiming: Boolean,
+  isExpensive: Boolean,
+  retry: ActionRetryParams,
+  serviceParams: ServiceParams) {
 
   val isCritical: Boolean   = importance > Importance.High // Critical
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
   val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 
-  val name: Digested = Digested(serviceParams, spans)
+  val digested: Digested = Digested(serviceParams, actionName)
 
 }
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
-  def apply(agentParams: AgentParams): ActionParams =
+  def apply(agentParams: AgentParams, actionName: Name): ActionParams =
     ActionParams(
-      spans = agentParams.spans,
+      actionName = actionName,
       importance = agentParams.importance,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,

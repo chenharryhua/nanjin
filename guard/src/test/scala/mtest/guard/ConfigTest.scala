@@ -12,67 +12,67 @@ class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] = TaskGuard[IO]("config").service("config")
   test("expensive") {
     val as = service.eventStream { agent =>
-      agent.notice.expensive.run(IO(1))
+      agent.action("cfg").notice.expensive.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isExpensive)
   }
 
   test("cheap") {
     val as = service.eventStream { agent =>
-      agent.notice.cheap.run(IO(1))
+      agent.action("cfg").notice.cheap.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(!as.actionInfo.actionParams.isExpensive)
   }
 
   test("counting") {
     val as = service.eventStream { agent =>
-      agent.notice.updateConfig(_.withCounting).run(IO(1))
+      agent.action("cfg").notice.updateConfig(_.withCounting).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isCounting)
   }
   test("without counting") {
     val as = service.eventStream { agent =>
-      agent.notice.updateConfig(_.withoutCounting).run(IO(1))
+      agent.action("cfg").notice.updateConfig(_.withoutCounting).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(!as.actionInfo.actionParams.isCounting)
   }
 
   test("timing") {
     val as = service.eventStream { agent =>
-      agent.notice.updateConfig(_.withTiming).run(IO(1))
+      agent.action("cfg").notice.updateConfig(_.withTiming).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isTiming)
   }
 
   test("without timing") {
     val as = service.eventStream { agent =>
-      agent.notice.updateConfig(_.withoutTiming).run(IO(1))
+      agent.action("cfg").notice.updateConfig(_.withoutTiming).run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(!as.actionInfo.actionParams.isTiming)
   }
 
   test("notice") {
     val as = service.eventStream { agent =>
-      agent.notice.run(IO(1))
+      agent.action("cfg").notice.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isNotice)
   }
 
   test("critical") {
     val as = service.eventStream { agent =>
-      agent.critical.run(IO(1))
+      agent.action("cfg").critical.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isCritical)
   }
   test("trivial") {
     val as = service.eventStream { agent =>
-      agent.trivial.run(IO(1))
+      agent.action("cfg").trivial.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }
   test("normal") {
     val as = service.eventStream { agent =>
-      agent.silent.run(IO(1))
+      agent.action("cfg").silent.run(IO(1))
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }

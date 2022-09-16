@@ -51,7 +51,7 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(secondly))
       .eventStream { ag =>
         val counter =
-          ag.span("one").span("two").span("three").counter("counter").asError
+          ag.counter("one/two/three/counter").asError
         (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.fullReport
       }
       .filter(_.isInstanceOf[MetricReport])

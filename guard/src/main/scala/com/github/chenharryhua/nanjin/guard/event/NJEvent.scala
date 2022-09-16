@@ -81,7 +81,7 @@ object NJEvent extends zoneddatetime {
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
-    final def name: Digested             = actionInfo.actionParams.name
+    final def digested: Digested         = actionInfo.actionParams.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionID: Int              = actionInfo.actionID
 
@@ -130,11 +130,11 @@ object NJEvent extends zoneddatetime {
   }
 
   sealed trait InstantEvent extends ServiceEvent {
-    def name: Digested
+    def digested: Digested
   }
 
   final case class InstantAlert(
-    name: Digested,
+    digested: Digested,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     importance: Importance,
@@ -145,7 +145,7 @@ object NJEvent extends zoneddatetime {
 
   @Lenses
   final case class PassThrough(
-    name: Digested,
+    digested: Digested,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     isError: Boolean, // the payload json represent an error

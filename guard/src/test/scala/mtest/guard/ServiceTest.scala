@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.guard.Name
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -26,11 +25,15 @@ class ServiceTest extends AnyFunSuite {
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .updateConfig(_.withJitterBackoff(3.second).withMetricReport("*/30 * * ? * *"))
-      .updateConfig(_.withQueueCapacity(1).withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset
-        .withMetricReset("*/30 * * ? * *"))
+      .updateConfig(_.withJitterBackoff(3.second).withMetricReport(24.hours))
+      .updateConfig(
+        _.withQueueCapacity(1)
+          .withMetricReset("*/30 * * ? * *")
+          .withMetricDailyReset
+          .withMetricMonthlyReset
+          .withMetricWeeklyReset)
       .eventStream(gd =>
-        gd.span("normal-exit-action").retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
+        gd.action("normal-exit-action").retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -45,7 +48,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
-        gd.span("escalate-after-3-time")
+        gd.action("escalate-after-3-time")
           .notice
           .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new Exception("oops")))
@@ -76,7 +79,8 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
-        gd.notice
+        gd.action("err")
+          .notice
           .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new ControlThrowable("fatal error") {}))
       }
@@ -105,7 +109,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
-        gd.span("json-codec")
+        gd.action("json-codec")
           .notice
           .updateConfig(_.withConstantDelay(0.1.second, 3))
           .run(IO.raiseError(new Exception("oops")))
@@ -128,7 +132,7 @@ class ServiceTest extends AnyFunSuite {
     val s :: b :: c :: d :: _ = guard
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
-      .eventStream(_.retry(IO.never).run)
+      .eventStream(_.action("never").retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
       .compile
@@ -159,7 +163,7 @@ class ServiceTest extends AnyFunSuite {
   test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
       .updateConfig(_.withQueueCapacity(10))
-      .eventStream(gd => gd.span("a").notice.retry(IO(1)).run >> gd.span("b").notice.retry(IO(2)).run)
+      .eventStream(gd => gd.action("a").notice.retry(IO(1)).run >> gd.action("b").notice.retry(IO(2)).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toVector
@@ -179,9 +183,9 @@ class ServiceTest extends AnyFunSuite {
     val s2    = guard.service("s2")
 
     val ss1 = s1.eventStream(gd =>
-      gd.span("s1-a1").notice.retry(IO(1)).run >> gd.span("s1-a2").notice.retry(IO(2)).run)
+      gd.action("s1-a1").notice.retry(IO(1)).run >> gd.action("s1-a2").notice.retry(IO(2)).run)
     val ss2 = s2.eventStream(gd =>
-      gd.span("s2-a1").notice.retry(IO(1)).run >> gd.span("s2-a2").notice.retry(IO(2)).run)
+      gd.action("s2-a1").notice.retry(IO(1)).run >> gd.action("s2-a2").notice.retry(IO(2)).run)
 
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucc]) == 4)
@@ -190,14 +194,6 @@ class ServiceTest extends AnyFunSuite {
 
   test("9.print agent params") {
     guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
-  }
-
-  test("10.span") {
-    guard.eventStream { ag =>
-      val s1 = ag.span("a").span("b").span("c").agentParams.spans
-      val s2 = ag.span(List(Name("a"), Name("b"), Name("c"))).agentParams.spans
-      IO(assert(s1 === s2))
-    }.debug().compile.drain.unsafeRunSync()
   }
 
   test("11.should give up") {
@@ -210,7 +206,7 @@ class ServiceTest extends AnyFunSuite {
     val action = guard
       .updateConfig(_.withAlwaysGiveUp)
       .eventStream { gd =>
-        gd.span("give-up")
+        gd.action("give-up")
           .notice
           .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
           .run(IO.raiseError(new Exception))
@@ -243,6 +239,6 @@ class ServiceTest extends AnyFunSuite {
 
   test("12.dummy agent should not block") {
     val dummy = TaskGuard.dummyAgent[IO].unsafeRunSync()
-    dummy.span("dummy").critical.retry(IO(1)).run.replicateA(10).unsafeRunSync()
+    dummy.action("dummy").critical.retry(IO(1)).run.replicateA(10).unsafeRunSync()
   }
 }
