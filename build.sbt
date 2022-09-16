@@ -13,6 +13,7 @@ val kafkaV      = "7.2.1-ce"
 val avroV       = "1.11.1"
 val slf4jV      = "1.7.36"
 val metricsV    = "4.2.12"
+val log4catsV   = "2.5.0"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -52,16 +53,16 @@ val hadoopLib = List(
     .exclude("commons-logging", "commons-logging"))
 
 val circeLib = List(
-  "io.circe" %% "circe-literal"        % "0.14.2",
-  "io.circe" %% "circe-core"           % "0.14.2",
-  "io.circe" %% "circe-generic"        % "0.14.2",
-  "io.circe" %% "circe-parser"         % "0.14.2",
-  "io.circe" %% "circe-shapes"         % "0.14.2",
-  "io.circe" %% "circe-jawn"           % "0.14.2",
+  "io.circe" %% "circe-literal"        % "0.14.3",
+  "io.circe" %% "circe-core"           % "0.14.3",
+  "io.circe" %% "circe-generic"        % "0.14.3",
+  "io.circe" %% "circe-parser"         % "0.14.3",
+  "io.circe" %% "circe-shapes"         % "0.14.3",
+  "io.circe" %% "circe-jawn"           % "0.14.3",
   "io.circe" %% "circe-optics"         % "0.14.1",
   "io.circe" %% "circe-jackson210"     % "0.14.0",
   "io.circe" %% "circe-generic-extras" % "0.14.2",
-  "io.circe" %% "circe-refined"        % "0.14.2",
+  "io.circe" %% "circe-refined"        % "0.14.3",
   "org.gnieh" %% "diffson-circe"       % "4.1.1"
 )
 
@@ -103,7 +104,7 @@ val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.2.14")
+).map(_ % "3.3.0")
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -184,7 +185,7 @@ val refinedLib = List(
 ).map(_ % "0.10.1")
 
 val logLib = List(
-  "org.typelevel" %% "log4cats-slf4j" % "2.4.0",
+  "org.typelevel" %% "log4cats-slf4j" % log4catsV,
   "org.slf4j"                         % "slf4j-api" % slf4jV
 )
 
@@ -209,9 +210,8 @@ val metricLib = List(
 ).map(_ % metricsV)
 
 val cronLib = List(
-  "eu.timepit" %% "fs2-cron-cron4s"                 % "0.7.2",
-  "com.github.alonsodomin.cron4s" %% "cron4s-core"  % "0.6.1",
-  "com.github.alonsodomin.cron4s" %% "cron4s-circe" % "0.6.1"
+  "eu.timepit" %% "fs2-cron-cron4s"                % "0.7.2",
+  "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.6.1"
 )
 
 val baseLib = List(
@@ -233,8 +233,8 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.dropwizard.metrics"             % "metrics-core" % metricsV % Provided,
-      "org.typelevel" %% "log4cats-slf4j" % "2.4.0"        % Provided
+      "io.dropwizard.metrics"            % "metrics-core" % metricsV % Provided,
+      "org.typelevel" %% "log4cats-core" % log4catsV      % Provided
     ) ++ baseLib ++ testLib
   )
 
@@ -268,11 +268,10 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "scalatags"     % "0.11.1",
-      "org.tpolecat" %% "skunk-core"   % "0.3.1",
-      "org.tpolecat" %% "skunk-circe"  % "0.3.1",
-      "org.tpolecat" %% "natchez-core" % "0.1.6",
-      "org.slf4j"                      % "slf4j-reload4j" % slf4jV % Test
+      "com.lihaoyi" %% "scalatags"    % "0.11.1",
+      "org.tpolecat" %% "skunk-core"  % "0.3.1",
+      "org.tpolecat" %% "skunk-circe" % "0.3.1",
+      "org.slf4j"                     % "slf4j-reload4j" % slf4jV % Test
     ) ++ cronLib ++ metricLib ++ logLib ++ testLib
   )
 
@@ -313,7 +312,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % "1.4.0" % Test
+    "ch.qos.logback" % "logback-classic" % "1.4.1" % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
@@ -346,6 +345,14 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)

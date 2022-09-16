@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
 import cron4s.{Cron, CronExpr}
-import cron4s.circe.*
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.cats.*
 import eu.timepit.refined.refineMV

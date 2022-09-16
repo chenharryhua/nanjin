@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Order, Show}
 import cron4s.CronExpr
-import cron4s.circe.*
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import org.typelevel.cats.time.instances.duration
