@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.guard.Span
+import com.github.chenharryhua.nanjin.common.guard.Name
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -35,8 +35,8 @@ final class Agent[F[_]] private[service] (
   override def updateConfig(f: Endo[AgentConfig]): Agent[F] =
     new Agent[F](metricRegistry, serviceStatus, channel, f(agentConfig))
 
-  def span(name: Span): Agent[F]     = updateConfig(_.withSpan(name))
-  def span(ls: List[Span]): Agent[F] = updateConfig(_.withSpan(ls))
+  def span(name: Name): Agent[F]     = updateConfig(_.withSpan(name))
+  def span(ls: List[Name]): Agent[F] = updateConfig(_.withSpan(ls))
 
   def trivial: Agent[F]  = updateConfig(_.withLowImportance)
   def silent: Agent[F]   = updateConfig(_.withMediumImportance)
@@ -142,7 +142,7 @@ final class Agent[F[_]] private[service] (
 
   // others
 
-  def broker(brokerName: Span): NJBroker[F] =
+  def broker(brokerName: Name): NJBroker[F] =
     new NJBroker[F](
       digested = Digested(serviceParams, agentParams.spans.appended(brokerName)),
       metricRegistry = metricRegistry,
@@ -152,7 +152,7 @@ final class Agent[F[_]] private[service] (
       isCounting = false
     )
 
-  def alert(alertName: Span): NJAlert[F] =
+  def alert(alertName: Name): NJAlert[F] =
     new NJAlert(
       digested = Digested(serviceParams, agentParams.spans.appended(alertName)),
       metricRegistry = metricRegistry,
@@ -161,19 +161,19 @@ final class Agent[F[_]] private[service] (
       isCounting = false
     )
 
-  def counter(counterName: Span): NJCounter[F] =
+  def counter(counterName: Name): NJCounter[F] =
     new NJCounter(
       digested = Digested(serviceParams, agentParams.spans.appended(counterName)),
       metricRegistry = metricRegistry,
       isError = false)
 
-  def meter(meterName: Span): NJMeter[F] =
+  def meter(meterName: Name): NJMeter[F] =
     new NJMeter[F](
       digested = Digested(serviceParams, agentParams.spans.appended(meterName)),
       metricRegistry = metricRegistry,
       isCounting = false)
 
-  def histogram(histoName: Span): NJHistogram[F] =
+  def histogram(histoName: Name): NJHistogram[F] =
     new NJHistogram[F](
       digested = Digested(serviceParams, agentParams.spans.appended(histoName)),
       metricRegistry = metricRegistry,
@@ -197,7 +197,7 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[B](fb: F[B]): F[Nothing] =
     updateConfig(
-      _.withSpan(Span("nonStop")).withoutTiming.withoutCounting.withLowImportance
+      _.withSpan(Name("nonStop")).withoutTiming.withoutCounting.withLowImportance
         .withExpensive(true)
         .withAlwaysGiveUp)
       .retry(fb)
