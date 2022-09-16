@@ -15,7 +15,7 @@ final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], se
       ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
         PassThrough(
-          name = digested,
+          digested = digested,
           timestamp = ts,
           serviceParams = serviceParams,
           isError = isError,
@@ -27,7 +27,7 @@ final private class InstantEventPublisher[F[_]](channel: Channel[F, NJEvent], se
       ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
         InstantAlert(
-          name = digested,
+          digested = digested,
           timestamp = ts,
           serviceParams = serviceParams,
           importance = importance,
