@@ -11,6 +11,7 @@ import fs2.concurrent.Channel
 import io.circe.Json
 import retry.RetryDetails.WillDelayAndRetry
 
+import java.net.URI
 import java.time.ZonedDateTime
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -28,11 +29,17 @@ final private class ActionEventPublisher[F[_]](
   retryCount: Ref[F, Int]
 )(implicit F: Temporal[F]) {
 
-  def actionStart(actionParams: ActionParams, input: F[Json]): F[ActionInfo] =
+  def actionStart(
+    actionParams: ActionParams,
+    input: F[Json],
+    traceID: F[Option[String]],
+    traceUri: F[Option[URI]]): F[ActionInfo] =
     for {
       ts <- F.realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
-      ai = ActionInfo(actionParams, token, ts)
+      tid <- traceID
+      uri <- traceUri
+      ai = ActionInfo(actionParams, token, ts, tid, uri)
       _ <- input
         .flatMap(js => channel.send(ActionStart(actionInfo = ai, input = js)))
         .whenA(actionParams.isNotice)

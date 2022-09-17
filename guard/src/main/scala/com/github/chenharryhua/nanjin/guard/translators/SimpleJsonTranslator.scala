@@ -99,6 +99,7 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionStart",
             "name": ${evt.digested.name},
+            "traceID": ${evt.traceID},
             "input": ${evt.input},
             "digest": ${evt.digested.digest},
             "id": ${evt.actionID},
@@ -112,6 +113,8 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionRetry",
             "name": ${evt.digested.name},
+            "traceID": ${evt.traceID},
+            "traceUri": ${evt.traceUri},
             "cause" : ${evt.error.message},
             "digest": ${evt.digested.digest},
             "id": ${evt.actionID},         
@@ -125,6 +128,8 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionFail",
             "name": ${evt.digested.name},
+            "traceID": ${evt.traceID},
+            "traceUri": ${evt.traceUri},
             "input": ${evt.input},
             "cause" : ${evt.error.stackTrace},
             "digest": ${evt.digested.digest},
@@ -139,6 +144,8 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionSucc",
             "name": ${evt.digested.name},
+            "traceID": ${evt.traceID},
+            "traceUri": ${evt.traceUri},
             "output": ${evt.output},
             "digest": ${evt.digested.digest},
             "id": ${evt.actionID},      

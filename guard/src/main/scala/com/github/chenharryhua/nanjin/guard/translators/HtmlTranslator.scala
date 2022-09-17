@@ -7,6 +7,7 @@ import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
+import java.net.URI
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
@@ -40,6 +41,11 @@ private object HtmlTranslator extends all {
       p(b("ServiceID: "), evt.serviceID.show)
     )
   }
+
+  private def trace(traceID: String, traceUri: Option[URI]): Text.TypedTag[String] =
+    traceUri
+      .map(uri => p(b("Trace ID: "), a(href := uri.toString)(traceID)))
+      .getOrElse(p(b("Trace ID: "), traceID))
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
@@ -125,6 +131,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
       p(b("ID: "), evt.actionID.show),
+      trace(evt.traceID, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Input: "), pre(evt.input.spaces2))
     )
@@ -134,6 +141,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
       p(b("ID: "), evt.actionID.show),
+      trace(evt.traceID, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show),
       causeText(evt.error)
@@ -144,6 +152,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
       p(b("ID: "), evt.actionID.show),
+      trace(evt.traceID, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
@@ -157,6 +166,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
       p(b("ID: "), evt.actionID.show),
+      trace(evt.traceID, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),

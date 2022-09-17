@@ -173,7 +173,7 @@ val catsLib = List(
 ).map(_ % catsCoreV) ++
   List(
     "org.typelevel" %% "cats-mtl"              % "1.3.0",
-    "org.typelevel" %% "kittens"               % "2.3.2",
+    "org.typelevel" %% "kittens"               % "3.0.0",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
     "org.typelevel" %% "algebra"               % "2.8.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.4"
@@ -193,7 +193,7 @@ val http4sLib = List(
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-client",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "0.23.15")
+).map(_ % "0.23.16")
 
 val jwtLib = List(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -268,10 +268,14 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "scalatags"    % "0.11.1",
-      "org.tpolecat" %% "skunk-core"  % "0.3.1",
-      "org.tpolecat" %% "skunk-circe" % "0.3.1",
-      "org.slf4j"                     % "slf4j-reload4j" % slf4jV % Test
+      "com.lihaoyi" %% "scalatags"       % "0.11.1",
+      "org.tpolecat" %% "skunk-core"     % "0.3.1",
+      "org.tpolecat" %% "skunk-circe"    % "0.3.1",
+      "org.tpolecat" %% "natchez-core"   % "0.1.6",
+      "org.tpolecat" %% "natchez-noop"   % "0.1.6",
+      "org.tpolecat" %% "natchez-log"    % "0.1.6"          % Test,
+      "org.tpolecat" %% "natchez-jaeger" % "0.1.6"          % Test,
+      "org.slf4j"                        % "slf4j-reload4j" % slf4jV % Test
     ) ++ cronLib ++ metricLib ++ logLib ++ testLib
   )
 
@@ -345,14 +349,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    guard,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
