@@ -6,12 +6,15 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
-import natchez.log.Log
+import io.circe.syntax.*
+import io.jaegertracing.Configuration.{ReporterConfiguration, SamplerConfiguration}
 import natchez.{Trace, TraceValue}
+import natchez.jaeger.Jaeger
+import natchez.log.Log
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import io.circe.syntax.*
+
 import scala.concurrent.duration.*
 
 class TraceTest extends AnyFunSuite {
@@ -57,6 +60,22 @@ class TraceTest extends AnyFunSuite {
               .attempt
         }
       }
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("jaeger") {
+    val entryPoint = Jaeger.entryPoint("nj.test")(cfg =>
+      IO(cfg.withSampler(SamplerConfiguration.fromEnv).withReporter(ReporterConfiguration.fromEnv).getTracer))
+
+    def plusOne(a: Int)(implicit t: Trace[IO]) = t.span("plus.one")(t.put(("a", 1)) >> IO(a + 1))
+    def plusTwo(a: Int)(implicit t: Trace[IO]) = t.span("plus.two")(t.put(("b", 2)) >> IO(a + 2))
+    //  def plusThree(a: Int)(implicit t: Trace[IO]) = t.span("plus.three")(IO(a + 3))
+
+    serviceGuard.eventStream { ag =>
+      entryPoint.use(_.root("nj.entry").evalMap(Trace.ioTrace).use { implicit root =>
+        ag.action("add-one").notice.retry(plusOne(1)).trace >>
+          ag.action("add-two").notice.retry(plusTwo(2)).trace
+      })
     }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 }
