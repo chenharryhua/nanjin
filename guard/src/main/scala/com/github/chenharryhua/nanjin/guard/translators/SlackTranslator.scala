@@ -249,11 +249,12 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
+            JuxtaposeSection(
+              TextField("Took", fmt.format(evt.took)),
+              TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
                                |*Action ID:* ${evt.actionID.show}
                                |*Trace ID:* ${trace(evt)}
-                               |*Took:* ${fmt.format(evt.took)}
-                               |*Retries:* ${evt.numRetries.show}
                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
             KeyValueSection("Output", s"""```${abbreviate(evt.output.spaces2)}```""")
           )

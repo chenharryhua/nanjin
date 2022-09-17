@@ -268,13 +268,14 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "scalatags"     % "0.11.1",
-      "org.tpolecat" %% "skunk-core"   % "0.3.1",
-      "org.tpolecat" %% "skunk-circe"  % "0.3.1",
-      "org.tpolecat" %% "natchez-core" % "0.1.6",
-      "org.tpolecat" %% "natchez-noop" % "0.1.6",
-      "org.tpolecat" %% "natchez-log"  % "0.1.6"          % Test,
-      "org.slf4j"                      % "slf4j-reload4j" % slf4jV % Test
+      "com.lihaoyi" %% "scalatags"       % "0.11.1",
+      "org.tpolecat" %% "skunk-core"     % "0.3.1",
+      "org.tpolecat" %% "skunk-circe"    % "0.3.1",
+      "org.tpolecat" %% "natchez-core"   % "0.1.6",
+      "org.tpolecat" %% "natchez-noop"   % "0.1.6",
+      "org.tpolecat" %% "natchez-log"    % "0.1.6"          % Test,
+      "org.tpolecat" %% "natchez-jaeger" % "0.1.6"          % Test,
+      "org.slf4j"                        % "slf4j-reload4j" % slf4jV % Test
     ) ++ cronLib ++ metricLib ++ logLib ++ testLib
   )
 

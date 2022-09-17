@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.NJAction
 import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
 import io.circe.syntax.*
@@ -67,15 +68,22 @@ class TraceTest extends AnyFunSuite {
     val entryPoint = Jaeger.entryPoint("nj.test")(cfg =>
       IO(cfg.withSampler(SamplerConfiguration.fromEnv).withReporter(ReporterConfiguration.fromEnv).getTracer))
 
-    def plusOne(a: Int)(implicit t: Trace[IO]) = t.span("plus.one")(t.put(("a", 1)) >> IO(a + 1))
-    def plusTwo(a: Int)(implicit t: Trace[IO]) = t.span("plus.two")(t.put(("b", 2)) >> IO(a + 2))
-    //  def plusThree(a: Int)(implicit t: Trace[IO]) = t.span("plus.three")(IO(a + 3))
+    def plusOne(act: NJAction[IO])(a: Int)(implicit t: Trace[IO]): IO[Int] =
+      t.span("plus.one")(t.put(("a", 1)) >> act("add-one").retry(IO(a + 1)).trace)
+    def plusTwo(act: NJAction[IO])(a: Int)(implicit t: Trace[IO]): IO[Int] =
+      t.span("plus.two")(t.put(("b", 2)) >> act("add-two").retry((i: Int) => IO(i + 2)).trace(a))
+    def plusThree(act: NJAction[IO])(implicit t: Trace[IO]): IO[Int] =
+      t.span("child")(
+        t.span("error")(
+          t.put(("c", 3)) >> act("error").retry(IO.raiseError[Int](new Exception("oops"))).trace))
 
-    serviceGuard.eventStream { ag =>
+    val run = serviceGuard.eventStream { ag =>
+      val template: NJAction[IO] = ag.action("temp").critical.updateConfig(_.withConstantDelay(1.seconds, 3))
       entryPoint.use(_.root("nj.entry").evalMap(Trace.ioTrace).use { implicit root =>
-        ag.action("add-one").notice.retry(plusOne(1)).trace >>
-          ag.action("add-two").notice.retry(plusTwo(2)).trace
+        plusOne(template)(1) >> plusTwo(template)(2) >> plusThree(template).attempt
       })
-    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+    }.evalTap(console.simple[IO]).compile.drain
+
+    (run >> IO.sleep(3.seconds)).unsafeRunSync()
   }
 }
