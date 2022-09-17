@@ -10,6 +10,7 @@ import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
+import java.net.URI
 import java.time.{Duration, ZonedDateTime}
 import java.time.temporal.ChronoUnit
 
@@ -61,9 +62,15 @@ object MetricReportType {
 }
 
 @JsonCodec
-final case class ActionInfo(actionParams: ActionParams, actionID: Int, launchTime: ZonedDateTime)
+final case class ActionInfo(
+  actionParams: ActionParams,
+  actionID: Int,
+  launchTime: ZonedDateTime,
+  traceID: Option[String],
+  traceUri: Option[URI])
 
 object ActionInfo extends zoneddatetime {
+  implicit private val showURI: Show[URI]             = _.toString
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 }
 
