@@ -39,7 +39,7 @@ final private class ActionEventPublisher[F[_]](
       token <- Unique[F].unique.map(_.hash)
       tid <- traceID
       uri <- traceUri
-      ai = ActionInfo(actionParams, token, ts, tid, uri)
+      ai = ActionInfo(actionParams, token, ts, tid, uri.map(_.toString))
       _ <- input
         .flatMap(js => channel.send(ActionStart(actionInfo = ai, input = js)))
         .whenA(actionParams.isNotice)

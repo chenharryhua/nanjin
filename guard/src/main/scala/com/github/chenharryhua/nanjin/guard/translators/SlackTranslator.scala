@@ -168,7 +168,7 @@ private object SlackTranslator extends all {
     )
 
   private def trace(evt: ActionEvent): String =
-    evt.traceUri.map(uri => s"<${evt.traceID}|${uri.toString}>").getOrElse(evt.traceID)
+    evt.traceUri.map(uri => s"<${evt.traceID}|$uri>").getOrElse(evt.traceID)
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(

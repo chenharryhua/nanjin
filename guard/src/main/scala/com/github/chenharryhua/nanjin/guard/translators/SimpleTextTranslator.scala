@@ -32,7 +32,7 @@ private object SimpleTextTranslator {
   private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
        |  Name:${ae.digested.metricRepr}, ID:${ae.actionID}
-       |  TraceID:${ae.traceID}, TraceUri:${ae.traceUri.map(_.toString).getOrElse("none")}""".stripMargin
+       |  TraceID:${ae.traceID}, TraceUri:${ae.traceUri.getOrElse("none")}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}

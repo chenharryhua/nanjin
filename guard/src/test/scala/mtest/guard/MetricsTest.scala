@@ -23,7 +23,7 @@ class MetricsTest extends AnyFunSuite {
   test("delta") {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Delta))
-      .eventStream(ag => ag.action("one").run(IO(0)) >> IO.sleep(10.minutes))
+      .eventStream(ag => ag.root("one").use(_.run(IO(0))) >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -36,7 +36,8 @@ class MetricsTest extends AnyFunSuite {
   test("full") {
     val last = sg
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Full))
-      .eventStream(ag => ag.action("one").updateConfig(_.withCounting).run(IO(0)) >> IO.sleep(10.minutes))
+      .eventStream(ag =>
+        ag.root("one").use(_.updateConfig(_.withCounting).run(IO(0))) >> IO.sleep(10.minutes))
       .evalTap(console(Translator.simpleText[IO]))
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -50,8 +51,8 @@ class MetricsTest extends AnyFunSuite {
   test("ongoing action alignment") {
     sg.updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular).withMetricReport(1.second))
       .eventStream { ag =>
-        val one = ag.action("one").expensive.run(IO(0) <* IO.sleep(10.minutes))
-        val two = ag.action("two").expensive.run(IO(0) <* IO.sleep(10.minutes))
+        val one = ag.root("one").use(_.expensive.run(IO(0) <* IO.sleep(10.minutes)))
+        val two = ag.root("two").use(_.expensive.run(IO(0) <* IO.sleep(10.minutes)))
         IO.parSequenceN(2)(List(one, two))
       }
       .map(_.asJson.noSpaces)
@@ -68,8 +69,9 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular))
       .eventStream { ag =>
         val metric = ag.metrics
-        ag.action("one").run(IO(0)) >> ag.action("two").run(IO(1)) >> metric.fullReport >> metric.reset >> IO
-          .sleep(10.minutes)
+        ag.root("one").use(_.run(IO(0))) >> ag
+          .root("two")
+          .use(_.run(IO(1))) >> metric.fullReport >> metric.reset >> IO.sleep(10.minutes)
       }
       .evalTap(console(Translator.simpleText[IO]))
       .map(_.asJson.noSpaces)

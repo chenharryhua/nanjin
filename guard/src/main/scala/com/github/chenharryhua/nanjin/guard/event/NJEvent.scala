@@ -9,7 +9,6 @@ import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.zoneddatetime
 
-import java.net.URI
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
@@ -86,7 +85,7 @@ object NJEvent extends zoneddatetime {
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionID: Int              = actionInfo.actionID
     final def traceID: String            = actionInfo.traceID.getOrElse("none")
-    final def traceUri: Option[URI]      = actionInfo.traceUri
+    final def traceUri: Option[String]   = actionInfo.traceUri
 
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }

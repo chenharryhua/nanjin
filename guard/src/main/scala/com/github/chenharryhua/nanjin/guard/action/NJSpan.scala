@@ -2,49 +2,52 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.Endo
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
-
+import cats.effect.Resource
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.guard.Name
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
 import fs2.Stream
 import io.circe.Json
+import natchez.{Kernel, Span, TraceValue}
 
+import java.net.URI
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-final class NJAction[F[_]] private[guard] (
-  actionName: Name,
+final class NJSpan[F[_]] private[guard] (
+  nativeSpan: Span[F],
+  spanName: String,
   metricRegistry: MetricRegistry,
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   agentConfig: AgentConfig)(implicit F: Async[F])
-    extends UpdateConfig[AgentConfig, NJAction[F]] {
+    extends UpdateConfig[AgentConfig, NJSpan[F]] with Span[F] {
 
-  def apply(actionName: Name): NJAction[F] =
-    new NJAction[F](actionName, metricRegistry, serviceStatus, channel, agentConfig)
+  def apply(actionName: String): NJSpan[F] =
+    new NJSpan[F](nativeSpan, actionName, metricRegistry, serviceStatus, channel, agentConfig)
 
-  override def updateConfig(f: Endo[AgentConfig]): NJAction[F] =
-    new NJAction[F](actionName, metricRegistry, serviceStatus, channel, f(agentConfig))
+  override def updateConfig(f: Endo[AgentConfig]): NJSpan[F] =
+    new NJSpan[F](nativeSpan, spanName, metricRegistry, serviceStatus, channel, f(agentConfig))
 
-  def trivial: NJAction[F]  = updateConfig(_.withLowImportance)
-  def silent: NJAction[F]   = updateConfig(_.withMediumImportance)
-  def notice: NJAction[F]   = updateConfig(_.withHighImportance)
-  def critical: NJAction[F] = updateConfig(_.withCriticalImportance)
+  def trivial: NJSpan[F]  = updateConfig(_.withLowImportance)
+  def silent: NJSpan[F]   = updateConfig(_.withMediumImportance)
+  def notice: NJSpan[F]   = updateConfig(_.withHighImportance)
+  def critical: NJSpan[F] = updateConfig(_.withCriticalImportance)
 
-  def expensive: NJAction[F] = updateConfig(_.withExpensive(isCostly = true))
-  def cheap: NJAction[F]     = updateConfig(_.withExpensive(isCostly = false))
+  def expensive: NJSpan[F] = updateConfig(_.withExpensive(isCostly = true))
+  def cheap: NJSpan[F]     = updateConfig(_.withExpensive(isCostly = false))
 
   // retries
   def retry[Z](fb: F[Z]): NJRetry0[F, Z] = // 0 arity
     new NJRetry0[F, Z](
+      nativeSpan = nativeSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = ActionParams(agentConfig.evalConfig, spanName),
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
@@ -53,10 +56,11 @@ final class NJAction[F[_]] private[guard] (
 
   def retry[A, Z](f: A => F[Z]): NJRetry[F, A, Z] =
     new NJRetry[F, A, Z](
+      nativeSpan = nativeSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = ActionParams(agentConfig.evalConfig, spanName),
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
@@ -65,10 +69,11 @@ final class NJAction[F[_]] private[guard] (
 
   def retry[A, B, Z](f: (A, B) => F[Z]): NJRetry[F, (A, B), Z] =
     new NJRetry[F, (A, B), Z](
+      nativeSpan = nativeSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = ActionParams(agentConfig.evalConfig, spanName),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
@@ -77,10 +82,11 @@ final class NJAction[F[_]] private[guard] (
 
   def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, (A, B, C), Z] =
     new NJRetry[F, (A, B, C), Z](
+      nativeSpan = nativeSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = ActionParams(agentConfig.evalConfig, spanName),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
@@ -89,10 +95,11 @@ final class NJAction[F[_]] private[guard] (
 
   def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, (A, B, C, D), Z] =
     new NJRetry[F, (A, B, C, D), Z](
+      nativeSpan = nativeSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = ActionParams(agentConfig.evalConfig, spanName),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
@@ -101,10 +108,11 @@ final class NJAction[F[_]] private[guard] (
 
   def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, (A, B, C, D, E), Z] =
     new NJRetry[F, (A, B, C, D, E), Z](
+      nativeSpan = nativeSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = ActionParams(agentConfig.evalConfig, spanName),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
@@ -135,4 +143,11 @@ final class NJAction[F[_]] private[guard] (
   def run[Z](sfb: Stream[F, Z]): F[Unit]       = run(sfb.compile.drain)
   def runFuture[Z](future: F[Future[Z]]): F[Z] = retryFuture(future).run
 
+  override def put(fields: (String, TraceValue)*): F[Unit] = nativeSpan.put(fields*)
+  override def kernel: F[Kernel]                           = nativeSpan.kernel
+  override def span(name: String): Resource[F, NJSpan[F]] =
+    nativeSpan.span(name).map(new NJSpan[F](_, name, metricRegistry, serviceStatus, channel, agentConfig))
+  override def traceId: F[Option[String]] = nativeSpan.traceId
+  override def spanId: F[Option[String]]  = nativeSpan.spanId
+  override def traceUri: F[Option[URI]]   = nativeSpan.traceUri
 }

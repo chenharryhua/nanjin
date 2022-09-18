@@ -7,7 +7,6 @@ import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
-import java.net.URI
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
@@ -42,10 +41,8 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def trace(traceID: String, traceUri: Option[URI]): Text.TypedTag[String] =
-    traceUri
-      .map(uri => p(b("Trace ID: "), a(href := uri.toString)(traceID)))
-      .getOrElse(p(b("Trace ID: "), traceID))
+  private def trace(traceID: String, traceUri: Option[String]): Text.TypedTag[String] =
+    traceUri.map(uri => p(b("Trace ID: "), a(href := uri)(traceID))).getOrElse(p(b("Trace ID: "), traceID))
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
