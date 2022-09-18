@@ -55,7 +55,7 @@ private object SlackTranslator extends all {
               first = TextField("Up Time", fmt.format(evt.upTime)),
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
             ),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
+            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
             MarkdownSection(evt.serviceParams.brief)
           )
         ))
@@ -72,7 +72,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
-                                |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
         )
@@ -91,7 +91,7 @@ private object SlackTranslator extends all {
             JuxtaposeSection(
               TextField("Up Time", fmt.format(evt.upTime)),
               TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)),
-            MarkdownSection(s"""*Service ID:* ${evt.serviceID.show}
+            MarkdownSection(s"""*Service ID:* ${evt.serviceId.show}
                                |*Cause:* ${evt.cause.show}""".stripMargin)
           )
         )
@@ -115,7 +115,7 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*$title:* ${evt.digested.metricRepr}"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}")
+            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}")
           ).appendedAll(msg)
         )
       )
@@ -138,7 +138,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""${upcomingRestartTimeInterpretation(evt)}
                                |*Next Report at:* $nextReport
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+                               |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
         ),
@@ -160,7 +160,7 @@ private object SlackTranslator extends all {
               TextField("Up Time", fmt.format(evt.upTime)),
               TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
             ),
-            MarkdownSection(s"*Service ID:* ${evt.serviceID.show}"),
+            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
             metricsSection(evt.snapshot)
           )
         )
@@ -168,7 +168,7 @@ private object SlackTranslator extends all {
     )
 
   private def trace(evt: ActionEvent): String =
-    evt.traceUri.map(uri => s"<${evt.traceID}|${uri.toString}>").getOrElse(evt.traceID)
+    evt.traceUri.map(uri => s"<${evt.traceId}|$uri>").getOrElse(evt.traceId)
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(
@@ -180,9 +180,9 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
-                               |*Action ID:* ${evt.actionID.show}
+                               |*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${trace(evt)}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+                               |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
           )
         ))
@@ -204,11 +204,11 @@ private object SlackTranslator extends all {
               TextField("Took so far", fmt.format(evt.took)),
               TextField("Retries so far", evt.retriesSoFar.show)),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
-                               |*Action ID:* ${evt.actionID.show}
+                               |*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${trace(evt)}
                                |*The ${toOrdinalWords(evt.retriesSoFar + 1)} retry:* at $lt, in $next
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+                               |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"""```${abbrev(evt.error.message)}```""")
           )
         ))
@@ -228,10 +228,10 @@ private object SlackTranslator extends all {
               TextField("Took", fmt.format(evt.took)),
               TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
-                               |*Action ID:* ${evt.actionID.show}
+                               |*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${trace(evt)}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+                               |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             MarkdownSection(s"""```${abbrev(evt.error.message)} 
                                |Input: 
                                |${abbreviate(evt.input.spaces2)}```""".stripMargin)
@@ -253,9 +253,9 @@ private object SlackTranslator extends all {
               TextField("Took", fmt.format(evt.took)),
               TextField("Retries", evt.numRetries.show)),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
-                               |*Action ID:* ${evt.actionID.show}
+                               |*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${trace(evt)}
-                               |*Service ID:* ${evt.serviceID.show}""".stripMargin),
+                               |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Output", s"""```${abbreviate(evt.output.spaces2)}```""")
           )
         )

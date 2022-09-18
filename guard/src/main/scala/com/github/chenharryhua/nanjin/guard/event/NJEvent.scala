@@ -9,7 +9,6 @@ import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.zoneddatetime
 
-import java.net.URI
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
 
@@ -19,7 +18,7 @@ sealed trait NJEvent extends Product with Serializable {
   def serviceParams: ServiceParams
   def title: String
 
-  final def serviceID: UUID          = serviceParams.serviceID
+  final def serviceId: UUID          = serviceParams.serviceId
   final def serviceName: ServiceName = serviceParams.serviceName
   final def upTime: Duration         = serviceParams.upTime(timestamp)
 
@@ -84,9 +83,10 @@ object NJEvent extends zoneddatetime {
 
     final def digested: Digested         = actionInfo.actionParams.digested
     final def actionParams: ActionParams = actionInfo.actionParams
-    final def actionID: Int              = actionInfo.actionID
-    final def traceID: String            = actionInfo.traceID.getOrElse("none")
-    final def traceUri: Option[URI]      = actionInfo.traceUri
+    final def actionId: Int              = actionInfo.actionId
+    final def traceId: String            = actionInfo.traceId.getOrElse("none")
+    final def traceUri: Option[String]   = actionInfo.traceUri
+    final def spanId: String             = actionInfo.spanId.getOrElse("none")
 
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }

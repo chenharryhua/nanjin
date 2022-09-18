@@ -49,7 +49,7 @@ private[guard] object MetricParams {
   queueCapacity: QueueCapacity,
   metric: MetricParams,
   brief: String,
-  serviceID: UUID,
+  serviceId: UUID,
   launchTime: ZonedDateTime
 ) {
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
@@ -67,7 +67,7 @@ private[guard] object ServiceParams extends zoneddatetime {
   def apply(
     serviceName: ServiceName,
     taskParams: TaskParams,
-    serviceID: UUID,
+    serviceId: UUID,
     launchTime: Instant): ServiceParams =
     ServiceParams(
       serviceName = serviceName,
@@ -82,7 +82,7 @@ private[guard] object ServiceParams extends zoneddatetime {
         snapshotType = MetricSnapshotType.Regular
       ),
       brief = "no brief",
-      serviceID = serviceID,
+      serviceId = serviceId,
       launchTime = launchTime.atZone(taskParams.zoneId)
     )
 }
@@ -106,9 +106,9 @@ private object ServiceConfigF {
 
   final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
-  def algebra(serviceID: UUID, launchTime: Instant): Algebra[ServiceConfigF, ServiceParams] =
+  def algebra(serviceId: UUID, launchTime: Instant): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(s, t)        => ServiceParams(s, t, serviceID, launchTime)
+      case InitParams(s, t)        => ServiceParams(s, t, serviceId, launchTime)
       case WithRetryPolicy(v, c)   => ServiceParams.retry.set(v)(c)
       case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
       case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
@@ -174,8 +174,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withAlwaysGiveUp: ServiceConfig =
     ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.AlwaysGiveUp, value)))
 
-  def evalConfig(serviceID: UUID, launchTime: Instant): ServiceParams =
-    scheme.cata(algebra(serviceID, launchTime)).apply(value)
+  def evalConfig(serviceId: UUID, launchTime: Instant): ServiceParams =
+    scheme.cata(algebra(serviceId, launchTime)).apply(value)
 }
 
 private[guard] object ServiceConfig {

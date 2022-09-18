@@ -43,7 +43,8 @@ class PerformanceTest extends AnyFunSuite {
   test("critical") {
     var i = 0
     service.eventStream { ag =>
-      val ts = ag.action("c").critical.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts =
+        ag.root("c").use(_.critical.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical")
@@ -53,12 +54,9 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts = ag
-        .action("cn")
-        .critical
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .retry(IO(i += 1))
-        .logOutput(_.asJson)
-        .run
+        .root("cn")
+        .use(
+          _.critical.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).logOutput(_.asJson).run)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical - notes")
@@ -68,13 +66,14 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts = ag
-        .action("cen")
-        .critical
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .expensive
-        .retry(IO(i += 1))
-        .logOutput(_.asJson)
-        .run
+        .root("cen")
+        .use(
+          _.critical
+            .updateConfig(_.withoutTiming.withoutCounting)
+            .expensive
+            .retry(IO(i += 1))
+            .logOutput(_.asJson)
+            .run)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical - expensive notes")
@@ -83,7 +82,7 @@ class PerformanceTest extends AnyFunSuite {
   test("notice") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("nt").notice.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.root("nt").use(_.notice.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} notice")
@@ -92,7 +91,7 @@ class PerformanceTest extends AnyFunSuite {
   test("normal") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("n").silent.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.root("n").use(_.silent.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} normal")
@@ -102,7 +101,8 @@ class PerformanceTest extends AnyFunSuite {
     var i: Int = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("ne").silent.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run
+        ag.root("ne")
+          .use(_.silent.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} - normal expensive")
@@ -111,7 +111,7 @@ class PerformanceTest extends AnyFunSuite {
   test("trivial") {
     var i = 0
     service.eventStream { ag =>
-      val ts = ag.action("t").trivial.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.root("t").use(_.trivial.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} trivial")
