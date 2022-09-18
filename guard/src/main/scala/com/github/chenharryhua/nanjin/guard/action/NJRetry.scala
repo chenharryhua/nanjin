@@ -97,9 +97,9 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
       }
   } yield res
 
-  def run(input: IN): F[OUT]                         = internalRun(input, F.pure(None), F.pure(None))
-  def trace(span: Span[F])(input: IN): F[OUT]        = internalRun(input, span.traceId, span.traceUri)
-  def trace(input: IN)(implicit T: Trace[F]): F[OUT] = internalRun(input, T.traceId, T.traceUri)
+  def run(input: IN): F[OUT]                            = internalRun(input, F.pure(None), F.pure(None))
+  def runTrace(span: Span[F])(input: IN): F[OUT]        = internalRun(input, span.traceId, span.traceUri)
+  def runTrace(input: IN)(implicit T: Trace[F]): F[OUT] = internalRun(input, T.traceId, T.traceUri)
 }
 
 final class NJRetry0[F[_], OUT] private[guard] (
@@ -145,8 +145,8 @@ final class NJRetry0[F[_], OUT] private[guard] (
     isWorthRetry = isWorthRetry
   )
 
-  val run: F[OUT]                         = njRetry.run(())
-  def trace(span: Span[F]): F[OUT]        = njRetry.trace(span)(())
-  def trace(implicit T: Trace[F]): F[OUT] = njRetry.trace(())(T)
+  val run: F[OUT]                            = njRetry.run(())
+  def runTrace(span: Span[F]): F[OUT]        = njRetry.runTrace(span)(())
+  def runTrace(implicit T: Trace[F]): F[OUT] = njRetry.runTrace(())(T)
 
 }
