@@ -24,9 +24,9 @@ private object SimpleJsonTranslator {
     json"""
           {
             "event": "ServicePanic",
-            "serviceName" : ${evt.serviceName},
+            "service_name" : ${evt.serviceName},
             "cause" : ${evt.error.stackTrace},
-            "serviceID": ${evt.serviceID},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -35,10 +35,10 @@ private object SimpleJsonTranslator {
     json"""
           {
             "event": "ServiceStop",
-            "serviceName" : ${evt.serviceName},
-            "exitCode": ${evt.cause.exitCode},
+            "service_name" : ${evt.serviceName},
+            "exit_code": ${evt.cause.exitCode},
             "cause": ${evt.cause.show},
-            "serviceID": ${evt.serviceID},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -48,11 +48,11 @@ private object SimpleJsonTranslator {
           {
             "event": "MetricReport",
             "index": ${evt.reportType.idx},
-            "serviceName" : ${evt.serviceName},
-            "isUp": ${evt.isUp},
-            "ongoings": ${evt.ongoings.map(_.actionID)},            
+            "service_name" : ${evt.serviceName},
+            "is_up": ${evt.isUp},
+            "ongoings": ${evt.ongoings.map(_.actionId)},
             "metrics": ${evt.snapshot.asJson},
-            "serviceID": ${evt.serviceID},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -61,9 +61,9 @@ private object SimpleJsonTranslator {
     json"""
           {
             "event": "MetricReset",
-            "serviceName" : ${evt.serviceName},
+            "service_name" : ${evt.serviceName},
             "metrics": ${evt.snapshot.asJson},
-            "serviceID": ${evt.serviceID},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -73,10 +73,10 @@ private object SimpleJsonTranslator {
           {
             "event": "PassThrough",
             "name": ${evt.digested.name},
-            "isError": ${evt.isError},
+            "is_error": ${evt.isError},
             "value": ${evt.value},
             "digest": ${evt.digested.digest},
-            "serviceID": ${evt.serviceID},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -89,7 +89,7 @@ private object SimpleJsonTranslator {
             "importance": ${evt.importance},
             "message": ${evt.message},
             "digest": ${evt.digested.digest},
-            "serviceID": ${evt.serviceID},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -99,11 +99,12 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionStart",
             "name": ${evt.digested.name},
-            "traceID": ${evt.traceID},
+            "trace_id": ${evt.traceId},
+            "span_id": ${evt.spanId},
             "input": ${evt.input},
             "digest": ${evt.digested.digest},
-            "id": ${evt.actionID},
-            "serviceID": ${evt.serviceID},
+            "id": ${evt.actionId},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -113,12 +114,12 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionRetry",
             "name": ${evt.digested.name},
-            "traceID": ${evt.traceID},
-            "traceUri": ${evt.traceUri},
+            "trace_id": ${evt.traceId},
+            "span_id": ${evt.spanId},
             "cause" : ${evt.error.message},
             "digest": ${evt.digested.digest},
-            "id": ${evt.actionID},         
-            "serviceID": ${evt.serviceID},
+            "id": ${evt.actionId},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -128,13 +129,13 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionFail",
             "name": ${evt.digested.name},
-            "traceID": ${evt.traceID},
-            "traceUri": ${evt.traceUri},
+            "trace_id": ${evt.traceId},
+            "span_id": ${evt.spanId},
             "input": ${evt.input},
             "cause" : ${evt.error.stackTrace},
             "digest": ${evt.digested.digest},
-            "id": ${evt.actionID},       
-            "serviceID": ${evt.serviceID},
+            "id": ${evt.actionId},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """
@@ -144,12 +145,12 @@ private object SimpleJsonTranslator {
           {       
             "event": "ActionSucc",
             "name": ${evt.digested.name},
-            "traceID": ${evt.traceID},
-            "traceUri": ${evt.traceUri},
+            "trace_id": ${evt.traceId},
+            "span_id": ${evt.spanId},
             "output": ${evt.output},
             "digest": ${evt.digested.digest},
-            "id": ${evt.actionID},      
-            "serviceID": ${evt.serviceID},
+            "id": ${evt.actionId},
+            "service_id": ${evt.serviceId},
             "timestamp": ${evt.timestamp}
           }
           """

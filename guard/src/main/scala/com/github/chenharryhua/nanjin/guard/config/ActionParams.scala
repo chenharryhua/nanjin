@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Applicative, Show}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.guard.{MaxRetry, Name}
+import com.github.chenharryhua.nanjin.common.guard.MaxRetry
 import eu.timepit.refined.cats.*
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
@@ -50,7 +50,7 @@ object ActionRetryParams extends duration {
 
 @JsonCodec
 final case class ActionParams private (
-  actionName: Name,
+  spanName: String,
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -62,16 +62,16 @@ final case class ActionParams private (
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
   val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 
-  val digested: Digested = Digested(serviceParams, actionName)
+  val digested: Digested = Digested(serviceParams, spanName)
 
 }
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show[ActionParams]
 
-  def apply(agentParams: AgentParams, actionName: Name): ActionParams =
+  def apply(agentParams: AgentParams, spanName: String): ActionParams =
     ActionParams(
-      actionName = actionName,
+      spanName = spanName,
       importance = agentParams.importance,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,

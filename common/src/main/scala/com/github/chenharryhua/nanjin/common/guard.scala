@@ -12,9 +12,6 @@ object guard {
   type TaskName = Refined[String, NameConstraint]
   object TaskName extends RefinedTypeOps[TaskName, String] with CatsRefinedTypeOpsSyntax
 
-  type Name = Refined[String, NameConstraint]
-  object Name extends RefinedTypeOps[Name, String] with CatsRefinedTypeOpsSyntax
-
   type HomePage      = Refined[String, Url]
   type QueueCapacity = Refined[Int, NonNegative]
   type MaxRetry      = Refined[Int, NonNegative]

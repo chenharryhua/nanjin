@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
-import com.github.chenharryhua.nanjin.common.guard.Name
 import io.circe.generic.JsonCodec
 
 @JsonCodec
@@ -16,9 +15,9 @@ object Digested {
 
   implicit val showDigestedName: Show[Digested] = _.metricRepr
 
-  def apply(serviceParams: ServiceParams, name: Name): Digested = {
+  def apply(serviceParams: ServiceParams, name: String): Digested = {
     val fullName: List[String] =
-      serviceParams.taskParams.taskName.value :: serviceParams.serviceName.value :: name.value :: Nil
-    Digested(name.value, DigestUtils.sha1Hex(fullName.mkString("/")).take(8))
+      serviceParams.taskParams.taskName.value :: serviceParams.serviceName.value :: name :: Nil
+    Digested(name, DigestUtils.sha1Hex(fullName.mkString("/")).take(8))
   }
 }

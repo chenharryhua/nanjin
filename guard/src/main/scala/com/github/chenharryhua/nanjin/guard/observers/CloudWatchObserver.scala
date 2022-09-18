@@ -36,7 +36,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
 
     val keyMap: Map[MetricKey, Long] = report.snapshot.counterMap.map { case (metricName, counter) =>
       MetricKey(
-        report.serviceParams.serviceID,
+        report.serviceParams.serviceId,
         report.serviceParams.taskParams.hostName.value,
         StandardUnit.Count,
         report.serviceParams.taskParams.taskName.value,
