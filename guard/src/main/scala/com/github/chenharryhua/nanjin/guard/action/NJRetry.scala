@@ -18,7 +18,7 @@ import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJRetry[F[_], IN, OUT] private[guard] (
-  nativeSpan: Span[F],
+  underlieSpan: Span[F],
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -32,7 +32,7 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     transOutput: (IN, OUT) => F[Json] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, IN, OUT] =
     new NJRetry[F, IN, OUT](
-      nativeSpan,
+      underlieSpan,
       serviceStatus,
       metricRegistry,
       channel,
@@ -73,8 +73,8 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     actionInfo <- publisher.actionStart(
       actionParams,
       transInput(input),
-      nativeSpan.traceId,
-      nativeSpan.traceUri)
+      underlieSpan.traceId,
+      underlieSpan.traceUri)
     res <- retry.mtl
       .retryingOnSomeErrors[OUT]
       .apply[F, Throwable](
@@ -104,7 +104,7 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
 }
 
 final class NJRetry0[F[_], OUT] private[guard] (
-  nativeSpan: Span[F],
+  underlieSpan: Span[F],
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -118,7 +118,7 @@ final class NJRetry0[F[_], OUT] private[guard] (
     transOutput: OUT => F[Json] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry0[F, OUT] =
     new NJRetry0[F, OUT](
-      nativeSpan,
+      underlieSpan,
       serviceStatus,
       metricRegistry,
       channel,
@@ -138,7 +138,7 @@ final class NJRetry0[F[_], OUT] private[guard] (
   def logOutput(implicit ev: Encoder[OUT]): NJRetry0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
   val run: F[OUT] = new NJRetry[F, Unit, OUT](
-    nativeSpan = nativeSpan,
+    underlieSpan = underlieSpan,
     serviceStatus = serviceStatus,
     metricRegistry = metricRegistry,
     channel = channel,

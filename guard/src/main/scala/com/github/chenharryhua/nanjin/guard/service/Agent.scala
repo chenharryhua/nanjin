@@ -23,7 +23,7 @@ final class Agent[F[_]] private[service] (
     extends EntryPoint[F] {
 
   private def build(span: Span[F], name: String) = new NJSpan[F](
-    nativeSpan = span,
+    underlieSpan = span,
     spanName = name,
     metricRegistry = metricRegistry,
     serviceStatus = serviceStatus,
@@ -92,15 +92,6 @@ final class Agent[F[_]] private[service] (
   lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
 
   // for convenience
-
-//  def nonStop[B](fb: F[B]): F[Nothing] =
-//    action("non-stop")
-//      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance.withExpensive(true).withAlwaysGiveUp)
-//      .retry(fb)
-//      .run
-//      .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
-
-//  def nonStop[B](sfb: Stream[F, B]): F[Nothing] = nonStop(sfb.compile.drain)
 
   def quasi[G[_]: Traverse: Alternative, B](tfb: G[F[B]]): IorT[F, G[Throwable], G[B]] =
     IorT(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>

@@ -18,7 +18,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 final class NJSpan[F[_]] private[guard] (
-  nativeSpan: Span[F],
+  underlieSpan: Span[F],
   spanName: String,
   metricRegistry: MetricRegistry,
   serviceStatus: Ref[F, ServiceStatus],
@@ -26,11 +26,8 @@ final class NJSpan[F[_]] private[guard] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, NJSpan[F]] with Span[F] {
 
-  def apply(actionName: String): NJSpan[F] =
-    new NJSpan[F](nativeSpan, actionName, metricRegistry, serviceStatus, channel, agentConfig)
-
   override def updateConfig(f: Endo[AgentConfig]): NJSpan[F] =
-    new NJSpan[F](nativeSpan, spanName, metricRegistry, serviceStatus, channel, f(agentConfig))
+    new NJSpan[F](underlieSpan, spanName, metricRegistry, serviceStatus, channel, f(agentConfig))
 
   def trivial: NJSpan[F]  = updateConfig(_.withLowImportance)
   def silent: NJSpan[F]   = updateConfig(_.withMediumImportance)
@@ -43,7 +40,7 @@ final class NJSpan[F[_]] private[guard] (
   // retries
   def retry[Z](fb: F[Z]): NJRetry0[F, Z] = // 0 arity
     new NJRetry0[F, Z](
-      nativeSpan = nativeSpan,
+      underlieSpan = underlieSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -56,7 +53,7 @@ final class NJSpan[F[_]] private[guard] (
 
   def retry[A, Z](f: A => F[Z]): NJRetry[F, A, Z] =
     new NJRetry[F, A, Z](
-      nativeSpan = nativeSpan,
+      underlieSpan = underlieSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -69,7 +66,7 @@ final class NJSpan[F[_]] private[guard] (
 
   def retry[A, B, Z](f: (A, B) => F[Z]): NJRetry[F, (A, B), Z] =
     new NJRetry[F, (A, B), Z](
-      nativeSpan = nativeSpan,
+      underlieSpan = underlieSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -82,7 +79,7 @@ final class NJSpan[F[_]] private[guard] (
 
   def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, (A, B, C), Z] =
     new NJRetry[F, (A, B, C), Z](
-      nativeSpan = nativeSpan,
+      underlieSpan = underlieSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -95,7 +92,7 @@ final class NJSpan[F[_]] private[guard] (
 
   def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, (A, B, C, D), Z] =
     new NJRetry[F, (A, B, C, D), Z](
-      nativeSpan = nativeSpan,
+      underlieSpan = underlieSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -108,7 +105,7 @@ final class NJSpan[F[_]] private[guard] (
 
   def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, (A, B, C, D, E), Z] =
     new NJRetry[F, (A, B, C, D, E), Z](
-      nativeSpan = nativeSpan,
+      underlieSpan = underlieSpan,
       serviceStatus = serviceStatus,
       metricRegistry = metricRegistry,
       channel = channel,
@@ -143,11 +140,11 @@ final class NJSpan[F[_]] private[guard] (
   def run[Z](sfb: Stream[F, Z]): F[Unit]       = run(sfb.compile.drain)
   def runFuture[Z](future: F[Future[Z]]): F[Z] = retryFuture(future).run
 
-  override def put(fields: (String, TraceValue)*): F[Unit] = nativeSpan.put(fields*)
-  override def kernel: F[Kernel]                           = nativeSpan.kernel
+  override def put(fields: (String, TraceValue)*): F[Unit] = underlieSpan.put(fields*)
+  override def kernel: F[Kernel]                           = underlieSpan.kernel
   override def span(name: String): Resource[F, NJSpan[F]] =
-    nativeSpan.span(name).map(new NJSpan[F](_, name, metricRegistry, serviceStatus, channel, agentConfig))
-  override def traceId: F[Option[String]] = nativeSpan.traceId
-  override def spanId: F[Option[String]]  = nativeSpan.spanId
-  override def traceUri: F[Option[URI]]   = nativeSpan.traceUri
+    underlieSpan.span(name).map(new NJSpan[F](_, name, metricRegistry, serviceStatus, channel, agentConfig))
+  override def traceId: F[Option[String]] = underlieSpan.traceId
+  override def spanId: F[Option[String]]  = underlieSpan.spanId
+  override def traceUri: F[Option[URI]]   = underlieSpan.traceUri
 }

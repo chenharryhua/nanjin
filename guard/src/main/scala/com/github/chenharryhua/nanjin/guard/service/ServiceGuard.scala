@@ -50,11 +50,14 @@ final class ServiceGuard[F[_]] private[guard] (
   def apply(serviceName: ServiceName): ServiceGuard[F] =
     updateConfig(_.withServiceName(serviceName))
 
-  def withEntryPoint(entryPoint: EntryPoint[F]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, Resource.pure(entryPoint), metricFilter, jmxBuilder)
-
   def withEntryPoint(entryPoint: Resource[F, EntryPoint[F]]): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, entryPoint, metricFilter, jmxBuilder)
+
+  def withEntryPoint(entryPoint: EntryPoint[F]): ServiceGuard[F] =
+    withEntryPoint(Resource.pure[F, EntryPoint[F]](entryPoint))
+
+  def withEntryPoint(entryPoint: F[EntryPoint[F]]): ServiceGuard[F] =
+    withEntryPoint(Resource.eval(entryPoint))
 
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, entryPoint, metricFilter, Some(builder))

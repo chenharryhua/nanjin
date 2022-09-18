@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
+import natchez.Kernel
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -180,7 +181,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.root("predicate")
+        gd.continueOrElseRoot("predicate", Kernel(Map.empty))
           .use(
             _.updateConfig(_.withFibonacciBackoff(0.1.second, 3))
               .retry(IO.raiseError(MyException()))
@@ -205,7 +206,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.root("predicate")
+        gd.continue("predicate", Kernel(Map.empty))
           .use(
             _.notice
               .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
@@ -224,63 +225,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-//  test("12.retry - nonterminating - should retry") {
-//    val a :: b :: c :: d :: e :: f :: _ = serviceGuard
-//      .updateConfig(_.withConstantDelay(1.second))
-//      .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
-//      .interruptAfter(5.seconds)
-//      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-//      .unNone
-//      .compile
-//      .toList
-//      .unsafeRunSync()
-//
-//    assert(a.isInstanceOf[ServiceStart])
-//    assert(b.isInstanceOf[ServicePanic])
-//    assert(c.isInstanceOf[ServiceStart])
-//    assert(d.isInstanceOf[ServicePanic])
-//    assert(e.isInstanceOf[ServiceStart])
-//    assert(f.isInstanceOf[ServicePanic])
-//  }
-
-//  test("13.retry - nonterminating - exception") {
-//
-//    val a :: b :: c :: d :: e :: f :: g :: h :: i :: _ = serviceGuard
-//      .updateConfig(_.withConstantDelay(1.second))
-//      .eventStream(_.nonStop(IO.raiseError(new Exception("ex"))))
-//      .interruptAfter(5.seconds)
-//      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-//      .compile
-//      .toList
-//      .unsafeRunSync()
-//
-//    assert(a.isInstanceOf[ServiceStart])
-//    assert(b.asInstanceOf[ActionFail].error.message == "Exception: ex")
-//    assert(c.isInstanceOf[ServicePanic])
-//    assert(d.isInstanceOf[ServiceStart])
-//    assert(e.asInstanceOf[ActionFail].error.message == "Exception: ex")
-//    assert(f.isInstanceOf[ServicePanic])
-//    assert(g.isInstanceOf[ServiceStart])
-//    assert(h.asInstanceOf[ActionFail].error.message == "Exception: ex")
-//    assert(i.isInstanceOf[ServicePanic])
-//  }
-//
-//  test("14.retry - nonterminating - cancelation") {
-//    val a :: b :: c :: Nil = serviceGuard
-//      .updateConfig(_.withConstantDelay(1.second))
-//      .eventStream(_.nonStop(IO(1) >> IO.canceled))
-//      .interruptAfter(5.seconds)
-//      .evalMap(e => IO(decode[NJEvent](e.asJson.spaces2)).rethrow)
-//      .compile
-//      .toList
-//      .unsafeRunSync()
-//    assert(a.isInstanceOf[ServiceStart])
-//    assert(b.isInstanceOf[ActionFail])
-//    assert(c.isInstanceOf[ServiceStop])
-//    assert(a.productPrefix == "ServiceStart")
-//  }
-
-  test("15.quasi syntax") {
+  test("10.quasi syntax") {
     serviceGuard.eventStream { ag =>
       ag.quasi(3)(IO("a"), IO("b")).value >>
         ag.quasi(3, List(IO("a"), IO("b"))).value >>
