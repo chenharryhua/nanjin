@@ -20,11 +20,15 @@ class TraceTest extends AnyFunSuite {
   implicit val log: Logger[IO] = Slf4jLogger.getLogger[IO]
   val entryPoint               = Log.entryPoint[IO]("log.service")
   val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("trace-guard").withEntryPoint(entryPoint).service("trace test")
+    TaskGuard[IO]("trace-guard").withEntryPoint(entryPoint).service("trace.service")
 
   test("log trace explicit") {
     serviceGuard.eventStream { ag =>
-      ag.root("root").use(_.span("s2").use(_.notice.run(IO(1)).delayBy(1.seconds)))
+      ag.root("img").use(_.run(IO(()))) >>
+        ag.root("log").use { r =>
+          r.span("s1").use(_.notice.run(IO(1)).delayBy(1.seconds))
+            >> r.span("s2").use(_.notice.run(IO.raiseError(new Exception("oops")))).attempt
+        }
     }.interruptAfter(5.seconds).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -35,7 +39,7 @@ class TraceTest extends AnyFunSuite {
     val run = serviceGuard
       .withEntryPoint(entryPoint)
       .eventStream { ag =>
-        ag.root("nj.jaeger.test").use { sp1 =>
+        ag.root("jaeger").use { sp1 =>
           sp1.critical.run(IO(1)) >>
             sp1.span("children-1").use(sp2 => sp2.critical.run(IO(2))).replicateA_(3) >>
             sp1

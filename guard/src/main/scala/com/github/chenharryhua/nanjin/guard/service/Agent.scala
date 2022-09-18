@@ -21,6 +21,8 @@ final class Agent[F[_]] private[service] (
   channel: Channel[F, NJEvent],
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends EntryPoint[F] {
+  private lazy val agentParams: AgentParams     = agentConfig.evalConfig
+  private lazy val serviceParams: ServiceParams = agentParams.serviceParams
 
   private def build(span: Span[F], name: String) = new NJSpan[F](
     underlieSpan = span,
@@ -30,17 +32,16 @@ final class Agent[F[_]] private[service] (
     channel = channel,
     agentConfig = agentConfig)
 
+  private val rootName: String =
+    s"${serviceParams.taskParams.taskName.value}/${serviceParams.serviceName.value}"
   override def root(name: String): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.root(name).map(build(_, name)))
+    entryPoint.flatMap(_.root(rootName).flatMap(_.span(name)).map(build(_, name)))
   override def continue(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continue(name, kernel).map(build(_, name)))
+    entryPoint.flatMap(_.continue(rootName, kernel).flatMap(_.span(name)).map(build(_, name)))
   override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continueOrElseRoot(name, kernel).map(build(_, name)))
+    entryPoint.flatMap(_.continueOrElseRoot(rootName, kernel).flatMap(_.span(name)).map(build(_, name)))
 
   // parameters
-
-  private lazy val agentParams: AgentParams     = agentConfig.evalConfig
-  private lazy val serviceParams: ServiceParams = agentParams.serviceParams
 
   lazy val zoneId: ZoneId = agentParams.serviceParams.taskParams.zoneId
 

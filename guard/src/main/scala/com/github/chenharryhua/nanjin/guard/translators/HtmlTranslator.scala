@@ -41,8 +41,15 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def trace(traceID: String, traceUri: Option[String]): Text.TypedTag[String] =
-    traceUri.map(uri => p(b("Trace ID: "), a(href := uri)(traceID))).getOrElse(p(b("Trace ID: "), traceID))
+  private def actionText(evt: ActionEvent): Text.TypedTag[String] =
+    div(
+      p(b("Name: "), evt.digested.metricRepr),
+      p(b("ID: "), evt.actionId.show),
+      p(b("span ID: "), evt.spanId),
+      evt.traceUri
+        .map(uri => p(b("Trace ID: "), a(href := uri)(evt.traceId)))
+        .getOrElse(p(b("Trace ID: "), evt.traceId))
+    )
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
@@ -126,9 +133,7 @@ private object HtmlTranslator extends all {
   private def actionStart(evt: ActionStart): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionId.show),
-      trace(evt.traceId, evt.actionInfo.traceUri),
+      actionText(evt),
       hostServiceText(evt),
       p(b("Input: "), pre(evt.input.spaces2))
     )
@@ -136,9 +141,7 @@ private object HtmlTranslator extends all {
   private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionId.show),
-      trace(evt.traceId, evt.actionInfo.traceUri),
+      actionText(evt),
       hostServiceText(evt),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show),
       causeText(evt.error)
@@ -147,9 +150,7 @@ private object HtmlTranslator extends all {
   private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionId.show),
-      trace(evt.traceId, evt.actionInfo.traceUri),
+      actionText(evt),
       hostServiceText(evt),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
@@ -161,9 +162,7 @@ private object HtmlTranslator extends all {
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionId.show),
-      trace(evt.traceId, evt.actionInfo.traceUri),
+      actionText(evt),
       hostServiceText(evt),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),
