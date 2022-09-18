@@ -24,8 +24,8 @@ class TraceTest extends AnyFunSuite {
 
   test("log trace explicit") {
     serviceGuard.eventStream { ag =>
-      ag.root("root").use(_.notice.run(IO(1)))
-    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+      ag.root("root").use(_.span("s2").use(_.notice.run(IO(1)).delayBy(1.seconds)))
+    }.interruptAfter(5.seconds).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
   test("jaeger") {
@@ -37,7 +37,7 @@ class TraceTest extends AnyFunSuite {
       .eventStream { ag =>
         ag.root("nj.jaeger.test").use { sp1 =>
           sp1.critical.run(IO(1)) >>
-            sp1.span("children-1").use(sp2 => sp2.critical.run(IO(2))) >>
+            sp1.span("children-1").use(sp2 => sp2.critical.run(IO(2))).replicateA_(3) >>
             sp1
               .span("children-2")
               .use(_.critical

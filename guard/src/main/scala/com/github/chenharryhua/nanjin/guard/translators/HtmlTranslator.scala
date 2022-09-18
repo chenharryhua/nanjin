@@ -37,7 +37,7 @@ private object HtmlTranslator extends all {
       p(b("Host: "), evt.serviceParams.taskParams.hostName.value),
       p(b("Task: "), evt.serviceParams.taskParams.taskName.value),
       serviceName,
-      p(b("ServiceID: "), evt.serviceID.show)
+      p(b("ServiceID: "), evt.serviceId.show)
     )
   }
 
@@ -63,7 +63,7 @@ private object HtmlTranslator extends all {
             td(style := tds)(a.digested.digest),
             td(style := tds)(fmt.format(a.took(now))),
             td(style := tds)(a.launchTime.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show),
-            td(style := tds)(a.actionID.show)
+            td(style := tds)(a.actionId.show)
           ))
       )
     )
@@ -127,8 +127,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionID.show),
-      trace(evt.traceID, evt.actionInfo.traceUri),
+      p(b("ID: "), evt.actionId.show),
+      trace(evt.traceId, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Input: "), pre(evt.input.spaces2))
     )
@@ -137,8 +137,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionID.show),
-      trace(evt.traceID, evt.actionInfo.traceUri),
+      p(b("ID: "), evt.actionId.show),
+      trace(evt.traceId, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Policy: "), evt.actionParams.retry.policy[F].show),
       causeText(evt.error)
@@ -148,8 +148,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionID.show),
-      trace(evt.traceID, evt.actionInfo.traceUri),
+      p(b("ID: "), evt.actionId.show),
+      trace(evt.traceId, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
@@ -162,8 +162,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionID.show),
-      trace(evt.traceID, evt.actionInfo.traceUri),
+      p(b("ID: "), evt.actionId.show),
+      trace(evt.traceId, evt.actionInfo.traceUri),
       hostServiceText(evt),
       p(b("Took: "), fmt.format(evt.took)),
       retriesText(evt.numRetries),

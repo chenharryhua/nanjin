@@ -13,8 +13,8 @@ final private class FinalizeMonitor[F[_], A](
   translate: NJEvent => F[Option[A]],
   ref: Ref[F, Map[UUID, ServiceStart]])(implicit F: Temporal[F]) {
   def monitoring(event: NJEvent): F[Unit] = event match {
-    case ss: ServiceStart => ref.update(_.updated(ss.serviceID, ss))
-    case ss: ServiceStop  => ref.update(_.removed(ss.serviceID))
+    case ss: ServiceStart => ref.update(_.updated(ss.serviceId, ss))
+    case ss: ServiceStop  => ref.update(_.removed(ss.serviceId))
     case _                => F.unit
   }
 

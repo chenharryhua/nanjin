@@ -63,17 +63,18 @@ object MetricReportType {
 @JsonCodec
 final case class ActionInfo(
   actionParams: ActionParams,
-  actionID: Int,
+  actionId: Int,
   launchTime: ZonedDateTime,
-  traceID: Option[String],
-  traceUri: Option[String])
+  traceId: Option[String],
+  traceUri: Option[String],
+  spanId: Option[String])
 
 object ActionInfo extends zoneddatetime {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 }
 
 @JsonCodec
-final case class OngoingAction(digested: Digested, actionID: Int, launchTime: ZonedDateTime) {
+final case class OngoingAction(digested: Digested, actionId: Int, launchTime: ZonedDateTime) {
   def took(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
 }
 

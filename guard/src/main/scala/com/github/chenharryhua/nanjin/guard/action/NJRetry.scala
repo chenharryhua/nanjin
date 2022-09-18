@@ -71,10 +71,11 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
       .ref(0)
       .map(retryCounter => new ActionEventPublisher[F](serviceStatus, channel, retryCounter))
     actionInfo <- publisher.actionStart(
-      actionParams,
-      transInput(input),
-      underlieSpan.traceId,
-      underlieSpan.traceUri)
+      actionParams = actionParams,
+      input = transInput(input),
+      traceId = underlieSpan.traceId,
+      traceUri = underlieSpan.traceUri,
+      spanId = underlieSpan.spanId)
     res <- retry.mtl
       .retryingOnSomeErrors[OUT]
       .apply[F, Throwable](

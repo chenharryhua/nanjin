@@ -20,7 +20,7 @@ private object SimpleTextTranslator {
     val host: String = se.serviceParams.taskParams.hostName.value
     val sn: String   = se.serviceParams.serviceName.value
     val tn: String   = se.serviceParams.taskParams.taskName.value
-    s"Task:$tn, Service:$sn, Host:$host, ServiceID:${se.serviceID.show}"
+    s"Task:$tn, Service:$sn, Host:$host, ServiceID:${se.serviceId.show}"
   }
 
   private def instantEvent(ie: InstantEvent): String =
@@ -31,8 +31,8 @@ private object SimpleTextTranslator {
 
   private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
-       |  Name:${ae.digested.metricRepr}, ID:${ae.actionID}
-       |  TraceID:${ae.traceID}, TraceUri:${ae.traceUri.getOrElse("none")}""".stripMargin
+       |  Name:${ae.digested.metricRepr}, ID:${ae.actionId}
+       |  TraceID:${ae.traceId}, TraceUri:${ae.traceUri.getOrElse("none")}, SpanID: ${ae.spanId}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}
@@ -56,7 +56,7 @@ private object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String = {
     val ongoings: List[String] =
       evt.ongoings.map(og =>
-        s"${og.digested.metricRepr}(id:${og.actionID}, upTime:${fmt.format(og.took(evt.timestamp))})")
+        s"${og.digested.metricRepr}(ID:${og.actionId}, UpTime:${fmt.format(og.took(evt.timestamp))})")
 
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
