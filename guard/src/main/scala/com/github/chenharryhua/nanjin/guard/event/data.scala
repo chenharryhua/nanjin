@@ -66,8 +66,7 @@ final case class ActionInfo(
   actionId: Int,
   launchTime: ZonedDateTime,
   traceId: Option[String],
-  traceUri: Option[String],
-  spanId: Option[String])
+  traceUri: Option[String])
 
 object ActionInfo extends zoneddatetime {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]

@@ -45,7 +45,6 @@ private object HtmlTranslator extends all {
     div(
       p(b("Name: "), evt.digested.metricRepr),
       p(b("ID: "), evt.actionId.show),
-      p(b("span ID: "), evt.spanId),
       evt.traceUri
         .map(uri => p(b("Trace ID: "), a(href := uri)(evt.traceId)))
         .getOrElse(p(b("Trace ID: "), evt.traceId))

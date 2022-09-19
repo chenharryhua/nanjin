@@ -33,21 +33,18 @@ final private class ActionEventPublisher[F[_]](
     actionParams: ActionParams,
     input: F[Json],
     traceId: F[Option[String]],
-    traceUri: F[Option[URI]],
-    spanId: F[Option[String]]): F[ActionInfo] =
+    traceUri: F[Option[URI]]): F[ActionInfo] =
     for {
       ts <- F.realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
       tid <- traceId
       uri <- traceUri
-      sid <- spanId
       ai = ActionInfo(
         actionParams = actionParams,
         actionId = token,
         launchTime = ts,
         traceId = tid,
-        traceUri = uri.map(_.toString),
-        spanId = sid)
+        traceUri = uri.map(_.toString))
       _ <- input
         .flatMap(js => channel.send(ActionStart(actionInfo = ai, input = js)))
         .whenA(actionParams.isNotice)
