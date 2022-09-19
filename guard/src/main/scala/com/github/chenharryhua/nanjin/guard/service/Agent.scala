@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
+import fs2.Stream
 
 import java.time.ZoneId
 
@@ -77,6 +78,12 @@ final class Agent[F[_]] private[service] (
   lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
 
   // for convenience
+
+  def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
+    action("nonStop")
+      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance.withExpensive(true).withAlwaysGiveUp)
+      .run(sfa.compile.drain)
+      .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 
   def quasi[G[_]: Traverse: Alternative, B](tfb: G[F[B]]): IorT[F, G[Throwable], G[B]] =
     IorT(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>

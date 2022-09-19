@@ -109,6 +109,7 @@ class RetryTest extends AnyFunSuite {
     var i = 0
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
       gd.action("1-time-succ")
+        .critical
         .updateConfig(_.withFullJitterBackoff(1.second, 3))
         .retry((_: Int) =>
           IO(if (i < 2) {
@@ -224,5 +225,24 @@ class RetryTest extends AnyFunSuite {
         ag.quasi(IO.print("a"), IO.print("b")).value >>
         ag.quasi(3)(IO.print("a"), IO.print("b")).value
     }
+  }
+
+  test("12.retry - nonterminating - should retry") {
+    val a :: b :: c :: d :: e :: f :: _ = serviceGuard
+      .updateConfig(_.withConstantDelay(1.second))
+      .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
+      .interruptAfter(5.seconds)
+      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
+      .unNone
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ServicePanic])
+    assert(c.isInstanceOf[ServiceStart])
+    assert(d.isInstanceOf[ServicePanic])
+    assert(e.isInstanceOf[ServiceStart])
+    assert(f.isInstanceOf[ServicePanic])
   }
 }

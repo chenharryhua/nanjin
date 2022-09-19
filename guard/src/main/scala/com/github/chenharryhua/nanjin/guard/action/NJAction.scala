@@ -22,6 +22,9 @@ final class NJAction[F[_]] private[guard] (
   agentConfig: AgentConfig)(implicit F: Async[F])
     extends UpdateConfig[AgentConfig, NJAction[F]] {
 
+  def apply(actionName: String): NJAction[F] =
+    new NJAction[F](actionName, metricRegistry, serviceStatus, channel, agentConfig)
+
   override def updateConfig(f: Endo[AgentConfig]): NJAction[F] =
     new NJAction[F](actionName, metricRegistry, serviceStatus, channel, f(agentConfig))
 
