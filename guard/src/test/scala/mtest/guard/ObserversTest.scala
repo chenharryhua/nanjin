@@ -71,7 +71,7 @@ class ObserversTest extends AnyFunSuite {
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
       }
-      .evalTap(console(Translator.verboseJson[IO].map(_.noSpaces)))
+      .evalTap(console(Translator.simpleJson[IO].map(_.noSpaces)))
       .compile
       .drain
       .unsafeRunSync()

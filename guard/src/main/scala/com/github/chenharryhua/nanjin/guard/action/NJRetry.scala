@@ -26,7 +26,8 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
   arrow: IN => F[OUT],
   transInput: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
-  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
+  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F])
+    extends (IN => F[OUT]) {
   private def copy(
     transInput: IN => F[Json] = transInput,
     transOutput: (IN, OUT) => F[Json] = transOutput,
@@ -104,6 +105,8 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
   def run(input: IN): F[OUT]                            = internalRun(input, F.pure(None), F.pure(None))
   def runTrace(span: Span[F])(input: IN): F[OUT]        = internalRun(input, span.traceId, span.traceUri)
   def runTrace(input: IN)(implicit T: Trace[F]): F[OUT] = internalRun(input, T.traceId, T.traceUri)
+
+  override def apply(input: IN): F[OUT] = run(input)
 }
 
 final class NJRetry0[F[_], OUT] private[guard] (
