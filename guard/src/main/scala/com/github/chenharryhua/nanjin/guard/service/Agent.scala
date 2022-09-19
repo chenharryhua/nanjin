@@ -3,47 +3,31 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.{Alternative, Traverse}
 import cats.data.{Ior, IorT}
 import cats.effect.kernel.{Async, Ref}
-import cats.effect.Resource
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
-import natchez.{EntryPoint, Kernel, Span}
 
 import java.time.ZoneId
 
 final class Agent[F[_]] private[service] (
-  entryPoint: Resource[F, EntryPoint[F]],
   metricRegistry: MetricRegistry,
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
-  agentConfig: AgentConfig)(implicit F: Async[F])
-    extends EntryPoint[F] {
+  agentConfig: AgentConfig)(implicit F: Async[F]) {
   private lazy val agentParams: AgentParams     = agentConfig.evalConfig
   private lazy val serviceParams: ServiceParams = agentParams.serviceParams
 
-  private def build(span: Span[F], name: String) = new NJSpan[F](
-    underlieSpan = span,
-    spanName = name,
+  lazy val zoneId: ZoneId = agentParams.serviceParams.taskParams.zoneId
+
+  def action(actionName: String): NJAction[F] = new NJAction[F](
+    actionName = actionName,
     metricRegistry = metricRegistry,
     serviceStatus = serviceStatus,
     channel = channel,
     agentConfig = agentConfig)
-
-  private val rootName: String =
-    s"${serviceParams.taskParams.taskName.value}/${serviceParams.serviceName.value}"
-  override def root(name: String): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.root(rootName).flatMap(_.span(name)).map(build(_, name)))
-  override def continue(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continue(rootName, kernel).flatMap(_.span(name)).map(build(_, name)))
-  override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continueOrElseRoot(rootName, kernel).flatMap(_.span(name)).map(build(_, name)))
-
-  // parameters
-
-  lazy val zoneId: ZoneId = agentParams.serviceParams.taskParams.zoneId
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](

@@ -28,7 +28,7 @@ private[guard] object AgentParams extends duration {
   implicit val showAgentParams: Show[AgentParams] = cats.derived.semiauto.show[AgentParams]
 
   def apply(serviceParams: ServiceParams): AgentParams = AgentParams(
-    importance = Importance.High,
+    importance = Importance.Medium,
     isCounting = false,
     isTiming = false,
     isExpensive = false,

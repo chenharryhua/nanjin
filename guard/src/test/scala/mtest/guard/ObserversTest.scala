@@ -24,12 +24,13 @@ class ObserversTest extends AnyFunSuite {
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(hourly).withQueueCapacity(20))
       .eventStream { ag =>
-        ag.root("logging").use { span =>
-          val act = span.critical.updateConfig(_.withConstantDelay(2.seconds, 1))
-          act.run(IO(1)) >> ag.alert("notify").error("error.msg") >> act
-            .run(IO.raiseError(new Exception("oops")))
-            .attempt
-        }
+        val ok = ag.action("ok").notice.run(IO(1))
+        val err = ag
+          .action("error")
+          .critical
+          .updateConfig(_.withConstantDelay(2.seconds, 1))
+          .run(IO.raiseError[Int](new Exception("oops")))
+        ok >> err.attempt
       }
       .evalTap(logging.verbose[IO])
       .compile
@@ -42,12 +43,14 @@ class ObserversTest extends AnyFunSuite {
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        ag.root("console").use { span =>
-          val act = span.critical.updateConfig(_.withConstantDelay(2.seconds, 1))
-          act.run(IO(1)) >> ag.alert("notify").error("error.msg") >> act
-            .run(IO.raiseError(new Exception("oops")))
-            .attempt
-        }
+        val ok = ag.action("ok").notice.run(IO(1))
+        val err = ag
+          .action("error")
+          .critical
+          .updateConfig(_.withConstantDelay(2.seconds, 1))
+          .run(IO.raiseError[Int](new Exception("oops")))
+        ok >> err.attempt
+
       }
       .evalTap(console.simple[IO])
       .compile
@@ -60,12 +63,13 @@ class ObserversTest extends AnyFunSuite {
       .service("json")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        ag.root("console.json").use { span =>
-          val act = span.critical.updateConfig(_.withConstantDelay(2.seconds, 1))
-          act.run(IO(1)) >> ag.alert("notify").error("error.msg") >> act
-            .run(IO.raiseError(new Exception("oops")))
-            .attempt
-        }
+        val ok = ag.action("ok").notice.run(IO(1))
+        val err = ag
+          .action("error")
+          .critical
+          .updateConfig(_.withConstantDelay(2.seconds, 1))
+          .run(IO.raiseError[Int](new Exception("oops")))
+        ok >> err.attempt
       }
       .evalTap(console(Translator.verboseJson[IO].map(_.noSpaces)))
       .compile
@@ -79,12 +83,13 @@ class ObserversTest extends AnyFunSuite {
       .service("slack")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        ag.root("slack").use { span =>
-          val act = span.critical.updateConfig(_.withConstantDelay(2.seconds, 1))
-          act.run(IO(1)) >> ag.alert("notify").error("error.msg") >> act
-            .run(IO.raiseError(new Exception("oops")))
-            .attempt
-        }
+        val ok = ag.action("ok").notice.run(IO(1))
+        val err = ag
+          .action("error")
+          .critical
+          .updateConfig(_.withConstantDelay(2.seconds, 1))
+          .run(IO.raiseError[Int](new Exception("oops")))
+        ok >> err.attempt
       }
       .interruptAfter(7.seconds)
       .through(SlackObserver(SimpleNotificationService.fake[IO])
@@ -108,8 +113,15 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("ses")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
-      .eventStream(
-        _.root("mail").use(_.critical.run(IO.raiseError(new Exception)).delayBy(1.seconds).foreverM))
+      .eventStream { ag =>
+        val ok = ag.action("ok").notice.run(IO(1))
+        val err = ag
+          .action("error")
+          .critical
+          .updateConfig(_.withConstantDelay(2.seconds, 1))
+          .run(IO.raiseError[Int](new Exception("oops")))
+        ok >> err.attempt
+      }
       .take(9)
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
       .compile
@@ -129,9 +141,15 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("sns")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
-      .eventStream(
-        _.root("mail").use(_.critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM))
-      .interruptAfter(7.seconds)
+      .eventStream { ag =>
+        val ok = ag.action("ok").notice.run(IO(1))
+        val err = ag
+          .action("error")
+          .critical
+          .updateConfig(_.withConstantDelay(2.seconds, 1))
+          .run(IO.raiseError[Int](new Exception("oops")))
+        ok >> err.attempt
+      }
       .through(mail.observe(snsArn, "title"))
       .compile
       .drain
@@ -148,8 +166,15 @@ class ObserversTest extends AnyFunSuite {
 
     TaskGuard[IO]("lense")
       .service("lense")
-      .eventStream(_.root("lense").use(_.notice.run(IO(()))))
-      .interruptAfter(3.seconds)
+      .eventStream { ag =>
+        val ok = ag.action("ok").notice.run(IO(1))
+        val err = ag
+          .action("error")
+          .critical
+          .updateConfig(_.withConstantDelay(2.seconds, 1))
+          .run(IO.raiseError[Int](new Exception("oops")))
+        ok >> err.attempt
+      }
       .evalTap(console(len.map(_.show)))
       .compile
       .drain
@@ -190,7 +215,7 @@ class ObserversTest extends AnyFunSuite {
     val run = session.use(_.execute(cmd)) >>
       TaskGuard[IO]("postgres")
         .service("postgres")
-        .eventStream(_.root("sql").use(_.notice.run(IO(0))))
+        .eventStream(_.action("sql").notice.run(IO(0)))
         .evalTap(console.verbose[IO])
         .through(PostgresObserver(session).observe("log"))
         .compile
@@ -203,8 +228,7 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sqs")
       .service("sqs")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second).withMetricDailyReset)
-      .eventStream(
-        _.root("sqs").use(_.critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM))
+      .eventStream(_.action("sqs").critical.run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo")))
       .compile

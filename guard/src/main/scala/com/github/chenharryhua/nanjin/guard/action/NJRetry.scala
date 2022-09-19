@@ -11,14 +11,14 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
-import natchez.Span
+import natchez.{Span, Trace}
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
+import java.net.URI
 import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJRetry[F[_], IN, OUT] private[guard] (
-  underlieSpan: Span[F],
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -32,7 +32,6 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     transOutput: (IN, OUT) => F[Json] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, IN, OUT] =
     new NJRetry[F, IN, OUT](
-      underlieSpan,
       serviceStatus,
       metricRegistry,
       channel,
@@ -66,16 +65,15 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     }
   }
 
-  def run(input: IN): F[OUT] = for {
+  private def internalRun(input: IN, traceId: F[Option[String]], traceUri: F[Option[URI]]): F[OUT] = for {
     publisher <- F
       .ref(0)
       .map(retryCounter => new ActionEventPublisher[F](serviceStatus, channel, retryCounter))
     actionInfo <- publisher.actionStart(
       actionParams = actionParams,
       input = transInput(input),
-      traceId = underlieSpan.traceId,
-      traceUri = underlieSpan.traceUri,
-      spanId = underlieSpan.spanId)
+      traceId = traceId,
+      traceUri = traceUri)
     res <- retry.mtl
       .retryingOnSomeErrors[OUT]
       .apply[F, Throwable](
@@ -102,10 +100,13 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
   } yield res
+
+  def run(input: IN): F[OUT]                            = internalRun(input, F.pure(None), F.pure(None))
+  def runTrace(span: Span[F])(input: IN): F[OUT]        = internalRun(input, span.traceId, span.traceUri)
+  def runTrace(input: IN)(implicit T: Trace[F]): F[OUT] = internalRun(input, T.traceId, T.traceUri)
 }
 
 final class NJRetry0[F[_], OUT] private[guard] (
-  underlieSpan: Span[F],
   serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -119,7 +120,6 @@ final class NJRetry0[F[_], OUT] private[guard] (
     transOutput: OUT => F[Json] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry0[F, OUT] =
     new NJRetry0[F, OUT](
-      underlieSpan,
       serviceStatus,
       metricRegistry,
       channel,
@@ -138,8 +138,7 @@ final class NJRetry0[F[_], OUT] private[guard] (
   def logOutputM(f: OUT => F[Json]): NJRetry0[F, OUT]        = copy(transOutput = f)
   def logOutput(implicit ev: Encoder[OUT]): NJRetry0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
-  val run: F[OUT] = new NJRetry[F, Unit, OUT](
-    underlieSpan = underlieSpan,
+  private val njRetry = new NJRetry[F, Unit, OUT](
     serviceStatus = serviceStatus,
     metricRegistry = metricRegistry,
     channel = channel,
@@ -148,5 +147,8 @@ final class NJRetry0[F[_], OUT] private[guard] (
     transInput = _ => transInput,
     transOutput = (_, b: OUT) => transOutput(b),
     isWorthRetry = isWorthRetry
-  ).run(())
+  )
+  val run: F[OUT]                            = njRetry.run(())
+  def runTrace(span: Span[F]): F[OUT]        = njRetry.runTrace(span)(())
+  def runTrace(implicit T: Trace[F]): F[OUT] = njRetry.runTrace(())
 }

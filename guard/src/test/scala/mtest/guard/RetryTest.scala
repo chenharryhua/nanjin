@@ -10,7 +10,6 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
-import natchez.Kernel
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -24,13 +23,12 @@ class RetryTest extends AnyFunSuite {
 
   test("1.retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
-      gd.root("succ-trivial")
-        .use(
-          _.updateConfig(_.withFullJitterBackoff(1.second, 3))
-            .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
-            .logOutput((a, _) => a.asJson)
-            .withWorthRetry(_ => true)
-            .run((1, 1, 1)))
+      gd.action("succ-trivial")
+        .updateConfig(_.withFullJitterBackoff(1.second, 3))
+        .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
+        .logOutput((a, _) => a.asJson)
+        .withWorthRetry(_ => true)
+        .run((1, 1, 1))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -40,14 +38,13 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - success notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag = gd
-        .root("all-succ")
-        .map(
-          _.notice
-            .updateConfig(_.withExponentialBackoff(1.second, 3))
-            .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
-            .logInput
-            .withWorthRetry(_ => true))
-      List(1, 2, 3).traverse(i => ag.use(_.run((i, i, i, i, i))))
+        .action("all-succ")
+        .notice
+        .updateConfig(_.withExponentialBackoff(1.second, 3))
+        .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
+        .logInput
+        .withWorthRetry(_ => true)
+      List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -63,15 +60,14 @@ class RetryTest extends AnyFunSuite {
   test("3.retry - all fail") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
       val ag = gd
-        .root("all-fail")
-        .map(
-          _.notice
-            .updateConfig(_.withConstantDelay(0.1.second, 1))
-            .retry((_: Int, _: Int, _: Int) => IO.raiseError[Int](new Exception))
-            .logOutput((in, out) => (in._3, out).asJson)
-            .logOutput((in, out) => (in, out).asJson))
+        .action("all-fail")
+        .notice
+        .updateConfig(_.withConstantDelay(0.1.second, 1))
+        .retry((_: Int, _: Int, _: Int) => IO.raiseError[Int](new Exception))
+        .logOutput((in, out) => (in._3, out).asJson)
+        .logOutput((in, out) => (in, out).asJson)
 
-      List(1, 2, 3).traverse(i => ag.use(_.run((i, i, i)).attempt))
+      List(1, 2, 3).traverse(i => ag.run((i, i, i)).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -90,16 +86,15 @@ class RetryTest extends AnyFunSuite {
   test("4.retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(s, a, b, c, d, e) = serviceGuard.eventStream { gd =>
-      gd.root("1-time-succ")
-        .use(
-          _.notice // funny syntax
-            .updateConfig(_.withFullJitterBackoff(1.second, 3))
-            .retry((_: Int) =>
-              IO(if (i < 2) {
-                i += 1; throw new Exception
-              } else i))
-            .logOutput((a, _) => a.asJson)
-            .run(1))
+      gd.action("1-time-succ")
+        .notice // funny syntax
+        .updateConfig(_.withFullJitterBackoff(1.second, 3))
+        .retry((_: Int) =>
+          IO(if (i < 2) {
+            i += 1; throw new Exception
+          } else i))
+        .logOutput((a, _) => a.asJson)
+        .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -113,15 +108,14 @@ class RetryTest extends AnyFunSuite {
   test("5.retry - should retry 2 times when operation fail - low") {
     var i = 0
     val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
-      gd.root("1-time-succ")
-        .use(
-          _.updateConfig(_.withFullJitterBackoff(1.second, 3))
-            .retry((_: Int) =>
-              IO(if (i < 2) {
-                i += 1; throw new Exception
-              } else i))
-            .logInput(_.asJson)
-            .run(1))
+      gd.action("1-time-succ")
+        .updateConfig(_.withFullJitterBackoff(1.second, 3))
+        .retry((_: Int) =>
+          IO(if (i < 2) {
+            i += 1; throw new Exception
+          } else i))
+        .logInput(_.asJson)
+        .run(1)
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -134,12 +128,11 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.root("escalate-after-3-times")
-          .use(
-            _.updateConfig(_.withFibonacciBackoff(0.1.second, 3))
-              .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
-              .logInput
-              .run(1))
+        gd.action("escalate-after-3-times")
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
+          .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
+          .logInput
+          .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -159,12 +152,11 @@ class RetryTest extends AnyFunSuite {
     val s :: b :: c :: d :: e :: _ = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
-        ag.root("null exception")
-          .use(
-            _.updateConfig(_.withCapDelay(1.second).withConstantDelay(100.second, 2))
-              .retry(IO.raiseError[Int](new NullPointerException))
-              .logOutput
-              .run))
+        ag.action("null exception")
+          .updateConfig(_.withCapDelay(1.second).withConstantDelay(100.second, 2))
+          .retry(IO.raiseError[Int](new NullPointerException))
+          .logOutput
+          .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
@@ -181,12 +173,11 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.continueOrElseRoot("predicate", Kernel(Map.empty))
-          .use(
-            _.updateConfig(_.withFibonacciBackoff(0.1.second, 3))
-              .retry(IO.raiseError(MyException()))
-              .withWorthRetry(_.isInstanceOf[MyException])
-              .run)
+        gd.action("predicate")
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
+          .retry(IO.raiseError(MyException()))
+          .withWorthRetry(_.isInstanceOf[MyException])
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -206,13 +197,12 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.continue("predicate", Kernel(Map.empty))
-          .use(
-            _.notice
-              .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
-              .retry(IO.raiseError(new Exception))
-              .withWorthRetry(_.isInstanceOf[MyException])
-              .run)
+        gd.action("predicate")
+          .notice
+          .updateConfig(_.withFibonacciBackoff(0.1.second, 3))
+          .retry(IO.raiseError(new Exception))
+          .withWorthRetry(_.isInstanceOf[MyException])
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
