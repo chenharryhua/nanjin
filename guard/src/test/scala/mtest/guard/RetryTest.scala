@@ -107,22 +107,25 @@ class RetryTest extends AnyFunSuite {
 
   test("5.retry - should retry 2 times when operation fail - low") {
     var i = 0
-    val Vector(s, b, c, e) = serviceGuard.eventStream { gd =>
+    val Vector(s, b, c, d, e, f) = serviceGuard.eventStream { gd =>
       gd.action("1-time-succ")
         .critical
-        .updateConfig(_.withFullJitterBackoff(1.second, 3))
+        .updateConfig(_.withFullJitterBackoff(1.second, 30))
         .retry((_: Int) =>
           IO(if (i < 2) {
-            i += 1; throw new Exception
+            i += 1
+            throw new Exception
           } else i))
         .logInput(_.asJson)
         .run(1)
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
+    assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ServiceStop])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionSucc])
+    assert(f.isInstanceOf[ServiceStop])
   }
 
   test("6.retry - should escalate to up level if retry failed") {
