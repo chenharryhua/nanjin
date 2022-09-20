@@ -10,132 +10,144 @@ import io.circe.syntax.*
 private object SimpleJsonTranslator {
   import NJEvent.*
 
-  private def timestamp(evt: NJEvent): (String, Json) = ("timestamp", evt.timestamp.asJson)
-  private def serviceId(evt: NJEvent): (String, Json) = ("serviceId", evt.serviceId.asJson)
+  private def timestamp(evt: NJEvent): (String, Json) = "timestamp" -> evt.timestamp.asJson
+  private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
   private def serviceName(evt: NJEvent): (String, Json) =
     ("serviceName", Json.fromString(evt.serviceName.value))
 
-  private def name(dg: Digested): (String, Json)         = ("name", Json.fromString(dg.name))
-  private def digest(dg: Digested): (String, Json)       = ("digest", Json.fromString(dg.digest))
-  private def actionId(evt: ActionEvent): (String, Json) = ("id", Json.fromInt(evt.actionId))
-  private def traceId(evt: ActionEvent): (String, Json)  = ("traceId", evt.actionInfo.traceId.asJson)
+  private def name(dg: Digested): (String, Json)         = "name" -> Json.fromString(dg.name)
+  private def digest(dg: Digested): (String, Json)       = "digest" -> Json.fromString(dg.digest)
+  private def actionId(evt: ActionEvent): (String, Json) = "id" -> Json.fromInt(evt.actionId)
+  private def traceId(evt: ActionEvent): (String, Json)  = "traceId" -> evt.actionInfo.traceId.asJson
 
-  private def stackTrace(err: NJError): (String, Json)    = ("stackTrace", Json.fromString(err.stackTrace))
-  private def metrics(ss: MetricSnapshot): (String, Json) = ("metrics", ss.asJson)
+  private def stackTrace(err: NJError): (String, Json)    = "stackTrace" -> Json.fromString(err.stackTrace)
+  private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
 
   private def serviceStarted(evt: ServiceStart): Json =
-    Json.obj(("event", Json.fromString("ServiceStart")), ("params", evt.serviceParams.asJson), timestamp(evt))
+    Json.obj(
+      "ServiceStart" ->
+        Json.obj("params" -> evt.serviceParams.asJson, timestamp(evt)))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
-      ("event", Json.fromString("ServicePanic")),
-      serviceName(evt),
-      stackTrace(evt.error),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "ServicePanic" ->
+        Json.obj(
+          serviceName(evt),
+          stackTrace(evt.error),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def serviceStopped(evt: ServiceStop): Json =
     Json.obj(
-      ("event", Json.fromString("ServiceStop")),
-      serviceName(evt),
-      ("exitCode", Json.fromInt(evt.cause.exitCode)),
-      ("cause", Json.fromString(evt.cause.show)),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "ServiceStop" ->
+        Json.obj(
+          serviceName(evt),
+          ("exitCode", Json.fromInt(evt.cause.exitCode)),
+          ("cause", Json.fromString(evt.cause.show)),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
-      ("event", Json.fromString("MetricReport")),
-      ("index", evt.reportType.idx.asJson),
-      serviceName(evt),
-      ("isUp", Json.fromBoolean(evt.isUp)),
-      ("ongoings", evt.ongoings.map(_.actionId).asJson),
-      metrics(evt.snapshot),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "MetricReport" ->
+        Json.obj(
+          "index" -> evt.reportType.idx.asJson,
+          serviceName(evt),
+          "isUp" -> Json.fromBoolean(evt.isUp),
+          "ongoings" -> evt.ongoings.map(_.actionId).asJson,
+          metrics(evt.snapshot),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def metricReset(evt: MetricReset): Json =
     Json.obj(
-      ("event", Json.fromString("MetricReset")),
-      serviceName(evt),
-      metrics(evt.snapshot),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "MetricReset" ->
+        Json.obj(
+          serviceName(evt),
+          metrics(evt.snapshot),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def passThrough(evt: PassThrough): Json =
     Json.obj(
-      ("event", Json.fromString("PassThrough")),
-      name(evt.digested),
-      ("isError", Json.fromBoolean(evt.isError)),
-      ("value", evt.value),
-      digest(evt.digested),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "PassThrough" ->
+        Json.obj(
+          name(evt.digested),
+          ("isError", Json.fromBoolean(evt.isError)),
+          ("value", evt.value),
+          digest(evt.digested),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def instantAlert(evt: InstantAlert): Json =
     Json.obj(
-      ("event", Json.fromString("InstantAlert")),
-      name(evt.digested),
-      ("importance", evt.importance.asJson),
-      ("message", Json.fromString(evt.message)),
-      digest(evt.digested),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "InstantAlert" ->
+        Json.obj(
+          name(evt.digested),
+          ("importance", evt.importance.asJson),
+          ("message", Json.fromString(evt.message)),
+          digest(evt.digested),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
-      ("event", Json.fromString("ActionStart")),
-      name(evt.digested),
-      traceId(evt),
-      ("input", evt.input),
-      digest(evt.digested),
-      actionId(evt),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "ActionStart" ->
+        Json.obj(
+          name(evt.digested),
+          traceId(evt),
+          ("input", evt.input),
+          digest(evt.digested),
+          actionId(evt),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
-      ("event", Json.fromString("ActionRetry")),
-      name(evt.digested),
-      traceId(evt),
-      ("cause", Json.fromString(evt.error.message)),
-      digest(evt.digested),
-      actionId(evt),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "ActionRetry" ->
+        Json.obj(
+          name(evt.digested),
+          traceId(evt),
+          ("cause", Json.fromString(evt.error.message)),
+          digest(evt.digested),
+          actionId(evt),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def actionFailed(evt: ActionFail): Json =
     Json.obj(
-      ("event", Json.fromString("ActionFail")),
-      name(evt.digested),
-      traceId(evt),
-      ("input", evt.input),
-      stackTrace(evt.error),
-      digest(evt.digested),
-      actionId(evt),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "ActionFail" ->
+        Json.obj(
+          name(evt.digested),
+          traceId(evt),
+          ("input", evt.input),
+          stackTrace(evt.error),
+          digest(evt.digested),
+          actionId(evt),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   private def actionSucced(evt: ActionSucc): Json =
     Json.obj(
-      ("event", Json.fromString("ActionSucc")),
-      name(evt.digested),
-      traceId(evt),
-      ("output", evt.output),
-      digest(evt.digested),
-      actionId(evt),
-      serviceId(evt),
-      timestamp(evt)
-    )
+      "ActionSucc" ->
+        Json.obj(
+          name(evt.digested),
+          traceId(evt),
+          ("output", evt.output),
+          digest(evt.digested),
+          actionId(evt),
+          serviceId(evt),
+          timestamp(evt)
+        ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator
