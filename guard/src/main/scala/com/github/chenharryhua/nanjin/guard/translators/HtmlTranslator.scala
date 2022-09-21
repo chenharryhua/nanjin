@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval, Monad}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, OngoingAction}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
-import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 /** https://com-lihaoyi.github.io/scalatags/
@@ -52,29 +51,6 @@ private object HtmlTranslator extends all {
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
-  private def pendingActions(oas: List[OngoingAction], now: ZonedDateTime): Text.TypedTag[String] = {
-    val tds = "border: 1px solid #dddddd; text-align: left; padding: 8px;"
-    div(
-      b("Ongoing actions:"),
-      table(style := "font-family: arial, sans-serif; border-collapse: collapse; width: 100%;")(
-        tr(
-          th(style := tds)("Name"),
-          th(style := tds)("Digest"),
-          th(style := tds)("Up Time"),
-          th(style := tds)("Launch Time"),
-          th(style := tds)("ID")),
-        oas.map(a =>
-          tr(
-            td(style := tds)(a.digested.name),
-            td(style := tds)(a.digested.digest),
-            td(style := tds)(fmt.format(a.took(now))),
-            td(style := tds)(a.launchTime.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show),
-            td(style := tds)(a.actionId.show)
-          ))
-      )
-    )
-  }
-
   // events
 
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
@@ -109,7 +85,6 @@ private object HtmlTranslator extends all {
       p(upcomingRestartTimeInterpretation(evt)),
       hostServiceText(evt),
       pre(evt.serviceParams.brief),
-      pendingActions(evt.ongoings, evt.timestamp),
       pre(evt.snapshot.show)
     )
 

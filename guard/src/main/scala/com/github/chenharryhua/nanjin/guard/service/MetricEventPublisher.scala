@@ -25,7 +25,6 @@ final private class MetricEventPublisher[F[_]](
         MetricReport(
           serviceParams = ss.serviceParams,
           reportType = metricReportType,
-          ongoings = ss.ongoingActionSet.toList.map(OngoingAction(_)).sortBy(_.launchTime),
           timestamp = ts,
           snapshot = metricReportType.snapshotType match {
             case MetricSnapshotType.Full =>

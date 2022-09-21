@@ -50,8 +50,8 @@ class MetricsTest extends AnyFunSuite {
   test("ongoing action alignment") {
     sg.updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular).withMetricReport(1.second))
       .eventStream { ag =>
-        val one = ag.action("one").expensive.run(IO(0) <* IO.sleep(10.minutes))
-        val two = ag.action("two").expensive.run(IO(0) <* IO.sleep(10.minutes))
+        val one = ag.action("one").run(IO(0) <* IO.sleep(10.minutes))
+        val two = ag.action("two").run(IO(0) <* IO.sleep(10.minutes))
         IO.parSequenceN(2)(List(one, two))
       }
       .map(_.asJson.noSpaces)

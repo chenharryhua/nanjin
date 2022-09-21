@@ -57,7 +57,6 @@ object NJEvent extends zoneddatetime {
   final case class MetricReport(
     reportType: MetricReportType,
     serviceParams: ServiceParams,
-    ongoings: List[OngoingAction],
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot,
     restartTime: Option[ZonedDateTime])

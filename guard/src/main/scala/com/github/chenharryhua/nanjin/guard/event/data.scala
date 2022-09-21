@@ -6,11 +6,10 @@ import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.JsonCodec
-import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
 
-import java.time.{Duration, ZonedDateTime}
+import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 @JsonCodec
@@ -70,18 +69,6 @@ final case class ActionInfo(
 
 object ActionInfo extends zoneddatetime {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
-}
-
-@JsonCodec
-final case class OngoingAction(digested: Digested, actionId: Int, launchTime: ZonedDateTime) {
-  def took(now: ZonedDateTime): Duration = Duration.between(launchTime, now)
-}
-
-object OngoingAction extends zoneddatetime {
-  implicit final val showOngoingAction: Show[OngoingAction] = cats.derived.semiauto.show[OngoingAction]
-
-  def apply(ai: ActionInfo): OngoingAction =
-    ai.into[OngoingAction].withFieldComputed(_.digested, _.actionParams.digested).transform
 }
 
 @JsonCodec

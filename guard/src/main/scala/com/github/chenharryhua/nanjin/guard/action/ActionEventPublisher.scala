@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc}
-import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
 import io.circe.Json
 import retry.RetryDetails.WillDelayAndRetry
@@ -24,7 +23,6 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   * fire action fail unconditionally
   */
 final private class ActionEventPublisher[F[_]](
-  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   retryCount: Ref[F, Int]
 )(implicit F: Temporal[F]) {
@@ -48,7 +46,6 @@ final private class ActionEventPublisher[F[_]](
       _ <- input
         .flatMap(js => channel.send(ActionStart(actionInfo = ai, input = js)))
         .whenA(actionParams.isNotice)
-      _ <- serviceStatus.update(_.include(ai)).whenA(actionParams.isExpensive)
     } yield ai
 
   def actionRetry(actionInfo: ActionInfo, willDelayAndRetry: WillDelayAndRetry, ex: Throwable): F[Unit] =
@@ -78,7 +75,6 @@ final private class ActionEventPublisher[F[_]](
             ActionSucc(actionInfo = actionInfo, timestamp = ts, numRetries = num, output = js))
         } yield ()
       }.whenA(actionInfo.actionParams.isNotice)
-      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive)
     } yield ts
 
   def actionFail(actionInfo: ActionInfo, ex: Throwable, input: F[Json]): F[ZonedDateTime] =
@@ -93,6 +89,5 @@ final private class ActionEventPublisher[F[_]](
           numRetries = numRetries,
           input = js,
           error = NJError(ex)))
-      _ <- serviceStatus.update(_.exclude(actionInfo)).whenA(actionInfo.actionParams.isExpensive)
     } yield ts
 }

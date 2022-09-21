@@ -56,7 +56,6 @@ private object SimpleJsonTranslator {
           "index" -> evt.reportType.idx.asJson,
           serviceName(evt),
           "isUp" -> Json.fromBoolean(evt.isUp),
-          "ongoings" -> evt.ongoings.map(_.actionId).asJson,
           metrics(evt.snapshot),
           serviceId(evt),
           timestamp(evt)

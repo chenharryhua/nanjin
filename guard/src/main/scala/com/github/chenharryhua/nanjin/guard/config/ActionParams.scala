@@ -54,7 +54,6 @@ final case class ActionParams private (
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
-  isExpensive: Boolean,
   retry: ActionRetryParams,
   serviceParams: ServiceParams) {
 
@@ -75,7 +74,6 @@ object ActionParams {
       importance = agentParams.importance,
       isCounting = agentParams.isCounting,
       isTiming = agentParams.isTiming,
-      isExpensive = agentParams.isExpensive,
       retry = ActionRetryParams(
         maxRetries = agentParams.maxRetries,
         capDelay = agentParams.capDelay,

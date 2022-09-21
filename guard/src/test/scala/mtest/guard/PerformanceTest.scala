@@ -19,13 +19,9 @@ import scala.concurrent.duration.*
   *
   * 247k/s critical - notes
   *
-  * 231k/s critical - expensive notes
-  *
   * 248k/s notice
   *
   * 444k/s normal
-  *
-  * 397k/s - normal expensive
   *
   * 434k/s trivial
   */
@@ -65,22 +61,6 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} critical - notes")
   }
 
-  test("critical - expensive notes") {
-    var i = 0
-    service.eventStream { ag =>
-      val ts = ag
-        .action("cen")
-        .critical
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .expensive
-        .retry(IO(i += 1))
-        .logOutput(_.asJson)
-        .run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} critical - expensive notes")
-  }
-
   test("notice") {
     var i: Int = 0
     service.eventStream { ag =>
@@ -97,16 +77,6 @@ class PerformanceTest extends AnyFunSuite {
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} normal")
-  }
-
-  test("normal - expensive") {
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts =
-        ag.action("ne").silent.updateConfig(_.withoutTiming.withoutCounting).expensive.retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} - normal expensive")
   }
 
   test("trivial") {

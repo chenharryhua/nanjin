@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.Temporal
-import cats.effect.kernel.{Outcome, Ref}
+import cats.effect.kernel.Outcome
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.service.ServiceStatus
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import natchez.{Span, Trace}
@@ -19,7 +18,6 @@ import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJRetry[F[_], IN, OUT] private[guard] (
-  serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
@@ -33,7 +31,6 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     transOutput: (IN, OUT) => F[Json] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry[F, IN, OUT] =
     new NJRetry[F, IN, OUT](
-      serviceStatus,
       metricRegistry,
       channel,
       actionParams,
@@ -67,9 +64,7 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
   }
 
   private def internalRun(input: IN, traceId: F[Option[String]], traceUri: F[Option[URI]]): F[OUT] = for {
-    publisher <- F
-      .ref(0)
-      .map(retryCounter => new ActionEventPublisher[F](serviceStatus, channel, retryCounter))
+    publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
     actionInfo <- publisher.actionStart(
       actionParams = actionParams,
       input = transInput(input),
@@ -110,7 +105,6 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
 }
 
 final class NJRetry0[F[_], OUT] private[guard] (
-  serviceStatus: Ref[F, ServiceStatus],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
@@ -122,15 +116,7 @@ final class NJRetry0[F[_], OUT] private[guard] (
     transInput: F[Json] = transInput,
     transOutput: OUT => F[Json] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJRetry0[F, OUT] =
-    new NJRetry0[F, OUT](
-      serviceStatus,
-      metricRegistry,
-      channel,
-      actionParams,
-      arrow,
-      transInput,
-      transOutput,
-      isWorthRetry)
+    new NJRetry0[F, OUT](metricRegistry, channel, actionParams, arrow, transInput, transOutput, isWorthRetry)
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry0[F, OUT] = copy(isWorthRetry = Kleisli(f))
   def withWorthRetry(f: Throwable => Boolean): NJRetry0[F, OUT] = withWorthRetryM(Kleisli.fromFunction(f).run)
@@ -142,7 +128,6 @@ final class NJRetry0[F[_], OUT] private[guard] (
   def logOutput(implicit ev: Encoder[OUT]): NJRetry0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
   private val njRetry = new NJRetry[F, Unit, OUT](
-    serviceStatus = serviceStatus,
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,

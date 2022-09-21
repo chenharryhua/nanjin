@@ -10,19 +10,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] = TaskGuard[IO]("config").service("config")
-  test("expensive") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg").notice.expensive.run(IO(1))
-    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.actionParams.isExpensive)
-  }
-
-  test("cheap") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg").notice.cheap.run(IO(1))
-    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(!as.actionInfo.actionParams.isExpensive)
-  }
 
   test("counting") {
     val as = service.eventStream { agent =>
