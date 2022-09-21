@@ -116,8 +116,7 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second))
       .eventStream { agent =>
         val rt = agent.runtime
-        rt.upTime >> rt.downCause >> rt.isServicePanic >> rt.isServiceUp >> rt.pendingActions >> IO(
-          rt.serviceId)
+        rt.upTime >> rt.downCause >> rt.isServicePanic >> rt.isServiceUp >> IO(rt.serviceId)
       }
       .evalTap(logging(Translator.simpleText[IO]))
       .compile

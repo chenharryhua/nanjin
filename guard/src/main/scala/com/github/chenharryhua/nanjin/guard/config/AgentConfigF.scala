@@ -18,7 +18,6 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   importance: Importance,
   isCounting: Boolean, // if counting the action?
   isTiming: Boolean, // if timing the action?
-  isExpensive: Boolean, // if the action take long time to accomplish, like a few minutes or hours?
   capDelay: Option[Duration],
   maxRetries: Option[MaxRetry],
   njRetryPolicy: NJRetryPolicy,
@@ -31,7 +30,6 @@ private[guard] object AgentParams extends duration {
     importance = Importance.Medium,
     isCounting = false,
     isTiming = false,
-    isExpensive = false,
     capDelay = None,
     maxRetries = None,
     njRetryPolicy = NJRetryPolicy.AlwaysGiveUp,
@@ -53,7 +51,6 @@ private object AgentConfigF {
   final case class WithImportance[K](value: Importance, cont: K) extends AgentConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends AgentConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends AgentConfigF[K]
-  final case class WithExpensive[K](value: Boolean, cont: K) extends AgentConfigF[K]
 
   val algebra: Algebra[AgentConfigF, AgentParams] =
     Algebra[AgentConfigF, AgentParams] {
@@ -64,7 +61,6 @@ private object AgentConfigF {
       case WithImportance(v, c) => AgentParams.importance.set(v)(c)
       case WithTiming(v, c)     => AgentParams.isTiming.set(v)(c)
       case WithCounting(v, c)   => AgentParams.isCounting.set(v)(c)
-      case WithExpensive(v, c)  => AgentParams.isExpensive.set(v)(c)
     }
 }
 
@@ -93,11 +89,10 @@ final case class AgentConfig private (value: Fix[AgentConfigF]) {
   def withHighImportance: AgentConfig     = AgentConfig(Fix(WithImportance(Importance.High, value)))
   def withCriticalImportance: AgentConfig = AgentConfig(Fix(WithImportance(Importance.Critical, value)))
 
-  def withCounting: AgentConfig                     = AgentConfig(Fix(WithCounting(value = true, value)))
-  def withTiming: AgentConfig                       = AgentConfig(Fix(WithTiming(value = true, value)))
-  def withoutCounting: AgentConfig                  = AgentConfig(Fix(WithCounting(value = false, value)))
-  def withoutTiming: AgentConfig                    = AgentConfig(Fix(WithTiming(value = false, value)))
-  def withExpensive(isCostly: Boolean): AgentConfig = AgentConfig(Fix(WithExpensive(value = isCostly, value)))
+  def withCounting: AgentConfig    = AgentConfig(Fix(WithCounting(value = true, value)))
+  def withTiming: AgentConfig      = AgentConfig(Fix(WithTiming(value = true, value)))
+  def withoutCounting: AgentConfig = AgentConfig(Fix(WithCounting(value = false, value)))
+  def withoutTiming: AgentConfig   = AgentConfig(Fix(WithTiming(value = false, value)))
 
   def evalConfig: AgentParams = scheme.cata(algebra).apply(value)
 }

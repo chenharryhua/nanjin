@@ -76,7 +76,7 @@ final class SlackObserver[F[_]](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case MetricReport(mrt, sp, _, ts, _, _) =>
+            case MetricReport(mrt, sp, ts, _, _) =>
               isShowMetrics(sp.metric.reportSchedule, ts, metricsInterval, sp.launchTime) || mrt.isShow
             case ai: ActionStart => ai.actionParams.isCritical
             case ai: ActionSucc  => ai.actionParams.isCritical

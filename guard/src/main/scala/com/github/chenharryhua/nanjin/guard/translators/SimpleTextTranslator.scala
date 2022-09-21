@@ -53,19 +53,12 @@ private object SimpleTextTranslator {
        |  Cause: ${evt.cause.show}
        |""".stripMargin
 
-  private def metricReport(evt: MetricReport): String = {
-    val ongoings: List[String] =
-      evt.ongoings.map(og =>
-        s"${og.digested.metricRepr}(ID:${og.actionId}, UpTime:${fmt.format(og.took(evt.timestamp))})")
-
+  private def metricReport(evt: MetricReport): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
-       |  Ongoings: 
-       |    ${ongoings.mkString("\n    ")}
        |${evt.snapshot.show}
        |""".stripMargin
-  }
 
   private def metricReset(evt: MetricReset): String =
     s"""${coloring(evt.title)(evt)}

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{RefSource, Temporal}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.ActionInfo
 
 import java.time.Duration
 import java.util.UUID
@@ -19,5 +18,4 @@ final class NJRuntimeInfo[F[_]: Temporal] private[service] (serviceStatus: RefSo
   def isServiceUp: F[Boolean]    = serviceStatus.get.map(_.isUp)
   def isServicePanic: F[Boolean] = serviceStatus.get.map(_.isPanic)
 
-  def pendingActions: F[Set[ActionInfo]] = serviceStatus.get.map(_.ongoingActionSet)
 }

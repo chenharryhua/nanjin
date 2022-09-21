@@ -26,7 +26,6 @@ final class Agent[F[_]] private[service] (
   def action(actionName: String): NJAction[F] = new NJAction[F](
     actionName = actionName,
     metricRegistry = metricRegistry,
-    serviceStatus = serviceStatus,
     channel = channel,
     agentConfig = agentConfig)
 
@@ -81,7 +80,7 @@ final class Agent[F[_]] private[service] (
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
     action("nonStop")
-      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance.withExpensive(true).withAlwaysGiveUp)
+      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance.withAlwaysGiveUp)
       .run(sfa.compile.drain)
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 
