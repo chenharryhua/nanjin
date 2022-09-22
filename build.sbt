@@ -14,6 +14,7 @@ val avroV       = "1.11.1"
 val slf4jV      = "1.7.36"
 val metricsV    = "4.2.12"
 val log4catsV   = "2.5.0"
+val skunkV      = "0.3.2"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -269,8 +270,8 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= List(
       "com.lihaoyi" %% "scalatags"       % "0.11.1",
-      "org.tpolecat" %% "skunk-core"     % "0.3.2",
-      "org.tpolecat" %% "skunk-circe"    % "0.3.2",
+      "org.tpolecat" %% "skunk-core"     % skunkV,
+      "org.tpolecat" %% "skunk-circe"    % skunkV,
       "org.tpolecat" %% "natchez-core"   % "0.1.6",
       "org.tpolecat" %% "natchez-noop"   % "0.1.6",
       "org.tpolecat" %% "natchez-jaeger" % "0.1.6"          % Test,
@@ -304,7 +305,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-core"   % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
-      "org.tpolecat" %% "skunk-core"    % "0.3.1",
+      "org.tpolecat" %% "skunk-core"    % skunkV,
       ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
     ) ++ testLib
   )
