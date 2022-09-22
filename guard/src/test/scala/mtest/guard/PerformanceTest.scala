@@ -40,7 +40,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("c").critical.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+        ag.action("c")(_.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical")
@@ -49,13 +49,8 @@ class PerformanceTest extends AnyFunSuite {
   test("critical - notes") {
     var i = 0
     service.eventStream { ag =>
-      val ts = ag
-        .action("cn")
-        .critical
-        .updateConfig(_.withoutTiming.withoutCounting)
-        .retry(IO(i += 1))
-        .logOutput(_.asJson)
-        .run
+      val ts =
+        ag.action("cn")(_.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).logOutput(_.asJson).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical - notes")
@@ -64,7 +59,7 @@ class PerformanceTest extends AnyFunSuite {
   test("notice") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("nt").notice.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("nt")(_.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} notice")
@@ -73,7 +68,7 @@ class PerformanceTest extends AnyFunSuite {
   test("normal") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("n").silent.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("n")(_.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} normal")
@@ -82,7 +77,7 @@ class PerformanceTest extends AnyFunSuite {
   test("trivial") {
     var i = 0
     service.eventStream { ag =>
-      val ts = ag.action("t").trivial.updateConfig(_.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("t")(_.trivial.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} trivial")

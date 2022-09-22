@@ -9,7 +9,7 @@ import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{AgentConfig, ScheduleType, ServiceConfig}
+import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
@@ -69,7 +69,7 @@ final class ServiceGuard[F[_]] private[guard] (
       .compile
       .drain
       .start
-  } yield new Agent[F](new MetricRegistry, ss, chn, AgentConfig(sp))
+  } yield new Agent[F](new MetricRegistry, ss, chn, sp)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
@@ -94,7 +94,7 @@ final class ServiceGuard[F[_]] private[guard] (
                     }
                 ) {
                   sep.serviceReStart *>
-                    runAgent(new Agent[F](metricRegistry, serviceStatus, channel, AgentConfig(serviceParams)))
+                    runAgent(new Agent[F](metricRegistry, serviceStatus, channel, serviceParams))
                 }
                 .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
             }
