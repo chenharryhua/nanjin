@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
-import io.jaegertracing.Configuration.{ReporterConfiguration, SamplerConfiguration}
-import natchez.log.Log
+import io.jaegertracing.Configuration
 import natchez.{Span, Trace}
 import natchez.jaeger.Jaeger
+import natchez.log.Log
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.Logger
@@ -67,12 +67,19 @@ class TraceTest extends AnyFunSuite {
           .runTrace(_))
 
   test("jaeger") {
+
     val entryPoint = Jaeger.entryPoint("nj.test", Some(new URI("http://localhost:16686")))(cfg =>
-      IO(cfg.withSampler(SamplerConfiguration.fromEnv).withReporter(ReporterConfiguration.fromEnv).getTracer))
+      IO(
+        cfg
+          .withSampler(Configuration.SamplerConfiguration.fromEnv.withType("const").withParam(1))
+          .withReporter(Configuration.ReporterConfiguration.fromEnv.withLogSpans(true))
+          .getTracer
+      ))
 
     val run = serviceGuard.eventStream { ag =>
-      entryPoint.use(
-        _.root("jaeger").use(span => s_unit(ag)(span) >> s_err(ag)(span).attempt >> s_int(ag)(span)))
+      entryPoint
+        .flatMap(_.root("jaeger"))
+        .use(span => s_unit(ag)(span) >> s_err(ag)(span).attempt >> s_int(ag)(span).delayBy(1.seconds))
     }.evalTap(console.simple[IO]).compile.drain
 
     (run >> IO.sleep(3.seconds)).unsafeRunSync()
