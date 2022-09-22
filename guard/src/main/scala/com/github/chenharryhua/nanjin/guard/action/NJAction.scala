@@ -1,10 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.action
-import cats.Endo
 import cats.data.Kleisli
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AgentConfig}
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import fs2.Stream
@@ -14,29 +12,16 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 final class NJAction[F[_]] private[guard] (
-  actionName: String,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  agentConfig: AgentConfig)(implicit F: Async[F])
-    extends UpdateConfig[AgentConfig, NJAction[F]] {
-
-  def apply(actionName: String): NJAction[F] =
-    new NJAction[F](actionName, metricRegistry, channel, agentConfig)
-
-  override def updateConfig(f: Endo[AgentConfig]): NJAction[F] =
-    new NJAction[F](actionName, metricRegistry, channel, f(agentConfig))
-
-  def trivial: NJAction[F]  = updateConfig(_.withLowImportance)
-  def silent: NJAction[F]   = updateConfig(_.withMediumImportance)
-  def notice: NJAction[F]   = updateConfig(_.withHighImportance)
-  def critical: NJAction[F] = updateConfig(_.withCriticalImportance)
+  actionParams: ActionParams)(implicit F: Async[F]) {
 
   // retries
   def retry[Z](fb: F[Z]): NJRetry0[F, Z] = // 0 arity
     new NJRetry0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = actionParams,
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
@@ -47,7 +32,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = actionParams,
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
@@ -58,7 +43,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
@@ -69,7 +54,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
@@ -80,7 +65,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
@@ -91,7 +76,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = ActionParams(agentConfig.evalConfig, actionName),
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),

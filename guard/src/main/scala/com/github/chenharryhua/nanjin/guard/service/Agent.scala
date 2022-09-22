@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.{Alternative, Traverse}
+import cats.{Alternative, Endo, Traverse}
 import cats.data.{Ior, IorT}
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
@@ -17,24 +17,22 @@ final class Agent[F[_]] private[service] (
   metricRegistry: MetricRegistry,
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
-  agentConfig: AgentConfig)(implicit F: Async[F]) {
-  private lazy val agentParams: AgentParams     = agentConfig.evalConfig
-  private lazy val serviceParams: ServiceParams = agentParams.serviceParams
+  serviceParams: ServiceParams)(implicit F: Async[F]) {
 
-  lazy val zoneId: ZoneId = agentParams.serviceParams.taskParams.zoneId
+  val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(actionName: String): NJAction[F] = new NJAction[F](
-    actionName = actionName,
-    metricRegistry = metricRegistry,
-    channel = channel,
-    agentConfig = agentConfig)
+  def action(actionName: String)(f: Endo[ActionConfig]): NJAction[F] =
+    new NJAction[F](
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionParams = f(ActionConfig(serviceParams, actionName)).evalConfig)
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
       digested = Digested(serviceParams, brokerName),
       metricRegistry = metricRegistry,
       channel = channel,
-      serviceParams = agentParams.serviceParams,
+      serviceParams = serviceParams,
       isError = false,
       isCounting = false
     )
@@ -44,7 +42,7 @@ final class Agent[F[_]] private[service] (
       digested = Digested(serviceParams, alertName),
       metricRegistry = metricRegistry,
       channel = channel,
-      serviceParams = agentParams.serviceParams,
+      serviceParams = serviceParams,
       isCounting = false
     )
 
@@ -79,8 +77,7 @@ final class Agent[F[_]] private[service] (
   // for convenience
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action("nonStop")
-      .updateConfig(_.withoutTiming.withoutCounting.withLowImportance.withAlwaysGiveUp)
+    action("nonStop")(_.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
       .run(sfa.compile.drain)
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 

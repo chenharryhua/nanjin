@@ -24,15 +24,14 @@ class TraceTest extends AnyFunSuite {
 
   // trace
   def f_unit(ag: Agent[IO])(implicit T: Trace[IO]): IO[Unit] =
-    T.span("unit.trace")(ag.action("unit.action").notice.retry(IO(())).runTrace)
+    T.span("unit.trace")(ag.action("unit.action")(_.notice).retry(IO(())).runTrace)
 
   def f_int(ag: Agent[IO])(implicit T: Trace[IO]): IO[Int] =
-    T.span("int.trace")(ag.action("int.action").retry(IO(1)).runTrace)
+    T.span("int.trace")(ag.action("int.action")(_.silent).retry(IO(1)).runTrace)
 
   def f_err(ag: Agent[IO])(implicit T: Trace[IO]): IO[Int] =
     T.span("err.trace")(
-      ag.action("err.action")
-        .updateConfig(_.withConstantDelay(1.seconds, 1))
+      ag.action("err.action")(_.withConstantDelay(1.seconds, 1))
         .retry(IO.raiseError[Int](new Exception("oops")))
         .runTrace)
 
@@ -54,17 +53,16 @@ class TraceTest extends AnyFunSuite {
   // span
 
   def s_unit(ag: Agent[IO])(span: Span[IO]): IO[Unit] =
-    span.span("unit.span").use(ag.action("unit.action").notice.retry(IO(())).runTrace(_))
+    span.span("unit.span").use(ag.action("unit.action")(_.notice).retry(IO(())).runTrace(_))
 
   def s_int(ag: Agent[IO])(span: Span[IO]): IO[Int] =
-    span.span("int.span").use(ag.action("int.action").retry(IO(1)).runTrace(_))
+    span.span("int.span").use(ag.action("int.action")(_.silent).retry(IO(1)).runTrace(_))
 
   def s_err(ag: Agent[IO])(span: Span[IO]): IO[Int] =
     span
       .span("err.span")
       .use(
-        ag.action("err.action")
-          .updateConfig(_.withConstantDelay(1.seconds, 1))
+        ag.action("err.action")(_.withConstantDelay(1.seconds, 1))
           .retry(IO.raiseError[Int](new Exception("oops")))
           .runTrace(_))
 
@@ -79,4 +77,5 @@ class TraceTest extends AnyFunSuite {
 
     (run >> IO.sleep(3.seconds)).unsafeRunSync()
   }
+
 }
