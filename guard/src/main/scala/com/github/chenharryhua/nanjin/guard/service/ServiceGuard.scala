@@ -5,7 +5,7 @@ import cats.effect.std.{Console, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
+import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
@@ -38,21 +38,25 @@ import scala.util.control.NonFatal
 // https://github.com/dropwizard/metrics
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
+  metricSet: List[MetricSet],
   metricFilter: MetricFilter,
   jmxBuilder: Option[Endo[JmxReporter.Builder]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), metricFilter, jmxBuilder)
+    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder)
 
   def apply(serviceName: ServiceName): ServiceGuard[F] =
     updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricFilter, Some(builder))
+    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder))
 
   def withMetricFilter(filter: MetricFilter): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, filter, jmxBuilder)
+    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder)
+
+  def addMetricSet(ms: MetricSet): ServiceGuard[F] =
+    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder)
 
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
@@ -77,7 +81,11 @@ final class ServiceGuard[F[_]] private[guard] (
       serviceParams <- Stream.eval(serviceStatus.get.map(_.serviceParams))
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap {
         channel =>
-          val metricRegistry: MetricRegistry = new MetricRegistry
+          val metricRegistry: MetricRegistry = {
+            val mr = new MetricRegistry()
+            metricSet.foreach(mr.registerAll)
+            mr
+          }
 
           val runningService: Stream[F, Nothing] = Stream
             .eval[F, A] {
