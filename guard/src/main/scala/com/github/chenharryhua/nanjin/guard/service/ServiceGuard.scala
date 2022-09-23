@@ -142,11 +142,14 @@ final class ServiceGuard[F[_]] private[guard] (
             }
 
           val metricsReset: Stream[F, Nothing] =
-            serviceParams.metric.resetSchedule.fold(Stream.empty.covaryAll[F, Nothing])(cron =>
-              cronScheduler
-                .awakeEvery(cron)
-                .evalMap(_ => metricEventPublisher.metricsReset(Some(cron)))
-                .drain)
+            serviceParams.metric.resetSchedule match {
+              case None => Stream.empty
+              case Some(cron) =>
+                cronScheduler
+                  .awakeEvery(cron)
+                  .evalMap(_ => metricEventPublisher.metricsReset(Some(cron)))
+                  .drain
+            }
 
           val jmxReporting: Stream[F, Nothing] =
             jmxBuilder match {
