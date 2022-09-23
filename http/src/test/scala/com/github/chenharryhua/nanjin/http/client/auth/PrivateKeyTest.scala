@@ -24,7 +24,7 @@ class PrivateKeyTest extends AnyFunSuite {
   test("supervisor") {
     import cats.effect.Resource
     val problemOperation =
-      (IO.println("problem computing") >> IO.raiseError[Int](new Exception("oops")).attempt.delayBy(1.second))
+      (IO.println("problem computing") >> IO.raiseError[Int](new Exception("oops")).delayBy(5.second))
         .guarantee(IO.println("finish problem computing"))
 
     val run = for {

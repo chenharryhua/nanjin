@@ -58,17 +58,17 @@ object adobe {
             auth_endpoint.withPath(path"/ims/token/v1")
           ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Either[Throwable, Token]]): F[Unit] = for {
+      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
           case Left(_)      => getToken.delayBy(params.whenNext).attempt
           case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
         }
-        _ <- ref.set(newToken)
+        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
+        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
@@ -164,17 +164,17 @@ object adobe {
                 auth_endpoint.withPath(path"/ims/exchange/jwt")
               ).putHeaders("Cache-Control" -> "no-cache")))
 
-      def updateToken(ref: Ref[F, Either[Throwable, Token]]): F[Unit] = for {
+      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
           case Left(_)      => getToken.delayBy(params.whenNext).attempt
           case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
         }
-        _ <- ref.set(newToken)
+        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.flatMap(F.ref))
+        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
