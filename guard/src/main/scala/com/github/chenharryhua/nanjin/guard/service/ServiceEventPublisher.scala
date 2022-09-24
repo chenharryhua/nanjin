@@ -15,11 +15,10 @@ final private class ServiceEventPublisher[F[_]](
 
   def serviceReStart: F[Unit] =
     for {
-      ts <- F.realTimeInstant
       sp <- serviceStatus.get.map(_.serviceParams)
-      now = sp.toZonedDateTime(ts)
-      _ <- serviceStatus.update(_.goUp(now))
-      _ <- channel.send(ServiceStart(sp, now))
+      ts <- F.realTimeInstant.map(sp.toZonedDateTime)
+      _ <- serviceStatus.update(_.goUp(ts))
+      _ <- channel.send(ServiceStart(sp, ts))
     } yield ()
 
   def servicePanic(delay: FiniteDuration, ex: Throwable): F[Unit] =

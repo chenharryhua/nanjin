@@ -113,7 +113,7 @@ private object ActionConfigF {
     }
 }
 
-final case class ActionConfig private (value: Fix[ActionConfigF]) {
+final private[guard] case class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
   def withCapDelay(fd: FiniteDuration): ActionConfig = ActionConfig(Fix(WithCapDelay(fd.toJava, value)))
