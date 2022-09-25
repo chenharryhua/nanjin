@@ -41,8 +41,6 @@ object adobe {
       expires_in: Long, // in milliseconds
       access_token: String)
 
-    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.millisecond
-
     val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
@@ -61,7 +59,7 @@ object adobe {
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
           case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
+          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.millisecond)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -112,7 +110,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        cfg = AuthConfig(2.hours),
+        cfg = AuthConfig(10.minutes),
         middleware = Reader(Resource.pure)
       )
   }
@@ -134,8 +132,6 @@ object adobe {
       token_type: String,
       expires_in: Long, // in milliseconds
       access_token: String)
-
-    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.millisecond
 
     val params: AuthParams = cfg.evalConfig
 
@@ -167,7 +163,7 @@ object adobe {
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
           case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
+          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.millisecond)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -233,7 +229,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        cfg = AuthConfig(2.hours),
+        cfg = AuthConfig(10.minutes),
         middleware = Reader(Resource.pure)
       )
 

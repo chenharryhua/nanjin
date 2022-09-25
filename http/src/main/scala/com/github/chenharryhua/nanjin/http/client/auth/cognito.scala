@@ -43,7 +43,6 @@ object cognito {
       token_type: String,
       expires_in: Int // in second
     )
-    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
     val params: AuthParams = cfg.evalConfig
 
@@ -80,7 +79,7 @@ object cognito {
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
           case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => refreshToken(value).delayBy(params.whenNext(value)).attempt
+          case Right(value) => refreshToken(value).delayBy(params.whenNext(value.expires_in.seconds)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -139,7 +138,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        cfg = AuthConfig(1.day),
+        cfg = AuthConfig(10.minutes),
         middleware = Reader(Resource.pure)
       )
   }
@@ -160,8 +159,6 @@ object cognito {
       expires_in: Int // in second
     )
 
-    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
-
     val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
@@ -180,7 +177,7 @@ object cognito {
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
           case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
+          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.seconds)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -231,7 +228,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        cfg = AuthConfig(1.day),
+        cfg = AuthConfig(10.minutes),
         Reader(Resource.pure))
 
     def apply[F[_]](

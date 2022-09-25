@@ -45,8 +45,6 @@ object salesforce {
       soap_instance_url: String,
       rest_instance_url: String)
 
-    implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
-
     val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
@@ -66,7 +64,7 @@ object salesforce {
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
           case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value)).attempt
+          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.seconds)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -117,16 +115,18 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Rest,
-        cfg = AuthConfig(2.hour),
-        middleware = Reader(Resource.pure))
+        cfg = AuthConfig(10.minutes),
+        middleware = Reader(Resource.pure)
+      )
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
       new MarketingCloud[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Soap,
-        cfg = AuthConfig(2.hour),
-        middleware = Reader(Resource.pure))
+        cfg = AuthConfig(10.minutes),
+        middleware = Reader(Resource.pure)
+      )
   }
 
   // https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
