@@ -13,7 +13,8 @@ import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 class ConfigTest extends AnyFunSuite {
-  val service: ServiceGuard[IO] = TaskGuard[IO]("config").service("config")
+  val service: ServiceGuard[IO] =
+    TaskGuard[IO]("config").service("config").updateConfig(_.withMetricDailyReset.withMetricReport(24.hours))
 
   test("counting") {
     val as = service.eventStream { agent =>
@@ -79,5 +80,31 @@ class ConfigTest extends AnyFunSuite {
       as.get.asInstanceOf[ActionStart].actionInfo.actionParams.retry.njRetryPolicy === NJRetryPolicy
         .ConstantDelay(1.seconds.toJava))
 
+  }
+
+  test("report") {
+    val as = service
+      .updateConfig(_.withoutMetricReport)
+      .eventStream { agent =>
+        agent.action("cfg")(_.silent).run(IO(1))
+      }
+      .filter(_.isInstanceOf[ServiceStart])
+      .compile
+      .last
+      .unsafeRunSync()
+    assert(as.get.serviceParams.metric.reportSchedule.isEmpty)
+  }
+
+  test("reset") {
+    val as = service
+      .updateConfig(_.withoutMetricReset)
+      .eventStream { agent =>
+        agent.action("cfg")(_.silent).run(IO(1))
+      }
+      .filter(_.isInstanceOf[ServiceStart])
+      .compile
+      .last
+      .unsafeRunSync()
+    assert(as.get.serviceParams.metric.resetSchedule.isEmpty)
   }
 }
