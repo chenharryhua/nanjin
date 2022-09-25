@@ -78,8 +78,8 @@ object cognito {
 
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => refreshToken(value).delayBy(params.whenNext(value.expires_in.seconds)).attempt
+          case Left(_)      => getToken.delayBy(params.dormant).attempt
+          case Right(value) => refreshToken(value).delayBy(params.dormant(value.expires_in.seconds)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -138,7 +138,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         middleware = Reader(Resource.pure)
       )
   }
@@ -176,8 +176,8 @@ object cognito {
 
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.seconds)).attempt
+          case Left(_)      => getToken.delayBy(params.dormant).attempt
+          case Right(value) => getToken.delayBy(params.dormant(value.expires_in.seconds)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -228,7 +228,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         Reader(Resource.pure))
 
     def apply[F[_]](

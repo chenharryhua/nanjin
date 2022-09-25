@@ -17,7 +17,7 @@ import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.typelevel.ci.CIString
 
-import scala.concurrent.duration.DurationLong
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 object salesforce {
 
@@ -63,8 +63,8 @@ object salesforce {
 
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.seconds)).attempt
+          case Left(_)      => getToken.delayBy(params.dormant).attempt
+          case Right(value) => getToken.delayBy(params.dormant(value.expires_in.seconds)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -115,7 +115,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Rest,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         middleware = Reader(Resource.pure)
       )
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
@@ -124,7 +124,7 @@ object salesforce {
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = Soap,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         middleware = Reader(Resource.pure)
       )
   }
@@ -136,6 +136,7 @@ object salesforce {
     client_secret: String,
     username: String,
     password: String,
+    expiresIn: FiniteDuration,
     cfg: AuthConfig,
     middleware: Reader[Client[F], Resource[F, Client[F]]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
@@ -166,7 +167,10 @@ object salesforce {
           ).putHeaders("Cache-Control" -> "no-cache"))
 
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
-        newToken <- getToken.delayBy(params.whenNext).attempt
+        newToken <- ref.get.flatMap {
+          case Left(_)  => getToken.delayBy(params.dormant).attempt
+          case Right(_) => getToken.delayBy(params.dormant(expiresIn)).attempt
+        }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
 
@@ -193,8 +197,10 @@ object salesforce {
         client_secret = client_secret,
         username = username,
         password = password,
+        expiresIn = expiresIn,
         cfg = f(cfg),
-        middleware = middleware)
+        middleware = middleware
+      )
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): Iot[F] =
       new Iot[F](
@@ -203,6 +209,7 @@ object salesforce {
         client_secret = client_secret,
         username = username,
         password = password,
+        expiresIn = expiresIn,
         cfg = cfg,
         middleware = compose(f, middleware)
       )
@@ -214,14 +221,16 @@ object salesforce {
       client_id: String,
       client_secret: String,
       username: String,
-      password: String): Iot[F] =
+      password: String,
+      expiresIn: FiniteDuration): Iot[F] =
       new Iot[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         username = username,
         password = password,
-        cfg = AuthConfig(2.hours),
+        expiresIn = expiresIn,
+        cfg = AuthConfig(),
         middleware = Reader(Resource.pure)
       )
   }

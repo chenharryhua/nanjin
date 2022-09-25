@@ -58,8 +58,8 @@ object adobe {
 
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.millisecond)).attempt
+          case Left(_)      => getToken.delayBy(params.dormant).attempt
+          case Right(value) => getToken.delayBy(params.dormant(value.expires_in.millisecond)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -110,7 +110,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         middleware = Reader(Resource.pure)
       )
   }
@@ -147,7 +147,7 @@ object adobe {
             .setSubject(technical_account_key)
             .setIssuer(ims_org_id)
             .setAudience(audience)
-            .setExpiration(Date.from(ts.plusSeconds(params.tokenExpiresIn.toSeconds)))
+            .setExpiration(Date.from(ts.plusSeconds(params.dormantOnFailure.toSeconds)))
             .addClaims(claims)
             .signWith(private_key, SignatureAlgorithm.RS256)
             .compact
@@ -162,8 +162,8 @@ object adobe {
 
       def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
         newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.millisecond)).attempt
+          case Left(_)      => getToken.delayBy(params.dormant).attempt
+          case Right(value) => getToken.delayBy(params.dormant(value.expires_in.millisecond)).attempt
         }
         _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
       } yield ()
@@ -229,7 +229,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         middleware = Reader(Resource.pure)
       )
 
