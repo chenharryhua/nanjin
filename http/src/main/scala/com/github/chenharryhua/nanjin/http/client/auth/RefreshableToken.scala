@@ -33,7 +33,6 @@ final class RefreshableToken[F[_]] private (
     access_token: String,
     expires_in: Long, // in seconds
     refresh_token: String)
-  implicit private val expirable: IsExpirableToken[Token] = (a: Token) => a.expires_in.seconds
 
   val params: AuthParams = cfg.evalConfig
 
@@ -67,7 +66,7 @@ final class RefreshableToken[F[_]] private (
     def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
       newToken <- ref.get.flatMap {
         case Left(_)      => getToken.delayBy(params.whenNext).attempt
-        case Right(value) => refreshToken(value).delayBy(params.whenNext(value)).attempt
+        case Right(value) => refreshToken(value).delayBy(params.whenNext(value.expires_in.seconds)).attempt
       }
       _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
     } yield ()
@@ -109,6 +108,6 @@ object RefreshableToken {
       auth_endpoint = auth_endpoint,
       client_id = client_id,
       client_secret = client_secret,
-      cfg = AuthConfig(3.hours),
+      cfg = AuthConfig(10.minutes),
       middleware = Reader(Resource.pure))
 }

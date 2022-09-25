@@ -152,6 +152,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricWeeklyReset: ServiceConfig            = withMetricReset(Cron.unsafeParse("1 0 0 ? * 0"))
   def withMetricMonthlyReset: ServiceConfig           = withMetricReset(Cron.unsafeParse("1 0 0 1 * ?"))
 
+  def withoutMetricReport: ServiceConfig = ServiceConfig(Fix(WithReportSchedule(None, value)))
+  def withoutMetricReset: ServiceConfig  = ServiceConfig(Fix(WithResetSchedule(None, value)))
+
   def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(Fix(WithRateTimeUnit(tu, value)))
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(
     Fix(WithDurationTimeUnit(tu, value)))

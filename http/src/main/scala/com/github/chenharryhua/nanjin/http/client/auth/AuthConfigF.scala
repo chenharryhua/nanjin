@@ -18,9 +18,9 @@ import scala.concurrent.duration.*
   tokenExpiresIn: FiniteDuration,
   unsecureLog: Boolean) {
   private val preact: FiniteDuration = maxWait * maxRetries.toLong
-  def whenNext: FiniteDuration       = Order.max(tokenExpiresIn - preact, preact)
-  def whenNext[A](a: A)(implicit T: IsExpirableToken[A]): FiniteDuration =
-    Order.max(Order.min(T.expiresIn(a), tokenExpiresIn) - preact, preact)
+
+  def whenNext: FiniteDuration                        = Order.max(tokenExpiresIn - preact, preact)
+  def whenNext(delay: FiniteDuration): FiniteDuration = Order.max(delay - preact, preact)
 
   def authClient[F[_]](client: Client[F])(implicit F: Async[F]): Client[F] =
     Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(

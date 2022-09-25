@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
+import natchez.noop.NoopEntrypoint
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Ignore
 
@@ -31,7 +32,7 @@ class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance")
       .service("actions")
-      .updateConfig(_.withQueueCapacity(30).withMetricReport(10.seconds))
+      .updateConfig(_.withQueueCapacity(32).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
 
   def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
@@ -65,13 +66,13 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} notice")
   }
 
-  test("normal") {
+  test("silent") {
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("n")(_.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} normal")
+    println(s"${speed(i)} silent")
   }
 
   test("trivial") {
@@ -81,5 +82,16 @@ class PerformanceTest extends AnyFunSuite {
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} trivial")
+  }
+
+  test("noop trace") {
+    var i = 0
+    service.eventStream { ag =>
+      val ts = NoopEntrypoint[IO]()
+        .root("root")
+        .use(sp => ag.action("trace")(_.trivial.withTiming.withCounting).retry(IO(i += 1)).runTrace(sp))
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} noop trace")
   }
 }
