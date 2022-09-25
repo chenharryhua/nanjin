@@ -32,7 +32,7 @@ class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance")
       .service("actions")
-      .updateConfig(_.withQueueCapacity(16).withMetricReport(10.seconds))
+      .updateConfig(_.withQueueCapacity(32).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
 
   def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
@@ -66,13 +66,13 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} notice")
   }
 
-  test("normal") {
+  test("silent") {
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("n")(_.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} normal")
+    println(s"${speed(i)} silent")
   }
 
   test("trivial") {

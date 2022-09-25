@@ -4,8 +4,7 @@ import cats.{Eq, Show}
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import com.github.chenharryhua.nanjin.common.aws.S3Path
-import io.circe.generic.JsonCodec
-import io.circe.refined.*
+import io.circe.{Decoder, Encoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{LocatedFileStatus, Path}
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
@@ -13,7 +12,6 @@ import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import java.net.URI
 import java.time.{LocalDate, LocalDateTime}
 
-@JsonCodec
 final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
   def /(seg: PathSegment): NJPath      = NJPath(root, segments.appended(seg))
@@ -49,7 +47,10 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
   override lazy val toString: String = pathStr
 }
+
 object NJPath {
+  implicit val encoderNJPath: Encoder[NJPath] = Encoder.encodeString.contramap(_.pathStr)
+  implicit val decoderNJPath: Decoder[NJPath] = Decoder.decodeURI.map(apply)
 
   def apply(root: PathRoot): NJPath         = NJPath(root, Nil)
   def apply(hp: Path): NJPath               = apply(PathRoot.unsafeFrom(hp.toString))

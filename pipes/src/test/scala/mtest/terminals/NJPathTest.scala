@@ -3,9 +3,12 @@ package mtest.terminals
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{LocalDate, LocalDateTime}
+import io.circe.parser.decode
+
 class NJPathTest extends AnyFunSuite {
   test("local") {
     val r1: NJPath = NJPath("./data/abc") / "efg"
@@ -54,6 +57,11 @@ class NJPathTest extends AnyFunSuite {
     assertDoesNotCompile(""" NJPath("s3a://bucket/") / " a" """)
     assertDoesNotCompile(""" NJPath("s3a://bucket/") / "b " """)
     assertDoesNotCompile(""" NJPath("s3a://bucket/") / "a/b" """)
+  }
 
+  test("json") {
+    val r1 = NJPath("s3a://bucket/folder") / "a" / "b" / "c"
+    val r2 = decode[NJPath](r1.asJson.noSpaces).toOption.get
+    assert(r1.pathStr === r2.pathStr)
   }
 }
