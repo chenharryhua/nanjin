@@ -32,7 +32,7 @@ class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance")
       .service("actions")
-      .updateConfig(_.withQueueCapacity(30).withMetricReport(10.seconds))
+      .updateConfig(_.withQueueCapacity(16).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
 
   def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
@@ -92,6 +92,6 @@ class PerformanceTest extends AnyFunSuite {
         .use(sp => ag.action("trace")(_.trivial.withTiming.withCounting).retry(IO(i += 1)).runTrace(sp))
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} trace")
+    println(s"${speed(i)} noop trace")
   }
 }

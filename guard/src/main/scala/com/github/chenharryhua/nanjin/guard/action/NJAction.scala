@@ -5,11 +5,11 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
-import fs2.Stream
 import io.circe.Json
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
+import scala.util.Try
 
 final class NJAction[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
@@ -103,8 +103,14 @@ final class NJAction[F[_]] private[guard] (
   def retryFuture[A, B, C, D, E, Z](f: (A, B, C, D, E) => Future[Z]): NJRetry[F, (A, B, C, D, E), Z] =
     retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
 
+  // error-like
+  def retry[A](t: Try[A]): NJRetry0[F, A]               = retry(F.fromTry(t))
+  def retry[A](e: Either[Throwable, A]): NJRetry0[F, A] = retry(F.fromEither(e))
+
+  // run effect
+  def run[A](t: Try[A]): F[A]                  = retry(t).run
+  def run[A](e: Either[Throwable, A]): F[A]    = retry(e).run
   def run[Z](fb: F[Z]): F[Z]                   = retry(fb).run
-  def run[Z](sfb: Stream[F, Z]): F[Unit]       = run(sfb.compile.drain)
   def runFuture[Z](future: F[Future[Z]]): F[Z] = retryFuture(future).run
 
 }

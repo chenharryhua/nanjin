@@ -15,6 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
+import scala.util.Try
 
 class ServiceTest extends AnyFunSuite {
 
@@ -33,7 +34,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricMonthlyReset
           .withMetricWeeklyReset)
       .eventStream(gd =>
-        gd.action("normal-exit-action")(_.silent).retry(IO(1)).logOutput(_ => null).run.delayBy(1.second))
+        gd.action("normal-exit-action")(_.silent).retry(Try(1)).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -105,8 +106,8 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
-        gd.action("json-codec")(_.notice.withConstantDelay(0.1.second, 3))
-          .run(IO.raiseError(new Exception("oops")))
+        gd.action("json-codec")(_.notice.withConstantDelay(0.1.second, 3)).run(Left(new Exception("oops")))
+
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -157,8 +158,7 @@ class ServiceTest extends AnyFunSuite {
   test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
       .updateConfig(_.withQueueCapacity(10))
-      .eventStream(gd =>
-        gd.action("a")(_.notice).retry(IO(1)).run >> gd.action("b")(_.notice).retry(IO(2)).run)
+      .eventStream(gd => gd.action("a")(_.notice).run(Try(1)) >> gd.action("b")(_.notice).retry(IO(2)).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toVector
