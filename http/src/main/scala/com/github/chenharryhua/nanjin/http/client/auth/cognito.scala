@@ -62,7 +62,7 @@ object cognito {
             ),
             authURI,
             Authorization(BasicCredentials(client_id, client_secret))
-          ).putHeaders("Cache-Control" -> "no-cache"))
+          ))
 
       def refreshToken(pre: Token): F[Token] =
         params
@@ -171,7 +171,7 @@ object cognito {
             ),
             auth_endpoint.withPath(path"/oauth2/token"),
             Authorization(BasicCredentials(client_id, client_secret))
-          ).putHeaders("Cache-Control" -> "no-cache"))
+          ))
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {

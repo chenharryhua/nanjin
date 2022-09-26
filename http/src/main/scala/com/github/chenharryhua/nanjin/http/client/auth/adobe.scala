@@ -24,8 +24,9 @@ import java.security.PrivateKey
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.CollectionConverters.*
 import java.util.Date
-object adobe {
 
+object adobe {
+  // ??? https://developer.adobe.com/developer-console/docs/guides/authentication/IMS/#authorize-request
   final class IMS[F[_]] private (
     auth_endpoint: Uri,
     client_id: String,
@@ -53,7 +54,7 @@ object adobe {
               "client_secret" -> client_secret,
               "code" -> client_code),
             auth_endpoint.withPath(path"/ims/token/v1")
-          ).putHeaders("Cache-Control" -> "no-cache"))
+          ))
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {
@@ -156,7 +157,7 @@ object adobe {
               POST(
                 UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
                 auth_endpoint.withPath(path"/ims/exchange/jwt")
-              ).putHeaders("Cache-Control" -> "no-cache")))
+              )))
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {

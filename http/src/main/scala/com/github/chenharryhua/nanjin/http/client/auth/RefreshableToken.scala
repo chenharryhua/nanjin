@@ -48,7 +48,7 @@ final class RefreshableToken[F[_]] private (
               "grant_type" -> "client_credentials",
               "client_id" -> client_id,
               "client_secret" -> client_secret),
-            authURI).putHeaders("Cache-Control" -> "no-cache"))
+            authURI))
 
     def refreshToken(pre: Token): F[Token] =
       params
@@ -60,8 +60,7 @@ final class RefreshableToken[F[_]] private (
               "refresh_token" -> pre.refresh_token,
               "client_id" -> client_id,
               "client_secret" -> client_secret),
-            authURI
-          ).putHeaders("Cache-Control" -> "no-cache"))
+            authURI))
 
     def updateToken(ref: Ref[F, Token]): F[Unit] =
       for {

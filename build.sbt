@@ -8,13 +8,14 @@ ThisBuild / versionScheme      := Some("early-semver")
 val catsCoreV   = "2.8.0"
 val catsEffectV = "3.3.14"
 val monocleV    = "2.1.0"
-val confluentV  = "7.2.1"
-val kafkaV      = "7.2.1-ce"
+val confluentV  = "7.2.2"
+val kafkaV      = "7.2.2-ce"
 val avroV       = "1.11.1"
 val slf4jV      = "1.7.36"
 val metricsV    = "4.2.12"
 val log4catsV   = "2.5.0"
 val skunkV      = "0.3.2"
+val http4sV     = "0.23.16"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -194,7 +195,7 @@ val http4sLib = List(
   "org.http4s" %% "http4s-circe",
   "org.http4s" %% "http4s-client",
   "org.http4s" %% "http4s-dsl"
-).map(_ % "0.23.16")
+).map(_ % http4sV)
 
 val jwtLib = List(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
@@ -245,8 +246,8 @@ lazy val http = (project in file("http"))
   .settings(name := "nj-http")
   .settings(
     libraryDependencies ++= List(
-      "org.http4s" %% "http4s-blaze-server" % "0.23.12" % Test,
-      "org.http4s" %% "http4s-blaze-client" % "0.23.12" % Test,
+      "org.http4s" %% "http4s-ember-server" % http4sV % Test,
+      "org.http4s" %% "http4s-ember-client" % http4sV % Test,
       "org.slf4j" % "slf4j-reload4j" % slf4jV % Test) ++ jwtLib ++ http4sLib ++ logLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
@@ -269,7 +270,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "scalatags"       % "0.11.1",
+      "com.lihaoyi" %% "scalatags"       % "0.12.0",
       "org.tpolecat" %% "skunk-core"     % skunkV,
       "org.tpolecat" %% "skunk-circe"    % skunkV,
       "org.tpolecat" %% "natchez-core"   % "0.1.6",
@@ -350,14 +351,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    guard,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
