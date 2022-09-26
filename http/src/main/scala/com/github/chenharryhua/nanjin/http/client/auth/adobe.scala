@@ -9,6 +9,7 @@ import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
+import org.http4s.{Credentials, Uri, UrlForm}
 import org.http4s.Method.*
 import org.http4s.Uri.Path.Segment
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -16,15 +17,13 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{Credentials, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
 import java.lang.Boolean.TRUE
 import java.security.PrivateKey
-import java.util.Date
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.CollectionConverters.*
-import scala.concurrent.duration.DurationLong
-
+import java.util.Date
 object adobe {
 
   final class IMS[F[_]] private (
@@ -41,7 +40,7 @@ object adobe {
       expires_in: Long, // in milliseconds
       access_token: String)
 
-    val params: AuthParams = cfg.evalConfig
+    private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -56,22 +55,21 @@ object adobe {
             auth_endpoint.withPath(path"/ims/token/v1")
           ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
-        newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.dormant).attempt
-          case Right(value) => getToken.delayBy(params.dormant(value.expires_in.millisecond)).attempt
-        }
-        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
-      } yield ()
+      def updateToken(ref: Ref[F, Token]): F[Unit] =
+        for {
+          oldToken <- ref.get
+          newToken <- getToken.delayBy(params.dormant(oldToken.expires_in.millisecond))
+          _ <- ref.set(newToken)
+        } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
+        ref <- Resource.eval(getToken.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get.rethrow)
+          token <- Resource.eval(ref.get)
           out <- c.run(
             req.putHeaders(
               Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
@@ -115,7 +113,7 @@ object adobe {
       )
   }
 
-  // https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/JWT.md
+  // https://developer.adobe.com/developer-console/docs/guides/authentication/JWT/
   final class JWT[F[_]] private (
     auth_endpoint: Uri,
     ims_org_id: String,
@@ -133,7 +131,7 @@ object adobe {
       expires_in: Long, // in milliseconds
       access_token: String)
 
-    val params: AuthParams = cfg.evalConfig
+    private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
@@ -141,13 +139,13 @@ object adobe {
         auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
       }.toList.toMap.asJava
 
-      val getToken: F[Token] =
+      def getToken(expiresIn: FiniteDuration): F[Token] =
         F.realTimeInstant.map { ts =>
           Jwts.builder
             .setSubject(technical_account_key)
             .setIssuer(ims_org_id)
             .setAudience(audience)
-            .setExpiration(Date.from(ts.plusSeconds(params.dormantOnFailure.toSeconds)))
+            .setExpiration(Date.from(ts.plusSeconds(expiresIn.toSeconds)))
             .addClaims(claims)
             .signWith(private_key, SignatureAlgorithm.RS256)
             .compact
@@ -160,22 +158,22 @@ object adobe {
                 auth_endpoint.withPath(path"/ims/exchange/jwt")
               ).putHeaders("Cache-Control" -> "no-cache")))
 
-      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
-        newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.dormant).attempt
-          case Right(value) => getToken.delayBy(params.dormant(value.expires_in.millisecond)).attempt
-        }
-        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
-      } yield ()
+      def updateToken(ref: Ref[F, Token]): F[Unit] =
+        for {
+          oldToken <- ref.get
+          expiresIn = oldToken.expires_in.millisecond
+          newToken <- getToken(expiresIn).delayBy(params.dormant(expiresIn))
+          _ <- ref.set(newToken)
+        } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
+        ref <- Resource.eval(getToken(1.day).flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get.rethrow)
+          token <- Resource.eval(ref.get)
           out <- c.run(
             req.putHeaders(
               Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),

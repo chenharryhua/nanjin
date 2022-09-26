@@ -45,7 +45,7 @@ object salesforce {
       soap_instance_url: String,
       rest_instance_url: String)
 
-    val params: AuthParams = cfg.evalConfig
+    private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -61,22 +61,21 @@ object salesforce {
               auth_endpoint.withPath(path"/v2/token")
             ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
-        newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.dormant).attempt
-          case Right(value) => getToken.delayBy(params.dormant(value.expires_in.seconds)).attempt
-        }
-        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
-      } yield ()
+      def updateToken(ref: Ref[F, Token]): F[Unit] =
+        for {
+          oldToken <- ref.get
+          newToken <- getToken.delayBy(params.dormant(oldToken.expires_in.seconds))
+          _ <- ref.set(newToken)
+        } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
+        ref <- Resource.eval(getToken.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get.rethrow)
+          token <- Resource.eval(ref.get)
           iu: Uri = instanceURL match {
             case Rest => Uri.unsafeFromString(token.rest_instance_url).withPath(req.pathInfo)
             case Soap => Uri.unsafeFromString(token.soap_instance_url).withPath(req.pathInfo)
@@ -149,7 +148,7 @@ object salesforce {
       issued_at: String,
       signature: String)
 
-    val params: AuthParams = cfg.evalConfig
+    private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -166,22 +165,17 @@ object salesforce {
             auth_endpoint.withPath(path"/services/oauth2/token")
           ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
-        newToken <- ref.get.flatMap {
-          case Left(_)  => getToken.delayBy(params.dormant).attempt
-          case Right(_) => getToken.delayBy(params.dormant(expiresIn)).attempt
-        }
-        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
-      } yield ()
+      def updateToken(ref: Ref[F, Token]): F[Unit] =
+        getToken.delayBy(params.dormant(expiresIn)).flatMap(ref.set)
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
+        ref <- Resource.eval(getToken.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get.rethrow)
+          token <- Resource.eval(ref.get)
           out <- c.run(
             req
               .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
