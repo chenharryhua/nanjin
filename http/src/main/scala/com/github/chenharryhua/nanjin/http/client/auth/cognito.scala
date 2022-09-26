@@ -44,7 +44,7 @@ object cognito {
       expires_in: Int // in second
     )
 
-    val params: AuthParams = cfg.evalConfig
+    private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
@@ -76,22 +76,21 @@ object cognito {
             Authorization(BasicCredentials(client_id, client_secret))
           ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
-        newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => refreshToken(value).delayBy(params.whenNext(value.expires_in.seconds)).attempt
-        }
-        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
-      } yield ()
+      def updateToken(ref: Ref[F, Token]): F[Unit] =
+        for {
+          oldToken <- ref.get
+          newToken <- refreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
+          _ <- ref.set(newToken)
+        } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
+        ref <- Resource.eval(getToken.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get.rethrow)
+          token <- Resource.eval(ref.get)
           out <- c.run(
             req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
         } yield out
@@ -138,7 +137,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         middleware = Reader(Resource.pure)
       )
   }
@@ -159,7 +158,7 @@ object cognito {
       expires_in: Int // in second
     )
 
-    val params: AuthParams = cfg.evalConfig
+    private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
@@ -174,22 +173,21 @@ object cognito {
             Authorization(BasicCredentials(client_id, client_secret))
           ).putHeaders("Cache-Control" -> "no-cache"))
 
-      def updateToken(ref: Ref[F, Either[AcquireAuthTokenException, Token]]): F[Unit] = for {
-        newToken <- ref.get.flatMap {
-          case Left(_)      => getToken.delayBy(params.whenNext).attempt
-          case Right(value) => getToken.delayBy(params.whenNext(value.expires_in.seconds)).attempt
-        }
-        _ <- ref.set(newToken.leftMap(AcquireAuthTokenException))
-      } yield ()
+      def updateToken(ref: Ref[F, Token]): F[Unit] =
+        for {
+          oldToken <- ref.get
+          newToken <- getToken.delayBy(params.dormant(oldToken.expires_in.seconds))
+          _ <- ref.set(newToken)
+        } yield ()
 
       for {
         supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.attempt.map(_.leftMap(AcquireAuthTokenException)).flatMap(F.ref))
+        ref <- Resource.eval(getToken.flatMap(F.ref))
         _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
         c <- middleware.run(client)
       } yield Client[F] { req =>
         for {
-          token <- Resource.eval(ref.get.rethrow)
+          token <- Resource.eval(ref.get)
           out <- c.run(
             req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
         } yield out
@@ -228,7 +226,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        cfg = AuthConfig(10.minutes),
+        cfg = AuthConfig(),
         Reader(Resource.pure))
 
     def apply[F[_]](

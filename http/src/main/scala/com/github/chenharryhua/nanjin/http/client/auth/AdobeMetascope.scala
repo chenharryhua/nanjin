@@ -6,7 +6,7 @@ import scala.collection.immutable
 
 sealed abstract class AdobeMetascope(val name: String) extends EnumEntry with Product
 
-// https://www.adobe.io/authentication/auth-methods.html#!AdobeDocs/adobeio-auth/master/JWT/Scopes.md
+// https://developer.adobe.com/developer-console/docs/guides/authentication/JWT/Scopes/
 object AdobeMetascope
     extends Enum[AdobeMetascope] with CatsEnum[AdobeMetascope] with CirceEnum[AdobeMetascope] {
   override def values: immutable.IndexedSeq[AdobeMetascope] = findValues
