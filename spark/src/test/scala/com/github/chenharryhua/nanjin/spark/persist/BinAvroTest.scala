@@ -22,9 +22,9 @@ class BinAvroTest extends AnyFunSuite {
   def loadRooster(path: NJPath) = fs2.Stream
     .force(
       hdp
-        .filesSortByName(path)
+        .filesIn(path)
         .map(is =>
-          is.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
+          is.sorted.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
             ss ++ hdp.bytes
               .source(hif)
               .through(BinaryAvroSerde.fromBytes(Rooster.schema))

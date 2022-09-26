@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.{Eq, Show}
-import cats.syntax.eq.*
+import cats.Show
+import cats.kernel.Order
 import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import io.circe.{Decoder, Encoder}
@@ -59,5 +59,7 @@ object NJPath {
   def apply(lfs: LocatedFileStatus): NJPath = apply(lfs.getPath)
 
   implicit final val showNJPath: Show[NJPath] = _.pathStr
-  implicit final val eqNJPath: Eq[NJPath]     = Eq.instance((a, b) => a.pathStr === b.pathStr)
+
+  implicit final val ordingNJPath: Ordering[NJPath] = Ordering.by(_.pathStr)
+  implicit final val orderNJPath: Order[NJPath]     = Order.by(_.pathStr)
 }

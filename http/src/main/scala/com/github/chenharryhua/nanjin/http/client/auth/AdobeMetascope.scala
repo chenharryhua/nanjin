@@ -9,7 +9,7 @@ sealed abstract class AdobeMetascope(val name: String) extends EnumEntry with Pr
 // https://developer.adobe.com/developer-console/docs/guides/authentication/JWT/Scopes/
 object AdobeMetascope
     extends Enum[AdobeMetascope] with CatsEnum[AdobeMetascope] with CirceEnum[AdobeMetascope] {
-  override def values: immutable.IndexedSeq[AdobeMetascope] = findValues
+  override val values: immutable.IndexedSeq[AdobeMetascope] = findValues
   case object AdobeAnalytics extends AdobeMetascope("ent_analytics_bulk_ingest_sdk")
   case object ExperiencePlatform extends AdobeMetascope("ent_dataservices_sdk")
   case object Campaign extends AdobeMetascope("ent_campaign_sdk")

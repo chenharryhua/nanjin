@@ -30,7 +30,8 @@ class KantanCsvTest extends AnyFunSuite {
   def loadTablet(path: NJPath, cfg: CsvConfiguration) = Stream
     .force(
       hdp
-        .filesSortByName(path)
+        .filesIn(path)
+        .map(_.sorted)
         .map(_.foldLeft(Stream.empty.covaryAll[IO, Tablet]) { case (ss, hip) =>
           ss ++ hdp.bytes.source(hip).through(KantanSerde.fromBytes[IO, Tablet](cfg))
         }))

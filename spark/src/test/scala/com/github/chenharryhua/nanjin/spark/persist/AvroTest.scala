@@ -30,7 +30,8 @@ class AvroTest extends AnyFunSuite {
   def loadRoosters(path: NJPath): IO[List[Rooster]] = {
     val rst =
       hadoop
-        .filesSortByName(path)
+        .filesIn(path)
+        .map(_.sorted)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, p) =>
           ss ++ hadoop.avro(Rooster.schema).source(p).map(Rooster.avroCodec.avroDecoder.decode)
         })
