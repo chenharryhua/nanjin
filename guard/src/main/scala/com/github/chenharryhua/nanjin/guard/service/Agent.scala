@@ -21,7 +21,7 @@ final class Agent[F[_]] private[service] (
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(actionName: String)(f: Endo[ActionConfig]): NJAction[F] =
+  def action(actionName: String, f: Endo[ActionConfig] = identity): NJAction[F] =
     new NJAction[F](
       metricRegistry = metricRegistry,
       channel = channel,
@@ -77,7 +77,7 @@ final class Agent[F[_]] private[service] (
   // for convenience
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action("nonStop")(_.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
+    action("nonStop", _.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
       .run(sfa.compile.drain)
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 
