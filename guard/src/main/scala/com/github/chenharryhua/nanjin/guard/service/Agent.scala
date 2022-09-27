@@ -23,9 +23,17 @@ final class Agent[F[_]] private[service] (
 
   def action(actionName: String, f: Endo[ActionConfig] = identity): NJAction[F] =
     new NJAction[F](
+      name = actionName,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = f(ActionConfig(serviceParams, actionName)).evalConfig)
+      actionConfig = f(ActionConfig(serviceParams, None)))
+
+  def trace(actionName: String, traceId: Option[String], f: Endo[ActionConfig] = identity): NJAction[F] =
+    new NJAction[F](
+      name = actionName,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionConfig = f(ActionConfig(serviceParams, traceId)))
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](

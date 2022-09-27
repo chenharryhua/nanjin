@@ -10,10 +10,8 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
-import natchez.{Span, Trace}
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.net.URI
 import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
@@ -63,13 +61,9 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     }
   }
 
-  private def internalRun(input: IN, traceId: F[Option[String]], traceUri: F[Option[URI]]): F[OUT] = for {
+  def run(input: IN): F[OUT] = for {
     publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
-    actionInfo <- publisher.actionStart(
-      actionParams = actionParams,
-      input = transInput(input),
-      traceId = traceId,
-      traceUri = traceUri)
+    actionInfo <- publisher.actionStart(actionParams = actionParams, input = transInput(input))
     res <- retry.mtl
       .retryingOnSomeErrors[OUT]
       .apply[F, Throwable](
@@ -96,10 +90,6 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
   } yield res
-
-  def run(input: IN): F[OUT]                            = internalRun(input, F.pure(None), F.pure(None))
-  def runTrace(span: Span[F])(input: IN): F[OUT]        = internalRun(input, span.traceId, span.traceUri)
-  def runTrace(input: IN)(implicit T: Trace[F]): F[OUT] = internalRun(input, T.traceId, T.traceUri)
 
   override def apply(input: IN): F[OUT] = run(input)
 }
@@ -136,7 +126,5 @@ final class NJRetry0[F[_], OUT] private[guard] (
     transOutput = (_, b: OUT) => transOutput(b),
     isWorthRetry = isWorthRetry
   )
-  val run: F[OUT]                            = njRetry.run(())
-  def runTrace(span: Span[F]): F[OUT]        = njRetry.runTrace(span)(())
-  def runTrace(implicit T: Trace[F]): F[OUT] = njRetry.runTrace(())
+  val run: F[OUT] = njRetry.run(())
 }

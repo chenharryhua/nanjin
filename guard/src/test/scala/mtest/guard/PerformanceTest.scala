@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
-import natchez.noop.NoopEntrypoint
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Ignore
 
@@ -84,14 +83,4 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} trivial")
   }
 
-  test("noop trace") {
-    var i = 0
-    service.eventStream { ag =>
-      val ts = NoopEntrypoint[IO]()
-        .root("root")
-        .use(sp => ag.action("trace", _.trivial.withTiming.withCounting).retry(IO(i += 1)).runTrace(sp))
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} noop trace")
-  }
 }

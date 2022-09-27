@@ -60,12 +60,7 @@ object MetricReportType {
 }
 
 @JsonCodec
-final case class ActionInfo(
-  actionParams: ActionParams,
-  actionId: Int,
-  launchTime: ZonedDateTime,
-  traceId: Option[String],
-  traceUri: Option[String])
+final case class ActionInfo(actionParams: ActionParams, actionId: Int, launchTime: ZonedDateTime)
 
 object ActionInfo extends zoneddatetime {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]

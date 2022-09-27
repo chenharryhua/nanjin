@@ -18,7 +18,7 @@ private object SimpleJsonTranslator {
   private def name(dg: Digested): (String, Json)         = "name" -> Json.fromString(dg.name)
   private def digest(dg: Digested): (String, Json)       = "digest" -> Json.fromString(dg.digest)
   private def actionId(evt: ActionEvent): (String, Json) = "id" -> Json.fromInt(evt.actionId)
-  private def traceId(evt: ActionEvent): (String, Json)  = "traceId" -> evt.actionInfo.traceId.asJson
+  private def traceId(evt: ActionEvent): (String, Json)  = "traceId" -> evt.traceId.asJson
 
   private def stackTrace(err: NJError): (String, Json)    = "stackTrace" -> Json.fromString(err.stackTrace)
   private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
