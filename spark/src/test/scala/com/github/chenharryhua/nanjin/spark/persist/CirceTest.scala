@@ -22,7 +22,8 @@ class CirceTest extends AnyFunSuite {
   def loadRoosters(path: NJPath) = {
     val rst =
       hdp
-        .filesSortByName(path)
+        .filesIn(path)
+        .map(_.sorted)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
           ss ++ hdp.bytes.source(hif).through(CirceSerde.fromBytes[IO, Rooster])
         })
@@ -31,7 +32,8 @@ class CirceTest extends AnyFunSuite {
   def loadBees(path: NJPath) = {
     val rst =
       hdp
-        .filesSortByName(path)
+        .filesIn(path)
+        .map(_.sorted)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (_, hif) =>
           hdp.bytes.source(hif).through(CirceSerde.fromBytes[IO, Bee])
         })

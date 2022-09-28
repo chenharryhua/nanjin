@@ -37,16 +37,23 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
     lb.toList
   }
 
-  // folders which contain data files
+  /** retrieve all folder names which contain files under path folder
+    * @param path
+    * @return
+    */
   def dataFolders(path: NJPath): F[List[NJPath]] = F.blocking {
     val fs: FileSystem                        = path.hadoopPath.getFileSystem(config)
     val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(path.hadoopPath, true)
     val lb: mutable.Set[Path]                 = collection.mutable.Set.empty
     while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
-    lb.toList.map(NJPath(_)).sortBy(_.toString)
+    lb.toList.map(NJPath(_))
   }
 
-  def filesIn[A: Ordering](path: NJPath, sorting: FileStatus => A): F[List[NJPath]] = F.blocking {
+  /** retrieve file name under path folder, sorted by modification time
+    * @param path
+    * @return
+    */
+  def filesIn(path: NJPath): F[List[NJPath]] = F.blocking {
     val fs: FileSystem   = path.hadoopPath.getFileSystem(config)
     val stat: FileStatus = fs.getFileStatus(path.hadoopPath)
     if (stat.isFile)
@@ -54,12 +61,10 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) 
     else
       fs.listStatus(path.hadoopPath, HiddenFileFilter.INSTANCE)
         .filter(_.isFile)
-        .sortBy(sorting)
+        .sortBy(_.getModificationTime)
         .map(s => NJPath(s.getPath))
         .toList
   }
-  def filesSortByTime(path: NJPath): F[List[NJPath]] = filesIn(path, _.getModificationTime)
-  def filesSortByName(path: NJPath): F[List[NJPath]] = filesIn(path, _.getPath.getName)
 
   // sources and sinks
   def bytes: NJBytes[F]                       = NJBytes[F](config)

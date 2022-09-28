@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.data.Kleisli
 import cats.effect.kernel.Async
+import cats.Endo
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.config.ActionConfig
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -12,16 +13,23 @@ import scala.util.control.NonFatal
 import scala.util.Try
 
 final class NJAction[F[_]] private[guard] (
+  val name: String,
+  val parent: Option[NJAction[F]],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  actionParams: ActionParams)(implicit F: Async[F]) {
+  actionConfig: ActionConfig)(implicit F: Async[F]) {
+
+  private lazy val ancestors: List[String] = LazyList.unfold(this)(_.parent.map(p => (p.name, p))).toList
+
+  def child(name: String, cfg: Endo[ActionConfig] = identity): NJAction[F] =
+    new NJAction[F](name, Some(this), metricRegistry, channel, cfg(actionConfig))
 
   // retries
   def retry[Z](fb: F[Z]): NJRetry0[F, Z] = // 0 arity
     new NJRetry0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name, ancestors),
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
@@ -32,7 +40,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name, ancestors),
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
@@ -43,7 +51,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
@@ -54,7 +62,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
@@ -65,7 +73,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
@@ -76,7 +84,7 @@ final class NJAction[F[_]] private[guard] (
     new NJRetry[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),

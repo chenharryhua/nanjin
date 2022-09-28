@@ -21,11 +21,21 @@ final class Agent[F[_]] private[service] (
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(actionName: String)(f: Endo[ActionConfig]): NJAction[F] =
+  def action(name: String, cfg: Endo[ActionConfig] = identity): NJAction[F] =
     new NJAction[F](
+      name = name,
+      parent = None,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = f(ActionConfig(serviceParams, actionName)).evalConfig)
+      actionConfig = cfg(ActionConfig(serviceParams, None)))
+
+  def trace(name: String, traceId: Option[String], cfg: Endo[ActionConfig] = identity): NJAction[F] =
+    new NJAction[F](
+      name = name,
+      parent = None,
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionConfig = cfg(ActionConfig(serviceParams, traceId)))
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
@@ -77,7 +87,7 @@ final class Agent[F[_]] private[service] (
   // for convenience
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action("nonStop")(_.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
+    action("nonStop", _.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
       .run(sfa.compile.drain)
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 

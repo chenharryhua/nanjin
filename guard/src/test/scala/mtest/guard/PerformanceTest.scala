@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
-import natchez.noop.NoopEntrypoint
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Ignore
 
@@ -41,7 +40,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("c")(_.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+        ag.action("c", _.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical")
@@ -51,7 +50,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("cn")(_.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).logOutput(_.asJson).run
+        ag.action("cn", _.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).logOutput(_.asJson).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical - notes")
@@ -60,7 +59,7 @@ class PerformanceTest extends AnyFunSuite {
   test("notice") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("nt")(_.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("nt", _.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} notice")
@@ -69,7 +68,7 @@ class PerformanceTest extends AnyFunSuite {
   test("silent") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("n")(_.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("n", _.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} silent")
@@ -78,20 +77,10 @@ class PerformanceTest extends AnyFunSuite {
   test("trivial") {
     var i = 0
     service.eventStream { ag =>
-      val ts = ag.action("t")(_.trivial.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("t", _.trivial.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} trivial")
   }
 
-  test("noop trace") {
-    var i = 0
-    service.eventStream { ag =>
-      val ts = NoopEntrypoint[IO]()
-        .root("root")
-        .use(sp => ag.action("trace")(_.trivial.withTiming.withCounting).retry(IO(i += 1)).runTrace(sp))
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} noop trace")
-  }
 }

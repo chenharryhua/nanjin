@@ -83,8 +83,7 @@ object NJEvent extends zoneddatetime {
     final def digested: Digested         = actionInfo.actionParams.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: Int              = actionInfo.actionId
-    final def traceId: String            = actionInfo.traceId.getOrElse("none")
-    final def traceUri: Option[String]   = actionInfo.traceUri
+    final def traceId: String            = actionParams.traceId.getOrElse("none")
 
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }

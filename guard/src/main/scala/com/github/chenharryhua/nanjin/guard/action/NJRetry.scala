@@ -3,17 +3,14 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.Kleisli
 import cats.effect.Temporal
 import cats.effect.kernel.Outcome
-import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
-import natchez.{Span, Trace}
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import java.net.URI
 import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
@@ -63,14 +60,13 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     }
   }
 
-  private def internalRun(input: IN, traceId: F[Option[String]], traceUri: F[Option[URI]]): F[OUT] = for {
-    publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
-    actionInfo <- publisher.actionStart(
-      actionParams = actionParams,
-      input = transInput(input),
-      traceId = traceId,
-      traceUri = traceUri)
-    res <- retry.mtl
+  override def apply(input: IN): F[OUT] = F.bracketCase(
+    for {
+      publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
+      actionInfo <- publisher.actionStart(actionParams = actionParams, input = transInput(input))
+    } yield (publisher, actionInfo)
+  ) { case (publisher, actionInfo) =>
+    retry.mtl
       .retryingOnSomeErrors[OUT]
       .apply[F, Throwable](
         actionParams.retry.policy[F],
@@ -81,27 +77,30 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
             case _: GivingUp            => F.unit
           }
       )(arrow(input))
-      .guaranteeCase {
-        case Outcome.Canceled() =>
-          publisher
-            .actionFail(actionInfo, ActionException.ActionCanceled, transInput(input))
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-        case Outcome.Errored(error) =>
-          publisher
-            .actionFail(actionInfo, error, transInput(input))
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-        case Outcome.Succeeded(output) =>
-          publisher
-            .actionSucc(actionInfo, output.flatMap(transOutput(input, _)))
-            .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
-      }
-  } yield res
+  } { case ((publisher, actionInfo), oc) =>
+    oc match {
+      case Outcome.Canceled() =>
+        publisher
+          .actionFail(actionInfo, ActionException.ActionCanceled, transInput(input))
+          .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+      case Outcome.Errored(error) =>
+        publisher
+          .actionFail(actionInfo, error, transInput(input))
+          .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+      case Outcome.Succeeded(output) =>
+        publisher
+          .actionSucc(actionInfo, output.flatMap(transOutput(input, _)))
+          .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
+    }
+  }
 
-  def run(input: IN): F[OUT]                            = internalRun(input, F.pure(None), F.pure(None))
-  def runTrace(span: Span[F])(input: IN): F[OUT]        = internalRun(input, span.traceId, span.traceUri)
-  def runTrace(input: IN)(implicit T: Trace[F]): F[OUT] = internalRun(input, T.traceId, T.traceUri)
+  def run(input: IN): F[OUT] = apply(input)
 
-  override def apply(input: IN): F[OUT] = run(input)
+  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT]                         = apply((a, b))
+  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT]             = apply((a, b, c))
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] = apply((a, b, c, d))
+  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
+    apply((a, b, c, d, e))
 }
 
 final class NJRetry0[F[_], OUT] private[guard] (
@@ -127,7 +126,7 @@ final class NJRetry0[F[_], OUT] private[guard] (
   def logOutputM(f: OUT => F[Json]): NJRetry0[F, OUT]        = copy(transOutput = f)
   def logOutput(implicit ev: Encoder[OUT]): NJRetry0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
-  private val njRetry = new NJRetry[F, Unit, OUT](
+  val run: F[OUT] = new NJRetry[F, Unit, OUT](
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,
@@ -135,8 +134,5 @@ final class NJRetry0[F[_], OUT] private[guard] (
     transInput = _ => transInput,
     transOutput = (_, b: OUT) => transOutput(b),
     isWorthRetry = isWorthRetry
-  )
-  val run: F[OUT]                            = njRetry.run(())
-  def runTrace(span: Span[F]): F[OUT]        = njRetry.runTrace(span)(())
-  def runTrace(implicit T: Trace[F]): F[OUT] = njRetry.runTrace(())
+  ).run(())
 }

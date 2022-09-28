@@ -24,9 +24,9 @@ class ObserversTest extends AnyFunSuite {
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(hourly).withQueueCapacity(20))
       .eventStream { ag =>
-        val ok = ag.action("ok")(_.notice).run(IO(1))
+        val ok = ag.action("ok", _.notice).run(IO(1))
         val err = ag
-          .action("error")(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
       }
@@ -41,9 +41,9 @@ class ObserversTest extends AnyFunSuite {
       .service("text")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        val ok = ag.action("ok")(_.notice).run(IO(1))
+        val ok = ag.action("ok", _.notice).run(IO(1))
         val err = ag
-          .action("error")(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
 
@@ -59,9 +59,9 @@ class ObserversTest extends AnyFunSuite {
       .service("json")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        val ok = ag.action("ok")(_.notice).run(IO(1))
+        val ok = ag.action("ok", _.notice).run(IO(1))
         val err = ag
-          .action("error")(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
       }
@@ -77,9 +77,9 @@ class ObserversTest extends AnyFunSuite {
       .service("slack")
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        val ok = ag.action("ok")(_.notice).run(IO(1))
+        val ok = ag.action("ok", _.notice).run(IO(1))
         val err = ag
-          .action("error")(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
       }
@@ -106,9 +106,9 @@ class ObserversTest extends AnyFunSuite {
       .service("ses")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream { ag =>
-        val ok = ag.action("ok")(_.notice).run(IO(1))
+        val ok = ag.action("ok", _.notice).run(IO(1))
         val err = ag
-          .action("error")(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
       }
@@ -132,9 +132,9 @@ class ObserversTest extends AnyFunSuite {
       .service("sns")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream { ag =>
-        val ok = ag.action("ok")(_.notice).run(IO(1))
+        val ok = ag.action("ok", _.notice).run(IO(1))
         val err = ag
-          .action("error")(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
       }
@@ -155,9 +155,9 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("lense")
       .service("lense")
       .eventStream { ag =>
-        val ok = ag.action("ok")(_.notice).run(IO(1))
+        val ok = ag.action("ok", _.notice).run(IO(1))
         val err = ag
-          .action("error")(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .run(IO.raiseError[Int](new Exception("oops")))
         ok >> err.attempt
       }
@@ -201,7 +201,7 @@ class ObserversTest extends AnyFunSuite {
     val run = session.use(_.execute(cmd)) >>
       TaskGuard[IO]("postgres")
         .service("postgres")
-        .eventStream(_.action("sql")(_.notice).run(IO(0)))
+        .eventStream(_.action("sql", _.notice).run(IO(0)))
         .evalTap(console.verbose[IO])
         .through(PostgresObserver(session).observe("log"))
         .compile
@@ -214,7 +214,7 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sqs")
       .service("sqs")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second).withMetricDailyReset)
-      .eventStream(_.action("sqs")(_.critical).run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
+      .eventStream(_.action("sqs", _.critical).run(IO.raiseError(new Exception)).delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo")))
       .compile

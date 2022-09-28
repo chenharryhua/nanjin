@@ -29,12 +29,12 @@ class PrivateKeyTest extends AnyFunSuite {
 
     val run = for {
       sv <- Supervisor[IO]
-      ret <- Resource.eval(IO(1))
+      _ <- Resource.eval(IO.println("start"))
       _ <- Resource.eval(sv.supervise(problemOperation.foreverM))
       _ <- Resource.eval(IO.println("main compute"))
-    } yield ret
+    } yield ()
 
-    run.use(_ => IO.sleep(10.seconds)).unsafeRunSync()
+    run.use(_ => IO.sleep(1.seconds)).unsafeRunSync()
     // problemOperation.unsafeRunSync()
     // assert(2 == run.guarantee(IO.println("accomplished")).unsafeRunSync)
   }

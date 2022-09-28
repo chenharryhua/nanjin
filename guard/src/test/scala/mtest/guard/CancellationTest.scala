@@ -22,7 +22,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
-        ag.action("canceled")(_.withConstantDelay(1.second, 3).notice).retry(IO(1) <* IO.canceled).run)
+        ag.action("canceled", _.withConstantDelay(1.second, 3).notice).retry(IO(1) <* IO.canceled).run)
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
@@ -40,7 +40,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val a1 = ag.action("never")(_.silent).run(IO.never[Int])
+        val a1 = ag.action("never", _.silent).run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .map(_.asJson.noSpaces)
@@ -57,7 +57,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val a1 = ag.action("never")(_.silent).run(IO.never[Int])
+        val a1 = ag.action("never").run(IO.never[Int])
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
       }
       .map(_.asJson.noSpaces)
@@ -76,8 +76,8 @@ class CancellationTest extends AnyFunSuite {
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val a1 = ag.action("one/two/inner")(_.silent).run(IO.never[Int])
-        ag.action("one/two/three/outer")(_.silent)
+        val a1 = ag.action("one").child("two").child("inner").run(IO.never[Int])
+        ag.action("one/two/three/outer")
           .retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1)))
           .run
       }
@@ -103,10 +103,10 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        ag.action("a1")(_.notice).retry(IO(1)).run >>
-          ag.action("a2")(_.notice).retry(IO(1)).run >>
+        ag.action("a1", _.notice).retry(IO(1)).run >>
+          ag.action("a2", _.notice).retry(IO(1)).run >>
           IO.canceled >>
-          ag.action("a3")(_.notice).retry(IO(1)).run
+          ag.action("a3", _.notice).retry(IO(1)).run
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -127,10 +127,10 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        ag.action("a1")(_.notice).retry(IO(1)).run >>
-          ag.action("a2")(_.notice.withConstantDelay(1.second, 1)).retry(IO.raiseError(new Exception)).run >>
+        ag.action("a1", _.notice).retry(IO(1)).run >>
+          ag.action("a2", _.notice.withConstantDelay(1.second, 1)).retry(IO.raiseError(new Exception)).run >>
           IO.canceled >> // no chance to cancel since a2 never success
-          ag.action("a3")(_.notice).retry(IO(1)).run
+          ag.action("a3", _.notice).retry(IO(1)).run
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -154,12 +154,12 @@ class CancellationTest extends AnyFunSuite {
       serviceGuard
         .updateConfig(_.withConstantDelay(1.hour))
         .eventStream { ag =>
-          val a1 = ag.action("succ-1")(_.notice).run(IO.sleep(1.second) >> IO(1))
+          val a1 = ag.action("succ-1", _.notice).run(IO.sleep(1.second) >> IO(1))
           val a2 = ag
-            .action("fail-2")(_.notice.withConstantDelay(1.second, 3))
+            .action("fail-2", _.notice.withConstantDelay(1.second, 3))
             .run(IO.raiseError[Int](new Exception))
-          val a3 = ag.action("cancel-3")(_.notice).run(IO.never[Int])
-          ag.action("supervisor")(_.notice.withConstantDelay(1.second, 1))
+          val a3 = ag.action("cancel-3", _.notice).run(IO.never[Int])
+          ag.action("supervisor", _.notice.withConstantDelay(1.second, 1))
             .run(IO.parSequenceN(5)(List(a1, a2, a3)))
         }
         .map(_.asJson.noSpaces)
@@ -202,7 +202,7 @@ class CancellationTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
         val a1 = ag
-          .action("exception")(_.notice.withConstantDelay(2.second, 100))
+          .action("exception", _.notice.withConstantDelay(2.second, 100))
           .retry(IO.raiseError[Int](new Exception))
           .run
         IO.parSequenceN(2)(List(IO.sleep(3.second) >> IO.canceled, a1))
@@ -225,7 +225,7 @@ class CancellationTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
         val a1 = ag
-          .action("exception")(_.withConstantDelay(1.second, 3))
+          .action("exception", _.withConstantDelay(1.second, 3))
           .retry(IO.raiseError[Int](new Exception))
           .run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))

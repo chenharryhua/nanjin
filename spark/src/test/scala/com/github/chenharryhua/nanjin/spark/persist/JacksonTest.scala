@@ -23,7 +23,8 @@ class JacksonTest extends AnyFunSuite {
   def loadRooster(path: NJPath) = Stream
     .force(
       hdp
-        .filesSortByName(path)
+        .filesIn(path)
+        .map(_.sorted)
         .map(_.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hip) =>
           ss ++ hdp.bytes
             .source(hip)

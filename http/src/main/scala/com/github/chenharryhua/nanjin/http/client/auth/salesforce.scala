@@ -21,7 +21,7 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 object salesforce {
 
-  // https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
+  // ??? https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
 
   sealed private trait InstanceURL
   private case object Rest extends InstanceURL
@@ -59,7 +59,7 @@ object salesforce {
                 "client_secret" -> client_secret
               ),
               auth_endpoint.withPath(path"/v2/token")
-            ).putHeaders("Cache-Control" -> "no-cache"))
+            ))
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {
@@ -163,7 +163,7 @@ object salesforce {
               "password" -> password
             ),
             auth_endpoint.withPath(path"/services/oauth2/token")
-          ).putHeaders("Cache-Control" -> "no-cache"))
+          ))
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         getToken.delayBy(params.dormant(expiresIn)).flatMap(ref.set)
