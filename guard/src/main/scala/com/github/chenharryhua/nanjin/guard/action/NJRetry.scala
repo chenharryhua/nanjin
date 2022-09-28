@@ -61,7 +61,7 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     }
   }
 
-  def run(input: IN): F[OUT] = for {
+  override def apply(input: IN): F[OUT] = for {
     publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
     actionInfo <- publisher.actionStart(actionParams = actionParams, input = transInput(input))
     res <- retry.mtl
@@ -91,7 +91,13 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
       }
   } yield res
 
-  override def apply(input: IN): F[OUT] = run(input)
+  def run(input: IN): F[OUT] = apply(input)
+
+  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT]                         = apply((a, b))
+  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT]             = apply((a, b, c))
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] = apply((a, b, c, d))
+  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
+    apply((a, b, c, d, e))
 }
 
 final class NJRetry0[F[_], OUT] private[guard] (
@@ -117,7 +123,7 @@ final class NJRetry0[F[_], OUT] private[guard] (
   def logOutputM(f: OUT => F[Json]): NJRetry0[F, OUT]        = copy(transOutput = f)
   def logOutput(implicit ev: Encoder[OUT]): NJRetry0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
-  private val njRetry = new NJRetry[F, Unit, OUT](
+  val run: F[OUT] = new NJRetry[F, Unit, OUT](
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,
@@ -125,6 +131,5 @@ final class NJRetry0[F[_], OUT] private[guard] (
     transInput = _ => transInput,
     transOutput = (_, b: OUT) => transOutput(b),
     isWorthRetry = isWorthRetry
-  )
-  val run: F[OUT] = njRetry.run(())
+  ).run(())
 }

@@ -21,8 +21,8 @@ final class NJAction[F[_]] private[guard] (
 
   private lazy val ancestors: List[String] = LazyList.unfold(this)(_.parent.map(p => (p.name, p))).toList
 
-  def child(name: String, f: Endo[ActionConfig] = identity): NJAction[F] =
-    new NJAction[F](name, Some(this), metricRegistry, channel, f(actionConfig))
+  def child(name: String, cfg: Endo[ActionConfig] = identity): NJAction[F] =
+    new NJAction[F](name, Some(this), metricRegistry, channel, cfg(actionConfig))
 
   // retries
   def retry[Z](fb: F[Z]): NJRetry0[F, Z] = // 0 arity

@@ -62,7 +62,7 @@ class RetryTest extends AnyFunSuite {
         .logOutput((in, out) => (in._3, out).asJson)
         .logOutput((in, out) => (in, out).asJson)
 
-      List(1, 2, 3).traverse(i => ag.run((i, i, i)).attempt)
+      List(1, 2, 3).traverse(i => ag.run(i, i, i).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -234,4 +234,33 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ServiceStart])
     assert(f.isInstanceOf[ServicePanic])
   }
+
+  test("syntax") {
+    serviceGuard.eventStream { agent =>
+      val f1 = agent.action("f1").retry((a: Int) => IO(a))
+      val f2 = agent.action("f2").retry((a: Int, b: Int) => IO(a + b))
+      val f3 = agent.action("f3").retry((a: Int, b: Int, c: Int) => IO(a + b + c))
+      val f4 = agent.action("f4").retry((a: Int, b: Int, c: Int, d: Int) => IO(a + b + c + d))
+      val f5 = agent.action("f5").retry((a: Int, b: Int, c: Int, d: Int, e: Int) => IO(a + b + c + d + e))
+
+      f1.run(1)
+      f2.run(1, 1)
+      f3.run(1, 1, 1)
+      f4.run(1, 1, 1, 1)
+      f5.run(1, 1, 1, 1, 1)
+
+      f1(1)
+      f2((1, 1))
+      f3((1, 1, 1))
+      f4((1, 1, 1, 1))
+      f5((1, 1, 1, 1, 1))
+
+      f1.apply(1)
+      f2.apply((1, 1))
+      f3.apply((1, 1, 1))
+      f4.apply((1, 1, 1, 1))
+      f5.apply((1, 1, 1, 1, 1))
+    }
+  }
+
 }

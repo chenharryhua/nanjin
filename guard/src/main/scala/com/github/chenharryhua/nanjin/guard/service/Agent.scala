@@ -21,21 +21,21 @@ final class Agent[F[_]] private[service] (
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(actionName: String, f: Endo[ActionConfig] = identity): NJAction[F] =
+  def action(name: String, cfg: Endo[ActionConfig] = identity): NJAction[F] =
     new NJAction[F](
-      name = actionName,
+      name = name,
       parent = None,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = f(ActionConfig(serviceParams, None)))
+      actionConfig = cfg(ActionConfig(serviceParams, None)))
 
-  def trace(actionName: String, traceId: Option[String], f: Endo[ActionConfig] = identity): NJAction[F] =
+  def trace(name: String, traceId: Option[String], cfg: Endo[ActionConfig] = identity): NJAction[F] =
     new NJAction[F](
-      name = actionName,
+      name = name,
       parent = None,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = f(ActionConfig(serviceParams, traceId)))
+      actionConfig = cfg(ActionConfig(serviceParams, traceId)))
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
