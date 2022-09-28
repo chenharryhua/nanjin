@@ -37,8 +37,8 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
       isWorthRetry)
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJRetry[F, IN, OUT] = copy(isWorthRetry = Kleisli(f))
-  def withWorthRetry(f: Throwable => Boolean): NJRetry[F, IN, OUT] = withWorthRetryM(
-    Kleisli.fromFunction(f).run)
+  def withWorthRetry(f: Throwable => Boolean): NJRetry[F, IN, OUT] =
+    withWorthRetryM(Kleisli.fromFunction(f).run)
 
   def logInputM(f: IN => F[Json]): NJRetry[F, IN, OUT]        = copy(transInput = f)
   def logInput(implicit ev: Encoder[IN]): NJRetry[F, IN, OUT] = logInputM((a: IN) => F.pure(ev(a)))
