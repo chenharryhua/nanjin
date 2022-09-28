@@ -76,7 +76,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(a, b, c, d) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val a1 = ag.action("one/two/inner").run(IO.never[Int])
+        val a1 = ag.action("one").child("two").child("inner").run(IO.never[Int])
         ag.action("one/two/three/outer")
           .retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1)))
           .run

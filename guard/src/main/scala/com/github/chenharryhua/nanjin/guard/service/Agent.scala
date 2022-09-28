@@ -24,6 +24,7 @@ final class Agent[F[_]] private[service] (
   def action(actionName: String, f: Endo[ActionConfig] = identity): NJAction[F] =
     new NJAction[F](
       name = actionName,
+      parent = None,
       metricRegistry = metricRegistry,
       channel = channel,
       actionConfig = f(ActionConfig(serviceParams, None)))
@@ -31,6 +32,7 @@ final class Agent[F[_]] private[service] (
   def trace(actionName: String, traceId: Option[String], f: Endo[ActionConfig] = identity): NJAction[F] =
     new NJAction[F](
       name = actionName,
+      parent = None,
       metricRegistry = metricRegistry,
       channel = channel,
       actionConfig = f(ActionConfig(serviceParams, traceId)))
