@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.Kleisli
 import cats.effect.Temporal
 import cats.effect.kernel.Outcome
-import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
@@ -61,10 +60,13 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     }
   }
 
-  override def apply(input: IN): F[OUT] = for {
-    publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
-    actionInfo <- publisher.actionStart(actionParams = actionParams, input = transInput(input))
-    res <- retry.mtl
+  override def apply(input: IN): F[OUT] = F.bracketCase(
+    for {
+      publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
+      actionInfo <- publisher.actionStart(actionParams = actionParams, input = transInput(input))
+    } yield (publisher, actionInfo)
+  ) { case (publisher, actionInfo) =>
+    retry.mtl
       .retryingOnSomeErrors[OUT]
       .apply[F, Throwable](
         actionParams.retry.policy[F],
@@ -75,21 +77,22 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
             case _: GivingUp            => F.unit
           }
       )(arrow(input))
-      .guaranteeCase {
-        case Outcome.Canceled() =>
-          publisher
-            .actionFail(actionInfo, ActionException.ActionCanceled, transInput(input))
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-        case Outcome.Errored(error) =>
-          publisher
-            .actionFail(actionInfo, error, transInput(input))
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-        case Outcome.Succeeded(output) =>
-          publisher
-            .actionSucc(actionInfo, output.flatMap(transOutput(input, _)))
-            .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
-      }
-  } yield res
+  } { case ((publisher, actionInfo), oc) =>
+    oc match {
+      case Outcome.Canceled() =>
+        publisher
+          .actionFail(actionInfo, ActionException.ActionCanceled, transInput(input))
+          .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+      case Outcome.Errored(error) =>
+        publisher
+          .actionFail(actionInfo, error, transInput(input))
+          .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+      case Outcome.Succeeded(output) =>
+        publisher
+          .actionSucc(actionInfo, output.flatMap(transOutput(input, _)))
+          .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
+    }
+  }
 
   def run(input: IN): F[OUT] = apply(input)
 
