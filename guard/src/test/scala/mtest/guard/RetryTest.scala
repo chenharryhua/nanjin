@@ -94,7 +94,7 @@ class RetryTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
-    assert(d.asInstanceOf[ActionSucc].numRetries == 2)
+    assert(d.isInstanceOf[ActionSucc])
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -158,7 +158,7 @@ class RetryTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
-    assert(d.asInstanceOf[ActionFail].numRetries == 2)
+    assert(d.isInstanceOf[ActionFail])
     assert(e.isInstanceOf[ServicePanic])
   }
 
@@ -201,7 +201,7 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionFail].numRetries == 0)
+    assert(b.isInstanceOf[ActionFail])
     assert(c.isInstanceOf[ServicePanic])
   }
 

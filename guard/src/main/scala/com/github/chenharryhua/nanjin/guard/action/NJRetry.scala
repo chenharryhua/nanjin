@@ -60,39 +60,34 @@ final class NJRetry[F[_], IN, OUT] private[guard] (
     }
   }
 
-  override def apply(input: IN): F[OUT] = F.bracketCase(
-    for {
-      publisher <- F.ref(0).map(retryCounter => new ActionEventPublisher[F](channel, retryCounter))
-      actionInfo <- publisher.actionStart(actionParams = actionParams, input = transInput(input))
-    } yield (publisher, actionInfo)
-  ) { case (publisher, actionInfo) =>
-    retry.mtl
-      .retryingOnSomeErrors[OUT]
-      .apply[F, Throwable](
-        actionParams.retry.policy[F],
-        isWorthRetry.run,
-        (error, details) =>
-          details match {
-            case wdr: WillDelayAndRetry => publisher.actionRetry(actionInfo, wdr, error)
-            case _: GivingUp            => F.unit
-          }
-      )(arrow(input))
-  } { case ((publisher, actionInfo), oc) =>
-    oc match {
-      case Outcome.Canceled() =>
-        publisher
-          .actionFail(actionInfo, ActionException.ActionCanceled, transInput(input))
-          .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-      case Outcome.Errored(error) =>
-        publisher
-          .actionFail(actionInfo, error, transInput(input))
-          .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-      case Outcome.Succeeded(output) =>
-        publisher
-          .actionSucc(actionInfo, output.flatMap(transOutput(input, _)))
-          .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
+  override def apply(input: IN): F[OUT] =
+    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input)))(actionInfo =>
+      retry.mtl
+        .retryingOnSomeErrors[OUT]
+        .apply[F, Throwable](
+          actionParams.retry.policy[F],
+          isWorthRetry.run,
+          (error, details) =>
+            details match {
+              case wdr: WillDelayAndRetry => publisher.actionRetry(channel, actionInfo, wdr, error)
+              case _: GivingUp            => F.unit
+            }
+        )(arrow(input))) { case (actionInfo, oc) =>
+      oc match {
+        case Outcome.Canceled() =>
+          publisher
+            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input))
+            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+        case Outcome.Errored(error) =>
+          publisher
+            .actionFail(channel, actionInfo, error, transInput(input))
+            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+        case Outcome.Succeeded(output) =>
+          publisher
+            .actionSucc(channel, actionInfo, output.flatMap(transOutput(input, _)))
+            .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
+      }
     }
-  }
 
   def run(input: IN): F[OUT] = apply(input)
 

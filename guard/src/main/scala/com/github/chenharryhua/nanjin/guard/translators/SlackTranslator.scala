@@ -223,9 +223,8 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Took", fmt.format(evt.took)),
-              TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
-                               |*Action ID:* ${evt.actionId.show}
+              TextField("Name", evt.digested.metricRepr)),
+            MarkdownSection(s"""*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${evt.traceId}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
@@ -248,9 +247,8 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               TextField("Took", fmt.format(evt.took)),
-              TextField("Retries", evt.numRetries.show)),
-            MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
-                               |*Action ID:* ${evt.actionId.show}
+              TextField("Name", evt.digested.metricRepr)),
+            MarkdownSection(s"""*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${evt.traceId}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Output", s"""```${abbreviate(evt.output.spaces2)}```""")

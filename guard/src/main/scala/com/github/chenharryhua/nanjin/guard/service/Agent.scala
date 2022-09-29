@@ -76,11 +76,7 @@ final class Agent[F[_]] private[service] (
     )
 
   lazy val metrics: NJMetrics[F] =
-    new NJMetrics[F](
-      new MetricEventPublisher[F](
-        channel = channel,
-        metricRegistry = metricRegistry,
-        serviceStatus = serviceStatus))
+    new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceStatus = serviceStatus)
 
   lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
 

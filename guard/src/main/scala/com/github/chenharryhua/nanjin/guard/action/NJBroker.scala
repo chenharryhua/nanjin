@@ -17,8 +17,6 @@ final class NJBroker[F[_]: Temporal] private[guard] (
   isError: Boolean,
   isCounting: Boolean) {
 
-  private val publisher: InstantEventPublisher[F] = new InstantEventPublisher[F](channel, serviceParams)
-
   private lazy val counter: Counter = metricRegistry.counter(passThroughMRName(digested, isError))
 
   def asError: NJBroker[F] =
@@ -28,6 +26,8 @@ final class NJBroker[F[_]: Temporal] private[guard] (
     new NJBroker[F](digested, metricRegistry, channel, serviceParams, isError, true)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
-    publisher.passThrough(digested, a.asJson, isError).map(_ => if (isCounting) counter.inc(1))
+    publisher
+      .passThrough(channel, serviceParams, digested, a.asJson, isError)
+      .map(_ => if (isCounting) counter.inc(1))
 
 }

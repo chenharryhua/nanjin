@@ -31,10 +31,19 @@ class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance")
       .service("actions")
-      .updateConfig(_.withQueueCapacity(32).withMetricReport(10.seconds))
+      .updateConfig(_.withQueueCapacity(50).withMetricReport(10.seconds))
   val take: FiniteDuration = 100.seconds
 
   def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
+
+  ignore("alert") {
+    var i = 0
+    service.eventStream { ag =>
+      val ts = ag.alert("alert").info("alert").map(_ => i += 1)
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} alert")
+  }
 
   test("critical") {
     var i = 0

@@ -104,15 +104,12 @@ object NJEvent extends zoneddatetime {
     override val title: String = titles.actionRetry
   }
 
-  sealed trait ActionResultEvent extends ActionEvent {
-    def numRetries: Int
-  }
+  sealed trait ActionResultEvent extends ActionEvent {}
 
   @Lenses
   final case class ActionFail(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
-    numRetries: Int, // number of retries before giving up
     input: Json, // input of the action
     error: NJError)
       extends ActionResultEvent {
@@ -123,7 +120,6 @@ object NJEvent extends zoneddatetime {
   final case class ActionSucc(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
-    numRetries: Int, // number of retries before success
     output: Json // output of the action
   ) extends ActionResultEvent {
     override val title: String = titles.actionSucc
