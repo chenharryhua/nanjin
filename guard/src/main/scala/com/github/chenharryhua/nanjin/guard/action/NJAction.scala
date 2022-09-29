@@ -118,7 +118,7 @@ final class NJAction[F[_]] private[guard] (
   // run effect
   def run[A](t: Try[A]): F[A]                  = retry(t).run
   def run[A](e: Either[Throwable, A]): F[A]    = retry(e).run
-  def run[Z](fb: F[Z]): F[Z]                   = retry(fb).run
-  def runFuture[Z](future: F[Future[Z]]): F[Z] = retryFuture(future).run
+  def run[A](fb: F[A]): F[A]                   = retry(fb).run
+  def runFuture[A](future: F[Future[A]]): F[A] = retryFuture(future).run
 
 }

@@ -65,7 +65,7 @@ val circeLib = List(
   "io.circe" %% "circe-jackson210"     % "0.14.0",
   "io.circe" %% "circe-generic-extras" % "0.14.2",
   "io.circe" %% "circe-refined"        % "0.14.3",
-  "org.gnieh" %% "diffson-circe"       % "4.2.0"
+  "org.gnieh" %% "diffson-circe"       % "4.2.1"
 )
 
 val jacksonLib = List(
@@ -139,7 +139,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.13",
+  "org.scalatest" %% "scalatest"                              % "3.2.14",
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",

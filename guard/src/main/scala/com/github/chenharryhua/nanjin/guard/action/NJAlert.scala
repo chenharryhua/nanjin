@@ -17,7 +17,6 @@ final class NJAlert[F[_]: Temporal] private[guard] (
   serviceParams: ServiceParams,
   isCounting: Boolean
 ) {
-  private val publisher: InstantEventPublisher[F] = new InstantEventPublisher[F](channel, serviceParams)
   private lazy val errorCounter: Counter =
     metricRegistry.counter(alertMRName(digested, Importance.Critical))
   private lazy val warnCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.High))
@@ -27,15 +26,23 @@ final class NJAlert[F[_]: Temporal] private[guard] (
     new NJAlert[F](digested, metricRegistry, channel, serviceParams, true)
 
   def error[S: Show](msg: S): F[Unit] =
-    publisher.alert(digested, msg.show, Importance.Critical).map(_ => if (isCounting) errorCounter.inc(1))
+    publisher
+      .alert(channel, serviceParams, digested, msg.show, Importance.Critical)
+      .map(_ => if (isCounting) errorCounter.inc(1))
+
   def error[S: Show](msg: Option[S]): F[Unit] = msg.traverse(error(_)).void
 
   def warn[S: Show](msg: S): F[Unit] =
-    publisher.alert(digested, msg.show, Importance.High).map(_ => if (isCounting) warnCounter.inc(1))
+    publisher
+      .alert(channel, serviceParams, digested, msg.show, Importance.High)
+      .map(_ => if (isCounting) warnCounter.inc(1))
+
   def warn[S: Show](msg: Option[S]): F[Unit] = msg.traverse(warn(_)).void
 
   def info[S: Show](msg: S): F[Unit] =
-    publisher.alert(digested, msg.show, Importance.Medium).map(_ => if (isCounting) infoCounter.inc(1))
-  def info[S: Show](msg: Option[S]): F[Unit] = msg.traverse(info(_)).void
+    publisher
+      .alert(channel, serviceParams, digested, msg.show, Importance.Medium)
+      .map(_ => if (isCounting) infoCounter.inc(1))
 
+  def info[S: Show](msg: Option[S]): F[Unit] = msg.traverse(info(_)).void
 }

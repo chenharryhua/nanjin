@@ -89,7 +89,6 @@ final class ServiceGuard[F[_]] private[guard] (
 
           val runningService: Stream[F, Nothing] = Stream
             .eval[F, A] {
-              val sep: ServiceEventPublisher[F] = new ServiceEventPublisher[F](serviceStatus, channel)
 
               retry.mtl
                 .retryingOnSomeErrors[A](
@@ -97,14 +96,16 @@ final class ServiceGuard[F[_]] private[guard] (
                   (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
                   (ex: Throwable, rd) =>
                     rd match {
-                      case RetryDetails.GivingUp(_, _)                     => F.unit
-                      case RetryDetails.WillDelayAndRetry(nextDelay, _, _) => sep.servicePanic(nextDelay, ex)
+                      case RetryDetails.GivingUp(_, _) => F.unit
+                      case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
+                        publisher.servicePanic(channel, serviceStatus, nextDelay, ex)
                     }
                 ) {
-                  sep.serviceReStart *>
+                  publisher.serviceReStart(channel, serviceStatus) *>
                     runAgent(new Agent[F](metricRegistry, serviceStatus, channel, serviceParams))
                 }
-                .guaranteeCase(oc => sep.serviceStop(ServiceStopCause(oc)) <* channel.close)
+                .guaranteeCase(oc =>
+                  publisher.serviceStop(channel, serviceStatus, ServiceStopCause(oc)) <* channel.close)
             }
             .onFinalize(F.sleep(1.second))
             .drain
@@ -114,9 +115,6 @@ final class ServiceGuard[F[_]] private[guard] (
           val cronScheduler: Scheduler[F, CronExpr] =
             Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
-          val metricEventPublisher: MetricEventPublisher[F] =
-            new MetricEventPublisher[F](channel, metricRegistry, serviceStatus)
-
           val metricsReport: Stream[F, Nothing] =
             serviceParams.metric.reportSchedule match {
               case Some(ScheduleType.Fixed(dur)) =>
@@ -125,7 +123,10 @@ final class ServiceGuard[F[_]] private[guard] (
                   .fixedRate[F](dur.toScala)
                   .zipWithIndex
                   .evalMap(t =>
-                    metricEventPublisher.metricsReport(
+                    publisher.metricReport(
+                      channel,
+                      serviceStatus,
+                      metricRegistry,
                       metricFilter,
                       MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
                   .drain
@@ -134,7 +135,10 @@ final class ServiceGuard[F[_]] private[guard] (
                   .awakeEvery(cron)
                   .zipWithIndex
                   .evalMap(t =>
-                    metricEventPublisher.metricsReport(
+                    publisher.metricReport(
+                      channel,
+                      serviceStatus,
+                      metricRegistry,
                       metricFilter,
                       MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
                   .drain
@@ -147,7 +151,7 @@ final class ServiceGuard[F[_]] private[guard] (
               case Some(cron) =>
                 cronScheduler
                   .awakeEvery(cron)
-                  .evalMap(_ => metricEventPublisher.metricsReset(Some(cron)))
+                  .evalMap(_ => publisher.metricReset(channel, serviceStatus, metricRegistry, Some(cron)))
                   .drain
             }
 

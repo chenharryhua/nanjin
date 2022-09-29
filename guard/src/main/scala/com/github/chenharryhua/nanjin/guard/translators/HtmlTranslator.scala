@@ -24,9 +24,6 @@ private object HtmlTranslator extends all {
     }
     .value
 
-  private def retriesText(numRetry: Int): Text.TypedTag[String] =
-    p(b("Number of retries: "), numRetry.toString)
-
   private def hostServiceText(evt: NJEvent): Text.TypedTag[String] = {
     val serviceName =
       evt.serviceParams.taskParams.homePage.fold(p(b("Service: "), evt.serviceName.value))(hp =>
@@ -126,7 +123,6 @@ private object HtmlTranslator extends all {
       hostServiceText(evt),
       p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
       p(b("Took: "), fmt.format(evt.took)),
-      retriesText(evt.numRetries),
       p(b("Input: "), pre(evt.input.spaces2)),
       causeText(evt.error)
     )
@@ -137,7 +133,6 @@ private object HtmlTranslator extends all {
       actionText(evt),
       hostServiceText(evt),
       p(b("Took: "), fmt.format(evt.took)),
-      retriesText(evt.numRetries),
       p(b("Output: "), pre(evt.output.spaces2))
     )
 
