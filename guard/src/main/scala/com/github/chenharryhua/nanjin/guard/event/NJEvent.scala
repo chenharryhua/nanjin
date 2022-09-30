@@ -50,6 +50,20 @@ object NJEvent extends zoneddatetime {
     override val title: String = titles.serviceStop
   }
 
+  final case class RootSpanStart(serviceParams: ServiceParams, timestamp: ZonedDateTime, traceId: String)
+      extends ServiceEvent {
+    override val title: String = titles.rootSpanStart
+  }
+
+  final case class RootSpanFinish(
+    serviceParams: ServiceParams,
+    timestamp: ZonedDateTime,
+    traceId: String,
+    result: Option[NJError])
+      extends ServiceEvent {
+    override def title: String = titles.rootSpanFinish
+  }
+
   sealed trait MetricEvent extends ServiceEvent {
     def snapshot: MetricSnapshot
   }
@@ -153,13 +167,15 @@ object NJEvent extends zoneddatetime {
 }
 
 private object titles {
-  @inline final val serviceStart: String = "(Re)Start Service"
-  @inline final val serviceStop: String  = "Service Stopped"
-  @inline final val servicePanic: String = "Service Panic"
-  @inline final val actionStart: String  = "Start Action"
-  @inline final val actionRetry: String  = "Action Retrying"
-  @inline final val actionFail: String   = "Action Failed"
-  @inline final val actionSucc: String   = "Action Succed"
-  @inline final val instantAlert: String = "Alert"
-  @inline final val passThrough: String  = "Pass Through"
+  @inline final val serviceStart: String   = "(Re)Start Service"
+  @inline final val serviceStop: String    = "Service Stopped"
+  @inline final val servicePanic: String   = "Service Panic"
+  @inline final val actionStart: String    = "Start Action"
+  @inline final val actionRetry: String    = "Action Retrying"
+  @inline final val actionFail: String     = "Action Failed"
+  @inline final val actionSucc: String     = "Action Succed"
+  @inline final val instantAlert: String   = "Alert"
+  @inline final val passThrough: String    = "Pass Through"
+  @inline final val rootSpanStart: String  = "Root Span Start"
+  @inline final val rootSpanFinish: String = "Root Span Finished"
 }

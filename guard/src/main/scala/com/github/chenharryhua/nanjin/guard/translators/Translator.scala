@@ -27,21 +27,25 @@ trait UpdateTranslator[F[_], A, B] {
   actionStart: Kleisli[OptionT[F, *], ActionStart, A],
   actionRetry: Kleisli[OptionT[F, *], ActionRetry, A],
   actionFail: Kleisli[OptionT[F, *], ActionFail, A],
-  actionSucc: Kleisli[OptionT[F, *], ActionSucc, A]
+  actionSucc: Kleisli[OptionT[F, *], ActionSucc, A],
+  rootSpanStart: Kleisli[OptionT[F, *], RootSpanStart, A],
+  rootSpanFinish: Kleisli[OptionT[F, *], RootSpanFinish, A]
 ) {
 
   def translate(event: NJEvent): F[Option[A]] = event match {
-    case e: ServiceStart => serviceStart.run(e).value
-    case e: ServicePanic => servicePanic.run(e).value
-    case e: ServiceStop  => serviceStop.run(e).value
-    case e: MetricReport => metricReport.run(e).value
-    case e: MetricReset  => metricReset.run(e).value
-    case e: InstantAlert => instantAlert.run(e).value
-    case e: PassThrough  => passThrough.run(e).value
-    case e: ActionStart  => actionStart.run(e).value
-    case e: ActionRetry  => actionRetry.run(e).value
-    case e: ActionFail   => actionFail.run(e).value
-    case e: ActionSucc   => actionSucc.run(e).value
+    case e: ServiceStart   => serviceStart.run(e).value
+    case e: ServicePanic   => servicePanic.run(e).value
+    case e: ServiceStop    => serviceStop.run(e).value
+    case e: MetricReport   => metricReport.run(e).value
+    case e: MetricReset    => metricReset.run(e).value
+    case e: InstantAlert   => instantAlert.run(e).value
+    case e: PassThrough    => passThrough.run(e).value
+    case e: ActionStart    => actionStart.run(e).value
+    case e: ActionRetry    => actionRetry.run(e).value
+    case e: ActionFail     => actionFail.run(e).value
+    case e: ActionSucc     => actionSucc.run(e).value
+    case e: RootSpanStart  => rootSpanStart.run(e).value
+    case e: RootSpanFinish => rootSpanFinish.run(e).value
   }
 
   def filter(f: NJEvent => Boolean)(implicit F: Applicative[F]): Translator[F, A] =
@@ -56,7 +60,9 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) actionStart.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionRetry.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionFail.run(ss) else OptionT(F.pure(None))),
-      Kleisli(ss => if (f(ss)) actionSucc.run(ss) else OptionT(F.pure(None)))
+      Kleisli(ss => if (f(ss)) actionSucc.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) rootSpanStart.run(ss) else OptionT(F.pure(None))),
+      Kleisli(ss => if (f(ss)) rootSpanFinish.run(ss) else OptionT(F.pure(None)))
     )
 
   // for convenience
@@ -220,6 +226,24 @@ trait UpdateTranslator[F[_], A, B] {
   def withActionSucc(f: ActionSucc => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(actionSucc = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
+  def withRootSpanStart(f: RootSpanStart => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(rootSpanStart = Kleisli(a => OptionT(F.pure(f(a)))))
+
+  def withRootSpanStart(f: RootSpanStart => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(rootSpanStart = Kleisli(a => OptionT(f(a).map(Some(_)))))
+
+  def withRootSpanStart(f: RootSpanStart => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(rootSpanStart = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+
+  def withRootSpanFinish(f: RootSpanFinish => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(rootSpanFinish = Kleisli(a => OptionT(F.pure(f(a)))))
+
+  def withRootSpanFinish(f: RootSpanFinish => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(rootSpanFinish = Kleisli(a => OptionT(f(a).map(Some(_)))))
+
+  def withRootSpanFinish(f: RootSpanFinish => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(rootSpanFinish = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+
   def flatMap[B](f: A => Translator[F, B])(implicit F: Monad[F]): Translator[F, B] = {
     val go: NJEvent => F[Option[Translator[F, B]]] = { (evt: NJEvent) => translate(evt).map(_.map(f)) }
     Translator
@@ -295,6 +319,14 @@ object Translator extends zoneddatetime {
         val actionSucc: Kleisli[OptionT[F, *], ActionSucc, B] =
           Kleisli((ss: ActionSucc) => OptionT(F.tailRecM(a)(x => f(x).actionSucc.run(ss).value.map(mapper))))
 
+        val rootSpanStart: Kleisli[OptionT[F, *], RootSpanStart, B] =
+          Kleisli((ss: RootSpanStart) =>
+            OptionT(F.tailRecM(a)(x => f(x).rootSpanStart.run(ss).value.map(mapper))))
+
+        val rootSpanFinish: Kleisli[OptionT[F, *], RootSpanFinish, B] =
+          Kleisli((ss: RootSpanFinish) =>
+            OptionT(F.tailRecM(a)(x => f(x).rootSpanFinish.run(ss).value.map(mapper))))
+
         Translator[F, B](
           serviceStart,
           servicePanic,
@@ -306,11 +338,16 @@ object Translator extends zoneddatetime {
           actionStart,
           actionRetry,
           actionFail,
-          actionSucc)
+          actionSucc,
+          rootSpanStart,
+          rootSpanFinish
+        )
       }
 
       override def pure[A](x: A): Translator[F, A] =
         Translator[F, A](
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
+          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
@@ -359,11 +396,15 @@ object Translator extends zoneddatetime {
       noop[F, A],
       noop[F, A],
       noop[F, A],
+      noop[F, A],
+      noop[F, A],
       noop[F, A]
     )
 
   def idTranslator[F[_]](implicit F: Applicative[F]): Translator[F, NJEvent] =
     Translator[F, NJEvent](
+      Kleisli(x => OptionT(F.pure(Some(x)))),
+      Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),
@@ -390,6 +431,8 @@ object Translator extends zoneddatetime {
       .withActionRetry((_: NJEvent).asJson)
       .withActionFail((_: NJEvent).asJson)
       .withActionSucc((_: NJEvent).asJson)
+      .withRootSpanStart((_: NJEvent).asJson)
+      .withRootSpanFinish((_: NJEvent).asJson)
 
   def verboseText[F[_]: Applicative]: Translator[F, String] =
     empty[F, String]
@@ -404,6 +447,8 @@ object Translator extends zoneddatetime {
       .withActionRetry((_: NJEvent).show)
       .withActionFail((_: NJEvent).show)
       .withActionSucc((_: NJEvent).show)
+      .withRootSpanStart((_: NJEvent).show)
+      .withRootSpanFinish((_: NJEvent).show)
 
   def simpleText[F[_]: Applicative]: Translator[F, String]    = SimpleTextTranslator[F]
   def simpleJson[F[_]: Applicative]: Translator[F, Json]      = SimpleJsonTranslator[F]

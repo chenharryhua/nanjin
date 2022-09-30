@@ -1,24 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Ref, Temporal}
+import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
-import com.github.chenharryhua.nanjin.guard.event.{
-  MetricReportType,
-  MetricResetType,
-  MetricSnapshot,
-  NJError,
-  NJEvent,
-  ServiceStopCause
-}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  MetricReport,
-  MetricReset,
-  ServicePanic,
-  ServiceStart,
-  ServiceStop
-}
+import com.github.chenharryhua.nanjin.guard.action.ActionException
+import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, MetricReset, RootSpanFinish, RootSpanStart, ServicePanic, ServiceStart, ServiceStop}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
@@ -113,5 +102,32 @@ private object publisher {
       sp <- serviceStatus.get.map(_.serviceParams)
       ts <- F.realTimeInstant.map(sp.toZonedDateTime)
       _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = sp, cause = cause))
+    } yield ()
+
+  def rootSpanStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, traceId: String)(
+    implicit F: Temporal[F]): F[Unit] =
+    for {
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
+      _ <- channel.send(RootSpanStart(serviceParams, ts, traceId))
+    } yield ()
+
+  def rootSpanFinish[F[_]](
+    channel: Channel[F, NJEvent],
+    serviceParams: ServiceParams,
+    traceId: String,
+    exitCase: ExitCase)(implicit F: Temporal[F]): F[Unit] =
+    for {
+      ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
+      _ <- channel.send(
+        RootSpanFinish(
+          serviceParams,
+          ts,
+          traceId,
+          exitCase match {
+            case ExitCase.Succeeded  => None
+            case ExitCase.Errored(e) => Some(NJError(e))
+            case ExitCase.Canceled   => Some(NJError(ActionException.ActionCanceled))
+          }
+        ))
     } yield ()
 }

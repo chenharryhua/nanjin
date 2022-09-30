@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.{Alternative, Endo, Traverse}
 import cats.data.{Ior, IorT}
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -21,21 +21,23 @@ final class Agent[F[_]] private[service] (
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(name: String, cfg: Endo[ActionConfig] = identity): NJAction[F] =
-    new NJAction[F](
+  def action(name: String, cfg: Endo[ActionConfig] = identity): NJSpan[F] =
+    new NJSpan[F](
       name = name,
       parent = None,
       metricRegistry = metricRegistry,
       channel = channel,
       actionConfig = cfg(ActionConfig(serviceParams, None)))
 
-  def trace(name: String, traceId: Option[String], cfg: Endo[ActionConfig] = identity): NJAction[F] =
-    new NJAction[F](
-      name = name,
-      parent = None,
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionConfig = cfg(ActionConfig(serviceParams, traceId)))
+  def trace(name: String, traceId: String, cfg: Endo[ActionConfig] = identity): Resource[F, NJSpan[F]] =
+    Resource.makeCase(publisher.rootSpanStart(channel, serviceParams, traceId).map { _ =>
+      new NJSpan[F](
+        name = name,
+        parent = None,
+        metricRegistry = metricRegistry,
+        channel = channel,
+        actionConfig = cfg(ActionConfig(serviceParams, Some(traceId))))
+    })((_, exitCase) => publisher.rootSpanFinish(channel, serviceParams, traceId, exitCase))
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
