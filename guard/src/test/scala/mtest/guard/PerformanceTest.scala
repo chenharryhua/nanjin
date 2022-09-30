@@ -45,6 +45,15 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} alert")
   }
 
+  test("trace") {
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.trace("trace", "tid", _.silent.withoutTiming.withoutCounting).use(_.retry(IO(i += 1)).run)
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} trace")
+  }
+
   test("critical") {
     var i = 0
     service.eventStream { ag =>

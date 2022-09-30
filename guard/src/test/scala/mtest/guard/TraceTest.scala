@@ -2,8 +2,10 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.NJSpan
+import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -16,21 +18,22 @@ class TraceTest extends AnyFunSuite {
 
   // span
 
-  def s_unit(ag: Agent[IO]): IO[Unit] =
-    ag.trace("unit.action", "1", _.notice).use(_.retry(IO(())).run)
+  def s_unit(ag: NJSpan[IO]): IO[Unit] =
+    ag.child("unit.action", _.notice).retry(IO(())).run
 
-  def s_int(ag: Agent[IO]): IO[Int] =
-    ag.trace("int.action", "2", _.notice).use(_.retry(IO(1)).run)
+  def s_int(ag: NJSpan[IO]): IO[Int] =
+    ag.child("int.action", _.notice).retry(IO(1)).run
 
-  def s_err(ag: Agent[IO]): IO[Int] =
-    ag.trace("err.action", "3", _.notice.withConstantDelay(1.seconds, 1))
-      .use(_.retry(IO.raiseError[Int](new Exception("oops"))).run)
+  def s_err(ag: NJSpan[IO]): IO[Int] =
+    ag.child("err.action", _.notice.withConstantDelay(1.seconds, 1))
+      .retry(IO.raiseError[Int](new Exception("oops")))
+      .run
 
   test("trace") {
 
     val run = serviceGuard.eventStream { ag =>
-      s_unit(ag) >> s_err(ag).attempt >> s_int(ag).delayBy(1.seconds)
-    }.debug().compile.drain
+      ag.trace("root", "1").use(s => s_unit(s) >> s_int(s) >> s_err(s).attempt)
+    }.evalMap(console.simple[IO]).compile.drain
 
     (run >> IO.sleep(3.seconds)).unsafeRunSync()
   }

@@ -23,21 +23,36 @@ final class Agent[F[_]] private[service] (
 
   def action(name: String, cfg: Endo[ActionConfig] = identity): NJSpan[F] =
     new NJSpan[F](
-      name = name,
+      spanName = name,
       parent = None,
       metricRegistry = metricRegistry,
       channel = channel,
       actionConfig = cfg(ActionConfig(serviceParams, None)))
 
-  def trace(name: String, traceId: String, cfg: Endo[ActionConfig] = identity): Resource[F, NJSpan[F]] =
-    Resource.makeCase(publisher.rootSpanStart(channel, serviceParams, traceId).map { _ =>
-      new NJSpan[F](
-        name = name,
-        parent = None,
-        metricRegistry = metricRegistry,
-        channel = channel,
-        actionConfig = cfg(ActionConfig(serviceParams, Some(traceId))))
-    })((_, exitCase) => publisher.rootSpanFinish(channel, serviceParams, traceId, exitCase))
+  def trace(name: String, cfg: Endo[ActionConfig] = identity): Resource[F, NJSpan[F]] =
+    Resource
+      .makeCase(
+        publisher.rootSpanStart(channel = channel, serviceParams = serviceParams, spanName = name).map {
+          case (tid, ts) =>
+            (
+              new NJSpan[F](
+                spanName = name,
+                parent = None,
+                metricRegistry = metricRegistry,
+                channel = channel,
+                actionConfig = cfg(ActionConfig(serviceParams, Some(tid)))),
+              tid,
+              ts)
+        }) { case ((_, tid, ts), exitCase) =>
+        publisher.rootSpanFinish(
+          channel = channel,
+          serviceParams = serviceParams,
+          spanName = name,
+          internalTraceId = tid,
+          launchTime = ts,
+          exitCase = exitCase)
+      }
+      .map(_._1)
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](

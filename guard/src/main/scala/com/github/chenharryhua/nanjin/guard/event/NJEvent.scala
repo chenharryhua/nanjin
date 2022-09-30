@@ -50,17 +50,28 @@ object NJEvent extends zoneddatetime {
     override val title: String = titles.serviceStop
   }
 
-  final case class RootSpanStart(serviceParams: ServiceParams, timestamp: ZonedDateTime, traceId: String)
-      extends ServiceEvent {
+  sealed trait RootSpanEvent extends ServiceEvent {
+    def internalTraceId: Int
+    def spanName: String
+  }
+
+  final case class RootSpanStart(
+    serviceParams: ServiceParams,
+    timestamp: ZonedDateTime,
+    spanName: String,
+    internalTraceId: Int
+  ) extends RootSpanEvent {
     override val title: String = titles.rootSpanStart
   }
 
   final case class RootSpanFinish(
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
-    traceId: String,
+    spanName: String,
+    internalTraceId: Int,
+    launchTime: ZonedDateTime,
     result: Option[NJError])
-      extends ServiceEvent {
+      extends RootSpanEvent {
     override def title: String = titles.rootSpanFinish
   }
 
@@ -97,7 +108,7 @@ object NJEvent extends zoneddatetime {
     final def digested: Digested         = actionInfo.actionParams.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: Int              = actionInfo.actionId
-    final def traceId: String            = actionParams.traceId.getOrElse("none")
+    final def traceId: String            = actionParams.internalTraceId.map(_.toString).getOrElse("none")
 
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }

@@ -1,17 +1,26 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref, Temporal}
+import cats.effect.kernel.{Async, Ref, Temporal, Unique}
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.action.ActionException
 import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, MetricReset, RootSpanFinish, RootSpanStart, ServicePanic, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  MetricReport,
+  MetricReset,
+  RootSpanFinish,
+  RootSpanStart,
+  ServicePanic,
+  ServiceStart,
+  ServiceStop
+}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 
+import java.time.ZonedDateTime
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -104,26 +113,36 @@ private object publisher {
       _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = sp, cause = cause))
     } yield ()
 
-  def rootSpanStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, traceId: String)(
-    implicit F: Temporal[F]): F[Unit] =
+  def rootSpanStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, spanName: String)(
+    implicit F: Temporal[F]): F[(Int, ZonedDateTime)] =
     for {
+      id <- Unique[F].unique.map(_.hash)
       ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
-      _ <- channel.send(RootSpanStart(serviceParams, ts, traceId))
-    } yield ()
+      _ <- channel.send(
+        RootSpanStart(
+          serviceParams = serviceParams,
+          timestamp = ts,
+          spanName = spanName,
+          internalTraceId = id))
+    } yield (id, ts)
 
   def rootSpanFinish[F[_]](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
-    traceId: String,
+    spanName: String,
+    internalTraceId: Int,
+    launchTime: ZonedDateTime,
     exitCase: ExitCase)(implicit F: Temporal[F]): F[Unit] =
     for {
       ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
         RootSpanFinish(
-          serviceParams,
-          ts,
-          traceId,
-          exitCase match {
+          serviceParams = serviceParams,
+          timestamp = ts,
+          spanName = spanName,
+          internalTraceId = internalTraceId,
+          launchTime = launchTime,
+          result = exitCase match {
             case ExitCase.Succeeded  => None
             case ExitCase.Errored(e) => Some(NJError(e))
             case ExitCase.Canceled   => Some(NJError(ActionException.ActionCanceled))

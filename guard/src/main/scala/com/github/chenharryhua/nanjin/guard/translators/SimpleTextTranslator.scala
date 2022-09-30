@@ -105,6 +105,19 @@ private object SimpleTextTranslator {
        |  Output: ${evt.output.noSpaces}
        |""".stripMargin
 
+  private def rootSpanStart(evt: RootSpanStart): String =
+    s"""${coloring(evt.title)(evt)}
+       |  ${serviceEvent(evt)}
+       |  TraceID: ${evt.internalTraceId}
+       |""".stripMargin
+
+  private def rootSpanFinish(evt: RootSpanFinish): String =
+    s"""${coloring(evt.title)(evt)}
+       |  ${serviceEvent(evt)}
+       |  TraceID: ${evt.internalTraceId}
+       |  Result: ${evt.result.map(_.message).getOrElse("Succed")}
+       |""".stripMargin
+
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator
       .empty[F, String]
@@ -119,5 +132,7 @@ private object SimpleTextTranslator {
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed)
       .withActionSucc(actionSucced)
+      .withRootSpanStart(rootSpanStart)
+      .withRootSpanFinish(rootSpanFinish)
 
 }

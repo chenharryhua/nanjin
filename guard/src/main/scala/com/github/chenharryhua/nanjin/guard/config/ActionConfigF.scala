@@ -55,7 +55,7 @@ object ActionRetryParams extends duration {
 final case class ActionParams private (
   name: String,
   ancestors: List[String],
-  traceId: Option[String],
+  internalTraceId: Option[Int],
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -76,12 +76,12 @@ object ActionParams {
   def apply(
     name: String,
     ancestors: List[String],
-    traceId: Option[String],
+    internalTraceId: Option[Int],
     serviceParams: ServiceParams): ActionParams =
     ActionParams(
       name = name,
       ancestors = ancestors,
-      traceId = traceId,
+      internalTraceId = internalTraceId,
       importance = Importance.Medium,
       isCounting = false,
       isTiming = false,
@@ -96,7 +96,7 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](serviceParams: ServiceParams, traceId: Option[String])
+  final case class InitParams[K](serviceParams: ServiceParams, internalTraceId: Option[Int])
       extends ActionConfigF[K]
 
   final case class WithCapDelay[K](value: Duration, cont: K) extends ActionConfigF[K]
@@ -158,6 +158,6 @@ final private[guard] case class ActionConfig private (value: Fix[ActionConfigF])
 
 private[guard] object ActionConfig {
 
-  def apply(sp: ServiceParams, traceId: Option[String]): ActionConfig = ActionConfig(
-    Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp, traceId)))
+  def apply(sp: ServiceParams, internalTraceId: Option[Int]): ActionConfig =
+    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp, internalTraceId)))
 }

@@ -13,13 +13,13 @@ import scala.util.control.NonFatal
 import scala.util.Try
 
 final class NJSpan[F[_]] private[guard] (
-  val name: String,
+  val spanName: String,
   val parent: Option[NJSpan[F]],
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionConfig: ActionConfig)(implicit F: Async[F]) {
 
-  private lazy val ancestors: List[String] = LazyList.unfold(this)(_.parent.map(p => (p.name, p))).toList
+  private lazy val ancestors: List[String] = LazyList.unfold(this)(_.parent.map(p => (p.spanName, p))).toList
 
   def child(name: String, cfg: Endo[ActionConfig] = identity): NJSpan[F] =
     new NJSpan[F](name, Some(this), metricRegistry, channel, cfg(actionConfig))
@@ -29,7 +29,7 @@ final class NJSpan[F[_]] private[guard] (
     new NJAction0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
+      actionParams = actionConfig.evalConfig(spanName, ancestors),
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
@@ -40,7 +40,7 @@ final class NJSpan[F[_]] private[guard] (
     new NJAction[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
+      actionParams = actionConfig.evalConfig(spanName, ancestors),
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
@@ -51,7 +51,7 @@ final class NJSpan[F[_]] private[guard] (
     new NJAction[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
+      actionParams = actionConfig.evalConfig(spanName, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
@@ -62,7 +62,7 @@ final class NJSpan[F[_]] private[guard] (
     new NJAction[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
+      actionParams = actionConfig.evalConfig(spanName, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
@@ -73,7 +73,7 @@ final class NJSpan[F[_]] private[guard] (
     new NJAction[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
+      actionParams = actionConfig.evalConfig(spanName, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
@@ -84,7 +84,7 @@ final class NJSpan[F[_]] private[guard] (
     new NJAction[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
+      actionParams = actionConfig.evalConfig(spanName, ancestors),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
