@@ -32,7 +32,7 @@ class TraceTest extends AnyFunSuite {
   test("trace") {
 
     val run = serviceGuard.eventStream { ag =>
-      ag.trace("root", _.notice).use(s => s_unit(s) >> s_int(s) >> s_err(s).attempt)
+      ag.trace("root", _.notice).use(s => s_unit(s) >> s_int(s) >> s_err(s)).attempt
     }.evalMap(console.simple[IO]).compile.drain
 
     (run >> IO.sleep(3.seconds)).unsafeRunSync()

@@ -49,7 +49,7 @@ private object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  Cause: ${evt.cause.show}
+       |  Cause:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
@@ -68,54 +68,54 @@ private object SimpleTextTranslator {
   private def passThrough(evt: PassThrough): String =
     s"""${coloring(evt.title)(evt)}
        |${instantEvent(evt)}
-       |  Message: ${evt.value.noSpaces}
+       |  Message:${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
     s"""${coloring(evt.title)(evt)}
        |${instantEvent(evt)}
-       |  Alert: ${evt.message}
+       |  Alert:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Input: ${evt.input.noSpaces}
+       |  Input:${evt.input.noSpaces}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
+       |  Took:${fmt.format(evt.took)}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
-       |  Input: ${evt.input.noSpaces}
+       |  Took:${fmt.format(evt.took)}
+       |  Input:${evt.input.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
-       |  Output: ${evt.output.noSpaces}
+       |  Took:${fmt.format(evt.took)}
+       |  Output:${evt.output.noSpaces}
        |""".stripMargin
 
   private def rootSpanStart(evt: RootSpanStart): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  TraceID: ${evt.internalTraceId}
+       |  TraceID:${evt.internalTraceId}
        |""".stripMargin
 
   private def rootSpanFinish(evt: RootSpanFinish): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  TraceID: ${evt.internalTraceId}
-       |  Result: ${evt.result.map(_.message).getOrElse("Succed")}
+       |  Name:${evt.rootSpanName}, TraceID:${evt.internalTraceId}
+       |  Result:${evt.result.map(_.message).getOrElse("Succed")}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
