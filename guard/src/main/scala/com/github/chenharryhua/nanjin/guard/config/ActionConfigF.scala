@@ -96,7 +96,7 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](serviceParams: ServiceParams, internalTraceId: Option[Int])
+  final case class InitParams[K](serviceParams: ServiceParams, rootSpanId: Option[Int])
       extends ActionConfigF[K]
 
   final case class WithCapDelay[K](value: Duration, cont: K) extends ActionConfigF[K]

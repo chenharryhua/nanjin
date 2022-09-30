@@ -113,23 +113,23 @@ private object publisher {
       _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = sp, cause = cause))
     } yield ()
 
-  def rootSpanStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, spanName: String)(
-    implicit F: Temporal[F]): F[(Int, ZonedDateTime)] =
+  def rootSpanStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, rootSpanName: String)(
+    implicit F: Temporal[F]): F[(ZonedDateTime, Int)] =
     for {
-      id <- Unique[F].unique.map(_.hash)
+      tid <- Unique[F].unique.map(_.hash)
       ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
         RootSpanStart(
           serviceParams = serviceParams,
           timestamp = ts,
-          spanName = spanName,
-          internalTraceId = id))
-    } yield (id, ts)
+          rootSpanName = rootSpanName,
+          internalTraceId = tid))
+    } yield (ts, tid)
 
   def rootSpanFinish[F[_]](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
-    spanName: String,
+    rootSpanName: String,
     internalTraceId: Int,
     launchTime: ZonedDateTime,
     exitCase: ExitCase)(implicit F: Temporal[F]): F[Unit] =
@@ -139,7 +139,7 @@ private object publisher {
         RootSpanFinish(
           serviceParams = serviceParams,
           timestamp = ts,
-          spanName = spanName,
+          rootSpanName = rootSpanName,
           internalTraceId = internalTraceId,
           launchTime = launchTime,
           result = exitCase match {
