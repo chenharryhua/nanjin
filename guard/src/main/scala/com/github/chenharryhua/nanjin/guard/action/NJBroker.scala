@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.Clock
 import cats.syntax.functor.*
+import cats.Monad
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Digested, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -9,7 +10,7 @@ import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax.*
 
-final class NJBroker[F[_]: Temporal] private[guard] (
+final class NJBroker[F[_]: Monad: Clock] private[guard] (
   digested: Digested,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],

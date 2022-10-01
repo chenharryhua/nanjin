@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
 import cats.Endo
 import cats.effect.std.UUIDGen
@@ -16,12 +16,13 @@ import io.circe.Json
 import java.util.UUID
 
 object SqsObserver {
-  def apply[F[_]: Async](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
+  def apply[F[_]: Concurrent: Clock: UUIDGen](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
     new SqsObserver[F](client, Translator.idTranslator[F])
 }
 
-final class SqsObserver[F[_]](client: Resource[F, SimpleQueueService[F]], translator: Translator[F, NJEvent])(
-  implicit F: Async[F])
+final class SqsObserver[F[_]: Clock: UUIDGen](
+  client: Resource[F, SimpleQueueService[F]],
+  translator: Translator[F, NJEvent])(implicit F: Concurrent[F])
     extends UpdateTranslator[F, NJEvent, SqsObserver[F]] {
 
   private def translate(evt: NJEvent): F[Option[Json]] =

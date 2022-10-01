@@ -1,19 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionFail,
-  ActionRetry,
-  ActionStart,
-  ActionSucc,
-  MetricReport,
-  ServiceStart
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc, MetricReport, ServiceStart}
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*
@@ -22,17 +15,17 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 object SlackObserver {
-  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
+  def apply[F[_]: Concurrent: Clock](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
     new SlackObserver[F](client, None, Translator.slack[F])
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
   */
 
-final class SlackObserver[F[_]](
+final class SlackObserver[F[_]: Clock](
   client: Resource[F, SimpleNotificationService[F]],
   metricsInterval: Option[FiniteDuration],
-  translator: Translator[F, SlackApp])(implicit F: Async[F])
+  translator: Translator[F, SlackApp])(implicit F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
 
   private def copy(

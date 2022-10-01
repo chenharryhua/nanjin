@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.Show
-import cats.effect.kernel.Temporal
+import cats.{Monad, Show}
+import cats.effect.kernel.Clock
 import cats.syntax.functor.*
 import cats.syntax.show.*
 import cats.syntax.traverse.*
@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance, Servic
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 
-final class NJAlert[F[_]: Temporal] private[guard] (
+final class NJAlert[F[_]: Monad: Clock] private[guard] (
   digested: Digested,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],

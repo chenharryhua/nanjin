@@ -1,13 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Clock, Ref}
 import cats.implicits.toFunctorOps
+import cats.Monad
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricSnapshot, NJEvent}
 import fs2.concurrent.Channel
 
-final class NJMetrics[F[_]: Async] private[service] (
+final class NJMetrics[F[_]: Clock: Monad] private[service] (
   channel: Channel[F, NJEvent],
   metricRegistry: MetricRegistry,
   serviceStatus: Ref[F, ServiceStatus]) {
