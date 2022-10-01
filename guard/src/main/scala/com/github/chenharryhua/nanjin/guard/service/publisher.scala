@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref, Temporal, Unique}
+import cats.effect.kernel.{Async, Ref, Temporal}
 import cats.effect.kernel.Resource.ExitCase
+import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.action.ActionException
@@ -21,6 +22,7 @@ import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 
 import java.time.ZonedDateTime
+import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -113,10 +115,12 @@ private object publisher {
       _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = sp, cause = cause))
     } yield ()
 
-  def rootSpanStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, rootSpanName: String)(
-    implicit F: Temporal[F]): F[(ZonedDateTime, Int)] =
+  def rootSpanStart[F[_]: UUIDGen](
+    channel: Channel[F, NJEvent],
+    serviceParams: ServiceParams,
+    rootSpanName: String)(implicit F: Temporal[F]): F[(ZonedDateTime, UUID)] =
     for {
-      tid <- Unique[F].unique.map(_.hash)
+      tid <- UUIDGen[F].randomUUID
       ts <- F.realTimeInstant.map(serviceParams.toZonedDateTime)
       _ <- channel.send(
         RootSpanStart(
@@ -130,7 +134,7 @@ private object publisher {
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     rootSpanName: String,
-    internalTraceId: Int,
+    internalTraceId: UUID,
     launchTime: ZonedDateTime,
     exitCase: ExitCase)(implicit F: Temporal[F]): F[Unit] =
     for {

@@ -51,7 +51,7 @@ object NJEvent extends zoneddatetime {
   }
 
   sealed trait RootSpanEvent extends ServiceEvent {
-    def internalTraceId: Int
+    def internalTraceId: UUID
     def rootSpanName: String
   }
 
@@ -59,7 +59,7 @@ object NJEvent extends zoneddatetime {
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     rootSpanName: String,
-    internalTraceId: Int
+    internalTraceId: UUID
   ) extends RootSpanEvent {
     override val title: String = titles.rootSpanStart
   }
@@ -68,7 +68,7 @@ object NJEvent extends zoneddatetime {
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     rootSpanName: String,
-    internalTraceId: Int,
+    internalTraceId: UUID,
     launchTime: ZonedDateTime,
     result: Option[NJError])
       extends RootSpanEvent {

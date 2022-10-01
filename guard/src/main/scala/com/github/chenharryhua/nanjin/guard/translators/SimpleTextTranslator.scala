@@ -108,7 +108,7 @@ private object SimpleTextTranslator {
   private def rootSpanStart(evt: RootSpanStart): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  TraceID:${evt.internalTraceId}
+       |  Name:${evt.rootSpanName}, TraceID:${evt.internalTraceId}
        |""".stripMargin
 
   private def rootSpanFinish(evt: RootSpanFinish): String =

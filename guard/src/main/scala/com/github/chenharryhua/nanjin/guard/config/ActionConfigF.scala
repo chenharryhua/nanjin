@@ -13,6 +13,7 @@ import org.typelevel.cats.time.instances.duration
 import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.Duration
+import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -55,7 +56,7 @@ object ActionRetryParams extends duration {
 final case class ActionParams private (
   name: String,
   ancestors: List[String],
-  internalTraceId: Option[Int],
+  internalTraceId: Option[UUID],
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -76,7 +77,7 @@ object ActionParams {
   def apply(
     name: String,
     ancestors: List[String],
-    internalTraceId: Option[Int],
+    internalTraceId: Option[UUID],
     serviceParams: ServiceParams): ActionParams =
     ActionParams(
       name = name,
@@ -96,7 +97,7 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](serviceParams: ServiceParams, rootSpanId: Option[Int])
+  final case class InitParams[K](serviceParams: ServiceParams, internalTraceId: Option[UUID])
       extends ActionConfigF[K]
 
   final case class WithCapDelay[K](value: Duration, cont: K) extends ActionConfigF[K]
@@ -158,6 +159,6 @@ final private[guard] case class ActionConfig private (value: Fix[ActionConfigF])
 
 private[guard] object ActionConfig {
 
-  def apply(sp: ServiceParams, internalTraceId: Option[Int]): ActionConfig =
+  def apply(sp: ServiceParams, internalTraceId: Option[UUID]): ActionConfig =
     ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp, internalTraceId)))
 }
