@@ -14,15 +14,14 @@ import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
-final class NJAction[F[_], IN, OUT] private[guard] (
+final class NJAction[F[_], IN, OUT] private[action] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
   arrow: IN => F[OUT],
   transInput: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
-  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F])
-    extends (IN => F[OUT]) {
+  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
   private def copy(
     transInput: IN => F[Json] = transInput,
     transOutput: (IN, OUT) => F[Json] = transOutput,
@@ -60,8 +59,8 @@ final class NJAction[F[_], IN, OUT] private[guard] (
     }
   }
 
-  override def apply(input: IN): F[OUT] =
-    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input)))(actionInfo =>
+  def run(input: IN, traceId: Option[String]): F[OUT] =
+    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceId))(actionInfo =>
       retry.mtl
         .retryingOnSomeErrors[OUT]
         .apply[F, Throwable](
@@ -69,33 +68,33 @@ final class NJAction[F[_], IN, OUT] private[guard] (
           isWorthRetry.run,
           (error, details) =>
             details match {
-              case wdr: WillDelayAndRetry => publisher.actionRetry(channel, actionInfo, wdr, error)
+              case wdr: WillDelayAndRetry => publisher.actionRetry(channel, actionInfo, wdr, error, traceId)
               case _: GivingUp            => F.unit
             }
         )(arrow(input))) { case (actionInfo, oc) =>
       oc match {
         case Outcome.Canceled() =>
           publisher
-            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input))
+            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input), traceId)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Errored(error) =>
           publisher
-            .actionFail(channel, actionInfo, error, transInput(input))
+            .actionFail(channel, actionInfo, error, transInput(input), traceId)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
-            .actionSucc(channel, actionInfo, output.flatMap(transOutput(input, _)))
+            .actionSucc(channel, actionInfo, output.flatMap(transOutput(input, _)), traceId)
             .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
       }
     }
 
-  def run(input: IN): F[OUT] = apply(input)
+  def run(input: IN): F[OUT] = run(input, None)
 
-  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT]                         = apply((a, b))
-  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT]             = apply((a, b, c))
-  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] = apply((a, b, c, d))
+  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT]                         = run((a, b))
+  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT]             = run((a, b, c))
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] = run((a, b, c, d))
   def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
-    apply((a, b, c, d, e))
+    run((a, b, c, d, e))
 }
 
 final class NJAction0[F[_], OUT] private[guard] (

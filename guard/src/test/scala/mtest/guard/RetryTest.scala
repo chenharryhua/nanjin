@@ -254,17 +254,6 @@ class RetryTest extends AnyFunSuite {
       f4.run((1, 1, 1, 1))
       f5.run((1, 1, 1, 1, 1))
 
-      f1(1)
-      f2((1, 1))
-      f3((1, 1, 1))
-      f4((1, 1, 1, 1))
-      f5((1, 1, 1, 1, 1))
-
-      f1.apply(1)
-      f2.apply((1, 1))
-      f3.apply((1, 1, 1))
-      f4.apply((1, 1, 1, 1))
-      f5.apply((1, 1, 1, 1, 1))
     }
   }
 

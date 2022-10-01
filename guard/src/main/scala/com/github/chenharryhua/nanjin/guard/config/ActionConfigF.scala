@@ -13,7 +13,6 @@ import org.typelevel.cats.time.instances.duration
 import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.Duration
-import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -55,8 +54,6 @@ object ActionRetryParams extends duration {
 @JsonCodec @Lenses
 final case class ActionParams private (
   name: String,
-  ancestors: List[String],
-  internalTraceId: Option[UUID],
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -67,22 +64,16 @@ final case class ActionParams private (
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
   val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 
-  val digested: Digested = Digested(serviceParams, (name :: ancestors).reverse.mkString("/"))
+  val digested: Digested = Digested(serviceParams, name)
 
 }
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
 
-  def apply(
-    name: String,
-    ancestors: List[String],
-    internalTraceId: Option[UUID],
-    serviceParams: ServiceParams): ActionParams =
+  def apply(name: String, serviceParams: ServiceParams): ActionParams =
     ActionParams(
       name = name,
-      ancestors = ancestors,
-      internalTraceId = internalTraceId,
       importance = Importance.Medium,
       isCounting = false,
       isTiming = false,
@@ -97,8 +88,7 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](serviceParams: ServiceParams, internalTraceId: Option[UUID])
-      extends ActionConfigF[K]
+  final case class InitParams[K](serviceParams: ServiceParams) extends ActionConfigF[K]
 
   final case class WithCapDelay[K](value: Duration, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](policy: NJRetryPolicy, max: Option[MaxRetry], cont: K)
@@ -108,9 +98,9 @@ private object ActionConfigF {
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
-  def algebra(name: String, ancestors: List[String]): Algebra[ActionConfigF, ActionParams] =
+  def algebra(name: String): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(sp, tid) => ActionParams(name, ancestors, tid, sp)
+      case InitParams(sp) => ActionParams(name, sp)
       case WithRetryPolicy(p, m, c) =>
         ActionParams.retry
           .composeLens(ActionRetryParams.njRetryPolicy)
@@ -153,12 +143,12 @@ final private[guard] case class ActionConfig private (value: Fix[ActionConfigF])
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)))
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)))
 
-  def evalConfig(name: String, ancestors: List[String]): ActionParams =
-    scheme.cata(algebra(name, ancestors)).apply(value)
+  def evalConfig(name: String): ActionParams =
+    scheme.cata(algebra(name)).apply(value)
 }
 
 private[guard] object ActionConfig {
 
-  def apply(sp: ServiceParams, internalTraceId: Option[UUID]): ActionConfig =
-    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp, internalTraceId)))
+  def apply(sp: ServiceParams): ActionConfig =
+    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp)))
 }

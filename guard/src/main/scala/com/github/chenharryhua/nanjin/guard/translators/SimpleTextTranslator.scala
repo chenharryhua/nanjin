@@ -29,9 +29,11 @@ private object SimpleTextTranslator {
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
-  private def actionEvent(ae: ActionEvent): String =
+  private def actionEvent(ae: ActionEvent): String = {
+    val tid: String = ae.traceId.getOrElse("none")
     s"""  ${serviceEvent(ae)}
-       |  Name:${ae.digested.metricRepr}, ID:${ae.actionId}, TraceID:${ae.traceId}""".stripMargin
+       |  Name:${ae.digested.metricRepr}, ID:${ae.actionId}, TraceID:$tid""".stripMargin
+  }
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}

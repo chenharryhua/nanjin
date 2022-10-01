@@ -7,6 +7,7 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.{
   ActionException,
+  NJActionBuilder,
   NJAlert,
   NJBroker,
   NJCounter,
@@ -29,28 +30,22 @@ final class Agent[F[_]] private[service] (
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(name: String, cfg: Endo[ActionConfig] = identity): NJSpan[F] =
-    new NJSpan[F](
-      spanName = name,
-      parent = None,
+  def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
+    new NJActionBuilder[F](
+      name = name,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = cfg(ActionConfig(serviceParams, None)))
+      actionConfig = cfg(ActionConfig(serviceParams)))
 
-  def trace(name: String, cfg: Endo[ActionConfig] = identity): Resource[F, NJSpan[F]] =
+  def trace(name: String): Resource[F, NJSpan[F]] =
     Resource
-      .makeCase(
-        publisher.rootSpanStart(channel = channel, serviceParams = serviceParams, rootSpanName = name).map {
-          case (launchTime, internalTraceId) =>
-            (
-              new NJSpan[F](
-                spanName = name,
-                parent = None,
-                metricRegistry = metricRegistry,
-                channel = channel,
-                actionConfig = cfg(ActionConfig(serviceParams, Some(internalTraceId)))),
-              launchTime,
-              internalTraceId)
+      .makeCase(publisher
+        .rootSpanStart(channel = channel, serviceParams = serviceParams, rootSpanName = name)
+        .map { case (launchTime, internalTraceId) =>
+          (
+            new NJSpan[F](spanName = name, parent = None, metricRegistry = metricRegistry, channel = channel),
+            launchTime,
+            internalTraceId)
         }) { case ((_, launchTime, internalTraceId), exitCase) =>
         publisher.rootSpanFinish(
           channel = channel,

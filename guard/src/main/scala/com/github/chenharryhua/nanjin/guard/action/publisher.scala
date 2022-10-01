@@ -55,14 +55,17 @@ private object publisher {
           message = msg))
     } yield ()
 
-  def actionStart[F[_]](channel: Channel[F, NJEvent], actionParams: ActionParams, input: F[Json])(implicit
-    F: Temporal[F]): F[ActionInfo] =
+  def actionStart[F[_]](
+    channel: Channel[F, NJEvent],
+    actionParams: ActionParams,
+    input: F[Json],
+    traceId: Option[String])(implicit F: Temporal[F]): F[ActionInfo] =
     for {
       ts <- F.realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(actionParams = actionParams, actionId = token, launchTime = ts)
       _ <- input
-        .flatMap(json => channel.send(ActionStart(actionInfo = ai, input = json)))
+        .flatMap(json => channel.send(ActionStart(traceId = traceId, actionInfo = ai, input = json)))
         .whenA(actionParams.isNotice)
     } yield ai
 
@@ -70,12 +73,14 @@ private object publisher {
     channel: Channel[F, NJEvent],
     actionInfo: ActionInfo,
     willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable)(implicit F: Temporal[F]): F[Unit] =
+    ex: Throwable,
+    traceId: Option[String])(implicit F: Temporal[F]): F[Unit] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- channel
         .send(
           ActionRetry(
+            traceId = traceId,
             actionInfo = actionInfo,
             timestamp = ts,
             retriesSoFar = willDelayAndRetry.retriesSoFar,
@@ -85,20 +90,34 @@ private object publisher {
         .whenA(actionInfo.actionParams.isNonTrivial)
     } yield ()
 
-  def actionSucc[F[_]](channel: Channel[F, NJEvent], actionInfo: ActionInfo, output: F[Json])(implicit
-    F: Temporal[F]): F[ZonedDateTime] =
+  def actionSucc[F[_]](
+    channel: Channel[F, NJEvent],
+    actionInfo: ActionInfo,
+    output: F[Json],
+    traceId: Option[String])(implicit F: Temporal[F]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- output
-        .flatMap(json => channel.send(ActionSucc(actionInfo = actionInfo, timestamp = ts, output = json)))
+        .flatMap(json =>
+          channel.send(ActionSucc(traceId = traceId, actionInfo = actionInfo, timestamp = ts, output = json)))
         .whenA(actionInfo.actionParams.isNotice)
     } yield ts
 
-  def actionFail[F[_]](channel: Channel[F, NJEvent], actionInfo: ActionInfo, ex: Throwable, input: F[Json])(
-    implicit F: Temporal[F]): F[ZonedDateTime] =
+  def actionFail[F[_]](
+    channel: Channel[F, NJEvent],
+    actionInfo: ActionInfo,
+    ex: Throwable,
+    input: F[Json],
+    traceId: Option[String])(implicit F: Temporal[F]): F[ZonedDateTime] =
     for {
       ts <- F.realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- input.flatMap(json =>
-        channel.send(ActionFail(actionInfo = actionInfo, timestamp = ts, input = json, error = NJError(ex))))
+        channel.send(
+          ActionFail(
+            traceId = traceId,
+            actionInfo = actionInfo,
+            timestamp = ts,
+            input = json,
+            error = NJError(ex))))
     } yield ts
 }

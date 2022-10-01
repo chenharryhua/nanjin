@@ -167,6 +167,8 @@ private object SlackTranslator extends all {
       )
     )
 
+  private def traceId(evt: ActionEvent): String = s"${evt.traceId.getOrElse("none")}"
+
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
@@ -178,7 +180,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
                                |*Action ID:* ${evt.actionId.show}
-                               |*Trace ID:* ${evt.traceId}
+                               |Trace ID:* ${traceId(evt)}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
           )
@@ -202,7 +204,7 @@ private object SlackTranslator extends all {
               TextField("Retries so far", evt.retriesSoFar.show)),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
                                |*Action ID:* ${evt.actionId.show}
-                               |*Trace ID:* ${evt.traceId}
+                               |*Trace ID:* ${traceId(evt)}
                                |*The ${toOrdinalWords(evt.retriesSoFar + 1)} retry:* at $lt, in $next
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
@@ -225,7 +227,7 @@ private object SlackTranslator extends all {
               TextField("Took", fmt.format(evt.took)),
               TextField("Name", evt.digested.metricRepr)),
             MarkdownSection(s"""*Action ID:* ${evt.actionId.show}
-                               |*Trace ID:* ${evt.traceId}
+                               |*Trace ID:* ${traceId(evt)}
                                |*Policy:* ${evt.actionParams.retry.policy[F].show}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             MarkdownSection(s"""```${abbrev(evt.error.message)} 
@@ -249,7 +251,7 @@ private object SlackTranslator extends all {
               TextField("Took", fmt.format(evt.took)),
               TextField("Name", evt.digested.metricRepr)),
             MarkdownSection(s"""*Action ID:* ${evt.actionId.show}
-                               |*Trace ID:* ${evt.traceId}
+                               |*Trace ID:* ${traceId(evt)}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Output", s"""```${abbreviate(evt.output.spaces2)}```""")
           )
