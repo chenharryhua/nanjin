@@ -15,6 +15,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
 }
 import fs2.concurrent.Channel
 import io.circe.Json
+import natchez.Span
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
@@ -57,16 +58,23 @@ private object publisher {
     } yield ()
 
   def actionStart[F[_]: Monad: Clock: Unique](
+    name: String,
     channel: Channel[F, NJEvent],
     actionParams: ActionParams,
     input: F[Json],
-    traceId: Option[String]): F[ActionInfo] =
+    span: Option[Span[F]]): F[ActionInfo] =
     for {
       ts <- Clock[F].realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
-      ai = ActionInfo(actionParams = actionParams, actionId = token, launchTime = ts)
+      traceId <- span.flatTraverse(_.traceId)
+      ai = ActionInfo(
+        name = name,
+        traceId = traceId,
+        actionParams = actionParams,
+        actionId = token,
+        launchTime = ts)
       _ <- input
-        .flatMap(json => channel.send(ActionStart(traceId = traceId, actionInfo = ai, input = json)))
+        .flatMap(json => channel.send(ActionStart(actionInfo = ai, input = json)))
         .whenA(actionParams.isNotice)
     } yield ai
 
@@ -74,14 +82,12 @@ private object publisher {
     channel: Channel[F, NJEvent],
     actionInfo: ActionInfo,
     willDelayAndRetry: WillDelayAndRetry,
-    ex: Throwable,
-    traceId: Option[String]): F[Unit] =
+    ex: Throwable): F[Unit] =
     for {
       ts <- Clock[F].realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- channel
         .send(
           ActionRetry(
-            traceId = traceId,
             actionInfo = actionInfo,
             timestamp = ts,
             retriesSoFar = willDelayAndRetry.retriesSoFar,
@@ -94,13 +100,11 @@ private object publisher {
   def actionSucc[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     actionInfo: ActionInfo,
-    output: F[Json],
-    traceId: Option[String]): F[ZonedDateTime] =
+    output: F[Json]): F[ZonedDateTime] =
     for {
       ts <- Clock[F].realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- output
-        .flatMap(json =>
-          channel.send(ActionSucc(traceId = traceId, actionInfo = actionInfo, timestamp = ts, output = json)))
+        .flatMap(json => channel.send(ActionSucc(actionInfo = actionInfo, timestamp = ts, output = json)))
         .whenA(actionInfo.actionParams.isNotice)
     } yield ts
 
@@ -108,17 +112,10 @@ private object publisher {
     channel: Channel[F, NJEvent],
     actionInfo: ActionInfo,
     ex: Throwable,
-    input: F[Json],
-    traceId: Option[String]): F[ZonedDateTime] =
+    input: F[Json]): F[ZonedDateTime] =
     for {
       ts <- Clock[F].realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
       _ <- input.flatMap(json =>
-        channel.send(
-          ActionFail(
-            traceId = traceId,
-            actionInfo = actionInfo,
-            timestamp = ts,
-            input = json,
-            error = NJError(ex))))
+        channel.send(ActionFail(actionInfo = actionInfo, timestamp = ts, input = json, error = NJError(ex))))
     } yield ts
 }

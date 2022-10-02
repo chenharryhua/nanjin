@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance}
+import com.github.chenharryhua.nanjin.guard.event.ActionInfo
 package object action {
 
   /** 01 - 09: Errors
@@ -31,8 +32,8 @@ package object action {
   private[action] def meterMRName(name: Digested): String     = s"24.meter.${name.metricRepr}"
   private[action] def histogramMRName(name: Digested): String = s"25.histogram.${name.metricRepr}"
 
-  private[action] def actionFailMRName(ap: ActionParams): String = s"04.action.${ap.digested.metricRepr}.fail"
-  private[action] def actionSuccMRName(ap: ActionParams): String = s"28.action.${ap.digested.metricRepr}.succ"
-  private[action] def actionTimerMRName(ap: ActionParams): String = s"action.${ap.digested.metricRepr}"
+  private[action] def actionFailMRName(ap: ActionInfo): String  = s"04.action.${ap.digested.metricRepr}.fail"
+  private[action] def actionSuccMRName(ap: ActionInfo): String  = s"28.action.${ap.digested.metricRepr}.succ"
+  private[action] def actionTimerMRName(ap: ActionInfo): String = s"action.${ap.digested.metricRepr}"
 
 }

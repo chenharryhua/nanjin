@@ -77,11 +77,11 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionEvent extends ServiceEvent {
     def actionInfo: ActionInfo // action runtime information
-    def traceId: Option[String]
+    final def traceId: Option[String] = actionInfo.traceId
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
-    final def digested: Digested         = actionInfo.actionParams.digested
+    final def digested: Digested         = actionInfo.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: Int              = actionInfo.actionId
 
@@ -89,14 +89,12 @@ object NJEvent extends zoneddatetime {
   }
 
   @Lenses
-  final case class ActionStart(traceId: Option[String], actionInfo: ActionInfo, input: Json)
-      extends ActionEvent {
+  final case class ActionStart(actionInfo: ActionInfo, input: Json) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
   }
 
   final case class ActionRetry(
-    traceId: Option[String],
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     retriesSoFar: Int,
@@ -110,7 +108,6 @@ object NJEvent extends zoneddatetime {
 
   @Lenses
   final case class ActionFail(
-    traceId: Option[String],
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     input: Json, // input of the action
@@ -121,7 +118,6 @@ object NJEvent extends zoneddatetime {
 
   @Lenses
   final case class ActionSucc(
-    traceId: Option[String],
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     output: Json // output of the action

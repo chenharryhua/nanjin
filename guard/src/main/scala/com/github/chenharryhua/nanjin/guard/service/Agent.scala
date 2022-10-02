@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.{Alternative, Endo, Traverse}
 import cats.data.{Ior, IorT}
 import cats.effect.kernel.{Async, Ref}
+import cats.effect.Resource
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -10,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import fs2.Stream
+import natchez.{EntryPoint, Kernel}
 
 import java.time.ZoneId
 
@@ -17,13 +19,23 @@ final class Agent[F[_]] private[service] (
   metricRegistry: MetricRegistry,
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
-  serviceParams: ServiceParams)(implicit F: Async[F]) {
+  serviceParams: ServiceParams,
+  entryPoint: EntryPoint[F])(implicit F: Async[F])
+    extends EntryPoint[F] {
+
+  override def root(name: String): Resource[F, NJSpan[F]] =
+    entryPoint.root(name).map(s => new NJSpan[F](name, s))
+
+  override def continue(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
+    entryPoint.continue(name, kernel).map(s => new NJSpan[F](name, s))
+
+  override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
+    entryPoint.continueOrElseRoot(name, kernel).map(s => new NJSpan[F](name, s))
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
+  def action(cfg: Endo[ActionConfig]): NJActionBuilder[F] =
     new NJActionBuilder[F](
-      name = name,
       metricRegistry = metricRegistry,
       channel = channel,
       actionConfig = cfg(ActionConfig(serviceParams)))
@@ -74,8 +86,9 @@ final class Agent[F[_]] private[service] (
   // for convenience
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action("nonStop", _.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
-      .run(sfa.compile.drain)
+    action(_.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
+      .retry(sfa.compile.drain)
+      .run("nonStop")
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 
   def quasi[G[_]: Traverse: Alternative, B](tfb: G[F[B]]): IorT[F, G[Throwable], G[B]] =

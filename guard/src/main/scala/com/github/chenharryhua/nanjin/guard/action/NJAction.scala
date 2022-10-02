@@ -4,11 +4,12 @@ import cats.data.Kleisli
 import cats.effect.Temporal
 import cats.effect.kernel.Outcome
 import cats.syntax.all.*
-import com.codahale.metrics.{Counter, MetricRegistry, Timer}
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
+import natchez.Span
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.{Duration, ZonedDateTime}
@@ -45,22 +46,21 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
-  private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
-  private[this] lazy val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
-
   private[this] def timingAndCounting(
+    ai: ActionInfo,
     isSucc: Boolean,
     launchTime: ZonedDateTime,
     now: ZonedDateTime): Unit = {
-    if (actionParams.isTiming) timer.update(Duration.between(launchTime, now))
+    if (actionParams.isTiming)
+      metricRegistry.timer(actionTimerMRName(ai)).update(Duration.between(launchTime, now))
     if (actionParams.isCounting) {
-      if (isSucc) succCounter.inc(1) else failCounter.inc(1)
+      if (isSucc) metricRegistry.counter(actionSuccMRName(ai)).inc(1)
+      else metricRegistry.counter(actionFailMRName(ai)).inc(1)
     }
   }
 
-  def run(input: IN, traceId: Option[String]): F[OUT] =
-    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceId))(actionInfo =>
+  def apply(name: String, input: IN, span: Option[Span[F]]): F[OUT] =
+    F.bracketCase(publisher.actionStart(name, channel, actionParams, transInput(input), span))(actionInfo =>
       retry.mtl
         .retryingOnSomeErrors[OUT]
         .apply[F, Throwable](
@@ -68,33 +68,39 @@ final class NJAction[F[_], IN, OUT] private[action] (
           isWorthRetry.run,
           (error, details) =>
             details match {
-              case wdr: WillDelayAndRetry => publisher.actionRetry(channel, actionInfo, wdr, error, traceId)
+              case wdr: WillDelayAndRetry => publisher.actionRetry(channel, actionInfo, wdr, error)
               case _: GivingUp            => F.unit
             }
         )(arrow(input))) { case (actionInfo, oc) =>
       oc match {
         case Outcome.Canceled() =>
           publisher
-            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input), traceId)
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input))
+            .map(ts => timingAndCounting(actionInfo, isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Errored(error) =>
           publisher
-            .actionFail(channel, actionInfo, error, transInput(input), traceId)
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
+            .actionFail(channel, actionInfo, error, transInput(input))
+            .map(ts => timingAndCounting(actionInfo, isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
-            .actionSucc(channel, actionInfo, output.flatMap(transOutput(input, _)), traceId)
-            .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
+            .actionSucc(channel, actionInfo, output.flatMap(transOutput(input, _)))
+            .map(ts => timingAndCounting(actionInfo, isSucc = true, actionInfo.launchTime, ts))
       }
     }
 
-  def run(input: IN): F[OUT] = run(input, None)
+  // def run(name: String)(input: IN): F[OUT] = apply(name, input, None)
 
-  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT]                         = run((a, b))
-  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT]             = run((a, b, c))
-  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] = run((a, b, c, d))
-  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
-    run((a, b, c, d, e))
+  def run[A](a: A)(name: String)(implicit ev: A =:= IN): F[OUT] =
+    apply(name, a, None)
+  def run[A, B](a: A, b: B)(name: String)(implicit ev: (A, B) =:= IN): F[OUT] =
+    apply(name, (a, b), None)
+  def run[A, B, C](a: A, b: B, c: C)(name: String)(implicit ev: (A, B, C) =:= IN): F[OUT] =
+    apply(name, (a, b, c), None)
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(name: String)(implicit ev: (A, B, C, D) =:= IN): F[OUT] =
+    apply(name, (a, b, c, d), None)
+  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(name: String)(implicit
+    ev: (A, B, C, D, E) =:= IN): F[OUT] =
+    apply(name, (a, b, c, d, e), None)
 }
 
 final class NJAction0[F[_], OUT] private[guard] (
@@ -121,7 +127,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT]        = copy(transOutput = f)
   def logOutput(implicit ev: Encoder[OUT]): NJAction0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
-  val run: F[OUT] = new NJAction[F, Unit, OUT](
+  private val njAction = new NJAction[F, Unit, OUT](
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,
@@ -129,5 +135,8 @@ final class NJAction0[F[_], OUT] private[guard] (
     transInput = _ => transInput,
     transOutput = (_, b: OUT) => transOutput(b),
     isWorthRetry = isWorthRetry
-  ).run(())
+  )
+
+  def run(name: String): F[OUT]                = njAction.apply(name, (), None)
+  def run(name: String, span: Span[F]): F[OUT] = njAction.apply(name, (), Some(span))
 }

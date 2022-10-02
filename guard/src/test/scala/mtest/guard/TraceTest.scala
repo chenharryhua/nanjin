@@ -18,15 +18,15 @@ class TraceTest extends AnyFunSuite {
   // span
 
   def s_unit(ag: Agent[IO]): IO[Unit] =
-    ag.action("unit.action", _.notice).retry(IO(())).run
+    ag.action(_.notice).retry(IO(())).run("unit.action")
 
   def s_int(ag: Agent[IO]): IO[Int] =
-    ag.action("int.action", _.notice).retry(IO(1)).run
+    ag.action(_.notice).retry(IO(1)).run("int.action")
 
   def s_err(ag: Agent[IO]): IO[Int] =
-    ag.action("err.action", _.notice.withConstantDelay(1.seconds, 1))
+    ag.action(_.notice.withConstantDelay(1.seconds, 1))
       .retry(IO.raiseError[Int](new Exception("oops")))
-      .run
+      .run("err.action")
 
   test("trace") {
 

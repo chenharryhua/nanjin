@@ -58,7 +58,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("c", _.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+        ag.action(_.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).run("c")
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical")
@@ -68,7 +68,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("cn", _.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).logOutput(_.asJson).run
+        ag.action(_.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).logOutput(_.asJson).run("cn")
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical - notes")
@@ -77,7 +77,7 @@ class PerformanceTest extends AnyFunSuite {
   test("notice") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("nt", _.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action(_.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run("nt")
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} notice")
@@ -86,7 +86,7 @@ class PerformanceTest extends AnyFunSuite {
   test("silent") {
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("n", _.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action(_.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run("n")
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} silent")
@@ -95,7 +95,7 @@ class PerformanceTest extends AnyFunSuite {
   test("trivial") {
     var i = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.trivial.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action(_.trivial.withoutTiming.withoutCounting).retry(IO(i += 1)).run("t")
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} trivial")

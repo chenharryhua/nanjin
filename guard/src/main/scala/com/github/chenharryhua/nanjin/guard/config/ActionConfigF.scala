@@ -53,7 +53,6 @@ object ActionRetryParams extends duration {
 
 @JsonCodec @Lenses
 final case class ActionParams private (
-  name: String,
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -64,16 +63,13 @@ final case class ActionParams private (
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
   val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
 
-  val digested: Digested = Digested(serviceParams, name)
-
 }
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
 
-  def apply(name: String, serviceParams: ServiceParams): ActionParams =
+  def apply(serviceParams: ServiceParams): ActionParams =
     ActionParams(
-      name = name,
       importance = Importance.Medium,
       isCounting = false,
       isTiming = false,
@@ -98,9 +94,9 @@ private object ActionConfigF {
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
-  def algebra(name: String): Algebra[ActionConfigF, ActionParams] =
+  val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(sp) => ActionParams(name, sp)
+      case InitParams(sp) => ActionParams(sp)
       case WithRetryPolicy(p, m, c) =>
         ActionParams.retry
           .composeLens(ActionRetryParams.njRetryPolicy)
@@ -143,8 +139,7 @@ final private[guard] case class ActionConfig private (value: Fix[ActionConfigF])
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)))
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)))
 
-  def evalConfig(name: String): ActionParams =
-    scheme.cata(algebra(name)).apply(value)
+  val evalConfig: ActionParams = scheme.cata(algebra).apply(value)
 }
 
 private[guard] object ActionConfig {
