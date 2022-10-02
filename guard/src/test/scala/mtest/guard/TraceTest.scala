@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
+import io.circe.syntax.EncoderOps
 import io.jaegertracing.Configuration
 import natchez.jaeger.Jaeger
 import org.scalatest.funsuite.AnyFunSuite
@@ -23,7 +24,7 @@ class TraceTest extends AnyFunSuite {
     ag.action(_.notice).retry(IO(()))
 
   def s_int(ag: Agent[IO]) =
-    ag.action(_.notice).retry(IO(1))
+    ag.action(_.notice).retry((i: Int) => IO(i + 1)).logOutput((_, out) => out.asJson)
 
   def s_err(ag: Agent[IO]) =
     ag.action(_.notice.withConstantDelay(1.seconds, 1)).retry(IO.raiseError[Int](new Exception("oops")))
@@ -33,7 +34,7 @@ class TraceTest extends AnyFunSuite {
     val run = task
       .service("log")
       .eventStream { ag =>
-        s_unit(ag).run("a") >> s_int(ag).run("b") >> s_err(ag).run("c").attempt
+        s_unit(ag).run("a") >> s_int(ag).run(1)("b") >> s_err(ag).run("c").attempt
       }
       .evalMap(console.simple[IO])
       .compile
@@ -58,9 +59,14 @@ class TraceTest extends AnyFunSuite {
       .eventStream { ag =>
         ag.root("jaeger-root2")
           .use(ns =>
-            ns.span("child1").use(_.run(s_unit(ag))) >>
-              ns.span("child2").use(_.run(s_err(ag))).attempt >>
-              ns.span("child3").use(_.run(s_int(ag))))
+            ns.put("a" -> "a", "b" -> "b") >>
+              ns.span("child1").use(_.runAction(s_unit(ag))) >>
+              ns.span("child2").use(_.runAction(s_err(ag))).attempt >>
+              ns.span("grandchild").use { ns =>
+                ns.put("g1" -> "g1", "g2" -> "g2") >>
+                  ns.span("g1").use(_.runAction(s_unit(ag))) >>
+                  ns.span("g2").use(ns => ns.runAction(s_int(ag))(1).flatMap(r => ns.put("result" -> r)))
+              })
       }
       .evalTap(console.simple[IO])
       .compile
@@ -68,5 +74,4 @@ class TraceTest extends AnyFunSuite {
 
     run.unsafeRunSync()
   }
-
 }
