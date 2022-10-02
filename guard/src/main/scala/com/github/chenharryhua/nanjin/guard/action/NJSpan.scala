@@ -17,17 +17,15 @@ final class NJSpan[F[_]] private[guard] (name: String, rawSpan: Span[F])(implici
   // private lazy val ancestors: List[String] = LazyList.unfold(this)(_.parent.map(p => (p.spanName, p))).toList
 
   def run[Z](action: NJAction0[F, Z]): F[Z] =
-    rawSpan.span(name).use(span => action.run(name, span))
+    action.run(name, rawSpan)
   def run[A, Z](action: NJAction[F, A, Z])(a: A): F[Z] =
-    rawSpan.span(name).use(span => action.apply(name, a, Some(span)))
+    action.apply(name, a, Some(rawSpan))
   def run[A, B, Z](action: NJAction[F, (A, B), Z])(a: A, b: B): F[Z] =
-    rawSpan.span(name).use(span => action.apply(name, (a, b), Some(span)))
+    action.apply(name, (a, b), Some(rawSpan))
   def run[A, B, C, Z](action: NJAction[F, (A, B, C), Z])(a: A, b: B, c: C): F[Z] =
-    rawSpan.span(name).use(span => action.apply(name, (a, b, c), Some(span)))
-
+    action.apply(name, (a, b, c), Some(rawSpan))
   def run[A, B, C, D, Z](action: NJAction[F, (A, B, C, D), Z])(a: A, b: B, c: C, d: D): F[Z] =
-    rawSpan.span(name).use(span => action.apply(name, (a, b, c, d), Some(span)))
-
+    action.apply(name, (a, b, c, d), Some(rawSpan))
   def run[A, B, C, D, E, Z](action: NJAction[F, (A, B, C, D, E), Z])(a: A, b: B, c: C, d: D, e: E): F[Z] =
-    rawSpan.span(name).use(span => action.apply(name, (a, b, c, d, e), Some(span)))
+    action.apply(name, (a, b, c, d, e), Some(rawSpan))
 }

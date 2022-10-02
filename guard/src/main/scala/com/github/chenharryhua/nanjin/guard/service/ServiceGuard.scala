@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{Console, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -42,7 +42,7 @@ final class ServiceGuard[F[_]] private[guard] (
   metricSet: List[MetricSet],
   metricFilter: MetricFilter,
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
-  entryPoint: EntryPoint[F])(implicit F: Async[F])
+  entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =

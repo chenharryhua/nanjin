@@ -20,17 +20,17 @@ final class Agent[F[_]] private[service] (
   serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
-  entryPoint: EntryPoint[F])(implicit F: Async[F])
+  entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
     extends EntryPoint[F] {
 
   override def root(name: String): Resource[F, NJSpan[F]] =
-    entryPoint.root(name).map(s => new NJSpan[F](name, s))
+    entryPoint.flatMap(_.root(name).map(s => new NJSpan[F](name, s)))
 
   override def continue(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.continue(name, kernel).map(s => new NJSpan[F](name, s))
+    entryPoint.flatMap(_.continue(name, kernel).map(s => new NJSpan[F](name, s)))
 
   override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.continueOrElseRoot(name, kernel).map(s => new NJSpan[F](name, s))
+    entryPoint.flatMap(_.continueOrElseRoot(name, kernel).map(s => new NJSpan[F](name, s)))
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
