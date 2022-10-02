@@ -88,8 +88,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.11",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.6",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.6",
+  "com.google.protobuf"                       % "protobuf-java"             % "3.21.7",
+  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.7",
   "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
 )
 
@@ -273,6 +273,8 @@ lazy val guard = (project in file("guard"))
       "com.lihaoyi" %% "scalatags"       % "0.12.0",
       "org.tpolecat" %% "skunk-core"     % skunkV,
       "org.tpolecat" %% "skunk-circe"    % skunkV,
+      "org.tpolecat" %% "natchez-core"   % "0.1.6",
+      "org.tpolecat" %% "natchez-noop"   % "0.1.6",
       "org.tpolecat" %% "natchez-jaeger" % "0.1.6"          % Test,
       "org.tpolecat" %% "natchez-log"    % "0.1.6"          % Test,
       "org.slf4j"                        % "slf4j-reload4j" % slf4jV % Test

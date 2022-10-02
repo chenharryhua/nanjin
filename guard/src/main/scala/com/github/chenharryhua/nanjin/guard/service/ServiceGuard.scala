@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{Console, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -17,6 +17,7 @@ import eu.timepit.fs2cron.Scheduler
 import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
+import natchez.EntryPoint
 import retry.RetryDetails
 
 import scala.concurrent.duration.DurationInt
@@ -40,23 +41,24 @@ final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   metricSet: List[MetricSet],
   metricFilter: MetricFilter,
-  jmxBuilder: Option[Endo[JmxReporter.Builder]])(implicit F: Async[F])
+  jmxBuilder: Option[Endo[JmxReporter.Builder]],
+  entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder)
+    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder, entryPoint)
 
   def apply(serviceName: ServiceName): ServiceGuard[F] =
     updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder))
+    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder), entryPoint)
 
   def withMetricFilter(filter: MetricFilter): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder)
+    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder, entryPoint)
 
   def addMetricSet(ms: MetricSet): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder)
+    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder, entryPoint)
 
   private val initStatus: F[Ref[F, ServiceStatus]] = for {
     uuid <- UUIDGen.randomUUID
@@ -73,7 +75,7 @@ final class ServiceGuard[F[_]] private[guard] (
       .compile
       .drain
       .start
-  } yield new Agent[F](new MetricRegistry, ss, chn, sp)
+  } yield new Agent[F](new MetricRegistry, ss, chn, sp, entryPoint)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
@@ -102,7 +104,7 @@ final class ServiceGuard[F[_]] private[guard] (
                     }
                 ) {
                   publisher.serviceReStart(channel, serviceStatus) *>
-                    runAgent(new Agent[F](metricRegistry, serviceStatus, channel, serviceParams))
+                    runAgent(new Agent[F](metricRegistry, serviceStatus, channel, serviceParams, entryPoint))
                 }
                 .guaranteeCase(oc =>
                   publisher.serviceStop(channel, serviceStatus, ServiceStopCause(oc)) <* channel.close)

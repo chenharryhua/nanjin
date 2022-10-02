@@ -37,12 +37,14 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def actionText(evt: ActionEvent): Text.TypedTag[String] =
+  private def actionText(evt: ActionEvent): Text.TypedTag[String] = {
+    val tid = evt.traceId.getOrElse("none")
     div(
       p(b("Name: "), evt.digested.metricRepr),
       p(b("ID: "), evt.actionId.show),
-      p(b("Trace ID: "), evt.traceId)
+      p(b("Trace ID: "), tid)
     )
+  }
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 

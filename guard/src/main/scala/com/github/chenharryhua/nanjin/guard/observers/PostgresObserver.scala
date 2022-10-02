@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.{Resource, Temporal}
+import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -22,12 +22,12 @@ import java.util.UUID
   */
 
 object PostgresObserver {
-  def apply[F[_]: Temporal](session: Resource[F, Session[F]]): PostgresObserver[F] =
+  def apply[F[_]: Concurrent: Clock](session: Resource[F, Session[F]]): PostgresObserver[F] =
     new PostgresObserver[F](session, Translator.simpleJson[F])
 }
 
-final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator: Translator[F, Json])(implicit
-  F: Temporal[F])
+final class PostgresObserver[F[_]: Clock](session: Resource[F, Session[F]], translator: Translator[F, Json])(
+  implicit F: Concurrent[F])
     extends UpdateTranslator[F, Json, PostgresObserver[F]] {
 
   override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): PostgresObserver[F] =

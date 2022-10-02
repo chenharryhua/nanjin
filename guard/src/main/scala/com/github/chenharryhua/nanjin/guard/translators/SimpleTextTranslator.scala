@@ -29,9 +29,11 @@ private object SimpleTextTranslator {
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
-  private def actionEvent(ae: ActionEvent): String =
+  private def actionEvent(ae: ActionEvent): String = {
+    val tid: String = ae.traceId.getOrElse("none")
     s"""  ${serviceEvent(ae)}
-       |  Name:${ae.digested.metricRepr}, ID:${ae.actionId}, TraceID:${ae.traceId}""".stripMargin
+       |  Name:${ae.digested.metricRepr}, ID:${ae.actionId}, TraceID:$tid""".stripMargin
+  }
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}
@@ -49,7 +51,7 @@ private object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  Cause: ${evt.cause.show}
+       |  Cause:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
@@ -68,41 +70,41 @@ private object SimpleTextTranslator {
   private def passThrough(evt: PassThrough): String =
     s"""${coloring(evt.title)(evt)}
        |${instantEvent(evt)}
-       |  Message: ${evt.value.noSpaces}
+       |  Message:${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
     s"""${coloring(evt.title)(evt)}
        |${instantEvent(evt)}
-       |  Alert: ${evt.message}
+       |  Alert:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Input: ${evt.input.noSpaces}
+       |  Input:${evt.input.noSpaces}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
+       |  Took:${fmt.format(evt.took)}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
-       |  Input: ${evt.input.noSpaces}
+       |  Took:${fmt.format(evt.took)}
+       |  Input:${evt.input.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
-       |  Took: ${fmt.format(evt.took)}
-       |  Output: ${evt.output.noSpaces}
+       |  Took:${fmt.format(evt.took)}
+       |  Output:${evt.output.noSpaces}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

@@ -1,17 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref, Temporal}
+import cats.effect.kernel.{Clock, Ref}
 import cats.syntax.all.*
+import cats.Monad
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
-import com.github.chenharryhua.nanjin.guard.event.{
-  MetricReportType,
-  MetricResetType,
-  MetricSnapshot,
-  NJError,
-  NJEvent,
-  ServiceStopCause
-}
+import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   MetricReport,
   MetricReset,
@@ -28,15 +22,15 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 private object publisher {
-  def metricReport[F[_]](
+  def metricReport[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     serviceStatus: Ref[F, ServiceStatus],
     metricRegistry: MetricRegistry,
     metricFilter: MetricFilter,
-    metricReportType: MetricReportType)(implicit F: Async[F]): F[Unit] =
+    metricReportType: MetricReportType): F[Unit] =
     for {
       ss <- serviceStatus.getAndUpdate(_.updateLastCounters(MetricSnapshot.LastCounters(metricRegistry)))
-      ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
+      ts <- Clock[F].realTimeInstant.map(ss.serviceParams.toZonedDateTime)
       _ <- channel.send(
         MetricReport(
           serviceParams = ss.serviceParams,
@@ -54,14 +48,14 @@ private object publisher {
         ))
     } yield ()
 
-  def metricReset[F[_]](
+  def metricReset[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     serviceStatus: Ref[F, ServiceStatus],
     metricRegistry: MetricRegistry,
-    cronExpr: Option[CronExpr])(implicit F: Async[F]): F[Unit] =
+    cronExpr: Option[CronExpr]): F[Unit] =
     for {
       ss <- serviceStatus.getAndUpdate(_.updateLastCounters(MetricSnapshot.LastCounters.empty))
-      ts <- F.realTimeInstant.map(ss.serviceParams.toZonedDateTime)
+      ts <- Clock[F].realTimeInstant.map(ss.serviceParams.toZonedDateTime)
       msg = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>
           MetricReset(
@@ -81,22 +75,23 @@ private object publisher {
       _ <- channel.send(msg)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
-  def serviceReStart[F[_]](channel: Channel[F, NJEvent], serviceStatus: Ref[F, ServiceStatus])(implicit
-    F: Temporal[F]): F[Unit] =
+  def serviceReStart[F[_]: Monad: Clock](
+    channel: Channel[F, NJEvent],
+    serviceStatus: Ref[F, ServiceStatus]): F[Unit] =
     for {
       sp <- serviceStatus.get.map(_.serviceParams)
-      ts <- F.realTimeInstant.map(sp.toZonedDateTime)
+      ts <- Clock[F].realTimeInstant.map(sp.toZonedDateTime)
       _ <- serviceStatus.update(_.goUp(ts))
       _ <- channel.send(ServiceStart(sp, ts))
     } yield ()
 
-  def servicePanic[F[_]](
+  def servicePanic[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     serviceStatus: Ref[F, ServiceStatus],
     delay: FiniteDuration,
-    ex: Throwable)(implicit F: Temporal[F]): F[Unit] =
+    ex: Throwable): F[Unit] =
     for {
-      ts <- F.realTimeInstant
+      ts <- Clock[F].realTimeInstant
       sp <- serviceStatus.get.map(_.serviceParams)
       now  = sp.toZonedDateTime(ts)
       next = sp.toZonedDateTime(ts.plus(delay.toJava))
@@ -105,13 +100,14 @@ private object publisher {
       _ <- channel.send(ServicePanic(serviceParams = sp, timestamp = now, restartTime = next, error = err))
     } yield ()
 
-  def serviceStop[F[_]](
+  def serviceStop[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     serviceStatus: Ref[F, ServiceStatus],
-    cause: ServiceStopCause)(implicit F: Temporal[F]): F[Unit] =
+    cause: ServiceStopCause): F[Unit] =
     for {
       sp <- serviceStatus.get.map(_.serviceParams)
-      ts <- F.realTimeInstant.map(sp.toZonedDateTime)
+      ts <- Clock[F].realTimeInstant.map(sp.toZonedDateTime)
       _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = sp, cause = cause))
     } yield ()
+
 }

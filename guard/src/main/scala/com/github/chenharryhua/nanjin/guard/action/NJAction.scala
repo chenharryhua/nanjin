@@ -1,124 +1,141 @@
 package com.github.chenharryhua.nanjin.guard.action
+
 import cats.data.Kleisli
-import cats.effect.kernel.Async
-import cats.Endo
+import cats.effect.Temporal
+import cats.effect.kernel.Outcome
+import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.ActionConfig
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
-import io.circe.Json
+import io.circe.{Encoder, Json}
+import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
-import scala.concurrent.Future
-import scala.util.control.NonFatal
-import scala.util.Try
+import java.time.{Duration, ZonedDateTime}
 
-final class NJAction[F[_]] private[guard] (
-  val name: String,
-  val parent: Option[NJAction[F]],
+// https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
+final class NJAction[F[_], IN, OUT] private[action] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  actionConfig: ActionConfig)(implicit F: Async[F]) {
+  actionParams: ActionParams,
+  arrow: IN => F[OUT],
+  transInput: IN => F[Json],
+  transOutput: (IN, OUT) => F[Json],
+  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
+  private def copy(
+    transInput: IN => F[Json] = transInput,
+    transOutput: (IN, OUT) => F[Json] = transOutput,
+    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJAction[F, IN, OUT] =
+    new NJAction[F, IN, OUT](
+      metricRegistry,
+      channel,
+      actionParams,
+      arrow,
+      transInput,
+      transOutput,
+      isWorthRetry)
 
-  private lazy val ancestors: List[String] = LazyList.unfold(this)(_.parent.map(p => (p.name, p))).toList
+  def withWorthRetryM(f: Throwable => F[Boolean]): NJAction[F, IN, OUT] = copy(isWorthRetry = Kleisli(f))
+  def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
+    withWorthRetryM(Kleisli.fromFunction(f).run)
 
-  def child(name: String, cfg: Endo[ActionConfig] = identity): NJAction[F] =
-    new NJAction[F](name, Some(this), metricRegistry, channel, cfg(actionConfig))
+  def logInputM(f: IN => F[Json]): NJAction[F, IN, OUT]        = copy(transInput = f)
+  def logInput(implicit ev: Encoder[IN]): NJAction[F, IN, OUT] = logInputM((a: IN) => F.pure(ev(a)))
 
-  // retries
-  def retry[Z](fb: F[Z]): NJRetry0[F, Z] = // 0 arity
-    new NJRetry0[F, Z](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
-      arrow = fb,
-      transInput = F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
-    )
+  def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
+  def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  def retry[A, Z](f: A => F[Z]): NJRetry[F, A, Z] =
-    new NJRetry[F, A, Z](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
-      arrow = f,
-      transInput = _ => F.pure(Json.Null),
-      transOutput = (_: A, _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
-    )
+  private[this] def timingAndCounting(
+    ai: ActionInfo,
+    isSucc: Boolean,
+    launchTime: ZonedDateTime,
+    now: ZonedDateTime): Unit = {
+    if (actionParams.isTiming)
+      metricRegistry.timer(actionTimerMRName(ai)).update(Duration.between(launchTime, now))
+    if (actionParams.isCounting) {
+      if (isSucc) metricRegistry.counter(actionSuccMRName(ai)).inc(1)
+      else metricRegistry.counter(actionFailMRName(ai)).inc(1)
+    }
+  }
 
-  def retry[A, B, Z](f: (A, B) => F[Z]): NJRetry[F, (A, B), Z] =
-    new NJRetry[F, (A, B), Z](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
-      arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
-    )
+  def apply(name: String, input: IN, span: Option[NJSpan[F]]): F[OUT] =
+    F.bracketCase(publisher.actionStart(name, channel, actionParams, transInput(input), span))(actionInfo =>
+      retry.mtl
+        .retryingOnSomeErrors[OUT]
+        .apply[F, Throwable](
+          actionParams.retry.policy[F],
+          isWorthRetry.run,
+          (error, details) =>
+            details match {
+              case wdr: WillDelayAndRetry => publisher.actionRetry(channel, actionInfo, wdr, error)
+              case _: GivingUp            => F.unit
+            }
+        )(arrow(input))) { case (actionInfo, oc) =>
+      oc match {
+        case Outcome.Canceled() =>
+          publisher
+            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input))
+            .map(ts => timingAndCounting(actionInfo, isSucc = false, actionInfo.launchTime, ts))
+        case Outcome.Errored(error) =>
+          publisher
+            .actionFail(channel, actionInfo, error, transInput(input))
+            .map(ts => timingAndCounting(actionInfo, isSucc = false, actionInfo.launchTime, ts))
+        case Outcome.Succeeded(output) =>
+          publisher
+            .actionSucc(channel, actionInfo, output.flatMap(transOutput(input, _)))
+            .map(ts => timingAndCounting(actionInfo, isSucc = true, actionInfo.launchTime, ts))
+      }
+    }
 
-  def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJRetry[F, (A, B, C), Z] =
-    new NJRetry[F, (A, B, C), Z](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
-      arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
-    )
+  // def run(name: String)(input: IN): F[OUT] = apply(name, input, None)
 
-  def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJRetry[F, (A, B, C, D), Z] =
-    new NJRetry[F, (A, B, C, D), Z](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
-      arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
-    )
+  def run[A](a: A)(name: String)(implicit ev: A =:= IN): F[OUT] =
+    apply(name, a, None)
+  def run[A, B](a: A, b: B)(name: String)(implicit ev: (A, B) =:= IN): F[OUT] =
+    apply(name, (a, b), None)
+  def run[A, B, C](a: A, b: B, c: C)(name: String)(implicit ev: (A, B, C) =:= IN): F[OUT] =
+    apply(name, (a, b, c), None)
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(name: String)(implicit ev: (A, B, C, D) =:= IN): F[OUT] =
+    apply(name, (a, b, c, d), None)
+  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(name: String)(implicit
+    ev: (A, B, C, D, E) =:= IN): F[OUT] =
+    apply(name, (a, b, c, d, e), None)
+}
 
-  def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJRetry[F, (A, B, C, D, E), Z] =
-    new NJRetry[F, (A, B, C, D, E), Z](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = actionConfig.evalConfig(name, ancestors),
-      arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
-      isWorthRetry = Kleisli(ex => F.pure(NonFatal(ex)))
-    )
+final class NJAction0[F[_], OUT] private[guard] (
+  metricRegistry: MetricRegistry,
+  channel: Channel[F, NJEvent],
+  actionParams: ActionParams,
+  arrow: F[OUT],
+  transInput: F[Json],
+  transOutput: OUT => F[Json],
+  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
+  private def copy(
+    transInput: F[Json] = transInput,
+    transOutput: OUT => F[Json] = transOutput,
+    isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJAction0[F, OUT] =
+    new NJAction0[F, OUT](metricRegistry, channel, actionParams, arrow, transInput, transOutput, isWorthRetry)
 
-  // future
+  def withWorthRetryM(f: Throwable => F[Boolean]): NJAction0[F, OUT] = copy(isWorthRetry = Kleisli(f))
+  def withWorthRetry(f: Throwable => Boolean): NJAction0[F, OUT] = withWorthRetryM(
+    Kleisli.fromFunction(f).run)
 
-  def retryFuture[Z](future: F[Future[Z]]): NJRetry0[F, Z] = // 0 arity
-    retry(F.fromFuture(future))
+  def logInputM(info: F[Json]): NJAction0[F, OUT] = copy(transInput = info)
+  def logInput(info: Json): NJAction0[F, OUT]     = logInputM(F.pure(info))
 
-  def retryFuture[A, Z](f: A => Future[Z]): NJRetry[F, A, Z] =
-    retry((a: A) => F.fromFuture(F.delay(f(a))))
+  def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT]        = copy(transOutput = f)
+  def logOutput(implicit ev: Encoder[OUT]): NJAction0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
-  def retryFuture[A, B, Z](f: (A, B) => Future[Z]): NJRetry[F, (A, B), Z] =
-    retry((a: A, b: B) => F.fromFuture(F.delay(f(a, b))))
+  private val njAction = new NJAction[F, Unit, OUT](
+    metricRegistry = metricRegistry,
+    channel = channel,
+    actionParams = actionParams,
+    arrow = _ => arrow,
+    transInput = _ => transInput,
+    transOutput = (_, b: OUT) => transOutput(b),
+    isWorthRetry = isWorthRetry
+  )
 
-  def retryFuture[A, B, C, Z](f: (A, B, C) => Future[Z]): NJRetry[F, (A, B, C), Z] =
-    retry((a: A, b: B, c: C) => F.fromFuture(F.delay(f(a, b, c))))
-
-  def retryFuture[A, B, C, D, Z](f: (A, B, C, D) => Future[Z]): NJRetry[F, (A, B, C, D), Z] =
-    retry((a: A, b: B, c: C, d: D) => F.fromFuture(F.delay(f(a, b, c, d))))
-
-  def retryFuture[A, B, C, D, E, Z](f: (A, B, C, D, E) => Future[Z]): NJRetry[F, (A, B, C, D, E), Z] =
-    retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
-
-  // error-like
-  def retry[A](t: Try[A]): NJRetry0[F, A]               = retry(F.fromTry(t))
-  def retry[A](e: Either[Throwable, A]): NJRetry0[F, A] = retry(F.fromEither(e))
-
-  // run effect
-  def run[A](t: Try[A]): F[A]                  = retry(t).run
-  def run[A](e: Either[Throwable, A]): F[A]    = retry(e).run
-  def run[A](fb: F[A]): F[A]                   = retry(fb).run
-  def runFuture[A](future: F[Future[A]]): F[A] = retryFuture(future).run
-
+  def run(name: String): F[OUT]                  = njAction.apply(name, (), None)
+  def run(name: String, span: NJSpan[F]): F[OUT] = njAction.apply(name, (), Some(span))
 }

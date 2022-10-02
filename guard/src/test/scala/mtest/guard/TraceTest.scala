@@ -2,73 +2,59 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
+import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
+import io.circe.syntax.EncoderOps
 import io.jaegertracing.Configuration
-import natchez.{Span, Trace}
 import natchez.jaeger.Jaeger
 import natchez.log.Log
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.URI
 import scala.concurrent.duration.*
 
 class TraceTest extends AnyFunSuite {
 
-  val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("trace-guard").service("trace.service")
+  def s_unit(ag: Agent[IO]) =
+    ag.action(_.notice).retry(IO(()))
 
-  // trace
-  def f_unit(ag: Agent[IO])(implicit T: Trace[IO]): IO[Unit] =
-    T.span("unit.trace")(T.traceId.flatMap(id => ag.trace("unit.action", id, _.notice).retry(IO(())).run))
+  def s_int(ag: Agent[IO]) =
+    ag.action(_.notice).retry((i: Int) => IO(i + 1)).logOutput((_, out) => out.asJson)
 
-  def f_int(ag: Agent[IO])(implicit T: Trace[IO]): IO[Int] =
-    T.span("int.trace")(T.traceId.flatMap(id => ag.trace("int.action", id, _.silent).retry(IO(1)).run))
+  def s_err(ag: Agent[IO]) =
+    ag.action(_.notice.withConstantDelay(1.seconds, 1))
+      .retry((i: Int) => IO.raiseError[Int](new Exception(s"oops-$i")))
 
-  def f_err(ag: Agent[IO])(implicit T: Trace[IO]): IO[Int] =
-    T.span("err.trace")(
-      T.traceId.flatMap(id =>
-        ag.trace("err.action", id, _.withConstantDelay(1.seconds, 1))
-          .retry(IO.raiseError[Int](new Exception("oops")))
-          .run))
+  test("trace") {
+    implicit val log: Logger[IO] = Slf4jLogger.getLoggerFromName("test-logger")
+    val logEntry                 = Log.entryPoint[IO]("logger")
 
-  test("log trace explicit") {
-    implicit val log: Logger[IO] = Slf4jLogger.getLogger[IO]
+    val run = TaskGuard[IO]("trace-guard")
+      .withEntryPoint(logEntry)
+      .service("log")
+      .eventStream { ag =>
+        val span = ag.root("log-root")
+        val a1   = ag.action(_.silent).retry(IO(()))
+        val a2   = ag.action(_.silent).retry((i: Int) => IO(i + 1))
+        val a3   = ag.action(_.silent).retry((i: Int) => IO.raiseError(new Exception(i.toString)))
 
-    val entryPoint = Log.entryPoint[IO]("log.service")
-    serviceGuard
-      .eventStream(ag =>
-        entryPoint
-          .root("logging")
-          .use(ep => Trace.ioTrace(ep).flatMap(implicit sp => f_unit(ag) >> f_int(ag) >> f_err(ag).attempt)))
-      .evalTap(console.simple[IO])
+        span.use(s =>
+          s.runAction(a1) >> s
+            .span("c1")
+            .use(s =>
+              s.runAction(a2)(1) >>
+                s.span("c2").use(_.runAction(a3)(1)).attempt))
+      }
+      .evalMap(console.simple[IO])
       .compile
       .drain
-      .unsafeRunSync()
+
+    run.unsafeRunSync()
   }
-
-  // span
-
-  def s_unit(ag: Agent[IO])(span: Span[IO]): IO[Unit] =
-    span
-      .span("unit.span")
-      .use(s => s.traceId.flatMap(id => ag.trace("unit.action", id, _.notice).retry(IO(())).run))
-
-  def s_int(ag: Agent[IO])(span: Span[IO]): IO[Int] =
-    span.span("int.span").use(s => s.traceId.flatMap(id => ag.trace("int.action", id).retry(IO(1)).run))
-
-  def s_err(ag: Agent[IO])(span: Span[IO]): IO[Int] =
-    span
-      .span("err.span")
-      .use(s =>
-        s.traceId.flatMap(id =>
-          ag.trace("err.action", id, _.withConstantDelay(1.seconds, 1))
-            .retry(IO.raiseError[Int](new Exception("oops")))
-            .run))
 
   test("jaeger") {
 
@@ -80,13 +66,27 @@ class TraceTest extends AnyFunSuite {
           .getTracer
       ))
 
-    val run = serviceGuard.eventStream { ag =>
-      entryPoint
-        .flatMap(_.root("jaeger"))
-        .use(span => s_unit(ag)(span) >> s_err(ag)(span).attempt >> s_int(ag)(span).delayBy(1.seconds))
-    }.evalTap(console.simple[IO]).compile.drain
+    val run =
+      TaskGuard[IO]("trace-guard")
+        .withEntryPoint(entryPoint)
+        .service("jaeger")
+        .eventStream { ag =>
+          ag.root("jaeger-root2")
+            .use(ns =>
+              ns.put("a" -> "a") >>
+                ns.span("child1").use(_.runAction(s_unit(ag))) >>
+                ns.span("grandchild").use { ns =>
+                  ns.put("g1" -> "g1") >>
+                    ns.span("g1")
+                      .use(ns => ns.put("e1" -> "e1") >> ns.runAction(s_err(ag))(1) >> ns.put("e2" -> "e2"))
+                      .attempt >>
+                    ns.span("g2").use(ns => ns.runAction(s_int(ag))(1).flatMap(r => ns.put("result" -> r)))
+                })
+        }
+        .evalTap(console.simple[IO])
+        .compile
+        .drain
 
-    (run >> IO.sleep(3.seconds)).unsafeRunSync()
+    run.unsafeRunSync()
   }
-
 }

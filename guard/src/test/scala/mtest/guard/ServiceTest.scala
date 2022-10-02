@@ -34,7 +34,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricMonthlyReset
           .withMetricWeeklyReset)
       .eventStream(gd =>
-        gd.action("normal-exit-action", _.silent).retry(Try(1)).logOutput(_ => null).run.delayBy(1.second))
+        gd.action(_.silent).retry(Try(1)).logOutput(_ => null).run("normal-exit-action").delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -49,8 +49,9 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
-        gd.action("escalate-after-3-time", _.notice.withFibonacciBackoff(0.1.second, 3))
-          .run(IO.raiseError(new Exception("oops")))
+        gd.action(_.notice.withFibonacciBackoff(0.1.second, 3))
+          .retry(IO.raiseError(new Exception("oops")))
+          .run("escalate-after-3-time")
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -78,8 +79,9 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
-        gd.action("err", _.notice.withFibonacciBackoff(0.1.second, 3))
-          .run(IO.raiseError(new ControlThrowable("fatal error") {}))
+        gd.action(_.notice.withFibonacciBackoff(0.1.second, 3))
+          .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
+          .run("err")
       }
       .evalTap {
         case _: ServiceStart => IO(sStart += 1)
@@ -106,7 +108,9 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
-        gd.action("json-codec", _.notice.withConstantDelay(0.1.second, 3)).run(Left(new Exception("oops")))
+        gd.action(_.notice.withConstantDelay(0.1.second, 3))
+          .retry(Left(new Exception("oops")))
+          .run("json-codec")
 
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -127,7 +131,7 @@ class ServiceTest extends AnyFunSuite {
     val s :: b :: c :: d :: _ = guard
       .updateConfig(_.withMetricReport(1.second))
       .updateConfig(_.withQueueCapacity(4))
-      .eventStream(_.action("never", _.silent).retry(IO.never).run)
+      .eventStream(_.action(_.silent).retry(IO.never).run("never"))
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
       .compile
@@ -158,7 +162,8 @@ class ServiceTest extends AnyFunSuite {
   test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
       .updateConfig(_.withQueueCapacity(10))
-      .eventStream(gd => gd.action("a", _.notice).run(Try(1)) >> gd.action("b", _.notice).retry(IO(2)).run)
+      .eventStream(gd =>
+        gd.action(_.notice).retry(Try(1)).run("a") >> gd.action(_.notice).retry(IO(2)).run("b"))
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toVector
@@ -178,9 +183,9 @@ class ServiceTest extends AnyFunSuite {
     val s2    = guard.service("s2")
 
     val ss1 = s1.eventStream(gd =>
-      gd.action("s1-a1", _.notice).retry(IO(1)).run >> gd.action("s1-a2", _.notice).retry(IO(2)).run)
+      gd.action(_.notice).retry(IO(1)).run("s1-a1") >> gd.action(_.notice).retry(IO(2)).run("s1-a2"))
     val ss2 = s2.eventStream(gd =>
-      gd.action("s2-a1", _.notice).retry(IO(1)).run >> gd.action("s2-a2", _.notice).retry(IO(2)).run)
+      gd.action(_.notice).retry(IO(1)).run("s2-a1") >> gd.action(_.notice).retry(IO(2)).run("s2-a2"))
 
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionSucc]) == 4)
@@ -201,7 +206,9 @@ class ServiceTest extends AnyFunSuite {
     val action = guard
       .updateConfig(_.withAlwaysGiveUp)
       .eventStream { gd =>
-        gd.action("give-up", _.notice.withFibonacciBackoff(0.1.second, 3)).run(IO.raiseError(new Exception))
+        gd.action(_.notice.withFibonacciBackoff(0.1.second, 3))
+          .retry(IO.raiseError(new Exception))
+          .run("give-up")
       }
       .evalTap { case event: ServiceEvent =>
         event match {
@@ -231,6 +238,6 @@ class ServiceTest extends AnyFunSuite {
 
   test("12.dummy agent should not block") {
     val dummy = TaskGuard.dummyAgent[IO].unsafeRunSync()
-    dummy.action("dummy", _.critical).retry(IO(1)).run.replicateA(10).unsafeRunSync()
+    dummy.action(_.critical).retry(IO(1)).run("dummy").replicateA(10).unsafeRunSync()
   }
 }

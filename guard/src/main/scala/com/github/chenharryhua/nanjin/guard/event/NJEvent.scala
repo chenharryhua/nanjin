@@ -77,13 +77,13 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionEvent extends ServiceEvent {
     def actionInfo: ActionInfo // action runtime information
+    final def traceId: Option[String] = actionInfo.traceId
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
-    final def digested: Digested         = actionInfo.actionParams.digested
+    final def digested: Digested         = actionInfo.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: Int              = actionInfo.actionId
-    final def traceId: String            = actionParams.traceId.getOrElse("none")
 
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }

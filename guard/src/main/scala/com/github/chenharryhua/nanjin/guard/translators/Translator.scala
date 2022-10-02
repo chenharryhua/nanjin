@@ -306,7 +306,8 @@ object Translator extends zoneddatetime {
           actionStart,
           actionRetry,
           actionFail,
-          actionSucc)
+          actionSucc
+        )
       }
 
       override def pure[A](x: A): Translator[F, A] =
