@@ -44,10 +44,10 @@ class TraceTest extends AnyFunSuite {
 
         span.use(s =>
           s.runAction(a1) >> s
-            .span("c1")
+            .span("s1")
             .use(s =>
               s.runAction(a2)(1) >>
-                s.span("c2").use(_.runAction(a3)(1).attempt)))
+                s.span("s2").use(_.runAction(a3)(1)).attempt))
       }
       .evalMap(console.simple[IO])
       .compile
@@ -71,17 +71,15 @@ class TraceTest extends AnyFunSuite {
         .withEntryPoint(entryPoint)
         .service("jaeger")
         .eventStream { ag =>
-          ag.root("jaeger-root2")
-            .use(ns =>
-              ns.put("a" -> "a") >>
-                ns.span("child1").use(_.runAction(s_unit(ag))) >>
-                ns.span("grandchild").use { ns =>
-                  ns.put("g1" -> "g1") >>
-                    ns.span("g1")
-                      .use(ns => ns.put("e1" -> "e1") >> ns.runAction(s_err(ag))(1) >> ns.put("e2" -> "e2"))
-                      .attempt >>
-                    ns.span("g2").use(ns => ns.runAction(s_int(ag))(1).flatMap(r => ns.put("result" -> r)))
-                })
+          val span = ag.root("jaeger-root")
+          val a1   = ag.action("a1").retry(IO(()))
+          val a2   = ag.action("a2").retry((i: Int) => IO(i + 1))
+          val a3   = ag.action("a3").retry((i: Int) => IO.raiseError(new Exception(i.toString)))
+
+          span.use(ns =>
+            ns.runAction(a1) >>
+              ns.span("cs1").use(_.runAction(a2)(1)) >>
+              ns.span("cs2").use(_.runAction(a3)(1).attempt))
         }
         .evalTap(console.simple[IO])
         .compile

@@ -59,16 +59,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
     }
   }
 
-  def apply(input: IN, span: Option[NJSpan[F]]): F[OUT] =
-    F.bracketCase {
-      span match {
-        case None => publisher.actionStart(channel, actionParams, transInput(input), None)
-        case Some(s) =>
-          s.span(actionParams.name)
-            .use(_.traceId)
-            .flatMap(publisher.actionStart(channel, actionParams, transInput(input), _))
-      }
-    }(actionInfo =>
+  private def internal(input: IN, traceId: Option[String]): F[OUT] =
+    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceId))(actionInfo =>
       retry.mtl
         .retryingOnSomeErrors[OUT]
         .apply[F, Throwable](
@@ -96,7 +88,11 @@ final class NJAction[F[_], IN, OUT] private[action] (
       }
     }
 
-  // def run(name: String)(input: IN): F[OUT] = apply(name, input, None)
+  def apply(input: IN, span: Option[NJSpan[F]]): F[OUT] =
+    span match { // wrap action in span if exist
+      case Some(nj) => nj.span(actionParams.name).use(_.traceId.flatMap(internal(input, _)))
+      case None     => internal(input, None)
+    }
 
   def run[A](a: A)(implicit ev: A =:= IN): F[OUT] =
     apply(a, None)
