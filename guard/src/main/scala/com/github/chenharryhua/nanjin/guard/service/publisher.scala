@@ -1,19 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Clock, Ref}
-import cats.effect.kernel.Resource.ExitCase
-import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import cats.Monad
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.action.ActionException
-import com.github.chenharryhua.nanjin.guard.config.{MetricSnapshotType, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.MetricSnapshotType
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   MetricReport,
   MetricReset,
-  RootSpanFinish,
-  RootSpanStart,
   ServicePanic,
   ServiceStart,
   ServiceStop
@@ -22,8 +17,6 @@ import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 
-import java.time.ZonedDateTime
-import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -117,42 +110,4 @@ private object publisher {
       _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = sp, cause = cause))
     } yield ()
 
-  def rootSpanStart[F[_]: UUIDGen: Monad: Clock](
-    channel: Channel[F, NJEvent],
-    serviceParams: ServiceParams,
-    rootSpanName: String): F[(ZonedDateTime, UUID)] =
-    for {
-      tid <- UUIDGen[F].randomUUID
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
-      _ <- channel.send(
-        RootSpanStart(
-          serviceParams = serviceParams,
-          timestamp = ts,
-          rootSpanName = rootSpanName,
-          internalTraceId = tid))
-    } yield (ts, tid)
-
-  def rootSpanFinish[F[_]: Monad: Clock](
-    channel: Channel[F, NJEvent],
-    serviceParams: ServiceParams,
-    rootSpanName: String,
-    internalTraceId: UUID,
-    launchTime: ZonedDateTime,
-    exitCase: ExitCase): F[Unit] =
-    for {
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
-      _ <- channel.send(
-        RootSpanFinish(
-          serviceParams = serviceParams,
-          timestamp = ts,
-          rootSpanName = rootSpanName,
-          internalTraceId = internalTraceId,
-          launchTime = launchTime,
-          result = exitCase match {
-            case ExitCase.Succeeded  => None
-            case ExitCase.Errored(e) => Some(NJError(e))
-            case ExitCase.Canceled   => Some(NJError(ActionException.ActionCanceled))
-          }
-        ))
-    } yield ()
 }

@@ -2,19 +2,10 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.{Alternative, Endo, Traverse}
 import cats.data.{Ior, IorT}
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.action.{
-  ActionException,
-  NJActionBuilder,
-  NJAlert,
-  NJBroker,
-  NJCounter,
-  NJHistogram,
-  NJMeter,
-  NJSpan
-}
+import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
@@ -36,26 +27,6 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       actionConfig = cfg(ActionConfig(serviceParams)))
-
-  def trace(name: String): Resource[F, NJSpan[F]] =
-    Resource
-      .makeCase(publisher
-        .rootSpanStart(channel = channel, serviceParams = serviceParams, rootSpanName = name)
-        .map { case (launchTime, internalTraceId) =>
-          (
-            new NJSpan[F](spanName = name, parent = None, metricRegistry = metricRegistry, channel = channel),
-            launchTime,
-            internalTraceId)
-        }) { case ((_, launchTime, internalTraceId), exitCase) =>
-        publisher.rootSpanFinish(
-          channel = channel,
-          serviceParams = serviceParams,
-          rootSpanName = name,
-          internalTraceId = internalTraceId,
-          launchTime = launchTime,
-          exitCase = exitCase)
-      }
-      .map(_._1)
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](

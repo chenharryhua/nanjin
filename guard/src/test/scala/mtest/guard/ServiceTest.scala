@@ -205,17 +205,15 @@ class ServiceTest extends AnyFunSuite {
       }
       .evalTap { case event: ServiceEvent =>
         event match {
-          case _: ServiceStart   => IO(serviceStart += 1)
-          case _: ServicePanic   => IO(shouldNotHappen += 1)
-          case _: ServiceStop    => IO(serviceStop += 1)
-          case _: MetricEvent    => IO(shouldNotHappen += 1)
-          case _: ActionStart    => IO(actionStart += 1)
-          case _: ActionRetry    => IO(actionRetry += 1)
-          case _: ActionFail     => IO(actionFail += 1)
-          case _: ActionSucc     => IO(shouldNotHappen += 1)
-          case _: InstantEvent   => IO(shouldNotHappen += 1)
-          case _: RootSpanStart  => IO(shouldNotHappen += 1)
-          case _: RootSpanFinish => IO(shouldNotHappen += 1)
+          case _: ServiceStart => IO(serviceStart += 1)
+          case _: ServicePanic => IO(shouldNotHappen += 1)
+          case _: ServiceStop  => IO(serviceStop += 1)
+          case _: MetricEvent  => IO(shouldNotHappen += 1)
+          case _: ActionStart  => IO(actionStart += 1)
+          case _: ActionRetry  => IO(actionRetry += 1)
+          case _: ActionFail   => IO(actionFail += 1)
+          case _: ActionSucc   => IO(shouldNotHappen += 1)
+          case _: InstantEvent => IO(shouldNotHappen += 1)
         }
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)

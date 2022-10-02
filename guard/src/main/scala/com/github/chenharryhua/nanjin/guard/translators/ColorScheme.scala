@@ -33,7 +33,5 @@ object ColorScheme {
           case Importance.Low      => InfoColor
         }
       case PassThrough(_, _, _, isError, _) => if (isError) ErrorColor else InfoColor
-      case _: RootSpanStart                 => InfoColor
-      case _: RootSpanFinish                => InfoColor
     }
 }

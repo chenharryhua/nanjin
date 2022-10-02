@@ -273,10 +273,11 @@ lazy val guard = (project in file("guard"))
       "com.lihaoyi" %% "scalatags"       % "0.12.0",
       "org.tpolecat" %% "skunk-core"     % skunkV,
       "org.tpolecat" %% "skunk-circe"    % skunkV,
-      "io.opentracing"                   % "opentracing-api" % "0.33.0",
-      "org.tpolecat" %% "natchez-jaeger" % "0.1.6"           % Test,
-      "org.tpolecat" %% "natchez-log"    % "0.1.6"           % Test,
-      "org.slf4j"                        % "slf4j-reload4j"  % slf4jV % Test
+      "org.tpolecat" %% "natchez-core"   % "0.1.6",
+      "org.tpolecat" %% "natchez-noop"   % "0.1.6",
+      "org.tpolecat" %% "natchez-jaeger" % "0.1.6"          % Test,
+      "org.tpolecat" %% "natchez-log"    % "0.1.6"          % Test,
+      "org.slf4j"                        % "slf4j-reload4j" % slf4jV % Test
     ) ++ cronLib ++ metricLib ++ logLib ++ testLib
   )
 
