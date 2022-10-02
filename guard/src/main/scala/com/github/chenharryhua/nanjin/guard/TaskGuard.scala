@@ -12,7 +12,7 @@ import natchez.noop.NoopEntrypoint
 
 import java.time.ZoneId
 
-/** credit to the excellent retry lib [[https://github.com/cb372/cats-retry]]
+/** poor man's telemetry
   */
 final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: Resource[F, EntryPoint[F]])
     extends UpdateConfig[TaskConfig, TaskGuard[F]] {

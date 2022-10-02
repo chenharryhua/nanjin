@@ -5,17 +5,9 @@ import cats.syntax.all.*
 import cats.Monad
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionFail,
-  ActionRetry,
-  ActionStart,
-  ActionSucc,
-  InstantAlert,
-  PassThrough
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc, InstantAlert, PassThrough}
 import fs2.concurrent.Channel
 import io.circe.Json
-import natchez.Span
 import retry.RetryDetails.WillDelayAndRetry
 
 import java.time.ZonedDateTime
@@ -62,7 +54,7 @@ private object publisher {
     channel: Channel[F, NJEvent],
     actionParams: ActionParams,
     input: F[Json],
-    span: Option[Span[F]]): F[ActionInfo] =
+    span: Option[NJSpan[F]]): F[ActionInfo] =
     for {
       ts <- Clock[F].realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)

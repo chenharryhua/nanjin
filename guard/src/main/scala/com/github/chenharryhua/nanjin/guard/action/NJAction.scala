@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
-import natchez.Span
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.{Duration, ZonedDateTime}
@@ -59,7 +58,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
     }
   }
 
-  def apply(name: String, input: IN, span: Option[Span[F]]): F[OUT] =
+  def apply(name: String, input: IN, span: Option[NJSpan[F]]): F[OUT] =
     F.bracketCase(publisher.actionStart(name, channel, actionParams, transInput(input), span))(actionInfo =>
       retry.mtl
         .retryingOnSomeErrors[OUT]
@@ -137,6 +136,6 @@ final class NJAction0[F[_], OUT] private[guard] (
     isWorthRetry = isWorthRetry
   )
 
-  def run(name: String): F[OUT]                = njAction.apply(name, (), None)
-  def run(name: String, span: Span[F]): F[OUT] = njAction.apply(name, (), Some(span))
+  def run(name: String): F[OUT]                  = njAction.apply(name, (), None)
+  def run(name: String, span: NJSpan[F]): F[OUT] = njAction.apply(name, (), Some(span))
 }

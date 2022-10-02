@@ -27,14 +27,15 @@ class TraceTest extends AnyFunSuite {
     ag.action(_.notice).retry((i: Int) => IO(i + 1)).logOutput((_, out) => out.asJson)
 
   def s_err(ag: Agent[IO]) =
-    ag.action(_.notice.withConstantDelay(1.seconds, 1)).retry(IO.raiseError[Int](new Exception("oops")))
+    ag.action(_.notice.withConstantDelay(1.seconds, 1))
+      .retry((i: Int) => IO.raiseError[Int](new Exception(s"oops-$i")))
 
   test("trace") {
 
     val run = task
       .service("log")
       .eventStream { ag =>
-        s_unit(ag).run("a") >> s_int(ag).run(1)("b") >> s_err(ag).run("c").attempt
+        s_unit(ag).run("a") >> s_int(ag).run(1)("b") >> s_err(ag).run(1)("c").attempt
       }
       .evalMap(console.simple[IO])
       .compile
@@ -59,12 +60,13 @@ class TraceTest extends AnyFunSuite {
       .eventStream { ag =>
         ag.root("jaeger-root2")
           .use(ns =>
-            ns.put("a" -> "a", "b" -> "b") >>
+            ns.put("a" -> "a") >>
               ns.span("child1").use(_.runAction(s_unit(ag))) >>
-              ns.span("child2").use(_.runAction(s_err(ag))).attempt >>
               ns.span("grandchild").use { ns =>
-                ns.put("g1" -> "g1", "g2" -> "g2") >>
-                  ns.span("g1").use(_.runAction(s_unit(ag))) >>
+                ns.put("g1" -> "g1") >>
+                  ns.span("g1")
+                    .use(ns => ns.put("e1" -> "e1") >> ns.runAction(s_err(ag))(1) >> ns.put("e2" -> "e2"))
+                    .attempt >>
                   ns.span("g2").use(ns => ns.runAction(s_int(ag))(1).flatMap(r => ns.put("result" -> r)))
               })
       }
