@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.{Alternative, Endo, Traverse}
-import cats.data.{Ior, IorT}
+import cats.Endo
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.Resource
 import cats.syntax.all.*
@@ -90,29 +89,4 @@ final class Agent[F[_]] private[service] (
       .retry(sfa.compile.drain)
       .run("nonStop")
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
-
-  def quasi[G[_]: Traverse: Alternative, B](tfb: G[F[B]]): IorT[F, G[Throwable], G[B]] =
-    IorT(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
-      (fail.size, succ.size) match {
-        case (0, _) => Ior.Right(succ)
-        case (_, 0) => Ior.left(fail)
-        case _      => Ior.Both(fail, succ)
-      }
-    })
-
-  def quasi[B](fbs: F[B]*): IorT[F, List[Throwable], List[B]] = quasi[List, B](fbs.toList)
-
-  def quasi[G[_]: Traverse: Alternative, B](parallelism: Int, tfb: G[F[B]]): IorT[F, G[Throwable], G[B]] =
-    IorT(
-      F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
-        (fail.size, succ.size) match {
-          case (0, _) => Ior.Right(succ)
-          case (_, 0) => Ior.left(fail)
-          case _      => Ior.Both(fail, succ)
-        }
-      })
-
-  def quasi[B](parallelism: Int)(tfb: F[B]*): IorT[F, List[Throwable], List[B]] =
-    quasi[List, B](parallelism, tfb.toList)
-
 }

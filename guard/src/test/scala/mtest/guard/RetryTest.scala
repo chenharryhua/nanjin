@@ -208,12 +208,13 @@ class RetryTest extends AnyFunSuite {
 
   test("10.quasi syntax") {
     serviceGuard.eventStream { ag =>
-      ag.quasi(3)(IO("a"), IO("b")).value >>
-        ag.quasi(3, List(IO("a"), IO("b"))).value >>
-        ag.quasi(List(IO("a"), IO("b"))).value >>
-        ag.quasi(IO("a"), IO("b")).value >>
-        ag.quasi(IO.print("a"), IO.print("b")).value >>
-        ag.quasi(3)(IO.print("a"), IO.print("b")).value
+      val builder = ag.action(_.notice)
+      builder.quasi(3)(IO("a"), IO("b")).run("q1") >>
+        builder.quasi(3, List(IO("a"), IO("b"))).run("q2") >>
+        builder.quasi(List(IO("a"), IO("b"))).run("q3") >>
+        builder.quasi(IO("a"), IO("b")).run("q4") >>
+        builder.quasi(IO.print("a"), IO.print("b")).run("q5") >>
+        builder.quasi(3)(IO.print("a"), IO.print("b")).run("q6")
     }
   }
 

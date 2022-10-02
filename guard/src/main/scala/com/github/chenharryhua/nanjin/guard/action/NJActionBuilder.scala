@@ -1,7 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Kleisli
+import cats.{Alternative, Traverse}
+import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.Async
+import cats.implicits.{
+  catsSyntaxApplicativeError,
+  toFoldableOps,
+  toFunctorOps,
+  toTraverseOps,
+  toUnorderedFoldableOps
+}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionConfig
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -110,6 +118,30 @@ final class NJActionBuilder[F[_]](
 
   def retry[A](e: Either[Throwable, A]): NJAction0[F, A] = retry(F.fromEither(e))
 
-  // run effect
+  def quasi[G[_]: Traverse: Alternative, B](tfb: G[F[B]]): NJAction0[F, Ior[G[Throwable], G[B]]] =
+    retry(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
+      (fail.size, succ.size) match {
+        case (0, _) => Ior.Right(succ)
+        case (_, 0) => Ior.left(fail)
+        case _      => Ior.Both(fail, succ)
+      }
+    })
+
+  def quasi[B](fbs: F[B]*): NJAction0[F, Ior[List[Throwable], List[B]]] = quasi[List, B](fbs.toList)
+
+  def quasi[G[_]: Traverse: Alternative, B](
+    parallelism: Int,
+    tfb: G[F[B]]): NJAction0[F, Ior[G[Throwable], G[B]]] =
+    retry(
+      F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
+        (fail.size, succ.size) match {
+          case (0, _) => Ior.Right(succ)
+          case (_, 0) => Ior.left(fail)
+          case _      => Ior.Both(fail, succ)
+        }
+      })
+
+  def quasi[B](parallelism: Int)(tfb: F[B]*): NJAction0[F, Ior[List[Throwable], List[B]]] =
+    quasi[List, B](parallelism, tfb.toList)
 
 }
