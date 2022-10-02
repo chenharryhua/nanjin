@@ -23,11 +23,11 @@ class RetryTest extends AnyFunSuite {
 
   test("1.retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
-      gd.action(_.withFullJitterBackoff(1.second, 3))
+      gd.action("t", _.withFullJitterBackoff(1.second, 3))
         .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
         .logOutput((a, _) => a.asJson)
         .withWorthRetry(_ => true)
-        .run(1, 1, 1)("succ-trivial")
+        .run(1, 1, 1)
 
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -38,11 +38,11 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - success notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag = gd
-        .action(_.notice.withExponentialBackoff(1.second, 3))
+        .action("t", _.notice.withExponentialBackoff(1.second, 3))
         .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
         .logInput
         .withWorthRetry(_ => true)
-      List(1, 2, 3).traverse(i => ag.run(i, i, i, i, i)("all-succ"))
+      List(1, 2, 3).traverse(i => ag.run(i, i, i, i, i))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -58,12 +58,12 @@ class RetryTest extends AnyFunSuite {
   test("3.retry - all fail") {
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
       val ag = gd
-        .action(_.notice.withConstantDelay(0.1.second, 1))
+        .action("t", _.notice.withConstantDelay(0.1.second, 1))
         .retry((_: Int, _: Int, _: Int) => IO.raiseError[Int](new Exception))
         .logOutput((in, out) => (in._3, out).asJson)
         .logOutput((in, out) => (in, out).asJson)
 
-      List(1, 2, 3).traverse(i => ag.run(i, i, i)("all-fail").attempt)
+      List(1, 2, 3).traverse(i => ag.run(i, i, i).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -82,13 +82,13 @@ class RetryTest extends AnyFunSuite {
   test("4.retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(s, a, b, c, d, e) = serviceGuard.eventStream { gd =>
-      gd.action(_.notice.withFullJitterBackoff(1.second, 3))
+      gd.action("t", _.notice.withFullJitterBackoff(1.second, 3))
         .retry((_: Int) =>
           IO(if (i < 2) {
             i += 1; throw new Exception
           } else i))
         .logOutput((a, _) => a.asJson)
-        .run(1)("1-time-succ")
+        .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -102,14 +102,14 @@ class RetryTest extends AnyFunSuite {
   test("5.retry - should retry 2 times when operation fail - low") {
     var i = 0
     val Vector(s, b, c, d, e, f) = serviceGuard.eventStream { gd =>
-      gd.action(_.critical.withFullJitterBackoff(1.second, 30))
+      gd.action("t", _.critical.withFullJitterBackoff(1.second, 30))
         .retry((_: Int) =>
           IO(if (i < 2) {
             i += 1
             throw new Exception
           } else i))
         .logInput(_.asJson)
-        .run(1)("1-time-succ")
+        .run(1)
     }.compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -124,10 +124,10 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.action(_.withFibonacciBackoff(0.1.second, 3))
+        gd.action("t", _.withFibonacciBackoff(0.1.second, 3))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
           .logInput
-          .run(1)("escalate-after-3-times")
+          .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -147,10 +147,10 @@ class RetryTest extends AnyFunSuite {
     val s :: b :: c :: d :: e :: _ = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream(ag =>
-        ag.action(_.withCapDelay(1.second).withConstantDelay(100.second, 2))
+        ag.action("t", _.withCapDelay(1.second).withConstantDelay(100.second, 2))
           .retry(IO.raiseError[Int](new NullPointerException))
           .logOutput
-          .run("null exception"))
+          .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
       .compile
@@ -167,10 +167,10 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.action(_.withFibonacciBackoff(0.1.second, 3))
+        gd.action("t", _.withFibonacciBackoff(0.1.second, 3))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(_.isInstanceOf[MyException])
-          .run("predicate")
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -190,10 +190,10 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { gd =>
-        gd.action(_.notice.withFibonacciBackoff(0.1.second, 3))
+        gd.action("t", _.notice.withFibonacciBackoff(0.1.second, 3))
           .retry(IO.raiseError(new Exception))
           .withWorthRetry(_.isInstanceOf[MyException])
-          .run("predicate")
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -208,13 +208,13 @@ class RetryTest extends AnyFunSuite {
 
   test("10.quasi syntax") {
     serviceGuard.eventStream { ag =>
-      val builder = ag.action(_.notice)
-      builder.quasi(3)(IO("a"), IO("b")).run("q1") >>
-        builder.quasi(3, List(IO("a"), IO("b"))).run("q2") >>
-        builder.quasi(List(IO("a"), IO("b"))).run("q3") >>
-        builder.quasi(IO("a"), IO("b")).run("q4") >>
-        builder.quasi(IO.print("a"), IO.print("b")).run("q5") >>
-        builder.quasi(3)(IO.print("a"), IO.print("b")).run("q6")
+      val builder = ag.action("t", _.notice)
+      builder.quasi(3)(IO("a"), IO("b")).run >>
+        builder.quasi(3, List(IO("a"), IO("b"))).run >>
+        builder.quasi(List(IO("a"), IO("b"))).run >>
+        builder.quasi(IO("a"), IO("b")).run >>
+        builder.quasi(IO.print("a"), IO.print("b")).run >>
+        builder.quasi(3)(IO.print("a"), IO.print("b")).run
     }
   }
 

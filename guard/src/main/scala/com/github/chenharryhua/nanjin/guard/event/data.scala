@@ -61,12 +61,11 @@ object MetricReportType {
 
 @JsonCodec
 final case class ActionInfo(
-  name: String,
   actionParams: ActionParams,
   actionId: Int,
   traceId: Option[String],
   launchTime: ZonedDateTime) {
-  val digested: Digested = Digested(actionParams.serviceParams, name)
+
 }
 
 object ActionInfo extends zoneddatetime {

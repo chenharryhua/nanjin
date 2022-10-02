@@ -81,7 +81,7 @@ object NJEvent extends zoneddatetime {
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
-    final def digested: Digested         = actionInfo.digested
+    final def digested: Digested         = actionInfo.actionParams.digested
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: Int              = actionInfo.actionId
 

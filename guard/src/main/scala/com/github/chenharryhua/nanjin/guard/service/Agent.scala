@@ -23,21 +23,21 @@ final class Agent[F[_]] private[service] (
     extends EntryPoint[F] {
 
   override def root(name: String): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.root(name).map(s => new NJSpan[F](name, s)))
+    entryPoint.flatMap(_.root(name).map(s => new NJSpan[F](s)))
 
   override def continue(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continue(name, kernel).map(s => new NJSpan[F](name, s)))
+    entryPoint.flatMap(_.continue(name, kernel).map(s => new NJSpan[F](s)))
 
   override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continueOrElseRoot(name, kernel).map(s => new NJSpan[F](name, s)))
+    entryPoint.flatMap(_.continueOrElseRoot(name, kernel).map(s => new NJSpan[F](s)))
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(cfg: Endo[ActionConfig]): NJActionBuilder[F] =
+  def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = cfg(ActionConfig(serviceParams)))
+      actionParams = cfg(ActionConfig(serviceParams, name)).evalConfig)
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
@@ -85,8 +85,8 @@ final class Agent[F[_]] private[service] (
   // for convenience
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action(_.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
+    action("nonStop", _.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
       .retry(sfa.compile.drain)
-      .run("nonStop")
+      .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 }

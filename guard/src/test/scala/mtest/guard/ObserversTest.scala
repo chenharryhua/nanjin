@@ -20,7 +20,7 @@ import scala.concurrent.duration.*
 // sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
 
-  def ok(agent: Agent[IO]) = agent.action(_.notice).retry(IO(1)).run("ok")
+  def ok(agent: Agent[IO]) = agent.action("ok", _.notice).retry(IO(1)).run
 
   test("1.logging") {
     TaskGuard[IO]("logging")
@@ -28,9 +28,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(hourly).withQueueCapacity(20))
       .eventStream { ag =>
         val err = ag
-          .action(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .retry(IO.raiseError[Int](new Exception("oops")))
-          .run("error")
+          .run
         ok(ag) >> err.attempt
       }
       .evalTap(logging.verbose[IO])
@@ -45,9 +45,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
         val err = ag
-          .action(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .retry(IO.raiseError[Int](new Exception("oops")))
-          .run("error")
+          .run
         ok(ag) >> err.attempt
 
       }
@@ -63,9 +63,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
         val err = ag
-          .action(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .retry(IO.raiseError[Int](new Exception("oops")))
-          .run("error")
+          .run
         ok(ag) >> err.attempt
       }
       .evalTap(console(Translator.simpleJson[IO].map(_.noSpaces)))
@@ -81,9 +81,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
         val err = ag
-          .action(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .retry(IO.raiseError[Int](new Exception("oops")))
-          .run("error")
+          .run
         ok(ag) >> err.attempt
       }
       .interruptAfter(7.seconds)
@@ -110,9 +110,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream { ag =>
         val err =
-          ag.action(_.critical.withConstantDelay(2.seconds, 1))
+          ag.action("error", _.critical.withConstantDelay(2.seconds, 1))
             .retry(IO.raiseError[Int](new Exception("oops")))
-            .run("error")
+            .run
         ok(ag) >> err.attempt
       }
       .take(9)
@@ -136,9 +136,9 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
       .eventStream { ag =>
         val err = ag
-          .action(_.critical.withConstantDelay(2.seconds, 1))
+          .action("error", _.critical.withConstantDelay(2.seconds, 1))
           .retry(IO.raiseError[Int](new Exception("oops")))
-          .run("error")
+          .run
         ok(ag) >> err.attempt
       }
       .through(mail.observe(snsArn, "title"))
@@ -159,9 +159,9 @@ class ObserversTest extends AnyFunSuite {
       .service("lense")
       .eventStream { ag =>
         val err =
-          ag.action(_.critical.withConstantDelay(2.seconds, 1))
+          ag.action("error", _.critical.withConstantDelay(2.seconds, 1))
             .retry(IO.raiseError[Int](new Exception("oops")))
-            .run("error")
+            .run
         ok(ag) >> err.attempt
       }
       .evalTap(console(len.map(_.show)))
@@ -204,7 +204,7 @@ class ObserversTest extends AnyFunSuite {
     val run = session.use(_.execute(cmd)) >>
       TaskGuard[IO]("postgres")
         .service("postgres")
-        .eventStream(_.action(_.notice).retry(IO(0)).run("sql"))
+        .eventStream(_.action("sql", _.notice).retry(IO(0)).run)
         .evalTap(console.verbose[IO])
         .through(PostgresObserver(session).observe("log"))
         .compile
@@ -218,7 +218,7 @@ class ObserversTest extends AnyFunSuite {
       .service("sqs")
       .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second).withMetricDailyReset)
       .eventStream(
-        _.action(_.critical).retry(IO.raiseError(new Exception)).run("sqs").delayBy(3.seconds).foreverM)
+        _.action("sqs", _.critical).retry(IO.raiseError(new Exception)).run.delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo")))
       .compile

@@ -20,13 +20,13 @@ import scala.concurrent.duration.*
 class TraceTest extends AnyFunSuite {
 
   def s_unit(ag: Agent[IO]) =
-    ag.action(_.notice).retry(IO(()))
+    ag.action("a1").retry(IO(()))
 
   def s_int(ag: Agent[IO]) =
-    ag.action(_.notice).retry((i: Int) => IO(i + 1)).logOutput((_, out) => out.asJson)
+    ag.action("a2").retry((i: Int) => IO(i + 1)).logOutput((_, out) => out.asJson)
 
   def s_err(ag: Agent[IO]) =
-    ag.action(_.notice.withConstantDelay(1.seconds, 1))
+    ag.action("a3", _.notice.withConstantDelay(1.seconds, 1))
       .retry((i: Int) => IO.raiseError[Int](new Exception(s"oops-$i")))
 
   test("trace") {
@@ -38,16 +38,16 @@ class TraceTest extends AnyFunSuite {
       .service("log")
       .eventStream { ag =>
         val span = ag.root("log-root")
-        val a1   = ag.action(_.silent).retry(IO(()))
-        val a2   = ag.action(_.silent).retry((i: Int) => IO(i + 1))
-        val a3   = ag.action(_.silent).retry((i: Int) => IO.raiseError(new Exception(i.toString)))
+        val a1   = ag.action("a1").retry(IO(()))
+        val a2   = ag.action("a2").retry((i: Int) => IO(i + 1))
+        val a3   = ag.action("a3").retry((i: Int) => IO.raiseError(new Exception(i.toString)))
 
         span.use(s =>
           s.runAction(a1) >> s
             .span("c1")
             .use(s =>
               s.runAction(a2)(1) >>
-                s.span("c2").use(_.runAction(a3)(1)).attempt))
+                s.span("c2").use(_.runAction(a3)(1).attempt)))
       }
       .evalMap(console.simple[IO])
       .compile

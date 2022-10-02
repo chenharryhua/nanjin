@@ -11,7 +11,7 @@ import cats.implicits.{
   toUnorderedFoldableOps
 }
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.ActionConfig
+import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -23,7 +23,7 @@ import scala.util.Try
 final class NJActionBuilder[F[_]](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  actionConfig: ActionConfig
+  actionParams: ActionParams
 )(implicit F: Async[F]) {
 
   // retries
@@ -31,7 +31,7 @@ final class NJActionBuilder[F[_]](
     new NJAction0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig,
+      actionParams = actionParams,
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
@@ -42,7 +42,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig,
+      actionParams = actionParams,
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
@@ -53,7 +53,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig,
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
@@ -64,7 +64,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig,
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
@@ -75,7 +75,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig,
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
@@ -86,7 +86,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig,
+      actionParams = actionParams,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
