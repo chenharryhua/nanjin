@@ -1,14 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.Show
+import cats.{Monad, Show}
 import cats.effect.kernel.Outcome
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
-import io.circe.generic.JsonCodec
+import io.circe.generic.*
+import natchez.{Span, Trace}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
-
+import java.net.URI
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
@@ -61,13 +62,10 @@ object MetricReportType {
 
 @JsonCodec
 final case class ActionInfo(
-  name: String,
   actionParams: ActionParams,
   actionId: Int,
-  traceId: Option[String],
-  launchTime: ZonedDateTime) {
-  val digested: Digested = Digested(actionParams.serviceParams, name)
-}
+  traceInfo: Option[TraceInfo],
+  launchTime: ZonedDateTime)
 
 object ActionInfo extends zoneddatetime {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
@@ -110,4 +108,23 @@ object ServiceStopCause {
   final case class ByException(msg: String) extends ServiceStopCause {
     override val exitCode: Int = 2
   }
+}
+
+@JsonCodec
+final case class TraceInfo(kernel: Map[String, String], traceId: Option[String], traceUri: Option[URI])
+object TraceInfo {
+  implicit final val showURI: Show[URI]             = _.toString
+  implicit final val showTraceInfo: Show[TraceInfo] = cats.derived.semiauto.show
+
+  def apply[F[_]: Monad](trace: Trace[F]): F[TraceInfo] = for {
+    k <- trace.kernel.map(_.toHeaders)
+    id <- trace.traceId
+    uri <- trace.traceUri
+  } yield TraceInfo(k, id, uri)
+
+  def apply[F[_]: Monad](span: Span[F]): F[TraceInfo] = for {
+    k <- span.kernel.map(_.toHeaders)
+    id <- span.traceId
+    uri <- span.traceUri
+  } yield TraceInfo(k, id, uri)
 }

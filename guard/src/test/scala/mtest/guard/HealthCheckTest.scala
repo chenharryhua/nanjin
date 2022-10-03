@@ -25,7 +25,7 @@ class HealthCheckTest extends AnyFunSuite {
       .withJmxReporter(_.inDomain("abc"))
       .withMetricFilter(MetricFilter.startsWith("01"))
       .updateConfig(_.withMetricReport(2.seconds))
-      .eventStream(gd => gd.action(_.notice).retry(IO.never[Int]).run("cron"))
+      .eventStream(gd => gd.action("cron", _.notice).retry(IO.never[Int]).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(9.second)
@@ -46,7 +46,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .updateConfig(_.withMetricReport(1.second))
       .eventStream(gd =>
-        gd.action(_.notice).retry(IO(1)).run("a") >> gd.action(_.notice).retry(IO.never).run("b"))
+        gd.action("a", _.notice).retry(IO(1)).run >> gd.action("b", _.notice).retry(IO.never).run)
       .evalTap(console.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -71,9 +71,9 @@ class HealthCheckTest extends AnyFunSuite {
           .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
           .withMetricRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd =>
-        gd.action(_.notice.withConstantDelay(300.second, 10).withCapDelay(2.seconds))
+        gd.action("not/fail/yet", _.notice.withConstantDelay(300.second, 10).withCapDelay(2.seconds))
           .retry(IO.raiseError(new Exception))
-          .run("not/fail/yet"))
+          .run)
       .interruptAfter(5.second)
       .evalTap(logging.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -91,7 +91,7 @@ class HealthCheckTest extends AnyFunSuite {
     val list = guard
       .service("metrics-reset-test")
       .updateConfig(_.withMetricReport(2.seconds).withMetricReset(trisecondly))
-      .eventStream(_.action(_.silent).retry(IO.never).run("ok"))
+      .eventStream(_.action("ok", _.silent).retry(IO.never).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .evalTap(logging.simple[IO])

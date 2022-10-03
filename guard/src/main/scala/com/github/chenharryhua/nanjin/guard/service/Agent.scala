@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import fs2.Stream
-import natchez.{EntryPoint, Kernel}
+import natchez.{EntryPoint, Kernel, Span}
 
 import java.time.ZoneId
 
@@ -22,21 +22,22 @@ final class Agent[F[_]] private[service] (
   entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
     extends EntryPoint[F] {
 
-  override def root(name: String): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.root(name).map(s => new NJSpan[F](name, s)))
+  override def root(name: String): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.root(name))
 
-  override def continue(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continue(name, kernel).map(s => new NJSpan[F](name, s)))
+  override def continue(name: String, kernel: Kernel): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.continue(name, kernel))
 
-  override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continueOrElseRoot(name, kernel).map(s => new NJSpan[F](name, s)))
+  override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.continueOrElseRoot(name, kernel))
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
-  def action(cfg: Endo[ActionConfig]): NJActionBuilder[F] =
+  def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
       metricRegistry = metricRegistry,
       channel = channel,
+      name = name,
       actionConfig = cfg(ActionConfig(serviceParams)))
 
   def broker(brokerName: String): NJBroker[F] =
@@ -85,8 +86,8 @@ final class Agent[F[_]] private[service] (
   // for convenience
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action(_.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
+    action("nonStop", _.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
       .retry(sfa.compile.drain)
-      .run("nonStop")
+      .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 }

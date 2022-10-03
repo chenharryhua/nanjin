@@ -4,8 +4,15 @@ import cats.effect.kernel.{Clock, Unique}
 import cats.syntax.all.*
 import cats.Monad
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc, InstantAlert, PassThrough}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, TraceInfo}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionFail,
+  ActionRetry,
+  ActionStart,
+  ActionSucc,
+  InstantAlert,
+  PassThrough
+}
 import fs2.concurrent.Channel
 import io.circe.Json
 import retry.RetryDetails.WillDelayAndRetry
@@ -50,21 +57,14 @@ private object publisher {
     } yield ()
 
   def actionStart[F[_]: Monad: Clock: Unique](
-    name: String,
     channel: Channel[F, NJEvent],
     actionParams: ActionParams,
     input: F[Json],
-    span: Option[NJSpan[F]]): F[ActionInfo] =
+    traceInfo: Option[TraceInfo]): F[ActionInfo] =
     for {
       ts <- Clock[F].realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
-      traceId <- span.flatTraverse(_.traceId)
-      ai = ActionInfo(
-        name = name,
-        traceId = traceId,
-        actionParams = actionParams,
-        actionId = token,
-        launchTime = ts)
+      ai = ActionInfo(traceInfo = traceInfo, actionParams = actionParams, actionId = token, launchTime = ts)
       _ <- input
         .flatMap(json => channel.send(ActionStart(actionInfo = ai, input = json)))
         .whenA(actionParams.isNotice)
