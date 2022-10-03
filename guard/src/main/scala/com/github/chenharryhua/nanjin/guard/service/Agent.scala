@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import fs2.Stream
-import natchez.{EntryPoint, Kernel}
+import natchez.{EntryPoint, Kernel, Span}
 
 import java.time.ZoneId
 
@@ -22,14 +22,14 @@ final class Agent[F[_]] private[service] (
   entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
     extends EntryPoint[F] {
 
-  override def root(name: String): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.root(name).map(s => new NJSpan[F](s)))
+  override def root(name: String): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.root(name))
 
-  override def continue(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continue(name, kernel).map(s => new NJSpan[F](s)))
+  override def continue(name: String, kernel: Kernel): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.continue(name, kernel))
 
-  override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, NJSpan[F]] =
-    entryPoint.flatMap(_.continueOrElseRoot(name, kernel).map(s => new NJSpan[F](s)))
+  override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.continueOrElseRoot(name, kernel))
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
@@ -37,7 +37,8 @@ final class Agent[F[_]] private[service] (
     new NJActionBuilder[F](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = cfg(ActionConfig(serviceParams, name)).evalConfig)
+      name = name,
+      actionConfig = cfg(ActionConfig(serviceParams)))
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](

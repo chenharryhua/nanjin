@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.{Alternative, Traverse}
+import cats.{Alternative, Endo, Traverse}
 import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.Async
 import cats.implicits.{
@@ -11,10 +11,12 @@ import cats.implicits.{
   toUnorderedFoldableOps
 }
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.guard.config.ActionConfig
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
@@ -23,15 +25,22 @@ import scala.util.Try
 final class NJActionBuilder[F[_]](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  actionParams: ActionParams
-)(implicit F: Async[F]) {
+  name: String,
+  actionConfig: ActionConfig
+)(implicit F: Async[F])
+    extends UpdateConfig[ActionConfig, NJActionBuilder[F]] {
+  def apply(name: String): NJActionBuilder[F] =
+    new NJActionBuilder[F](metricRegistry, channel, name, actionConfig)
+
+  def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] =
+    new NJActionBuilder[F](metricRegistry, channel, name, f(actionConfig))
 
   // retries
   def retry[Z](fb: F[Z]): NJAction0[F, Z] = // 0 arity
     new NJAction0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name),
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
@@ -42,7 +51,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name),
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
@@ -53,7 +62,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
@@ -64,7 +73,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
@@ -75,7 +84,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
@@ -86,7 +95,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionParams,
+      actionParams = actionConfig.evalConfig(name),
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
@@ -114,34 +123,47 @@ final class NJActionBuilder[F[_]](
     retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
 
   // error-like
-  def retry[A](t: Try[A]): NJAction0[F, A] = retry(F.fromTry(t))
+  def retry[Z](t: Try[Z]): NJAction0[F, Z] = retry(F.fromTry(t))
 
-  def retry[A](e: Either[Throwable, A]): NJAction0[F, A] = retry(F.fromEither(e))
+  def retry[Z](e: Either[Throwable, Z]): NJAction0[F, Z] = retry(F.fromEither(e))
 
-  def quasi[G[_]: Traverse: Alternative, B](tfb: G[F[B]]): NJAction0[F, Ior[G[Throwable], G[B]]] =
-    retry(tfb.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
+  // quasi never raise exception
+  private def logJson[G[_]: Traverse, Z](ior: Ior[G[Throwable], G[Z]], jobs: Long): Json =
+    ior match {
+      case Ior.Left(a)  => Json.obj("jobs" -> jobs.asJson, "failed" -> a.size.asJson)
+      case Ior.Right(b) => Json.obj("jobs" -> jobs.asJson, "succed" -> b.size.asJson)
+      case Ior.Both(a, b) =>
+        Json.obj("jobs" -> jobs.asJson, "failed" -> a.size.asJson, "succed" -> b.size.asJson)
+    }
+
+  def quasi[G[_]: Traverse: Alternative, Z](gfz: G[F[Z]]): NJAction0[F, Ior[G[Throwable], G[Z]]] = {
+    val jobs = gfz.size
+    retry(gfz.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
       (fail.size, succ.size) match {
         case (0, _) => Ior.Right(succ)
         case (_, 0) => Ior.left(fail)
         case _      => Ior.Both(fail, succ)
       }
-    })
+    }).logOutput(logJson(_, jobs)).logInput(Json.obj("jobs" -> jobs.asJson))
+  }
 
-  def quasi[B](fbs: F[B]*): NJAction0[F, Ior[List[Throwable], List[B]]] = quasi[List, B](fbs.toList)
+  def quasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = quasi[List, Z](fzs.toList)
 
-  def quasi[G[_]: Traverse: Alternative, B](
+  def quasi[G[_]: Traverse: Alternative, Z](
     parallelism: Int,
-    tfb: G[F[B]]): NJAction0[F, Ior[G[Throwable], G[B]]] =
+    gfz: G[F[Z]]): NJAction0[F, Ior[G[Throwable], G[Z]]] = {
+    val jobs = gfz.size
     retry(
-      F.parTraverseN(parallelism)(tfb)(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
+      F.parTraverseN(parallelism)(gfz)(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
         (fail.size, succ.size) match {
           case (0, _) => Ior.Right(succ)
           case (_, 0) => Ior.left(fail)
           case _      => Ior.Both(fail, succ)
         }
-      })
+      }).logOutput(logJson(_, jobs)).logInput(Json.obj("jobs" -> jobs.asJson))
+  }
 
-  def quasi[B](parallelism: Int)(tfb: F[B]*): NJAction0[F, Ior[List[Throwable], List[B]]] =
-    quasi[List, B](parallelism, tfb.toList)
+  def quasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =
+    quasi[List, Z](parallelism, fzs.toList)
 
 }

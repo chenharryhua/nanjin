@@ -9,11 +9,11 @@ import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.generic.JsonCodec
-import io.circe.literal.*
 import io.circe.optics.JsonPath.*
 import io.circe.parser.*
 import io.circe.Json
 import io.circe.jackson.jacksonToCirce
+import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
@@ -44,12 +44,11 @@ final case class SqsMessage(
       val body = parse(response.getBody).toOption.orElse(Option(response.getBody).map(Json.fromString))
       root.at("body").set(body)(js)
     }
-    json"""{
-            "response": ${resp.toOption},
-            "batchIndex": $batchIndex,
-            "messageIndex": $messageIndex,
-            "batchSize": $batchSize
-          }"""
+    Json.obj(
+      "response" -> resp.toOption.asJson,
+      "batchIndex" -> batchIndex.asJson,
+      "messageIndex" -> messageIndex.asJson,
+      "batchSize" -> batchSize.asJson)
   }
 
   def requestJson: Json =

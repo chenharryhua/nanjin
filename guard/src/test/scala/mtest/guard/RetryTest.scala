@@ -27,7 +27,7 @@ class RetryTest extends AnyFunSuite {
         .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
         .logOutput((a, _) => a.asJson)
         .withWorthRetry(_ => true)
-        .run(1, 1, 1)
+        .run((1, 1, 1))
 
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -42,7 +42,7 @@ class RetryTest extends AnyFunSuite {
         .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
         .logInput
         .withWorthRetry(_ => true)
-      List(1, 2, 3).traverse(i => ag.run(i, i, i, i, i))
+      List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -63,7 +63,7 @@ class RetryTest extends AnyFunSuite {
         .logOutput((in, out) => (in._3, out).asJson)
         .logOutput((in, out) => (in, out).asJson)
 
-      List(1, 2, 3).traverse(i => ag.run(i, i, i).attempt)
+      List(1, 2, 3).traverse(i => ag.run((i, i, i)).attempt)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])

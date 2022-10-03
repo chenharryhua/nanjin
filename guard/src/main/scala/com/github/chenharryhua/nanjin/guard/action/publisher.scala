@@ -4,7 +4,7 @@ import cats.effect.kernel.{Clock, Unique}
 import cats.syntax.all.*
 import cats.Monad
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, TraceInfo}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionFail,
   ActionRetry,
@@ -60,11 +60,11 @@ private object publisher {
     channel: Channel[F, NJEvent],
     actionParams: ActionParams,
     input: F[Json],
-    traceId: Option[String]): F[ActionInfo] =
+    traceInfo: Option[TraceInfo]): F[ActionInfo] =
     for {
       ts <- Clock[F].realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
       token <- Unique[F].unique.map(_.hash)
-      ai = ActionInfo(traceId = traceId, actionParams = actionParams, actionId = token, launchTime = ts)
+      ai = ActionInfo(traceInfo = traceInfo, actionParams = actionParams, actionId = token, launchTime = ts)
       _ <- input
         .flatMap(json => channel.send(ActionStart(actionInfo = ai, input = json)))
         .whenA(actionParams.isNotice)

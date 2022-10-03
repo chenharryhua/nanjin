@@ -2,32 +2,20 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
-import io.circe.syntax.EncoderOps
 import io.jaegertracing.Configuration
 import natchez.jaeger.Jaeger
 import natchez.log.Log
+import natchez.Trace
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.URI
-import scala.concurrent.duration.*
 
 class TraceTest extends AnyFunSuite {
-
-  def s_unit(ag: Agent[IO]) =
-    ag.action("a1").retry(IO(()))
-
-  def s_int(ag: Agent[IO]) =
-    ag.action("a2").retry((i: Int) => IO(i + 1)).logOutput((_, out) => out.asJson)
-
-  def s_err(ag: Agent[IO]) =
-    ag.action("a3", _.notice.withConstantDelay(1.seconds, 1))
-      .retry((i: Int) => IO.raiseError[Int](new Exception(s"oops-$i")))
 
   test("trace") {
     implicit val log: Logger[IO] = Slf4jLogger.getLoggerFromName("test-logger")
@@ -43,11 +31,11 @@ class TraceTest extends AnyFunSuite {
         val a3   = ag.action("a3").retry((i: Int) => IO.raiseError(new Exception(i.toString)))
 
         span.use(s =>
-          s.runAction(a1) >> s
+          (a1.runWithSpan(s)) >> s
             .span("s1")
             .use(s =>
-              s.runAction(a2)(1) >>
-                s.span("s2").use(_.runAction(a3)(1)).attempt))
+              a2.runWithSpan(1)(s) >>
+                s.span("s2").use(s => a3.runWithSpan(1)(s)).attempt))
       }
       .evalMap(console.simple[IO])
       .compile
@@ -76,10 +64,12 @@ class TraceTest extends AnyFunSuite {
           val a2   = ag.action("a2").retry((i: Int) => IO(i + 1))
           val a3   = ag.action("a3").retry((i: Int) => IO.raiseError(new Exception(i.toString)))
 
-          span.use(ns =>
-            ns.runAction(a1) >>
-              ns.span("cs1").use(_.runAction(a2)(1)) >>
-              ns.span("cs2").use(_.runAction(a3)(1).attempt))
+          span
+            .evalMap(Trace.ioTrace)
+            .use(implicit ns =>
+              (a1.runWithTrace) >>
+                ns.span("cs2")(a2.runWithTrace(1)) >>
+                ns.span("cs3")(a3.runWithTrace(1).attempt))
         }
         .evalTap(console.simple[IO])
         .compile

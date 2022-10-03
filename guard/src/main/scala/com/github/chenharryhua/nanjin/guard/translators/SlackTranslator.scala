@@ -180,7 +180,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""*Action Name:* ${evt.digested.metricRepr}
                                |*Action ID:* ${evt.actionId.show}
-                               |Trace ID:* ${traceId(evt)}
+                               |*Trace ID:* ${traceId(evt)}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
           )

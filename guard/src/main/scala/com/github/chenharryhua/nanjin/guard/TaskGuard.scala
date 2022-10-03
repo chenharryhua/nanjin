@@ -26,7 +26,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
     new TaskGuard[F](taskConfig, ep)
 
   def withEntryPoint(ep: EntryPoint[F]): TaskGuard[F] =
-    new TaskGuard[F](taskConfig, Resource.pure(ep))
+    withEntryPoint(Resource.pure[F, EntryPoint[F]](ep))
 
   def service(serviceName: ServiceName): ServiceGuard[F] =
     new ServiceGuard[F](ServiceConfig(serviceName, params), Nil, MetricFilter.ALL, None, entryPoint)

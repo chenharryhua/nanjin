@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
+import natchez.{Span, Trace}
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 
 import java.time.{Duration, ZonedDateTime}
@@ -59,7 +60,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
     }
   }
 
-  private def internal(input: IN, traceId: Option[String]): F[OUT] =
+  private def internal(input: IN, traceId: Option[TraceInfo]): F[OUT] =
     F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceId))(actionInfo =>
       retry.mtl
         .retryingOnSomeErrors[OUT]
@@ -88,22 +89,22 @@ final class NJAction[F[_], IN, OUT] private[action] (
       }
     }
 
-  def apply(input: IN, span: Option[NJSpan[F]]): F[OUT] =
-    span match { // wrap action in span if exist
-      case Some(nj) => nj.span(actionParams.name).use(_.traceId.flatMap(internal(input, _)))
-      case None     => internal(input, None)
-    }
+  def run(input: IN): F[OUT] = internal(input, None)
 
-  def run[A](a: A)(implicit ev: A =:= IN): F[OUT] =
-    apply(a, None)
-  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT] =
-    apply((a, b), None)
-  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT] =
-    apply((a, b, c), None)
-  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] =
-    apply((a, b, c, d), None)
-  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
-    apply((a, b, c, d, e), None)
+  def runWithTrace(input: IN)(implicit trace: Trace[F]): F[OUT] =
+    for {
+      _ <- trace.put("nj_action" -> actionParams.digested.metricRepr)
+      ti <- TraceInfo(trace)
+      res <- internal(input, Some(ti))
+    } yield res
+
+  def runWithSpan(input: IN)(span: Span[F]): F[OUT] =
+    for {
+      _ <- span.put("nj_action" -> actionParams.digested.metricRepr)
+      ti <- TraceInfo(span)
+      res <- internal(input, Some(ti))
+    } yield res
+
 }
 
 final class NJAction0[F[_], OUT] private[guard] (
@@ -140,6 +141,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     isWorthRetry = isWorthRetry
   )
 
-  val run: F[OUT]                  = njAction.apply((), None)
-  def run(span: NJSpan[F]): F[OUT] = njAction.apply((), Some(span))
+  val run: F[OUT]                                    = njAction.run(())
+  def runWithSpan(span: Span[F]): F[OUT]             = njAction.runWithSpan(())(span)
+  def runWithTrace(implicit trace: Trace[F]): F[OUT] = njAction.runWithTrace(())
 }

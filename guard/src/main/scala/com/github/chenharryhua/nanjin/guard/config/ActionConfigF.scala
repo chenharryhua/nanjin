@@ -87,7 +87,7 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](serviceParams: ServiceParams, actionName: String) extends ActionConfigF[K]
+  final case class InitParams[K](serviceParams: ServiceParams) extends ActionConfigF[K]
 
   final case class WithCapDelay[K](value: Duration, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](policy: NJRetryPolicy, max: Option[MaxRetry], cont: K)
@@ -97,9 +97,9 @@ private object ActionConfigF {
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
-  val algebra: Algebra[ActionConfigF, ActionParams] =
+  def algebra(name: String): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(sp, name) => ActionParams(sp, name)
+      case InitParams(sp) => ActionParams(sp, name)
       case WithRetryPolicy(p, m, c) =>
         ActionParams.retry
           .composeLens(ActionRetryParams.njRetryPolicy)
@@ -142,11 +142,11 @@ final private[guard] case class ActionConfig private (value: Fix[ActionConfigF])
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)))
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)))
 
-  val evalConfig: ActionParams = scheme.cata(algebra).apply(value)
+  def evalConfig(name: String): ActionParams = scheme.cata(algebra(name)).apply(value)
 }
 
 private[guard] object ActionConfig {
 
-  def apply(sp: ServiceParams, actionName: String): ActionConfig =
-    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp, actionName)))
+  def apply(sp: ServiceParams): ActionConfig =
+    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp)))
 }
