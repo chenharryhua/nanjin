@@ -128,13 +128,18 @@ final class NJActionBuilder[F[_]](
   def retry[Z](e: Either[Throwable, Z]): NJAction0[F, Z] = retry(F.fromEither(e))
 
   // quasi never raise exception
-  private def logJson[G[_]: Traverse, Z](ior: Ior[G[Throwable], G[Z]], jobs: Long): Json =
-    ior match {
+  private def outputJson[G[_]: Traverse, Z](ior: Ior[G[Throwable], G[Z]], jobs: Long): Json = {
+    val body = ior match {
       case Ior.Left(a)  => Json.obj("jobs" -> jobs.asJson, "failed" -> a.size.asJson)
       case Ior.Right(b) => Json.obj("jobs" -> jobs.asJson, "succed" -> b.size.asJson)
       case Ior.Both(a, b) =>
         Json.obj("jobs" -> jobs.asJson, "failed" -> a.size.asJson, "succed" -> b.size.asJson)
     }
+    Json.obj("quasi" -> body)
+  }
+
+  private def inputJson(jobs: Long): Json =
+    Json.obj("quasi" -> Json.obj("jobs" -> jobs.asJson))
 
   def quasi[G[_]: Traverse: Alternative, Z](gfz: G[F[Z]]): NJAction0[F, Ior[G[Throwable], G[Z]]] = {
     val jobs = gfz.size
@@ -144,7 +149,7 @@ final class NJActionBuilder[F[_]](
         case (_, 0) => Ior.left(fail)
         case _      => Ior.Both(fail, succ)
       }
-    }).logOutput(logJson(_, jobs)).logInput(Json.obj("jobs" -> jobs.asJson))
+    }).logOutput(outputJson(_, jobs)).logInput(inputJson(jobs))
   }
 
   def quasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = quasi[List, Z](fzs.toList)
@@ -160,7 +165,7 @@ final class NJActionBuilder[F[_]](
           case (_, 0) => Ior.left(fail)
           case _      => Ior.Both(fail, succ)
         }
-      }).logOutput(logJson(_, jobs)).logInput(Json.obj("jobs" -> jobs.asJson))
+      }).logOutput(outputJson(_, jobs)).logInput(inputJson(jobs))
   }
 
   def quasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =

@@ -15,10 +15,10 @@ private object SimpleJsonTranslator {
   private def serviceName(evt: NJEvent): (String, Json) =
     ("serviceName", Json.fromString(evt.serviceName.value))
 
-  private def name(dg: Digested): (String, Json)         = "name" -> Json.fromString(dg.name)
-  private def digest(dg: Digested): (String, Json)       = "digest" -> Json.fromString(dg.digest)
-  private def actionId(evt: ActionEvent): (String, Json) = "id" -> Json.fromInt(evt.actionId)
-  private def traceId(evt: ActionEvent): (String, Json)  = "traceId" -> evt.traceId.asJson
+  private def name(dg: Digested): (String, Json)          = "name" -> Json.fromString(dg.name)
+  private def digest(dg: Digested): (String, Json)        = "digest" -> Json.fromString(dg.digest)
+  private def actionId(evt: ActionEvent): (String, Json)  = "id" -> Json.fromInt(evt.actionId)
+  private def traceInfo(evt: ActionEvent): (String, Json) = "traceInfo" -> evt.actionInfo.traceInfo.asJson
 
   private def stackTrace(err: NJError): (String, Json)    = "stackTrace" -> Json.fromString(err.stackTrace)
   private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
@@ -100,7 +100,7 @@ private object SimpleJsonTranslator {
       "ActionStart" ->
         Json.obj(
           name(evt.digested),
-          traceId(evt),
+          traceInfo(evt),
           ("input", evt.input),
           digest(evt.digested),
           actionId(evt),
@@ -113,7 +113,7 @@ private object SimpleJsonTranslator {
       "ActionRetry" ->
         Json.obj(
           name(evt.digested),
-          traceId(evt),
+          traceInfo(evt),
           ("cause", Json.fromString(evt.error.message)),
           digest(evt.digested),
           actionId(evt),
@@ -126,7 +126,7 @@ private object SimpleJsonTranslator {
       "ActionFail" ->
         Json.obj(
           name(evt.digested),
-          traceId(evt),
+          traceInfo(evt),
           ("input", evt.input),
           stackTrace(evt.error),
           digest(evt.digested),
@@ -140,7 +140,7 @@ private object SimpleJsonTranslator {
       "ActionSucc" ->
         Json.obj(
           name(evt.digested),
-          traceId(evt),
+          traceInfo(evt),
           ("output", evt.output),
           digest(evt.digested),
           actionId(evt),

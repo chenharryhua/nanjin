@@ -60,8 +60,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
     }
   }
 
-  private def internal(input: IN, traceId: Option[TraceInfo]): F[OUT] =
-    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceId))(actionInfo =>
+  private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
+    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceInfo))(actionInfo =>
       retry.mtl
         .retryingOnSomeErrors[OUT]
         .apply[F, Throwable](
