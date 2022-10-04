@@ -1,5 +1,6 @@
 package mtest.guard
 
+import cats.data.Validated
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
@@ -13,6 +14,7 @@ import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import scala.util.Try
 
 final case class MyException() extends Exception("my exception")
 
@@ -24,7 +26,7 @@ class RetryTest extends AnyFunSuite {
   test("1.retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd.action("t", _.withFullJitterBackoff(1.second, 3))
-        .retry((x: Int, y: Int, z: Int) => IO(x + y + z))
+        .retry(fun3 _)
         .logOutput((a, _) => a.asJson)
         .withWorthRetry(_ => true)
         .run((1, 1, 1))
@@ -39,7 +41,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag = gd
         .action("t", _.notice.withExponentialBackoff(1.second, 3))
-        .retry((v: Int, w: Int, x: Int, y: Int, z: Int) => IO(v + w + x + y + z))
+        .retry(fun5 _)
         .logInput
         .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
@@ -216,6 +218,28 @@ class RetryTest extends AnyFunSuite {
         builder.quasi(IO.print("a"), IO.print("b")).run >>
         builder.quasi(3)(IO.print("a"), IO.print("b")).run
     }
+  }
+
+  test("run synatx") {
+    serviceGuard.eventStream { ag =>
+      val a0 = ag.action("a0").retry(unit_fun).run
+      val a1 = ag.action("a1").retry(fun1 _).run(1)
+      val a2 = ag.action("a2").retry(fun2 _).run((1, 2))
+      val a3 = ag.action("a3").retry(fun3 _).run((1, 2, 3))
+      val a4 = ag.action("a4").retry(fun4 _).run((1, 2, 3, 4))
+      val a5 = ag.action("a5").retry(fun5 _).run((1, 2, 3, 4, 5))
+      val f0 = ag.action("f0").retryFuture(fun0fut).run
+      val f1 = ag.action("f1").retryFuture(fun1fut _).run(1)
+      val f2 = ag.action("f2").retryFuture(fun2fut _).run((1, 2))
+      val f3 = ag.action("f3").retryFuture(fun3fut _).run((1, 2, 3))
+      val f4 = ag.action("f4").retryFuture(fun4fut _).run((1, 2, 3, 4))
+      val f5 = ag.action("f5").retryFuture(fun5fut _).run((1, 2, 3, 4, 5))
+      val e1 = ag.action("e1").retry(Try(1)).run
+      val e2 = ag.action("e2").retry(Some(1)).run
+      val e3 = ag.action("e3").retry(Right(1)).run
+      val e4 = ag.action("e4").retry(Validated.Valid(1)).run
+      a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> e1 >> e2 >> e3 >> e4
+    }.compile.drain.unsafeRunSync()
   }
 
   test("12.retry - nonterminating - should retry") {

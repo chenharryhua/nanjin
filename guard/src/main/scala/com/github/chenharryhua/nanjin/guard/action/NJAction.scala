@@ -60,8 +60,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
     }
   }
 
-  private def internal(input: IN, traceId: Option[TraceInfo]): F[OUT] =
-    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceId))(actionInfo =>
+  private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
+    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceInfo))(actionInfo =>
       retry.mtl
         .retryingOnSomeErrors[OUT]
         .apply[F, Throwable](
@@ -122,8 +122,8 @@ final class NJAction0[F[_], OUT] private[guard] (
     new NJAction0[F, OUT](metricRegistry, channel, actionParams, arrow, transInput, transOutput, isWorthRetry)
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJAction0[F, OUT] = copy(isWorthRetry = Kleisli(f))
-  def withWorthRetry(f: Throwable => Boolean): NJAction0[F, OUT] = withWorthRetryM(
-    Kleisli.fromFunction(f).run)
+  def withWorthRetry(f: Throwable => Boolean): NJAction0[F, OUT] =
+    withWorthRetryM(Kleisli.fromFunction(f).run)
 
   def logInputM(info: F[Json]): NJAction0[F, OUT] = copy(transInput = info)
   def logInput(info: Json): NJAction0[F, OUT]     = logInputM(F.pure(info))

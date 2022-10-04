@@ -26,15 +26,15 @@ class TraceTest extends AnyFunSuite {
       .service("log")
       .eventStream { ag =>
         val span = ag.root("log-root")
-        val a1   = ag.action("a1").retry(IO(()))
-        val a2   = ag.action("a2").retry((i: Int) => IO(i + 1))
-        val a3   = ag.action("a3").retry((i: Int) => IO.raiseError(new Exception(i.toString)))
+        val a1   = ag.action("a1").retry(unit_fun)
+        val a2   = ag.action("a2").retry(add_fun _)
+        val a3   = ag.action("a3").retry(err_fun _)
 
         span.use(s =>
           (a1.runWithSpan(s)) >> s
             .span("s1")
             .use(s =>
-              a2.runWithSpan(1)(s) >>
+              a2.runWithSpan((1, 1))(s) >>
                 s.span("s2").use(s => a3.runWithSpan(1)(s)).attempt))
       }
       .evalMap(console.simple[IO])
@@ -60,15 +60,15 @@ class TraceTest extends AnyFunSuite {
         .service("jaeger")
         .eventStream { ag =>
           val span = ag.root("jaeger-root")
-          val a1   = ag.action("a1").retry(IO(()))
-          val a2   = ag.action("a2").retry((i: Int) => IO(i + 1))
-          val a3   = ag.action("a3").retry((i: Int) => IO.raiseError(new Exception(i.toString)))
+          val a1   = ag.action("a1").retry(unit_fun)
+          val a2   = ag.action("a2").retry(add_fun _)
+          val a3   = ag.action("a3").retry(err_fun _)
 
           span
             .evalMap(Trace.ioTrace)
             .use(implicit ns =>
               (a1.runWithTrace) >>
-                ns.span("cs2")(a2.runWithTrace(1)) >>
+                ns.span("cs2")(a2.runWithTrace((1, 2))) >>
                 ns.span("cs3")(a3.runWithTrace(1).attempt))
         }
         .evalTap(console.simple[IO])
