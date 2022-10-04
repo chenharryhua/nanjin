@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.{Alternative, Endo, Traverse}
-import cats.data.{Ior, Kleisli}
+import cats.data.{Ior, Kleisli, Validated}
 import cats.effect.kernel.Async
 import cats.implicits.{
   catsSyntaxApplicativeError,
@@ -123,33 +123,44 @@ final class NJActionBuilder[F[_]](
     retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
 
   // error-like
-  def retry[Z](t: Try[Z]): NJAction0[F, Z] = retry(F.fromTry(t))
-
+  def retry[Z](t: Try[Z]): NJAction0[F, Z]               = retry(F.fromTry(t))
   def retry[Z](e: Either[Throwable, Z]): NJAction0[F, Z] = retry(F.fromEither(e))
+  def retry[Z](o: Option[Z]): NJAction0[F, Z] = retry(F.fromOption(o, new Exception("fail on None")))
+  def retry[Z](v: Validated[Throwable, Z]): NJAction0[F, Z] = retry(F.fromValidated(v))
 
-  // quasi never raise exception
-  private def outputJson[G[_]: Traverse, Z](ior: Ior[G[Throwable], G[Z]], jobs: Long): Json = {
+  // helpers
+  private def mode(par: Option[Int]): (String, Json) =
+    "mode" -> par.fold("sequential")(p => s"parallel-$p").asJson
+  private def jobs(size: Long): (String, Json) = "jobs" -> size.asJson
+  private def succ(size: Long): (String, Json) = "succed" -> size.asJson
+  private def fail(size: Long): (String, Json) = "failed" -> size.asJson
+
+  private def outputJson[G[_]: Traverse, Z](
+    ior: Ior[G[Throwable], G[Z]],
+    size: Long,
+    parallelism: Option[Int]): Json = {
     val body = ior match {
-      case Ior.Left(a)  => Json.obj("jobs" -> jobs.asJson, "failed" -> a.size.asJson)
-      case Ior.Right(b) => Json.obj("jobs" -> jobs.asJson, "succed" -> b.size.asJson)
-      case Ior.Both(a, b) =>
-        Json.obj("jobs" -> jobs.asJson, "failed" -> a.size.asJson, "succed" -> b.size.asJson)
+      case Ior.Left(a)    => Json.obj(jobs(size), mode(parallelism), fail(a.size))
+      case Ior.Right(b)   => Json.obj(jobs(size), mode(parallelism), succ(b.size))
+      case Ior.Both(a, b) => Json.obj(jobs(size), mode(parallelism), fail(a.size), succ(b.size))
     }
     Json.obj("quasi" -> body)
   }
 
-  private def inputJson(jobs: Long): Json =
-    Json.obj("quasi" -> Json.obj("jobs" -> jobs.asJson))
+  private def inputJson(size: Long, par: Option[Int]): Json =
+    Json.obj("quasi" -> Json.obj(jobs(size), mode(par)))
+
+  // quasi never raise exception
 
   def quasi[G[_]: Traverse: Alternative, Z](gfz: G[F[Z]]): NJAction0[F, Ior[G[Throwable], G[Z]]] = {
-    val jobs = gfz.size
+    val size = gfz.size
     retry(gfz.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
       (fail.size, succ.size) match {
         case (0, _) => Ior.Right(succ)
         case (_, 0) => Ior.left(fail)
         case _      => Ior.Both(fail, succ)
       }
-    }).logOutput(outputJson(_, jobs)).logInput(inputJson(jobs))
+    }).logOutput(outputJson(_, size, None)).logInput(inputJson(size, None))
   }
 
   def quasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = quasi[List, Z](fzs.toList)
@@ -157,7 +168,7 @@ final class NJActionBuilder[F[_]](
   def quasi[G[_]: Traverse: Alternative, Z](
     parallelism: Int,
     gfz: G[F[Z]]): NJAction0[F, Ior[G[Throwable], G[Z]]] = {
-    val jobs = gfz.size
+    val size = gfz.size
     retry(
       F.parTraverseN(parallelism)(gfz)(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
         (fail.size, succ.size) match {
@@ -165,7 +176,7 @@ final class NJActionBuilder[F[_]](
           case (_, 0) => Ior.left(fail)
           case _      => Ior.Both(fail, succ)
         }
-      }).logOutput(outputJson(_, jobs)).logInput(inputJson(jobs))
+      }).logOutput(outputJson(_, size, Some(parallelism))).logInput(inputJson(size, Some(parallelism)))
   }
 
   def quasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =

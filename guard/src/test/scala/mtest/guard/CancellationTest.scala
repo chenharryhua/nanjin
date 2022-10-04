@@ -40,7 +40,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val a1 = ag.action("never", _.silent).retry(IO.never[Int]).run
+        val a1 = ag.action("never", _.silent).retry(never_fun).run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .map(_.asJson.noSpaces)
@@ -57,8 +57,8 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .updateConfig(_.withConstantDelay(1.hour))
       .eventStream { ag =>
-        val a1 = ag.action("never", _.trivial).retry(IO.never[Int]).run
-        IO.parSequenceN(2)(List(IO.sleep(1.second) >> IO.raiseError(new Exception), a1))
+        val a1 = ag.action("never", _.trivial).retry(never_fun).run
+        IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1))
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -153,7 +153,7 @@ class CancellationTest extends AnyFunSuite {
             .action("fail-2", _.notice.withConstantDelay(1.second, 3))
             .retry(IO.raiseError[Int](new Exception))
             .run
-          val a3 = ag.action("cancel-3", _.notice).retry(IO.never[Int]).run
+          val a3 = ag.action("cancel-3", _.notice).retry(never_fun).run
           ag.action("supervisor", _.notice.withConstantDelay(1.second, 1))
             .retry(IO.parSequenceN(5)(List(a1, a2, a3)))
             .run
