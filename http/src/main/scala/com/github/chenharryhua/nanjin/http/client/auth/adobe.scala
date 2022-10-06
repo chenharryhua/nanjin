@@ -2,14 +2,13 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.{NonEmptyList, Reader}
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
-import org.http4s.{Credentials, Uri, UrlForm}
+import org.http4s.{Credentials, Request, Uri, UrlForm}
 import org.http4s.Method.*
 import org.http4s.Uri.Path.Segment
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -21,10 +20,9 @@ import org.typelevel.ci.CIString
 
 import java.lang.Boolean.TRUE
 import java.security.PrivateKey
+import java.util.Date
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.CollectionConverters.*
-import java.util.Date
-
 object adobe {
   // ??? https://developer.adobe.com/developer-console/docs/guides/authentication/IMS/#authorize-request
   final class IMS[F[_]] private (
@@ -63,20 +61,12 @@ object adobe {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(
-              Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
-              "x-api-key" -> client_id))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(
+          Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+          "x-api-key" -> client_id)
+
+      buildClient(client, getToken, updateToken, withToken).flatMap(middleware.run)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
@@ -167,21 +157,13 @@ object adobe {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken(1.day).flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(
-              Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
-              "x-gw-ims-org-id" -> ims_org_id,
-              "x-api-key" -> client_id))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(
+          Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+          "x-gw-ims-org-id" -> ims_org_id,
+          "x-api-key" -> client_id)
+
+      buildClient(client, getToken(1.day), updateToken, withToken).flatMap(middleware.run)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): JWT[F] =

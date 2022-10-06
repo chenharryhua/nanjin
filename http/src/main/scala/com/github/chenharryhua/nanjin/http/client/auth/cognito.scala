@@ -2,19 +2,18 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.{NonEmptyList, Reader}
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
+import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{BasicCredentials, Credentials, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.*
@@ -83,18 +82,10 @@ object cognito {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+
+      buildClient(client, getToken, updateToken, withToken).flatMap(middleware.run)
     }
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): AuthorizationCode[F] =
@@ -180,18 +171,10 @@ object cognito {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+
+      buildClient(client, getToken, updateToken, withToken).flatMap(middleware.run)
     }
 
     override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): ClientCredentials[F] =
