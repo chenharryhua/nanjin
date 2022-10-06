@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.{NonEmptyList, Reader}
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import fs2.Stream
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
 import org.http4s.{Credentials, Request, Uri, UrlForm}
@@ -23,6 +24,7 @@ import java.security.PrivateKey
 import java.util.Date
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.CollectionConverters.*
+
 object adobe {
   // ??? https://developer.adobe.com/developer-console/docs/guides/authentication/IMS/#authorize-request
   final class IMS[F[_]] private (
@@ -41,7 +43,7 @@ object adobe {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -66,7 +68,7 @@ object adobe {
           Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
           "x-api-key" -> client_id)
 
-      buildClient(client, getToken, updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
@@ -125,7 +127,7 @@ object adobe {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
       val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
         auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
@@ -164,7 +166,7 @@ object adobe {
           "x-gw-ims-org-id" -> ims_org_id,
           "x-api-key" -> client_id)
 
-      buildClient(client, getToken(1.day), updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken(1.day), updateToken, withToken).map(middleware.run)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): JWT[F] =

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.Reader
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
@@ -17,6 +17,7 @@ import org.http4s.implicits.http4sLiteralsSyntax
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.DurationLong
+import fs2.Stream
 
 final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
@@ -35,7 +36,7 @@ final class RefreshableToken[F[_]] private (
 
   private val params: AuthParams = cfg.evalConfig
 
-  override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+  override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
     val authURI: Uri = auth_endpoint.withPath(path"oauth/token")
     val getToken: F[Token] =
@@ -49,7 +50,7 @@ final class RefreshableToken[F[_]] private (
               "client_secret" -> client_secret),
             authURI))
 
-    def refreshToken(pre: Token): F[Token] =
+    def viaRefreshToken(pre: Token): F[Token] =
       params
         .authClient(client)
         .expect[Token](
@@ -64,14 +65,14 @@ final class RefreshableToken[F[_]] private (
     def updateToken(ref: Ref[F, Token]): F[Unit] =
       for {
         oldToken <- ref.get
-        newToken <- refreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
+        newToken <- viaRefreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
         _ <- ref.set(newToken)
       } yield ()
 
     def withToken(token: Token, req: Request[F]): Request[F] =
       req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-    buildClient(client, getToken, updateToken, withToken).map(middleware.run)
+    loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
 
   }
 

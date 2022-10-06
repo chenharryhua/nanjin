@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.Reader
 import cats.effect.implicits.genTemporalOps_
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.*
 import org.http4s.Method.POST
@@ -46,7 +47,7 @@ object salesforce {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -77,7 +78,7 @@ object salesforce {
           .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
 
-      buildClient(client, getToken, updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
 
     }
 
@@ -143,7 +144,7 @@ object salesforce {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -166,7 +167,7 @@ object salesforce {
           .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
           .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      buildClient(client, getToken, updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): Iot[F] =
