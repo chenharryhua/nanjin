@@ -31,7 +31,7 @@ object adobe {
     client_code: String,
     client_secret: String,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Reader[Client[F], Client[F]])
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
 
     private case class Token(
@@ -66,7 +66,7 @@ object adobe {
           Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
           "x-api-key" -> client_id)
 
-      buildClient(client, getToken, updateToken, withToken).flatMap(middleware.run)
+      buildClient(client, getToken, updateToken, withToken).map(middleware.run)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
@@ -78,14 +78,15 @@ object adobe {
         cfg = f(cfg),
         middleware = middleware)
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): IMS[F] =
+    override def withMiddleware(f: Client[F] => Client[F]): IMS[F] =
       new IMS[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
         cfg = cfg,
-        middleware = compose(f, middleware))
+        middleware = middleware.compose(f)
+      )
   }
 
   object IMS {
@@ -100,7 +101,7 @@ object adobe {
         client_code = client_code,
         client_secret = client_secret,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = Reader(identity)
       )
   }
 
@@ -114,7 +115,7 @@ object adobe {
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Reader[Client[F], Client[F]])
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
 
     private case class Token(
@@ -163,7 +164,7 @@ object adobe {
           "x-gw-ims-org-id" -> ims_org_id,
           "x-api-key" -> client_id)
 
-      buildClient(client, getToken(1.day), updateToken, withToken).flatMap(middleware.run)
+      buildClient(client, getToken(1.day), updateToken, withToken).map(middleware.run)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): JWT[F] =
@@ -179,7 +180,7 @@ object adobe {
         middleware = middleware
       )
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): JWT[F] =
+    override def withMiddleware(f: Client[F] => Client[F]): JWT[F] =
       new JWT[F](
         auth_endpoint = auth_endpoint,
         ims_org_id = ims_org_id,
@@ -189,7 +190,7 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         cfg = cfg,
-        middleware = compose(f, middleware)
+        middleware = middleware.compose(f)
       )
   }
 
@@ -211,7 +212,7 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = Reader(identity)
       )
 
     def apply[F[_]](

@@ -27,4 +27,5 @@ package object auth {
       .compile
       .resource
       .lastOrError
+
 }

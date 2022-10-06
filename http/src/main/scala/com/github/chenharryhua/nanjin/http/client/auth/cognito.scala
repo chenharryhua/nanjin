@@ -31,7 +31,7 @@ object cognito {
     redirect_uri: String,
     code_verifier: String,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Reader[Client[F], Client[F]])
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
@@ -85,10 +85,10 @@ object cognito {
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      buildClient(client, getToken, updateToken, withToken).flatMap(middleware.run)
+      buildClient(client, getToken, updateToken, withToken).map(middleware.run)
     }
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): AuthorizationCode[F] =
+    override def withMiddleware(f: Client[F] => Client[F]): AuthorizationCode[F] =
       new AuthorizationCode[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -97,7 +97,7 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = cfg,
-        middleware = compose(f, middleware)
+        middleware = middleware.compose(f)
       )
 
     override def updateConfig(f: Endo[AuthConfig]): AuthorizationCode[F] =
@@ -129,8 +129,9 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = Reader(identity)
       )
+
   }
 
   final class ClientCredentials[F[_]] private (
@@ -139,7 +140,7 @@ object cognito {
     client_secret: String,
     scopes: NonEmptyList[String],
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Reader[Client[F], Client[F]])
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
 
@@ -174,17 +175,17 @@ object cognito {
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      buildClient(client, getToken, updateToken, withToken).flatMap(middleware.run)
+      buildClient(client, getToken, updateToken, withToken).map(middleware.run)
     }
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): ClientCredentials[F] =
+    override def withMiddleware(f: Client[F] => Client[F]): ClientCredentials[F] =
       new ClientCredentials[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
         cfg = cfg,
-        compose(f, middleware)
+        middleware = middleware.compose(f)
       )
 
     override def updateConfig(f: Endo[AuthConfig]): ClientCredentials[F] =
@@ -210,7 +211,7 @@ object cognito {
         client_secret = client_secret,
         scopes = scopes,
         cfg = AuthConfig(),
-        Reader(Resource.pure))
+        middleware = Reader(identity))
 
     def apply[F[_]](
       auth_endpoint: Uri,

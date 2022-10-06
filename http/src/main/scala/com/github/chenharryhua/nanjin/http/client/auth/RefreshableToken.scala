@@ -23,7 +23,7 @@ final class RefreshableToken[F[_]] private (
   client_id: String,
   client_secret: String,
   cfg: AuthConfig,
-  middleware: Reader[Client[F], Resource[F, Client[F]]])
+  middleware: Reader[Client[F], Client[F]])
     extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]]
     with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
@@ -71,7 +71,7 @@ final class RefreshableToken[F[_]] private (
     def withToken(token: Token, req: Request[F]): Request[F] =
       req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-    buildClient(client, getToken, updateToken, withToken).flatMap(middleware.run)
+    buildClient(client, getToken, updateToken, withToken).map(middleware.run)
 
   }
 
@@ -83,13 +83,13 @@ final class RefreshableToken[F[_]] private (
       cfg = f(cfg),
       middleware = middleware)
 
-  override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): RefreshableToken[F] =
+  override def withMiddleware(f: Client[F] => Client[F]): RefreshableToken[F] =
     new RefreshableToken[F](
       auth_endpoint = auth_endpoint,
       client_id = client_id,
       client_secret = client_secret,
       cfg = cfg,
-      middleware = compose(f, middleware))
+      middleware = middleware.compose(f))
 }
 
 object RefreshableToken {
@@ -99,5 +99,5 @@ object RefreshableToken {
       client_id = client_id,
       client_secret = client_secret,
       cfg = AuthConfig(),
-      middleware = Reader(Resource.pure))
+      middleware = Reader(identity))
 }
