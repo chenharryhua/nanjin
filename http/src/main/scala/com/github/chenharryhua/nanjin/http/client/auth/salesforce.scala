@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.Reader
 import cats.effect.implicits.genTemporalOps_
-import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Supervisor
+import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.*
 import org.http4s.Method.POST
@@ -33,7 +32,7 @@ object salesforce {
     client_secret: String,
     instanceURL: InstanceURL,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]]
+    middleware: Endo[Client[F]]
   ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]]
       with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
@@ -47,7 +46,7 @@ object salesforce {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -68,24 +67,18 @@ object salesforce {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          iu: Uri = instanceURL match {
-            case Rest => Uri.unsafeFromString(token.rest_instance_url).withPath(req.pathInfo)
-            case Soap => Uri.unsafeFromString(token.soap_instance_url).withPath(req.pathInfo)
-          }
-          out <- c.run(
-            req
-              .withUri(iu)
-              .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
-        } yield out
+      def withToken(token: Token, req: Request[F]): Request[F] = {
+        val iu: Uri = instanceURL match {
+          case Rest => Uri.unsafeFromString(token.rest_instance_url).withPath(req.pathInfo)
+          case Soap => Uri.unsafeFromString(token.soap_instance_url).withPath(req.pathInfo)
+        }
+        req
+          .withUri(iu)
+          .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
+
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
+
     }
 
     override def updateConfig(f: Endo[AuthConfig]): MarketingCloud[F] =
@@ -97,14 +90,14 @@ object salesforce {
         cfg = f(cfg),
         middleware = middleware)
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): MarketingCloud[F] =
+    override def withMiddleware(f: Endo[Client[F]]): MarketingCloud[F] =
       new MarketingCloud[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         instanceURL = instanceURL,
         cfg = cfg,
-        middleware = compose(f, middleware))
+        middleware = middleware.compose(f))
   }
 
   object MarketingCloud {
@@ -115,7 +108,7 @@ object salesforce {
         client_secret = client_secret,
         instanceURL = Rest,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = identity
       )
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
       new MarketingCloud[F](
@@ -124,7 +117,7 @@ object salesforce {
         client_secret = client_secret,
         instanceURL = Soap,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = identity
       )
   }
 
@@ -137,7 +130,7 @@ object salesforce {
     password: String,
     expiresIn: FiniteDuration,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]]
+    middleware: Endo[Client[F]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
 
     private case class Token(
@@ -150,7 +143,7 @@ object salesforce {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -168,20 +161,12 @@ object salesforce {
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         getToken.delayBy(params.dormant(expiresIn)).flatMap(ref.set)
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req
-              .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
-              .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req
+          .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
+          .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): Iot[F] =
@@ -196,7 +181,7 @@ object salesforce {
         middleware = middleware
       )
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): Iot[F] =
+    override def withMiddleware(f: Endo[Client[F]]): Iot[F] =
       new Iot[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -205,7 +190,7 @@ object salesforce {
         password = password,
         expiresIn = expiresIn,
         cfg = cfg,
-        middleware = compose(f, middleware)
+        middleware = middleware.compose(f)
       )
   }
 
@@ -225,7 +210,7 @@ object salesforce {
         password = password,
         expiresIn = expiresIn,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = identity
       )
   }
 }

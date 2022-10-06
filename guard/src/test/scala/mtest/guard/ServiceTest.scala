@@ -232,7 +232,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("12.dummy agent should not block") {
-    val dummy = TaskGuard.dummyAgent[IO].unsafeRunSync()
-    dummy.action("t", _.critical).retry(IO(1)).run.replicateA(10).unsafeRunSync()
+    val dummy = TaskGuard.dummyAgent[IO]
+    dummy.use(_.action("t", _.critical).retry(IO(1)).run.replicateA(10)).unsafeRunSync()
   }
 }

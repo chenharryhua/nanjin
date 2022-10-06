@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.NJHadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
+import com.zaxxer.hikari.HikariConfig
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
@@ -46,6 +47,16 @@ package object spark {
   }
 
   implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {
+
+    def jdbcDataFrame(hikari: HikariConfig, dbtable: String): DataFrame = {
+      val options: Map[String, String] = Map(
+        "url" -> hikari.getJdbcUrl,
+        "driver" -> hikari.getDriverClassName,
+        "user" -> hikari.getUsername,
+        "password" -> hikari.getPassword,
+        "dbtable" -> dbtable)
+      ss.read.format("jdbc").options(options).load()
+    }
 
     final class PartialApplyAvroTypedEncoder[F[_]] {
       def apply[A](ate: AvroTypedEncoder[A]) = new LoadTable[F, A](ate, ss)

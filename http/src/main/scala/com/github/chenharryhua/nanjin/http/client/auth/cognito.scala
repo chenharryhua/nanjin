@@ -1,20 +1,20 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.{NonEmptyList, Reader}
-import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Supervisor
+import cats.data.NonEmptyList
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import fs2.Stream
 import io.circe.generic.auto.*
+import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{BasicCredentials, Credentials, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.*
@@ -32,7 +32,7 @@ object cognito {
     redirect_uri: String,
     code_verifier: String,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Endo[Client[F]])
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
@@ -46,7 +46,7 @@ object cognito {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
 
       val authURI = auth_endpoint.withPath(path"/oauth2/token")
       val getToken: F[Token] =
@@ -74,7 +74,7 @@ object cognito {
               "refresh_token" -> pre.refresh_token),
             authURI,
             Authorization(BasicCredentials(client_id, client_secret))
-          ).putHeaders("Cache-Control" -> "no-cache"))
+          ))
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {
@@ -83,21 +83,13 @@ object cognito {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
     }
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): AuthorizationCode[F] =
+    override def withMiddleware(f: Client[F] => Client[F]): AuthorizationCode[F] =
       new AuthorizationCode[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -106,7 +98,7 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = cfg,
-        middleware = compose(f, middleware)
+        middleware = middleware.compose(f)
       )
 
     override def updateConfig(f: Endo[AuthConfig]): AuthorizationCode[F] =
@@ -138,8 +130,9 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = identity
       )
+
   }
 
   final class ClientCredentials[F[_]] private (
@@ -148,7 +141,7 @@ object cognito {
     client_secret: String,
     scopes: NonEmptyList[String],
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Endo[Client[F]])
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
 
@@ -160,7 +153,7 @@ object cognito {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -180,28 +173,20 @@ object cognito {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token))))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
     }
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): ClientCredentials[F] =
+    override def withMiddleware(f: Endo[Client[F]]): ClientCredentials[F] =
       new ClientCredentials[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
         cfg = cfg,
-        compose(f, middleware)
+        middleware = middleware.compose(f)
       )
 
     override def updateConfig(f: Endo[AuthConfig]): ClientCredentials[F] =
@@ -227,7 +212,7 @@ object cognito {
         client_secret = client_secret,
         scopes = scopes,
         cfg = AuthConfig(),
-        Reader(Resource.pure))
+        middleware = identity)
 
     def apply[F[_]](
       auth_endpoint: Uri,

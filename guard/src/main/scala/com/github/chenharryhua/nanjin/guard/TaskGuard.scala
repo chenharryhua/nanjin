@@ -41,6 +41,6 @@ object TaskGuard {
       Resource.pure(NoopEntrypoint[F]()))
 
   // for repl
-  def dummyAgent[F[_]: Async: Console]: F[Agent[F]] =
+  def dummyAgent[F[_]: Async: Console]: Resource[F, Agent[F]] =
     apply(TaskName("dummy")).service(ServiceName("dummy")).dummyAgent
 }

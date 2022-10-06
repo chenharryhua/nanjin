@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.{NonEmptyList, Reader}
-import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Supervisor
+import cats.data.NonEmptyList
+import cats.effect.kernel.{Async, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import fs2.Stream
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
-import org.http4s.{Credentials, Uri, UrlForm}
+import org.http4s.{Credentials, Request, Uri, UrlForm}
 import org.http4s.Method.*
 import org.http4s.Uri.Path.Segment
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -21,9 +21,9 @@ import org.typelevel.ci.CIString
 
 import java.lang.Boolean.TRUE
 import java.security.PrivateKey
+import java.util.Date
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.CollectionConverters.*
-import java.util.Date
 
 object adobe {
   // ??? https://developer.adobe.com/developer-console/docs/guides/authentication/IMS/#authorize-request
@@ -33,7 +33,7 @@ object adobe {
     client_code: String,
     client_secret: String,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Endo[Client[F]])
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
 
     private case class Token(
@@ -43,7 +43,7 @@ object adobe {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -63,20 +63,12 @@ object adobe {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken.flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(
-              Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
-              "x-api-key" -> client_id))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(
+          Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+          "x-api-key" -> client_id)
+
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
@@ -88,14 +80,15 @@ object adobe {
         cfg = f(cfg),
         middleware = middleware)
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): IMS[F] =
+    override def withMiddleware(f: Endo[Client[F]]): IMS[F] =
       new IMS[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
         cfg = cfg,
-        middleware = compose(f, middleware))
+        middleware = middleware.compose(f)
+      )
   }
 
   object IMS {
@@ -110,7 +103,7 @@ object adobe {
         client_code = client_code,
         client_secret = client_secret,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = identity
       )
   }
 
@@ -124,7 +117,7 @@ object adobe {
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Resource[F, Client[F]]])
+    middleware: Endo[Client[F]])
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
 
     private case class Token(
@@ -134,7 +127,7 @@ object adobe {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
       val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
         auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
@@ -167,21 +160,13 @@ object adobe {
           _ <- ref.set(newToken)
         } yield ()
 
-      for {
-        supervisor <- Supervisor[F]
-        ref <- Resource.eval(getToken(1.day).flatMap(F.ref))
-        _ <- Resource.eval(supervisor.supervise(updateToken(ref).foreverM))
-        c <- middleware.run(client)
-      } yield Client[F] { req =>
-        for {
-          token <- Resource.eval(ref.get)
-          out <- c.run(
-            req.putHeaders(
-              Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
-              "x-gw-ims-org-id" -> ims_org_id,
-              "x-api-key" -> client_id))
-        } yield out
-      }
+      def withToken(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(
+          Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+          "x-gw-ims-org-id" -> ims_org_id,
+          "x-api-key" -> client_id)
+
+      loginInternal(client, getToken(1.day), updateToken, withToken).map(middleware)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): JWT[F] =
@@ -197,7 +182,7 @@ object adobe {
         middleware = middleware
       )
 
-    override def withMiddlewareR(f: Client[F] => Resource[F, Client[F]]): JWT[F] =
+    override def withMiddleware(f: Endo[Client[F]]): JWT[F] =
       new JWT[F](
         auth_endpoint = auth_endpoint,
         ims_org_id = ims_org_id,
@@ -207,7 +192,7 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         cfg = cfg,
-        middleware = compose(f, middleware)
+        middleware = middleware.compose(f)
       )
   }
 
@@ -229,7 +214,7 @@ object adobe {
         metascopes = metascopes,
         private_key = private_key,
         cfg = AuthConfig(),
-        middleware = Reader(Resource.pure)
+        middleware = identity
       )
 
     def apply[F[_]](
