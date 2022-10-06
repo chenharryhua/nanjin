@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.Reader
 import cats.effect.implicits.genTemporalOps_
 import cats.effect.kernel.{Async, Ref}
 import cats.syntax.all.*
@@ -33,7 +32,7 @@ object salesforce {
     client_secret: String,
     instanceURL: InstanceURL,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Client[F]]
+    middleware: Endo[Client[F]]
   ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]]
       with UpdateConfig[AuthConfig, MarketingCloud[F]] {
 
@@ -78,7 +77,7 @@ object salesforce {
           .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
 
     }
 
@@ -91,7 +90,7 @@ object salesforce {
         cfg = f(cfg),
         middleware = middleware)
 
-    override def withMiddleware(f: Client[F] => Client[F]): MarketingCloud[F] =
+    override def withMiddleware(f: Endo[Client[F]]): MarketingCloud[F] =
       new MarketingCloud[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -109,7 +108,7 @@ object salesforce {
         client_secret = client_secret,
         instanceURL = Rest,
         cfg = AuthConfig(),
-        middleware = Reader(identity)
+        middleware = identity
       )
     def soap[F[_]](auth_endpoint: Uri, client_id: String, client_secret: String): MarketingCloud[F] =
       new MarketingCloud[F](
@@ -118,7 +117,7 @@ object salesforce {
         client_secret = client_secret,
         instanceURL = Soap,
         cfg = AuthConfig(),
-        middleware = Reader(identity)
+        middleware = identity
       )
   }
 
@@ -131,7 +130,7 @@ object salesforce {
     password: String,
     expiresIn: FiniteDuration,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Client[F]]
+    middleware: Endo[Client[F]]
   ) extends Http4sClientDsl[F] with Login[F, Iot[F]] with UpdateConfig[AuthConfig, Iot[F]] {
 
     private case class Token(
@@ -167,7 +166,7 @@ object salesforce {
           .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
           .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): Iot[F] =
@@ -182,7 +181,7 @@ object salesforce {
         middleware = middleware
       )
 
-    override def withMiddleware(f: Client[F] => Client[F]): Iot[F] =
+    override def withMiddleware(f: Endo[Client[F]]): Iot[F] =
       new Iot[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -211,7 +210,7 @@ object salesforce {
         password = password,
         expiresIn = expiresIn,
         cfg = AuthConfig(),
-        middleware = Reader(identity)
+        middleware = identity
       )
   }
 }

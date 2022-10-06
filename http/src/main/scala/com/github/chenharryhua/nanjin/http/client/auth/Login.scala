@@ -6,6 +6,10 @@ import fs2.Stream
 import org.http4s.client.Client
 import org.http4s.Request
 
+/** @tparam A
+  *   Implementation class
+  */
+
 trait Login[F[_], A] {
 
   def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]]
@@ -13,15 +17,27 @@ trait Login[F[_], A] {
   final def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
     login(client).compile.resource.lastOrError
 
-  // compose middleware
   def withMiddleware(f: Client[F] => Client[F]): A
 
+  /** @param client
+    *   http4s client
+    * @param getToken
+    *   get the initial token
+    * @param updateToken
+    *   update the token periodically according to the expiresIn parameter
+    * @param withToken
+    *   add token to header
+    * @tparam T
+    *   Token
+    * @return
+    */
   final protected def loginInternal[T](
     client: Client[F],
-    initToken: F[T],
-    refreshToken: Ref[F, T] => F[Unit],
-    withToken: (T, Request[F]) => Request[F])(implicit F: Concurrent[F]): Stream[F, Client[F]] =
-    Stream.eval(initToken.flatMap(F.ref)).flatMap { refToken =>
+    getToken: F[T],
+    updateToken: Ref[F, T] => F[Unit],
+    withToken: (T, Request[F]) => Request[F]
+  )(implicit F: Concurrent[F]): Stream[F, Client[F]] =
+    Stream.eval(getToken.flatMap(F.ref)).flatMap { refToken =>
       val nc: Client[F] =
         Client[F] { req =>
           for {
@@ -29,6 +45,6 @@ trait Login[F[_], A] {
             out <- client.run(withToken(token, req))
           } yield out
         }
-      Stream(nc).concurrently(Stream.repeatEval(refreshToken(refToken)))
+      Stream(nc).concurrently(Stream.repeatEval(updateToken(refToken)))
     }
 }

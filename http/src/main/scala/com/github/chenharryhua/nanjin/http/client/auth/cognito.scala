@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.{NonEmptyList, Reader}
+import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -32,7 +32,7 @@ object cognito {
     redirect_uri: String,
     code_verifier: String,
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Client[F]])
+    middleware: Endo[Client[F]])
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
@@ -64,7 +64,7 @@ object cognito {
             Authorization(BasicCredentials(client_id, client_secret))
           ))
 
-      def viaRefreshToken(pre: Token): F[Token] =
+      def refreshToken(pre: Token): F[Token] =
         params
           .authClient(client)
           .expect[Token](POST(
@@ -79,14 +79,14 @@ object cognito {
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {
           oldToken <- ref.get
-          newToken <- viaRefreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
+          newToken <- refreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
           _ <- ref.set(newToken)
         } yield ()
 
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
     }
 
     override def withMiddleware(f: Client[F] => Client[F]): AuthorizationCode[F] =
@@ -130,7 +130,7 @@ object cognito {
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
         cfg = AuthConfig(),
-        middleware = Reader(identity)
+        middleware = identity
       )
 
   }
@@ -141,7 +141,7 @@ object cognito {
     client_secret: String,
     scopes: NonEmptyList[String],
     cfg: AuthConfig,
-    middleware: Reader[Client[F], Client[F]])
+    middleware: Endo[Client[F]])
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
 
@@ -176,10 +176,10 @@ object cognito {
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
+      loginInternal(client, getToken, updateToken, withToken).map(middleware)
     }
 
-    override def withMiddleware(f: Client[F] => Client[F]): ClientCredentials[F] =
+    override def withMiddleware(f: Endo[Client[F]]): ClientCredentials[F] =
       new ClientCredentials[F](
         auth_endpoint = auth_endpoint,
         client_id = client_id,
@@ -212,7 +212,7 @@ object cognito {
         client_secret = client_secret,
         scopes = scopes,
         cfg = AuthConfig(),
-        middleware = Reader(identity))
+        middleware = identity)
 
     def apply[F[_]](
       auth_endpoint: Uri,

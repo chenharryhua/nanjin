@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.data.Reader
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.{Credentials, Request, Uri, UrlForm}
 import org.http4s.Method.POST
@@ -17,14 +17,13 @@ import org.http4s.implicits.http4sLiteralsSyntax
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.DurationLong
-import fs2.Stream
 
 final class RefreshableToken[F[_]] private (
   auth_endpoint: Uri,
   client_id: String,
   client_secret: String,
   cfg: AuthConfig,
-  middleware: Reader[Client[F], Client[F]])
+  middleware: Endo[Client[F]])
     extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]]
     with UpdateConfig[AuthConfig, RefreshableToken[F]] {
 
@@ -50,7 +49,7 @@ final class RefreshableToken[F[_]] private (
               "client_secret" -> client_secret),
             authURI))
 
-    def viaRefreshToken(pre: Token): F[Token] =
+    def refreshToken(pre: Token): F[Token] =
       params
         .authClient(client)
         .expect[Token](
@@ -65,14 +64,14 @@ final class RefreshableToken[F[_]] private (
     def updateToken(ref: Ref[F, Token]): F[Unit] =
       for {
         oldToken <- ref.get
-        newToken <- viaRefreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
+        newToken <- refreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
         _ <- ref.set(newToken)
       } yield ()
 
     def withToken(token: Token, req: Request[F]): Request[F] =
       req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-    loginInternal(client, getToken, updateToken, withToken).map(middleware.run)
+    loginInternal(client, getToken, updateToken, withToken).map(middleware)
 
   }
 
@@ -84,7 +83,7 @@ final class RefreshableToken[F[_]] private (
       cfg = f(cfg),
       middleware = middleware)
 
-  override def withMiddleware(f: Client[F] => Client[F]): RefreshableToken[F] =
+  override def withMiddleware(f: Endo[Client[F]]): RefreshableToken[F] =
     new RefreshableToken[F](
       auth_endpoint = auth_endpoint,
       client_id = client_id,
@@ -100,5 +99,5 @@ object RefreshableToken {
       client_id = client_id,
       client_secret = client_secret,
       cfg = AuthConfig(),
-      middleware = Reader(identity))
+      middleware = identity)
 }
