@@ -14,10 +14,10 @@ final class NJMetrics[F[_]: Clock: Monad] private[service] (
   metricRegistry: MetricRegistry) {
 
   def reset: F[Unit] =
-    serviceEventPublisher.metricReset(serviceParams, metricRegistry, None).flatMap(channel.send).void
+    publisher.metricReset(serviceParams, metricRegistry, None).flatMap(channel.send).void
 
   private def reporting(metricFilter: MetricFilter): F[Unit] =
-    serviceEventPublisher
+    publisher
       .metricReport(serviceParams, metricRegistry, metricFilter, MetricReportType.Adhoc)
       .flatMap(channel.send)
       .void

@@ -87,31 +87,6 @@ final class ServiceGuard[F[_]] private[guard] (
             mr
           }
 
-          val runningService: Stream[F, Nothing] = {
-            val agent = new Agent[F](metricRegistry, channel, serviceParams, entryPoint)
-            Stream
-              .eval[F, A] {
-                retry.mtl
-                  .retryingOnSomeErrors[A](
-                    serviceParams.retry.policy[F],
-                    (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
-                    (ex: Throwable, rd) =>
-                      rd match {
-                        case RetryDetails.GivingUp(_, _) => F.unit
-                        case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
-                          serviceEventPublisher.servicePanic(channel, serviceParams, nextDelay, ex)
-                      }
-                  )(serviceEventPublisher.serviceReStart(channel, serviceParams) *> runAgent(agent))
-                  .guaranteeCase(oc =>
-                    serviceEventPublisher
-                      .serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
-              }
-              .onFinalize(F.sleep(1.second))
-              .drain
-          }
-
-          // concurrent streams
-
           val cronScheduler: Scheduler[F, CronExpr] =
             Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
@@ -123,7 +98,7 @@ final class ServiceGuard[F[_]] private[guard] (
                   .fixedRate[F](dur.toScala)
                   .zipWithIndex
                   .evalMap(t =>
-                    serviceEventPublisher.metricReport(
+                    publisher.metricReport(
                       serviceParams,
                       metricRegistry,
                       metricFilter,
@@ -133,7 +108,7 @@ final class ServiceGuard[F[_]] private[guard] (
                   .awakeEvery(cron)
                   .zipWithIndex
                   .evalMap(t =>
-                    serviceEventPublisher.metricReport(
+                    publisher.metricReport(
                       serviceParams,
                       metricRegistry,
                       metricFilter,
@@ -147,7 +122,7 @@ final class ServiceGuard[F[_]] private[guard] (
               case Some(cron) =>
                 cronScheduler
                   .awakeEvery(cron)
-                  .evalMap(_ => serviceEventPublisher.metricReset(serviceParams, metricRegistry, Some(cron)))
+                  .evalMap(_ => publisher.metricReset(serviceParams, metricRegistry, Some(cron)))
             }
 
           val jmxReporting: Stream[F, Nothing] =
@@ -162,8 +137,29 @@ final class ServiceGuard[F[_]] private[guard] (
                   .flatMap(_ => Stream.never[F])
             }
 
-          // put together
+          val runningService: Stream[F, Nothing] = {
+            val agent = new Agent[F](metricRegistry, channel, serviceParams, entryPoint)
+            Stream
+              .eval[F, A] {
+                retry.mtl
+                  .retryingOnSomeErrors[A](
+                    serviceParams.retry.policy[F],
+                    (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
+                    (ex: Throwable, rd) =>
+                      rd match {
+                        case RetryDetails.GivingUp(_, _) => F.unit
+                        case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
+                          publisher.servicePanic(channel, serviceParams, nextDelay, ex)
+                      }
+                  )(publisher.serviceReStart(channel, serviceParams) *> runAgent(agent))
+                  .guaranteeCase(oc =>
+                    publisher.serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
+              }
+              .onFinalize(F.sleep(1.second))
+              .drain
+          }
 
+          // put together
           channel.stream
             .onFinalize(channel.close.void) // drain pending send operation
             .mergeHaltL(metricsReset)

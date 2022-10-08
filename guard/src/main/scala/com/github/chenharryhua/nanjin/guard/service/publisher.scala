@@ -21,7 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-private object serviceEventPublisher {
+private object publisher {
   def metricReport[F[_]: Monad: Clock](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
