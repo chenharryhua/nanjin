@@ -43,8 +43,7 @@ private object publisher {
               MetricSnapshot.regular(metricFilter, metricRegistry, ss.serviceParams)
             case MetricSnapshotType.Delta =>
               MetricSnapshot.delta(ss.lastCounters, metricFilter, metricRegistry, ss.serviceParams)
-          },
-          restartTime = ss.upcomingRestartTime
+          }
         ))
     } yield ()
 

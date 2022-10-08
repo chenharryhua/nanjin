@@ -58,8 +58,7 @@ object NJEvent extends zoneddatetime {
     reportType: MetricReportType,
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
-    snapshot: MetricSnapshot,
-    restartTime: Option[ZonedDateTime])
+    snapshot: MetricSnapshot)
       extends MetricEvent {
     override val title: String = reportType.show
   }
