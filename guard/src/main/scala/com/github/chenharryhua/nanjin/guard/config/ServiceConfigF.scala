@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
+import cats.effect.kernel.Clock
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
 import cron4s.{Cron, CronExpr}
 import cron4s.lib.javatime.javaTemporalInstance
@@ -57,6 +59,8 @@ private[guard] object MetricParams {
   def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime
   def upTime(ts: ZonedDateTime): Duration         = Duration.between(launchTime, ts)
   def upTime(ts: Instant): Duration               = Duration.between(launchTime, toZonedDateTime(ts))
+
+  def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
 
 private[guard] object ServiceParams extends zoneddatetime {

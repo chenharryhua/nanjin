@@ -27,11 +27,11 @@ private object builder {
     metricRegistry: MetricRegistry,
     metricFilter: MetricFilter,
     metricReportType: MetricReportType): F[MetricReport] =
-    Clock[F].realTimeInstant.map(ts =>
+    serviceParams.zonedNow.map(ts =>
       MetricReport(
         serviceParams = serviceParams,
         reportType = metricReportType,
-        timestamp = serviceParams.toZonedDateTime(ts),
+        timestamp = ts,
         snapshot = MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
       ))
 
@@ -40,7 +40,7 @@ private object builder {
     metricRegistry: MetricRegistry,
     cronExpr: Option[CronExpr]): F[MetricReset] =
     for {
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
+      ts <- serviceParams.zonedNow
       evt = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>
           MetricReset(
@@ -66,7 +66,7 @@ private object builder {
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams): F[Unit] =
     for {
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
+      ts <- serviceParams.zonedNow
       _ <- channel.send(ServiceStart(serviceParams, ts))
     } yield ()
 
@@ -89,7 +89,7 @@ private object builder {
     serviceParams: ServiceParams,
     cause: ServiceStopCause): F[Unit] =
     for {
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
+      ts <- serviceParams.zonedNow
       _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = serviceParams, cause = cause))
     } yield ()
 

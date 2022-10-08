@@ -29,7 +29,7 @@ private object publisher {
     json: Json,
     isError: Boolean): F[Unit] =
     for {
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
+      ts <- serviceParams.zonedNow
       _ <- channel.send(
         PassThrough(
           digested = digested,
@@ -46,7 +46,7 @@ private object publisher {
     msg: String,
     importance: Importance): F[Unit] =
     for {
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
+      ts <- serviceParams.zonedNow
       _ <- channel.send(
         InstantAlert(
           digested = digested,
@@ -62,7 +62,7 @@ private object publisher {
     input: F[Json],
     traceInfo: Option[TraceInfo]): F[ActionInfo] =
     for {
-      ts <- Clock[F].realTimeInstant.map(actionParams.serviceParams.toZonedDateTime)
+      ts <- actionParams.serviceParams.zonedNow
       token <- Unique[F].unique.map(_.hash)
       ai = ActionInfo(traceInfo = traceInfo, actionParams = actionParams, actionId = token, launchTime = ts)
       _ <- input
@@ -76,7 +76,7 @@ private object publisher {
     willDelayAndRetry: WillDelayAndRetry,
     ex: Throwable): F[Unit] =
     for {
-      ts <- Clock[F].realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
+      ts <- actionInfo.actionParams.serviceParams.zonedNow
       _ <- channel
         .send(
           ActionRetry(
@@ -94,7 +94,7 @@ private object publisher {
     actionInfo: ActionInfo,
     output: F[Json]): F[ZonedDateTime] =
     for {
-      ts <- Clock[F].realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
+      ts <- actionInfo.actionParams.serviceParams.zonedNow
       _ <- output
         .flatMap(json => channel.send(ActionSucc(actionInfo = actionInfo, timestamp = ts, output = json)))
         .whenA(actionInfo.actionParams.isNotice)
@@ -106,7 +106,7 @@ private object publisher {
     ex: Throwable,
     input: F[Json]): F[ZonedDateTime] =
     for {
-      ts <- Clock[F].realTimeInstant.map(actionInfo.actionParams.serviceParams.toZonedDateTime)
+      ts <- actionInfo.actionParams.serviceParams.zonedNow
       _ <- input.flatMap(json =>
         channel.send(ActionFail(actionInfo = actionInfo, timestamp = ts, input = json, error = NJError(ex))))
     } yield ts
