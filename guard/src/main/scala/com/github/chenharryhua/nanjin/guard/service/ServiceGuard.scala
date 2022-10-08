@@ -87,28 +87,28 @@ final class ServiceGuard[F[_]] private[guard] (
             mr
           }
 
-          val runningService: Stream[F, Nothing] = Stream
-            .eval[F, A] {
-
-              retry.mtl
-                .retryingOnSomeErrors[A](
-                  serviceParams.retry.policy[F],
-                  (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
-                  (ex: Throwable, rd) =>
-                    rd match {
-                      case RetryDetails.GivingUp(_, _) => F.unit
-                      case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
-                        builder.servicePanic(channel, serviceParams, nextDelay, ex)
-                    }
-                ) {
-                  builder.serviceReStart(channel, serviceParams) *>
-                    runAgent(new Agent[F](metricRegistry, channel, serviceParams, entryPoint))
-                }
-                .guaranteeCase(oc =>
-                  builder.serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
-            }
-            .onFinalize(F.sleep(1.second))
-            .drain
+          val runningService: Stream[F, Nothing] = {
+            val agent = new Agent[F](metricRegistry, channel, serviceParams, entryPoint)
+            Stream
+              .eval[F, A] {
+                retry.mtl
+                  .retryingOnSomeErrors[A](
+                    serviceParams.retry.policy[F],
+                    (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
+                    (ex: Throwable, rd) =>
+                      rd match {
+                        case RetryDetails.GivingUp(_, _) => F.unit
+                        case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
+                          serviceEventPublisher.servicePanic(channel, serviceParams, nextDelay, ex)
+                      }
+                  )(serviceEventPublisher.serviceReStart(channel, serviceParams) *> runAgent(agent))
+                  .guaranteeCase(oc =>
+                    serviceEventPublisher
+                      .serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
+              }
+              .onFinalize(F.sleep(1.second))
+              .drain
+          }
 
           // concurrent streams
 
@@ -123,7 +123,7 @@ final class ServiceGuard[F[_]] private[guard] (
                   .fixedRate[F](dur.toScala)
                   .zipWithIndex
                   .evalMap(t =>
-                    builder.metricReport(
+                    serviceEventPublisher.metricReport(
                       serviceParams,
                       metricRegistry,
                       metricFilter,
@@ -133,7 +133,7 @@ final class ServiceGuard[F[_]] private[guard] (
                   .awakeEvery(cron)
                   .zipWithIndex
                   .evalMap(t =>
-                    builder.metricReport(
+                    serviceEventPublisher.metricReport(
                       serviceParams,
                       metricRegistry,
                       metricFilter,
@@ -147,7 +147,7 @@ final class ServiceGuard[F[_]] private[guard] (
               case Some(cron) =>
                 cronScheduler
                   .awakeEvery(cron)
-                  .evalMap(_ => builder.metricReset(serviceParams, metricRegistry, Some(cron)))
+                  .evalMap(_ => serviceEventPublisher.metricReset(serviceParams, metricRegistry, Some(cron)))
             }
 
           val jmxReporting: Stream[F, Nothing] =
@@ -165,9 +165,9 @@ final class ServiceGuard[F[_]] private[guard] (
           // put together
 
           channel.stream
+            .onFinalize(channel.close.void) // drain pending send operation
             .mergeHaltL(metricsReset)
             .mergeHaltL(metricsReport)
-            .onFinalize(channel.close.void) // drain pending send operation
             .concurrently(runningService)
             .concurrently(jmxReporting)
       }

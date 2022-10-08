@@ -24,8 +24,7 @@ object Section {
     case MarkdownSection(text) =>
       Json.obj(
         "type" -> "section".asJson,
-        "text" -> Json.obj("type" -> "mrkdwn".asJson),
-        "text" -> text.asJson)
+        "text" -> Json.obj("type" -> "mrkdwn".asJson, "text" -> text.asJson))
     case KeyValueSection(key, value) =>
       Json.obj("type" -> "section".asJson, "text" -> TextField(key, value).asJson)
   }

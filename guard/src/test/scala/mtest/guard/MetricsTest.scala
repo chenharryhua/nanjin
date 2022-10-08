@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxMonadErrorRethrow
-import com.codahale.metrics.jvm.{JvmAttributeGaugeSet, MemoryUsageGaugeSet}
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -20,14 +20,13 @@ import scala.concurrent.duration.*
 
 class MetricsTest extends AnyFunSuite {
   val sg: ServiceGuard[IO] =
-    TaskGuard[IO]("metrics")
-      .service("delta")
-      .updateConfig(_.withMetricReport(1.second))
-      .addMetricSet(new MemoryUsageGaugeSet)
-      .addMetricSet(new JvmAttributeGaugeSet)
+    TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(1.second))
 
   test("delta") {
-    val last = sg
+    val last = TaskGuard[IO]("metrics")
+      .service("delta")
+      .updateConfig(_.withMetricReport(1.second))
+      .addMetricSet(new ThreadStatesGaugeSet)
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
       .map(_.asJson.noSpaces)

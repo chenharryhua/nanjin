@@ -21,7 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-private object builder {
+private object serviceEventPublisher {
   def metricReport[F[_]: Monad: Clock](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
@@ -47,7 +47,7 @@ private object builder {
             resetType = MetricResetType.Scheduled(next),
             serviceParams = serviceParams,
             timestamp = ts,
-            snapshot = MetricSnapshot.regular(MetricFilter.ALL, metricRegistry, serviceParams)
+            snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
           )
         }
       }.getOrElse(
