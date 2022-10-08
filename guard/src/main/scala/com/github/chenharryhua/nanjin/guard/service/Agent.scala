@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.Async
 import cats.effect.Resource
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -16,7 +16,6 @@ import java.time.ZoneId
 
 final class Agent[F[_]] private[service] (
   metricRegistry: MetricRegistry,
-  serviceStatus: Ref[F, ServiceStatus],
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
   entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
@@ -79,9 +78,7 @@ final class Agent[F[_]] private[service] (
     )
 
   lazy val metrics: NJMetrics[F] =
-    new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceStatus = serviceStatus)
-
-  lazy val runtime: NJRuntimeInfo[F] = new NJRuntimeInfo[F](serviceStatus = serviceStatus)
+    new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
   // for convenience
 

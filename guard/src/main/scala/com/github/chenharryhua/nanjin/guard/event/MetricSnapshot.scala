@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.implicits.{catsSyntaxEq, catsSyntaxSemigroup}
+import cats.implicits.catsSyntaxSemigroup
 import cats.kernel.Monoid
 import com.codahale.metrics.*
 import com.codahale.metrics.json.MetricsModule
@@ -37,16 +37,6 @@ private[guard] object MetricSnapshot {
       metric match {
         case c: Counting => c.getCount > 0
         case _           => true
-      }
-
-  def deltaFilter(lastCounters: LastCounters): MetricFilter =
-    (name: String, metric: Metric) =>
-      metric match {
-        case c: Counter   => lastCounters.counterCount.get(name).forall(_ =!= c.getCount)
-        case m: Meter     => lastCounters.meterCount.get(name).forall(_ =!= m.getCount)
-        case t: Timer     => lastCounters.timerCount.get(name).forall(_ =!= t.getCount)
-        case h: Histogram => lastCounters.histoCount.get(name).forall(_ =!= h.getCount)
-        case _            => true
       }
 
   implicit val showSnapshot: Show[MetricSnapshot] = _.show
@@ -89,35 +79,6 @@ private[guard] object MetricSnapshot {
   private def counters(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
     metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-  private def meters(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
-    metricRegistry.getMeters(metricFilter).asScala.view.mapValues(_.getCount).toMap
-
-  private def timers(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
-    metricRegistry.getTimers(metricFilter).asScala.view.mapValues(_.getCount).toMap
-
-  private def histograms(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
-    metricRegistry.getHistograms(metricFilter).asScala.view.mapValues(_.getCount).toMap
-
-  final case class LastCounters private (
-    counterCount: Map[String, Long],
-    meterCount: Map[String, Long],
-    timerCount: Map[String, Long],
-    histoCount: Map[String, Long])
-
-  final object LastCounters {
-    val empty: LastCounters = LastCounters(Map.empty, Map.empty, Map.empty, Map.empty)
-
-    def apply(metricRegistry: MetricRegistry): LastCounters = {
-      val filter: MetricFilter = MetricFilter.ALL
-      LastCounters(
-        counterCount = counters(metricRegistry, filter),
-        meterCount = meters(metricRegistry, filter),
-        timerCount = timers(metricRegistry, filter),
-        histoCount = histograms(metricRegistry, filter)
-      )
-    }
-  }
-
   private def build(
     metricRegistry: MetricRegistry,
     serviceParams: ServiceParams,
@@ -146,10 +107,4 @@ private[guard] object MetricSnapshot {
     serviceParams: ServiceParams): MetricSnapshot =
     build(metricRegistry, serviceParams, metricFilter |+| positiveFilter)
 
-  def delta(
-    lastCounters: LastCounters,
-    metricFilter: MetricFilter,
-    metricRegistry: MetricRegistry,
-    serviceParams: ServiceParams): MetricSnapshot =
-    build(metricRegistry, serviceParams, metricFilter |+| positiveFilter |+| deltaFilter(lastCounters))
 }

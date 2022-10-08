@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.codahale.metrics.jvm.{JvmAttributeGaugeSet, MemoryUsageGaugeSet}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricSnapshotType}
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -28,7 +28,6 @@ class MetricsTest extends AnyFunSuite {
 
   test("delta") {
     val last = sg
-      .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Delta))
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
       .map(_.asJson.noSpaces)
@@ -41,7 +40,6 @@ class MetricsTest extends AnyFunSuite {
   }
   test("full") {
     val last = sg
-      .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Full))
       .eventStream(ag => ag.action("one", _.withCounting).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console(Translator.simpleText[IO]))
       .map(_.asJson.noSpaces)
@@ -54,7 +52,7 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("ongoing action alignment") {
-    sg.updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular).withMetricReport(1.second))
+    sg.updateConfig(_.withMetricReport(1.second))
       .eventStream { ag =>
         val one = ag.action("one", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
         val two = ag.action("two", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
@@ -70,16 +68,13 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("reset") {
-    val last = sg
-      .updateConfig(_.withMetricSnapshotType(MetricSnapshotType.Regular))
-      .eventStream { ag =>
-        val metric = ag.metrics
-        ag.action("one", _.notice).retry(IO(0)).run >> ag
-          .action("two", _.notice)
-          .retry(IO(1))
-          .run >> metric.fullReport >> metric.reset >> IO.sleep(10.minutes)
-      }
-      .evalTap(console(Translator.simpleText[IO]))
+    val last = sg.eventStream { ag =>
+      val metric = ag.metrics
+      ag.action("one", _.notice).retry(IO(0)).run >> ag
+        .action("two", _.notice)
+        .retry(IO(1))
+        .run >> metric.fullReport >> metric.reset >> IO.sleep(10.minutes)
+    }.evalTap(console(Translator.simpleText[IO]))
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(5.seconds)
@@ -100,16 +95,6 @@ class MetricsTest extends AnyFunSuite {
     assert(i2.asJson.noSpaces === """ "High" """.trim)
     assert(i3.asJson.noSpaces === """ "Medium" """.trim)
     assert(i4.asJson.noSpaces === """ "Low" """.trim)
-  }
-
-  test("MetricSnapshotType json") {
-    val m1: MetricSnapshotType = MetricSnapshotType.Full
-    val m2: MetricSnapshotType = MetricSnapshotType.Delta
-    val m3: MetricSnapshotType = MetricSnapshotType.Regular
-
-    assert(m1.asJson.noSpaces === """ "Full" """.trim)
-    assert(m2.asJson.noSpaces === """ "Delta" """.trim)
-    assert(m3.asJson.noSpaces === """ "Regular" """.trim)
   }
 
 }

@@ -37,25 +37,24 @@ object MetricResetType extends localdatetime {
 @JsonCodec
 sealed trait MetricReportType extends Product with Serializable {
   def isShow: Boolean
-  def snapshotType: MetricSnapshotType
 
   final def idx: Option[Long] = this match {
-    case MetricReportType.Adhoc(_)            => None
-    case MetricReportType.Scheduled(_, index) => Some(index)
+    case MetricReportType.Adhoc            => None
+    case MetricReportType.Scheduled(index) => Some(index)
   }
 }
 
 object MetricReportType {
   implicit final val showMetricReportType: Show[MetricReportType] = {
-    case Adhoc(mst)            => s"Adhoc ${mst.show} Metric Report"
-    case Scheduled(mst, index) => s"Scheduled ${mst.show} Metric Report(index=$index)"
+    case Adhoc            => s"Adhoc Metric Report"
+    case Scheduled(index) => s"Scheduled Metric Report(index=$index)"
   }
 
-  final case class Adhoc(snapshotType: MetricSnapshotType) extends MetricReportType {
+  case object Adhoc extends MetricReportType {
     override val isShow: Boolean = true
   }
 
-  final case class Scheduled(snapshotType: MetricSnapshotType, index: Long) extends MetricReportType {
+  final case class Scheduled(index: Long) extends MetricReportType {
     override val isShow: Boolean = index === 0
   }
 }

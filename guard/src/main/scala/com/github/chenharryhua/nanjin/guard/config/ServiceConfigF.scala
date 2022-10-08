@@ -25,8 +25,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   reportSchedule: Option[ScheduleType],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
-  durationTimeUnit: TimeUnit,
-  snapshotType: MetricSnapshotType) {
+  durationTimeUnit: TimeUnit) {
   def nextReport(now: ZonedDateTime): Option[ZonedDateTime] =
     reportSchedule.flatMap(_.fold(fd => Some(now.plus(fd)), _.next(now)))
   def nextReset(now: ZonedDateTime): Option[ZonedDateTime] =
@@ -78,8 +77,7 @@ private[guard] object ServiceParams extends zoneddatetime {
         reportSchedule = None,
         resetSchedule = None,
         rateTimeUnit = TimeUnit.SECONDS,
-        durationTimeUnit = TimeUnit.MILLISECONDS,
-        snapshotType = MetricSnapshotType.Regular
+        durationTimeUnit = TimeUnit.MILLISECONDS
       ),
       brief = "no brief",
       serviceId = serviceId,
@@ -102,8 +100,6 @@ private object ServiceConfigF {
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
 
-  final case class WithSnapshotType[K](value: MetricSnapshotType, cont: K) extends ServiceConfigF[K]
-
   final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   def algebra(serviceId: UUID, launchTime: Instant): Algebra[ServiceConfigF, ServiceParams] =
@@ -118,7 +114,6 @@ private object ServiceConfigF {
       case WithRateTimeUnit(v, c)   => ServiceParams.metric.composeLens(MetricParams.rateTimeUnit).set(v)(c)
       case WithDurationTimeUnit(v, c) =>
         ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
-      case WithSnapshotType(v, c) => ServiceParams.metric.composeLens(MetricParams.snapshotType).set(v)(c)
 
       case WithBrief(v, c) => ServiceParams.brief.set(v)(c)
 
@@ -158,9 +153,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(Fix(WithRateTimeUnit(tu, value)))
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(
     Fix(WithDurationTimeUnit(tu, value)))
-
-  def withMetricSnapshotType(mst: MetricSnapshotType): ServiceConfig =
-    ServiceConfig(Fix(WithSnapshotType(mst, value)))
 
   // retries
   def withConstantDelay(baseDelay: FiniteDuration): ServiceConfig =

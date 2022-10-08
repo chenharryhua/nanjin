@@ -111,16 +111,4 @@ class PassThroughTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("6.runtime") {
-    guard
-      .updateConfig(_.withMetricReport(1.second))
-      .eventStream { agent =>
-        val rt = agent.runtime
-        rt.upTime >> rt.downCause >> rt.isServicePanic >> rt.isServiceUp >> IO(rt.serviceId)
-      }
-      .evalTap(logging(Translator.simpleText[IO]))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
 }

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, UUIDGen}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
@@ -9,7 +9,7 @@ import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig}
+import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
@@ -60,27 +60,24 @@ final class ServiceGuard[F[_]] private[guard] (
   def addMetricSet(ms: MetricSet): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder, entryPoint)
 
-  private val initStatus: F[Ref[F, ServiceStatus]] = for {
+  private val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
-    ssRef <- F.ref[ServiceStatus](ServiceStatus.initialize(serviceConfig.evalConfig(uuid, ts)))
-  } yield ssRef
+  } yield serviceConfig.evalConfig(uuid, ts)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
-    ss <- Resource.eval(initStatus)
-    sp <- Resource.eval(ss.get.map(_.serviceParams))
+    sp <- Resource.eval(initStatus)
     chn <- Resource.eval(Channel.bounded[F, NJEvent](0))
     _ <- chn.stream
       .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
       .compile
       .resource
       .drain
-  } yield new Agent[F](new MetricRegistry, ss, chn, sp, entryPoint)
+  } yield new Agent[F](new MetricRegistry, chn, sp, entryPoint)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      serviceStatus <- Stream.eval(initStatus)
-      serviceParams <- Stream.eval(serviceStatus.get.map(_.serviceParams))
+      serviceParams <- Stream.eval(initStatus)
       event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap {
         channel =>
           val metricRegistry: MetricRegistry = {
@@ -100,14 +97,14 @@ final class ServiceGuard[F[_]] private[guard] (
                     rd match {
                       case RetryDetails.GivingUp(_, _) => F.unit
                       case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
-                        publisher.servicePanic(channel, serviceStatus, nextDelay, ex)
+                        publisher.servicePanic(channel, serviceParams, nextDelay, ex)
                     }
                 ) {
-                  publisher.serviceReStart(channel, serviceStatus) *>
-                    runAgent(new Agent[F](metricRegistry, serviceStatus, channel, serviceParams, entryPoint))
+                  publisher.serviceReStart(channel, serviceParams) *>
+                    runAgent(new Agent[F](metricRegistry, channel, serviceParams, entryPoint))
                 }
                 .guaranteeCase(oc =>
-                  publisher.serviceStop(channel, serviceStatus, ServiceStopCause(oc)) <* channel.close)
+                  publisher.serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
             }
             .onFinalize(F.sleep(1.second))
             .drain
@@ -127,10 +124,10 @@ final class ServiceGuard[F[_]] private[guard] (
                   .evalMap(t =>
                     publisher.metricReport(
                       channel,
-                      serviceStatus,
+                      serviceParams,
                       metricRegistry,
                       metricFilter,
-                      MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
+                      MetricReportType.Scheduled(t._2)))
                   .drain
               case Some(ScheduleType.Cron(cron)) =>
                 cronScheduler
@@ -139,10 +136,10 @@ final class ServiceGuard[F[_]] private[guard] (
                   .evalMap(t =>
                     publisher.metricReport(
                       channel,
-                      serviceStatus,
+                      serviceParams,
                       metricRegistry,
                       metricFilter,
-                      MetricReportType.Scheduled(serviceParams.metric.snapshotType, t._2)))
+                      MetricReportType.Scheduled(t._2)))
                   .drain
               case None => Stream.empty
             }
@@ -153,7 +150,7 @@ final class ServiceGuard[F[_]] private[guard] (
               case Some(cron) =>
                 cronScheduler
                   .awakeEvery(cron)
-                  .evalMap(_ => publisher.metricReset(channel, serviceStatus, metricRegistry, Some(cron)))
+                  .evalMap(_ => publisher.metricReset(channel, serviceParams, metricRegistry, Some(cron)))
                   .drain
             }
 
