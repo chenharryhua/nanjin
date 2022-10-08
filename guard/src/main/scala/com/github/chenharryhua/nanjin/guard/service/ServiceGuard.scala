@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, MetricReset}
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
@@ -97,14 +98,14 @@ final class ServiceGuard[F[_]] private[guard] (
                     rd match {
                       case RetryDetails.GivingUp(_, _) => F.unit
                       case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
-                        publisher.servicePanic(channel, serviceParams, nextDelay, ex)
+                        builder.servicePanic(channel, serviceParams, nextDelay, ex)
                     }
                 ) {
-                  publisher.serviceReStart(channel, serviceParams) *>
+                  builder.serviceReStart(channel, serviceParams) *>
                     runAgent(new Agent[F](metricRegistry, channel, serviceParams, entryPoint))
                 }
                 .guaranteeCase(oc =>
-                  publisher.serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
+                  builder.serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
             }
             .onFinalize(F.sleep(1.second))
             .drain
@@ -114,7 +115,7 @@ final class ServiceGuard[F[_]] private[guard] (
           val cronScheduler: Scheduler[F, CronExpr] =
             Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
-          val metricsReport: Stream[F, Nothing] =
+          val metricsReport: Stream[F, MetricReport] =
             serviceParams.metric.reportSchedule match {
               case Some(ScheduleType.Fixed(dur)) =>
                 // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
@@ -122,36 +123,31 @@ final class ServiceGuard[F[_]] private[guard] (
                   .fixedRate[F](dur.toScala)
                   .zipWithIndex
                   .evalMap(t =>
-                    publisher.metricReport(
-                      channel,
+                    builder.metricReport(
                       serviceParams,
                       metricRegistry,
                       metricFilter,
                       MetricReportType.Scheduled(t._2)))
-                  .drain
               case Some(ScheduleType.Cron(cron)) =>
                 cronScheduler
                   .awakeEvery(cron)
                   .zipWithIndex
                   .evalMap(t =>
-                    publisher.metricReport(
-                      channel,
+                    builder.metricReport(
                       serviceParams,
                       metricRegistry,
                       metricFilter,
                       MetricReportType.Scheduled(t._2)))
-                  .drain
               case None => Stream.empty
             }
 
-          val metricsReset: Stream[F, Nothing] =
+          val metricsReset: Stream[F, MetricReset] =
             serviceParams.metric.resetSchedule match {
               case None => Stream.empty
               case Some(cron) =>
                 cronScheduler
                   .awakeEvery(cron)
-                  .evalMap(_ => publisher.metricReset(channel, serviceParams, metricRegistry, Some(cron)))
-                  .drain
+                  .evalMap(_ => builder.metricReset(serviceParams, metricRegistry, Some(cron)))
             }
 
           val jmxReporting: Stream[F, Nothing] =
@@ -169,10 +165,10 @@ final class ServiceGuard[F[_]] private[guard] (
           // put together
 
           channel.stream
+            .mergeHaltL(metricsReset)
+            .mergeHaltL(metricsReport)
             .onFinalize(channel.close.void) // drain pending send operation
             .concurrently(runningService)
-            .concurrently(metricsReport)
-            .concurrently(metricsReset)
             .concurrently(jmxReporting)
       }
     } yield event

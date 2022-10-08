@@ -21,32 +21,27 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-private object publisher {
+private object builder {
   def metricReport[F[_]: Monad: Clock](
-    channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     metricFilter: MetricFilter,
-    metricReportType: MetricReportType): F[Unit] =
-    for {
-      ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
-      _ <- channel.send(
-        MetricReport(
-          serviceParams = serviceParams,
-          reportType = metricReportType,
-          timestamp = ts,
-          snapshot = MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
-        ))
-    } yield ()
+    metricReportType: MetricReportType): F[MetricReport] =
+    Clock[F].realTimeInstant.map(ts =>
+      MetricReport(
+        serviceParams = serviceParams,
+        reportType = metricReportType,
+        timestamp = serviceParams.toZonedDateTime(ts),
+        snapshot = MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
+      ))
 
   def metricReset[F[_]: Monad: Clock](
-    channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    cronExpr: Option[CronExpr]): F[Unit] =
+    cronExpr: Option[CronExpr]): F[MetricReset] =
     for {
       ts <- Clock[F].realTimeInstant.map(serviceParams.toZonedDateTime)
-      msg = cronExpr.flatMap { ce =>
+      evt = cronExpr.flatMap { ce =>
         ce.next(ts).map { next =>
           MetricReset(
             resetType = MetricResetType.Scheduled(next),
@@ -62,8 +57,10 @@ private object publisher {
           timestamp = ts,
           snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
         ))
-      _ <- channel.send(msg)
-    } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
+    } yield {
+      metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
+      evt
+    }
 
   def serviceReStart[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],

@@ -73,7 +73,7 @@ class MetricsTest extends AnyFunSuite {
       ag.action("one", _.notice).retry(IO(0)).run >> ag
         .action("two", _.notice)
         .retry(IO(1))
-        .run >> metric.fullReport >> metric.reset >> IO.sleep(10.minutes)
+        .run >> metric.report >> metric.reset >> IO.sleep(10.minutes)
     }.evalTap(console(Translator.simpleText[IO]))
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
