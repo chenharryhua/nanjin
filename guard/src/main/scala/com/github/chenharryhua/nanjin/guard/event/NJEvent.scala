@@ -61,8 +61,6 @@ object NJEvent extends zoneddatetime {
     snapshot: MetricSnapshot,
     restartTime: Option[ZonedDateTime])
       extends MetricEvent {
-    val isPanic: Boolean       = restartTime.nonEmpty
-    val isUp: Boolean          = restartTime.isEmpty
     override val title: String = reportType.show
   }
 
