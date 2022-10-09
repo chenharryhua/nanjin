@@ -17,6 +17,7 @@ import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 
+import java.time.ZonedDateTime
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -64,17 +65,17 @@ private object publisher {
 
   def serviceReStart[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
-    serviceParams: ServiceParams): F[Unit] =
+    serviceParams: ServiceParams): F[ZonedDateTime] =
     for {
-      ts <- serviceParams.zonedNow
-      _ <- channel.send(ServiceStart(serviceParams, ts))
-    } yield ()
+      now <- serviceParams.zonedNow
+      _ <- channel.send(ServiceStart(serviceParams, now))
+    } yield now
 
   def servicePanic[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     delay: FiniteDuration,
-    ex: Throwable): F[Unit] =
+    ex: Throwable): F[ZonedDateTime] =
     for {
       ts <- Clock[F].realTimeInstant
       now  = serviceParams.toZonedDateTime(ts)
@@ -82,15 +83,15 @@ private object publisher {
       err  = NJError(ex)
       _ <- channel.send(
         ServicePanic(serviceParams = serviceParams, timestamp = now, restartTime = next, error = err))
-    } yield ()
+    } yield now
 
   def serviceStop[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     cause: ServiceStopCause): F[Unit] =
     for {
-      ts <- serviceParams.zonedNow
-      _ <- channel.send(ServiceStop(timestamp = ts, serviceParams = serviceParams, cause = cause))
+      now <- serviceParams.zonedNow
+      _ <- channel.send(ServiceStop(timestamp = now, serviceParams = serviceParams, cause = cause))
     } yield ()
 
 }

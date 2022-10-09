@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, UUIDGen}
-import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
@@ -19,11 +18,8 @@ import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 import natchez.EntryPoint
-import retry.RetryDetails
 
-import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.*
-import scala.util.control.NonFatal
 
 // format: off
 /** @example
@@ -137,34 +133,13 @@ final class ServiceGuard[F[_]] private[guard] (
                   .flatMap(_ => Stream.never[F])
             }
 
-          val runningService: Stream[F, Nothing] = {
-            val agent = new Agent[F](metricRegistry, channel, serviceParams, entryPoint)
-            Stream
-              .eval[F, A] {
-                retry.mtl
-                  .retryingOnSomeErrors[A](
-                    serviceParams.retry.policy[F],
-                    (ex: Throwable) => F.pure(NonFatal(ex)), // give up on fatal errors
-                    (ex: Throwable, rd) =>
-                      rd match {
-                        case RetryDetails.GivingUp(_, _) => F.unit
-                        case RetryDetails.WillDelayAndRetry(nextDelay, _, _) =>
-                          publisher.servicePanic(channel, serviceParams, nextDelay, ex)
-                      }
-                  )(publisher.serviceReStart(channel, serviceParams) *> runAgent(agent))
-                  .guaranteeCase(oc =>
-                    publisher.serviceStop(channel, serviceParams, ServiceStopCause(oc)) <* channel.close)
-              }
-              .onFinalize(F.sleep(1.second))
-              .drain
-          }
-
+          val agent = new Agent[F](metricRegistry, channel, serviceParams, entryPoint)
           // put together
           channel.stream
             .onFinalize(channel.close.void) // drain pending send operation
             .mergeHaltL(metricsReset)
             .mergeHaltL(metricsReport)
-            .concurrently(runningService)
+            .concurrently(new ReStart[F, A](channel, serviceParams, runAgent(agent)).stream)
             .concurrently(jmxReporting)
       }
     } yield event

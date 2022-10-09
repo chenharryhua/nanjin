@@ -22,7 +22,7 @@ class MetricsTest extends AnyFunSuite {
   val sg: ServiceGuard[IO] =
     TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(1.second))
 
-  test("delta") {
+  test("1.delta") {
     val last = TaskGuard[IO]("metrics")
       .service("delta")
       .updateConfig(_.withMetricReport(1.second))
@@ -37,7 +37,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.isEmpty))
   }
-  test("full") {
+  test("2.full") {
     val last = sg
       .eventStream(ag => ag.action("one", _.withCounting).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console(Translator.simpleText[IO]))
@@ -50,7 +50,7 @@ class MetricsTest extends AnyFunSuite {
     assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.nonEmpty))
   }
 
-  test("ongoing action alignment") {
+  test("3.ongoing action alignment") {
     sg.updateConfig(_.withMetricReport(1.second))
       .eventStream { ag =>
         val one = ag.action("one", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
@@ -66,7 +66,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("reset") {
+  test("4.reset") {
     val last = sg.eventStream { ag =>
       val metric = ag.metrics
       ag.action("one", _.notice).retry(IO(0)).run >> ag
@@ -84,7 +84,7 @@ class MetricsTest extends AnyFunSuite {
     assert(last.get.asInstanceOf[MetricReport].snapshot.counterMap.size === 0)
   }
 
-  test("Importance json") {
+  test("5.Importance json") {
     val i1: Importance = Importance.Critical
     val i2: Importance = Importance.High
     val i3: Importance = Importance.Medium

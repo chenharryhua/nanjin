@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.{Monad, Show}
-import cats.effect.kernel.Outcome
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -9,6 +8,7 @@ import io.circe.generic.*
 import natchez.{Span, Trace}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
+
 import java.net.URI
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -78,6 +78,7 @@ sealed trait ServiceStopCause extends Product with Serializable {
     case ServiceStopCause.Normally         => "normally exit"
     case ServiceStopCause.ByCancelation    => "abnormally exit due to cancelation"
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
+    case ServiceStopCause.ByGiveup(msg)    => s"abnormally giveup due to $msg"
   }
 }
 
@@ -86,12 +87,6 @@ object ServiceStopCause {
     case ExitCase.Succeeded  => ServiceStopCause.Normally
     case ExitCase.Errored(e) => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(e))
     case ExitCase.Canceled   => ServiceStopCause.ByCancelation
-  }
-
-  def apply[F[_], A](oc: Outcome[F, Throwable, A]): ServiceStopCause = oc match {
-    case Outcome.Succeeded(_) => ServiceStopCause.Normally
-    case Outcome.Errored(e)   => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(e))
-    case Outcome.Canceled()   => ServiceStopCause.ByCancelation
   }
 
   implicit final val showServiceStopCause: Show[ServiceStopCause] = _.toString
@@ -106,6 +101,10 @@ object ServiceStopCause {
 
   final case class ByException(msg: String) extends ServiceStopCause {
     override val exitCode: Int = 2
+  }
+
+  final case class ByGiveup(msg: String) extends ServiceStopCause {
+    override val exitCode: Int = 3
   }
 }
 
