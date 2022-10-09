@@ -61,7 +61,7 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def servicePanic[F[_]: Applicative](evt: ServicePanic): SlackApp =
+  private def servicePanic(evt: ServicePanic): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -71,7 +71,7 @@ private object SlackTranslator extends all {
             MarkdownSection(upcomingRestartTimeInterpretation(evt)),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
+                                |*Policy:* ${evt.serviceParams.retryPolicy}
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
@@ -263,7 +263,7 @@ private object SlackTranslator extends all {
     Translator
       .empty[F, SlackApp]
       .withServiceStart(serviceStarted)
-      .withServicePanic(servicePanic[F])
+      .withServicePanic(servicePanic)
       .withServiceStop(serviceStopped)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)

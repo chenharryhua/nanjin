@@ -58,12 +58,12 @@ private object HtmlTranslator extends all {
       pre(evt.serviceParams.brief)
     )
 
-  private def servicePanic[F[_]: Applicative](evt: ServicePanic): Text.TypedTag[String] =
+  private def servicePanic(evt: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
       p(b(upcomingRestartTimeInterpretation(evt))),
       hostServiceText(evt),
-      p(b("Policy: "), evt.serviceParams.retry.policy[F].show),
+      p(b("Policy: "), evt.serviceParams.retryPolicy),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       causeText(evt.error)
     )
@@ -142,7 +142,7 @@ private object HtmlTranslator extends all {
     Translator
       .empty[F, Text.TypedTag[String]]
       .withServiceStart(serviceStarted)
-      .withServicePanic(servicePanic[F])
+      .withServicePanic(servicePanic)
       .withServiceStop(serviceStopped)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)

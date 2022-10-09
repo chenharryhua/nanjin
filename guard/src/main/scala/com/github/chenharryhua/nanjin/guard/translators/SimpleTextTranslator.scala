@@ -45,12 +45,14 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |  ${upcomingRestartTimeInterpretation(evt)}
+       |  Policy:${evt.serviceParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
+       |  Policy:${evt.serviceParams.retryPolicy}
        |  Cause:${evt.cause.show}
        |""".stripMargin
 
