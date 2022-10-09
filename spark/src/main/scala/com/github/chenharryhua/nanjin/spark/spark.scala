@@ -48,6 +48,10 @@ package object spark {
 
   implicit final class SparkSessionExt(ss: SparkSession) extends Serializable {
 
+    /** @param dbtable
+      *   schema.table
+      * @return
+      */
     def jdbcDataFrame(hikari: HikariConfig, dbtable: String): DataFrame = {
       val options: Map[String, String] = Map(
         "url" -> hikari.getJdbcUrl,

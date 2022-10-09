@@ -68,13 +68,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("3.should throw exception when fatal error occurs") {
-    var sStart = 0
-    var sStop  = 0
-    var aStart = 0
-    var aFail  = 0
-    var others = 0
-
-    val res = guard
+    val List(a, b, c, d) = guard
       .updateConfig(_.withJitterBackoff(30.minutes, 1.hour))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
@@ -82,24 +76,15 @@ class ServiceTest extends AnyFunSuite {
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run
       }
-      .evalTap {
-        case _: ServiceStart => IO(sStart += 1)
-        case _: ServiceStop  => IO(sStop += 1)
-        case _: ActionStart  => IO(aStart += 1)
-        case _: ActionFail   => IO(aFail += 1)
-        case _               => IO(others += 1)
-      }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .evalTap(console.simple[IO])
       .compile
       .toList
-
-    assertThrows[Throwable](res.unsafeRunSync())
-    assert(sStart == 1)
-    assert(aStart == 1)
-    assert(aFail == 1)
-    assert(sStop == 1)
-    assert(others == 0)
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionFail])
+    assert(d.isInstanceOf[ServiceStop])
   }
 
   test("4.json codec") {
@@ -193,46 +178,49 @@ class ServiceTest extends AnyFunSuite {
     guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
   }
 
+  test("10. multiple service restart") {
+    val a :: b :: c :: d :: e :: f :: g :: h :: i :: _ = guard
+      .updateConfig(_.withConstantDelay(1.second))
+      .eventStream(_.action("oops", _.silent).retry(IO.raiseError[Int](new Exception("oops"))).run)
+      .interruptAfter(5.seconds)
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionFail])
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ServiceStart])
+    assert(e.isInstanceOf[ActionFail])
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStart])
+    assert(h.isInstanceOf[ActionFail])
+    assert(i.isInstanceOf[ServicePanic])
+
+  }
+
   test("11.should give up") {
-    var serviceStart    = 0
-    var actionStart     = 0
-    var actionRetry     = 0
-    var actionFail      = 0
-    var serviceStop     = 0
-    var shouldNotHappen = 0
-    val action = guard
+
+    val List(a, b, c, d, e, f, g) = guard
       .updateConfig(_.withAlwaysGiveUp)
       .eventStream { gd =>
         gd.action("t", _.notice.withFibonacciBackoff(0.1.second, 3)).retry(IO.raiseError(new Exception)).run
       }
-      .evalTap { case event: ServiceEvent =>
-        event match {
-          case _: ServiceStart => IO(serviceStart += 1)
-          case _: ServicePanic => IO(shouldNotHappen += 1)
-          case _: ServiceStop  => IO(serviceStop += 1)
-          case _: MetricEvent  => IO(shouldNotHappen += 1)
-          case _: ActionStart  => IO(actionStart += 1)
-          case _: ActionRetry  => IO(actionRetry += 1)
-          case _: ActionFail   => IO(actionFail += 1)
-          case _: ActionSucc   => IO(shouldNotHappen += 1)
-          case _: InstantEvent => IO(shouldNotHappen += 1)
-        }
-      }
+      .debug()
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
-      .drain
-
-    assertThrows[Exception](action.unsafeRunSync())
-    assert(serviceStart == 1)
-    assert(actionStart == 1)
-    assert(actionRetry == 3)
-    assert(actionFail == 1)
-    assert(serviceStop == 1)
-    assert(shouldNotHappen == 0)
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionRetry])
+    assert(f.isInstanceOf[ActionFail])
+    assert(g.isInstanceOf[ServiceStop])
   }
 
-  test("12.dummy agent should not block") {
-    val dummy = TaskGuard.dummyAgent[IO]
-    dummy.use(_.action("t", _.critical).retry(IO(1)).run.replicateA(10)).unsafeRunSync()
-  }
+//  test("12.dummy agent should not block") {
+//    val dummy = TaskGuard.dummyAgent[IO]
+//    dummy.use(_.action("t", _.critical).retry(IO(1)).run.replicateA(10)).unsafeRunSync()
+//  }
 }

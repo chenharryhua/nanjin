@@ -2,21 +2,16 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Show
 import cats.derived.auto.show.*
-import io.circe.Encoder
+import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
-import io.circe.literal.JsonStringContext
+import io.circe.syntax.EncoderOps
 
 final case class TextField(tag: String, value: String)
 object TextField {
   implicit val encodeTextField: Encoder[TextField] = tf => {
     val str = s"*${tf.tag}*\n${tf.value}"
-    json"""
-        {
-           "type": "mrkdwn",
-           "text": $str
-        }
-        """
+    Json.obj("type" -> "mrkdwn".asJson, "text" -> str.asJson)
   }
 }
 // slack format
@@ -24,29 +19,14 @@ sealed trait Section
 object Section {
   implicit val encodeSection: Encoder[Section] = Encoder.instance {
     case JuxtaposeSection(first, second) =>
-      json"""
-            {
-               "type": "section",
-               "fields": ${List(first, second)}
-            }
-            """
+      Json.obj("type" -> "section".asJson, "fields" -> List(first, second).asJson)
+
     case MarkdownSection(text) =>
-      json"""
-            {
-               "type": "section",
-               "text": {
-                          "type": "mrkdwn",
-                          "text": $text
-                       }
-            }
-            """
+      Json.obj(
+        "type" -> "section".asJson,
+        "text" -> Json.obj("type" -> "mrkdwn".asJson, "text" -> text.asJson))
     case KeyValueSection(key, value) =>
-      json"""
-            {
-               "type": "section",
-               "text": ${TextField(key, value)}
-            }
-            """
+      Json.obj("type" -> "section".asJson, "text" -> TextField(key, value).asJson)
   }
 }
 

@@ -15,16 +15,15 @@ object ColorScheme {
 
   def decorate[A](evt: NJEvent): Cont[A, ColorScheme] =
     Cont.pure[A, NJEvent](evt).map {
-      case _: ServiceStart          => InfoColor
-      case _: ServicePanic          => ErrorColor
-      case ServiceStop(_, _, cause) => if (cause.exitCode === 0) GoodColor else ErrorColor
-      case mr @ MetricReport(_, _, _, snapshot, _) =>
-        if (mr.isPanic) ErrorColor else if (snapshot.isContainErrors) WarnColor else InfoColor
-      case _: MetricReset => InfoColor
-      case _: ActionStart => InfoColor
-      case _: ActionRetry => WarnColor
-      case _: ActionFail  => ErrorColor
-      case _: ActionSucc  => GoodColor
+      case _: ServiceStart                 => InfoColor
+      case _: ServicePanic                 => ErrorColor
+      case ServiceStop(_, _, cause)        => if (cause.exitCode === 0) GoodColor else ErrorColor
+      case MetricReport(_, _, _, snapshot) => if (snapshot.isContainErrors) WarnColor else InfoColor
+      case _: MetricReset                  => InfoColor
+      case _: ActionStart                  => InfoColor
+      case _: ActionRetry                  => WarnColor
+      case _: ActionFail                   => ErrorColor
+      case _: ActionSucc                   => GoodColor
       case InstantAlert(_, _, _, importance, _) =>
         importance match {
           case Importance.Critical => ErrorColor

@@ -52,7 +52,7 @@ class PassThroughTest extends AnyFunSuite {
       .eventStream { ag =>
         val counter =
           ag.counter("one/two/three/counter").asError
-        (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.fullReport
+        (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
       }
       .filter(_.isInstanceOf[MetricReport])
       .debug()
@@ -72,8 +72,7 @@ class PassThroughTest extends AnyFunSuite {
       .eventStream { ag =>
         val alert = ag.alert("oops").withCounting
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
-          ag.metrics.fullReport >>
-          ag.metrics.deltaReport(MetricFilter.ALL) >>
+          ag.metrics.report >>
           ag.metrics.report(MetricFilter.ALL)
       }
       .filter(_.isInstanceOf[MetricReport])
@@ -111,16 +110,4 @@ class PassThroughTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("6.runtime") {
-    guard
-      .updateConfig(_.withMetricReport(1.second))
-      .eventStream { agent =>
-        val rt = agent.runtime
-        rt.upTime >> rt.downCause >> rt.isServicePanic >> rt.isServiceUp >> IO(rt.serviceId)
-      }
-      .evalTap(logging(Translator.simpleText[IO]))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
 }

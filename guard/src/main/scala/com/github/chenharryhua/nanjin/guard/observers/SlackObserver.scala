@@ -6,7 +6,14 @@ import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc, MetricReport, ServiceStart}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionFail,
+  ActionRetry,
+  ActionStart,
+  ActionSucc,
+  MetricReport,
+  ServiceStart
+}
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*
@@ -69,7 +76,7 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case MetricReport(mrt, sp, ts, _, _) =>
+            case MetricReport(mrt, sp, ts, _) =>
               isShowMetrics(sp.metric.reportSchedule, ts, metricsInterval, sp.launchTime) || mrt.isShow
             case ai: ActionStart => ai.actionParams.isCritical
             case ai: ActionSucc  => ai.actionParams.isCritical

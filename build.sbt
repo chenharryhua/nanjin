@@ -1,8 +1,8 @@
-ThisBuild / scalaVersion       := "2.13.9"
+ThisBuild / scalaVersion       := "2.13.10"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.0-SNAPSHOT"
+ThisBuild / version            := "0.16.1-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.8.0"

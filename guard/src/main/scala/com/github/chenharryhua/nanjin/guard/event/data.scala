@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.{Monad, Show}
-import cats.effect.kernel.Outcome
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -9,6 +8,7 @@ import io.circe.generic.*
 import natchez.{Span, Trace}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
+
 import java.net.URI
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -37,25 +37,24 @@ object MetricResetType extends localdatetime {
 @JsonCodec
 sealed trait MetricReportType extends Product with Serializable {
   def isShow: Boolean
-  def snapshotType: MetricSnapshotType
 
   final def idx: Option[Long] = this match {
-    case MetricReportType.Adhoc(_)            => None
-    case MetricReportType.Scheduled(_, index) => Some(index)
+    case MetricReportType.Adhoc            => None
+    case MetricReportType.Scheduled(index) => Some(index)
   }
 }
 
 object MetricReportType {
   implicit final val showMetricReportType: Show[MetricReportType] = {
-    case Adhoc(mst)            => s"Adhoc ${mst.show} Metric Report"
-    case Scheduled(mst, index) => s"Scheduled ${mst.show} Metric Report(index=$index)"
+    case Adhoc            => s"Adhoc Metric Report"
+    case Scheduled(index) => s"Scheduled Metric Report(index=$index)"
   }
 
-  final case class Adhoc(snapshotType: MetricSnapshotType) extends MetricReportType {
+  case object Adhoc extends MetricReportType {
     override val isShow: Boolean = true
   }
 
-  final case class Scheduled(snapshotType: MetricSnapshotType, index: Long) extends MetricReportType {
+  final case class Scheduled(index: Long) extends MetricReportType {
     override val isShow: Boolean = index === 0
   }
 }
@@ -79,6 +78,7 @@ sealed trait ServiceStopCause extends Product with Serializable {
     case ServiceStopCause.Normally         => "normally exit"
     case ServiceStopCause.ByCancelation    => "abnormally exit due to cancelation"
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
+    case ServiceStopCause.ByGiveup(msg)    => s"abnormally giveup due to $msg"
   }
 }
 
@@ -87,12 +87,6 @@ object ServiceStopCause {
     case ExitCase.Succeeded  => ServiceStopCause.Normally
     case ExitCase.Errored(e) => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(e))
     case ExitCase.Canceled   => ServiceStopCause.ByCancelation
-  }
-
-  def apply[F[_], A](oc: Outcome[F, Throwable, A]): ServiceStopCause = oc match {
-    case Outcome.Succeeded(_) => ServiceStopCause.Normally
-    case Outcome.Errored(e)   => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(e))
-    case Outcome.Canceled()   => ServiceStopCause.ByCancelation
   }
 
   implicit final val showServiceStopCause: Show[ServiceStopCause] = _.toString
@@ -107,6 +101,10 @@ object ServiceStopCause {
 
   final case class ByException(msg: String) extends ServiceStopCause {
     override val exitCode: Int = 2
+  }
+
+  final case class ByGiveup(msg: String) extends ServiceStopCause {
+    override val exitCode: Int = 3
   }
 }
 

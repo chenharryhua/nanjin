@@ -55,7 +55,6 @@ private object SimpleJsonTranslator {
         Json.obj(
           "index" -> evt.reportType.idx.asJson,
           serviceName(evt),
-          "isUp" -> Json.fromBoolean(evt.isUp),
           metrics(evt.snapshot),
           serviceId(evt),
           timestamp(evt)
