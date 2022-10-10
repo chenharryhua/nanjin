@@ -7,7 +7,10 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import cron4s.expr.CronExpr
+import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -130,7 +133,7 @@ class RetryTest extends AnyFunSuite {
   test("6.retry - should escalate to up level if retry failed") {
     val policy = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream { gd =>
         gd.action("t")
           .withRetryPolicy(policy)
@@ -139,7 +142,6 @@ class RetryTest extends AnyFunSuite {
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-      .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
@@ -149,13 +151,12 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
-    assert(f.isInstanceOf[ServicePanic])
+    assert(f.isInstanceOf[ServiceStop])
   }
 
   test("7.retry - Null pointer exception") {
     val a :: b :: c :: d :: e :: f :: _ = serviceGuard
-      .withRestartPolicy(constant_1hour)
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream(ag =>
         ag.action("t")
           .withRetryPolicy(policy)
@@ -163,7 +164,6 @@ class RetryTest extends AnyFunSuite {
           .logOutput
           .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-      .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -172,13 +172,13 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
-    assert(f.isInstanceOf[ServicePanic])
+    assert(f.isInstanceOf[ServiceStop])
   }
 
   test("8.retry - predicate - should retry") {
     val policy = RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream { gd =>
         gd.action("t")
           .withRetryPolicy(policy)
@@ -187,7 +187,6 @@ class RetryTest extends AnyFunSuite {
           .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-      .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
@@ -197,7 +196,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
-    assert(f.isInstanceOf[ServicePanic])
+    assert(f.isInstanceOf[ServiceStop])
   }
 
   test("9.retry - isWorthRetry - should not retry") {
@@ -232,6 +231,28 @@ class RetryTest extends AnyFunSuite {
         builder.quasi(IO.print("a"), IO.print("b")).run >>
         builder.quasi(3)(IO.print("a"), IO.print("b")).run
     }
+  }
+
+  test("11.cron policy") {
+    val secondly: CronExpr = Cron.unsafeParse("0-59 * * ? * *")
+    val policy             = policies.cronBackoff[IO](secondly).join(RetryPolicies.limitRetries(3))
+    val List(a, b, c, d, e, f, g) = serviceGuard
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .eventStream(
+        _.action("cron", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run)
+      .evalTap(console.simple[IO])
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionRetry])
+    assert(d.isInstanceOf[ActionRetry])
+    assert(e.isInstanceOf[ActionRetry])
+    assert(f.isInstanceOf[ActionFail])
+    assert(g.isInstanceOf[ServiceStop])
+
   }
 
   test("run synatx") {

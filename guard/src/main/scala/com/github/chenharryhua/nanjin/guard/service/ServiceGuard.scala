@@ -4,6 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, UUIDGen}
 import cats.syntax.all.*
 import cats.Endo
+import cats.effect.implicits.genSpawnOps
 import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -73,8 +74,8 @@ final class ServiceGuard[F[_]] private[guard] (
     _ <- chn.stream
       .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
       .compile
-      .resource
       .drain
+      .background
   } yield new Agent[F](new MetricRegistry, chn, sp, entryPoint)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =

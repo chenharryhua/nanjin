@@ -31,7 +31,7 @@ final private class ReStart[F[_], A](
       _ <- F.sleep(delay)
     } yield Left(retryStatus.addRetry(delay))
 
-  private def retrying: F[Unit] = F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+  private val loop: F[Unit] = F.tailRecM(RetryStatus.NoRetriesYet) { status =>
     (publisher.serviceReStart(channel, serviceParams) >> fa).attempt.flatMap {
       case Right(_)                    => stopBy(ServiceStopCause.Normally)
       case Left(err) if !NonFatal(err) => stopBy(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
@@ -51,7 +51,7 @@ final private class ReStart[F[_], A](
     Stream
       .eval(
         F.guarantee(
-          F.onCancel(retrying, stopBy(ServiceStopCause.ByCancelation).void),
+          F.onCancel(loop, stopBy(ServiceStopCause.ByCancelation).void),
           channel.close >> F.sleep(1.second)))
       .drain
 }

@@ -78,7 +78,7 @@ sealed trait ServiceStopCause extends Product with Serializable {
     case ServiceStopCause.Normally         => "normally exit"
     case ServiceStopCause.ByCancelation    => "abnormally exit due to cancelation"
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
-    case ServiceStopCause.ByGiveup(msg)    => s"abnormally giveup due to $msg"
+    case ServiceStopCause.ByGiveup(msg)    => s"giveup due to $msg"
   }
 }
 

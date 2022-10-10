@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
 import skunk.Session
 
 import scala.concurrent.duration.*
@@ -72,17 +73,17 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
         val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
-      .interruptAfter(7.seconds)
-      .through(SlackObserver(SimpleNotificationService.fake[IO])
-        .withInterval(50.seconds)
-        .at("@chenh")
-        .observe(snsArn))
+      .through(
+        SlackObserver(SimpleNotificationService.fake[IO])
+          .withInterval(50.seconds)
+          .at("@chenh")
+          .observe(snsArn))
       .compile
       .drain
       .unsafeRunSync()

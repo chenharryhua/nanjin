@@ -62,26 +62,25 @@ class CancellationTest extends AnyFunSuite {
 
   test("3.canceled by external exception") {
     val Vector(s, b, c) = serviceGuard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream { ag =>
         val a1 = ag.action("never", _.trivial).retry(never_fun).run
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1))
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .interruptAfter(3.seconds)
       .compile
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionFail])
-    assert(c.isInstanceOf[ServicePanic])
+    assert(c.isInstanceOf[ServiceStop])
 
   }
 
   test("4.cancellation should propagate in right order") {
     val Vector(a, b, c, d) = serviceGuard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream { ag =>
         val a1 = ag.action("one/two/inner", _.silent).retry(IO.never[Int]).run
         ag.action("one/two/three/outer", _.silent)
@@ -90,7 +89,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .interruptAfter(10.second)
       .compile
       .toVector
       .unsafeRunSync()
@@ -127,7 +125,7 @@ class CancellationTest extends AnyFunSuite {
   test("6.cancellation - sequentially - no chance to cancel") {
     val policy = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
     val Vector(s, a, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream { ag =>
         ag.action("a1", _.notice).retry(IO(1)).run >>
           ag.action("a2", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run >>
@@ -136,7 +134,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .interruptAfter(5.second)
       .compile
       .toVector
       .unsafeRunSync()
@@ -147,7 +144,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionStart])
     assert(d.asInstanceOf[ActionRetry].actionParams.digested.metricRepr == "[a2][56199b40]")
     assert(e.asInstanceOf[ActionFail].actionParams.digested.metricRepr == "[a2][56199b40]")
-    assert(f.isInstanceOf[ServicePanic])
+    assert(f.isInstanceOf[ServiceStop])
 
   }
 
@@ -155,7 +152,7 @@ class CancellationTest extends AnyFunSuite {
     val policy2 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
     val v =
       serviceGuard
-        .withRestartPolicy(constant_1hour)
+        .withRestartPolicy(RetryPolicies.alwaysGiveUp)
         .eventStream { ag =>
           val a1 = ag.action("succ-1", _.notice).retry(IO.sleep(1.second) >> IO(1)).run
           val a2 =
@@ -168,7 +165,6 @@ class CancellationTest extends AnyFunSuite {
         }
         .map(_.asJson.noSpaces)
         .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-        .interruptAfter(10.second)
         .compile
         .toVector
         .unsafeRunSync()
@@ -198,7 +194,7 @@ class CancellationTest extends AnyFunSuite {
     assert(v(19).isInstanceOf[ActionFail]) // a2 failed
     assert(v(20).isInstanceOf[ActionFail]) // a3 cancelled
     assert(v(21).isInstanceOf[ActionFail]) // supervisor
-    assert(v(22).isInstanceOf[ServicePanic])
+    assert(v(22).isInstanceOf[ServiceStop])
   }
 
   test("8.cancellation - cancel in middle of retrying") {
@@ -260,4 +256,5 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(i == 1)
   }
+
 }

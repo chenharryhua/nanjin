@@ -50,7 +50,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("2.escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(policies.jitterBackoff(30.minutes, 50.minutes))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run
@@ -93,14 +93,13 @@ class ServiceTest extends AnyFunSuite {
 
   test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(Left(new Exception("oops"))).run
 
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-      .interruptAfter(5.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -110,7 +109,7 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionRetry])
     assert(f.isInstanceOf[ActionFail])
-    assert(g.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStop])
   }
 
   test("5.should receive at least 3 report event") {
@@ -223,8 +222,13 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStop])
   }
 
-//  test("12.dummy agent should not block") {
-//    val dummy = TaskGuard.dummyAgent[IO]
-//    dummy.use(_.action("t", _.critical).retry(IO(1)).run.replicateA(10)).unsafeRunSync()
-//  }
+  test("12.dummy agent should not block") {
+    val dummy = TaskGuard.dummyAgent[IO]
+    dummy
+      .use(ag =>
+        IO.println("begin") >>
+          ag.action("test", _.notice).retry(IO(1)).run.replicateA(10) >>
+          IO.print("end"))
+      .unsafeRunSync()
+  }
 }
