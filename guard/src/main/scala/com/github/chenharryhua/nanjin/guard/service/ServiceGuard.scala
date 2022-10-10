@@ -41,31 +41,31 @@ final class ServiceGuard[F[_]] private[guard] (
   metricFilter: MetricFilter,
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   entryPoint: Resource[F, EntryPoint[F]],
-  retryPolicy: RetryPolicy[F])(implicit F: Async[F])
+  restartPolicy: RetryPolicy[F])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder, entryPoint, retryPolicy)
+    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder, entryPoint, restartPolicy)
 
   def apply(serviceName: ServiceName): ServiceGuard[F] =
     updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder), entryPoint, retryPolicy)
+    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder), entryPoint, restartPolicy)
 
   def withMetricFilter(filter: MetricFilter): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder, entryPoint, retryPolicy)
+    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder, entryPoint, restartPolicy)
 
-  def withRetryPolicy(rp: RetryPolicy[F]): ServiceGuard[F] =
+  def withRestartPolicy(rp: RetryPolicy[F]): ServiceGuard[F] =
     new ServiceGuard[F](serviceConfig, metricSet, metricFilter, jmxBuilder, entryPoint, rp)
 
   def addMetricSet(ms: MetricSet): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder, entryPoint, retryPolicy)
+    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder, entryPoint, restartPolicy)
 
   private val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
-  } yield serviceConfig.evalConfig(uuid, ts, retryPolicy.show)
+  } yield serviceConfig.evalConfig(uuid, ts, restartPolicy.show)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
@@ -144,7 +144,7 @@ final class ServiceGuard[F[_]] private[guard] (
             .onFinalize(channel.close.void) // drain pending send operation
             .mergeHaltL(metricsReset)
             .mergeHaltL(metricsReport)
-            .concurrently(new ReStart[F, A](channel, serviceParams, retryPolicy, runAgent(agent)).stream)
+            .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
             .concurrently(jmxReporting)
       }
     } yield event

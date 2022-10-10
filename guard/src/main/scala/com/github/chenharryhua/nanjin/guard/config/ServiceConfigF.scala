@@ -72,7 +72,8 @@ private[guard] object ServiceParams extends zoneddatetime {
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
-    retryPolicy: String): ServiceParams =
+    retryPolicy: String // for display
+  ): ServiceParams =
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,

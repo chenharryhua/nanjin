@@ -11,6 +11,7 @@ import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import natchez.{Span, Trace}
 import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
+import retry.RetryPolicy
 
 import java.time.{Duration, ZonedDateTime}
 
@@ -19,6 +20,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
+  retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
   transInput: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
@@ -31,6 +33,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       metricRegistry,
       channel,
       actionParams,
+      retryPolicy,
       arrow,
       transInput,
       transOutput,
@@ -65,7 +68,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       retry.mtl
         .retryingOnSomeErrors[OUT]
         .apply[F, Throwable](
-          actionParams.retry.policy[F],
+          retryPolicy,
           isWorthRetry.run,
           (error, details) =>
             details match {
@@ -111,6 +114,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
+  retryPolicy: RetryPolicy[F],
   arrow: F[OUT],
   transInput: F[Json],
   transOutput: OUT => F[Json],
@@ -119,7 +123,15 @@ final class NJAction0[F[_], OUT] private[guard] (
     transInput: F[Json] = transInput,
     transOutput: OUT => F[Json] = transOutput,
     isWorthRetry: Kleisli[F, Throwable, Boolean] = isWorthRetry): NJAction0[F, OUT] =
-    new NJAction0[F, OUT](metricRegistry, channel, actionParams, arrow, transInput, transOutput, isWorthRetry)
+    new NJAction0[F, OUT](
+      metricRegistry,
+      channel,
+      actionParams,
+      retryPolicy,
+      arrow,
+      transInput,
+      transOutput,
+      isWorthRetry)
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJAction0[F, OUT] = copy(isWorthRetry = Kleisli(f))
   def withWorthRetry(f: Throwable => Boolean): NJAction0[F, OUT] =
@@ -135,6 +147,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,
+    retryPolicy = retryPolicy,
     arrow = _ => arrow,
     transInput = _ => transInput,
     transOutput = (_, b: OUT) => transOutput(b),

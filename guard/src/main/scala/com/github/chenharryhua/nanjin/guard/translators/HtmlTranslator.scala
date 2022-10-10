@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.{Applicative, Eval, Monad}
+import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import org.typelevel.cats.time.instances.all
@@ -109,21 +109,21 @@ private object HtmlTranslator extends all {
       p(b("Input: "), pre(evt.input.spaces2))
     )
 
-  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): Text.TypedTag[String] =
+  private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
       actionText(evt),
       hostServiceText(evt),
-      p(b("Policy: "), evt.actionParams.retry.policy[F].show),
+      p(b("Policy: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
     )
 
-  private def actionFailed[F[_]: Applicative](evt: ActionFail): Text.TypedTag[String] =
+  private def actionFailed(evt: ActionFail): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
       actionText(evt),
       hostServiceText(evt),
-      p(b("Policy: "), evt.actionInfo.actionParams.retry.policy[F].show),
+      p(b("Policy: "), evt.actionInfo.actionParams.retryPolicy),
       p(b("Took: "), fmt.format(evt.took)),
       p(b("Input: "), pre(evt.input.spaces2)),
       causeText(evt.error)
@@ -138,7 +138,7 @@ private object HtmlTranslator extends all {
       p(b("Output: "), pre(evt.output.spaces2))
     )
 
-  def apply[F[_]: Monad]: Translator[F, Text.TypedTag[String]] =
+  def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator
       .empty[F, Text.TypedTag[String]]
       .withServiceStart(serviceStarted)
@@ -148,7 +148,7 @@ private object HtmlTranslator extends all {
       .withMetricReset(metricReset)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
-      .withActionRetry(actionRetrying[F])
-      .withActionFail(actionFailed[F])
+      .withActionRetry(actionRetrying)
+      .withActionFail(actionFailed)
       .withActionSucc(actionSucced)
 }

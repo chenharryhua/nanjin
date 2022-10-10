@@ -7,24 +7,29 @@ import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import cron4s.expr.CronExpr
+import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
 
 import scala.concurrent.duration.*
 
 class CancellationTest extends AnyFunSuite {
 
-
   val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("retry-guard").service("retry-test").withRetryPolicy(constant_1second)
+    TaskGuard[IO]("retry-guard").service("retry-test").withRestartPolicy(constant_1second)
+
+  val secondly: CronExpr = Cron.unsafeParse("0-59 * * ? * *")
+  val policy             = policies.cronBackoff[IO](secondly).join(RetryPolicies.limitRetries(3))
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream(ag =>
-        ag.action("canceled", _.withConstantDelay(1.second, 3).notice).retry(IO(1) <* IO.canceled).run)
+        ag.action("canceled", _.notice).withRetryPolicy(policy).retry(IO(1) <* IO.canceled).run)
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
@@ -40,7 +45,7 @@ class CancellationTest extends AnyFunSuite {
 
   test("2.cancellation - can be canceled externally") {
     val Vector(s, b, c) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
         val a1 = ag.action("never", _.silent).retry(never_fun).run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
@@ -57,7 +62,7 @@ class CancellationTest extends AnyFunSuite {
 
   test("3.canceled by external exception") {
     val Vector(s, b, c) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
         val a1 = ag.action("never", _.trivial).retry(never_fun).run
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1))
@@ -76,7 +81,7 @@ class CancellationTest extends AnyFunSuite {
 
   test("4.cancellation should propagate in right order") {
     val Vector(a, b, c, d) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
         val a1 = ag.action("one/two/inner", _.silent).retry(IO.never[Int]).run
         ag.action("one/two/three/outer", _.silent)
@@ -97,7 +102,7 @@ class CancellationTest extends AnyFunSuite {
 
   test("5.cancellation - sequentially - cancel after two succ") {
     val Vector(s, a, b, c, d, e) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
         ag.action("a1", _.notice).retry(IO(1)).run >>
           ag.action("a2", _.notice).retry(IO(1)).run >>
@@ -120,11 +125,12 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("6.cancellation - sequentially - no chance to cancel") {
+    val policy = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
     val Vector(s, a, b, c, d, e, f) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
         ag.action("a1", _.notice).retry(IO(1)).run >>
-          ag.action("a2", _.notice.withConstantDelay(1.second, 1)).retry(IO.raiseError(new Exception)).run >>
+          ag.action("a2", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run >>
           IO.canceled >> // no chance to cancel since a2 never success
           ag.action("a3", _.notice).retry(IO(1)).run
       }
@@ -146,17 +152,17 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("7.cancellation - parallel") {
+    val policy2 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
     val v =
       serviceGuard
-        .withRetryPolicy(constant_1hour)
+        .withRestartPolicy(constant_1hour)
         .eventStream { ag =>
           val a1 = ag.action("succ-1", _.notice).retry(IO.sleep(1.second) >> IO(1)).run
-          val a2 = ag
-            .action("fail-2", _.notice.withConstantDelay(1.second, 3))
-            .retry(IO.raiseError[Int](new Exception))
-            .run
+          val a2 =
+            ag.action("fail-2", _.notice).withRetryPolicy(policy).retry(IO.raiseError[Int](new Exception)).run
           val a3 = ag.action("cancel-3", _.notice).retry(never_fun).run
-          ag.action("supervisor", _.notice.withConstantDelay(1.second, 1))
+          ag.action("supervisor", _.notice)
+            .withRetryPolicy(policy2)
             .retry(IO.parSequenceN(5)(List(a1, a2, a3)))
             .run
         }
@@ -196,11 +202,13 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("8.cancellation - cancel in middle of retrying") {
+    val policy = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(100))
     val Vector(s, a, b, c, d, e) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
         val a1 = ag
-          .action("exception", _.notice.withConstantDelay(2.second, 100))
+          .action("exception", _.notice)
+          .withRetryPolicy(policy)
           .retry(IO.raiseError[Int](new Exception))
           .run
         IO.parSequenceN(2)(List(IO.sleep(3.second) >> IO.canceled, a1))
@@ -220,12 +228,9 @@ class CancellationTest extends AnyFunSuite {
 
   test("9.cancellation - wrapped within uncancelable") {
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
-        val a1 = ag
-          .action("exception", _.withConstantDelay(1.second, 3))
-          .retry(IO.raiseError[Int](new Exception))
-          .run
+        val a1 = ag.action("exception").withRetryPolicy(policy).retry(IO.raiseError[Int](new Exception)).run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
       }
       .map(_.asJson.noSpaces)
@@ -245,7 +250,7 @@ class CancellationTest extends AnyFunSuite {
   test("10.cancellation - never can be canceled") {
     var i = 0
     serviceGuard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .eventStream(_ => IO.never.onCancel(IO { i = 1 }))
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)

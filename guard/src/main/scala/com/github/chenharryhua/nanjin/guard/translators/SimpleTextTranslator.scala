@@ -91,6 +91,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
+       |  Policy:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
@@ -99,6 +100,7 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  Input:${evt.input.noSpaces}
+       |  Policy:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 

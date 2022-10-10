@@ -47,7 +47,7 @@ final private class ReStart[F[_], A](
     }
   }
 
-  def stream: Stream[F, Nothing] =
+  val stream: Stream[F, Nothing] =
     Stream
       .eval(
         F.guarantee(

@@ -17,6 +17,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import retry.RetryPolicy
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
@@ -26,21 +27,26 @@ final class NJActionBuilder[F[_]](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   name: String,
-  actionConfig: ActionConfig
+  actionConfig: ActionConfig,
+  retryPolicy: RetryPolicy[F]
 )(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, NJActionBuilder[F]] {
   def apply(name: String): NJActionBuilder[F] =
-    new NJActionBuilder[F](metricRegistry, channel, name, actionConfig)
+    new NJActionBuilder[F](metricRegistry, channel, name, actionConfig, retryPolicy)
 
   def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] =
-    new NJActionBuilder[F](metricRegistry, channel, name, f(actionConfig))
+    new NJActionBuilder[F](metricRegistry, channel, name, f(actionConfig), retryPolicy)
+
+  def withRetryPolicy(rp: RetryPolicy[F]): NJActionBuilder[F] =
+    new NJActionBuilder[F](metricRegistry, channel, name, actionConfig, rp)
 
   // retries
   def retry[Z](fb: F[Z]): NJAction0[F, Z] = // 0 arity
     new NJAction0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name),
+      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      retryPolicy = retryPolicy,
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
@@ -51,7 +57,8 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name),
+      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      retryPolicy = retryPolicy,
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
@@ -62,7 +69,8 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name),
+      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
@@ -73,7 +81,8 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name),
+      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
@@ -84,7 +93,8 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name),
+      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
@@ -95,7 +105,8 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name),
+      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),

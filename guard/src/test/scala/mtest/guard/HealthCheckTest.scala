@@ -66,12 +66,13 @@ class HealthCheckTest extends AnyFunSuite {
   test("3.never success") {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .updateConfig(_.withMetricReport(1.second)
         .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
         .withMetricRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd =>
-        gd.action("not/fail/yet", _.notice.withConstantDelay(300.second, 10).withCapDelay(2.seconds))
+        gd.action("not/fail/yet", _.notice)
+          .withRetryPolicy(constant_1hour)
           .retry(IO.raiseError(new Exception))
           .run)
       .interruptAfter(5.second)

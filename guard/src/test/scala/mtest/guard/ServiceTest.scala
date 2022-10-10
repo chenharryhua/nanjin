@@ -23,12 +23,14 @@ class ServiceTest extends AnyFunSuite {
   val guard = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHostName(HostName.local_host).withHomePage("https://abc.com/efg"))
     .service("service")
-    .withRetryPolicy(constant_1second)
+    .withRestartPolicy(constant_1second)
     .updateConfig(_.withBrief("test"))
+
+  val policy = RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .withRetryPolicy(RetryPolicies.constantDelay(3.seconds))
+      .withRestartPolicy(RetryPolicies.constantDelay(3.seconds))
       .updateConfig(_.withMetricReport(24.hours))
       .updateConfig(
         _.withQueueCapacity(1)
@@ -48,12 +50,10 @@ class ServiceTest extends AnyFunSuite {
 
   test("2.escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
-        gd.action("t", _.notice.withFibonacciBackoff(0.1.second, 3))
-          .retry(IO.raiseError(new Exception("oops")))
-          .run
+        gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -72,10 +72,11 @@ class ServiceTest extends AnyFunSuite {
 
   test("3.should throw exception when fatal error occurs") {
     val List(a, b, c, d) = guard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
-        gd.action("t", _.notice.withFibonacciBackoff(0.1.second, 3))
+        gd.action("t", _.notice)
+          .withRetryPolicy(policy)
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run
       }
@@ -92,10 +93,10 @@ class ServiceTest extends AnyFunSuite {
 
   test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
-      .withRetryPolicy(constant_1hour)
+      .withRestartPolicy(constant_1hour)
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
-        gd.action("t", _.notice.withConstantDelay(0.1.second, 3)).retry(Left(new Exception("oops"))).run
+        gd.action("t", _.notice).withRetryPolicy(policy).retry(Left(new Exception("oops"))).run
 
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -183,7 +184,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("10. multiple service restart") {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: _ = guard
-      .withRetryPolicy(constant_1second)
+      .withRestartPolicy(constant_1second)
       .eventStream(_.action("oops", _.silent).retry(IO.raiseError[Int](new Exception("oops"))).run)
       .interruptAfter(5.seconds)
       .compile
@@ -204,9 +205,9 @@ class ServiceTest extends AnyFunSuite {
   test("11.should give up") {
 
     val List(a, b, c, d, e, f, g) = guard
-      .withRetryPolicy(RetryPolicies.alwaysGiveUp[IO])
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { gd =>
-        gd.action("t", _.notice.withFibonacciBackoff(0.1.second, 3)).retry(IO.raiseError(new Exception)).run
+        gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run
       }
       .debug()
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)

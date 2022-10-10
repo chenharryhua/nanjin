@@ -14,5 +14,4 @@ object guard {
 
   type HomePage      = Refined[String, Url]
   type QueueCapacity = Refined[Int, NonNegative]
-  type MaxRetry      = Refined[Int, NonNegative]
 }
