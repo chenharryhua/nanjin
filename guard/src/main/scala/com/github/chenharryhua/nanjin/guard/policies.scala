@@ -25,14 +25,15 @@ object policies {
       show"jitterBackoff(minDelay=${defaultFormatter.format(min)}, maxDelay=${defaultFormatter.format(max)})"
     )
 
-  def cronBackoff[F[_]: Applicative](cronExpr: CronExpr): RetryPolicy[F] = RetryPolicy.liftWithShow(
-    _ => {
-      val now = Instant.now()
-      cronExpr.next(now) match {
-        case Some(next) => DelayAndRetry(Duration.between(now, next).toScala)
-        case None       => GiveUp
-      }
-    },
-    show"cronBackoff(cron=${cronExpr.show})"
-  )
+  def cronBackoff[F[_]: Applicative](cronExpr: CronExpr): RetryPolicy[F] =
+    RetryPolicy.liftWithShow(
+      _ => {
+        val now = Instant.now()
+        cronExpr.next(now) match {
+          case Some(next) => DelayAndRetry(Duration.between(now, next).toScala)
+          case None       => GiveUp
+        }
+      },
+      show"cronBackoff(cron=${cronExpr.show})"
+    )
 }
