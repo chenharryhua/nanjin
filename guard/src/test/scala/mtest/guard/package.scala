@@ -4,10 +4,12 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import cron4s.Cron
 import cron4s.expr.CronExpr
+import retry.RetryPolicies
 
 import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
 package object guard {
   val snsArn: SnsArn              = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
@@ -36,5 +38,8 @@ package object guard {
   def fun3fut(a: Int, b: Int, c: Int)                 = Future(a + b + c)
   def fun4fut(a: Int, b: Int, c: Int, d: Int)         = Future(a + b + c + d)
   def fun5fut(a: Int, b: Int, c: Int, d: Int, e: Int) = Future(a + b + c + d + e)
+
+  val constant_1second = RetryPolicies.constantDelay[IO](1.seconds)
+  val constant_1hour   = RetryPolicies.constantDelay[IO](1.hour)
 
 }

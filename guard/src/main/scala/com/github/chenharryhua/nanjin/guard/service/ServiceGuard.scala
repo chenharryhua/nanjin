@@ -4,6 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Console, UUIDGen}
 import cats.syntax.all.*
 import cats.Endo
+import cats.effect.implicits.genSpawnOps
 import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -18,6 +19,7 @@ import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 import natchez.EntryPoint
+import retry.RetryPolicy
 
 import scala.jdk.DurationConverters.*
 
@@ -39,28 +41,32 @@ final class ServiceGuard[F[_]] private[guard] (
   metricSet: List[MetricSet],
   metricFilter: MetricFilter,
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
-  entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
+  entryPoint: Resource[F, EntryPoint[F]],
+  restartPolicy: RetryPolicy[F])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder, entryPoint)
+    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder, entryPoint, restartPolicy)
 
   def apply(serviceName: ServiceName): ServiceGuard[F] =
     updateConfig(_.withServiceName(serviceName))
 
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder), entryPoint)
+    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder), entryPoint, restartPolicy)
 
   def withMetricFilter(filter: MetricFilter): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder, entryPoint)
+    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder, entryPoint, restartPolicy)
+
+  def withRestartPolicy(rp: RetryPolicy[F]): ServiceGuard[F] =
+    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, jmxBuilder, entryPoint, rp)
 
   def addMetricSet(ms: MetricSet): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder, entryPoint)
+    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder, entryPoint, restartPolicy)
 
   private val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
-  } yield serviceConfig.evalConfig(uuid, ts)
+  } yield serviceConfig.evalConfig(uuid, ts, restartPolicy.show)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
@@ -68,8 +74,8 @@ final class ServiceGuard[F[_]] private[guard] (
     _ <- chn.stream
       .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
       .compile
-      .resource
       .drain
+      .background
   } yield new Agent[F](new MetricRegistry, chn, sp, entryPoint)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
@@ -139,7 +145,7 @@ final class ServiceGuard[F[_]] private[guard] (
             .onFinalize(channel.close.void) // drain pending send operation
             .mergeHaltL(metricsReset)
             .mergeHaltL(metricsReport)
-            .concurrently(new ReStart[F, A](channel, serviceParams, runAgent(agent)).stream)
+            .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
             .concurrently(jmxReporting)
       }
     } yield event

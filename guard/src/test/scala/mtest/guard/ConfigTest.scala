@@ -3,14 +3,12 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.NJRetryPolicy
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
@@ -68,18 +66,6 @@ class ConfigTest extends AnyFunSuite {
       agent.action("cfg", _.silent).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
-  }
-
-  test("retries") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg", _.withConstantDelay(1.second, 15).critical).retry(IO(1)).run
-    }.debug().filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
-
-    assert(as.get.asInstanceOf[ActionStart].actionInfo.actionParams.retry.maxRetries.get.value === 15)
-    assert(
-      as.get.asInstanceOf[ActionStart].actionInfo.actionParams.retry.njRetryPolicy === NJRetryPolicy
-        .ConstantDelay(1.seconds.toJava))
-
   }
 
   test("report") {

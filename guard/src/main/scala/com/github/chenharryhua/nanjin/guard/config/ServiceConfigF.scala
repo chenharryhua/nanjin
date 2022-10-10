@@ -20,7 +20,7 @@ import org.typelevel.cats.time.instances.zoneddatetime
 import java.time.*
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @Lenses @JsonCodec final case class MetricParams private[guard] (
@@ -46,7 +46,7 @@ private[guard] object MetricParams {
 @Lenses @JsonCodec final case class ServiceParams private (
   serviceName: ServiceName,
   taskParams: TaskParams,
-  retry: NJRetryPolicy,
+  retryPolicy: String,
   queueCapacity: QueueCapacity,
   metric: MetricParams,
   brief: String,
@@ -71,11 +71,13 @@ private[guard] object ServiceParams extends zoneddatetime {
     serviceName: ServiceName,
     taskParams: TaskParams,
     serviceId: UUID,
-    launchTime: Instant): ServiceParams =
+    launchTime: Instant,
+    retryPolicy: String // for display
+  ): ServiceParams =
     ServiceParams(
       serviceName = serviceName,
       taskParams = taskParams,
-      retry = NJRetryPolicy.ConstantDelay(30.seconds.toJava),
+      retryPolicy = retryPolicy,
       queueCapacity = refineMV(0), // synchronous
       metric = MetricParams(
         reportSchedule = None,
@@ -95,7 +97,6 @@ private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K](serviceName: ServiceName, taskParams: TaskParams) extends ServiceConfigF[K]
-  final case class WithRetryPolicy[K](value: NJRetryPolicy, cont: K) extends ServiceConfigF[K]
   final case class WithServiceName[K](value: ServiceName, cont: K) extends ServiceConfigF[K]
   final case class WithQueueCapacity[K](value: QueueCapacity, cont: K) extends ServiceConfigF[K]
 
@@ -106,10 +107,12 @@ private object ServiceConfigF {
 
   final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
-  def algebra(serviceId: UUID, launchTime: Instant): Algebra[ServiceConfigF, ServiceParams] =
+  def algebra(
+    serviceId: UUID,
+    launchTime: Instant,
+    retryPolicy: String): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(s, t)        => ServiceParams(s, t, serviceId, launchTime)
-      case WithRetryPolicy(v, c)   => ServiceParams.retry.set(v)(c)
+      case InitParams(s, t)        => ServiceParams(s, t, serviceId, launchTime, retryPolicy)
       case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
       case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
 
@@ -158,23 +161,8 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(
     Fix(WithDurationTimeUnit(tu, value)))
 
-  // retries
-  def withConstantDelay(baseDelay: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.ConstantDelay(baseDelay.toJava), value)))
-
-  def withJitterBackoff(minDelay: FiniteDuration, maxDelay: FiniteDuration): ServiceConfig = {
-    require(maxDelay > minDelay, s"maxDelay($maxDelay) should be strictly bigger than minDelay($minDelay)")
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.JitterBackoff(minDelay.toJava, maxDelay.toJava), value)))
-  }
-
-  def withJitterBackoff(maxDelay: FiniteDuration): ServiceConfig =
-    withJitterBackoff(FiniteDuration(0, TimeUnit.SECONDS), maxDelay)
-
-  def withAlwaysGiveUp: ServiceConfig =
-    ServiceConfig(Fix(WithRetryPolicy(NJRetryPolicy.AlwaysGiveUp, value)))
-
-  def evalConfig(serviceId: UUID, launchTime: Instant): ServiceParams =
-    scheme.cata(algebra(serviceId, launchTime)).apply(value)
+  def evalConfig(serviceId: UUID, launchTime: Instant, retryPolicy: String): ServiceParams =
+    scheme.cata(algebra(serviceId, launchTime, retryPolicy)).apply(value)
 }
 
 private[guard] object ServiceConfig {

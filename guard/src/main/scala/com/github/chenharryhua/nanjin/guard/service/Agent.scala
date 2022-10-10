@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.Async
 import cats.effect.Resource
-import cats.syntax.all.*
+import cats.implicits.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
+import retry.RetryPolicies
 
 import java.time.ZoneId
 
@@ -37,7 +38,8 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       name = name,
-      actionConfig = cfg(ActionConfig(serviceParams)))
+      actionConfig = cfg(ActionConfig(serviceParams)),
+      retryPolicy = RetryPolicies.alwaysGiveUp[F])
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
@@ -83,7 +85,8 @@ final class Agent[F[_]] private[service] (
   // for convenience
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action("nonStop", _.withoutTiming.withoutCounting.trivial.withAlwaysGiveUp)
+    action("nonStop", _.withoutTiming.withoutCounting.trivial)
+      .withRetryPolicy(RetryPolicies.alwaysGiveUp)
       .retry(sfa.compile.drain)
       .run
       .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))

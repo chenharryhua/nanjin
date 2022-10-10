@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
 import skunk.Session
 
 import scala.concurrent.duration.*
@@ -25,9 +26,10 @@ class ObserversTest extends AnyFunSuite {
   test("1.logging") {
     TaskGuard[IO]("logging")
       .service("text")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(hourly).withQueueCapacity(20))
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(hourly).withQueueCapacity(20))
       .eventStream { ag =>
-        val err = ag.action("error", _.critical.withConstantDelay(2.seconds, 1)).retry(err_fun(1)).run
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
       .evalTap(logging.verbose[IO])
@@ -39,9 +41,10 @@ class ObserversTest extends AnyFunSuite {
   test("2.console - text") {
     TaskGuard[IO]("console")
       .service("text")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        val err = ag.action("error", _.critical.withConstantDelay(2.seconds, 1)).retry(err_fun(1)).run
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
 
       }
@@ -54,9 +57,10 @@ class ObserversTest extends AnyFunSuite {
   test("3.console - json") {
     TaskGuard[IO]("console")
       .service("json")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        val err = ag.action("error", _.critical.withConstantDelay(2.seconds, 1)).retry(err_fun(1)).run
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
       .evalTap(console(Translator.simpleJson[IO].map(_.noSpaces)))
@@ -69,16 +73,17 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
-      .updateConfig(_.withConstantDelay(1.hour).withMetricReport(secondly).withQueueCapacity(20))
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        val err = ag.action("error", _.critical.withConstantDelay(2.seconds, 1)).retry(err_fun(1)).run
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
-      .interruptAfter(7.seconds)
-      .through(SlackObserver(SimpleNotificationService.fake[IO])
-        .withInterval(50.seconds)
-        .at("@chenh")
-        .observe(snsArn))
+      .through(
+        SlackObserver(SimpleNotificationService.fake[IO])
+          .withInterval(50.seconds)
+          .at("@chenh")
+          .observe(snsArn))
       .compile
       .drain
       .unsafeRunSync()
@@ -95,10 +100,11 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("ses")
       .updateConfig(_.withHomePage("https://google.com"))
       .service("ses")
-      .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(1.second))
       .eventStream { ag =>
         val err =
-          ag.action("error", _.critical.withConstantDelay(2.seconds, 1)).retry(err_fun(1)).run
+          ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
       .take(9)
@@ -119,9 +125,10 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://google.com"))
       .service("sns")
-      .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second))
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(1.second))
       .eventStream { ag =>
-        val err = ag.action("error", _.critical.withConstantDelay(2.seconds, 1)).retry(err_fun(1)).run
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
       .through(mail.observe(snsArn, "title"))
@@ -142,9 +149,7 @@ class ObserversTest extends AnyFunSuite {
       .service("lense")
       .eventStream { ag =>
         val err =
-          ag.action("error", _.critical.withConstantDelay(2.seconds, 1))
-            .retry(IO.raiseError[Int](new Exception("oops")))
-            .run
+          ag.action("error", _.critical).retry(IO.raiseError[Int](new Exception("oops"))).run
         ok(ag) >> err.attempt
       }
       .evalTap(console(len.map(_.show)))
@@ -199,7 +204,8 @@ class ObserversTest extends AnyFunSuite {
     val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionSucc)
     TaskGuard[IO]("sqs")
       .service("sqs")
-      .updateConfig(_.withMetricReport(1.second).withConstantDelay(100.second).withMetricDailyReset)
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(1.second).withMetricDailyReset)
       .eventStream(
         _.action("sqs", _.critical).retry(IO.raiseError(new Exception)).run.delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)

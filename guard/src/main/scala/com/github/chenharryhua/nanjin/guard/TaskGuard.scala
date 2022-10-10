@@ -9,8 +9,10 @@ import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, T
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
+import retry.RetryPolicies
 
 import java.time.ZoneId
+import scala.concurrent.duration.DurationInt
 
 /** poor man's telemetry
   */
@@ -29,7 +31,13 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
     withEntryPoint(Resource.pure[F, EntryPoint[F]](ep))
 
   def service(serviceName: ServiceName): ServiceGuard[F] =
-    new ServiceGuard[F](ServiceConfig(serviceName, params), Nil, MetricFilter.ALL, None, entryPoint)
+    new ServiceGuard[F](
+      ServiceConfig(serviceName, params),
+      Nil,
+      MetricFilter.ALL,
+      None,
+      entryPoint,
+      RetryPolicies.constantDelay(30.seconds))
 
 }
 

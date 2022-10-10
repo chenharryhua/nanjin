@@ -28,7 +28,7 @@ object MetricResetType extends localdatetime {
   implicit final val showMetricResetType: Show[MetricResetType] = {
     case Adhoc => s"Adhoc Metric Reset"
     case Scheduled(next) =>
-      s"Scheduled Metric Reset(next=${next.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show})"
+      s"Metric Reset(next=${next.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show})"
   }
   case object Adhoc extends MetricResetType
   final case class Scheduled(next: ZonedDateTime) extends MetricResetType
@@ -47,7 +47,7 @@ sealed trait MetricReportType extends Product with Serializable {
 object MetricReportType {
   implicit final val showMetricReportType: Show[MetricReportType] = {
     case Adhoc            => s"Adhoc Metric Report"
-    case Scheduled(index) => s"Scheduled Metric Report(index=$index)"
+    case Scheduled(index) => s"Metric Report(index=$index)"
   }
 
   case object Adhoc extends MetricReportType {
@@ -78,7 +78,7 @@ sealed trait ServiceStopCause extends Product with Serializable {
     case ServiceStopCause.Normally         => "normally exit"
     case ServiceStopCause.ByCancelation    => "abnormally exit due to cancelation"
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
-    case ServiceStopCause.ByGiveup(msg)    => s"abnormally giveup due to $msg"
+    case ServiceStopCause.ByGiveup(msg)    => s"giveup due to $msg"
   }
 }
 

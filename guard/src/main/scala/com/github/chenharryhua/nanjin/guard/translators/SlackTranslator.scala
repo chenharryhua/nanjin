@@ -61,7 +61,7 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def servicePanic[F[_]: Applicative](evt: ServicePanic): SlackApp =
+  private def servicePanic(evt: ServicePanic): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -71,7 +71,7 @@ private object SlackTranslator extends all {
             MarkdownSection(upcomingRestartTimeInterpretation(evt)),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Restart Policy:* ${evt.serviceParams.retry.policy[F].show}
+                                |*Policy:* ${evt.serviceParams.retryPolicy}
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
@@ -187,7 +187,7 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def actionRetrying[F[_]: Applicative](evt: ActionRetry): SlackApp = {
+  private def actionRetrying(evt: ActionRetry): SlackApp = {
     val next = fmt.format(Duration.between(evt.timestamp, evt.nextRetryTime))
     val lt   = evt.nextRetryTime.toLocalTime
 
@@ -206,7 +206,7 @@ private object SlackTranslator extends all {
                                |*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${traceId(evt)}
                                |*The ${toOrdinalWords(evt.retriesSoFar + 1)} retry:* at $lt, in $next
-                               |*Policy:* ${evt.actionParams.retry.policy[F].show}
+                               |*Policy:* ${evt.actionParams.retryPolicy}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"""```${abbrev(evt.error.message)}```""")
           )
@@ -214,7 +214,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def actionFailed[F[_]: Applicative](evt: ActionFail): SlackApp =
+  private def actionFailed(evt: ActionFail): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -228,7 +228,7 @@ private object SlackTranslator extends all {
               TextField("Name", evt.digested.metricRepr)),
             MarkdownSection(s"""*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${traceId(evt)}
-                               |*Policy:* ${evt.actionParams.retry.policy[F].show}
+                               |*Policy:* ${evt.actionParams.retryPolicy}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             MarkdownSection(s"""```${abbrev(evt.error.message)} 
                                |Input: 
@@ -263,13 +263,13 @@ private object SlackTranslator extends all {
     Translator
       .empty[F, SlackApp]
       .withServiceStart(serviceStarted)
-      .withServicePanic(servicePanic[F])
+      .withServicePanic(servicePanic)
       .withServiceStop(serviceStopped)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
-      .withActionRetry(actionRetrying[F])
-      .withActionFail(actionFailed[F])
+      .withActionRetry(actionRetrying)
+      .withActionFail(actionFailed)
       .withActionSucc(actionSucced)
 }

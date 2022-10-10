@@ -23,6 +23,8 @@ private object SimpleJsonTranslator {
   private def stackTrace(err: NJError): (String, Json)    = "stackTrace" -> Json.fromString(err.stackTrace)
   private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
 
+  private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.retryPolicy.asJson
+
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(
       "ServiceStart" ->
@@ -33,6 +35,7 @@ private object SimpleJsonTranslator {
       "ServicePanic" ->
         Json.obj(
           serviceName(evt),
+          policy(evt),
           stackTrace(evt.error),
           serviceId(evt),
           timestamp(evt)
@@ -45,6 +48,7 @@ private object SimpleJsonTranslator {
           serviceName(evt),
           ("exitCode", Json.fromInt(evt.cause.exitCode)),
           ("cause", Json.fromString(evt.cause.show)),
+          policy(evt),
           serviceId(evt),
           timestamp(evt)
         ))
