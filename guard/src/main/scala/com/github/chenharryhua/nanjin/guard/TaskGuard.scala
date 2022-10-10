@@ -32,13 +32,13 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
 
   def service(serviceName: ServiceName): ServiceGuard[F] =
     new ServiceGuard[F](
-      ServiceConfig(serviceName, params),
-      Nil,
-      MetricFilter.ALL,
-      None,
-      entryPoint,
-      RetryPolicies.constantDelay(30.seconds))
-
+      serviceConfig = ServiceConfig(serviceName, params),
+      metricSet = Nil,
+      metricFilter = MetricFilter.ALL,
+      jmxBuilder = None,
+      entryPoint = entryPoint,
+      restartPolicy = RetryPolicies.constantDelay(30.seconds)
+    )
 }
 
 object TaskGuard {
