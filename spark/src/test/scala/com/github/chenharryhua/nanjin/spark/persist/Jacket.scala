@@ -1,21 +1,21 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.kernel.Order
+import com.github.chenharryhua.nanjin.common.transformers.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
+import io.circe.{Codec, Json}
 import io.circe.generic.auto.*
 import io.circe.parser.parse
-import io.circe.{Codec, Json}
 import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 
 import java.sql.{Date, Timestamp}
-import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDate}
+import java.time.temporal.ChronoUnit
 import scala.util.Random
 
 object Pocket extends Enumeration {
@@ -32,7 +32,7 @@ object Jacket {
 }
 
 object JacketData {
-  implicit val porder: Ordering[Pocket.Value] = Order[Pocket.Value].toOrdering
+  implicit val porder: Ordering[Pocket.Value] = Ordering.by(_.id)
 
   val expected: List[Jacket] =
     List
