@@ -15,7 +15,7 @@ import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import io.scalaland.enumz.Enum
 import monocle.macros.Lenses
-import org.typelevel.cats.time.instances.zoneddatetime
+import org.typelevel.cats.time.instances.{duration, zoneddatetime}
 
 import java.time.*
 import java.util.UUID
@@ -46,8 +46,9 @@ private[guard] object MetricParams {
 @Lenses @JsonCodec final case class ServiceParams private (
   serviceName: ServiceName,
   taskParams: TaskParams,
-  retryPolicy: String,
-  queueCapacity: QueueCapacity,
+  retryPolicy: String, // service restart policy
+  policyThreshold: Option[Duration], // policy start over interval
+  queueCapacity: QueueCapacity, // event queue capacity
   metric: MetricParams,
   brief: String,
   serviceId: UUID,
@@ -63,7 +64,7 @@ private[guard] object MetricParams {
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
 
-private[guard] object ServiceParams extends zoneddatetime {
+private[guard] object ServiceParams extends zoneddatetime with duration {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
@@ -78,6 +79,7 @@ private[guard] object ServiceParams extends zoneddatetime {
       serviceName = serviceName,
       taskParams = taskParams,
       retryPolicy = retryPolicy,
+      policyThreshold = None,
       queueCapacity = refineMV(0), // synchronous
       metric = MetricParams(
         reportSchedule = None,
@@ -105,6 +107,8 @@ private object ServiceConfigF {
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
 
+  final case class WithPolicyThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
+
   final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   def algebra(
@@ -121,6 +125,8 @@ private object ServiceConfigF {
       case WithRateTimeUnit(v, c)   => ServiceParams.metric.composeLens(MetricParams.rateTimeUnit).set(v)(c)
       case WithDurationTimeUnit(v, c) =>
         ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
+
+      case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.set(v)(c)
 
       case WithBrief(v, c) => ServiceParams.brief.set(v)(c)
 
@@ -158,8 +164,11 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withoutMetricReset: ServiceConfig  = ServiceConfig(Fix(WithResetSchedule(None, value)))
 
   def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(Fix(WithRateTimeUnit(tu, value)))
-  def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig = ServiceConfig(
-    Fix(WithDurationTimeUnit(tu, value)))
+  def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig =
+    ServiceConfig(Fix(WithDurationTimeUnit(tu, value)))
+
+  def withPolicyThreshold(dur: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithPolicyThreshold(Some(dur.toJava), value)))
 
   def evalConfig(serviceId: UUID, launchTime: Instant, retryPolicy: String): ServiceParams =
     scheme.cata(algebra(serviceId, launchTime, retryPolicy)).apply(value)

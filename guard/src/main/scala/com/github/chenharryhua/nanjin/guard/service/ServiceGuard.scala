@@ -145,8 +145,9 @@ final class ServiceGuard[F[_]] private[guard] (
             .onFinalize(channel.close.void) // drain pending send operation
             .mergeHaltL(metricsReset)
             .mergeHaltL(metricsReport)
-            .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
             .concurrently(jmxReporting)
+            .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
+
       }
     } yield event
 }

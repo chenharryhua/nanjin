@@ -9,6 +9,7 @@ import fs2.Stream
 import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
+import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.control.NonFatal
 
@@ -18,31 +19,40 @@ final private class ReStart[F[_], A](
   policy: RetryPolicy[F],
   fa: F[A])(implicit F: Temporal[F]) {
 
-  private def stopBy(cause: ServiceStopCause): F[Either[RetryStatus, Unit]] =
-    publisher.serviceStop(channel, serviceParams, cause) >>
-      F.pure[Either[RetryStatus, Unit]](Right(()))
+  private case class ReStartState(retryStatus: RetryStatus, lastTime: Option[ZonedDateTime])
+
+  private def stopBy(cause: ServiceStopCause): F[Either[ReStartState, Unit]] =
+    publisher.serviceStop(channel, serviceParams, cause).as(Right(()))
 
   private def panic(
     retryStatus: RetryStatus,
     delay: FiniteDuration,
-    err: Throwable): F[Either[RetryStatus, Unit]] =
+    err: Throwable): F[Either[ReStartState, Unit]] =
     for {
-      _ <- publisher.servicePanic(channel, serviceParams, delay, err)
+      ts <- publisher.servicePanic(channel, serviceParams, delay, err)
       _ <- F.sleep(delay)
-    } yield Left(retryStatus.addRetry(delay))
+    } yield Left(ReStartState(retryStatus.addRetry(delay), Some(ts)))
 
-  private val loop: F[Unit] = F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+  private def startover(err: Throwable): F[Either[ReStartState, Unit]] =
+    policy.decideNextRetry(RetryStatus.NoRetriesYet).flatMap {
+      case PolicyDecision.GiveUp => stopBy(ServiceStopCause.ByGiveup(ExceptionUtils.getMessage(err)))
+      case PolicyDecision.DelayAndRetry(delay) => panic(RetryStatus.NoRetriesYet, delay, err)
+    }
+
+  private val loop: F[Unit] = F.tailRecM(ReStartState(RetryStatus.NoRetriesYet, None)) { state =>
     (publisher.serviceReStart(channel, serviceParams) >> fa).attempt.flatMap {
       case Right(_)                    => stopBy(ServiceStopCause.Normally)
       case Left(err) if !NonFatal(err) => stopBy(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
       case Left(err) =>
-        policy.decideNextRetry(status).flatMap {
-          case PolicyDecision.GiveUp => // start over when run out of policies
-            policy.decideNextRetry(RetryStatus.NoRetriesYet).flatMap {
-              case PolicyDecision.GiveUp => stopBy(ServiceStopCause.ByGiveup(ExceptionUtils.getMessage(err)))
-              case PolicyDecision.DelayAndRetry(delay) => panic(RetryStatus.NoRetriesYet, delay, err)
-            }
-          case PolicyDecision.DelayAndRetry(delay) => panic(status, delay, err)
+        policy.decideNextRetry(state.retryStatus).flatMap {
+          case PolicyDecision.GiveUp => startover(err)
+          // if no error happens for long enough, start over the policies
+          case PolicyDecision.DelayAndRetry(delay) =>
+            (state.lastTime, serviceParams.policyThreshold)
+              .traverseN((last, threshold) =>
+                serviceParams.zonedNow.map(now => Duration.between(last, now).compareTo(threshold) > 0))
+              .map(_.exists(identity))
+              .ifM(startover(err), panic(state.retryStatus, delay, err))
         }
     }
   }
