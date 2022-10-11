@@ -12,7 +12,6 @@ import natchez.noop.NoopEntrypoint
 import retry.RetryPolicies
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
 
 /** poor man's telemetry
   */
@@ -37,7 +36,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
       metricFilter = MetricFilter.ALL,
       jmxBuilder = None,
       entryPoint = entryPoint,
-      restartPolicy = RetryPolicies.constantDelay(30.seconds)
+      restartPolicy = RetryPolicies.alwaysGiveUp
     )
 }
 

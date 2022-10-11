@@ -12,11 +12,12 @@ import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
+import retry.{PolicyDecision, RetryPolicies, RetryStatus}
 
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
 import scala.util.Try
+import fs2.Stream
 
 class ServiceTest extends AnyFunSuite {
 
@@ -224,11 +225,75 @@ class ServiceTest extends AnyFunSuite {
 
   test("12.dummy agent should not block") {
     val dummy = TaskGuard.dummyAgent[IO]
-    dummy
-      .use(ag =>
-        IO.println("begin") >>
-          ag.action("test", _.notice).retry(IO(1)).run.replicateA(10) >>
-          IO.print("end"))
+    dummy.use(_.action("test", _.notice).retry(IO(1)).run.replicateA(3)).unsafeRunSync()
+  }
+
+  test("13. policy start over") {
+    import java.time.Duration
+    val p1 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
+    val p2 = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(2))
+    val p3 = RetryPolicies.constantDelay[IO](3.seconds).join(RetryPolicies.limitRetries(3))
+    val List(a, b, c, d, e, f, g, h) = guard
+      .withRestartPolicy(p1.followedBy(p2).followedBy(p3))
+      .eventStream(_ => IO.raiseError(new Exception("oops")))
+      .filter(_.isInstanceOf[ServicePanic])
+      .map(_.timestamp)
+      .take(8)
+      .compile
+      .toList
+      .unsafeRunSync()
+    val d1 = Duration.between(a, b).toMillis
+    val d2 = Duration.between(b, c).toMillis
+    val d3 = Duration.between(c, d).toMillis
+    val d4 = Duration.between(d, e).toMillis
+    val d5 = Duration.between(e, f).toMillis
+    val d6 = Duration.between(f, g).toMillis
+    val d7 = Duration.between(g, h).toMillis
+    assert(500 < d1 && d1 < 1500) // 1 second, p1
+    assert(1500 < d2 && d2 < 2500) // 2 seconds, p2
+    assert(2500 < d3 && d3 < 3500) // 3 seconds, p3
+    assert(500 < d4 && d4 < 1500) // 1 second, start over, p1
+    assert(1500 < d5 && d5 < 2500) // 2 seconds, p2
+    assert(2500 < d6 && d6 < 3500) // 3 seconds, p3
+    assert(500 < d7 && d7 < 1500) // start over again, p1
+  }
+
+  test("14. policy threshold start over") {
+    import java.time.Duration
+    val List(a, b, c, d, e, f, g) = guard
+      .withRestartPolicy(RetryPolicies.fibonacciBackoff[IO](1.seconds))
+      .updateConfig(_.withPolicyThreshold(4.seconds))
+      .eventStream(_ => IO.raiseError(new Exception("oops")))
+      .filter(_.isInstanceOf[ServicePanic])
+      .map(_.timestamp)
+      .take(7)
+      .compile
+      .toList
+      .unsafeRunSync()
+    val ab = Duration.between(a, b).toMillis
+    val cd = Duration.between(c, d).toMillis
+    val ef = Duration.between(e, f).toMillis
+    val fg = Duration.between(f, g).toMillis
+    // 1,1,2,3,5,8(never happen)...
+    assert(500 < ab && ab < 1500)
+    assert(1500 < cd && cd < 2500)
+    assert(4500 < ef && ef < 5500)
+    assert(500 < fg && fg < 1500)
+  }
+
+  test("15. eval policy") {
+    val p1 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
+    val p2 = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(5))
+    Stream
+      .unfoldEval[IO, RetryStatus, FiniteDuration](RetryStatus.NoRetriesYet)(s =>
+        p1.followedBy(p2).decideNextRetry(s).map {
+          case PolicyDecision.GiveUp               => None
+          case PolicyDecision.DelayAndRetry(delay) => Some(delay -> s.addRetry(delay))
+        })
+      .debug()
+      .take(10)
+      .compile
+      .drain
       .unsafeRunSync()
   }
 }
