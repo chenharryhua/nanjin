@@ -19,6 +19,7 @@ import retry.RetryPolicies
 
 import scala.concurrent.duration.*
 import scala.util.Try
+import scala.util.control.ControlThrowable
 
 final case class MyException() extends Exception("my exception")
 
@@ -257,7 +258,7 @@ class RetryTest extends AnyFunSuite {
 
   }
 
-  test("run synatx") {
+  test("12.run synatx") {
     serviceGuard.eventStream { ag =>
       val a0 = ag.action("a0").retry(unit_fun).run
       val a1 = ag.action("a1").retry(fun1 _).run(1)
@@ -279,7 +280,7 @@ class RetryTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
-  test("12.retry - nonterminating - should retry") {
+  test("13.retry - nonterminating - should retry") {
     val a :: b :: c :: d :: e :: f :: _ = serviceGuard
       .withRestartPolicy(constant_1second)
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
@@ -298,4 +299,21 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
+  test("14.should not retry fatal error") {
+    val List(a, b, c, d) = serviceGuard
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .eventStream(
+        _.action("fatal", _.critical)
+          .withRetryPolicy(constant_1second)
+          .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
+          .run)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionFail])
+    assert(d.isInstanceOf[ServiceStop])
+  }
 }
