@@ -2,12 +2,11 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.{Monad, Show}
 import cats.effect.kernel.Clock
-import cats.syntax.functor.*
-import cats.syntax.show.*
-import cats.syntax.traverse.*
+import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.InstantAlert
 import fs2.concurrent.Channel
 
 final class NJAlert[F[_]: Monad: Clock] private[guard] (
@@ -22,27 +21,33 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   private lazy val warnCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.High))
   private lazy val infoCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Medium))
 
+  private def alert(msg: String, importance: Importance): F[Unit] =
+    for {
+      ts <- serviceParams.zonedNow
+      _ <- channel.send(
+        InstantAlert(
+          digested = digested,
+          timestamp = ts,
+          serviceParams = serviceParams,
+          importance = importance,
+          message = msg))
+    } yield ()
+
   def withCounting: NJAlert[F] =
     new NJAlert[F](digested, metricRegistry, channel, serviceParams, true)
 
   def error[S: Show](msg: S): F[Unit] =
-    publisher
-      .alert(channel, serviceParams, digested, msg.show, Importance.Critical)
-      .map(_ => if (isCounting) errorCounter.inc(1))
+    alert(msg.show, Importance.Critical).map(_ => if (isCounting) errorCounter.inc(1))
 
   def error[S: Show](msg: Option[S]): F[Unit] = msg.traverse(error(_)).void
 
   def warn[S: Show](msg: S): F[Unit] =
-    publisher
-      .alert(channel, serviceParams, digested, msg.show, Importance.High)
-      .map(_ => if (isCounting) warnCounter.inc(1))
+    alert(msg.show, Importance.High).map(_ => if (isCounting) warnCounter.inc(1))
 
   def warn[S: Show](msg: Option[S]): F[Unit] = msg.traverse(warn(_)).void
 
   def info[S: Show](msg: S): F[Unit] =
-    publisher
-      .alert(channel, serviceParams, digested, msg.show, Importance.Medium)
-      .map(_ => if (isCounting) infoCounter.inc(1))
+    alert(msg.show, Importance.Medium).map(_ => if (isCounting) infoCounter.inc(1))
 
   def info[S: Show](msg: Option[S]): F[Unit] = msg.traverse(info(_)).void
 }

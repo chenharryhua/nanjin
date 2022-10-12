@@ -31,13 +31,7 @@ class RetryTest extends AnyFunSuite {
 
   test("1.retry - success trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
-      gd.action("t")
-        .withRetryPolicy(policy)
-        .retry(fun3 _)
-        .logOutput((a, _) => a.asJson)
-        .withWorthRetry(_ => true)
-        .run((1, 1, 1))
-
+      gd.action("t").retry(fun3 _).logOutput((a, _) => a.asJson).withWorthRetry(_ => true).run((1, 1, 1))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
@@ -47,7 +41,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - success notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag =
-        gd.action("t", _.notice).withRetryPolicy(policy).retry(fun5 _).logInput.withWorthRetry(_ => true)
+        gd.action("t", _.notice).retry(fun5 _).logInput.withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -85,6 +79,10 @@ class RetryTest extends AnyFunSuite {
     assert(h.isInstanceOf[ActionRetry])
     assert(i.isInstanceOf[ActionFail])
     assert(j.isInstanceOf[ServiceStop])
+
+    assert(b.asInstanceOf[ActionRetry].retriesSoFar == 0)
+    assert(e.asInstanceOf[ActionRetry].retriesSoFar == 0)
+    assert(h.asInstanceOf[ActionRetry].retriesSoFar == 0)
   }
 
   test("4.retry - should retry 2 times when operation fail") {
@@ -152,6 +150,10 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServiceStop])
+
+    assert(b.asInstanceOf[ActionRetry].retriesSoFar == 0)
+    assert(c.asInstanceOf[ActionRetry].retriesSoFar == 1)
+    assert(d.asInstanceOf[ActionRetry].retriesSoFar == 2)
   }
 
   test("7.retry - Null pointer exception") {

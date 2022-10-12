@@ -71,9 +71,9 @@ class ServiceTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
   }
 
-  test("3.should throw exception when fatal error occurs") {
+  test("3.should stop when fatal error occurs") {
     val List(a, b, c, d) = guard
-      .withRestartPolicy(constant_1hour)
+      .withRestartPolicy(constant_1second)
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd.action("t", _.notice)
