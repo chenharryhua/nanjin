@@ -5,6 +5,7 @@ import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.*
+import io.circe.Json
 import natchez.{Span, Trace}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
@@ -64,7 +65,8 @@ final case class ActionInfo(
   actionParams: ActionParams,
   actionId: Int,
   traceInfo: Option[TraceInfo],
-  launchTime: ZonedDateTime)
+  launchTime: ZonedDateTime,
+  input: Json)
 
 object ActionInfo extends zoneddatetime {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]

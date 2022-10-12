@@ -104,7 +104,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           name(evt.digested),
           traceInfo(evt),
-          ("input", evt.input),
+          ("input", evt.actionInfo.input),
           digest(evt.digested),
           actionId(evt),
           serviceId(evt),
@@ -130,7 +130,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           name(evt.digested),
           traceInfo(evt),
-          ("input", evt.input),
+          ("input", evt.actionInfo.input),
           stackTrace(evt.error),
           digest(evt.digested),
           actionId(evt),

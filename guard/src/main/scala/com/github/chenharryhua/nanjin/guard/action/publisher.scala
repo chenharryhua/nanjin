@@ -64,10 +64,14 @@ private object publisher {
     for {
       ts <- actionParams.serviceParams.zonedNow
       token <- Unique[F].unique.map(_.hash)
-      ai = ActionInfo(traceInfo = traceInfo, actionParams = actionParams, actionId = token, launchTime = ts)
-      _ <- input
-        .flatMap(json => channel.send(ActionStart(actionInfo = ai, input = json)))
-        .whenA(actionParams.isNotice)
+      json <- input
+      ai = ActionInfo(
+        traceInfo = traceInfo,
+        actionParams = actionParams,
+        actionId = token,
+        launchTime = ts,
+        input = json)
+      _ <- channel.send(ActionStart(actionInfo = ai)).whenA(actionParams.isNotice)
     } yield ai
 
   def actionRetry[F[_]: Monad: Clock](
@@ -103,11 +107,9 @@ private object publisher {
   def actionFail[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     actionInfo: ActionInfo,
-    ex: Throwable,
-    input: F[Json]): F[ZonedDateTime] =
+    ex: Throwable): F[ZonedDateTime] =
     for {
       ts <- actionInfo.actionParams.serviceParams.zonedNow
-      _ <- input.flatMap(json =>
-        channel.send(ActionFail(actionInfo = actionInfo, timestamp = ts, input = json, error = NJError(ex))))
+      _ <- channel.send(ActionFail(actionInfo = actionInfo, timestamp = ts, error = NJError(ex)))
     } yield ts
 }

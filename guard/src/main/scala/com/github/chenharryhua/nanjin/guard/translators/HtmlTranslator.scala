@@ -106,7 +106,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       actionText(evt),
       hostServiceText(evt),
-      p(b("Input: "), pre(evt.input.spaces2))
+      p(b("Input: "), pre(evt.actionInfo.input.spaces2))
     )
 
   private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] =
@@ -125,7 +125,7 @@ private object HtmlTranslator extends all {
       hostServiceText(evt),
       p(b("Policy: "), evt.actionInfo.actionParams.retryPolicy),
       p(b("Took: "), fmt.format(evt.took)),
-      p(b("Input: "), pre(evt.input.spaces2)),
+      p(b("Input: "), pre(evt.actionInfo.input.spaces2)),
       causeText(evt.error)
     )
 

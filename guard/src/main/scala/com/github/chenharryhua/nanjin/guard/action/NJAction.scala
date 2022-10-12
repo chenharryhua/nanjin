@@ -79,11 +79,11 @@ final class NJAction[F[_], IN, OUT] private[action] (
       oc match {
         case Outcome.Canceled() =>
           publisher
-            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input))
+            .actionFail(channel, actionInfo, ActionException.ActionCanceled)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Errored(error) =>
           publisher
-            .actionFail(channel, actionInfo, error, transInput(input))
+            .actionFail(channel, actionInfo, error)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
