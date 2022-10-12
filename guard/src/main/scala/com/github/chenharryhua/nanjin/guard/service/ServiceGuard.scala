@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, MetricReset}
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
 import eu.timepit.fs2cron.Scheduler
@@ -92,39 +91,44 @@ final class ServiceGuard[F[_]] private[guard] (
           val cronScheduler: Scheduler[F, CronExpr] =
             Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
 
-          val metricsReport: Stream[F, MetricReport] =
+          val metricsReport: Stream[F, Nothing] =
             serviceParams.metric.reportSchedule match {
               case Some(ScheduleType.Fixed(dur)) =>
                 // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
                 Stream
                   .fixedRate[F](dur.toScala)
                   .zipWithIndex
-                  .evalMap(t =>
+                  .evalTap(t =>
                     publisher.metricReport(
+                      channel,
                       serviceParams,
                       metricRegistry,
                       metricFilter,
                       MetricReportType.Scheduled(t._2)))
+                  .drain
               case Some(ScheduleType.Cron(cron)) =>
                 cronScheduler
                   .awakeEvery(cron)
                   .zipWithIndex
                   .evalMap(t =>
                     publisher.metricReport(
+                      channel,
                       serviceParams,
                       metricRegistry,
                       metricFilter,
                       MetricReportType.Scheduled(t._2)))
+                  .drain
               case None => Stream.empty
             }
 
-          val metricsReset: Stream[F, MetricReset] =
+          val metricsReset: Stream[F, Nothing] =
             serviceParams.metric.resetSchedule match {
               case None => Stream.empty
               case Some(cron) =>
                 cronScheduler
                   .awakeEvery(cron)
-                  .evalMap(_ => publisher.metricReset(serviceParams, metricRegistry, Some(cron)))
+                  .evalMap(_ => publisher.metricReset(channel, serviceParams, metricRegistry, Some(cron)))
+                  .drain
             }
 
           val jmxReporting: Stream[F, Nothing] =
@@ -143,8 +147,8 @@ final class ServiceGuard[F[_]] private[guard] (
           // put together
           channel.stream
             .onFinalize(channel.close.void) // drain pending send operation
-            .mergeHaltL(metricsReset)
-            .mergeHaltL(metricsReport)
+            .concurrently(metricsReset)
+            .concurrently(metricsReport)
             .concurrently(jmxReporting)
             .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
 

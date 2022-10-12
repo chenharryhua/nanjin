@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Clock
 import cats.Monad
-import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricSnapshot, NJEvent}
@@ -14,13 +13,10 @@ final class NJMetrics[F[_]: Clock: Monad] private[service] (
   metricRegistry: MetricRegistry) {
 
   def reset: F[Unit] =
-    publisher.metricReset(serviceParams, metricRegistry, None).flatMap(channel.send).void
+    publisher.metricReset(channel, serviceParams, metricRegistry, None)
 
   private def reporting(metricFilter: MetricFilter): F[Unit] =
-    publisher
-      .metricReport(serviceParams, metricRegistry, metricFilter, MetricReportType.Adhoc)
-      .flatMap(channel.send)
-      .void
+    publisher.metricReport(channel, serviceParams, metricRegistry, metricFilter, MetricReportType.Adhoc)
 
   def report(metricFilter: MetricFilter): F[Unit] = reporting(metricFilter)
   def report: F[Unit]                             = reporting(MetricFilter.ALL)
