@@ -1,8 +1,5 @@
 package mtest.spark
 
-import cats.derived.auto.eq.*
-import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -35,7 +32,6 @@ object JoinTestData {
 
   final case class Food(kind: Fruit.Value, num: Int)
 
-  val shouldCompile: Eq[Food] = implicitly[Eq[Food]]
 }
 
 class MiscTest extends AnyFunSuite {

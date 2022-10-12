@@ -182,7 +182,7 @@ private object SlackTranslator extends all {
                                |*Action ID:* ${evt.actionId.show}
                                |*Trace ID:* ${traceId(evt)}
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
-            KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
+            KeyValueSection("Input", s"""```${abbreviate(evt.actionInfo.input.spaces2)}```""")
           )
         ))
     )
@@ -232,7 +232,7 @@ private object SlackTranslator extends all {
                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             MarkdownSection(s"""```${abbrev(evt.error.message)} 
                                |Input: 
-                               |${abbreviate(evt.input.spaces2)}```""".stripMargin)
+                               |${abbreviate(evt.actionInfo.input.spaces2)}```""".stripMargin)
           )
         )
       )

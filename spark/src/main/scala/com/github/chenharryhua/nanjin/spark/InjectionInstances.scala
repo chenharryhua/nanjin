@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.spark
 import cats.Order
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import frameless.{Injection, SQLDate, SQLTimestamp}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.circe.parser.{decode, parse}
 import io.circe.syntax.*
-import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness
 
@@ -46,15 +46,6 @@ private[spark] trait InjectionInstances extends Serializable {
   implicit def enumToStringInjection[E <: Enumeration](implicit
     w: Witness.Aux[E]): Injection[E#Value, String] =
     Injection(_.toString, w.value.withName(_))
-
-  implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): JsonEncoder[E#Value] =
-    JsonEncoder.encodeEnumeration(w.value)
-
-  implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): JsonDecoder[E#Value] =
-    JsonDecoder.decodeEnumeration(w.value)
-
-  implicit def orderScalaEnum[E <: Enumeration](implicit w: Witness.Aux[E]): Order[E#Value] =
-    (x: E#Value, y: E#Value) => w.value(x.id).compare(w.value(y.id))
 
   // circe/json
   implicit def kjsonInjection[A: JsonEncoder: JsonDecoder]: Injection[KJson[A], String] =

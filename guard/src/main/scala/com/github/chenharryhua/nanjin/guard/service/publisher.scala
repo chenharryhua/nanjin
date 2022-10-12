@@ -24,22 +24,27 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 private object publisher {
   def metricReport[F[_]: Monad: Clock](
+    channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     metricFilter: MetricFilter,
-    metricReportType: MetricReportType): F[MetricReport] =
-    serviceParams.zonedNow.map(ts =>
-      MetricReport(
-        serviceParams = serviceParams,
-        reportType = metricReportType,
-        timestamp = ts,
-        snapshot = MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
-      ))
+    metricReportType: MetricReportType): F[Unit] =
+    serviceParams.zonedNow
+      .flatMap(ts =>
+        channel.send(
+          MetricReport(
+            serviceParams = serviceParams,
+            reportType = metricReportType,
+            timestamp = ts,
+            snapshot = MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
+          )))
+      .void
 
   def metricReset[F[_]: Monad: Clock](
+    channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    cronExpr: Option[CronExpr]): F[MetricReset] =
+    cronExpr: Option[CronExpr]): F[Unit] =
     for {
       ts <- serviceParams.zonedNow
       evt = cronExpr.flatMap { ce =>
@@ -58,10 +63,8 @@ private object publisher {
           timestamp = ts,
           snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
         ))
-    } yield {
-      metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
-      evt
-    }
+      _ <- channel.send(evt)
+    } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   def serviceReStart[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],

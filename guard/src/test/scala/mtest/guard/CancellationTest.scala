@@ -198,7 +198,7 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("8.cancellation - cancel in middle of retrying") {
-    val policy = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(100))
+    val policy = RetryPolicies.constantDelay[IO](2.seconds)
     val Vector(s, a, b, c, d, e) = serviceGuard
       .withRestartPolicy(constant_1hour)
       .eventStream { ag =>

@@ -10,7 +10,6 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import natchez.{Span, Trace}
-import retry.RetryDetails.{GivingUp, WillDelayAndRetry}
 import retry.RetryPolicy
 
 import java.time.{Duration, ZonedDateTime}
@@ -65,25 +64,21 @@ final class NJAction[F[_], IN, OUT] private[action] (
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceInfo))(actionInfo =>
-      retry.mtl
-        .retryingOnSomeErrors[OUT]
-        .apply[F, Throwable](
-          retryPolicy,
-          isWorthRetry.run,
-          (error, details) =>
-            details match {
-              case wdr: WillDelayAndRetry => publisher.actionRetry(channel, actionInfo, wdr, error)
-              case _: GivingUp            => F.unit
-            }
-        )(arrow(input))) { case (actionInfo, oc) =>
+      new ReTry[F, OUT](
+        channel,
+        retryPolicy,
+        isWorthRetry.run,
+        arrow(input),
+        actionInfo
+      ).execute) { case (actionInfo, oc) =>
       oc match {
         case Outcome.Canceled() =>
           publisher
-            .actionFail(channel, actionInfo, ActionException.ActionCanceled, transInput(input))
+            .actionFail(channel, actionInfo, ActionException.ActionCanceled)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Errored(error) =>
           publisher
-            .actionFail(channel, actionInfo, error, transInput(input))
+            .actionFail(channel, actionInfo, error)
             .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
         case Outcome.Succeeded(output) =>
           publisher
