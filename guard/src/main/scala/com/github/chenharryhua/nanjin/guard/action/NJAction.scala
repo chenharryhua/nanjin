@@ -57,9 +57,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
     launchTime: ZonedDateTime,
     now: ZonedDateTime): Unit = {
     if (actionParams.isTiming) timer.update(Duration.between(launchTime, now))
-    if (actionParams.isCounting) {
-      if (isSucc) succCounter.inc(1) else failCounter.inc(1)
-    }
+    if (actionParams.isCounting) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
   }
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
@@ -93,15 +91,15 @@ final class NJAction[F[_], IN, OUT] private[action] (
     for {
       _ <- trace.put("nj_action" -> actionParams.digested.metricRepr)
       ti <- TraceInfo(trace)
-      res <- internal(input, Some(ti))
-    } yield res
+      out <- internal(input, Some(ti))
+    } yield out
 
   def runWithSpan(input: IN)(span: Span[F]): F[OUT] =
     for {
       _ <- span.put("nj_action" -> actionParams.digested.metricRepr)
       ti <- TraceInfo(span)
-      res <- internal(input, Some(ti))
-    } yield res
+      out <- internal(input, Some(ti))
+    } yield out
 
 }
 

@@ -21,32 +21,29 @@ final private class ReTry[F[_], OUT](
   @inline private[this] def fail(ex: Throwable): F[Either[RetryStatus, OUT]] =
     F.raiseError[OUT](ex).map(Right(_))
 
-  @inline private[this] def succ(out: OUT): F[Either[RetryStatus, OUT]] =
-    F.pure(Right(out))
-
   private[this] def retrying(ex: Throwable, status: RetryStatus): F[Either[RetryStatus, OUT]] =
     policy.decideNextRetry(status).flatMap {
       case PolicyDecision.GiveUp => fail(ex)
       case PolicyDecision.DelayAndRetry(delay) =>
         for {
-          _ <- actionInfo.actionParams.serviceParams.zonedNow.flatMap(ts =>
-            channel
-              .send(
-                ActionRetry(
-                  actionInfo = actionInfo,
-                  timestamp = ts,
-                  retriesSoFar = status.retriesSoFar,
-                  nextRetryTime = ts.plus(delay.toJava),
-                  error = NJError(ex)
-                ))
-              .whenA(actionInfo.actionParams.isNonTrivial))
+          ts <- actionInfo.actionParams.serviceParams.zonedNow
+          _ <- channel
+            .send(
+              ActionRetry(
+                actionInfo = actionInfo,
+                timestamp = ts,
+                retriesSoFar = status.retriesSoFar,
+                nextRetryTime = ts.plus(delay.toJava),
+                error = NJError(ex)
+              ))
+            .whenA(actionInfo.actionParams.isNonTrivial)
           _ <- F.sleep(delay)
         } yield Left(status.addRetry(delay))
     }
 
   val execute: F[OUT] = F.tailRecM(RetryStatus.NoRetriesYet) { status =>
     action.attempt.flatMap {
-      case Right(out)                => succ(out)
+      case Right(out)                => F.pure[Either[RetryStatus, OUT]](Right(out))
       case Left(ex) if !NonFatal(ex) => fail(ex)
       case Left(ex)                  => isWorthRetry(ex).ifM(retrying(ex, status), fail(ex))
     }

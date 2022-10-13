@@ -280,7 +280,7 @@ class RetryTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
-  test("13.retry - nonterminating - should retry") {
+  test("13.retry - nonStop - should retry") {
     val a :: b :: c :: d :: e :: f :: _ = serviceGuard
       .withRestartPolicy(constant_1second)
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...

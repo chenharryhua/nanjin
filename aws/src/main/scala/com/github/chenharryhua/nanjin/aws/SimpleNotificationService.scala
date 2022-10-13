@@ -43,7 +43,7 @@ object SimpleNotificationService {
     private lazy val client: AmazonSNS = buildFrom(AmazonSNSClientBuilder.standard()).build()
 
     override def publish(request: PublishRequest): F[PublishResult] =
-      F.blocking(client.publish(request)).onError(ex => logger.error(ex)(name))
+      F.blocking(client.publish(request)).onError(ex => logger.error(ex)(request.toString))
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 

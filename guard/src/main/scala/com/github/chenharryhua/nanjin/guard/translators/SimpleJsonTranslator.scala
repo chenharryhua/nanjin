@@ -88,7 +88,7 @@ private object SimpleJsonTranslator {
 
   private def instantAlert(evt: InstantAlert): Json =
     Json.obj(
-      "InstantAlert" ->
+      "Alert" ->
         Json.obj(
           name(evt.digested),
           ("importance", evt.importance.asJson),

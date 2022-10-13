@@ -51,7 +51,7 @@ object SimpleEmailService {
             .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))
             .withSubject(new Content().withCharset("UTF-8").withData(content.subject)))
         .withSource(content.from)
-      F.blocking(client.sendEmail(request)).onError(ex => logger.error(ex)(name))
+      F.blocking(client.sendEmail(request)).onError(ex => logger.error(ex)(request.toString))
     }
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())

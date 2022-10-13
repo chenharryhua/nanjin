@@ -53,9 +53,10 @@ object ParameterStore {
       buildFrom(AWSSimpleSystemsManagementClientBuilder.standard()).build()
 
     override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
-      val req = new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
-      F.blocking(ParameterStoreContent(client.getParameters(req).getParameters.get(0).getValue))
-        .onError(ex => logger.error(ex)(name))
+      val request: GetParametersRequest =
+        new GetParametersRequest().withNames(path.value).withWithDecryption(path.isSecure)
+      F.blocking(ParameterStoreContent(client.getParameters(request).getParameters.get(0).getValue))
+        .onError(ex => logger.error(ex)(request.toString))
     }
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
