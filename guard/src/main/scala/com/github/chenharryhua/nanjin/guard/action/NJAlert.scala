@@ -16,10 +16,9 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   serviceParams: ServiceParams,
   isCounting: Boolean
 ) {
-  private lazy val errorCounter: Counter =
-    metricRegistry.counter(alertMRName(digested, Importance.Critical))
-  private lazy val warnCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.High))
-  private lazy val infoCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Medium))
+  private lazy val errorCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Critical))
+  private lazy val warnCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.High))
+  private lazy val infoCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Medium))
 
   private def alert(msg: String, importance: Importance): F[Unit] =
     for {

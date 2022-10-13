@@ -117,14 +117,14 @@ object TraceInfo {
   implicit final val showTraceInfo: Show[TraceInfo] = cats.derived.semiauto.show
 
   def apply[F[_]: Monad](trace: Trace[F]): F[TraceInfo] = for {
-    k <- trace.kernel.map(_.toHeaders)
+    knl <- trace.kernel.map(_.toHeaders)
     id <- trace.traceId
     uri <- trace.traceUri
-  } yield TraceInfo(k, id, uri)
+  } yield TraceInfo(knl, id, uri)
 
   def apply[F[_]: Monad](span: Span[F]): F[TraceInfo] = for {
-    k <- span.kernel.map(_.toHeaders)
+    knl <- span.kernel.map(_.toHeaders)
     id <- span.traceId
     uri <- span.traceUri
-  } yield TraceInfo(k, id, uri)
+  } yield TraceInfo(knl, id, uri)
 }

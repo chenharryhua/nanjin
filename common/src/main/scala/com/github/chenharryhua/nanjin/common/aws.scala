@@ -39,9 +39,19 @@ object aws {
   }
 
   // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
+  @JsonCodec
   final case class ParameterStorePath(value: String, isSecure: Boolean = true)
+  object ParameterStorePath {
+    implicit val showParameterStorePath: Show[ParameterStorePath] =
+      cats.derived.semiauto.show[ParameterStorePath]
+  }
 
+  @JsonCodec
   final case class ParameterStoreContent(value: String)
+  object ParameterStoreContent {
+    implicit val showParameterStoreContent: Show[ParameterStoreContent] =
+      cats.derived.semiauto.show[ParameterStoreContent]
+  }
 
   @JsonCodec
   final case class EmailContent(from: String, to: NonEmptyList[String], subject: String, body: String)

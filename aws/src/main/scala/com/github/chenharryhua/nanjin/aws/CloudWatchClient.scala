@@ -9,7 +9,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 sealed trait CloudWatchClient[F[_]] {
-  def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult]
+  def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResult]
   def updateBuilder(f: Endo[AmazonCloudWatchClientBuilder]): CloudWatchClient[F]
 }
 
@@ -42,8 +42,8 @@ object CloudWatchClient {
 
     private lazy val client: AmazonCloudWatch = buildFrom(AmazonCloudWatchClientBuilder.standard()).build()
 
-    override def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResult] =
-      F.delay(client.putMetricData(putMetricDataRequest)).onError(ex => logger.error(ex)(name))
+    override def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResult] =
+      F.delay(client.putMetricData(request)).onError(ex => logger.error(ex)(request.toString))
 
     override protected val closeService: F[Unit] = F.blocking(client.shutdown())
 

@@ -62,22 +62,22 @@ val circeLib = List(
   "io.circe" %% "circe-shapes"         % "0.14.3",
   "io.circe" %% "circe-jawn"           % "0.14.3",
   "io.circe" %% "circe-optics"         % "0.14.1",
-  "io.circe" %% "circe-jackson210"     % "0.14.0",
+  "io.circe" %% "circe-jackson212"     % "0.14.0",
   "io.circe" %% "circe-generic-extras" % "0.14.2",
   "io.circe" %% "circe-refined"        % "0.14.3",
   "org.gnieh" %% "diffson-circe"       % "4.3.0"
 )
 
 val jacksonLib = List(
-  "com.fasterxml.jackson.core"     % "jackson-annotations",
-  "com.fasterxml.jackson.core"     % "jackson-core",
-  "com.fasterxml.jackson.core"     % "jackson-databind",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
-  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala"
-).map(_ % "2.13.4")
+  "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.13.4",
+  "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.13.4",
+  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.4.1",
+  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.13.4",
+  "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.13.4",
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.13.4",
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.13.4",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4"
+)
 
 val kantanLib = List(
   "com.nrinaudo" %% "kantan.csv",
@@ -329,7 +329,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all" % "4.1.82.Final",
+      "io.netty"                               % "netty-all" % "4.1.84.Final",
       "com.julianpeeters" %% "avrohugger-core" % "1.2.1"     % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

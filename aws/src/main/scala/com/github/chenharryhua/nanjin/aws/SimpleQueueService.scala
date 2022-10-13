@@ -162,20 +162,19 @@ object SimpleQueueService {
       receiving(RetryStatus.NoRetriesYet, 0L).stream
     }
 
-    override def delete(msg: SqsMessage): F[DeleteMessageResult] =
-      F.blocking(
-        client.deleteMessage(
-          new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)))
-        .onError(ex => logger.error(ex)(name))
+    override def delete(msg: SqsMessage): F[DeleteMessageResult] = {
+      val request = new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)
+      F.blocking(client.deleteMessage(request)).onError(ex => logger.error(ex)(request.toString))
+    }
 
     override def sendMessage(request: SendMessageRequest): F[SendMessageResult] =
-      F.blocking(client.sendMessage(request)).onError(ex => logger.error(ex)(name))
+      F.blocking(client.sendMessage(request)).onError(ex => logger.error(ex)(request.toString))
 
-    override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult] =
-      F.blocking(
-        client.changeMessageVisibility(
-          new ChangeMessageVisibilityRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle, 0)))
-        .onError(ex => logger.error(ex)(name))
+    override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult] = {
+      val request: ChangeMessageVisibilityRequest =
+        new ChangeMessageVisibilityRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle, 0)
+      F.blocking(client.changeMessageVisibility(request)).onError(ex => logger.error(ex)(request.toString))
+    }
 
     override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] =
       new AwsSQS[F](buildFrom.andThen(f), delayPolicy, logger)
