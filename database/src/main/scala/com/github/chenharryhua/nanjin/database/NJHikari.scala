@@ -4,9 +4,8 @@ import cats.effect.kernel.{Async, Resource}
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
+import doobie.util.ExecutionContexts
 import fs2.Stream
-
-import scala.concurrent.ExecutionContext
 
 /** [[https://tpolecat.github.io/doobie/]]
   */
@@ -21,13 +20,13 @@ sealed abstract class NJHikari[DB](val database: DB) {
   /** use one of doobie.util.ExecutionContexts
     */
 
-  final def transactorResource[F[_]: Async](
-    threadPool: Resource[F, ExecutionContext]): Resource[F, HikariTransactor[F]] =
-    threadPool.flatMap(tp => HikariTransactor.fromHikariConfig[F](hikariConfig, tp))
+  final def transactorResource[F[_]: Async]: Resource[F, HikariTransactor[F]] =
+    ExecutionContexts
+      .fixedThreadPool[F](hikariConfig.getMaximumPoolSize)
+      .flatMap(tp => HikariTransactor.fromHikariConfig[F](hikariConfig, tp))
 
-  final def transactorStream[F[_]: Async](
-    threadPool: Resource[F, ExecutionContext]): Stream[F, HikariTransactor[F]] =
-    Stream.resource(transactorResource(threadPool))
+  final def transactorStream[F[_]: Async]: Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorResource)
 }
 
 object NJHikari {
