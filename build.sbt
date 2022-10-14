@@ -35,7 +35,7 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.310")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.320")
 
 val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.4",
@@ -71,7 +71,7 @@ val circeLib = List(
 val jacksonLib = List(
   "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.13.4",
   "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.13.4",
-  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.4.1",
+  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.4.2",
   "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.13.4",
   "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.13.4",
   "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.13.4",
@@ -178,7 +178,7 @@ val catsLib = List(
     "org.typelevel" %% "kittens"               % "3.0.0",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
     "org.typelevel" %% "algebra"               % "2.8.0",
-    "org.typelevel" %% "cats-collections-core" % "0.9.4"
+    "org.typelevel" %% "cats-collections-core" % "0.9.5"
   )
 
 val refinedLib = List(
@@ -261,7 +261,8 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= List("com.lihaoyi" %% "fastparse" % "2.3.3") ++ cronLib ++ testLib
+    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "0.3.8") ++
+      cronLib ++ testLib
   )
 
 lazy val guard = (project in file("guard"))

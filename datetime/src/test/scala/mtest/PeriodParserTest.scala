@@ -29,6 +29,12 @@ class PeriodParserTest extends AnyFunSuite {
     assert(period("7 month 5 year 3 days").isInvalid)
   }
 
+  test("s's") {
+    assert(period("5 months") == p5m)
+    assert(period("5 month") == p5m)
+    assert(period("5 monthss").isInvalid)
+  }
+
   test("should calculate the start date and respect leap year") {
     val today = LocalDate.of(2012, 10, 26)
 
