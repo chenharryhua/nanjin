@@ -198,7 +198,7 @@ val http4sLib = List(
 ).map(_ % http4sV)
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.72",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"
