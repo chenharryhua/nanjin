@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServicePanic}
 import cron4s.lib.javatime.javaTemporalInstance
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
@@ -46,7 +45,6 @@ package object translators {
   final val MessageSizeLimits: Int = 2500
 
   private[translators] def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
-  private[translators] def abbrev(msg: String): String     = StringUtils.abbreviate(msg, 260)
 
   private[translators] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
@@ -83,11 +81,4 @@ package object translators {
     (localTime, fmt.format(duration))
   }
 
-  private[translators] def upcomingRestartTimeInterpretation(mr: MetricReport): String =
-    s"The service has been up and running for ${fmt.format(mr.upTime)}."
-
-  private[translators] def upcomingRestartTimeInterpretation(sp: ServicePanic): String = {
-    val (time, dur) = localTimeAndDurationStr(sp.timestamp, sp.restartTime)
-    s":alarm: The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
-  }
 }
