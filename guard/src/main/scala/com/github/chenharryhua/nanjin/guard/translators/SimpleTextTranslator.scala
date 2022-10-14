@@ -41,13 +41,16 @@ private object SimpleTextTranslator {
        |  ${evt.serviceParams.brief}
        |""".stripMargin
 
-  private def servicePanic(evt: ServicePanic): String =
+  private def servicePanic(evt: ServicePanic): String = {
+    val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
+    val msg         = s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  ${upcomingRestartTimeInterpretation(evt)}
+       |  $msg
        |  Policy:${evt.serviceParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
+  }
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt.title)(evt)}
@@ -59,7 +62,6 @@ private object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  ${upcomingRestartTimeInterpretation(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 

@@ -33,7 +33,7 @@ final private class ReTry[F[_], OUT](
                 actionInfo = actionInfo,
                 timestamp = ts,
                 retriesSoFar = status.retriesSoFar,
-                nextRetryTime = ts.plus(delay.toJava),
+                resumeTime = ts.plus(delay.toJava),
                 error = NJError(ex)
               ))
             .whenA(actionInfo.actionParams.isNonTrivial)

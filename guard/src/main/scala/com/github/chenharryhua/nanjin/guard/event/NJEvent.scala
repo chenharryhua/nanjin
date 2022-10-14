@@ -95,7 +95,7 @@ object NJEvent extends zoneddatetime {
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     retriesSoFar: Int,
-    nextRetryTime: ZonedDateTime,
+    resumeTime: ZonedDateTime,
     error: NJError)
       extends ActionEvent {
     override val title: String = titles.actionRetry

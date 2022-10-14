@@ -58,15 +58,18 @@ private object HtmlTranslator extends all {
       pre(evt.serviceParams.brief)
     )
 
-  private def servicePanic(evt: ServicePanic): Text.TypedTag[String] =
+  private def servicePanic(evt: ServicePanic): Text.TypedTag[String] = {
+    val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
+    val msg         = s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
     div(
       h3(style := coloring(evt))(evt.title),
-      p(b(upcomingRestartTimeInterpretation(evt))),
+      p(b(msg)),
       hostServiceText(evt),
       p(b("Policy: "), evt.serviceParams.retryPolicy),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       causeText(evt.error)
     )
+  }
 
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
@@ -79,7 +82,7 @@ private object HtmlTranslator extends all {
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      p(upcomingRestartTimeInterpretation(evt)),
+      p(b("UpTime: "), fmt.format(evt.upTime)),
       hostServiceText(evt),
       pre(evt.serviceParams.brief),
       pre(evt.snapshot.show)
