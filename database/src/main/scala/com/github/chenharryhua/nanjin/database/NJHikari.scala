@@ -23,7 +23,7 @@ sealed abstract class NJHikari[DB](val database: DB) {
   final def transactorResource[F[_]: Async]: Resource[F, HikariTransactor[F]] =
     ExecutionContexts
       .fixedThreadPool[F](hikariConfig.getMaximumPoolSize)
-      .flatMap(tp => HikariTransactor.fromHikariConfig[F](hikariConfig, tp))
+      .flatMap(ec => HikariTransactor.fromHikariConfig[F](hikariConfig, ec))
 
   final def transactorStream[F[_]: Async]: Stream[F, HikariTransactor[F]] =
     Stream.resource(transactorResource)

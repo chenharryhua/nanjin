@@ -2,11 +2,11 @@ ThisBuild / scalaVersion       := "2.13.10"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.1-SNAPSHOT"
+ThisBuild / version            := "0.16.2-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.8.0"
-val catsEffectV = "3.3.14"
+val catsEffectV = "3.4.0-RC2"
 val monocleV    = "2.1.0"
 val confluentV  = "7.2.2"
 val kafkaV      = "7.2.2-ce"

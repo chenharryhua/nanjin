@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
