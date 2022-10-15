@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Foldable
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Async
+import cats.effect.SyncIO
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.PathSegment
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
@@ -85,43 +86,44 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
 
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
 
-  private def downloadKafka(
-    getOffsetRange: Kleisli[F, ShortLiveConsumer[F], KafkaTopicPartition[Option[KafkaOffsetRange]]])(implicit
-    F: Sync[F]): F[CrRdd[F, K, V]] =
-    sk.kafkaBatch(topic, sparkSession, getOffsetRange).map(rdd => crRdd(rdd.map(_.toNJConsumerRecord)))
+  private def downloadKafka(dateTimeRange: NJDateTimeRange): CrRdd[F, K, V] =
+    crRdd(sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.toNJConsumerRecord))
 
   /** download all topic data, up to now
     */
-  def fromKafka(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
-    downloadKafka(Kleisli(_.offsetRangeForAll))
+  def fromKafka: CrRdd[F, K, V] = downloadKafka(NJDateTimeRange(topic.context.settings.zoneId))
 
   /** download topic according to datetime
     * @param dtr:
     *   datetime
     */
-  def fromKafka(dtr: NJDateTimeRange)(implicit F: Sync[F]): F[CrRdd[F, K, V]] =
-    downloadKafka(Kleisli(_.offsetRangeFor(dtr)))
+  def fromKafka(dtr: NJDateTimeRange): CrRdd[F, K, V] = downloadKafka(dtr)
 
   /** download topic according to offset range
     * @param offsets
     *
-    * partition -> (start-offset(inclusive), end-offset(inclusive))
+    * partition -> (start-offset(inclusive), end-offset(exclusive))
     *
     * @return
     *   CrRdd
     */
-  def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Sync[F]): F[CrRdd[F, K, V]] = {
-    def getRange(consumer: ShortLiveConsumer[F]): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
-      consumer.partitionsFor.map { partitions =>
-        val topicPartition = partitions.value.map { tp =>
-          val ofs = offsets
-            .get(tp.partition())
-            .flatMap(se => KafkaOffsetRange(KafkaOffset(se._1), KafkaOffset(se._2 + 1)))
-          tp -> ofs
-        }.toMap
-        KafkaTopicPartition(topicPartition)
-      }
-    downloadKafka(Kleisli(getRange))
+  def fromKafka(offsets: Map[Int, (Long, Long)]): CrRdd[F, K, V] = {
+    val offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+      topic.context.settings
+        .context[SyncIO]
+        .byteTopic(topic.topicName)
+        .shortLiveConsumer
+        .use(_.partitionsFor.map { partitions =>
+          val topicPartition = partitions.value.map { tp =>
+            val ofs = offsets
+              .get(tp.partition())
+              .flatMap(se => KafkaOffsetRange(KafkaOffset(se._1), KafkaOffset(se._2)))
+            tp -> ofs
+          }.toMap
+          KafkaTopicPartition(topicPartition)
+        })
+        .unsafeRunSync()
+    crRdd(sk.kafkaBatch(topic, sparkSession, offsetRange).map(_.toNJConsumerRecord))
   }
 
   /** load topic data from disk
