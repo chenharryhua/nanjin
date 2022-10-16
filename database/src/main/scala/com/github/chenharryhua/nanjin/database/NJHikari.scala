@@ -8,30 +8,40 @@ import doobie.util.ExecutionContexts
 import fs2.Stream
 
 /** [[https://tpolecat.github.io/doobie/]]
+  * @param database
+  *   Postgres, Redshit or Sql Server
+  * @param cfg
+  *   initial HikariConfig
+  * @param updateOps
+  *   set operations apply to the initial config
   */
-sealed abstract class NJHikari[DB](val database: DB) {
-  def hikariConfig: HikariConfig
+sealed abstract class NJHikari[DB](
+  val database: DB,
+  cfg: HikariConfig,
+  updateOps: List[HikariConfig => Unit]) {
 
-  final def set(f: HikariConfig => Unit): this.type = {
-    f(hikariConfig)
-    this
+  final def set(f: HikariConfig => Unit): NJHikari[DB] =
+    new NJHikari[DB](database, cfg, f :: updateOps) {}
+
+  final lazy val hikariConfig: HikariConfig = {
+    updateOps.reverse.foreach(_(cfg))
+    cfg.validate()
+    cfg
   }
 
-  /** use one of doobie.util.ExecutionContexts
-    */
-
   final def transactorResource[F[_]: Async]: Resource[F, HikariTransactor[F]] =
-    ExecutionContexts
-      .fixedThreadPool[F](hikariConfig.getMaximumPoolSize)
-      .flatMap(ec => HikariTransactor.fromHikariConfig[F](hikariConfig, ec))
+    for {
+      ec <- ExecutionContexts.fixedThreadPool[F](hikariConfig.getMaximumPoolSize)
+      transactor <- HikariTransactor.fromHikariConfig[F](hikariConfig, ec)
+    } yield transactor
 
   final def transactorStream[F[_]: Async]: Stream[F, HikariTransactor[F]] =
     Stream.resource(transactorResource)
 }
 
 object NJHikari {
-  def apply(db: Postgres): NJHikari[Postgres] = new NJHikari[Postgres](db) {
-    override val hikariConfig: HikariConfig = {
+  def apply(db: Postgres): NJHikari[Postgres] = {
+    val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("org.postgresql.Driver")
       cfg.setJdbcUrl(Protocols.Postgres.url(db.host, Some(db.port)) + s"/${db.database.value}")
@@ -39,10 +49,11 @@ object NJHikari {
       cfg.setPassword(db.password.value)
       cfg
     }
+    new NJHikari[Postgres](db, initConfig, Nil) {}
   }
 
-  def apply(db: Redshift): NJHikari[Redshift] = new NJHikari[Redshift](db) {
-    override val hikariConfig: HikariConfig = {
+  def apply(db: Redshift): NJHikari[Redshift] = {
+    val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
       cfg.setJdbcUrl(Protocols.Redshift.url(db.host, Some(db.port)) + s"/${db.database.value}")
@@ -52,10 +63,11 @@ object NJHikari {
       cfg.addDataSourceProperty("sslfactory", "com.amazon.redshift.ssl.NonValidatingFactory")
       cfg
     }
+    new NJHikari[Redshift](db, initConfig, Nil) {}
   }
 
-  def apply(db: SqlServer): NJHikari[SqlServer] = new NJHikari[SqlServer](db) {
-    override val hikariConfig: HikariConfig = {
+  def apply(db: SqlServer): NJHikari[SqlServer] = {
+    val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
       cfg.setJdbcUrl(Protocols.SqlServer.url(db.host, Some(db.port)) + s";databaseName=${db.database.value}")
@@ -63,5 +75,6 @@ object NJHikari {
       cfg.setPassword(db.password.value)
       cfg
     }
+    new NJHikari[SqlServer](db, initConfig, Nil) {}
   }
 }
