@@ -15,20 +15,22 @@ object console {
     new TextConsole[F](translator)
 
   def verbose[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseText[F])
-  def simple[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleText[F])
-}
 
-final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
-    extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
+  def simple[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.simpleText[F])
 
-  override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextConsole[F] =
-    new TextConsole[F](f(translator))
+  final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
+      extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
 
-  private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextConsole[F] =
+      new TextConsole[F](f(translator))
 
-  override def apply(event: NJEvent): F[Unit] =
-    translator
-      .translate(event)
-      .flatMap(_.traverse(evt => C.println(s"${event.timestamp.format(fmt)} Console - $evt")).void)
-  def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
+    private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+    override def apply(event: NJEvent): F[Unit] =
+      translator
+        .translate(event)
+        .flatMap(_.traverse(evt => C.println(s"${event.timestamp.format(fmt)} Console - $evt")).void)
+
+    def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
+  }
 }
