@@ -115,7 +115,7 @@ object ShortLiveConsumer {
       .make(Sync[F].delay {
         val byteArrayDeserializer = new ByteArrayDeserializer
         new KafkaConsumer[Array[Byte], Array[Byte]](props, byteArrayDeserializer, byteArrayDeserializer)
-      })(a => Sync[F].delay(a.close()))
+      })(kc => Sync[F].delay(kc.close()))
       .map(new KafkaConsumerApiImpl(topicName, _))
 
   final private[this] class KafkaConsumerApiImpl[F[_]: Sync](

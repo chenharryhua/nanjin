@@ -39,9 +39,13 @@ class CopyDataTest extends AnyFunSuite {
       _ <- sparKafka
         .topic(src.topicDef)
         .fromKafka
-        .flatMap(_.prRdd.producerRecords(tgt.topicName, 100).through(tgt.produce.pipe).compile.drain)
-      srcData <- sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect())
-      tgtData <- sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect())
+        .prRdd
+        .producerRecords(tgt.topicName, 100)
+        .through(tgt.produce.pipe)
+        .compile
+        .drain
+      srcData = sparKafka.topic(src.topicDef).fromKafka.rdd.collect()
+      tgtData = sparKafka.topic(tgt.topicDef).fromKafka.rdd.collect()
     } yield {
 
       assert(srcData.size == 5)

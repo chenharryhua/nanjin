@@ -1,16 +1,10 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.data.Kleisli
 import cats.effect.kernel.Sync
+import cats.effect.SyncIO
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{
-  KafkaContext,
-  KafkaOffsetRange,
-  KafkaTopic,
-  KafkaTopicPartition,
-  ShortLiveConsumer
-}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaSettings, KafkaTopic, KafkaTopicPartition}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
 import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
 import frameless.{TypedEncoder, TypedExpressionEncoder}
@@ -42,26 +36,36 @@ private[kafka] object sk {
       OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
-  private def kafkaBinaryRDD[F[_]: Sync](
-    topicName: TopicName,
-    ctx: KafkaContext[F],
+  private def kafkaBatchRDD(
+    settings: KafkaSettings,
     ss: SparkSession,
-    getOffsetRange: Kleisli[F, ShortLiveConsumer[F], KafkaTopicPartition[Option[KafkaOffsetRange]]])
-    : F[RDD[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-    ctx.byteTopic(topicName).shortLiveConsumer.use(getOffsetRange.run).map { gtp =>
-      KafkaUtils.createRDD[Array[Byte], Array[Byte]](
-        ss.sparkContext,
-        props(ctx.settings.consumerSettings.config),
-        offsetRanges(gtp),
-        LocationStrategies.PreferConsistent)
-    }
+    offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]])
+    : RDD[ConsumerRecord[Array[Byte], Array[Byte]]] =
+    KafkaUtils.createRDD[Array[Byte], Array[Byte]](
+      ss.sparkContext,
+      props(settings.consumerSettings.config),
+      offsetRanges(offsetRange),
+      LocationStrategies.PreferConsistent)
 
-  def kafkaBatch[F[_]: Sync, K, V](
+  def kafkaBatch[F[_], K, V](
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
-    getOffsetRange: Kleisli[F, ShortLiveConsumer[F], KafkaTopicPartition[Option[KafkaOffsetRange]]])
-    : F[RDD[NJConsumerRecordWithError[K, V]]] =
-    kafkaBinaryRDD[F](topic.topicName, topic.context, ss, getOffsetRange).map(_.map(topic.decode(_)))
+    offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecordWithError[K, V]] =
+    kafkaBatchRDD(topic.context.settings, ss, offsetRange).map(topic.decode(_))
+
+  def kafkaBatch[F[_], K, V](
+    topic: KafkaTopic[F, K, V],
+    ss: SparkSession,
+    dateRange: NJDateTimeRange): RDD[NJConsumerRecordWithError[K, V]] = {
+    val offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]] =
+      topic.context.settings
+        .context[SyncIO]
+        .byteTopic(topic.topicName)
+        .shortLiveConsumer
+        .use(_.offsetRangeFor(dateRange))
+        .unsafeRunSync()
+    kafkaBatch(topic, ss, offsetRange)
+  }
 
   def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],

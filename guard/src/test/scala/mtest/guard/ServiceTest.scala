@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxMonadErrorRethrow
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*

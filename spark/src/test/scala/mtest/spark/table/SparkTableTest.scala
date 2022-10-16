@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.zaxxer.hikari.HikariConfig
-import doobie.ExecutionContexts
 import doobie.hikari.HikariTransactor
 import doobie.implicits.*
 import eu.timepit.refined.auto.*
@@ -89,7 +88,7 @@ class SparkTableTest extends AnyFunSuite {
   val dbData: DBTable = sample.toDB
 
   val pg: Resource[IO, HikariTransactor[IO]] =
-    NJHikari(postgres).transactorResource(ExecutionContexts.fixedThreadPool[IO](10))
+    NJHikari(postgres).set(_.setMaximumPoolSize(4)).transactorResource[IO]
 
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 

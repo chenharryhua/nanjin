@@ -71,7 +71,7 @@ final class DStreamRunner[F[_]] private (
 
   private val resource: Resource[F, StreamingContext] =
     for {
-      dispatcher <- Dispatcher[F]
+      dispatcher <- Dispatcher.sequential[F]
       _ <- Resource.eval(NJHadoop[F](sparkContext.hadoopConfiguration).delete(checkpoint).whenA(freshStart))
       sc <- Resource
         .make(F.blocking(StreamingContext.getOrCreate(checkpoint.pathStr, createContext(dispatcher))))(ssc =>
@@ -80,7 +80,7 @@ final class DStreamRunner[F[_]] private (
     } yield sc
 
   def stream: Stream[F, StreamingListenerEvent] = for {
-    dispatcher <- Stream.resource(Dispatcher[F])
+    dispatcher <- Stream.resource(Dispatcher.sequential[F])
     ssc <- Stream.resource(resource)
     event <- Stream.eval(Channel.unbounded[F, StreamingListenerEvent]).flatMap { bus =>
       ssc.addStreamingListener(new Listener(dispatcher, bus))

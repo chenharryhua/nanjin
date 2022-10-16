@@ -51,27 +51,27 @@ class SparKafkaTest extends AnyFunSuite {
     .unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
-    val rst = sparKafka.topic(topic.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
+    val rst = sparKafka.topic(topic.topicDef).fromKafka.rdd.collect()
     assert(rst.toList.flatMap(_.value) === List(data, data))
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.map(_.stats.minutely.count()).unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.stats.minutely.count()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).fromKafka.map(_.stats.dailyHour.collect()).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.stats.dailyHour.collect()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).fromKafka.map(_.stats.dailyMinute.count()).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.stats.dailyMinute.count()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).fromKafka.map(_.stats.daily.count()).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.stats.daily.count()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).fromKafka.map(_.stats.hourly.count()).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.stats.hourly.count()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.map(_.stats.summary).flatMap(IO.println).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.stats.summary
   }
   test("sparKafka should be able to bimap to other topic") {
     val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
@@ -147,25 +147,21 @@ class SparKafkaTest extends AnyFunSuite {
   test("should be able to save kunknown") {
     import io.circe.generic.auto.*
     val path = NJPath("./data/test/spark/kafka/kunknown")
+    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.output.circe(path / "circe").run.unsafeRunSync()
+    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.output.jackson(path / "jackson").run.unsafeRunSync()
     sparKafka
-      .topic[Int, KUnknown]("duck.test")
+      .topic[Int, HasDuck]("duck.test")
       .fromKafka
-      .flatMap(_.output.circe(path / "circe").run)
-      .unsafeRunSync()
-    sparKafka
-      .topic[Int, KUnknown]("duck.test")
-      .fromKafka
-      .flatMap(_.output.jackson(path / "jackson").run)
+      .output
+      .circe(path / "typed" / "circe")
+      .run
       .unsafeRunSync()
     sparKafka
       .topic[Int, HasDuck]("duck.test")
       .fromKafka
-      .flatMap(_.output.circe(path / "typed" / "circe").run)
-      .unsafeRunSync()
-    sparKafka
-      .topic[Int, HasDuck]("duck.test")
-      .fromKafka
-      .flatMap(_.output.jackson(path / "typed" / "jackson").run)
+      .output
+      .jackson(path / "typed" / "jackson")
+      .run
       .unsafeRunSync()
   }
 }

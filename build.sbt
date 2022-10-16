@@ -2,11 +2,11 @@ ThisBuild / scalaVersion       := "2.13.10"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.1-SNAPSHOT"
+ThisBuild / version            := "0.16.2-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.8.0"
-val catsEffectV = "3.3.14"
+val catsEffectV = "3.4.0-RC2"
 val monocleV    = "2.1.0"
 val confluentV  = "7.2.2"
 val kafkaV      = "7.2.2-ce"
@@ -198,7 +198,7 @@ val http4sLib = List(
 ).map(_ % http4sV)
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk15on" % "1.70",
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.72",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"
