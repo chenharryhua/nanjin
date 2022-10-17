@@ -79,11 +79,7 @@ class ObserversTest extends AnyFunSuite {
         val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
-      .through(
-        SlackObserver(SimpleNotificationService.fake[IO])
-          .withInterval(50.seconds)
-          .at("@chenh")
-          .observe(snsArn))
+      .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
       .compile
       .drain
       .unsafeRunSync()

@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-@Lenses @JsonCodec final case class MetricParams private[guard] (
+@Lenses @JsonCodec final case class MetricParams(
   reportSchedule: Option[ScheduleType],
   resetSchedule: Option[CronExpr],
   rateTimeUnit: TimeUnit,
@@ -34,7 +34,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
     resetSchedule.flatMap(_.next(now))
 }
 
-private[guard] object MetricParams {
+object MetricParams {
   private[this] val enumTimeUnit: Enum[TimeUnit]        = Enum[TimeUnit]
   implicit final val encoderTimeUnit: Encoder[TimeUnit] = Encoder.encodeString.contramap(enumTimeUnit.getName)
   implicit final val decoderTimeUnit: Decoder[TimeUnit] = Decoder.decodeString.map(enumTimeUnit.withName)
@@ -64,7 +64,7 @@ private[guard] object MetricParams {
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
 
-private[guard] object ServiceParams extends zoneddatetime with duration {
+object ServiceParams extends zoneddatetime with duration {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 

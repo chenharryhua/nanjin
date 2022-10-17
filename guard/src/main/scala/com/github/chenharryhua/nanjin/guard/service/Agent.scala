@@ -16,9 +16,9 @@ import retry.RetryPolicies
 import java.time.ZoneId
 
 final class Agent[F[_]] private[service] (
+  val serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  serviceParams: ServiceParams,
   entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
     extends EntryPoint[F] {
 

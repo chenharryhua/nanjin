@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionRetry,
   ActionStart,
   ActionSucc,
-  MetricReport,
   ServiceStart
 }
 import com.github.chenharryhua.nanjin.guard.translators.*
@@ -19,11 +18,10 @@ import fs2.{Pipe, Stream}
 import io.circe.syntax.*
 
 import java.util.UUID
-import scala.concurrent.duration.FiniteDuration
 
 object SlackObserver {
   def apply[F[_]: Concurrent: Clock](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
-    new SlackObserver[F](client, None, Translator.slack[F])
+    new SlackObserver[F](client, Translator.slack[F])
 }
 
 /** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
@@ -31,16 +29,8 @@ object SlackObserver {
 
 final class SlackObserver[F[_]: Clock](
   client: Resource[F, SimpleNotificationService[F]],
-  metricsInterval: Option[FiniteDuration],
   translator: Translator[F, SlackApp])(implicit F: Concurrent[F])
     extends UpdateTranslator[F, SlackApp, SlackObserver[F]] {
-
-  private def copy(
-    metricsInterval: Option[FiniteDuration] = metricsInterval,
-    translator: Translator[F, SlackApp] = translator): SlackObserver[F] =
-    new SlackObserver[F](client, metricsInterval, translator)
-
-  def withInterval(fd: FiniteDuration): SlackObserver[F] = copy(metricsInterval = Some(fd))
 
   /** supporters will be notified:
     *
@@ -53,11 +43,11 @@ final class SlackObserver[F[_]: Clock](
   def at(supporters: String): SlackObserver[F] = {
     val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
     val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    copy(translator = sp.andThen(st)(translator))
+    new SlackObserver[F](client, translator = sp.andThen(st)(translator))
   }
 
   override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackObserver[F] =
-    copy(translator = f(translator))
+    new SlackObserver[F](client, translator = f(translator))
 
   private def publish(
     client: SimpleNotificationService[F],
@@ -76,8 +66,6 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case MetricReport(mrt, sp, ts, _) =>
-              isShowMetrics(sp.metric.reportSchedule, ts, metricsInterval, sp.launchTime) || mrt.isShow
             case ai: ActionStart => ai.actionParams.isCritical
             case ai: ActionSucc  => ai.actionParams.isCritical
             case ai: ActionRetry => ai.actionParams.isNotice
