@@ -18,12 +18,12 @@ import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.*
 
 @JsonCodec
-final case class MetricSnapshot private (counterMap: Map[String, Long], asJson: Json, show: String) {
+final case class MetricSnapshot(counterMap: Map[String, Long], asJson: Json, show: String) {
   override def toString: String = show
   def isContainErrors: Boolean  = counterMap.filter(_._2 > 0).keys.exists(_.startsWith("0"))
 }
 
-private[guard] object MetricSnapshot {
+object MetricSnapshot {
 
   implicit val monoidMetricFilter: Monoid[MetricFilter] = new Monoid[MetricFilter] {
     override val empty: MetricFilter = MetricFilter.ALL

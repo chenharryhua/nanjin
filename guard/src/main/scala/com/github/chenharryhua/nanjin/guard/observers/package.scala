@@ -2,7 +2,11 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ScheduleType
+import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import cron4s.lib.javatime.javaTemporalInstance
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import org.typelevel.cats.time.instances.zoneddatetime.*
 
 import java.time.{Duration, ZonedDateTime}
@@ -11,23 +15,43 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object observers {
 
-  def isShowMetrics(
-    reportSchedule: Option[ScheduleType],
-    now: ZonedDateTime,
-    interval: Option[FiniteDuration],
-    launchTime: ZonedDateTime): Boolean =
-    interval match {
-      case None => true
-      case Some(iv) =>
-        val border: ZonedDateTime =
-          launchTime.plus(((Duration.between(launchTime, now).toScala / iv).toLong * iv).toJava)
-        if (now === border) true
-        else
-          reportSchedule match {
-            case None => true
-            // true when now cross the border
-            case Some(ScheduleType.Fixed(fd)) => now.minus(fd).isBefore(border) && now.isAfter(border)
-            case Some(ScheduleType.Cron(ce)) => ce.prev(now).forall(_.isBefore(border) && now.isAfter(border))
-          }
+  /** interval based sampling
+    *
+    * in every interval, only one MetricReport is allowed to pass
+    */
+  def sampling(interval: FiniteDuration)(evt: NJEvent): Boolean =
+    evt match {
+      case MetricReport(mrt, sp, now, _) =>
+        mrt match {
+          case MetricReportType.Adhoc => true
+          case MetricReportType.Scheduled(_) =>
+            val border: ZonedDateTime =
+              sp.launchTime.plus(
+                ((Duration.between(sp.launchTime, now).toScala / interval).toLong * interval).toJava)
+            if (now === border) true
+            else
+              sp.metric.reportSchedule match {
+                case None => true
+                // true when now cross the border
+                case Some(ScheduleType.Fixed(fd)) => now.minus(fd).isBefore(border) && now.isAfter(border)
+                case Some(ScheduleType.Cron(ce)) =>
+                  ce.prev(now).forall(_.isBefore(border)) && now.isAfter(border)
+              }
+        }
+      case _ => true
+    }
+
+  /** index based sampling
+    *
+    * report index mod divisor === 0
+    */
+  def sampling(divisor: Refined[Int, Positive])(evt: NJEvent): Boolean =
+    evt match {
+      case MetricReport(mrt, _, _, _) =>
+        mrt match {
+          case MetricReportType.Adhoc            => true
+          case MetricReportType.Scheduled(index) => (index % divisor.value) === 0
+        }
+      case _ => true
     }
 }

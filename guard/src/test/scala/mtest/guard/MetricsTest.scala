@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.observers.console
+import com.github.chenharryhua.nanjin.guard.observers.{console, sampling}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
@@ -58,7 +58,7 @@ class MetricsTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .evalTap(console.simple[IO])
+      .evalTap(console.simple[IO].updateTranslator(_.filter(sampling(1))))
       .interruptAfter(5.seconds)
       .compile
       .drain

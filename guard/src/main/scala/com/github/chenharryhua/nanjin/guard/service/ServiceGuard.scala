@@ -75,7 +75,7 @@ final class ServiceGuard[F[_]] private[guard] (
       .compile
       .drain
       .background
-  } yield new Agent[F](new MetricRegistry, chn, sp, entryPoint)
+  } yield new Agent[F](sp, new MetricRegistry, chn, entryPoint)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
@@ -143,7 +143,7 @@ final class ServiceGuard[F[_]] private[guard] (
                   .flatMap(_ => Stream.never[F])
             }
 
-          val agent = new Agent[F](metricRegistry, channel, serviceParams, entryPoint)
+          val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint)
           // put together
           channel.stream
             .onFinalize(channel.close.void) // drain pending send operation
