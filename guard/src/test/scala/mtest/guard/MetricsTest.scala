@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, sampling}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
+import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -93,6 +94,20 @@ class MetricsTest extends AnyFunSuite {
     assert(i2.asJson.noSpaces === """ "High" """.trim)
     assert(i3.asJson.noSpaces === """ "Medium" """.trim)
     assert(i4.asJson.noSpaces === """ "Low" """.trim)
+  }
+
+  ignore("timing") {
+    val s = TaskGuard[IO]("metrics")
+      .service("timing")
+      .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
+
+    val s1 = s("s1").eventStream(_ => IO.never)
+    val s2 = s("s2").eventStream(_ => IO.never)
+    val s3 = s("s3").eventStream(_ => IO.never)
+    val s4 = s("s4").eventStream(_ => IO.never)
+
+    s1.merge(s2).merge(s3).merge(s4).evalTap(console.simple[IO]).compile.drain
+
   }
 
 }

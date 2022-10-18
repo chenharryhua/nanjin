@@ -71,7 +71,7 @@ final class SlackObserver[F[_]: Clock](
             case ai: ActionRetry => ai.actionParams.isNotice
             case ai: ActionFail  => ai.actionParams.isNonTrivial
             case _               => true
-          }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
+          }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalizeCase(
           ofm.terminated(_).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
     } yield event
