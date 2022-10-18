@@ -41,7 +41,7 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
         ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
         event <- es
           .evalTap(ofm.monitoring)
-          .evalTap(e => translate(e).flatMap(_.traverse(sendMessage(sqs, f, _))).void)
+          .evalTap(e => translate(e).flatMap(_.traverse(sendMessage(sqs, f, _))))
           .onFinalizeCase(ofm.terminated(_).flatMap(_.traverse(sendMessage(sqs, f, _))).void)
       } yield event
 

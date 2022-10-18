@@ -103,7 +103,7 @@ final class SesEmailObserver[F[_]](
             translator.translate(evt).map(_.map(tags => (tags, ColorScheme.decorate(evt).eval.value))))
           .unNone
           .groupWithin(chunkSize.value, interval)
-          .evalTap(publish(_, ses, from, to, subject).void)
+          .evalTap(publish(_, ses, from, to, subject))
           .onFinalizeCase(exitCase =>
             ofm.terminated(exitCase).flatMap { chk =>
               val tags: Chunk[(Text.TypedTag[String], ColorScheme)] = chk.map(tag =>

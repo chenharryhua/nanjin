@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.logging
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
+import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.Decoder
 import io.circe.generic.JsonCodec
@@ -110,4 +111,18 @@ class PassThroughTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
+  test("6.cron index") {
+    val lst = guard
+      .eventStream(ag =>
+        ag.awakeEvery(Cron.unsafeParse("0-59 * * ? * *"))
+          .evalMap(x => ag.broker("pt").passThrough(x.asJson))
+          .take(3)
+          .compile
+          .drain)
+      .compile
+      .toList
+      .map(_.filter(_.isInstanceOf[PassThrough]))
+      .unsafeRunSync()
+    assert(List(0, 1, 2) == lst.flatMap(_.asInstanceOf[PassThrough].value.asNumber.flatMap(_.toLong)))
+  }
 }

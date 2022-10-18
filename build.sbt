@@ -16,6 +16,7 @@ val metricsV    = "4.2.12"
 val log4catsV   = "2.5.0"
 val skunkV      = "0.3.2"
 val http4sV     = "0.23.16"
+val cron4sV     = "0.6.1"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -211,11 +212,6 @@ val metricLib = List(
   "io.dropwizard.metrics" % "metrics-jvm"
 ).map(_ % metricsV)
 
-val cronLib = List(
-  "eu.timepit" %% "fs2-cron-cron4s"                % "0.7.2",
-  "com.github.alonsodomin.cron4s" %% "cron4s-core" % "0.6.1"
-)
-
 val baseLib = List(
   "org.typelevel" %% "cats-effect"                 % catsEffectV,
   "org.apache.commons"                             % "commons-lang3" % "3.12.0",
@@ -261,8 +257,10 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings: _*)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "0.3.8") ++
-      cronLib ++ testLib
+    libraryDependencies ++= List(
+      "org.typelevel" %% "cats-parse"                  % "0.3.8",
+      "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV) ++
+      testLib
   )
 
 lazy val guard = (project in file("guard"))
@@ -271,15 +269,16 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.lihaoyi" %% "scalatags"       % "0.12.0",
-      "org.tpolecat" %% "skunk-core"     % skunkV,
-      "org.tpolecat" %% "skunk-circe"    % skunkV,
-      "org.tpolecat" %% "natchez-core"   % "0.1.6",
-      "org.tpolecat" %% "natchez-noop"   % "0.1.6",
-      "org.tpolecat" %% "natchez-jaeger" % "0.1.6"          % Test,
-      "org.tpolecat" %% "natchez-log"    % "0.1.6"          % Test,
-      "org.slf4j"                        % "slf4j-reload4j" % slf4jV % Test
-    ) ++ cronLib ++ metricLib ++ logLib ++ testLib
+      "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
+      "com.lihaoyi" %% "scalatags"                     % "0.12.0",
+      "org.tpolecat" %% "skunk-core"                   % skunkV,
+      "org.tpolecat" %% "skunk-circe"                  % skunkV,
+      "org.tpolecat" %% "natchez-core"                 % "0.1.6",
+      "org.tpolecat" %% "natchez-noop"                 % "0.1.6",
+      "org.tpolecat" %% "natchez-jaeger"               % "0.1.6"          % Test,
+      "org.tpolecat" %% "natchez-log"                  % "0.1.6"          % Test,
+      "org.slf4j"                                      % "slf4j-reload4j" % slf4jV % Test
+    ) ++ metricLib ++ logLib ++ testLib
   )
 
 lazy val messages = (project in file("messages"))

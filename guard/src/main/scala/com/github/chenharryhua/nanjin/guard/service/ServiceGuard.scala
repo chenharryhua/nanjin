@@ -12,9 +12,6 @@ import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
-import cron4s.CronExpr
-import eu.timepit.fs2cron.Scheduler
-import eu.timepit.fs2cron.cron4s.Cron4sScheduler
 import fs2.Stream
 import fs2.concurrent.Channel
 import natchez.EntryPoint
@@ -88,8 +85,7 @@ final class ServiceGuard[F[_]] private[guard] (
             mr
           }
 
-          val cronScheduler: Scheduler[F, CronExpr] =
-            Cron4sScheduler.from(F.pure(serviceParams.taskParams.zoneId))
+          val cronScheduler: CronScheduler = new CronScheduler(serviceParams.taskParams.zoneId)
 
           val metricsReport: Stream[F, Nothing] =
             serviceParams.metric.reportSchedule match {
@@ -109,14 +105,13 @@ final class ServiceGuard[F[_]] private[guard] (
               case Some(ScheduleType.Cron(cron)) =>
                 cronScheduler
                   .awakeEvery(cron)
-                  .zipWithIndex
-                  .evalMap(t =>
+                  .evalMap(idx =>
                     publisher.metricReport(
                       channel,
                       serviceParams,
                       metricRegistry,
                       metricFilter,
-                      MetricReportType.Scheduled(t._2)))
+                      MetricReportType.Scheduled(idx)))
                   .drain
               case None => Stream.empty
             }
