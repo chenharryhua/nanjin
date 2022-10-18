@@ -105,9 +105,7 @@ class MetricsTest extends AnyFunSuite {
     val s2 = s("s2").eventStream(_ => IO.never)
     val s3 = s("s3").eventStream(_ => IO.never)
     val s4 = s("s4").eventStream(_ => IO.never)
-
-    s1.merge(s2).merge(s3).merge(s4).evalTap(console.simple[IO]).compile.drain
-
+    s1.merge(s2).merge(s3).merge(s4).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
 }

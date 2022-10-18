@@ -8,6 +8,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import cron4s.CronExpr
 import fs2.concurrent.Channel
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
@@ -81,6 +82,8 @@ final class Agent[F[_]] private[service] (
 
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
+
+  def awakeEvery(cronExpr: CronExpr): Stream[F, Long] = new CronScheduler(zoneId).awakeEvery[F](cronExpr)
 
   // for convenience
 
