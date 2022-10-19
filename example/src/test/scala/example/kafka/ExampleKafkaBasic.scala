@@ -48,7 +48,11 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .topic(fooTopic)
       .load
       .circe(path)
-      .prRdd.producerRecords(fooTopic.topicName, 2).through(fooTopic.produce.pipe).compile.drain
+      .prRdd
+      .producerRecords(fooTopic.topicName, 2)
+      .through(fooTopic.produce.pipe)
+      .compile
+      .drain
       .unsafeRunSync()
   }
 }
