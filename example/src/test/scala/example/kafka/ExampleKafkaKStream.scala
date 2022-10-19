@@ -16,8 +16,9 @@ import scala.util.Random
 class ExampleKafkaKStream extends AnyFunSuite {
   test("kafka streaming") {
     val top: Kleisli[Id, StreamsBuilder, Unit] =
-      fooTopic.asConsumer.kstream
-        .map(_.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong)).to(barTopic.topicName.value)(barTopic.asProduced))
+      fooTopic.asConsumer.kstream.map(
+        _.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong))
+          .to(barTopic.topicName.value)(barTopic.asProduced))
 
     ctx.buildStreams(top).stream.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
