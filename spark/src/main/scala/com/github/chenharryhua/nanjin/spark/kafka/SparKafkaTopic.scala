@@ -133,14 +133,19 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
 
   /** rdd and dataset
     */
+
   def crRdd(rdd: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, avroKeyCodec, avroValCodec, sparkSession)
+
+  def emptyCrRdd: CrRdd[F, K, V] = crRdd(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]])
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, prCodec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
     prRdd(sparkSession.sparkContext.parallelize(list.toList))
+
+  def emptyPrRdd: PrRdd[F, K, V] = prRdd(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]])
 
   /** DStream
     */
