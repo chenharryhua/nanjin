@@ -4,7 +4,7 @@ import cats.effect.kernel.Clock
 import cats.Monad
 import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
 import fs2.concurrent.Channel
 
 final class NJMetrics[F[_]: Clock: Monad] private[service] (
@@ -20,12 +20,5 @@ final class NJMetrics[F[_]: Clock: Monad] private[service] (
 
   def report(metricFilter: MetricFilter): F[Unit] = reporting(metricFilter)
   def report: F[Unit]                             = reporting(MetricFilter.ALL)
-
-  // query
-  def snapshot: MetricSnapshot =
-    MetricSnapshot.full(metricRegistry, serviceParams)
-
-  def snapshot(metricFilter: MetricFilter): MetricSnapshot =
-    MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
 
 }

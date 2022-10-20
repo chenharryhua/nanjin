@@ -28,7 +28,7 @@ class MetricsTimingTest extends AnyFunSuite {
     MetricReportType.Scheduled(1023),
     ServiceParams.metric.composeLens(MetricParams.reportSchedule).set(st)(serviceParams),
     now,
-    MetricSnapshot(Map.empty, Json.Null, "")
+    MetricSnapshot(Map.empty[String, Long], Json.Null, "")
   )
 
   test("fixed rate secondly") {

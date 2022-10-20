@@ -36,7 +36,7 @@ private object publisher {
             serviceParams = serviceParams,
             reportType = metricReportType,
             timestamp = ts,
-            snapshot = MetricSnapshot.regular(metricFilter, metricRegistry, serviceParams)
+            snapshot = MetricSnapshot(metricRegistry, serviceParams, metricFilter)
           )))
       .void
 
@@ -53,7 +53,7 @@ private object publisher {
             resetType = MetricResetType.Scheduled(next),
             serviceParams = serviceParams,
             timestamp = ts,
-            snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
+            snapshot = MetricSnapshot(metricRegistry, serviceParams, MetricFilter.ALL)
           )
         }
       }.getOrElse(
@@ -61,7 +61,7 @@ private object publisher {
           resetType = MetricResetType.Adhoc,
           serviceParams = serviceParams,
           timestamp = ts,
-          snapshot = MetricSnapshot.full(metricRegistry, serviceParams)
+          snapshot = MetricSnapshot(metricRegistry, serviceParams, MetricFilter.ALL)
         ))
       _ <- channel.send(evt)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))

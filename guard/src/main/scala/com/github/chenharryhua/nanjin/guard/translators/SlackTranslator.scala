@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.all
 
-import java.text.NumberFormat
 import java.time.Duration
 
 private object SlackTranslator extends all {
@@ -23,23 +22,7 @@ private object SlackTranslator extends all {
     .value
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
-    if (snapshot.show.length <= MessageSizeLimits) {
-      KeyValueSection("Metrics", s"```${snapshot.show.replace("-- ", "")}```")
-    } else {
-      val fmt: NumberFormat = NumberFormat.getIntegerInstance
-      val msg: String =
-        snapshot.counterMap
-          .filter(_._2 > 0)
-          .map(x => s"${x._1}: ${fmt.format(x._2)}")
-          .toList
-          .sorted
-          .mkString("\n")
-      if (msg.isEmpty)
-        KeyValueSection("Counters", "*No counter update*")
-      else
-        KeyValueSection("Counters", s"```${abbreviate(msg)}```")
-    }
-  // don't trim string
+    KeyValueSection("Metrics", s"```${abbreviate(snapshot.show.replace("-- ", ""))}```")
 
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp =
