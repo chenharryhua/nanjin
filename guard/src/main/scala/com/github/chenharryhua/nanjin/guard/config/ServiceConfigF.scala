@@ -80,7 +80,7 @@ object ServiceParams extends zoneddatetime with duration {
       taskParams = taskParams,
       retryPolicy = retryPolicy,
       policyThreshold = None,
-      queueCapacity = refineMV(0), // synchronous
+      queueCapacity = refineMV(Int.MaxValue),
       metric = MetricParams(
         reportSchedule = None,
         resetSchedule = None,

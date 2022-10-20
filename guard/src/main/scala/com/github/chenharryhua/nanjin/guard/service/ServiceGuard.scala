@@ -141,12 +141,10 @@ final class ServiceGuard[F[_]] private[guard] (
           val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint)
           // put together
           channel.stream
-            .onFinalize(channel.close.void) // drain pending send operation
             .concurrently(metricsReset)
             .concurrently(metricsReport)
             .concurrently(jmxReporting)
             .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
-
       }
     } yield event
 }
