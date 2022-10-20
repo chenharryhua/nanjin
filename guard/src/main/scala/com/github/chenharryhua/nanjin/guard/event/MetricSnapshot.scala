@@ -87,13 +87,13 @@ object MetricSnapshot {
       toJson(
         metricRegistry,
         filter |+| positiveFilter,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit),
+        serviceParams.metricParams.rateTimeUnit,
+        serviceParams.metricParams.durationTimeUnit),
       toText(
         metricRegistry,
         filter |+| positiveFilter,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit,
+        serviceParams.metricParams.rateTimeUnit,
+        serviceParams.metricParams.durationTimeUnit,
         serviceParams.taskParams.zoneId)
     )
 }

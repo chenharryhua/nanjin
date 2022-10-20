@@ -83,7 +83,7 @@ private object SlackTranslator extends all {
     )
 
   private def metricReport(evt: MetricReport): SlackApp = {
-    val nextReport = evt.serviceParams.metric
+    val nextReport = evt.serviceParams.metricParams
       .nextReport(evt.timestamp)
       .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
       .getOrElse("None")

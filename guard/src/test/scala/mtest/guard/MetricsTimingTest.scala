@@ -26,7 +26,7 @@ class MetricsTimingTest extends AnyFunSuite {
 
   def metricReport(st: Option[ScheduleType], now: ZonedDateTime): MetricReport = MetricReport(
     MetricReportType.Scheduled(1023),
-    ServiceParams.metric.composeLens(MetricParams.reportSchedule).set(st)(serviceParams),
+    ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(st)(serviceParams),
     now,
     MetricSnapshot(Map.empty[String, Long], Json.Null, "")
   )

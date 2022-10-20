@@ -78,7 +78,7 @@ class ConfigTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(as.get.serviceParams.metric.reportSchedule.isEmpty)
+    assert(as.get.serviceParams.metricParams.reportSchedule.isEmpty)
   }
 
   test("reset") {
@@ -91,6 +91,6 @@ class ConfigTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(as.get.serviceParams.metric.resetSchedule.isEmpty)
+    assert(as.get.serviceParams.metricParams.resetSchedule.isEmpty)
   }
 }

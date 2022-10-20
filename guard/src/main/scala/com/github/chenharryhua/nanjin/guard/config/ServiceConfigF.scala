@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
 import cron4s.{Cron, CronExpr}
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.cats.*
-import eu.timepit.refined.refineMV
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
 import io.circe.{Decoder, Encoder}
@@ -48,8 +47,8 @@ object MetricParams {
   taskParams: TaskParams,
   retryPolicy: String, // service restart policy
   policyThreshold: Option[Duration], // policy start over interval
-  queueCapacity: QueueCapacity, // event queue capacity
-  metric: MetricParams,
+  queueCapacity: Int, // event queue capacity
+  metricParams: MetricParams,
   brief: String,
   serviceId: UUID,
   launchTime: ZonedDateTime
@@ -80,8 +79,8 @@ object ServiceParams extends zoneddatetime with duration {
       taskParams = taskParams,
       retryPolicy = retryPolicy,
       policyThreshold = None,
-      queueCapacity = refineMV(Int.MaxValue),
-      metric = MetricParams(
+      queueCapacity = Int.MaxValue, // unbounded by default
+      metricParams = MetricParams(
         reportSchedule = None,
         resetSchedule = None,
         rateTimeUnit = TimeUnit.SECONDS,
@@ -100,7 +99,7 @@ private object ServiceConfigF {
 
   final case class InitParams[K](serviceName: ServiceName, taskParams: TaskParams) extends ServiceConfigF[K]
   final case class WithServiceName[K](value: ServiceName, cont: K) extends ServiceConfigF[K]
-  final case class WithQueueCapacity[K](value: QueueCapacity, cont: K) extends ServiceConfigF[K]
+  final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   final case class WithReportSchedule[K](value: Option[ScheduleType], cont: K) extends ServiceConfigF[K]
   final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
@@ -120,11 +119,14 @@ private object ServiceConfigF {
       case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
       case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
 
-      case WithReportSchedule(v, c) => ServiceParams.metric.composeLens(MetricParams.reportSchedule).set(v)(c)
-      case WithResetSchedule(v, c)  => ServiceParams.metric.composeLens(MetricParams.resetSchedule).set(v)(c)
-      case WithRateTimeUnit(v, c)   => ServiceParams.metric.composeLens(MetricParams.rateTimeUnit).set(v)(c)
+      case WithReportSchedule(v, c) =>
+        ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(v)(c)
+      case WithResetSchedule(v, c) =>
+        ServiceParams.metricParams.composeLens(MetricParams.resetSchedule).set(v)(c)
+      case WithRateTimeUnit(v, c) =>
+        ServiceParams.metricParams.composeLens(MetricParams.rateTimeUnit).set(v)(c)
       case WithDurationTimeUnit(v, c) =>
-        ServiceParams.metric.composeLens(MetricParams.durationTimeUnit).set(v)(c)
+        ServiceParams.metricParams.composeLens(MetricParams.durationTimeUnit).set(v)(c)
 
       case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.set(v)(c)
 
@@ -137,7 +139,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
   def withQueueCapacity(size: QueueCapacity): ServiceConfig =
-    ServiceConfig(Fix(WithQueueCapacity(size, value)))
+    ServiceConfig(Fix(WithQueueCapacity(size.value, value)))
 
   def withServiceName(name: ServiceName): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
 

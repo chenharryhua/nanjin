@@ -30,7 +30,7 @@ package object observers {
                 ((Duration.between(sp.launchTime, now).toScala / interval).toLong * interval).toJava)
             if (now === border) true
             else
-              sp.metric.reportSchedule match {
+              sp.metricParams.reportSchedule match {
                 case None => true
                 // true when now cross the border
                 case Some(ScheduleType.Fixed(fd)) => now.minus(fd).isBefore(border) && now.isAfter(border)
