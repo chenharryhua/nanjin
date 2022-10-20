@@ -22,9 +22,11 @@ object crontabs {
   final val everyMinute: CronExpr    = minutely
   final val every2Minutes: CronExpr  = biminutely
   final val every3Minutes: CronExpr  = triminutely
+  final val every4Minutes: CronExpr  = Cron.unsafeParse("0 */4 * ? * *")
   final val every5Minutes: CronExpr  = Cron.unsafeParse("0 */5 * ? * *")
   final val every6Minutes: CronExpr  = Cron.unsafeParse("0 */6 * ? * *")
   final val every10Minutes: CronExpr = Cron.unsafeParse("0 */10 * ? * *")
+  final val every12Minutes: CronExpr = Cron.unsafeParse("0 */12 * ? * *")
   final val every15Minutes: CronExpr = Cron.unsafeParse("0 */15 * ? * *")
   final val every20Minutes: CronExpr = Cron.unsafeParse("0 */20 * ? * *")
   final val every30Minutes: CronExpr = Cron.unsafeParse("0 */30 * ? * *")
@@ -35,9 +37,11 @@ object crontabs {
   final val everySecond: CronExpr    = secondly
   final val every2Seconds: CronExpr  = bisecondly
   final val every3Seconds: CronExpr  = trisecondly
+  final val every4Seconds: CronExpr  = Cron.unsafeParse("*/4 * * ? * *")
   final val every5Seconds: CronExpr  = Cron.unsafeParse("*/5 * * ? * *")
   final val every6Seconds: CronExpr  = Cron.unsafeParse("*/6 * * ? * *")
   final val every10Seconds: CronExpr = Cron.unsafeParse("*/10 * * ? * *")
+  final val every12Seconds: CronExpr = Cron.unsafeParse("*/12 * * ? * *")
   final val every15Seconds: CronExpr = Cron.unsafeParse("*/15 * * ? * *")
   final val every20Seconds: CronExpr = Cron.unsafeParse("*/20 * * ? * *")
   final val every30Seconds: CronExpr = Cron.unsafeParse("*/30 * * ? * *")
