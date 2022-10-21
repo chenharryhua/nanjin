@@ -97,7 +97,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("ses")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(1.second))
+      .updateConfig(_.withMetricReport(secondly))
       .eventStream { ag =>
         val err =
           ag.action("error", _.critical).retry(err_fun(1)).run
@@ -122,7 +122,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("sns")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(1.second))
+      .updateConfig(_.withMetricReport(secondly))
       .eventStream { ag =>
         val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
@@ -201,7 +201,7 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sqs")
       .service("sqs")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(1.second).withMetricDailyReset)
+      .updateConfig(_.withMetricReport(secondly).withMetricDailyReset)
       .eventStream(
         _.action("sqs", _.critical).retry(IO.raiseError(new Exception)).run.delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)

@@ -20,7 +20,6 @@ import scala.jdk.CollectionConverters.*
 @JsonCodec
 final case class MetricSnapshot(counterMap: Map[String, Long], asJson: Json, show: String) {
   override def toString: String = show
-  def isContainErrors: Boolean  = counterMap.filter(_._2 > 0).keys.exists(_.startsWith("0"))
 }
 
 object MetricSnapshot {
@@ -79,7 +78,7 @@ object MetricSnapshot {
   private def counters(metricRegistry: MetricRegistry, metricFilter: MetricFilter): Map[String, Long] =
     metricRegistry.getCounters(metricFilter).asScala.view.mapValues(_.getCount).toMap
 
-  private def build(
+  def apply(
     metricRegistry: MetricRegistry,
     serviceParams: ServiceParams,
     filter: MetricFilter): MetricSnapshot =
@@ -87,24 +86,14 @@ object MetricSnapshot {
       counters(metricRegistry, filter),
       toJson(
         metricRegistry,
-        filter,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit),
+        filter |+| positiveFilter,
+        serviceParams.metricParams.rateTimeUnit,
+        serviceParams.metricParams.durationTimeUnit),
       toText(
         metricRegistry,
-        filter,
-        serviceParams.metric.rateTimeUnit,
-        serviceParams.metric.durationTimeUnit,
+        filter |+| positiveFilter,
+        serviceParams.metricParams.rateTimeUnit,
+        serviceParams.metricParams.durationTimeUnit,
         serviceParams.taskParams.zoneId)
     )
-
-  def full(metricRegistry: MetricRegistry, serviceParams: ServiceParams): MetricSnapshot =
-    build(metricRegistry, serviceParams, MetricFilter.ALL)
-
-  def regular(
-    metricFilter: MetricFilter,
-    metricRegistry: MetricRegistry,
-    serviceParams: ServiceParams): MetricSnapshot =
-    build(metricRegistry, serviceParams, metricFilter |+| positiveFilter)
-
 }

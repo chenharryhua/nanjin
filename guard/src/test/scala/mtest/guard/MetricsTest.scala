@@ -19,13 +19,14 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 
 class MetricsTest extends AnyFunSuite {
+
   val sg: ServiceGuard[IO] =
-    TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(1.second))
+    TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(secondly))
 
   test("1.delta") {
     val last = TaskGuard[IO]("metrics")
       .service("delta")
-      .updateConfig(_.withMetricReport(1.second))
+      .updateConfig(_.withMetricReport(secondly))
       .addMetricSet(new ThreadStatesGaugeSet)
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
@@ -51,7 +52,7 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("3.ongoing action alignment") {
-    sg.updateConfig(_.withMetricReport(1.second))
+    sg.updateConfig(_.withMetricReport(secondly))
       .eventStream { ag =>
         val one = ag.action("one", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
         val two = ag.action("two", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run

@@ -9,15 +9,13 @@ import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import fs2.Stream
 import fs2.concurrent.Channel
 import natchez.EntryPoint
 import retry.RetryPolicy
-
-import scala.jdk.DurationConverters.*
 
 // format: off
 /** @example
@@ -66,7 +64,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
-    chn <- Resource.eval(Channel.bounded[F, NJEvent](0))
+    chn <- Resource.eval(Channel.bounded[F, NJEvent](sp.queueCapacity))
     _ <- chn.stream
       .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
       .compile
@@ -77,76 +75,61 @@ final class ServiceGuard[F[_]] private[guard] (
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
-      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity.value)).flatMap {
-        channel =>
-          val metricRegistry: MetricRegistry = {
-            val mr = new MetricRegistry()
-            metricSet.foreach(mr.registerAll)
-            mr
+      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
+        val metricRegistry: MetricRegistry = {
+          val mr = new MetricRegistry()
+          metricSet.foreach(mr.registerAll)
+          mr
+        }
+
+        val cronScheduler: CronScheduler = new CronScheduler(serviceParams.taskParams.zoneId)
+
+        val metricsReport: Stream[F, Nothing] =
+          serviceParams.metricParams.reportSchedule match {
+            case Some(cron) =>
+              cronScheduler
+                .awakeEvery(cron)
+                .evalMap(idx =>
+                  publisher.metricReport(
+                    channel,
+                    serviceParams,
+                    metricRegistry,
+                    metricFilter,
+                    MetricReportType.Scheduled(idx)))
+                .drain
+            case None => Stream.empty
           }
 
-          val cronScheduler: CronScheduler = new CronScheduler(serviceParams.taskParams.zoneId)
+        val metricsReset: Stream[F, Nothing] =
+          serviceParams.metricParams.resetSchedule match {
+            case None => Stream.empty
+            case Some(cron) =>
+              cronScheduler
+                .awakeEvery(cron)
+                .evalMap(_ => publisher.metricReset(channel, serviceParams, metricRegistry, Some(cron)))
+                .drain
+          }
 
-          val metricsReport: Stream[F, Nothing] =
-            serviceParams.metric.reportSchedule match {
-              case Some(ScheduleType.Fixed(dur)) =>
-                // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
-                Stream
-                  .fixedRate[F](dur.toScala)
-                  .zipWithIndex
-                  .evalTap(t =>
-                    publisher.metricReport(
-                      channel,
-                      serviceParams,
-                      metricRegistry,
-                      metricFilter,
-                      MetricReportType.Scheduled(t._2)))
-                  .drain
-              case Some(ScheduleType.Cron(cron)) =>
-                cronScheduler
-                  .awakeEvery(cron)
-                  .evalMap(idx =>
-                    publisher.metricReport(
-                      channel,
-                      serviceParams,
-                      metricRegistry,
-                      metricFilter,
-                      MetricReportType.Scheduled(idx)))
-                  .drain
-              case None => Stream.empty
-            }
+        val jmxReporting: Stream[F, Nothing] =
+          jmxBuilder match {
+            case None => Stream.empty
+            case Some(builder) =>
+              Stream
+                .bracket(
+                  F.delay(builder(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(r =>
+                  F.delay(r.close()))
+                .evalMap(jr => F.delay(jr.start()))
+                .flatMap(_ => Stream.never[F])
+          }
 
-          val metricsReset: Stream[F, Nothing] =
-            serviceParams.metric.resetSchedule match {
-              case None => Stream.empty
-              case Some(cron) =>
-                cronScheduler
-                  .awakeEvery(cron)
-                  .evalMap(_ => publisher.metricReset(channel, serviceParams, metricRegistry, Some(cron)))
-                  .drain
-            }
+        val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint)
 
-          val jmxReporting: Stream[F, Nothing] =
-            jmxBuilder match {
-              case None => Stream.empty
-              case Some(builder) =>
-                Stream
-                  .bracket(
-                    F.delay(builder(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(
-                    r => F.delay(r.close()))
-                  .evalMap(jr => F.delay(jr.start()))
-                  .flatMap(_ => Stream.never[F])
-            }
-
-          val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint)
-          // put together
-          channel.stream
-            .onFinalize(channel.close.void) // drain pending send operation
-            .concurrently(metricsReset)
-            .concurrently(metricsReport)
-            .concurrently(jmxReporting)
-            .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
-
+        // put together
+        channel.stream
+          .concurrently(metricsReset)
+          .concurrently(metricsReport)
+          .concurrently(jmxReporting)
+          .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
       }
     } yield event
 }

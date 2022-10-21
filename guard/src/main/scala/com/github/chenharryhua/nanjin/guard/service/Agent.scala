@@ -18,7 +18,7 @@ import java.time.ZoneId
 
 final class Agent[F[_]] private[service] (
   val serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry,
+  val metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
     extends EntryPoint[F] {
@@ -83,7 +83,8 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  def awakeEvery(cronExpr: CronExpr): Stream[F, Long] = new CronScheduler(zoneId).awakeEvery[F](cronExpr)
+  def awakeEvery(cronExpr: CronExpr): Stream[F, Long] =
+    new CronScheduler(zoneId).awakeEvery[F](cronExpr)
 
   // for convenience
 

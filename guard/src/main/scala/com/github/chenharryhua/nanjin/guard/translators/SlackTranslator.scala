@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.all
 
-import java.text.NumberFormat
 import java.time.Duration
 
 private object SlackTranslator extends all {
@@ -23,23 +22,7 @@ private object SlackTranslator extends all {
     .value
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
-    if (snapshot.show.length <= MessageSizeLimits) {
-      KeyValueSection("Metrics", s"```${snapshot.show.replace("-- ", "")}```")
-    } else {
-      val fmt: NumberFormat = NumberFormat.getIntegerInstance
-      val msg: String =
-        snapshot.counterMap
-          .filter(_._2 > 0)
-          .map(x => s"${x._1}: ${fmt.format(x._2)}")
-          .toList
-          .sorted
-          .mkString("\n")
-      if (msg.isEmpty)
-        KeyValueSection("Counters", "*No counter update*")
-      else
-        KeyValueSection("Counters", s"```${abbreviate(msg)}```")
-    }
-  // don't trim string
+    KeyValueSection("Metrics", s"```${abbreviate(snapshot.show.replace("-- ", ""))}```")
 
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp =
@@ -100,7 +83,7 @@ private object SlackTranslator extends all {
     )
 
   private def metricReport(evt: MetricReport): SlackApp = {
-    val nextReport = evt.serviceParams.metric
+    val nextReport = evt.serviceParams.metricParams
       .nextReport(evt.timestamp)
       .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
       .getOrElse("None")
@@ -124,7 +107,12 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metricReset(evt: MetricReset): SlackApp =
+  private def metricReset(evt: MetricReset): SlackApp = {
+    val nextReset = evt.serviceParams.metricParams
+      .nextReset(evt.timestamp)
+      .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
+      .getOrElse("None")
+
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -134,12 +122,14 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
+                                |*Next Reset:* $nextReset
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
         )
       )
     )
+  }
 
   private def instantAlert(evt: InstantAlert): SlackApp = {
     val title = evt.importance match {

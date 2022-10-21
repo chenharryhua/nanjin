@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.ScheduleType
 import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import cron4s.lib.javatime.javaTemporalInstance
+import cron4s.CronExpr
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import org.typelevel.cats.time.instances.zoneddatetime.*
@@ -30,12 +30,9 @@ package object observers {
                 ((Duration.between(sp.launchTime, now).toScala / interval).toLong * interval).toJava)
             if (now === border) true
             else
-              sp.metric.reportSchedule match {
-                case None => true
-                // true when now cross the border
-                case Some(ScheduleType.Fixed(fd)) => now.minus(fd).isBefore(border) && now.isAfter(border)
-                case Some(ScheduleType.Cron(ce)) =>
-                  ce.prev(now).forall(_.isBefore(border)) && now.isAfter(border)
+              sp.metricParams.reportSchedule match {
+                case None     => true
+                case Some(ce) => ce.prev(now).forall(_.isBefore(border)) && now.isAfter(border)
               }
         }
       case _ => true
@@ -51,6 +48,21 @@ package object observers {
         mrt match {
           case MetricReportType.Adhoc            => true
           case MetricReportType.Scheduled(index) => (index % divisor.value) === 0
+        }
+      case _ => true
+    }
+
+  /** cron based sampling
+    */
+  def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
+    evt match {
+      case MetricReport(mrt, sp, now, _) =>
+        mrt match {
+          case MetricReportType.Adhoc => true
+          case MetricReportType.Scheduled(_) =>
+            val nextReport = sp.metricParams.nextReport(now)
+            val nextBorder = cronExpr.next(now)
+            (nextReport, nextBorder).mapN((r, b) => !r.isBefore(b)).exists(identity)
         }
       case _ => true
     }

@@ -158,7 +158,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("7.retry - Null pointer exception") {
-    val a :: b :: c :: d :: e :: f :: _ = serviceGuard
+    val List(a, b, c, d, e, f) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream(ag =>
         ag.action("t")
@@ -167,6 +167,7 @@ class RetryTest extends AnyFunSuite {
           .logOutput
           .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .take(6)
       .compile
       .toList
       .unsafeRunSync()
@@ -281,10 +282,10 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("13.retry - nonStop - should retry") {
-    val a :: b :: c :: d :: e :: f :: _ = serviceGuard
+    val List(a, b, c, d, e) = serviceGuard
       .withRestartPolicy(constant_1second)
       .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
-      .interruptAfter(5.seconds)
+      .take(5)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -296,7 +297,6 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStart])
     assert(d.isInstanceOf[ServicePanic])
     assert(e.isInstanceOf[ServiceStart])
-    assert(f.isInstanceOf[ServicePanic])
   }
 
   test("14.should not retry fatal error") {

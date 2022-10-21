@@ -8,11 +8,9 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration.DurationInt
-
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("config").service("config").updateConfig(_.withMetricDailyReset.withMetricReport(24.hours))
+    TaskGuard[IO]("config").service("config").updateConfig(_.withMetricDailyReset.withMetricReport(hourly))
 
   test("counting") {
     val as = service.eventStream { agent =>
@@ -78,7 +76,7 @@ class ConfigTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(as.get.serviceParams.metric.reportSchedule.isEmpty)
+    assert(as.get.serviceParams.metricParams.reportSchedule.isEmpty)
   }
 
   test("reset") {
@@ -91,6 +89,6 @@ class ConfigTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(as.get.serviceParams.metric.resetSchedule.isEmpty)
+    assert(as.get.serviceParams.metricParams.resetSchedule.isEmpty)
   }
 }

@@ -21,7 +21,7 @@ final private class ReStart[F[_], A](
 
   private case class ReStartState(retryStatus: RetryStatus, lastTime: Option[ZonedDateTime])
 
-  private def stopBy(cause: ServiceStopCause): F[Either[ReStartState, Unit]] =
+  private def stop(cause: ServiceStopCause): F[Either[ReStartState, Unit]] =
     publisher.serviceStop(channel, serviceParams, cause).as(Right(()))
 
   private def panic(
@@ -35,14 +35,14 @@ final private class ReStart[F[_], A](
 
   private def startover(err: Throwable): F[Either[ReStartState, Unit]] =
     policy.decideNextRetry(RetryStatus.NoRetriesYet).flatMap {
-      case PolicyDecision.GiveUp => stopBy(ServiceStopCause.ByGiveup(ExceptionUtils.getMessage(err)))
+      case PolicyDecision.GiveUp => stop(ServiceStopCause.ByGiveup(ExceptionUtils.getMessage(err)))
       case PolicyDecision.DelayAndRetry(delay) => panic(RetryStatus.NoRetriesYet, delay, err)
     }
 
   private val loop: F[Unit] = F.tailRecM(ReStartState(RetryStatus.NoRetriesYet, None)) { state =>
     (publisher.serviceReStart(channel, serviceParams) >> fa).attempt.flatMap {
-      case Right(_)                    => stopBy(ServiceStopCause.Normally)
-      case Left(err) if !NonFatal(err) => stopBy(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
+      case Right(_)                    => stop(ServiceStopCause.Normally)
+      case Left(err) if !NonFatal(err) => stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
       case Left(err) =>
         policy.decideNextRetry(state.retryStatus).flatMap {
           case PolicyDecision.GiveUp => startover(err)
@@ -61,7 +61,7 @@ final private class ReStart[F[_], A](
     Stream
       .eval(
         F.guarantee(
-          F.onCancel(loop, stopBy(ServiceStopCause.ByCancelation).void),
+          F.onCancel(loop, stop(ServiceStopCause.ByCancelation).void),
           channel.close >> F.sleep(1.second)))
       .drain
 }
