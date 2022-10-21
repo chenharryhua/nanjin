@@ -107,7 +107,12 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metricReset(evt: MetricReset): SlackApp =
+  private def metricReset(evt: MetricReset): SlackApp = {
+    val nextReset = evt.serviceParams.metricParams
+      .nextReset(evt.timestamp)
+      .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
+      .getOrElse("None")
+
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -117,12 +122,14 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
+                                |*Next Reset:* $nextReset
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
         )
       )
     )
+  }
 
   private def instantAlert(evt: InstantAlert): SlackApp = {
     val title = evt.importance match {

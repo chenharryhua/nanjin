@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.guard.config.ScheduleType
 import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import cron4s.lib.javatime.javaTemporalInstance
+import cron4s.CronExpr
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import org.typelevel.cats.time.instances.zoneddatetime.*
@@ -51,6 +52,19 @@ package object observers {
         mrt match {
           case MetricReportType.Adhoc            => true
           case MetricReportType.Scheduled(index) => (index % divisor.value) === 0
+        }
+      case _ => true
+    }
+
+  def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
+    evt match {
+      case MetricReport(mrt, sp, now, _) =>
+        mrt match {
+          case MetricReportType.Adhoc => true
+          case MetricReportType.Scheduled(_) =>
+            val nextReport = sp.metricParams.nextReport(now)
+            val nextBorder = cronExpr.next(now)
+            (nextReport, nextBorder).mapN((r, b) => !r.isBefore(b)).exists(identity)
         }
       case _ => true
     }

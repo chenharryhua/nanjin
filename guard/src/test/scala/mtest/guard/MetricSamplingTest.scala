@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricSnaps
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.observers.sampling
 import cron4s.Cron
+import cron4s.expr.CronExpr
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
@@ -17,7 +18,7 @@ import java.time.ZonedDateTime
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-class MetricsTimingTest extends AnyFunSuite {
+class MetricSamplingTest extends AnyFunSuite {
   val launchTime: ZonedDateTime = ZonedDateTime.of(zzffEpoch, beijingTime)
 
   val serviceParams: ServiceParams =
@@ -139,4 +140,53 @@ class MetricsTimingTest extends AnyFunSuite {
     assert(!sampling(interval)(metricReport(scheduleType, ts10)))
   }
 
+  test("cron sampling - fix") {
+    val ts: ZonedDateTime = ZonedDateTime.of(2021, 1, 1, 16, 0, 0, 0, beijingTime)
+    val ts1               = ts.minusMinutes(2).plusNanos(10)
+    val ts2               = ts.minusMinutes(2)
+    val ts3               = ts.minusMinutes(1).plusNanos(10)
+    val ts4               = ts.minusMinutes(1)
+    val ts5               = ts
+    val ts6               = ts.plusMinutes(1)
+    val ts7               = ts.plusMinutes(1).plusNanos(10)
+    val ts8               = ts.plusMinutes(2)
+    val ts9               = ts.plusMinutes(2).plusNanos(10)
+
+    val scheduleType     = Some(ScheduleType.Fixed(1.minute.toJava))
+    val hourly: CronExpr = Cron.unsafeParse("0 0 0-23 ? * *")
+    assert(!sampling(hourly)(metricReport(scheduleType, ts1)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts2)))
+    assert(sampling(hourly)(metricReport(scheduleType, ts3)))
+    assert(sampling(hourly)(metricReport(scheduleType, ts4)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts5)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts6)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts7)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts8)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts9)))
+  }
+
+  test("cron sampling - cron") {
+    val ts: ZonedDateTime = ZonedDateTime.of(2021, 1, 1, 16, 0, 0, 0, beijingTime)
+    val ts1               = ts.minusMinutes(2).plusNanos(10)
+    val ts2               = ts.minusMinutes(2)
+    val ts3               = ts.minusMinutes(1).plusNanos(10)
+    val ts4               = ts.minusMinutes(1)
+    val ts5               = ts
+    val ts6               = ts.plusMinutes(1)
+    val ts7               = ts.plusMinutes(1).plusNanos(10)
+    val ts8               = ts.plusMinutes(2)
+    val ts9               = ts.plusMinutes(2).plusNanos(10)
+
+    val scheduleType     = Some(ScheduleType.Cron(Cron.unsafeParse("0 0-59 * ? * *")))
+    val hourly: CronExpr = Cron.unsafeParse("0 0 0-23 ? * *")
+    assert(!sampling(hourly)(metricReport(scheduleType, ts1)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts2)))
+    assert(sampling(hourly)(metricReport(scheduleType, ts3)))
+    assert(sampling(hourly)(metricReport(scheduleType, ts4)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts5)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts6)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts7)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts8)))
+    assert(!sampling(hourly)(metricReport(scheduleType, ts9)))
+  }
 }

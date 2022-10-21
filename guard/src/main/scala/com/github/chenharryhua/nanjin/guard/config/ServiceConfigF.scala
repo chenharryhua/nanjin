@@ -29,6 +29,10 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   durationTimeUnit: TimeUnit) {
   def nextReport(now: ZonedDateTime): Option[ZonedDateTime] =
     reportSchedule.flatMap(_.fold(fd => Some(now.plus(fd)), _.next(now)))
+
+  def prevReport(now: ZonedDateTime): Option[ZonedDateTime] =
+    reportSchedule.flatMap(_.fold(fd => Some(now.minus(fd)), _.prev(now)))
+
   def nextReset(now: ZonedDateTime): Option[ZonedDateTime] =
     resetSchedule.flatMap(_.next(now))
 }
