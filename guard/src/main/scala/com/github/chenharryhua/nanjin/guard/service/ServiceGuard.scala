@@ -9,15 +9,13 @@ import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{ScheduleType, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import fs2.Stream
 import fs2.concurrent.Channel
 import natchez.EntryPoint
 import retry.RetryPolicy
-
-import scala.jdk.DurationConverters.*
 
 // format: off
 /** @example
@@ -88,20 +86,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
         val metricsReport: Stream[F, Nothing] =
           serviceParams.metricParams.reportSchedule match {
-            case Some(ScheduleType.Fixed(dur)) =>
-              // https://stackoverflow.com/questions/24649842/scheduleatfixedrate-vs-schedulewithfixeddelay
-              Stream
-                .fixedRate[F](dur.toScala)
-                .zipWithIndex
-                .evalTap(t =>
-                  publisher.metricReport(
-                    channel,
-                    serviceParams,
-                    metricRegistry,
-                    metricFilter,
-                    MetricReportType.Scheduled(t._2)))
-                .drain
-            case Some(ScheduleType.Cron(cron)) =>
+            case Some(cron) =>
               cronScheduler
                 .awakeEvery(cron)
                 .evalMap(idx =>
@@ -138,6 +123,7 @@ final class ServiceGuard[F[_]] private[guard] (
           }
 
         val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint)
+
         // put together
         channel.stream
           .concurrently(metricsReset)

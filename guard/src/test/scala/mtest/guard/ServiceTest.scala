@@ -32,7 +32,7 @@ class ServiceTest extends AnyFunSuite {
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
       .withRestartPolicy(RetryPolicies.constantDelay(3.seconds))
-      .updateConfig(_.withMetricReport(24.hours))
+      .updateConfig(_.withMetricReport(hourly))
       .updateConfig(
         _.withQueueCapacity(1)
           .withMetricReset("*/30 * * ? * *")
@@ -115,7 +115,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
-      .updateConfig(_.withMetricReport(1.second))
+      .updateConfig(_.withMetricReport(secondly))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -132,7 +132,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("6.force reset") {
     val s :: b :: c :: _ = guard
-      .updateConfig(_.withMetricReport(1.second))
+      .updateConfig(_.withMetricReport(secondly))
       .updateConfig(_.withQueueCapacity(4))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)

@@ -44,8 +44,7 @@ class CrontabsTest extends AnyFunSuite {
     assert(crontabs.z9w5.next(now).nonEmpty)
     assert(crontabs.c996.next(now).nonEmpty)
     assert(crontabs.c997.next(now).nonEmpty)
-    assert(crontabs.businessHour.next(now).nonEmpty)
 
-    assert(crontabs.slack.next(now).nonEmpty)
+    assert(crontabs.businessHour.next(now).nonEmpty)
   }
 }

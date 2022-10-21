@@ -16,6 +16,8 @@ package object guard {
   final val trisecondly: CronExpr = Cron.unsafeParse("*/3 * * ? * *")
   final val hourly: CronExpr      = Cron.unsafeParse("0 0 0-23 ? * *")
   final val secondly: CronExpr    = Cron.unsafeParse("0-59 * * ? * *")
+  final val bisecondly: CronExpr  = Cron.unsafeParse("*/2 * * ? * *")
+  val minutely: CronExpr          = Cron.unsafeParse("0 0-59 * ? * *")
   final val beijingTime: ZoneId   = ZoneId.of("Asia/Shanghai")
 
   def unit_fun: IO[Unit] = IO(())

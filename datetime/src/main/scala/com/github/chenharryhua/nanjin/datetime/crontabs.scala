@@ -51,6 +51,4 @@ object crontabs {
   final val c997: CronExpr = Cron.unsafeParse("0 0 9,21 ? * *")
 
   final val businessHour: CronExpr = Cron.unsafeParse("0 0 8,13,18 ? * *")
-
-  final val slack: CronExpr = Cron.unsafeParse("0 30 8,12,17 ? * *")
 }

@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.ScheduleType
 import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import cron4s.lib.javatime.javaTemporalInstance
@@ -32,11 +31,8 @@ package object observers {
             if (now === border) true
             else
               sp.metricParams.reportSchedule match {
-                case None => true
-                // true when now cross the border
-                case Some(ScheduleType.Fixed(fd)) => now.minus(fd).isBefore(border) && now.isAfter(border)
-                case Some(ScheduleType.Cron(ce)) =>
-                  ce.prev(now).forall(_.isBefore(border)) && now.isAfter(border)
+                case None     => true
+                case Some(ce) => ce.prev(now).forall(_.isBefore(border)) && now.isAfter(border)
               }
         }
       case _ => true
@@ -56,6 +52,8 @@ package object observers {
       case _ => true
     }
 
+  /** cron based sampling
+    */
   def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
     evt match {
       case MetricReport(mrt, sp, now, _) =>

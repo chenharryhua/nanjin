@@ -6,8 +6,6 @@ import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import cron4s.expr.CronExpr
-import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -21,8 +19,7 @@ class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry-test").withRestartPolicy(constant_1second)
 
-  val secondly: CronExpr = Cron.unsafeParse("0-59 * * ? * *")
-  val policy             = policies.cronBackoff[IO](secondly).join(RetryPolicies.limitRetries(3))
+  val policy = policies.cronBackoff[IO](secondly).join(RetryPolicies.limitRetries(3))
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard
@@ -246,7 +243,7 @@ class CancellationTest extends AnyFunSuite {
     var i = 0
     serviceGuard
       .withRestartPolicy(constant_1hour)
-      .eventStream(_ => IO.never.onCancel(IO { i = 1 }))
+      .eventStream(_.action("never").retry(IO.never.onCancel(IO { i = 1 })).run)
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .interruptAfter(2.seconds)

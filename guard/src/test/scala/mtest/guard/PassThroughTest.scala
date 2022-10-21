@@ -86,7 +86,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("4.meter") {
     guard
-      .updateConfig(_.withMetricReport(1.second))
+      .updateConfig(_.withMetricReport(secondly))
       .eventStream { agent =>
         val meter = agent.meter("nj.test.meter").withCounting
         (meter.mark(1000) >> agent.metrics.reset
@@ -100,7 +100,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("5.histogram") {
     guard
-      .updateConfig(_.withMetricReport(1.second))
+      .updateConfig(_.withMetricReport(secondly))
       .eventStream { agent =>
         val meter = agent.histogram("nj.test.histogram").withCounting
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
