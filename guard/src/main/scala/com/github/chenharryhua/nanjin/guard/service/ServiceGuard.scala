@@ -21,41 +21,42 @@ import retry.RetryPolicy
 /** @example
   *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
   *       val es: Stream[IO,NJEvent] = guard.eventStream {
-  *           gd => gd.span("action-1").retry(IO(1)).run >> 
+  *           gd => gd.action("action-1").retry(IO(1)).run >>
   *                  IO("other computation") >> 
-  *                  gd.span("action-2").retry(IO(2)).run 
+  *                  gd.action("action-2").retry(IO(2)).run
   *            }
   * }}}
   */
 // format: on
 
-// https://github.com/dropwizard/metrics
 final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   metricSet: List[MetricSet],
-  metricFilter: MetricFilter,
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), metricSet, metricFilter, jmxBuilder, entryPoint, restartPolicy)
+    new ServiceGuard[F](f(serviceConfig), metricSet, jmxBuilder, entryPoint, restartPolicy)
 
   def apply(serviceName: ServiceName): ServiceGuard[F] =
     updateConfig(_.withServiceName(serviceName))
 
+  /** https://metrics.dropwizard.io/4.2.0/getting-started.html#reporting-via-jmx
+    */
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, Some(builder), entryPoint, restartPolicy)
+    new ServiceGuard[F](serviceConfig, metricSet, Some(builder), entryPoint, restartPolicy)
 
-  def withMetricFilter(filter: MetricFilter): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, filter, jmxBuilder, entryPoint, restartPolicy)
-
+  /** https://cb372.github.io/cats-retry/docs/policies.html
+    */
   def withRestartPolicy(rp: RetryPolicy[F]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, metricFilter, jmxBuilder, entryPoint, rp)
+    new ServiceGuard[F](serviceConfig, metricSet, jmxBuilder, entryPoint, rp)
 
+  /** https://metrics.dropwizard.io/4.2.0/manual/core.html#metric-sets
+    */
   def addMetricSet(ms: MetricSet): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, ms :: metricSet, metricFilter, jmxBuilder, entryPoint, restartPolicy)
+    new ServiceGuard[F](serviceConfig, ms :: metricSet, jmxBuilder, entryPoint, restartPolicy)
 
   private val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
@@ -95,7 +96,7 @@ final class ServiceGuard[F[_]] private[guard] (
                     channel,
                     serviceParams,
                     metricRegistry,
-                    metricFilter,
+                    MetricFilter.ALL,
                     MetricIndex.Periodic(idx)))
                 .drain
           }
@@ -107,8 +108,7 @@ final class ServiceGuard[F[_]] private[guard] (
               cronScheduler
                 .awakeEvery(cron)
                 .evalMap(idx =>
-                  publisher
-                    .metricReset(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
+                  publisher.metricReset(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
                 .drain
           }
 
@@ -117,8 +117,7 @@ final class ServiceGuard[F[_]] private[guard] (
             case None => Stream.empty
             case Some(builder) =>
               Stream
-                .bracket(
-                  F.delay(builder(JmxReporter.forRegistry(metricRegistry)).filter(metricFilter).build()))(r =>
+                .bracket(F.delay(builder(JmxReporter.forRegistry(metricRegistry)).build()))(r =>
                   F.delay(r.close()))
                 .evalMap(jr => F.delay(jr.start()))
                 .flatMap(_ => Stream.never[F])

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
-import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
@@ -33,7 +32,6 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
     new ServiceGuard[F](
       serviceConfig = ServiceConfig(serviceName, params),
       metricSet = Nil,
-      metricFilter = MetricFilter.ALL,
       jmxBuilder = None,
       entryPoint = entryPoint,
       restartPolicy = RetryPolicies.alwaysGiveUp
