@@ -13,8 +13,6 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ServiceStart,
   ServiceStop
 }
-import cron4s.CronExpr
-import cron4s.lib.javatime.javaTemporalInstance
 import fs2.concurrent.Channel
 
 import java.time.ZonedDateTime
@@ -28,42 +26,31 @@ private object publisher {
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     metricFilter: MetricFilter,
-    metricReportType: MetricReportType): F[Unit] =
+    index: MetricIndex): F[Unit] =
     serviceParams.zonedNow
       .flatMap(ts =>
         channel.send(
           MetricReport(
+            index = index,
             serviceParams = serviceParams,
-            reportType = metricReportType,
             timestamp = ts,
-            snapshot = MetricSnapshot(metricRegistry, serviceParams, metricFilter)
-          )))
+            snapshot = MetricSnapshot(metricRegistry, serviceParams, metricFilter))))
       .void
 
   def metricReset[F[_]: Monad: Clock](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    cronExpr: Option[CronExpr]): F[Unit] =
+    index: MetricIndex): F[Unit] =
     for {
       ts <- serviceParams.zonedNow
-      evt = cronExpr.flatMap { ce =>
-        ce.next(ts).map { next =>
-          MetricReset(
-            resetType = MetricResetType.Scheduled(next),
-            serviceParams = serviceParams,
-            timestamp = ts,
-            snapshot = MetricSnapshot(metricRegistry, serviceParams, MetricFilter.ALL)
-          )
-        }
-      }.getOrElse(
+      _ <- channel.send(
         MetricReset(
-          resetType = MetricResetType.Adhoc,
+          index = index,
           serviceParams = serviceParams,
           timestamp = ts,
           snapshot = MetricSnapshot(metricRegistry, serviceParams, MetricFilter.ALL)
         ))
-      _ <- channel.send(evt)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   def serviceReStart[F[_]: Monad: Clock](

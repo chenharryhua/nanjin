@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.CronExpr
@@ -23,8 +23,8 @@ package object observers {
     evt match {
       case MetricReport(mrt, sp, now, _) =>
         mrt match {
-          case MetricReportType.Adhoc => true
-          case MetricReportType.Scheduled(_) =>
+          case MetricIndex.Adhoc => true
+          case MetricIndex.Periodic(_) =>
             val border: ZonedDateTime =
               sp.launchTime.plus(
                 ((Duration.between(sp.launchTime, now).toScala / interval).toLong * interval).toJava)
@@ -46,8 +46,8 @@ package object observers {
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
-          case MetricReportType.Adhoc            => true
-          case MetricReportType.Scheduled(index) => (index % divisor.value) === 0
+          case MetricIndex.Adhoc            => true
+          case MetricIndex.Periodic(index) => (index % divisor.value) === 0
         }
       case _ => true
     }
@@ -58,8 +58,8 @@ package object observers {
     evt match {
       case MetricReport(mrt, sp, now, _) =>
         mrt match {
-          case MetricReportType.Adhoc => true
-          case MetricReportType.Scheduled(_) =>
+          case MetricIndex.Adhoc => true
+          case MetricIndex.Periodic(_) =>
             val nextReport = sp.metricParams.nextReport(now)
             val nextBorder = cronExpr.next(now)
             (nextReport, nextBorder).mapN((r, b) => !r.isBefore(b)).exists(identity)

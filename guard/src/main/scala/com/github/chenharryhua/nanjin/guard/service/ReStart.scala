@@ -10,7 +10,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import java.time.{Duration, ZonedDateTime}
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
 final private class ReStart[F[_], A](
@@ -59,9 +59,6 @@ final private class ReStart[F[_], A](
 
   val stream: Stream[F, Nothing] =
     Stream
-      .eval(
-        F.guarantee(
-          F.onCancel(loop, stop(ServiceStopCause.ByCancelation).void),
-          channel.close >> F.sleep(1.second)))
+      .eval(F.guarantee(F.onCancel(loop, stop(ServiceStopCause.ByCancelation).void), channel.close.void))
       .drain
 }

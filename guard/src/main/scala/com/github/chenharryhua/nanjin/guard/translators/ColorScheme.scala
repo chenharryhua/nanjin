@@ -18,13 +18,12 @@ object ColorScheme {
       case _: ServiceStart          => InfoColor
       case _: ServicePanic          => ErrorColor
       case ServiceStop(_, _, cause) => if (cause.exitCode === 0) GoodColor else ErrorColor
-      case MetricReport(_, _, _, snapshot) =>
-        if (snapshot.counterMap.filter(_._2 > 0).keys.exists(_.startsWith("0"))) WarnColor else InfoColor
-      case _: MetricReset => InfoColor
-      case _: ActionStart => InfoColor
-      case _: ActionRetry => WarnColor
-      case _: ActionFail  => ErrorColor
-      case _: ActionSucc  => GoodColor
+      case _: MetricReport          => InfoColor
+      case _: MetricReset           => InfoColor
+      case _: ActionStart           => InfoColor
+      case _: ActionRetry           => WarnColor
+      case _: ActionFail            => ErrorColor
+      case _: ActionSucc            => GoodColor
       case InstantAlert(_, _, _, importance, _) =>
         importance match {
           case Importance.Critical => ErrorColor

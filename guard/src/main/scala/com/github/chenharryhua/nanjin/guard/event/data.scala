@@ -8,11 +8,10 @@ import io.circe.generic.*
 import io.circe.Json
 import natchez.{Span, Trace}
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.typelevel.cats.time.instances.{localdatetime, zoneddatetime}
+import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.net.URI
 import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
 
 @JsonCodec
 final case class NJError private (message: String, stackTrace: String)
@@ -24,40 +23,11 @@ private[guard] object NJError {
 }
 
 @JsonCodec
-sealed trait MetricResetType extends Product with Serializable
-object MetricResetType extends localdatetime {
-  implicit final val showMetricResetType: Show[MetricResetType] = {
-    case Adhoc => s"Adhoc Metric Reset"
-    case Scheduled(next) =>
-      s"Metric Reset(next=${next.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show})"
-  }
-  case object Adhoc extends MetricResetType
-  final case class Scheduled(next: ZonedDateTime) extends MetricResetType
-}
+sealed trait MetricIndex extends Product with Serializable
 
-@JsonCodec
-sealed trait MetricReportType extends Product with Serializable {
-  def isShow: Boolean
-
-  final def idx: Option[Long] = this match {
-    case MetricReportType.Adhoc            => None
-    case MetricReportType.Scheduled(index) => Some(index)
-  }
-}
-
-object MetricReportType {
-  implicit final val showMetricReportType: Show[MetricReportType] = {
-    case Adhoc            => s"Adhoc Metric Report"
-    case Scheduled(index) => s"Metric Report(index=$index)"
-  }
-
-  case object Adhoc extends MetricReportType {
-    override val isShow: Boolean = true
-  }
-
-  final case class Scheduled(index: Long) extends MetricReportType {
-    override val isShow: Boolean = index === 0
-  }
+object MetricIndex {
+  case object Adhoc extends MetricIndex
+  final case class Periodic(index: Long) extends MetricIndex
 }
 
 @JsonCodec

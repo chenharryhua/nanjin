@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
@@ -46,6 +46,12 @@ private object HtmlTranslator extends all {
     )
   }
 
+  private def metricIndex(metricEvent: MetricEvent): Text.TypedTag[String] =
+    metricEvent.index match {
+      case MetricIndex.Adhoc           => p(b("Adhoc"))
+      case MetricIndex.Periodic(index) => p(b("Index:", index))
+    }
+
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
   // events
@@ -82,6 +88,7 @@ private object HtmlTranslator extends all {
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
+      metricIndex(evt),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       hostServiceText(evt),
       pre(evt.serviceParams.brief),
@@ -92,6 +99,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       hostServiceText(evt),
+      metricIndex(evt),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.snapshot.show)
     )
