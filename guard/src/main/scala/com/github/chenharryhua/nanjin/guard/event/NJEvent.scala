@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
 import io.circe.Json
@@ -51,25 +50,26 @@ object NJEvent extends zoneddatetime {
   }
 
   sealed trait MetricEvent extends ServiceEvent {
+    def index: MetricIndex
     def snapshot: MetricSnapshot
   }
 
   final case class MetricReport(
-    reportType: MetricReportType,
+    index: MetricIndex,
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot)
       extends MetricEvent {
-    override val title: String = reportType.show
+    override val title: String = titles.metricReport
   }
 
   final case class MetricReset(
-    resetType: MetricResetType,
+    index: MetricIndex,
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot)
       extends MetricEvent {
-    override val title: String = resetType.show
+    override val title: String = titles.metricReset
   }
 
   sealed trait ActionEvent extends ServiceEvent {
@@ -155,4 +155,6 @@ private object titles {
   @inline final val actionSucc: String   = "Action Succed"
   @inline final val instantAlert: String = "Alert"
   @inline final val passThrough: String  = "Pass Through"
+  @inline final val metricReport: String = "Metric Report"
+  @inline final val metricReset: String  = "Metric Reset"
 }

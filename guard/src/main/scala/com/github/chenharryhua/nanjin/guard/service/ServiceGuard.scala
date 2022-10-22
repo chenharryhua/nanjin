@@ -86,6 +86,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
         val metricsReport: Stream[F, Nothing] =
           serviceParams.metricParams.reportSchedule match {
+            case None => Stream.empty
             case Some(cron) =>
               cronScheduler
                 .awakeEvery(cron)
@@ -95,9 +96,8 @@ final class ServiceGuard[F[_]] private[guard] (
                     serviceParams,
                     metricRegistry,
                     metricFilter,
-                    MetricReportType.Scheduled(idx)))
+                    MetricIndex.Periodic(idx)))
                 .drain
-            case None => Stream.empty
           }
 
         val metricsReset: Stream[F, Nothing] =
@@ -106,7 +106,9 @@ final class ServiceGuard[F[_]] private[guard] (
             case Some(cron) =>
               cronScheduler
                 .awakeEvery(cron)
-                .evalMap(_ => publisher.metricReset(channel, serviceParams, metricRegistry, Some(cron)))
+                .evalMap(idx =>
+                  publisher
+                    .metricReset(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
                 .drain
           }
 

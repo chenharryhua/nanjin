@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.guard.config.Digested
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
 
@@ -22,6 +22,10 @@ private object SimpleJsonTranslator {
 
   private def stackTrace(err: NJError): (String, Json)    = "stackTrace" -> Json.fromString(err.stackTrace)
   private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
+  private def metricIndex(index: MetricIndex): (String, Json) = index match {
+    case MetricIndex.Adhoc           => "index" -> Json.Null
+    case MetricIndex.Periodic(index) => "index" -> Json.fromLong(index)
+  }
 
   private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.retryPolicy.asJson
 
@@ -57,7 +61,7 @@ private object SimpleJsonTranslator {
     Json.obj(
       "MetricReport" ->
         Json.obj(
-          "index" -> evt.reportType.idx.asJson,
+          metricIndex(evt.index),
           serviceName(evt),
           metrics(evt.snapshot),
           serviceId(evt),
@@ -68,6 +72,7 @@ private object SimpleJsonTranslator {
     Json.obj(
       "MetricReset" ->
         Json.obj(
+          metricIndex(evt.index),
           serviceName(evt),
           metrics(evt.snapshot),
           serviceId(evt),

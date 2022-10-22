@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.{MetricParams, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricReportType, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.observers.sampling
 import cron4s.Cron
@@ -25,7 +25,7 @@ class MetricSamplingTest extends AnyFunSuite {
       TaskGuard[IO]("test").service("sampling").dummyAgent.use(a => IO(a.serviceParams)).unsafeRunSync())
 
   def metricReport(cron: CronExpr, now: ZonedDateTime): MetricReport = MetricReport(
-    MetricReportType.Scheduled(1023),
+    MetricIndex.Periodic(1023),
     ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(Some(cron))(serviceParams),
     now,
     MetricSnapshot(Map.empty[String, Long], Json.Null, "")

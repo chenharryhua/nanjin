@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent}
 
 private object SimpleTextTranslator {
   import NJEvent.*
@@ -28,6 +28,11 @@ private object SimpleTextTranslator {
         |  Name:${ie.digested.metricRepr}""".stripMargin
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
+
+  private def metricIndex(scheduleType: MetricIndex): String = scheduleType match {
+    case MetricIndex.Adhoc            => "(adhoc)"
+    case MetricIndex.Periodic(index) => s"(index=$index)"
+  }
 
   private def actionEvent(ae: ActionEvent): String = {
     val tid: String = ae.traceId.getOrElse("none")
@@ -60,13 +65,13 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(evt.title + metricIndex(evt.index))(evt)}
        |  ${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(evt.title + metricIndex(evt.index))(evt)}
        |  ${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin

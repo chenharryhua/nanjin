@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.all
 
 import java.time.Duration
@@ -82,11 +82,14 @@ private object SlackTranslator extends all {
       )
     )
 
+  private def metricIndex(index: MetricIndex): String = index match {
+    case MetricIndex.Adhoc           => "(Adhoc)"
+    case MetricIndex.Periodic(index) => s"(index=$index)"
+  }
+
   private def metricReport(evt: MetricReport): SlackApp = {
-    val nextReport = evt.serviceParams.metricParams
-      .nextReport(evt.timestamp)
-      .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
-      .getOrElse("None")
+    val nextReport =
+      evt.serviceParams.metricParams.nextReport(evt.timestamp).map(_.toLocalTime.show).getOrElse("none")
 
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
@@ -94,7 +97,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.title}*"),
+            MarkdownSection(s"*${evt.title + metricIndex(evt.index)}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Report:* $nextReport
@@ -108,10 +111,8 @@ private object SlackTranslator extends all {
   }
 
   private def metricReset(evt: MetricReset): SlackApp = {
-    val nextReset = evt.serviceParams.metricParams
-      .nextReset(evt.timestamp)
-      .map(next => localTimeAndDurationStr(evt.timestamp, next)._1)
-      .getOrElse("None")
+    val nextReset =
+      evt.serviceParams.metricParams.nextReset(evt.timestamp).map(_.toLocalDateTime.show).getOrElse("none")
 
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
@@ -119,7 +120,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.title}*"),
+            MarkdownSection(s"*${evt.title + metricIndex(evt.index)}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Reset:* $nextReset
