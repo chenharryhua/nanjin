@@ -46,7 +46,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def metricsIndex(metricEvent: MetricEvent): Text.TypedTag[String] =
+  private def metricIndex(metricEvent: MetricEvent): Text.TypedTag[String] =
     metricEvent.index match {
       case MetricIndex.Adhoc           => p(b("Adhoc"))
       case MetricIndex.Periodic(index) => p(b("Index:", index))
@@ -88,7 +88,7 @@ private object HtmlTranslator extends all {
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      metricsIndex(evt),
+      metricIndex(evt),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       hostServiceText(evt),
       pre(evt.serviceParams.brief),
@@ -99,7 +99,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       hostServiceText(evt),
-      metricsIndex(evt),
+      metricIndex(evt),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.snapshot.show)
     )
