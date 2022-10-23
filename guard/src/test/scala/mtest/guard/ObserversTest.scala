@@ -44,11 +44,15 @@ class ObserversTest extends AnyFunSuite {
       .withRestartPolicy(constant_1hour)
       .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
       .eventStream { ag =>
-        val err = ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
-
+        val err = ag
+          .action("error", _.critical.withTiming)
+          .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
+          .retry(err_fun(1))
+          .run
+        ok(ag) >> err
       }
       .evalTap(console.simple[IO])
+      .take(10)
       .compile
       .drain
       .unsafeRunSync()
@@ -74,12 +78,17 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
       .withRestartPolicy(RetryPolicies.alwaysGiveUp)
-      .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
+      .updateConfig(_.withMetricReport(secondly))
       .eventStream { ag =>
-        val err = ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
+        val err = ag
+          .action("error", _.critical)
+          .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
+          .retry(err_fun(1))
+          .run
+        ok(ag) >> err
       }
       .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
+      .take(10)
       .compile
       .drain
       .unsafeRunSync()
@@ -93,17 +102,20 @@ class ObserversTest extends AnyFunSuite {
         .withOldestFirst
         .updateTranslator(_.skipActionStart)
 
-    TaskGuard[IO]("ses")
+    TaskGuard[IO]("sesTask")
       .updateConfig(_.withHomePage("https://google.com"))
-      .service("ses")
+      .service("sesService")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(secondly).withBrief("*Good Morning*"))
       .eventStream { ag =>
         val err =
-          ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
+          ag.action("error", _.critical)
+            .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
+            .retry(err_fun(1))
+            .run
+        ok(ag) >> ag.metrics.reset >> err
       }
-      .take(9)
+      .take(12)
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
       .compile
       .drain

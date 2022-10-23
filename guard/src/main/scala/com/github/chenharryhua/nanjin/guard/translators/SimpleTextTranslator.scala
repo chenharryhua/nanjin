@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 
 private object SimpleTextTranslator {
   import NJEvent.*
@@ -17,10 +17,11 @@ private object SimpleTextTranslator {
     .value
 
   private def serviceEvent(se: ServiceEvent): String = {
-    val host: String = se.serviceParams.taskParams.hostName.value
-    val sn: String   = se.serviceParams.serviceName.value
-    val tn: String   = se.serviceParams.taskParams.taskName.value
-    s"Task:$tn, Service:$sn, Host:$host"
+    val host: String      = se.serviceParams.taskParams.hostName.value
+    val sn: String        = se.serviceParams.serviceName.value
+    val tn: String        = se.serviceParams.taskParams.taskName.value
+    val serviceId: String = se.serviceParams.serviceId.show.takeRight(12)
+    s"Service:$sn, Task:$tn, Host:$host, SID:$serviceId"
   }
 
   private def instantEvent(ie: InstantEvent): String =
@@ -29,15 +30,10 @@ private object SimpleTextTranslator {
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
-  private def metricIndex(scheduleType: MetricIndex): String = scheduleType match {
-    case MetricIndex.Adhoc            => "(adhoc)"
-    case MetricIndex.Periodic(index) => s"(index=$index)"
-  }
-
   private def actionEvent(ae: ActionEvent): String = {
     val tid: String = ae.traceId.getOrElse("none")
     s"""  ${serviceEvent(ae)}
-       |  Name:${ae.digested.metricRepr}, ID:${ae.actionId}, TraceID:$tid""".stripMargin
+       |  ActionID:${ae.actionId}, TraceID:$tid""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =
@@ -65,13 +61,13 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""${coloring(evt.title + metricIndex(evt.index))(evt)}
+    s"""${coloring(metricTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""${coloring(evt.title + metricIndex(evt.index))(evt)}
+    s"""${coloring(metricTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |${evt.snapshot.show}
        |""".stripMargin
@@ -89,13 +85,13 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Input:${evt.actionInfo.input.noSpaces}
        |""".stripMargin
 
   private def actionRetrying(evt: ActionRetry): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  Policy:${evt.actionParams.retryPolicy}
@@ -103,16 +99,16 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def actionFailed(evt: ActionFail): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
-       |  Input:${evt.actionInfo.input.noSpaces}
        |  Policy:${evt.actionParams.retryPolicy}
+       |  Input:${evt.actionInfo.input.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionSucced(evt: ActionSucc): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  Output:${evt.output.noSpaces}
