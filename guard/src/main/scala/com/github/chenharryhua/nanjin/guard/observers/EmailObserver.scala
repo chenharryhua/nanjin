@@ -80,7 +80,7 @@ final class SesEmailObserver[F[_]](
     }
 
     val header = head(tag("style")("""
-        td, th {text-align: left; padding: 12px; border: 1px solid;}
+        td, th {text-align: left; padding: 2px; border: 1px solid;}
         table {
           border-collapse: collapse;
           width: 90%;
