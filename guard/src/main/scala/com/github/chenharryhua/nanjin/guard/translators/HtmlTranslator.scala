@@ -2,10 +2,11 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.{Applicative, Eval}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import org.typelevel.cats.time.instances.all
-import scalatags.Text
+import scalatags.{generic, Text}
 import scalatags.Text.all.*
+import scalatags.text.Builder
 
 import java.time.temporal.ChronoUnit
 
@@ -24,33 +25,36 @@ private object HtmlTranslator extends all {
     }
     .value
 
-  private def hostServiceText(evt: NJEvent): Text.TypedTag[String] = {
+  private def hostServiceText(evt: NJEvent): generic.Frag[Builder, String] = {
     val serviceName =
-      evt.serviceParams.taskParams.homePage.fold(p(b("Service: "), evt.serviceName.value))(hp =>
-        p(b("Sevice: "), a(href := hp.value)(evt.serviceName.value)))
-    div(
-      p(b("Timestamp: "), evt.timestamp.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).show),
-      p(b("Host: "), evt.serviceParams.taskParams.hostName.value),
-      p(b("Task: "), evt.serviceParams.taskParams.taskName.value),
-      serviceName,
-      p(b("ServiceID: "), evt.serviceId.show)
+      evt.serviceParams.taskParams.homePage.fold(td(evt.serviceName.value))(hp =>
+        td(a(href := hp.value)(evt.serviceName.value)))
+
+    frag(
+      tr(
+        th("Timestamp"),
+        th("Service"),
+        th("Task"),
+        th("Host"),
+        th("ServiceID")
+      ),
+      tr(
+        td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+        serviceName,
+        td(evt.serviceParams.taskParams.taskName.value),
+        td(evt.serviceParams.taskParams.hostName.value),
+        td(evt.serviceId.show)
+      )
     )
   }
 
-  private def actionText(evt: ActionEvent): Text.TypedTag[String] = {
+  private def actionText(evt: ActionEvent): generic.Frag[Builder, String] = {
     val tid = evt.traceId.getOrElse("none")
-    div(
-      p(b("Name: "), evt.digested.metricRepr),
-      p(b("ID: "), evt.actionId.show),
-      p(b("Trace ID: "), tid)
+    frag(
+      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID"))),
+      tr(td(evt.actionParams.importance.show), td(evt.actionId), td(tid))
     )
   }
-
-  private def metricIndex(metricEvent: MetricEvent): Text.TypedTag[String] =
-    metricEvent.index match {
-      case MetricIndex.Adhoc           => p(b("Adhoc"))
-      case MetricIndex.Periodic(index) => p(b("Index:", index))
-    }
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(c.stackTrace))
 
@@ -59,7 +63,7 @@ private object HtmlTranslator extends all {
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      hostServiceText(evt),
+      table(hostServiceText(evt)),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       pre(evt.serviceParams.brief)
     )
@@ -69,10 +73,10 @@ private object HtmlTranslator extends all {
     val msg         = s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
     div(
       h3(style := coloring(evt))(evt.title),
+      table(hostServiceText(evt)),
       p(b(msg)),
-      hostServiceText(evt),
-      p(b("Policy: "), evt.serviceParams.retryPolicy),
       p(b("UpTime: "), fmt.format(evt.upTime)),
+      p(b("Policy: "), evt.serviceParams.retryPolicy),
       causeText(evt.error)
     )
   }
@@ -80,60 +84,53 @@ private object HtmlTranslator extends all {
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      hostServiceText(evt),
+      table(hostServiceText(evt)),
       p(b("UpTime: "), fmt.format(evt.upTime)),
       p(b("Cause: "), evt.cause.show)
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
-      metricIndex(evt),
-      p(b("UpTime: "), fmt.format(evt.upTime)),
-      hostServiceText(evt),
+      h3(style := coloring(evt))(metricTitle(evt)),
+      table(hostServiceText(evt)),
       pre(evt.serviceParams.brief),
       pre(evt.snapshot.show)
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
-      hostServiceText(evt),
-      metricIndex(evt),
-      p(b("UpTime: "), fmt.format(evt.upTime)),
+      h3(style := coloring(evt))(metricTitle(evt)),
+      table(hostServiceText(evt)),
       pre(evt.snapshot.show)
     )
 
   private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(evt.title),
-      hostServiceText(evt),
+      table(hostServiceText(evt)),
       p(b("Name: "), evt.digested.metricRepr),
       pre(evt.message)
     )
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
-      actionText(evt),
-      hostServiceText(evt),
+      h3(style := coloring(evt))(actionTitle(evt)),
+      table(hostServiceText(evt), actionText(evt)),
       p(b("Input: "), pre(evt.actionInfo.input.spaces2))
     )
 
   private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
-      actionText(evt),
-      hostServiceText(evt),
+      h3(style := coloring(evt))(actionTitle(evt)),
+      table(hostServiceText(evt), actionText(evt)),
       p(b("Policy: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
     )
 
   private def actionFailed(evt: ActionFail): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
-      actionText(evt),
-      hostServiceText(evt),
+      h3(style := coloring(evt))(actionTitle(evt)),
+      table(hostServiceText(evt), actionText(evt)),
       p(b("Policy: "), evt.actionInfo.actionParams.retryPolicy),
       p(b("Took: "), fmt.format(evt.took)),
       p(b("Input: "), pre(evt.actionInfo.input.spaces2)),
@@ -142,9 +139,8 @@ private object HtmlTranslator extends all {
 
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
-      actionText(evt),
-      hostServiceText(evt),
+      h3(style := coloring(evt))(actionTitle(evt)),
+      table(hostServiceText(evt), actionText(evt)),
       p(b("Took: "), fmt.format(evt.took)),
       p(b("Output: "), pre(evt.output.spaces2))
     )

@@ -126,7 +126,7 @@ val sparkLib = List(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % "3.3.0") ++ List(
+).map(_ % "3.3.1") ++ List(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
 ).map(_ % "0.13.0") ++ List(

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.all
 
 import java.time.Duration
@@ -35,10 +35,10 @@ private object SlackTranslator extends all {
             MarkdownSection(s":rocket: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField("Up Time", fmt.format(evt.upTime)),
-              second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
+              first = TextField("UpTime", fmt.format(evt.upTime)),
+              second = TextField("TimeZone", evt.serviceParams.taskParams.zoneId.show)
             ),
-            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
+            MarkdownSection(s"*ServiceID:* ${evt.serviceId.show}"),
             MarkdownSection(evt.serviceParams.brief)
           )
         ))
@@ -55,9 +55,9 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(msg),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
                                 |*Policy:* ${evt.serviceParams.retryPolicy}
-                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
+                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
         )
@@ -74,18 +74,13 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s":octagonal_sign: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Service ID:* ${evt.serviceId.show}
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
+                                |*ServiceID:* ${evt.serviceId.show}
                                 |*Cause:* ${evt.cause.show}""".stripMargin)
           )
         )
       )
     )
-
-  private def metricIndex(index: MetricIndex): String = index match {
-    case MetricIndex.Adhoc           => "(Adhoc)"
-    case MetricIndex.Periodic(index) => s"(index=$index)"
-  }
 
   private def metricReport(evt: MetricReport): SlackApp = {
     val nextReport =
@@ -97,11 +92,11 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.title + metricIndex(evt.index)}*"),
+            MarkdownSection(s"*${metricTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Next Report:* $nextReport
-                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
+                                |*NextReport:* $nextReport
+                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
         ),
@@ -120,11 +115,11 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.title + metricIndex(evt.index)}*"),
+            MarkdownSection(s"*${metricTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Next Reset:* $nextReset
-                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
+                                |*NextReset:* $nextReset
+                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
         )
@@ -149,17 +144,16 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*$title:* ${evt.digested.metricRepr}"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}")
+            MarkdownSection(s"*ServiceID:* ${evt.serviceId.show}")
           ).appendedAll(msg)
         )
       )
     )
   }
 
-  private def title(evt: ActionEvent): String     = s"*${evt.title} ${evt.digested.metricRepr}*"
-  private def traceId(evt: ActionEvent): String   = s"*Trace ID:* ${evt.traceId.getOrElse("none")}"
-  private def actionId(evt: ActionEvent): String  = s"*Action ID:* ${evt.actionId}"
-  private def serviceId(evt: ActionEvent): String = s"*Service ID:* ${evt.serviceId.show}"
+  private def traceId(evt: ActionEvent): String   = s"*TraceID:* ${evt.traceId.getOrElse("none")}"
+  private def actionId(evt: ActionEvent): String  = s"*ActionID:* ${evt.actionId}"
+  private def serviceId(evt: ActionEvent): String = s"*ServiceID:* ${evt.serviceId.show}"
   private def took(evt: ActionEvent): String      = s"*Took:* ${fmt.format(evt.took)}"
   private def policy(evt: ActionEvent): String    = s"*Policy:* ${evt.actionParams.retryPolicy}"
 
@@ -170,7 +164,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(title(evt)),
+            MarkdownSection(s"*${actionTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|${actionId(evt)}
                                 |${traceId(evt)}
@@ -190,7 +184,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(title(evt)),
+            MarkdownSection(s"*${actionTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*${toOrdinalWords(evt.retriesSoFar + 1)}* retry at $localTs, in $next
                                 |${policy(evt)}
@@ -213,7 +207,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(title(evt)),
+            MarkdownSection(s"*${actionTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|${took(evt)}
                                 |${policy(evt)}
@@ -234,7 +228,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(title(evt)),
+            MarkdownSection(s"*${actionTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|${took(evt)}
                                 |${actionId(evt)}

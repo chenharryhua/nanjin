@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.guard
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, MetricEvent}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
@@ -53,5 +55,22 @@ package object translators {
 
     (localTime, fmt.format(duration))
   }
+
+  final private[translators] def metricTitle(me: MetricEvent): String =
+    me match {
+      case NJEvent.MetricReport(index, _, _, _) =>
+        index match {
+          case MetricIndex.Adhoc           => "Adhoc Metric Report"
+          case MetricIndex.Periodic(index) => s"Metric Report(index=$index)"
+        }
+      case NJEvent.MetricReset(index, _, _, _) =>
+        index match {
+          case MetricIndex.Adhoc           => "Adhoc Metric Reset"
+          case MetricIndex.Periodic(index) => s"Metric Reset(index=$index)"
+        }
+    }
+
+  final private[translators] def actionTitle(ae: ActionEvent): String =
+    ae.title + " " + ae.digested.metricRepr
 
 }
