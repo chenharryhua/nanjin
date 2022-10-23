@@ -79,6 +79,14 @@ final class SesEmailObserver[F[_]](
       }
     }
 
+    val header = head(tag("style")("""
+        td, th {text-align: left; padding: 12px; border: 1px solid;}
+        table {
+          border-collapse: collapse;
+          width: 90%;
+        }
+      """))
+
     val notice =
       if ((warns + errors) > 0) h2(style := "color:red")(s"Pay Attention - $errors Errors, $warns Warnings")
       else h2("All Good")
@@ -87,6 +95,7 @@ final class SesEmailObserver[F[_]](
       if (isNewestFirst) eventTags.map(tag => hr(tag._1)).toList.reverse
       else eventTags.map(tag => hr(tag._1)).toList
     val content = html(
+      header,
       body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
     ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt
   }

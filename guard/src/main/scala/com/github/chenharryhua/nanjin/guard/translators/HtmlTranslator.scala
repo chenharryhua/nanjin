@@ -32,11 +32,11 @@ private object HtmlTranslator extends all {
 
     frag(
       tr(
-        th(paddingRight := "64px", textAlign := "left", "Timestamp"),
-        th(paddingRight := "64px", textAlign := "left", "Service"),
-        th(paddingRight := "64px", textAlign := "left", "Task"),
-        th(paddingRight := "64px", textAlign := "left", "Host"),
-        th(paddingRight := "64px", textAlign := "left", "ServiceID")
+        th("Timestamp"),
+        th("Service"),
+        th("Task"),
+        th("Host"),
+        th("ServiceID")
       ),
       tr(
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
@@ -51,8 +51,8 @@ private object HtmlTranslator extends all {
   private def actionText(evt: ActionEvent): generic.Frag[Builder, String] = {
     val tid = evt.traceId.getOrElse("none")
     frag(
-      tr(td(b("ActionID")), td(b("TraceID"))),
-      tr(td(evt.actionId), td(tid))
+      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID"))),
+      tr(td(evt.actionParams.importance.show), td(evt.actionId), td(tid))
     )
   }
 

@@ -33,7 +33,7 @@ private object SimpleTextTranslator {
   private def actionEvent(ae: ActionEvent): String = {
     val tid: String = ae.traceId.getOrElse("none")
     s"""  ${serviceEvent(ae)}
-       |  ActionID:${ae.actionId}, TraceID:$tid""".stripMargin
+       |  Importance:${ae.actionParams.importance.show}, ActionID:${ae.actionId}, TraceID:$tid""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =
