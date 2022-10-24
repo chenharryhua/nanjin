@@ -5,10 +5,9 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import com.amazonaws.services.simpleemail.model.SendEmailResult
-import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
-import com.github.chenharryhua.nanjin.common.aws.{EmailContent, SnsArn}
+import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
@@ -23,45 +22,38 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object EmailObserver {
 
-  def apply[F[_]: Async](client: Resource[F, SimpleEmailService[F]]): SesEmailObserver[F] =
-    new SesEmailObserver[F](
+  def apply[F[_]: Async](client: Resource[F, SimpleEmailService[F]]): EmailObserver[F] =
+    new EmailObserver[F](
       client = client,
       chunkSize = ChunkSize(90),
       interval = 180.minutes,
       isNewestFirst = true,
       translator = Translator.html[F])
-
-  def apply[F[_]: Async](client: Resource[F, SimpleNotificationService[F]]): SnsEmailObserver[F] =
-    new SnsEmailObserver[F](
-      client = client,
-      chunkSize = ChunkSize(20),
-      interval = 120.minutes,
-      isNewestFirst = true,
-      translator = Translator.html[F])
-
 }
 
-final class SesEmailObserver[F[_]](
+final class EmailObserver[F[_]] private (
   client: Resource[F, SimpleEmailService[F]],
   chunkSize: ChunkSize, // number of events in an email
   interval: FiniteDuration, // send out email every interval
   isNewestFirst: Boolean, // the latest event comes first
   translator: Translator[F, Text.TypedTag[String]])(implicit F: Async[F])
-    extends UpdateTranslator[F, Text.TypedTag[String], SesEmailObserver[F]] with all {
+    extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] with all {
 
   private[this] def copy(
     chunkSize: ChunkSize = chunkSize,
     interval: FiniteDuration = interval,
     isNewestFirst: Boolean = isNewestFirst,
-    translator: Translator[F, Text.TypedTag[String]] = translator): SesEmailObserver[F] =
-    new SesEmailObserver[F](client, chunkSize, interval, isNewestFirst, translator)
+    translator: Translator[F, Text.TypedTag[String]] = translator): EmailObserver[F] =
+    new EmailObserver[F](client, chunkSize, interval, isNewestFirst, translator)
 
-  def withInterval(fd: FiniteDuration): SesEmailObserver[F] = copy(interval = fd)
-  def withChunkSize(cs: ChunkSize): SesEmailObserver[F]     = copy(chunkSize = cs)
-  def withOldestFirst: SesEmailObserver[F]                  = copy(isNewestFirst = false)
+  def withInterval(fd: FiniteDuration): EmailObserver[F] = copy(interval = fd)
+
+  def withChunkSize(cs: ChunkSize): EmailObserver[F] = copy(chunkSize = cs)
+
+  def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
 
   override def updateTranslator(
-    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SesEmailObserver[F] =
+    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): EmailObserver[F] =
     copy(translator = f(translator))
 
   private def publish(
@@ -79,7 +71,7 @@ final class SesEmailObserver[F[_]](
       }
     }
 
-    val header = head(tag("style")("""
+    val header: Text.TypedTag[String] = head(tag("style")("""
         td, th {text-align: left; padding: 2px; border: 1px solid;}
         table {
           border-collapse: collapse;
@@ -87,16 +79,18 @@ final class SesEmailObserver[F[_]](
         }
       """))
 
-    val notice =
+    val notice: Text.TypedTag[String] =
       if ((warns + errors) > 0) h2(style := "color:red")(s"Pay Attention - $errors Errors, $warns Warnings")
       else h2("All Good")
 
     val text: List[Text.TypedTag[String]] =
       if (isNewestFirst) eventTags.map(tag => hr(tag._1)).toList.reverse
       else eventTags.map(tag => hr(tag._1)).toList
-    val content = html(
+
+    val content: String = html(
       header,
       body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
+
     ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt
   }
 
@@ -128,56 +122,4 @@ final class SesEmailObserver[F[_]](
       } yield ()
       computation.drain
   }
-}
-
-final class SnsEmailObserver[F[_]](
-  client: Resource[F, SimpleNotificationService[F]],
-  chunkSize: ChunkSize,
-  interval: FiniteDuration,
-  isNewestFirst: Boolean,
-  translator: Translator[F, Text.TypedTag[String]])(implicit F: Async[F])
-    extends UpdateTranslator[F, Text.TypedTag[String], SnsEmailObserver[F]] with all {
-
-  private[this] def copy(
-    chunkSize: ChunkSize = chunkSize,
-    interval: FiniteDuration = interval,
-    isNewestFirst: Boolean = isNewestFirst,
-    translator: Translator[F, Text.TypedTag[String]] = translator): SnsEmailObserver[F] =
-    new SnsEmailObserver[F](client, chunkSize, interval, isNewestFirst, translator)
-
-  def withInterval(fd: FiniteDuration): SnsEmailObserver[F] = copy(interval = fd)
-  def withChunkSize(cs: ChunkSize): SnsEmailObserver[F]     = copy(chunkSize = cs)
-  def withOldestFirst: SnsEmailObserver[F]                  = copy(isNewestFirst = false)
-
-  override def updateTranslator(
-    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): SnsEmailObserver[F] =
-    copy(translator = f(translator))
-
-  private def publish(
-    events: Chunk[Text.TypedTag[String]],
-    sns: SimpleNotificationService[F],
-    snsArn: SnsArn,
-    subject: String): F[Either[Throwable, PublishResult]] = {
-    val text: List[Text.TypedTag[String]] =
-      if (isNewestFirst) events.map(hr(_)).toList.reverse else events.map(hr(_)).toList
-    val content = html(body(text, footer(hr(p(b("Events/Max: "), s"${events.size}/$chunkSize"))))).render
-    val req: PublishRequest = new PublishRequest(snsArn.value, content, subject)
-    sns.publish(req).attempt
-  }
-
-  def observe(snsArn: SnsArn, subject: String): Pipe[F, NJEvent, Nothing] = (es: Stream[F, NJEvent]) =>
-    Stream
-      .resource(client)
-      .flatMap(sns =>
-        Stream
-          .eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
-          .flatMap(ofm =>
-            es.evalTap(ofm.monitoring)
-              .evalMap(translator.translate)
-              .unNone
-              .groupWithin(chunkSize.value, interval)
-              .evalTap(publish(_, sns, snsArn, subject).void)
-              .onFinalizeCase(ofm.terminated(_).flatMap(publish(_, sns, snsArn, subject).void)))
-          .drain)
-
 }
