@@ -12,7 +12,7 @@ import cron4s.CronExpr
 import fs2.concurrent.Channel
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
-import retry.RetryPolicies
+import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.ZoneId
 
@@ -85,6 +85,9 @@ final class Agent[F[_]] private[service] (
 
   def awakeEvery(cronExpr: CronExpr): Stream[F, Long] =
     new CronScheduler(zoneId).awakeEvery[F](cronExpr)
+
+  def awakeEvery(policy: RetryPolicy[F]): Stream[F, Long] =
+    new CronScheduler(zoneId).awakeEvery[F](policy)
 
   // for convenience
 
