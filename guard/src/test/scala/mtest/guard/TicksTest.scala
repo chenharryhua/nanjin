@@ -16,17 +16,16 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
-import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
-class AwakeEveryTest extends AnyFunSuite {
+class TicksTest extends AnyFunSuite {
   val service = TaskGuard[IO]("awake").service("every")
   val cron    = Cron.unsafeParse("0-59 * * ? * *")
   test("1. should not lock - even") {
     val List(a, b, c, d) = service
       .eventStream(agent =>
         agent
-          .awakeEvery(cron)
+          .ticks(cron)
           .evalMap(idx => agent.action("even", _.notice).retry(IO(idx)).run)
           .compile
           .drain)
@@ -39,10 +38,11 @@ class AwakeEveryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionSucc])
     assert(d.isInstanceOf[ActionStart])
   }
+
   test("2. should not lock - odd") {
     val List(a, b, c, d, e) = service
       .eventStream(agent =>
-        agent.awakeEvery(cron).evalMap(idx => agent.action("odd", _.notice).retry(IO(idx)).run).compile.drain)
+        agent.ticks(cron).evalMap(idx => agent.action("odd", _.notice).retry(IO(idx)).run).compile.drain)
       .take(5)
       .compile
       .toList
@@ -55,11 +55,11 @@ class AwakeEveryTest extends AnyFunSuite {
   }
 
   test("3. policy based awakeEvery") {
-    val policy = policies.cronBackoff[IO](cron, ZoneId.systemDefault()).join(RetryPolicies.limitRetries(3))
     val List(a, b, c, d, e, f, g, h) =
       service
         .eventStream(agent =>
-          awakeEvery(policy)
+          agent
+            .ticks(cron, _.join(RetryPolicies.limitRetries(3)))
             .evalMap(idx => agent.action("policy", _.notice).retry(IO(idx)).run)
             .compile
             .drain)
@@ -79,12 +79,11 @@ class AwakeEveryTest extends AnyFunSuite {
   test("4.cron index") {
     val lst = service
       .eventStream(ag =>
-        ag.awakeEvery(Cron.unsafeParse("*/5 * * ? * *"), RetryPolicies.capDelay[IO](1.second, _))
+        ag.ticks(Cron.unsafeParse("0 */5 * ? * *"), RetryPolicies.capDelay[IO](1.second, _))
           .evalMap(x => ag.broker("pt").passThrough(x.asJson))
           .take(3)
           .compile
           .drain)
-      .debug()
       .compile
       .toList
       .map(_.filter(_.isInstanceOf[PassThrough]))
@@ -97,7 +96,11 @@ class AwakeEveryTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h) =
       service
         .eventStream(agent =>
-          awakeEvery(policy).evalMap(idx => agent.action("fib", _.notice).retry(IO(idx)).run).compile.drain)
+          agent
+            .ticks(policy)
+            .evalMap(idx => agent.action("fib", _.notice).retry(IO(idx)).run)
+            .compile
+            .drain)
         .compile
         .toList
         .unsafeRunSync()

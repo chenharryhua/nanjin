@@ -94,16 +94,16 @@ class ConfigTest extends AnyFunSuite {
     assert(as.get.serviceParams.metricParams.resetSchedule.isEmpty)
   }
 
-  test("MonthlyReset") {
+  test("MonthlyReset - 00:00:01 of 1st day of the month") {
     val zoneId = ZoneId.of("Australia/Sydney")
     TaskGuard[IO]("monthly")
       .service("reset")
       .updateConfig(_.withMetricMonthlyReset)
       .eventStream { ag =>
-        val now      = ZonedDateTime.of(2022, 10, 24, 0, 0, 0, 0, zoneId)
+        val now      = ZonedDateTime.of(2022, 10, 26, 0, 0, 0, 0, zoneId)
         val ns       = ag.serviceParams.metricParams.nextReset(now).get
         val expected = ZonedDateTime.of(2022, 11, 1, 0, 0, 1, 0, zoneId)
-        assert(ns.toInstant === expected.toInstant)
+        assert(ns === expected)
         IO(())
       }
       .compile
@@ -111,20 +111,19 @@ class ConfigTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("WeeklyReset") {
+  test("WeeklyReset - 00:00:01 on Monday") {
     val zoneId = ZoneId.of("Australia/Sydney")
     TaskGuard[IO]("weekly")
       .updateConfig(_.withZoneId(zoneId))
       .service("reset")
       .updateConfig(_.withMetricWeeklyReset)
       .eventStream { ag =>
-        val now      = ZonedDateTime.of(2022, 10, 24, 0, 0, 0, 0, zoneId)
+        val now      = ZonedDateTime.of(2022, 10, 26, 0, 0, 0, 0, zoneId)
         val ns       = ag.serviceParams.metricParams.nextReset(now).get
-        val expected = ZonedDateTime.of(2022, 10, 30, 0, 0, 1, 0, zoneId)
-        assert(ns.toInstant === expected.toInstant)
+        val expected = ZonedDateTime.of(2022, 10, 31, 0, 0, 1, 0, zoneId)
+        assert(ns === expected)
         IO(())
       }
-      .debug()
       .compile
       .drain
       .unsafeRunSync()

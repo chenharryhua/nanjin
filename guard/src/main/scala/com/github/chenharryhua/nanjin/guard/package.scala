@@ -26,9 +26,9 @@ package object guard {
       }
 
     /*
-     * now --------------- 0 ------- 1 -------- 2 ------
+     * ---------------------- 0 ------- 1 -------- 2 ------
      *
-     * ---preSchedule-----tick------tick-------tick-----
+     * now---preSchedule-----tick ...  tick  ...  tick ...
      */
     val init: F[Stream[F, Int]] = for {
       now <- F.realTimeInstant
