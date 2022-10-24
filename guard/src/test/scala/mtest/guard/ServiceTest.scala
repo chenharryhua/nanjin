@@ -7,8 +7,8 @@ import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
-import cron4s.Cron
 import eu.timepit.refined.auto.*
+import fs2.Stream
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -17,7 +17,6 @@ import retry.{PolicyDecision, RetryPolicies, RetryStatus}
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
 import scala.util.Try
-import fs2.Stream
 
 class ServiceTest extends AnyFunSuite {
 
@@ -297,36 +296,4 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("16. lock - even") {
-    TaskGuard[IO]("lock")
-      .service("lock")
-      .updateConfig(_.withQueueCapacity(3))
-      .eventStream(agent =>
-        agent
-          .awakeEvery(Cron.unsafeParse("0-59 * * ? * *"))
-          .evalMap(idx => agent.action("lock", _.notice).retry(IO(idx)).logInput(idx.asJson).run)
-          .compile
-          .drain)
-      .take(4)
-      .evalMap(console.simple[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-  test("17. lock - odd") {
-    TaskGuard[IO]("lock")
-      .service("lock")
-      .updateConfig(_.withQueueCapacity(3))
-      .eventStream(agent =>
-        agent
-          .awakeEvery(Cron.unsafeParse("0-59 * * ? * *"))
-          .evalMap(idx => agent.action("lock", _.notice).retry(IO(idx)).logInput(idx.asJson).run)
-          .compile
-          .drain)
-      .take(5)
-      .evalMap(console.simple[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
 }

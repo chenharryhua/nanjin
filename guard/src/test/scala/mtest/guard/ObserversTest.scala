@@ -122,29 +122,6 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("6.sns mail") {
-    val mail =
-      EmailObserver[IO](SimpleNotificationService.fake[IO])
-        .withInterval(5.seconds)
-        .withOldestFirst
-        .withChunkSize(100)
-        .updateTranslator(_.skipActionStart)
-
-    TaskGuard[IO]("sns")
-      .updateConfig(_.withHomePage("https://google.com"))
-      .service("sns")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(secondly))
-      .eventStream { ag =>
-        val err = ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
-      }
-      .through(mail.observe(snsArn, "title"))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
   test("7.lense") {
     val len =
       Translator
@@ -167,8 +144,7 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("8.syntax") {
-    EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10)
-    EmailObserver[IO](SimpleNotificationService.fake[IO])
+    EmailObserver(SimpleEmailService.fake[IO])
       .withInterval(1.minute)
       .withChunkSize(10)
       .updateTranslator(
