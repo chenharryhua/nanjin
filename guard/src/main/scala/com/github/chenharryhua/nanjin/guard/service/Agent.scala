@@ -14,7 +14,7 @@ import cron4s.CronExpr
 import fs2.concurrent.Channel
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
-import retry.RetryPolicies
+import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.ZoneId
 
@@ -85,8 +85,8 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  def awakeEvery(cronExpr: CronExpr): Stream[F, Long] =
-    guard.awakeEvery[F](policies.cronBackoff[F](cronExpr, zoneId))
+  def awakeEvery(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
+    guard.awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
 
   // for convenience
 

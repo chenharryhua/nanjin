@@ -27,7 +27,7 @@ sealed trait MetricIndex extends Product with Serializable
 
 object MetricIndex {
   case object Adhoc extends MetricIndex
-  final case class Periodic(index: Long) extends MetricIndex
+  final case class Periodic(index: Int) extends MetricIndex
 }
 
 @JsonCodec

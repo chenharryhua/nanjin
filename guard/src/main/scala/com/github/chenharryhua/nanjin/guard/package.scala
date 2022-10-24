@@ -10,22 +10,26 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object guard {
 
-  def awakeEvery[F[_]](policy: RetryPolicy[F])(implicit F: Temporal[F]): Stream[F, Long] = {
-    def go(status: RetryStatus, wakeup: Instant): Pull[F, Long, Unit] =
+  def awakeEvery[F[_]](policy: RetryPolicy[F])(implicit F: Temporal[F]): Stream[F, Int] = {
+    def go(status: RetryStatus, wakeup: Instant): Pull[F, Int, Unit] =
       Pull.eval(F.realTimeInstant).flatMap { now =>
-        if (now.isBefore(wakeup))
+        if (now.isBefore(wakeup)) // sleep and do nothing
           Pull.sleep(Duration.between(now, wakeup).toScala) >> go(status, wakeup)
-        else
+        else // emit a tick
           Pull.eval(policy.decideNextRetry(status)).flatMap {
             case PolicyDecision.GiveUp => Pull.done
             case PolicyDecision.DelayAndRetry(delay) =>
-              Pull.output1(status.retriesSoFar.toLong) >>
+              Pull.output1(status.retriesSoFar) >>
                 Pull.sleep(delay) >>
                 go(status.addRetry(delay), now.plus(delay.toJava))
           }
       }
 
-    val init: F[Stream[F, Long]] = for {
+    /** now --------------- 0 ------- 1 -------- 2 ------ ticks
+      *
+      * ---preSchedule-----tick------tick-------tick-----
+      */
+    val init: F[Stream[F, Int]] = for {
       now <- F.realTimeInstant
       preSchedule <- policy.decideNextRetry(RetryStatus.NoRetriesYet)
     } yield preSchedule match {

@@ -24,7 +24,7 @@ private object SimpleJsonTranslator {
   private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
-    case MetricIndex.Periodic(index) => "index" -> Json.fromLong(index)
+    case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
   }
 
   private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.retryPolicy.asJson

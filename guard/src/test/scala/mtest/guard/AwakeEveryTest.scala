@@ -79,11 +79,12 @@ class AwakeEveryTest extends AnyFunSuite {
   test("4.cron index") {
     val lst = service
       .eventStream(ag =>
-        ag.awakeEvery(Cron.unsafeParse("0-59 * * ? * *"))
+        ag.awakeEvery(Cron.unsafeParse("*/5 * * ? * *"), RetryPolicies.capDelay[IO](1.second, _))
           .evalMap(x => ag.broker("pt").passThrough(x.asJson))
           .take(3)
           .compile
           .drain)
+      .debug()
       .compile
       .toList
       .map(_.filter(_.isInstanceOf[PassThrough]))
