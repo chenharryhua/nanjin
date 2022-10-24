@@ -9,6 +9,7 @@ import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
+import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -83,14 +84,11 @@ final class ServiceGuard[F[_]] private[guard] (
           mr
         }
 
-        val cronScheduler: CronScheduler = new CronScheduler(serviceParams.taskParams.zoneId)
-
         val metricsReport: Stream[F, Nothing] =
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              cronScheduler
-                .awakeEvery(cron)
+              awakeEvery[F](policies.cronBackoff(cron, serviceParams.taskParams.zoneId))
                 .evalMap(idx =>
                   publisher.metricReport(
                     channel,
@@ -105,8 +103,7 @@ final class ServiceGuard[F[_]] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              cronScheduler
-                .awakeEvery(cron)
+              awakeEvery[F](policies.cronBackoff(cron, serviceParams.taskParams.zoneId))
                 .evalMap(idx =>
                   publisher.metricReset(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
                 .drain

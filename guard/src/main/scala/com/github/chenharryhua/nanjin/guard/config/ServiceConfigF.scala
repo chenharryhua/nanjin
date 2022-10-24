@@ -155,7 +155,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     ServiceConfig(Fix(WithResetSchedule(Some(crontab), value)))
   def withMetricReset(crontab: String): ServiceConfig = withMetricReset(Cron.unsafeParse(crontab))
   def withMetricDailyReset: ServiceConfig             = withMetricReset(Cron.unsafeParse("1 0 0 ? * *"))
-  def withMetricWeeklyReset: ServiceConfig            = withMetricReset(Cron.unsafeParse("1 0 0 ? * 0"))
+  def withMetricWeeklyReset: ServiceConfig            = withMetricReset(Cron.unsafeParse("1 0 0 ? * 6"))
   def withMetricMonthlyReset: ServiceConfig           = withMetricReset(Cron.unsafeParse("1 0 0 1 * ?"))
 
   def withoutMetricReport: ServiceConfig = ServiceConfig(Fix(WithReportSchedule(None, value)))

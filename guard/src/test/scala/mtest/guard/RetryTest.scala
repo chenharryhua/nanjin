@@ -17,6 +17,7 @@ import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
+import java.time.ZoneId
 import scala.concurrent.duration.*
 import scala.util.Try
 import scala.util.control.ControlThrowable
@@ -239,7 +240,8 @@ class RetryTest extends AnyFunSuite {
 
   test("11.cron policy") {
     val secondly: CronExpr = Cron.unsafeParse("0-59 * * ? * *")
-    val policy             = policies.cronBackoff[IO](secondly).join(RetryPolicies.limitRetries(3))
+    val policy =
+      policies.cronBackoff[IO](secondly, ZoneId.systemDefault()).join(RetryPolicies.limitRetries(3))
     val List(a, b, c, d, e, f, g) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp)
       .eventStream(

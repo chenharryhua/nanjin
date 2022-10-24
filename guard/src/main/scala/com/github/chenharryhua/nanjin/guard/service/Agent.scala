@@ -5,14 +5,16 @@ import cats.effect.kernel.Async
 import cats.effect.Resource
 import cats.implicits.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.guard
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.policies
 import cron4s.CronExpr
 import fs2.concurrent.Channel
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
-import retry.{RetryPolicies, RetryPolicy}
+import retry.RetryPolicies
 
 import java.time.ZoneId
 
@@ -84,10 +86,7 @@ final class Agent[F[_]] private[service] (
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
   def awakeEvery(cronExpr: CronExpr): Stream[F, Long] =
-    new CronScheduler(zoneId).awakeEvery[F](cronExpr)
-
-  def awakeEvery(policy: RetryPolicy[F]): Stream[F, Long] =
-    new CronScheduler(zoneId).awakeEvery[F](policy)
+    guard.awakeEvery[F](policies.cronBackoff[F](cronExpr, zoneId))
 
   // for convenience
 

@@ -39,6 +39,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricMonthlyReset
           .withMetricWeeklyReset)
       .eventStream(gd => gd.action("t", _.silent).retry(Try(1)).logOutput(_ => null).run.delayBy(1.second))
+      .debug()
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile

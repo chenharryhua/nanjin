@@ -8,6 +8,8 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.{ZoneId, ZonedDateTime}
+
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("config").service("config").updateConfig(_.withMetricDailyReset.withMetricReport(hourly))
@@ -90,5 +92,41 @@ class ConfigTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
     assert(as.get.serviceParams.metricParams.resetSchedule.isEmpty)
+  }
+
+  test("MonthlyReset") {
+    val zoneId = ZoneId.of("Australia/Sydney")
+    TaskGuard[IO]("monthly")
+      .service("reset")
+      .updateConfig(_.withMetricMonthlyReset)
+      .eventStream { ag =>
+        val now      = ZonedDateTime.of(2022, 10, 24, 0, 0, 0, 0, zoneId)
+        val ns       = ag.serviceParams.metricParams.nextReset(now).get
+        val expected = ZonedDateTime.of(2022, 11, 1, 0, 0, 1, 0, zoneId)
+        assert(ns.toInstant === expected.toInstant)
+        IO(())
+      }
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("WeeklyReset") {
+    val zoneId = ZoneId.of("Australia/Sydney")
+    TaskGuard[IO]("weekly")
+      .updateConfig(_.withZoneId(zoneId))
+      .service("reset")
+      .updateConfig(_.withMetricWeeklyReset)
+      .eventStream { ag =>
+        val now      = ZonedDateTime.of(2022, 10, 24, 0, 0, 0, 0, zoneId)
+        val ns       = ag.serviceParams.metricParams.nextReset(now).get
+        val expected = ZonedDateTime.of(2022, 10, 30, 0, 0, 1, 0, zoneId)
+        assert(ns.toInstant === expected.toInstant)
+        IO(())
+      }
+      .debug()
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }
