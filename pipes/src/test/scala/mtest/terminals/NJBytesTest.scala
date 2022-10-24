@@ -52,4 +52,9 @@ class NJBytesTest extends AnyFunSuite {
   ignore("ZSTANDARD") {
     fs2(fs2Root / "tiger.json.zst", TestData.tigerSet)
   }
+
+  test("laziness") {
+    hdp.bytes.source(NJPath("./does/not/exist"))
+    hdp.bytes.sink(NJPath("./does/not/exist"))
+  }
 }

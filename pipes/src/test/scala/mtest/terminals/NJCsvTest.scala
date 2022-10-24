@@ -77,4 +77,9 @@ class NJCsvTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("laziness") {
+    hdp.kantan(CsvConfiguration.rfc).source[Tiger](NJPath("./does/not/exist"))
+    hdp.kantan(CsvConfiguration.rfc).sink[Tiger](NJPath("./does/not/exist"))
+  }
 }

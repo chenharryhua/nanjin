@@ -49,4 +49,9 @@ class NJAvroTest extends AnyFunSuite {
   test("zstandard avro") {
     fs2(fs2Root / "panda.zstandard.avro", CodecFactory.zstandardCodec(1), pandaSet)
   }
+
+  test("laziness") {
+    avro.source(NJPath("./does/not/exist"))
+    avro.sink(NJPath("./does/not/exist"))
+  }
 }

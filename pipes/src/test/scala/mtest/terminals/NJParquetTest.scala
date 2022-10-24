@@ -53,4 +53,9 @@ class NJParquetTest extends AnyFunSuite {
     fs2(fs2Root / "panda.BROTLI.parquet", CompressionCodecName.BROTLI, pandaSet)
   }
 
+  test("laziness") {
+    parquet.source(NJPath("./does/not/exist"))
+    parquet.sink(NJPath("./does/not/exist"))
+  }
+
 }
