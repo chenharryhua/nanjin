@@ -25,10 +25,11 @@ package object guard {
           }
       }
 
-    /** now --------------- 0 ------- 1 -------- 2 ------ ticks
-      *
-      * ---preSchedule-----tick------tick-------tick-----
-      */
+    /*
+     * now --------------- 0 ------- 1 -------- 2 ------
+     *
+     * ---preSchedule-----tick------tick-------tick-----
+     */
     val init: F[Stream[F, Int]] = for {
       now <- F.realTimeInstant
       preSchedule <- policy.decideNextRetry(RetryStatus.NoRetriesYet)
