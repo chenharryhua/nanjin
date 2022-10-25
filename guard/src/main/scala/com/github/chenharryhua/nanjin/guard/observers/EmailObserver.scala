@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
+import cats.Endo
 import com.amazonaws.services.simpleemail.model.SendEmailResult
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
@@ -52,8 +53,7 @@ final class EmailObserver[F[_]] private (
 
   def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
 
-  override def updateTranslator(
-    f: Translator[F, Text.TypedTag[String]] => Translator[F, Text.TypedTag[String]]): EmailObserver[F] =
+  override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
   private def publish(
