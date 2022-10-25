@@ -24,11 +24,7 @@ class TicksTest extends AnyFunSuite {
   test("1. should not lock - even") {
     val List(a, b, c, d) = service
       .eventStream(agent =>
-        agent
-          .ticks(cron)
-          .evalMap(idx => agent.action("even", _.notice).retry(IO(idx)).run)
-          .compile
-          .drain)
+        agent.ticks(cron).evalMap(idx => agent.action("even", _.notice).retry(IO(idx)).run).compile.drain)
       .take(4)
       .compile
       .toList
@@ -92,12 +88,11 @@ class TicksTest extends AnyFunSuite {
   }
 
   test("5. fib awakeEvery") {
-    val policy = RetryPolicies.fibonacciBackoff[IO](1.second).join(RetryPolicies.limitRetries(3))
     val List(a, b, c, d, e, f, g, h) =
       service
         .eventStream(agent =>
           agent
-            .ticks(policy)
+            .ticks(RetryPolicies.fibonacciBackoff[IO](1.second).join(RetryPolicies.limitRetries(3)))
             .evalMap(idx => agent.action("fib", _.notice).retry(IO(idx)).run)
             .compile
             .drain)

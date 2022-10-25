@@ -37,11 +37,12 @@ final class Agent[F[_]] private[service] (
 
   def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
+      serviceParams = serviceParams,
       metricRegistry = metricRegistry,
       channel = channel,
-      name = name,
-      actionConfig = cfg(ActionConfig(serviceParams)),
-      retryPolicy = RetryPolicies.alwaysGiveUp[F])
+      actionConfig = cfg(ActionConfig(name)),
+      retryPolicy = RetryPolicies.alwaysGiveUp[F]
+    )
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
@@ -87,7 +88,7 @@ final class Agent[F[_]] private[service] (
   def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
 
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
-    ticks(f(policies.cronBackoff[F](cronExpr, zoneId)))
+    awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
 
   // for convenience
 

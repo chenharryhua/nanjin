@@ -12,8 +12,10 @@ import cats.implicits.{
 }
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.ActionConfig
+import com.github.chenharryhua.nanjin.guard.config.{ActionConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.policies
+import cron4s.CronExpr
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -23,21 +25,24 @@ import scala.concurrent.Future
 import scala.util.Try
 
 final class NJActionBuilder[F[_]](
+  serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  name: String,
   actionConfig: ActionConfig,
   retryPolicy: RetryPolicy[F]
 )(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, NJActionBuilder[F]] {
-  def apply(name: String): NJActionBuilder[F] =
-    new NJActionBuilder[F](metricRegistry, channel, name, actionConfig, retryPolicy)
 
   def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] =
-    new NJActionBuilder[F](metricRegistry, channel, name, f(actionConfig), retryPolicy)
+    new NJActionBuilder[F](serviceParams, metricRegistry, channel, f(actionConfig), retryPolicy)
+
+  def apply(name: String): NJActionBuilder[F] = updateConfig(_.withActionName(name))
 
   def withRetryPolicy(rp: RetryPolicy[F]): NJActionBuilder[F] =
-    new NJActionBuilder[F](metricRegistry, channel, name, actionConfig, rp)
+    new NJActionBuilder[F](serviceParams, metricRegistry, channel, actionConfig, rp)
+
+  def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): NJActionBuilder[F] =
+    withRetryPolicy(f(policies.cronBackoff[F](cronExpr, serviceParams.taskParams.zoneId)))
 
   private val worthRetry: Kleisli[F, Throwable, Boolean] = Kleisli((_: Throwable) => F.pure(true))
   // retries
@@ -45,7 +50,7 @@ final class NJActionBuilder[F[_]](
     new NJAction0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = fb,
       transInput = F.pure(Json.Null),
@@ -57,7 +62,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f,
       transInput = _ => F.pure(Json.Null),
@@ -69,7 +74,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
@@ -81,7 +86,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
@@ -93,7 +98,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
@@ -105,7 +110,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(name, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),

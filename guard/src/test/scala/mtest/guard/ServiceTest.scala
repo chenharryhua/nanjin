@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
+import cron4s.Cron
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.parser.decode
@@ -30,7 +31,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .withRestartPolicy(RetryPolicies.constantDelay(3.seconds))
+      .withRestartPolicy(RetryPolicies.constantDelay[IO](3.seconds))
       .updateConfig(_.withMetricReport(hourly))
       .updateConfig(
         _.withQueueCapacity(1)
@@ -51,7 +52,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("2.escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
-      .withRestartPolicy(policies.jitterBackoff(30.minutes, 50.minutes))
+      .withRestartPolicy(policies.jitterBackoff[IO](30.minutes, 50.minutes))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run
@@ -73,10 +74,10 @@ class ServiceTest extends AnyFunSuite {
 
   test("3.should stop when fatal error occurs") {
     val List(a, b, c, d) = guard
-      .withRestartPolicy(constant_1second)
+      .withRestartPolicy(Cron.unsafeParse("0-59 * * ? * *"))
       .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
-        gd.action("t", _.notice)
+        gd.action("fatal error", _.notice)
           .withRetryPolicy(policy)
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run
@@ -94,7 +95,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(Left(new Exception("oops"))).run
@@ -116,7 +117,6 @@ class ServiceTest extends AnyFunSuite {
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
       .updateConfig(_.withMetricReport(secondly))
-      .updateConfig(_.withQueueCapacity(4))
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -133,7 +133,6 @@ class ServiceTest extends AnyFunSuite {
   test("6.force reset") {
     val s :: b :: c :: _ = guard
       .updateConfig(_.withMetricReport(secondly))
-      .updateConfig(_.withQueueCapacity(4))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile

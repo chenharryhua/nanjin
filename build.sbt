@@ -56,7 +56,6 @@ val hadoopLib = List(
     .exclude("commons-logging", "commons-logging"))
 
 val circeLib = List(
-  "io.circe" %% "circe-literal"        % "0.14.3",
   "io.circe" %% "circe-core"           % "0.14.3",
   "io.circe" %% "circe-generic"        % "0.14.3",
   "io.circe" %% "circe-parser"         % "0.14.3",
@@ -64,7 +63,6 @@ val circeLib = List(
   "io.circe" %% "circe-jawn"           % "0.14.3",
   "io.circe" %% "circe-optics"         % "0.14.1",
   "io.circe" %% "circe-jackson212"     % "0.14.0",
-  "io.circe" %% "circe-generic-extras" % "0.14.2",
   "io.circe" %% "circe-refined"        % "0.14.3",
   "org.gnieh" %% "diffson-circe"       % "4.3.0"
 )

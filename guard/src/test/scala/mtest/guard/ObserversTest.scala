@@ -77,7 +77,7 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sns")
       .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .updateConfig(_.withMetricReport(secondly))
       .eventStream { ag =>
         val err = ag

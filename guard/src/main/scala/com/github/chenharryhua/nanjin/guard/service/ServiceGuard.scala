@@ -10,9 +10,10 @@ import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams, TaskParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
+import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.Channel
 import natchez.EntryPoint
@@ -31,6 +32,7 @@ import retry.RetryPolicy
 // format: on
 
 final class ServiceGuard[F[_]] private[guard] (
+  taskParams: TaskParams,
   serviceConfig: ServiceConfig,
   metricSet: List[MetricSet],
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
@@ -39,7 +41,7 @@ final class ServiceGuard[F[_]] private[guard] (
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] =
-    new ServiceGuard[F](f(serviceConfig), metricSet, jmxBuilder, entryPoint, restartPolicy)
+    new ServiceGuard[F](taskParams, f(serviceConfig), metricSet, jmxBuilder, entryPoint, restartPolicy)
 
   def apply(serviceName: ServiceName): ServiceGuard[F] =
     updateConfig(_.withServiceName(serviceName))
@@ -47,22 +49,25 @@ final class ServiceGuard[F[_]] private[guard] (
   /** https://metrics.dropwizard.io/4.2.0/getting-started.html#reporting-via-jmx
     */
   def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, Some(builder), entryPoint, restartPolicy)
+    new ServiceGuard[F](taskParams, serviceConfig, metricSet, Some(builder), entryPoint, restartPolicy)
 
   /** https://cb372.github.io/cats-retry/docs/policies.html
     */
   def withRestartPolicy(rp: RetryPolicy[F]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, metricSet, jmxBuilder, entryPoint, rp)
+    new ServiceGuard[F](taskParams, serviceConfig, metricSet, jmxBuilder, entryPoint, rp)
+
+  def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
+    withRestartPolicy(policies.cronBackoff[F](cronExpr, taskParams.zoneId))
 
   /** https://metrics.dropwizard.io/4.2.0/manual/core.html#metric-sets
     */
   def addMetricSet(ms: MetricSet): ServiceGuard[F] =
-    new ServiceGuard[F](serviceConfig, ms :: metricSet, jmxBuilder, entryPoint, restartPolicy)
+    new ServiceGuard[F](taskParams, serviceConfig, ms :: metricSet, jmxBuilder, entryPoint, restartPolicy)
 
   private val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
-  } yield serviceConfig.evalConfig(uuid, ts, restartPolicy.show)
+  } yield serviceConfig.evalConfig(taskParams, uuid, ts, restartPolicy.show)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)

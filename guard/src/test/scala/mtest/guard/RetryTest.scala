@@ -9,15 +9,12 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import cron4s.expr.CronExpr
-import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
-import java.time.ZoneId
 import scala.concurrent.duration.*
 import scala.util.Try
 import scala.util.control.ControlThrowable
@@ -131,12 +128,11 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("6.retry - should escalate to up level if retry failed") {
-    val policy = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { gd =>
         gd.action("t")
-          .withRetryPolicy(policy)
+          .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3)))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
           .logInput
           .run(1)
@@ -160,7 +156,7 @@ class RetryTest extends AnyFunSuite {
 
   test("7.retry - Null pointer exception") {
     val List(a, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(ag =>
         ag.action("t")
           .withRetryPolicy(policy)
@@ -181,12 +177,11 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("8.retry - predicate - should retry") {
-    val policy = RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { gd =>
         gd.action("t")
-          .withRetryPolicy(policy)
+          .withRetryPolicy(RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3)))
           .retry(IO.raiseError(MyException()))
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
@@ -205,12 +200,11 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("9.retry - isWorthRetry - should not retry") {
-    val policy = RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
     val Vector(s, a, b, c) = serviceGuard
       .withRestartPolicy(constant_1hour)
       .eventStream { gd =>
         gd.action("t", _.notice)
-          .withRetryPolicy(policy)
+          .withRetryPolicy(RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3)))
           .retry(IO.raiseError(new Exception))
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
@@ -239,13 +233,13 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("11.cron policy") {
-    val secondly: CronExpr = Cron.unsafeParse("0-59 * * ? * *")
-    val policy =
-      policies.cronBackoff[IO](secondly, ZoneId.systemDefault()).join(RetryPolicies.limitRetries(3))
     val List(a, b, c, d, e, f, g) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(
-        _.action("cron", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run)
+        _.action("cron", _.notice)
+          .withRetryPolicy(secondly, _.join(RetryPolicies.limitRetries(3)))
+          .retry(IO.raiseError(new Exception("oops")))
+          .run)
       .evalTap(console.simple[IO])
       .compile
       .toList
@@ -303,7 +297,7 @@ class RetryTest extends AnyFunSuite {
 
   test("14.should not retry fatal error") {
     val List(a, b, c, d) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(
         _.action("fatal", _.critical)
           .withRetryPolicy(constant_1second)
