@@ -5,6 +5,7 @@ import cats.effect.kernel.Async
 import cats.effect.Resource
 import cats.implicits.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -36,11 +37,12 @@ final class Agent[F[_]] private[service] (
 
   def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
+      serviceParams = serviceParams,
       metricRegistry = metricRegistry,
       channel = channel,
-      name = name,
-      actionConfig = cfg(ActionConfig(serviceParams)),
-      retryPolicy = RetryPolicies.alwaysGiveUp[F])
+      actionConfig = cfg(ActionConfig(name)),
+      retryPolicy = RetryPolicies.alwaysGiveUp[F]
+    )
 
   def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
@@ -83,11 +85,10 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  def awakeEvery(cronExpr: CronExpr): Stream[F, Long] =
-    new CronScheduler(zoneId).awakeEvery[F](cronExpr)
+  def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
 
-  def awakeEvery(policy: RetryPolicy[F]): Stream[F, Long] =
-    new CronScheduler(zoneId).awakeEvery[F](policy)
+  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
+    awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
 
   // for convenience
 

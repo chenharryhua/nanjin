@@ -12,6 +12,7 @@ import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
+import java.time.ZoneId
 import scala.concurrent.duration.*
 
 class CancellationTest extends AnyFunSuite {
@@ -19,7 +20,7 @@ class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry-test").withRestartPolicy(constant_1second)
 
-  val policy = policies.cronBackoff[IO](secondly).join(RetryPolicies.limitRetries(3))
+  val policy = policies.cronBackoff[IO](secondly, ZoneId.systemDefault()).join(RetryPolicies.limitRetries(3))
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard
@@ -58,7 +59,7 @@ class CancellationTest extends AnyFunSuite {
 
   test("3.canceled by external exception") {
     val Vector(s, b, c) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { ag =>
         val a1 = ag.action("never", _.trivial).retry(never_fun).run
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1))
@@ -76,7 +77,7 @@ class CancellationTest extends AnyFunSuite {
 
   test("4.cancellation should propagate in right order") {
     val Vector(a, b, c, d) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { ag =>
         val a1 = ag.action("one/two/inner", _.silent).retry(IO.never[Int]).run
         ag.action("one/two/three/outer", _.silent)
@@ -121,7 +122,7 @@ class CancellationTest extends AnyFunSuite {
   test("6.cancellation - sequentially - no chance to cancel") {
     val policy = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
     val Vector(s, a, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { ag =>
         ag.action("a1", _.notice).retry(IO(1)).run >>
           ag.action("a2", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run >>
@@ -148,7 +149,7 @@ class CancellationTest extends AnyFunSuite {
     val policy2 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
     val v =
       serviceGuard
-        .withRestartPolicy(RetryPolicies.alwaysGiveUp)
+        .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
         .eventStream { ag =>
           val a1 = ag.action("succ-1", _.notice).retry(IO.sleep(1.second) >> IO(1)).run
           val a2 =

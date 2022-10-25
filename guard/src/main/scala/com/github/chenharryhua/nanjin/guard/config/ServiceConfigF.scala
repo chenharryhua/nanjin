@@ -95,7 +95,7 @@ sealed private[guard] trait ServiceConfigF[X]
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
-  final case class InitParams[K](serviceName: ServiceName, taskParams: TaskParams) extends ServiceConfigF[K]
+  final case class InitParams[K](serviceName: ServiceName) extends ServiceConfigF[K]
   final case class WithServiceName[K](value: ServiceName, cont: K) extends ServiceConfigF[K]
   final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
@@ -109,11 +109,12 @@ private object ServiceConfigF {
   final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   def algebra(
+    taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
     retryPolicy: String): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(s, t)        => ServiceParams(s, t, serviceId, launchTime, retryPolicy)
+      case InitParams(s)           => ServiceParams(s, taskParams, serviceId, launchTime, retryPolicy)
       case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
       case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
 
@@ -168,12 +169,16 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withPolicyThreshold(dur: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithPolicyThreshold(Some(dur.toJava), value)))
 
-  def evalConfig(serviceId: UUID, launchTime: Instant, retryPolicy: String): ServiceParams =
-    scheme.cata(algebra(serviceId, launchTime, retryPolicy)).apply(value)
+  def evalConfig(
+    taskParams: TaskParams,
+    serviceId: UUID,
+    launchTime: Instant,
+    retryPolicy: String): ServiceParams =
+    scheme.cata(algebra(taskParams, serviceId, launchTime, retryPolicy)).apply(value)
 }
 
 private[guard] object ServiceConfig {
 
-  def apply(serviceName: ServiceName, taskParams: TaskParams): ServiceConfig =
-    new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](serviceName, taskParams)))
+  def apply(serviceName: ServiceName): ServiceConfig =
+    new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](serviceName)))
 }

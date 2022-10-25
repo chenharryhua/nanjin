@@ -42,15 +42,17 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](serviceParams: ServiceParams) extends ActionConfigF[K]
+  final case class InitParams[K](name: String) extends ActionConfigF[K]
 
+  final case class WithActionName[K](name: String, cont: K) extends ActionConfigF[K]
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
-  def algebra(name: String, retryPolicy: String): Algebra[ActionConfigF, ActionParams] =
+  def algebra(serviceParams: ServiceParams, retryPolicy: String): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(sp)       => ActionParams(sp, name, retryPolicy)
+      case InitParams(n)        => ActionParams(serviceParams, n, retryPolicy)
+      case WithActionName(v, c) => ActionParams.name.set(v)(c)
       case WithImportance(v, c) => ActionParams.importance.set(v)(c)
       case WithTiming(v, c)     => ActionParams.isTiming.set(v)(c)
       case WithCounting(v, c)   => ActionParams.isCounting.set(v)(c)
@@ -70,12 +72,14 @@ final private[guard] case class ActionConfig private (value: Fix[ActionConfigF])
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)))
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)))
 
-  def evalConfig(name: String, retryPolicy: String): ActionParams =
-    scheme.cata(algebra(name, retryPolicy)).apply(value)
+  def withActionName(name: String): ActionConfig = ActionConfig(Fix(WithActionName(name, value)))
+
+  def evalConfig(serviceParams: ServiceParams, retryPolicy: String): ActionParams =
+    scheme.cata(algebra(serviceParams, retryPolicy)).apply(value)
 }
 
 private[guard] object ActionConfig {
 
-  def apply(sp: ServiceParams): ActionConfig =
-    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](sp)))
+  def apply(name: String): ActionConfig =
+    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](name)))
 }

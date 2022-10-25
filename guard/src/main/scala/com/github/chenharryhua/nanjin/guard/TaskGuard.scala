@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig, TaskParams}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
@@ -17,8 +17,6 @@ import java.time.ZoneId
 final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: Resource[F, EntryPoint[F]])
     extends UpdateConfig[TaskConfig, TaskGuard[F]] {
 
-  val params: TaskParams = taskConfig.evalConfig
-
   override def updateConfig(f: Endo[TaskConfig]): TaskGuard[F] =
     new TaskGuard[F](f(taskConfig), entryPoint)
 
@@ -30,7 +28,8 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
 
   def service(serviceName: ServiceName): ServiceGuard[F] =
     new ServiceGuard[F](
-      serviceConfig = ServiceConfig(serviceName, params),
+      taskParams = taskConfig.evalConfig,
+      serviceConfig = ServiceConfig(serviceName),
       metricSet = Nil,
       jmxBuilder = None,
       entryPoint = entryPoint,
