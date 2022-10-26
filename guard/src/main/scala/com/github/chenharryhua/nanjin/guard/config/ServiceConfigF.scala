@@ -40,7 +40,7 @@ object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
-@Lenses @JsonCodec final case class ServiceParams private (
+@Lenses @JsonCodec final case class ServiceParams(
   serviceName: ServiceName,
   taskParams: TaskParams,
   retryPolicy: String, // service restart policy
@@ -95,8 +95,7 @@ sealed private[guard] trait ServiceConfigF[X]
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
-  final case class InitParams[K](serviceName: ServiceName) extends ServiceConfigF[K]
-  final case class WithServiceName[K](value: ServiceName, cont: K) extends ServiceConfigF[K]
+  final case class InitParams[K]() extends ServiceConfigF[K]
   final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   final case class WithReportSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
@@ -109,13 +108,13 @@ private object ServiceConfigF {
   final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
 
   def algebra(
+    serviceName: ServiceName,
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
     retryPolicy: String): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(s)           => ServiceParams(s, taskParams, serviceId, launchTime, retryPolicy)
-      case WithServiceName(v, c)   => ServiceParams.serviceName.set(v)(c)
+      case InitParams() => ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy)
       case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
 
       case WithReportSchedule(v, c) =>
@@ -139,8 +138,6 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
 
   def withQueueCapacity(size: QueueCapacity): ServiceConfig =
     ServiceConfig(Fix(WithQueueCapacity(size.value, value)))
-
-  def withServiceName(name: ServiceName): ServiceConfig = ServiceConfig(Fix(WithServiceName(name, value)))
 
   def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
 
@@ -166,19 +163,20 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig =
     ServiceConfig(Fix(WithDurationTimeUnit(tu, value)))
 
-  def withPolicyThreshold(dur: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithPolicyThreshold(Some(dur.toJava), value)))
+  def withPolicyThreshold(fd: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), value)))
 
   def evalConfig(
+    serviceName: ServiceName,
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
     retryPolicy: String): ServiceParams =
-    scheme.cata(algebra(taskParams, serviceId, launchTime, retryPolicy)).apply(value)
+    scheme.cata(algebra(serviceName, taskParams, serviceId, launchTime, retryPolicy)).apply(value)
 }
 
 private[guard] object ServiceConfig {
 
-  def apply(serviceName: ServiceName): ServiceConfig =
-    new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](serviceName)))
+  def apply(): ServiceConfig =
+    new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]]()))
 }
