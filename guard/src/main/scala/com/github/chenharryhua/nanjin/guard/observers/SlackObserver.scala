@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
+import cats.Endo
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
@@ -46,7 +47,7 @@ final class SlackObserver[F[_]: Clock](
     new SlackObserver[F](client, translator = sp.andThen(st)(translator))
   }
 
-  override def updateTranslator(f: Translator[F, SlackApp] => Translator[F, SlackApp]): SlackObserver[F] =
+  override def updateTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
     new SlackObserver[F](client, translator = f(translator))
 
   private def publish(

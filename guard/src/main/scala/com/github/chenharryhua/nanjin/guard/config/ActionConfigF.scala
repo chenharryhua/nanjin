@@ -8,14 +8,14 @@ import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
 
 @JsonCodec @Lenses
-final case class ActionParams private (
-  name: String,
+final case class ActionParams(
+  actionName: String,
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
   retryPolicy: String, // for display
   serviceParams: ServiceParams) {
-  val digested: Digested = Digested(serviceParams, name)
+  val digested: Digested = Digested(serviceParams, actionName)
 
   val isCritical: Boolean   = importance > Importance.High // Critical
   val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
@@ -25,16 +25,14 @@ final case class ActionParams private (
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
-
-  def apply(serviceParams: ServiceParams, name: String, retryPolicy: String): ActionParams =
+  def apply(actionName: String, retryPolicy: String, serviceParams: ServiceParams): ActionParams =
     ActionParams(
-      name = name,
+      actionName = actionName,
       importance = Importance.Medium,
       isCounting = false,
       isTiming = false,
       retryPolicy = retryPolicy,
-      serviceParams = serviceParams
-    )
+      serviceParams = serviceParams)
 }
 
 sealed private[guard] trait ActionConfigF[X]
@@ -42,17 +40,18 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](name: String) extends ActionConfigF[K]
+  final case class InitParams[K]() extends ActionConfigF[K]
 
-  final case class WithActionName[K](name: String, cont: K) extends ActionConfigF[K]
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
 
-  def algebra(serviceParams: ServiceParams, retryPolicy: String): Algebra[ActionConfigF, ActionParams] =
+  def algebra(
+    actionName: String,
+    serviceParams: ServiceParams,
+    retryPolicy: String): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(n)        => ActionParams(serviceParams, n, retryPolicy)
-      case WithActionName(v, c) => ActionParams.name.set(v)(c)
+      case InitParams()         => ActionParams(actionName, retryPolicy, serviceParams)
       case WithImportance(v, c) => ActionParams.importance.set(v)(c)
       case WithTiming(v, c)     => ActionParams.isTiming.set(v)(c)
       case WithCounting(v, c)   => ActionParams.isCounting.set(v)(c)
@@ -72,14 +71,12 @@ final private[guard] case class ActionConfig private (value: Fix[ActionConfigF])
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)))
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)))
 
-  def withActionName(name: String): ActionConfig = ActionConfig(Fix(WithActionName(name, value)))
-
-  def evalConfig(serviceParams: ServiceParams, retryPolicy: String): ActionParams =
-    scheme.cata(algebra(serviceParams, retryPolicy)).apply(value)
+  def evalConfig(actionName: String, serviceParams: ServiceParams, retryPolicy: String): ActionParams =
+    scheme.cata(algebra(actionName, serviceParams, retryPolicy)).apply(value)
 }
 
 private[guard] object ActionConfig {
 
-  def apply(name: String): ActionConfig =
-    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](name)))
+  def apply(): ActionConfig =
+    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]]()))
 }

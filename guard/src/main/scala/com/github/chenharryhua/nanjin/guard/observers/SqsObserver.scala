@@ -57,6 +57,6 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
           .withQueueUrl(fifo.queueUrl)
           .withMessageGroupId(fifo.messageGroupId.value)))
 
-  override def updateTranslator(f: Translator[F, NJEvent] => Translator[F, NJEvent]): SqsObserver[F] =
+  override def updateTranslator(f: Endo[Translator[F, NJEvent]]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))
 }

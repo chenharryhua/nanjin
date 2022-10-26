@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toTraverseOps}
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionFail,
@@ -27,7 +28,7 @@ object logging {
 
     private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-    override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextLogging[F] =
+    override def updateTranslator(f: Endo[Translator[F, String]]): TextLogging[F] =
       new TextLogging[F](f(translator))
 
     override def apply(event: NJEvent): F[Unit] =

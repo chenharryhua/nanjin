@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
+import cats.Endo
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
@@ -30,7 +31,7 @@ final class PostgresObserver[F[_]: Clock](session: Resource[F, Session[F]], tran
   implicit F: Concurrent[F])
     extends UpdateTranslator[F, Json, PostgresObserver[F]] {
 
-  override def updateTranslator(f: Translator[F, Json] => Translator[F, Json]): PostgresObserver[F] =
+  override def updateTranslator(f: Endo[Translator[F, Json]]): PostgresObserver[F] =
     new PostgresObserver[F](session, f(translator))
 
   private def execute(pg: PreparedCommand[F, Json], msg: Json): F[Either[Throwable, Completion]] =

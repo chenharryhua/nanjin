@@ -37,10 +37,11 @@ final class Agent[F[_]] private[service] (
 
   def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
+      actionName = name,
       serviceParams = serviceParams,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = cfg(ActionConfig(name)),
+      actionConfig = cfg(ActionConfig()),
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
 

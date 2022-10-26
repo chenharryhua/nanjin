@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import alleycats.Pure
-import cats.{Applicative, Functor, FunctorFilter, Monad, Traverse}
+import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -13,7 +13,7 @@ import org.typelevel.cats.time.instances.zoneddatetime
 import scalatags.Text
 
 trait UpdateTranslator[F[_], A, B] {
-  def updateTranslator(f: Translator[F, A] => Translator[F, A]): B
+  def updateTranslator(f: Endo[Translator[F, A]]): B
 }
 
 @Lenses final case class Translator[F[_], A] private (

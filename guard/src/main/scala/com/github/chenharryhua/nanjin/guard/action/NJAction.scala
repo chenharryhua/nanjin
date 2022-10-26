@@ -136,7 +136,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT]        = copy(transOutput = f)
   def logOutput(implicit ev: Encoder[OUT]): NJAction0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
 
-  private val njAction = new NJAction[F, Unit, OUT](
+  private lazy val njAction = new NJAction[F, Unit, OUT](
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,

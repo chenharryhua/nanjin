@@ -25,6 +25,7 @@ import scala.concurrent.Future
 import scala.util.Try
 
 final class NJActionBuilder[F[_]](
+  actionName: String,
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -32,14 +33,16 @@ final class NJActionBuilder[F[_]](
   retryPolicy: RetryPolicy[F]
 )(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, NJActionBuilder[F]] {
+  private def copy(
+    actionName: String = actionName,
+    actionConfig: ActionConfig = actionConfig,
+    retryPolicy: RetryPolicy[F] = retryPolicy
+  ): NJActionBuilder[F] =
+    new NJActionBuilder[F](actionName, serviceParams, metricRegistry, channel, actionConfig, retryPolicy)
 
-  def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] =
-    new NJActionBuilder[F](serviceParams, metricRegistry, channel, f(actionConfig), retryPolicy)
-
-  def apply(name: String): NJActionBuilder[F] = updateConfig(_.withActionName(name))
-
-  def withRetryPolicy(rp: RetryPolicy[F]): NJActionBuilder[F] =
-    new NJActionBuilder[F](serviceParams, metricRegistry, channel, actionConfig, rp)
+  def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] = copy(actionConfig = f(actionConfig))
+  def apply(name: String): NJActionBuilder[F]                 = copy(actionName = name)
+  def withRetryPolicy(rp: RetryPolicy[F]): NJActionBuilder[F] = copy(retryPolicy = rp)
 
   def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): NJActionBuilder[F] =
     withRetryPolicy(f(policies.cronBackoff[F](cronExpr, serviceParams.taskParams.zoneId)))
@@ -50,7 +53,7 @@ final class NJActionBuilder[F[_]](
     new NJAction0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(actionName, serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = fb,
       transInput = F.pure(Json.Null),
@@ -62,7 +65,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, A, Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(actionName, serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f,
       transInput = _ => F.pure(Json.Null),
@@ -74,7 +77,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(actionName, serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
@@ -86,7 +89,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(actionName, serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
@@ -98,7 +101,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(actionName, serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
@@ -110,7 +113,7 @@ final class NJActionBuilder[F[_]](
     new NJAction[F, (A, B, C, D, E), Z](
       metricRegistry = metricRegistry,
       channel = channel,
-      actionParams = actionConfig.evalConfig(serviceParams, retryPolicy.show),
+      actionParams = actionConfig.evalConfig(actionName, serviceParams, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),

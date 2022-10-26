@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.Monad
+import cats.{Endo, Monad}
 import cats.effect.std.Console
 import cats.implicits.toFunctorOps
 import cats.syntax.all.*
@@ -21,7 +21,7 @@ object console {
   final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
       extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
 
-    override def updateTranslator(f: Translator[F, String] => Translator[F, String]): TextConsole[F] =
+    override def updateTranslator(f: Endo[Translator[F, String]]): TextConsole[F] =
       new TextConsole[F](f(translator))
 
     private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
