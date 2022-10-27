@@ -17,14 +17,15 @@ class ExampleKafkaBasic extends AnyFunSuite {
   test("populate topic") {
     val producerRecords: List[NJProducerRecord[Int, Foo]] =
       List(
-        NJProducerRecord(1, Foo(10, "a")),
-        NJProducerRecord(2, Foo(20, "b")),
-        NJProducerRecord(3, Foo(30, "c")),
-        NJProducerRecord(4, Foo(40, "d")))
+        NJProducerRecord(fooTopic.topicName, 1, Foo(10, "a")),
+        NJProducerRecord(fooTopic.topicName, 2, Foo(20, "b")),
+        NJProducerRecord(fooTopic.topicName, 3, Foo(30, "c")),
+        NJProducerRecord(fooTopic.topicName, 4, Foo(40, "d"))
+      )
     sparKafka
       .topic(fooTopic)
       .prRdd(producerRecords)
-      .producerRecords(fooTopic.topicName, 100)
+      .producerRecords(100)
       .through(fooTopic.produce.pipe)
       .compile
       .drain
@@ -49,7 +50,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .load
       .circe(path)
       .prRdd
-      .producerRecords(fooTopic.topicName, 2)
+      .producerRecords(2)
       .through(fooTopic.produce.pipe)
       .compile
       .drain
