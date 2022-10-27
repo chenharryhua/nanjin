@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import alleycats.Empty
 import cats.Bifunctor
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
@@ -21,16 +20,18 @@ import scala.annotation.nowarn
 @AvroName("NJProducerRecord")
 @Lenses
 final case class NJProducerRecord[K, V](
+  topic: String,
   partition: Option[Int],
   offset: Option[Long], // for sort
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V]) {
 
-  def withPartition(pt: Int): NJProducerRecord[K, V]  = NJProducerRecord.partition.set(Some(pt))(this)
-  def withTimestamp(ts: Long): NJProducerRecord[K, V] = NJProducerRecord.timestamp.set(Some(ts))(this)
-  def withKey(k: K): NJProducerRecord[K, V]           = NJProducerRecord.key.set(Some(k))(this)
-  def withValue(v: V): NJProducerRecord[K, V]         = NJProducerRecord.value.set(Some(v))(this)
+  def withTopicName(name: TopicName): NJProducerRecord[K, V] = NJProducerRecord.topic.set(name.value)(this)
+  def withPartition(pt: Int): NJProducerRecord[K, V]         = NJProducerRecord.partition.set(Some(pt))(this)
+  def withTimestamp(ts: Long): NJProducerRecord[K, V]        = NJProducerRecord.timestamp.set(Some(ts))(this)
+  def withKey(k: K): NJProducerRecord[K, V]                  = NJProducerRecord.key.set(Some(k))(this)
+  def withValue(v: V): NJProducerRecord[K, V]                = NJProducerRecord.value.set(Some(v))(this)
 
   def noPartition: NJProducerRecord[K, V] = NJProducerRecord.partition.set(None)(this)
   def noTimestamp: NJProducerRecord[K, V] = NJProducerRecord.timestamp.set(None)(this)
@@ -45,12 +46,9 @@ final case class NJProducerRecord[K, V](
     NJProducerRecord.value.modify((_: Option[V]).map(f))(this)
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toFs2ProducerRecord(topicName: TopicName): Fs2ProducerRecord[K, V] = {
+  def toFs2ProducerRecord: Fs2ProducerRecord[K, V] = {
     val pr =
-      Fs2ProducerRecord(
-        topicName.value,
-        key.getOrElse(null.asInstanceOf[K]),
-        value.getOrElse(null.asInstanceOf[V]))
+      Fs2ProducerRecord(topic, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
     (partition, timestamp) match {
       case (None, None)       => pr
       case (Some(p), None)    => pr.withPartition(p)
@@ -59,26 +57,30 @@ final case class NJProducerRecord[K, V](
     }
   }
 
-  def toProducerRecord(topicName: TopicName): ProducerRecord[K, V] =
-    toFs2ProducerRecord(topicName).transformInto[ProducerRecord[K, V]]
+  def toProducerRecord: ProducerRecord[K, V] =
+    toFs2ProducerRecord.transformInto[ProducerRecord[K, V]]
 
   def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
     NJProducerRecord.jsonEncoder[K, V].apply(this)
 }
 
 object NJProducerRecord {
-  def optionalKey[K, V]: Optional[NJProducerRecord[K, V], K] = NJProducerRecord.key[K, V].composePrism(some)
+  def optionalKey[K, V]: Optional[NJProducerRecord[K, V], K] =
+    NJProducerRecord.key[K, V].composePrism(some)
   def optionalValue[K, V]: Optional[NJProducerRecord[K, V], V] =
     NJProducerRecord.value[K, V].composePrism(some)
 
   def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
-    NJProducerRecord(Option(pr.partition.toInt), None, Option(pr.timestamp.toLong), pr.key, pr.value)
+    NJProducerRecord(
+      pr.topic(),
+      Option(pr.partition.toInt),
+      None,
+      Option(pr.timestamp.toLong),
+      pr.key,
+      pr.value)
 
-  def apply[K, V](k: K, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, None, Option(k), Option(v))
-
-  def apply[K, V](v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(None, None, None, None, Option(v))
+  def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
+    NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v))
 
   def avroCodec[K, V](
     keyCodec: NJAvroCodec[K],
@@ -104,11 +106,6 @@ object NJProducerRecord {
     @nowarn jk: JsonDecoder[K],
     @nowarn jv: JsonDecoder[V]): JsonDecoder[NJProducerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJProducerRecord[K, V]]
-
-  implicit def emptyNJProducerRecord[K, V]: Empty[NJProducerRecord[K, V]] =
-    new Empty[NJProducerRecord[K, V]] {
-      override val empty: NJProducerRecord[K, V] = NJProducerRecord(None, None, None, None, None)
-    }
 
   implicit val bifunctorNJProducerRecord: Bifunctor[NJProducerRecord] =
     new Bifunctor[NJProducerRecord] {

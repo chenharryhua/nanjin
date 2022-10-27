@@ -26,7 +26,8 @@ class SparkKafkaStreamTest extends AnyFunSuite {
   val ate = AvroTypedEncoder(roosterTopic)
 
   val data: RDD[NJProducerRecord[Int, Rooster]] =
-    RoosterData.rdd.map(x => NJProducerRecord(Random.nextInt(), x.copy(a = Instant.now())))
+    RoosterData.rdd.map(x =>
+      NJProducerRecord(roosterTopic.topicName, Random.nextInt(), x.copy(a = Instant.now())))
 
   implicit val te: TypedEncoder[NJConsumerRecord[Int, Int]] = shapeless.cachedImplicit
 

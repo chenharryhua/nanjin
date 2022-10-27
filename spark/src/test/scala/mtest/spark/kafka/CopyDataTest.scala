@@ -40,7 +40,11 @@ class CopyDataTest extends AnyFunSuite {
         .topic(src.topicDef)
         .fromKafka
         .prRdd
-        .producerRecords(tgt.topicName, 100)
+        .noPartition
+        .noTimestamp
+        .noMeta
+        .withTopicName(tgt.topicName)
+        .producerRecords(100)
         .through(tgt.produce.pipe)
         .compile
         .drain

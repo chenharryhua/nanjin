@@ -41,7 +41,7 @@ object StreamJoinTestData {
     .fill(50)(Foo(0, "a"))
     .zipWithIndex
     .map { case (foo, idx) => foo.copy(index = rand + idx) }
-    .map(x => NJProducerRecord[Int, Foo](x.index, x))
+    .map(x => NJProducerRecord[Int, Foo](fooTopic.topicName, x.index, x))
 }
 
 @DoNotDiscover

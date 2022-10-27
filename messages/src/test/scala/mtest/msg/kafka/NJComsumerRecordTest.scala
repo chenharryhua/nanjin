@@ -29,7 +29,7 @@ object NJComsumerRecordTestData {
     timestamp <- Gen.option(Gen.posNum[Long])
     k <- Gen.option(Gen.posNum[Int])
     v <- Gen.option(Gen.posNum[Int])
-  } yield NJProducerRecord(partition, None, timestamp, k, v)
+  } yield NJProducerRecord("topic", partition, None, timestamp, k, v)
 
   implicit val arbPR = Arbitrary(genPR)
   implicit val arbO  = Arbitrary(okv)
@@ -52,9 +52,15 @@ class NJComsumerRecordProp extends Properties("ConsumerRecord") {
   import org.scalacheck.Prop.forAll
 
   property("fs2.producer.record.conversion") = forAll { (op: NJProducerRecord[Int, Int]) =>
-    val fpr = op.toFs2ProducerRecord("topic")
+    val fpr = op.toFs2ProducerRecord
     val re =
-      NJProducerRecord[Int, Int](fpr.partition, None, fpr.timestamp, Option(fpr.key), Option(fpr.value))
+      NJProducerRecord[Int, Int](
+        op.topic,
+        fpr.partition,
+        None,
+        fpr.timestamp,
+        Option(fpr.key),
+        Option(fpr.value))
     re == op
   }
 }

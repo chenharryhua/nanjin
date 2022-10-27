@@ -124,7 +124,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def produceCirce(circeStr: String)(implicit F: Async[F], k: Decoder[K], v: Decoder[V]): F[RecordMetadata] =
     io.circe.parser
       .decode[NJConsumerRecord[K, V]](circeStr)
-      .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
+      .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord)
       .traverse(produceOne)
       .rethrow
 
@@ -137,7 +137,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
         .from(is)
         .build(crCodec.schema)
         .iterator
-        .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord(topicName))
+        .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord)
         .toList
 
       produce.resource.use(_.produce(Fs2ProducerRecords(prs)).flatten)

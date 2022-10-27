@@ -32,9 +32,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def ascendOffset: PrRdd[F, K, V]     = transform(sort.ascend.pr.offset)
   def descendOffset: PrRdd[F, K, V]    = transform(sort.descend.pr.offset)
 
-  def noTimestamp: PrRdd[F, K, V] = transform(_.map(_.noTimestamp))
-  def noPartition: PrRdd[F, K, V] = transform(_.map(_.noPartition))
-  def noMeta: PrRdd[F, K, V]      = transform(_.map(_.noMeta))
+  def noTimestamp: PrRdd[F, K, V]                         = transform(_.map(_.noTimestamp))
+  def noPartition: PrRdd[F, K, V]                         = transform(_.map(_.noPartition))
+  def noMeta: PrRdd[F, K, V]                              = transform(_.map(_.noMeta))
+  def withTopicName(topicName: TopicName): PrRdd[F, K, V] = transform(_.map(_.withTopicName(topicName)))
 
   def replicate(num: Int): PrRdd[F, K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
@@ -48,11 +49,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def output: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder)
 
-  def producerRecords(topicName: TopicName, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
+  def producerRecords(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
     Stream
       .fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
       .chunks
-      .map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord(topicName))))
+      .map(ms => ProducerRecords(ms.map(_.toFs2ProducerRecord)))
 
 }

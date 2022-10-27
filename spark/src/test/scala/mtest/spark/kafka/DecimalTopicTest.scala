@@ -88,8 +88,8 @@ class DecimalTopicTest extends AnyFunSuite {
 
   val loadData =
     stopic
-      .prRdd(List(NJProducerRecord(1, data), NJProducerRecord(2, data)))
-      .producerRecords(stopic.topicName, 100)
+      .prRdd(List(NJProducerRecord(stopic.topicName, 1, data), NJProducerRecord(stopic.topicName, 2, data)))
+      .producerRecords(100)
       .through(stopic.topic.produce.pipe)
       .compile
       .drain

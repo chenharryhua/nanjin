@@ -40,7 +40,7 @@ final case class NJConsumerRecord[K, V](
     copy(key = key.flatten, value = value.flatten)
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
-    NJProducerRecord[K, V](Some(partition), Some(offset), Some(timestamp), key, value)
+    NJProducerRecord[K, V](topic, Some(partition), Some(offset), Some(timestamp), key, value)
 
   def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
     NJConsumerRecord.jsonEncoderNJConsumerRecord[K, V].apply(this)
