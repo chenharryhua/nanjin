@@ -7,35 +7,44 @@ import fs2.kafka.{
 }
 import io.circe.generic.JsonCodec
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
 @JsonCodec
-final case class ConsumerRecordMetaInfo(topic: String, partition: Int, offset: Long, timestamp: ZonedDateTime)
-object ConsumerRecordMetaInfo extends zoneddatetime {
-  implicit val showConsumerRecordMetaInfo: Show[ConsumerRecordMetaInfo] =
-    cats.derived.semiauto.show[ConsumerRecordMetaInfo]
+final case class RecordMetaInfo(topic: String, partition: Int, offset: Long, timestamp: ZonedDateTime)
 
-  def apply(cr: ConsumerRecord[?, ?], zoneId: ZoneId): ConsumerRecordMetaInfo =
-    ConsumerRecordMetaInfo(
+object RecordMetaInfo extends zoneddatetime {
+  implicit val showConsumerRecordMetaInfo: Show[RecordMetaInfo] =
+    cats.derived.semiauto.show[RecordMetaInfo]
+
+  def apply(cr: ConsumerRecord[?, ?], zoneId: ZoneId): RecordMetaInfo =
+    RecordMetaInfo(
       topic = cr.topic(),
       partition = cr.partition(),
       offset = cr.offset(),
       timestamp = Instant.ofEpochMilli(cr.timestamp()).atZone(zoneId))
 
-  def apply(cr: Fs2ConsumerRecord[?, ?], zoneId: ZoneId): ConsumerRecordMetaInfo = {
+  def apply(cr: Fs2ConsumerRecord[?, ?], zoneId: ZoneId): RecordMetaInfo = {
     val ts: Long = cr.timestamp.createTime
       .orElse(cr.timestamp.logAppendTime)
       .orElse(cr.timestamp.unknownTime)
       .getOrElse(0L)
-    ConsumerRecordMetaInfo(
+    RecordMetaInfo(
       topic = cr.topic,
       partition = cr.partition,
       offset = cr.offset,
       timestamp = Instant.ofEpochMilli(ts).atZone(zoneId))
   }
 
-  def apply[F[_]](ccr: Fs2CommittableConsumerRecord[F, ?, ?], zoneId: ZoneId): ConsumerRecordMetaInfo =
+  def apply[F[_]](ccr: Fs2CommittableConsumerRecord[F, ?, ?], zoneId: ZoneId): RecordMetaInfo =
     apply(ccr.record, zoneId)
+
+  def apply(rm: RecordMetadata, zoneId: ZoneId): RecordMetaInfo =
+    RecordMetaInfo(
+      rm.topic(),
+      rm.partition(),
+      rm.offset(),
+      Instant.ofEpochMilli(rm.timestamp()).atZone(zoneId))
 }

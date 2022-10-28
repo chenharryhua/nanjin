@@ -17,9 +17,9 @@ final case class NJConsumerRecordWithError[K, V](
   topic: String,
   timestampType: Int) {
 
-  def metaInfo(zoneId: ZoneId): ConsumerRecordMetaInfo =
+  def metaInfo(zoneId: ZoneId): RecordMetaInfo =
     this
-      .into[ConsumerRecordMetaInfo]
+      .into[RecordMetaInfo]
       .withFieldComputed(_.timestamp, x => ZonedDateTime.ofInstant(Instant.ofEpochMilli(x.timestamp), zoneId))
       .transform
 
