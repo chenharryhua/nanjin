@@ -13,8 +13,10 @@ final class NJHistogram[F[_]] private[guard] (
 
   def withCounting: NJHistogram[F] = new NJHistogram[F](digested, metricRegistry, true)
 
-  def update(num: Long): F[Unit] = F.delay {
+  def unsafeUpdate(num: Long): Unit = {
     histo.update(num)
     if (isCounting) counter.inc(num)
   }
+
+  def update(num: Long): F[Unit] = F.delay(unsafeUpdate(num))
 }
