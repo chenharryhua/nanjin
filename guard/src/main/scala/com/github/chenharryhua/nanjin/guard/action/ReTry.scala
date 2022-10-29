@@ -2,33 +2,54 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
+import com.codahale.metrics.{Counter, Timer}
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ActionRetry
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionSucc}
 import fs2.concurrent.Channel
+import io.circe.Json
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
+import java.time.{Duration, ZonedDateTime}
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.control.NonFatal
 
-final private class ReTry[F[_], OUT](
+final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
-  policy: RetryPolicy[F],
+  retryPolicy: RetryPolicy[F],
+  arrow: IN => F[OUT],
+  transInput: IN => F[Json],
+  transOutput: (IN, OUT) => F[Json],
   isWorthRetry: Throwable => F[Boolean],
-  action: F[OUT],
-  actionInfo: ActionInfo
+  failCounter: Counter,
+  succCounter: Counter,
+  timer: Timer,
+  actionInfo: ActionInfo,
+  input: IN
 )(implicit F: Temporal[F]) {
 
-  @inline private[this] def fail(ex: Throwable): F[Either[RetryStatus, OUT]] =
-    F.raiseError[OUT](ex).map(Right(_))
+  private[this] def timingAndCounting(isSucc: Boolean, now: ZonedDateTime): Unit = {
+    if (actionInfo.actionParams.isTiming) timer.update(Duration.between(actionInfo.launchTime, now))
+    if (actionInfo.actionParams.isCounting) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
+  }
+
+  private[this] def actionFail(ex: Throwable): F[Unit] =
+    for {
+      ts <- actionInfo.actionParams.serviceParams.zonedNow
+      json <- transInput(input)
+      _ <- channel.send(ActionFail(actionInfo, ts, NJError(ex), json))
+    } yield timingAndCounting(isSucc = false, ts)
+
+  private[this] def fail(ex: Throwable): F[Either[RetryStatus, OUT]] =
+    actionFail(ex) >> F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
 
   private[this] def retrying(ex: Throwable, status: RetryStatus): F[Either[RetryStatus, OUT]] =
-    policy.decideNextRetry(status).flatMap {
+    retryPolicy.decideNextRetry(status).flatMap {
       case PolicyDecision.GiveUp => fail(ex)
       case PolicyDecision.DelayAndRetry(delay) =>
         for {
-          ts <- actionInfo.actionParams.serviceParams.zonedNow
-          _ <- channel
-            .send(
+          _ <- F.whenA(actionInfo.actionParams.isNonTrivial)(for {
+            ts <- actionInfo.actionParams.serviceParams.zonedNow
+            _ <- channel.send(
               ActionRetry(
                 actionInfo = actionInfo,
                 timestamp = ts,
@@ -36,16 +57,27 @@ final private class ReTry[F[_], OUT](
                 resumeTime = ts.plus(delay.toJava),
                 error = NJError(ex)
               ))
-            .whenA(actionInfo.actionParams.isNonTrivial)
+          } yield ())
           _ <- F.sleep(delay)
         } yield Left(status.addRetry(delay))
     }
 
-  val execute: F[OUT] = F.tailRecM(RetryStatus.NoRetriesYet) { status =>
-    action.attempt.flatMap {
-      case Right(out)                => F.pure[Either[RetryStatus, OUT]](Right(out))
+  private[this] val loop: F[OUT] = F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+    arrow(input).attempt.flatMap {
+      case Right(out) =>
+        for {
+          ts <- actionInfo.actionParams.serviceParams.zonedNow
+          _ <- F.whenA(actionInfo.actionParams.isNotice)(transOutput(input, out).flatMap(json =>
+            channel.send(ActionSucc(actionInfo, ts, json))))
+        } yield {
+          timingAndCounting(isSucc = true, ts)
+          Right(out)
+        }
+
       case Left(ex) if !NonFatal(ex) => fail(ex)
       case Left(ex)                  => isWorthRetry(ex).ifM(retrying(ex, status), fail(ex))
     }
   }
+
+  val execute: F[OUT] = F.onCancel(loop, actionFail(ActionException.ActionCanceled))
 }

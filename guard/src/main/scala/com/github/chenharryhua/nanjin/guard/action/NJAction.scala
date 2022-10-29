@@ -2,17 +2,15 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.Temporal
-import cats.effect.kernel.Outcome
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ActionStart
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import natchez.{Span, Trace}
 import retry.RetryPolicy
-
-import java.time.{Duration, ZonedDateTime}
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJAction[F[_], IN, OUT] private[action] (
@@ -48,42 +46,31 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  private[this] lazy val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
-  private[this] lazy val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
-  private[this] lazy val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
-
-  private[this] def timingAndCounting(
-    isSucc: Boolean,
-    launchTime: ZonedDateTime,
-    now: ZonedDateTime): Unit = {
-    if (actionParams.isTiming) timer.update(Duration.between(launchTime, now))
-    if (actionParams.isCounting) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
-  }
+  private val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
+  private val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
+  private val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
-    F.bracketCase(publisher.actionStart(channel, actionParams, transInput(input), traceInfo))(actionInfo =>
-      new ReTry[F, OUT](
-        channel,
-        retryPolicy,
-        isWorthRetry.run,
-        arrow(input),
-        actionInfo
-      ).execute) { case (actionInfo, oc) =>
-      oc match {
-        case Outcome.Canceled() =>
-          publisher
-            .actionFail(channel, actionInfo, ActionException.ActionCanceled)
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-        case Outcome.Errored(error) =>
-          publisher
-            .actionFail(channel, actionInfo, error)
-            .map(ts => timingAndCounting(isSucc = false, actionInfo.launchTime, ts))
-        case Outcome.Succeeded(output) =>
-          publisher
-            .actionSucc(channel, actionInfo, output.flatMap(transOutput(input, _)))
-            .map(ts => timingAndCounting(isSucc = true, actionInfo.launchTime, ts))
-      }
-    }
+    for {
+      ts <- actionParams.serviceParams.zonedNow
+      token <- F.unique.map(_.hash)
+      ai = ActionInfo(traceInfo = traceInfo, actionParams = actionParams, actionId = token, launchTime = ts)
+      _ <- F.whenA(actionParams.isNotice)(transInput(input).flatMap(json =>
+        channel.send(ActionStart(ai, json))))
+      out <- new ReTry[F, IN, OUT](
+        channel = channel,
+        retryPolicy = retryPolicy,
+        arrow = arrow,
+        transInput = transInput,
+        transOutput = transOutput,
+        isWorthRetry = isWorthRetry.run,
+        failCounter = failCounter,
+        succCounter = succCounter,
+        timer = timer,
+        actionInfo = ai,
+        input = input
+      ).execute
+    } yield out
 
   def run(input: IN): F[OUT] = internal(input, None)
 

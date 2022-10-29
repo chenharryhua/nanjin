@@ -38,6 +38,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.isEmpty))
   }
+
   test("2.full") {
     val last = sg
       .eventStream(ag => ag.action("one", _.withCounting).retry(IO(0)).run >> IO.sleep(10.minutes))
