@@ -86,7 +86,7 @@ object NJEvent extends zoneddatetime {
   }
 
   @Lenses
-  final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
+  final case class ActionStart(actionInfo: ActionInfo, input: Json) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
   }
@@ -104,7 +104,7 @@ object NJEvent extends zoneddatetime {
   sealed trait ActionResultEvent extends ActionEvent {}
 
   @Lenses
-  final case class ActionFail(actionInfo: ActionInfo, timestamp: ZonedDateTime, error: NJError)
+  final case class ActionFail(actionInfo: ActionInfo, timestamp: ZonedDateTime, error: NJError, input: Json)
       extends ActionResultEvent {
     override val title: String = titles.actionFail
   }
