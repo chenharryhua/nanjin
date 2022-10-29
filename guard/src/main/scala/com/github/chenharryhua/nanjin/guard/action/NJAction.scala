@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.Temporal
+import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
@@ -98,7 +99,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   arrow: F[OUT],
   transInput: F[Json],
   transOutput: OUT => F[Json],
-  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Temporal[F]) {
+  isWorthRetry: Kleisli[F, Throwable, Boolean])(implicit F: Async[F]) {
   private def copy(
     transInput: F[Json] = transInput,
     transOutput: OUT => F[Json] = transOutput,
@@ -118,7 +119,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     withWorthRetryM(Kleisli.fromFunction(f).run)
 
   def logInputM(info: F[Json]): NJAction0[F, OUT] = copy(transInput = info)
-  def logInput(info: Json): NJAction0[F, OUT]     = logInputM(F.pure(info))
+  def logInput(info: => Json): NJAction0[F, OUT]  = logInputM(F.delay(info))
 
   def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT]        = copy(transOutput = f)
   def logOutput(implicit ev: Encoder[OUT]): NJAction0[F, OUT] = logOutputM((b: OUT) => F.pure(ev(b)))
