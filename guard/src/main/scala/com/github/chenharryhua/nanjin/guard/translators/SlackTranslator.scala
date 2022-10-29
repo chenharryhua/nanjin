@@ -169,7 +169,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|${actionId(evt)}
                                 |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin),
-            KeyValueSection("Input", s"""```${abbreviate(evt.actionInfo.input.spaces2)}```""")
+            KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
           )
         ))
     )
@@ -199,7 +199,7 @@ private object SlackTranslator extends all {
   private def actionFailed(evt: ActionFail): SlackApp = {
     val msg: String = s"""|${evt.error.message}
                           |Input:
-                          |${evt.actionInfo.input.spaces2}""".stripMargin
+                          |${evt.input.spaces2}""".stripMargin
 
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,

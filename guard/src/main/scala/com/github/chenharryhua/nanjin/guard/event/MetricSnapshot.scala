@@ -81,19 +81,21 @@ object MetricSnapshot {
   def apply(
     metricRegistry: MetricRegistry,
     serviceParams: ServiceParams,
-    filter: MetricFilter): MetricSnapshot =
+    filter: MetricFilter): MetricSnapshot = {
+    val newFilter = filter |+| positiveFilter
     MetricSnapshot(
-      counters(metricRegistry, filter),
+      counters(metricRegistry, newFilter),
       toJson(
         metricRegistry,
-        filter |+| positiveFilter,
+        newFilter,
         serviceParams.metricParams.rateTimeUnit,
         serviceParams.metricParams.durationTimeUnit),
       toText(
         metricRegistry,
-        filter |+| positiveFilter,
+        newFilter,
         serviceParams.metricParams.rateTimeUnit,
         serviceParams.metricParams.durationTimeUnit,
         serviceParams.taskParams.zoneId)
     )
+  }
 }

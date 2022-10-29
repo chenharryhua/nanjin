@@ -16,7 +16,7 @@ import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 case object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were stopped abnormally")
 
@@ -36,7 +36,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
   localStateStores: Cont[StreamsBuilder, StreamsBuilder],
-  startUpTimeout: FiniteDuration)(implicit F: Async[F]) {
+  startUpTimeout: Duration)(implicit F: Async[F]) {
 
   final private class StateChange(
     dispatcher: Dispatcher[F],
@@ -45,39 +45,33 @@ final class KafkaStreamsBuilder[F[_]] private (
     bus: Option[Channel[F, StateUpdate]]
   ) extends KafkaStreams.StateListener {
 
-    override def onChange(newState: State, oldState: State): Unit =
-      dispatcher.unsafeRunSync(
-        bus.traverse(_.send(StateUpdate(newState, oldState))) >>
-          (newState match {
-            case State.RUNNING     => latch.release
-            case State.NOT_RUNNING => stop.complete(Right(())).void
-            case State.ERROR       => stop.complete(Left(KafkaStreamsAbnormallyStopped)).void
-            case _                 => F.unit
-          })
-      )
+    override def onChange(newState: State, oldState: State): Unit = {
+      val decision: F[Unit] = newState match {
+        case State.RUNNING     => latch.release
+        case State.NOT_RUNNING => stop.complete(Right(())).void
+        case State.ERROR       => stop.complete(Left(KafkaStreamsAbnormallyStopped)).void
+        case _                 => F.unit
+      }
+      dispatcher.unsafeRunSync(bus.traverse(_.send(StateUpdate(newState, oldState))) >> decision)
+    }
   }
 
-  private def kickoff(bus: Option[Channel[F, StateUpdate]]): Stream[F, KafkaStreams] = {
-    def startKS(
-      ks: KafkaStreams,
-      dispatcher: Dispatcher[F],
-      stop: Deferred[F, Either[Throwable, Unit]]): F[KafkaStreams] =
-      for { // fully initialized KafkaStreams
-        latch <- CountDownLatch[F](1)
-        _ <- F.blocking(ks.cleanUp())
-        _ <- F.delay(ks.setStateListener(new StateChange(dispatcher, latch, stop, bus)))
-        _ <- F.blocking(ks.start())
-        _ <- F.timeout(latch.await, startUpTimeout)
-      } yield ks
-
-    for {
+  private def kickoff(bus: Option[Channel[F, StateUpdate]]): Stream[F, KafkaStreams] =
+    for { // fully initialized kafka-streams
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
-      stop <- Stream.eval(F.deferred[Either[Throwable, Unit]])
-      uks <- Stream.bracket(F.pure(new KafkaStreams(topology, settings.javaProperties)))(ks =>
-        F.blocking(ks.close()) >> F.blocking(ks.cleanUp()))
-      ks <- Stream.eval(startKS(uks, dispatcher, stop)).interruptWhen(stop)
-    } yield ks
-  }
+      stopSignal <- Stream.eval(F.deferred[Either[Throwable, Unit]])
+      kafkaStreams <- Stream
+        .bracket(F.pure(new KafkaStreams(topology, settings.javaProperties)))(ks => F.blocking(ks.close()))
+        .evalTap { kss =>
+          for {
+            latch <- CountDownLatch[F](1)
+            _ <- F.delay(kss.setStateListener(new StateChange(dispatcher, latch, stopSignal, bus)))
+            _ <- F.blocking(kss.start())
+            _ <- F.timeout(latch.await, startUpTimeout)
+          } yield ()
+        }
+        .interruptWhen(stopSignal)
+    } yield kafkaStreams
 
   /** one object KafkaStreams stream. for interactive state store query
     */
@@ -122,5 +116,5 @@ object KafkaStreamsBuilder {
   def apply[F[_]: Async](
     settings: KafkaStreamSettings,
     top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings, top, Cont.defer(new StreamsBuilder()), 180.minutes)
+    new KafkaStreamsBuilder[F](settings, top, Cont.defer(new StreamsBuilder()), Duration.Inf)
 }
