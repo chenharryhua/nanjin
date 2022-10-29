@@ -88,14 +88,14 @@ class MetricsTest extends AnyFunSuite {
 
   test("5.Importance json") {
     val i1: Importance = Importance.Critical
-    val i2: Importance = Importance.High
-    val i3: Importance = Importance.Medium
-    val i4: Importance = Importance.Low
+    val i2: Importance = Importance.Notice
+    val i3: Importance = Importance.Silent
+    val i4: Importance = Importance.Trivial
 
     assert(i1.asJson.noSpaces === """ "Critical" """.trim)
-    assert(i2.asJson.noSpaces === """ "High" """.trim)
-    assert(i3.asJson.noSpaces === """ "Medium" """.trim)
-    assert(i4.asJson.noSpaces === """ "Low" """.trim)
+    assert(i2.asJson.noSpaces === """ "Notice" """.trim)
+    assert(i3.asJson.noSpaces === """ "Silent" """.trim)
+    assert(i4.asJson.noSpaces === """ "Trivial" """.trim)
   }
 
   ignore("timing") {

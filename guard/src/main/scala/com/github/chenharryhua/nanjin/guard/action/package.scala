@@ -17,9 +17,9 @@ package object action {
   private[action] def alertMRName(name: Digested, importance: Importance): String =
     importance match {
       case Importance.Critical => s"01.alert.${name.metricRepr}.error"
-      case Importance.High     => s"10.alert.${name.metricRepr}.warn"
-      case Importance.Medium   => s"20.alert.${name.metricRepr}.info"
-      case Importance.Low      => s"21.alert.${name.metricRepr}.debug"
+      case Importance.Notice     => s"10.alert.${name.metricRepr}.warn"
+      case Importance.Silent   => s"20.alert.${name.metricRepr}.info"
+      case Importance.Trivial      => s"21.alert.${name.metricRepr}.debug"
     }
 
   private[action] def passThroughMRName(name: Digested, asError: Boolean): String =

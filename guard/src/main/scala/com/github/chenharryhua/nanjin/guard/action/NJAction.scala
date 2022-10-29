@@ -57,7 +57,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       token <- F.unique.map(_.hash)
       ai = ActionInfo(traceInfo = traceInfo, actionParams = actionParams, actionId = token, launchTime = ts)
       _ <- F.whenA(actionParams.isNotice)(transInput(input).flatMap(json =>
-        channel.send(ActionStart(ai, json))))
+        channel.send(ActionStart(actionInfo = ai, input = json))))
       out <- new ReTry[F, IN, OUT](
         channel = channel,
         retryPolicy = retryPolicy,

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
-import cats.implicits.catsSyntaxPartialOrder
+import cats.implicits.{catsSyntaxEq, catsSyntaxPartialOrder}
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
 import io.circe.generic.JsonCodec
@@ -17,10 +17,9 @@ final case class ActionParams(
   serviceParams: ServiceParams) {
   val digested: Digested = Digested(serviceParams, actionName)
 
-  val isCritical: Boolean   = importance > Importance.High // Critical
-  val isNotice: Boolean     = importance > Importance.Medium // Hight + Critical
-  val isNonTrivial: Boolean = importance > Importance.Low // Medium + High + Critical
-
+  val isCritical: Boolean   = importance === Importance.Critical // Critical
+  val isNotice: Boolean     = importance > Importance.Silent // Hight + Critical
+  val isNonTrivial: Boolean = importance > Importance.Trivial // Medium + High + Critical
 }
 
 object ActionParams {
@@ -28,7 +27,7 @@ object ActionParams {
   def apply(actionName: String, retryPolicy: String, serviceParams: ServiceParams): ActionParams =
     ActionParams(
       actionName = actionName,
-      importance = Importance.Medium,
+      importance = Importance.Silent,
       isCounting = false,
       isTiming = false,
       retryPolicy = retryPolicy,
@@ -61,9 +60,9 @@ private object ActionConfigF {
 final private[guard] case class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
-  def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Low, value)))
-  def silent: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Medium, value)))
-  def notice: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.High, value)))
+  def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Trivial, value)))
+  def silent: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Silent, value)))
+  def notice: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Notice, value)))
   def critical: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Critical, value)))
 
   def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, value)))
