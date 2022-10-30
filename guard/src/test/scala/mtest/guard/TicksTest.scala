@@ -2,21 +2,18 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionStart,
-  ActionSucc,
-  PassThrough,
-  ServiceStart,
-  ServiceStop
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionStart, ActionSucc, PassThrough, ServiceStart, ServiceStop}
 import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
-import scala.concurrent.duration.DurationInt
+import java.time.{Duration, Instant, ZoneId}
+import scala.concurrent.duration.{DurationDouble, DurationInt}
+import scala.jdk.DurationConverters.JavaDurationOps
 
 class TicksTest extends AnyFunSuite {
   val service = TaskGuard[IO]("awake").service("every")
@@ -107,5 +104,40 @@ class TicksTest extends AnyFunSuite {
     assert(f.isInstanceOf[ActionStart])
     assert(g.isInstanceOf[ActionSucc])
     assert(h.isInstanceOf[ServiceStop])
+  }
+
+  test("6.tick") {
+    val policy = policies.cronBackoff[IO](Cron.unsafeParse("* * * ? * *"), ZoneId.systemDefault())
+    val ticks  = awakeEvery(policy)
+
+    ticks
+      .merge(ticks)
+      .merge(ticks)
+      .merge(ticks)
+      .merge(ticks)
+      .evalMap(idx => IO.realTimeInstant.map((_, idx)))
+      .debug()
+      .take(20)
+      .fold(Map.empty[Int, List[Instant]]) { case (sum, (fd, idx)) =>
+        sum.updatedWith(idx)(ls => Some(fd :: ls.sequence.flatten))
+      }
+      .map { m =>
+        assert(m.forall(_._2.size == 5)) // 5 streams
+        // less than 0.1 second for the same index
+        m.foreach { case (_, ls) =>
+          ls.zip(ls.reverse).map { case (a, b) =>
+            val dur = Duration.between(a, b).abs().toScala
+            assert(dur < 0.1.seconds)
+          }
+        }
+
+        m.flatMap(_._2.headOption).toList.sorted.sliding(2).map { ls =>
+          val diff = Duration.between(ls(1),ls(0)).abs.toScala
+          assert(diff > 1.second && diff < 1.1.seconds)
+        }
+      }
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

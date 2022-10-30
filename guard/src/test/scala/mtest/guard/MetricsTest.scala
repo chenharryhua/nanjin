@@ -98,7 +98,7 @@ class MetricsTest extends AnyFunSuite {
     assert(i4.asJson.noSpaces === """ "Trivial" """.trim)
   }
 
-  ignore("timing") {
+  test("timing") {
     val s = TaskGuard[IO]("metrics")
       .service("timing")
       .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
@@ -107,7 +107,6 @@ class MetricsTest extends AnyFunSuite {
     val s2 = s("s2").eventStream(_ => IO.never)
     val s3 = s("s3").eventStream(_ => IO.never)
     val s4 = s("s4").eventStream(_ => IO.never)
-    s1.merge(s2).merge(s3).merge(s4).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+    s1.merge(s2).merge(s3).merge(s4).map(_.timestamp).debug().take(20).compile.drain.unsafeRunSync()
   }
-
 }
