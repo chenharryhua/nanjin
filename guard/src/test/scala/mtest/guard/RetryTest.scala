@@ -314,7 +314,7 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("logInput is lazy") {
+  test("15.logInput is lazy") {
     var i = 0
     serviceGuard
       .eventStream(
