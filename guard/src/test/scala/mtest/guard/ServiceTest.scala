@@ -40,7 +40,6 @@ class ServiceTest extends AnyFunSuite {
           .withMetricMonthlyReset
           .withMetricWeeklyReset)
       .eventStream(gd => gd.action("t", _.silent).retry(Try(1)).logOutput(_ => null).run.delayBy(1.second))
-      .debug()
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -208,7 +207,6 @@ class ServiceTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run
       }
-      .debug()
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toList
@@ -289,7 +287,6 @@ class ServiceTest extends AnyFunSuite {
           case PolicyDecision.GiveUp               => None
           case PolicyDecision.DelayAndRetry(delay) => Some(delay -> s.addRetry(delay))
         })
-      .debug()
       .take(10)
       .compile
       .drain
