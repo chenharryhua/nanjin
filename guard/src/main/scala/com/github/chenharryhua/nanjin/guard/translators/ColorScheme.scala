@@ -27,9 +27,9 @@ object ColorScheme {
       case InstantAlert(_, _, _, importance, _) =>
         importance match {
           case Importance.Critical => ErrorColor
-          case Importance.Notice     => WarnColor
+          case Importance.Notice   => WarnColor
           case Importance.Silent   => InfoColor
-          case Importance.Trivial      => InfoColor
+          case Importance.Trivial  => InfoColor
         }
       case PassThrough(_, _, _, isError, _) => if (isError) ErrorColor else InfoColor
     }

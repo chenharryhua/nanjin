@@ -3,15 +3,11 @@ package com.github.chenharryhua.nanjin.messages.kafka
 import cats.syntax.all.*
 import cats.{Applicative, Bitraverse, Eval}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
-import fs2.kafka.{
-  CommittableConsumerRecord as Fs2CommittableConsumerRecord,
-  ConsumerRecord as Fs2ConsumerRecord,
-  ProducerRecord as Fs2ProducerRecord
-}
+import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord, ProducerRecord}
 import io.scalaland.chimney.dsl.*
 import monocle.PLens
-import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
+import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
 
 sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
   type H[_, _]
@@ -32,96 +28,102 @@ sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
 }
 
 sealed trait NJConsumerMessage[F[_, _]] extends BitraverseMessage[F] with BitraverseKafkaRecord {
-  final override type H[K, V] = ConsumerRecord[K, V]
-  final override val baseInst: Bitraverse[ConsumerRecord] = bitraverseConsumerRecord
+  final override type H[K, V] = KafkaConsumerRecord[K, V]
+  final override val baseInst: Bitraverse[KafkaConsumerRecord] = bitraverseConsumerRecord
 }
 
 object NJConsumerMessage {
-  final type Aux[F[_, _]] = NJConsumerMessage[F] { type H[K, V] = ConsumerRecord[K, V] }
+  final type Aux[F[_, _]] = NJConsumerMessage[F] { type H[K, V] = KafkaConsumerRecord[K, V] }
 
   def apply[F[_, _]](implicit ev: NJConsumerMessage[F]): Aux[F] = ev
 
-  implicit val icrbi1: Aux[ConsumerRecord] =
+  implicit val icrbi1: Aux[KafkaConsumerRecord] =
+    new NJConsumerMessage[KafkaConsumerRecord] {
+
+      override def lens[K1, V1, K2, V2]: PLens[
+        KafkaConsumerRecord[K1, V1],
+        KafkaConsumerRecord[K2, V2],
+        KafkaConsumerRecord[K1, V1],
+        KafkaConsumerRecord[K2, V2]] =
+        PLens[
+          KafkaConsumerRecord[K1, V1],
+          KafkaConsumerRecord[K2, V2],
+          KafkaConsumerRecord[K1, V1],
+          KafkaConsumerRecord[K2, V2]](s => s)(b => _ => b)
+    }
+
+  implicit val icrbi2: Aux[ConsumerRecord] =
     new NJConsumerMessage[ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
         ConsumerRecord[K1, V1],
         ConsumerRecord[K2, V2],
-        ConsumerRecord[K1, V1],
-        ConsumerRecord[K2, V2]] =
-        PLens[ConsumerRecord[K1, V1], ConsumerRecord[K2, V2], ConsumerRecord[K1, V1], ConsumerRecord[K2, V2]](
-          s => s)(b => _ => b)
-    }
-
-  implicit val icrbi2: Aux[Fs2ConsumerRecord] =
-    new NJConsumerMessage[Fs2ConsumerRecord] {
-
-      override def lens[K1, V1, K2, V2]: PLens[
-        Fs2ConsumerRecord[K1, V1],
-        Fs2ConsumerRecord[K2, V2],
-        ConsumerRecord[K1, V1],
-        ConsumerRecord[K2, V2]] =
+        KafkaConsumerRecord[K1, V1],
+        KafkaConsumerRecord[K2, V2]] =
         PLens[
-          Fs2ConsumerRecord[K1, V1],
-          Fs2ConsumerRecord[K2, V2],
           ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
+          ConsumerRecord[K2, V2],
+          KafkaConsumerRecord[K1, V1],
+          KafkaConsumerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
 
     }
 
-  implicit def icrbi5[F[_]]: Aux[Fs2CommittableConsumerRecord[F, *, *]] =
-    new NJConsumerMessage[Fs2CommittableConsumerRecord[F, *, *]] {
+  implicit def icrbi5[F[_]]: Aux[CommittableConsumerRecord[F, *, *]] =
+    new NJConsumerMessage[CommittableConsumerRecord[F, *, *]] {
 
       override def lens[K1, V1, K2, V2]: PLens[
-        Fs2CommittableConsumerRecord[F, K1, V1],
-        Fs2CommittableConsumerRecord[F, K2, V2],
-        ConsumerRecord[K1, V1],
-        ConsumerRecord[K2, V2]] =
+        CommittableConsumerRecord[F, K1, V1],
+        CommittableConsumerRecord[F, K2, V2],
+        KafkaConsumerRecord[K1, V1],
+        KafkaConsumerRecord[K2, V2]] =
         PLens[
-          Fs2CommittableConsumerRecord[F, K1, V1],
-          Fs2CommittableConsumerRecord[F, K2, V2],
-          ConsumerRecord[K1, V1],
-          ConsumerRecord[K2, V2]](_.record.transformInto) { b => s =>
-          Fs2CommittableConsumerRecord(b.transformInto, s.offset)
+          CommittableConsumerRecord[F, K1, V1],
+          CommittableConsumerRecord[F, K2, V2],
+          KafkaConsumerRecord[K1, V1],
+          KafkaConsumerRecord[K2, V2]](_.record.transformInto) { b => s =>
+          CommittableConsumerRecord(b.transformInto, s.offset)
         }
     }
 }
 
 sealed trait NJProducerMessage[F[_, _]] extends BitraverseMessage[F] with BitraverseKafkaRecord {
-  final override type H[K, V] = ProducerRecord[K, V]
-  final override val baseInst: Bitraverse[ProducerRecord] = bitraverseProducerRecord
+  final override type H[K, V] = KafkaProducerRecord[K, V]
+  final override val baseInst: Bitraverse[KafkaProducerRecord] = bitraverseProducerRecord
 }
 
 object NJProducerMessage {
-  final type Aux[F[_, _]] = NJProducerMessage[F] { type H[K, V] = ProducerRecord[K, V] }
+  final type Aux[F[_, _]] = NJProducerMessage[F] { type H[K, V] = KafkaProducerRecord[K, V] }
 
   def apply[F[_, _]](implicit ev: NJProducerMessage[F]): Aux[F] = ev
 
-  implicit val iprbi1: Aux[ProducerRecord] =
+  implicit val iprbi1: Aux[KafkaProducerRecord] =
+    new NJProducerMessage[KafkaProducerRecord] {
+
+      override def lens[K1, V1, K2, V2]: PLens[
+        KafkaProducerRecord[K1, V1],
+        KafkaProducerRecord[K2, V2],
+        KafkaProducerRecord[K1, V1],
+        KafkaProducerRecord[K2, V2]] =
+        PLens[
+          KafkaProducerRecord[K1, V1],
+          KafkaProducerRecord[K2, V2],
+          KafkaProducerRecord[K1, V1],
+          KafkaProducerRecord[K2, V2]](s => s)(b => _ => b)
+    }
+
+  implicit val iprbi2: Aux[ProducerRecord] =
     new NJProducerMessage[ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
         ProducerRecord[K1, V1],
         ProducerRecord[K2, V2],
-        ProducerRecord[K1, V1],
-        ProducerRecord[K2, V2]] =
-        PLens[ProducerRecord[K1, V1], ProducerRecord[K2, V2], ProducerRecord[K1, V1], ProducerRecord[K2, V2]](
-          s => s)(b => _ => b)
-    }
-
-  implicit val iprbi2: Aux[Fs2ProducerRecord] =
-    new NJProducerMessage[Fs2ProducerRecord] {
-
-      override def lens[K1, V1, K2, V2]: PLens[
-        Fs2ProducerRecord[K1, V1],
-        Fs2ProducerRecord[K2, V2],
-        ProducerRecord[K1, V1],
-        ProducerRecord[K2, V2]] =
+        KafkaProducerRecord[K1, V1],
+        KafkaProducerRecord[K2, V2]] =
         PLens[
-          Fs2ProducerRecord[K1, V1],
-          Fs2ProducerRecord[K2, V2],
           ProducerRecord[K1, V1],
-          ProducerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
+          ProducerRecord[K2, V2],
+          KafkaProducerRecord[K1, V1],
+          KafkaProducerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
     }
 
 }

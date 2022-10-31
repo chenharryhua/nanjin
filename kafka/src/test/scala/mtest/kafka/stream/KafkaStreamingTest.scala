@@ -63,14 +63,14 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   test("stream-table join") {
     val sendS1Data = Stream
       .emits(List(
-        s1Topic.fs2ProducerRecord(101, StreamOne("na", -1)),
-        s1Topic.fs2ProducerRecord(102, StreamOne("na", -1)),
-        s1Topic.fs2ProducerRecord(103, StreamOne("na", -1)),
-        s1Topic.fs2ProducerRecord(1, StreamOne("a", 0)),
-        s1Topic.fs2ProducerRecord(2, StreamOne("b", 1)),
-        s1Topic.fs2ProducerRecord(3, StreamOne("c", 2)),
-        s1Topic.fs2ProducerRecord(201, StreamOne("d", 3)),
-        s1Topic.fs2ProducerRecord(202, StreamOne("e", 4))
+        s1Topic.producerRecord(101, StreamOne("na", -1)),
+        s1Topic.producerRecord(102, StreamOne("na", -1)),
+        s1Topic.producerRecord(103, StreamOne("na", -1)),
+        s1Topic.producerRecord(1, StreamOne("a", 0)),
+        s1Topic.producerRecord(2, StreamOne("b", 1)),
+        s1Topic.producerRecord(3, StreamOne("c", 2)),
+        s1Topic.producerRecord(201, StreamOne("d", 3)),
+        s1Topic.producerRecord(202, StreamOne("e", 4))
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
@@ -110,12 +110,12 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val sendS1Data = Stream
       .emits(List(
-        s1TopicBin.fs2ProducerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
-        s1TopicBin.fs2ProducerRecord(2, "exception1".getBytes),
-        s1TopicBin.fs2ProducerRecord(3, s1Topic.serializeVal(StreamOne("c", 3))),
-        s1TopicBin.fs2ProducerRecord(4, s1Topic.serializeVal(StreamOne("d", 4))),
-        s1TopicBin.fs2ProducerRecord(5, "exception2".getBytes),
-        s1TopicBin.fs2ProducerRecord(6, s1Topic.serializeVal(StreamOne("f", 6)))
+        s1TopicBin.producerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
+        s1TopicBin.producerRecord(2, "exception1".getBytes),
+        s1TopicBin.producerRecord(3, s1Topic.serializeVal(StreamOne("c", 3))),
+        s1TopicBin.producerRecord(4, s1Topic.serializeVal(StreamOne("d", 4))),
+        s1TopicBin.producerRecord(5, "exception2".getBytes),
+        s1TopicBin.producerRecord(6, s1Topic.serializeVal(StreamOne("f", 6)))
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
@@ -147,9 +147,9 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val sendS1Data = Stream
       .emits(List(
-        s1TopicBin.fs2ProducerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
-        s1TopicBin.fs2ProducerRecord(2, "exception1".getBytes),
-        s1TopicBin.fs2ProducerRecord(3, s1Topic.serializeVal(StreamOne("c", 3)))
+        s1TopicBin.producerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
+        s1TopicBin.producerRecord(2, "exception1".getBytes),
+        s1TopicBin.producerRecord(3, s1Topic.serializeVal(StreamOne("c", 3)))
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)

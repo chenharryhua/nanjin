@@ -12,19 +12,12 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
 }
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.sksamuel.avro4s.AvroInputStream
-import fs2.kafka.{
-  ConsumerSettings as Fs2ConsumerSettings,
-  Deserializer as Fs2Deserializer,
-  ProducerRecord as Fs2ProducerRecord,
-  ProducerRecords as Fs2ProducerRecords,
-  ProducerResult as Fs2ProducerResult,
-  ProducerSettings as Fs2ProducerSettings,
-  Serializer as Fs2Serializer
-}
+import fs2.kafka.*
+import fs2.Chunk
 import io.circe.Decoder
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.apache.kafka.clients.producer.{ProducerRecord, RecordMetadata}
+import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
+import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
 import org.apache.kafka.streams.scala.kstream.Produced
 
 import java.io.ByteArrayInputStream
@@ -53,7 +46,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def decode[G[_, _]: NJConsumerMessage](
     gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecordWithError[K, V] = {
-    val cr: ConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
+    val cr: KafkaConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
     val k: Either[String, K] =
       codec.keyCodec.tryDecode(cr.key()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
     val v: Either[String, V] =
@@ -65,7 +58,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def serializeVal(v: V): Array[Byte] = codec.valSerializer.serialize(topicName.value, v)
 
   def record(partition: Int, offset: Long)(implicit
-    sync: Sync[F]): F[Option[ConsumerRecord[Try[K], Try[V]]]] =
+    sync: Sync[F]): F[Option[KafkaConsumerRecord[Try[K], Try[V]]]] =
     shortLiveConsumer.use(
       _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset))
         .map(_.map(decoder(_).tryDecodeKeyValue)))
@@ -98,49 +91,53 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def consume(implicit F: Sync[F]): Fs2Consume[F] =
     new Fs2Consume[F](
       topicName,
-      Fs2ConsumerSettings[F, Array[Byte], Array[Byte]](
-        Fs2Deserializer[F, Array[Byte]],
-        Fs2Deserializer[F, Array[Byte]]).withProperties(context.settings.consumerSettings.config)
+      ConsumerSettings[F, Array[Byte], Array[Byte]](
+        Deserializer[F, Array[Byte]],
+        Deserializer[F, Array[Byte]]).withProperties(context.settings.consumerSettings.config)
     )
 
   def produce(implicit F: Sync[F]): Fs2Produce[F, K, V] =
     new Fs2Produce[F, K, V](
-      Fs2ProducerSettings[F, K, V](
-        Fs2Serializer.delegate(codec.keySerializer),
-        Fs2Serializer.delegate(codec.valSerializer)).withProperties(context.settings.producerSettings.config))
+      ProducerSettings[F, K, V](
+        Serializer.delegate(codec.keySerializer),
+        Serializer.delegate(codec.valSerializer)).withProperties(context.settings.producerSettings.config))
 
-  def producerRecord(k: K, v: V): ProducerRecord[K, V] = new ProducerRecord(topicDef.topicName.value, k, v)
-  def fs2ProducerRecord(k: K, v: V): Fs2ProducerRecord[K, V] =
-    Fs2ProducerRecord(topicDef.topicName.value, k, v)
+  // producer record
+  def kafkaProducerRecord(k: K, v: V): KafkaProducerRecord[K, V] =
+    new KafkaProducerRecord(topicDef.topicName.value, k, v)
+  def producerRecord(k: K, v: V): ProducerRecord[K, V] =
+    ProducerRecord(topicDef.topicName.value, k, v)
+  def singleProducerRecords(k: K, v: V): ProducerRecords[K, V] =
+    Chunk.singleton(producerRecord(k, v))
 
   // for testing
 
-  def produceOne(pr: Fs2ProducerRecord[K, V])(implicit F: Async[F]): F[RecordMetadata] =
+  def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[RecordMetadata] =
     produce.resource.use(_.produceOne_(pr).flatten)
 
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
-    produceOne(fs2ProducerRecord(k, v))
+    produceOne(producerRecord(k, v))
 
   def produceCirce(circeStr: String)(implicit F: Async[F], k: Decoder[K], v: Decoder[V]): F[RecordMetadata] =
     io.circe.parser
       .decode[NJConsumerRecord[K, V]](circeStr)
-      .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord)
+      .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord)
       .traverse(produceOne)
       .rethrow
 
-  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[Fs2ProducerResult[K, V]] = {
+  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[ProducerResult[K, V]] = {
     val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
       NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
-      val prs: List[Fs2ProducerRecord[K, V]] = AvroInputStream
-        .json[NJConsumerRecord[K, V]](crCodec.avroDecoder)
-        .from(is)
-        .build(crCodec.schema)
-        .iterator
-        .map(_.toNJProducerRecord.noMeta.toFs2ProducerRecord)
-        .toList
+      val prs: ProducerRecords[K, V] = Chunk.iterator(
+        AvroInputStream
+          .json[NJConsumerRecord[K, V]](crCodec.avroDecoder)
+          .from(is)
+          .build(crCodec.schema)
+          .iterator
+          .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord))
 
-      produce.resource.use(_.produce(Fs2ProducerRecords(prs)).flatten)
+      produce.resource.use(_.produce(prs).flatten)
     }
   }
 }
