@@ -14,61 +14,61 @@ class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("config").service("config").updateConfig(_.withMetricDailyReset.withMetricReport(hourly))
 
-  test("counting") {
+  test("1.counting") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withCounting).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isCounting)
   }
-  test("without counting") {
+  test("2.without counting") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withoutCounting).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(!as.actionInfo.actionParams.isCounting)
   }
 
-  test("timing") {
+  test("3.timing") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withTiming).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isTiming)
   }
 
-  test("without timing") {
+  test("4.without timing") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withoutTiming).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(!as.actionInfo.actionParams.isTiming)
   }
 
-  test("notice") {
+  test("5.notice") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isNotice)
   }
 
-  test("critical") {
+  test("6.critical") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.critical).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionInfo.actionParams.isCritical)
   }
-  test("trivial") {
+  test("7.trivial") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.trivial).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }
 
-  test("silent") {
+  test("8.silent") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.silent).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }
 
-  test("report") {
+  test("9.report") {
     val as = service
       .updateConfig(_.withoutMetricReport)
       .eventStream { agent =>
@@ -81,7 +81,7 @@ class ConfigTest extends AnyFunSuite {
     assert(as.get.serviceParams.metricParams.reportSchedule.isEmpty)
   }
 
-  test("reset") {
+  test("10.reset") {
     val as = service
       .updateConfig(_.withoutMetricReset)
       .eventStream { agent =>
@@ -94,7 +94,7 @@ class ConfigTest extends AnyFunSuite {
     assert(as.get.serviceParams.metricParams.resetSchedule.isEmpty)
   }
 
-  test("MonthlyReset - 00:00:01 of 1st day of the month") {
+  test("11.MonthlyReset - 00:00:01 of 1st day of the month") {
     val zoneId = ZoneId.of("Australia/Sydney")
     TaskGuard[IO]("monthly")
       .service("reset")
@@ -111,7 +111,7 @@ class ConfigTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("WeeklyReset - 00:00:01 on Monday") {
+  test("12.WeeklyReset - 00:00:01 on Monday") {
     val zoneId = ZoneId.of("Australia/Sydney")
     TaskGuard[IO]("weekly")
       .updateConfig(_.withZoneId(zoneId))

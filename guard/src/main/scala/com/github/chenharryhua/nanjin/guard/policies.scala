@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.Applicative
+import cats.{Applicative, Functor}
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
@@ -30,7 +30,7 @@ object policies extends zoneid {
     )
   }
 
-  def cronBackoff[F[_]: Clock: Applicative](cronExpr: CronExpr, zoneId: ZoneId): RetryPolicy[F] =
+  def cronBackoff[F[_]: Clock: Functor](cronExpr: CronExpr, zoneId: ZoneId): RetryPolicy[F] =
     RetryPolicy.withShow(
       _ =>
         Clock[F].realTimeInstant.map { ts =>

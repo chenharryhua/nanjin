@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.{Alternative, Endo, Traverse}
-import cats.data.{Ior, Kleisli, Validated}
+import cats.data.{Ior, Validated}
 import cats.effect.kernel.Async
 import cats.implicits.{
   catsSyntaxApplicativeError,
@@ -47,7 +47,8 @@ final class NJActionBuilder[F[_]](
   def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): NJActionBuilder[F] =
     withRetryPolicy(f(policies.cronBackoff[F](cronExpr, serviceParams.taskParams.zoneId)))
 
-  private val worthRetry: Kleisli[F, Throwable, Boolean] = Kleisli((_: Throwable) => F.pure(true))
+  private val alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
+
   // retries
   def retry[Z](fb: F[Z]): NJAction0[F, Z] = // 0 arity
     new NJAction0[F, Z](
@@ -58,7 +59,7 @@ final class NJActionBuilder[F[_]](
       arrow = fb,
       transInput = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
-      isWorthRetry = worthRetry
+      isWorthRetry = alwaysRetry
     )
 
   def retry[A, Z](f: A => F[Z]): NJAction[F, A, Z] =
@@ -70,7 +71,7 @@ final class NJActionBuilder[F[_]](
       arrow = f,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
-      isWorthRetry = worthRetry
+      isWorthRetry = alwaysRetry
     )
 
   def retry[A, B, Z](f: (A, B) => F[Z]): NJAction[F, (A, B), Z] =
@@ -82,7 +83,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
-      isWorthRetry = worthRetry
+      isWorthRetry = alwaysRetry
     )
 
   def retry[A, B, C, Z](f: (A, B, C) => F[Z]): NJAction[F, (A, B, C), Z] =
@@ -94,7 +95,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
-      isWorthRetry = worthRetry
+      isWorthRetry = alwaysRetry
     )
 
   def retry[A, B, C, D, Z](f: (A, B, C, D) => F[Z]): NJAction[F, (A, B, C, D), Z] =
@@ -106,7 +107,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
-      isWorthRetry = worthRetry
+      isWorthRetry = alwaysRetry
     )
 
   def retry[A, B, C, D, E, Z](f: (A, B, C, D, E) => F[Z]): NJAction[F, (A, B, C, D, E), Z] =
@@ -118,7 +119,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
-      isWorthRetry = worthRetry
+      isWorthRetry = alwaysRetry
     )
 
   // future

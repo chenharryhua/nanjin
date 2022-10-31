@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
+import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
@@ -311,5 +312,24 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ServiceStop])
+  }
+
+  test("15.logInput is lazy") {
+    var i = 0
+    serviceGuard
+      .eventStream(
+        _.action("lazy", _.silent).retry(IO(1)).logInput { i += 1; Json.fromInt(0) }.run.replicateA(3))
+      .compile
+      .drain
+      .unsafeRunSync()
+    assert(i == 0)
+
+    serviceGuard
+      .eventStream(
+        _.action("eval", _.notice).retry(IO(1)).logInput { i += 1; Json.fromInt(0) }.run.replicateA(3))
+      .compile
+      .drain
+      .unsafeRunSync()
+    assert(i == 3)
   }
 }

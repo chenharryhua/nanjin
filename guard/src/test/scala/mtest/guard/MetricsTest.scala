@@ -16,16 +16,20 @@ import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
 
 class MetricsTest extends AnyFunSuite {
+  val zoneId: ZoneId = ZoneId.systemDefault()
 
-  val sg: ServiceGuard[IO] =
-    TaskGuard[IO]("metrics").service("delta").updateConfig(_.withMetricReport(secondly))
+  val service: ServiceGuard[IO] =
+    TaskGuard[IO]("metrics")
+      .updateConfig(_.withZoneId(zoneId))
+      .service("delta")
+      .updateConfig(_.withMetricReport(secondly))
 
   test("1.delta") {
-    val last = TaskGuard[IO]("metrics")
-      .service("delta")
+    val last = service("delta")
       .updateConfig(_.withMetricReport(secondly))
       .addMetricSet(new ThreadStatesGaugeSet)
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
@@ -40,7 +44,7 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("2.full") {
-    val last = sg
+    val last = service
       .eventStream(ag => ag.action("one", _.withCounting).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console(Translator.simpleText[IO]))
       .map(_.asJson.noSpaces)
@@ -53,7 +57,8 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("3.ongoing action alignment") {
-    sg.updateConfig(_.withMetricReport(secondly))
+    service
+      .updateConfig(_.withMetricReport(secondly))
       .eventStream { ag =>
         val one = ag.action("one", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
         val two = ag.action("two", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
@@ -69,7 +74,7 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("4.reset") {
-    val last = sg.eventStream { ag =>
+    val last = service.eventStream { ag =>
       val metric = ag.metrics
       ag.action("one", _.notice).retry(IO(0)).run >> ag
         .action("two", _.notice)
@@ -88,26 +93,33 @@ class MetricsTest extends AnyFunSuite {
 
   test("5.Importance json") {
     val i1: Importance = Importance.Critical
-    val i2: Importance = Importance.High
-    val i3: Importance = Importance.Medium
-    val i4: Importance = Importance.Low
+    val i2: Importance = Importance.Notice
+    val i3: Importance = Importance.Silent
+    val i4: Importance = Importance.Trivial
 
     assert(i1.asJson.noSpaces === """ "Critical" """.trim)
-    assert(i2.asJson.noSpaces === """ "High" """.trim)
-    assert(i3.asJson.noSpaces === """ "Medium" """.trim)
-    assert(i4.asJson.noSpaces === """ "Low" """.trim)
+    assert(i2.asJson.noSpaces === """ "Notice" """.trim)
+    assert(i3.asJson.noSpaces === """ "Silent" """.trim)
+    assert(i4.asJson.noSpaces === """ "Trivial" """.trim)
   }
 
-  ignore("timing") {
-    val s = TaskGuard[IO]("metrics")
-      .service("timing")
-      .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
+  test("6. show timestamp") {
+    val s = service("timing").updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
 
     val s1 = s("s1").eventStream(_ => IO.never)
     val s2 = s("s2").eventStream(_ => IO.never)
     val s3 = s("s3").eventStream(_ => IO.never)
     val s4 = s("s4").eventStream(_ => IO.never)
-    s1.merge(s2).merge(s3).merge(s4).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+    (IO.println(ZonedDateTime.now) >> IO.println("-----") >>
+      s1.merge(s2)
+        .merge(s3)
+        .merge(s4)
+        .filter(_.isInstanceOf[MetricReport])
+        .map(_.asInstanceOf[MetricReport])
+        .map(mr => (mr.index, mr.timestamp, mr.serviceParams.serviceName))
+        .debug()
+        .take(20)
+        .compile
+        .drain).unsafeRunSync()
   }
-
 }

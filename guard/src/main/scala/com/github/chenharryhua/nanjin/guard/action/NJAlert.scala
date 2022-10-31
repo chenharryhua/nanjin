@@ -17,8 +17,8 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   isCounting: Boolean
 ) {
   private lazy val errorCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Critical))
-  private lazy val warnCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.High))
-  private lazy val infoCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Medium))
+  private lazy val warnCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Notice))
+  private lazy val infoCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Silent))
 
   private def alert(msg: String, importance: Importance): F[Unit] =
     for {
@@ -41,12 +41,12 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   def error[S: Show](msg: Option[S]): F[Unit] = msg.traverse(error(_)).void
 
   def warn[S: Show](msg: S): F[Unit] =
-    alert(msg.show, Importance.High).map(_ => if (isCounting) warnCounter.inc(1))
+    alert(msg.show, Importance.Notice).map(_ => if (isCounting) warnCounter.inc(1))
 
   def warn[S: Show](msg: Option[S]): F[Unit] = msg.traverse(warn(_)).void
 
   def info[S: Show](msg: S): F[Unit] =
-    alert(msg.show, Importance.Medium).map(_ => if (isCounting) infoCounter.inc(1))
+    alert(msg.show, Importance.Silent).map(_ => if (isCounting) infoCounter.inc(1))
 
   def info[S: Show](msg: Option[S]): F[Unit] = msg.traverse(info(_)).void
 }

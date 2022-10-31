@@ -9,9 +9,9 @@ object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceE
   override val values: IndexedSeq[Importance] = findValues
 
   case object Critical extends Importance(40)
-  case object High extends Importance(30)
-  case object Medium extends Importance(20)
-  case object Low extends Importance(10)
+  case object Notice extends Importance(30)
+  case object Silent extends Importance(20)
+  case object Trivial extends Importance(10)
 
   implicit final val orderingImportance: Ordering[Importance] = Ordering.by[Importance, Int](_.value)
   implicit final val orderImportance: Order[Importance]       = Order.fromOrdering[Importance]

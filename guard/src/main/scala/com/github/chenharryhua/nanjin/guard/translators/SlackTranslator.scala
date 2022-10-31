@@ -130,9 +130,9 @@ private object SlackTranslator extends all {
   private def instantAlert(evt: InstantAlert): SlackApp = {
     val title = evt.importance match {
       case Importance.Critical => ":warning: Error"
-      case Importance.High     => ":warning: Warning"
-      case Importance.Medium   => ":information_source: Info"
-      case Importance.Low      => "oops. should not happen"
+      case Importance.Notice     => ":warning: Warning"
+      case Importance.Silent   => ":information_source: Info"
+      case Importance.Trivial      => "oops. should not happen"
     }
     val msg: Option[Section] =
       if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
