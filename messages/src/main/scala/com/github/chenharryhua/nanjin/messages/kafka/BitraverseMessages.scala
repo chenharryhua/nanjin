@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import cats.{Applicative, Bitraverse, Eval}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
-import fs2.kafka.CommittableProducerRecords as Fs2CommittableProducerRecords
+import fs2.kafka.CommittableProducerRecords
 import io.scalaland.chimney.dsl.*
 import monocle.{PLens, PTraversal}
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -30,20 +30,20 @@ sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKa
 object BitraverseMessages {
   def apply[F[_, _]](implicit ev: BitraverseMessages[F]): BitraverseMessages[F] = ev
 
-  implicit def imsbi2[F[_]]: BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] =
-    new BitraverseMessages[Fs2CommittableProducerRecords[F, *, *]] {
+  implicit def imsbi2[F[_]]: BitraverseMessages[CommittableProducerRecords[F, *, *]] =
+    new BitraverseMessages[CommittableProducerRecords[F, *, *]] {
 
       override def traversal[K1, V1, K2, V2]: PTraversal[
-        Fs2CommittableProducerRecords[F, K1, V1],
-        Fs2CommittableProducerRecords[F, K2, V2],
+        CommittableProducerRecords[F, K1, V1],
+        CommittableProducerRecords[F, K2, V2],
         ProducerRecord[K1, V1],
         ProducerRecord[K2, V2]] =
         PLens[
-          Fs2CommittableProducerRecords[F, K1, V1],
-          Fs2CommittableProducerRecords[F, K2, V2],
+          CommittableProducerRecords[F, K1, V1],
+          CommittableProducerRecords[F, K2, V2],
           Chunk[ProducerRecord[K1, V1]],
           Chunk[ProducerRecord[K2, V2]]](prs => prs.records.map(_.transformInto)) { cpr => s =>
-          Fs2CommittableProducerRecords(cpr.map(_.transformInto), s.offset)
+          CommittableProducerRecords(cpr.map(_.transformInto), s.offset)
         }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 

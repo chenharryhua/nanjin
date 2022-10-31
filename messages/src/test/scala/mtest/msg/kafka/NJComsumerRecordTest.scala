@@ -52,7 +52,7 @@ class NJComsumerRecordProp extends Properties("ConsumerRecord") {
   import org.scalacheck.Prop.forAll
 
   property("fs2.producer.record.conversion") = forAll { (op: NJProducerRecord[Int, Int]) =>
-    val fpr = op.toFs2ProducerRecord
+    val fpr = op.toProducerRecord
     val re =
       NJProducerRecord[Int, Int](
         op.topic,

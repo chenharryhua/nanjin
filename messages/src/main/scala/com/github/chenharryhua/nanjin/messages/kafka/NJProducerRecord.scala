@@ -5,13 +5,13 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
-import fs2.kafka.ProducerRecord as Fs2ProducerRecord
+import fs2.kafka.ProducerRecord
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.scalaland.chimney.dsl.*
 import monocle.Optional
 import monocle.macros.Lenses
 import monocle.std.option.some
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
 import shapeless.cachedImplicit
 
 import scala.annotation.nowarn
@@ -46,9 +46,9 @@ final case class NJProducerRecord[K, V](
     NJProducerRecord.value.modify((_: Option[V]).map(f))(this)
 
   @SuppressWarnings(Array("AsInstanceOf"))
-  def toFs2ProducerRecord: Fs2ProducerRecord[K, V] = {
+  def toProducerRecord: ProducerRecord[K, V] = {
     val pr =
-      Fs2ProducerRecord(topic, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
+      ProducerRecord(topic, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
     (partition, timestamp) match {
       case (None, None)       => pr
       case (Some(p), None)    => pr.withPartition(p)
@@ -57,8 +57,8 @@ final case class NJProducerRecord[K, V](
     }
   }
 
-  def toProducerRecord: ProducerRecord[K, V] =
-    toFs2ProducerRecord.transformInto[ProducerRecord[K, V]]
+  def toKafkaProducerRecord: KafkaProducerRecord[K, V] =
+    toProducerRecord.transformInto[KafkaProducerRecord[K, V]]
 
   def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
     NJProducerRecord.jsonEncoder[K, V].apply(this)
@@ -70,7 +70,7 @@ object NJProducerRecord {
   def optionalValue[K, V]: Optional[NJProducerRecord[K, V], V] =
     NJProducerRecord.value[K, V].composePrism(some)
 
-  def apply[K, V](pr: ProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
+  def apply[K, V](pr: KafkaProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(
       pr.topic(),
       Option(pr.partition.toInt),

@@ -4,15 +4,14 @@ import cats.Bifunctor
 import cats.kernel.PartialOrder
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaConsumerRecordTransformer
 import com.sksamuel.avro4s.*
-import fs2.kafka.ConsumerRecord as Fs2ConsumerRecord
+import fs2.kafka.ConsumerRecord
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.scalaland.chimney.dsl.*
 import monocle.Optional
 import monocle.macros.Lenses
 import monocle.std.option.some
-import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.annotation.nowarn
@@ -59,10 +58,10 @@ object NJConsumerRecord {
   def optionalValue[K, V]: Optional[NJConsumerRecord[K, V], V] =
     NJConsumerRecord.value[K, V].composePrism(some)
 
-  def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
+  def apply[K, V](cr: KafkaConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(cr.partition, cr.offset, cr.timestamp, cr.key, cr.value, cr.topic, cr.timestampType.id)
 
-  def apply[K, V](cr: Fs2ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
+  def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     apply(cr.transformInto[ConsumerRecord[Option[K], Option[V]]])
 
   def avroCodec[K, V](
