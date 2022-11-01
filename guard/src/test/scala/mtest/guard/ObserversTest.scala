@@ -96,11 +96,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("5.ses mail") {
     val mail =
-      EmailObserver(SimpleEmailService.fake[IO])
-        .withInterval(5.seconds)
-        .withChunkSize(100)
-        .withOldestFirst
-        .updateTranslator(_.skipActionStart)
+      EmailObserver(SimpleEmailService.fake[IO]).withInterval(5.seconds).withChunkSize(100).withOldestFirst
 
     TaskGuard[IO]("sesTask")
       .updateConfig(_.withHomePage("https://google.com"))
@@ -109,11 +105,11 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(secondly).withBrief("*Good Morning*"))
       .eventStream { ag =>
         val err =
-          ag.action("error", _.critical)
+          ag.action("error", _.critical.withTiming.withCounting)
             .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
             .retry(err_fun(1))
             .run
-        ok(ag) >> ag.metrics.reset >> err
+        ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >> ag.metrics.reset >> err
       }
       .take(12)
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))

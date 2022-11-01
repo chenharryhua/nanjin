@@ -24,10 +24,6 @@ private object SimpleTextTranslator {
     s"Service:$sn, Task:$tn, Host:$host, SID:$serviceId"
   }
 
-  private def instantEvent(ie: InstantEvent): String =
-    s"""|  ${serviceEvent(ie)}
-        |  Name:${ie.digested.metricRepr}""".stripMargin
-
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
   private def actionEvent(ae: ActionEvent): String = {
@@ -73,14 +69,14 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =
-    s"""${coloring(evt.title)(evt)}
-       |${instantEvent(evt)}
+    s"""${coloring(instantEventTitle(evt))(evt)}
+       |  ${serviceEvent(evt)}
        |  Message:${evt.value.noSpaces}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
-    s"""${coloring(evt.title)(evt)}
-       |${instantEvent(evt)}
+    s"""${coloring(instantEventTitle(evt))(evt)}
+       |  ${serviceEvent(evt)}
        |  Alert:${evt.message}
        |""".stripMargin
 
