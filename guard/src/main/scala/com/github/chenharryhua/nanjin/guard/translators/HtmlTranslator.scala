@@ -97,7 +97,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(metricTitle(evt)),
       table(hostServiceTable(evt)),
-      briefText(evt.serviceParams.brief),
+      p(b("UpTime: "), fmt.format(evt.upTime)),
       snapshotText(evt.snapshot)
     )
 
@@ -105,14 +105,14 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(metricTitle(evt)),
       table(hostServiceTable(evt)),
+      briefText(evt.serviceParams.brief),
       snapshotText(evt.snapshot)
     )
 
   private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
+      h3(style := coloring(evt))(instantEventTitle(evt)),
       table(hostServiceTable(evt)),
-      p(b("Name: "), evt.digested.metricRepr),
       pre(evt.message)
     )
 
