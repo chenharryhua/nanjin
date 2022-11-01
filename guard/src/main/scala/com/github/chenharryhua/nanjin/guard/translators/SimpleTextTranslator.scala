@@ -21,16 +21,14 @@ private object SimpleTextTranslator {
     val sn: String        = se.serviceParams.serviceName.value
     val tn: String        = se.serviceParams.taskParams.taskName.value
     val serviceId: String = se.serviceParams.serviceId.show.takeRight(12)
-    s"Service:$sn, Task:$tn, Host:$host, SID:$serviceId"
+    s"Service:$sn, Task:$tn, Host:$host, SID:$serviceId, UpTime:${fmt.format(se.upTime)}"
   }
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
-  private def actionEvent(ae: ActionEvent): String = {
-    val tid: String = ae.traceId.getOrElse("none")
+  private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
-       |  Importance:${ae.actionParams.importance.show}, ActionID:${ae.actionId}, TraceID:$tid""".stripMargin
-  }
+       |  Importance:${ae.actionParams.importance.show}, ActionID:${ae.actionId}, TraceID:${ae.traceId}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}

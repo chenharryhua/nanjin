@@ -103,7 +103,7 @@ class MetricsTest extends AnyFunSuite {
     assert(i4.asJson.noSpaces === """ "Trivial" """.trim)
   }
 
-  test("6. show timestamp") {
+  test("6.show timestamp") {
     val s = service("timing").updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
 
     val s1 = s("s1").eventStream(_ => IO.never)

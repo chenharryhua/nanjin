@@ -23,7 +23,7 @@ class ObserversTest extends AnyFunSuite {
 
   def ok(agent: Agent[IO]) = agent.action("ok", _.notice).retry(IO(1)).run
 
-  test("1.logging") {
+  test("1.logging verbose") {
     TaskGuard[IO]("logging")
       .service("text")
       .withRestartPolicy(constant_1hour)
@@ -38,7 +38,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("2.console - text") {
+  test("2.console - simple text") {
     TaskGuard[IO]("console")
       .service("text")
       .withRestartPolicy(constant_1hour)
@@ -49,7 +49,7 @@ class ObserversTest extends AnyFunSuite {
           .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
           .retry(err_fun(1))
           .run
-        ok(ag) >> err
+        ok(ag) >> ag.alert("alarm").error("alarm") >> err
       }
       .evalTap(console.simple[IO])
       .take(10)
@@ -58,7 +58,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("3.console - json") {
+  test("3.console - simple json") {
     TaskGuard[IO]("console")
       .service("json")
       .withRestartPolicy(constant_1hour)

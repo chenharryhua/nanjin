@@ -74,7 +74,7 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionEvent extends ServiceEvent {
     def actionInfo: ActionInfo // action runtime information
-    final def traceId: Option[String] = actionInfo.traceInfo.flatMap(_.traceId)
+    final def traceId: String = actionInfo.traceInfo.flatMap(_.traceId).getOrElse("none")
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
