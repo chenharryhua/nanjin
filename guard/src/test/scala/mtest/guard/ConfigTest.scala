@@ -12,7 +12,7 @@ import java.time.{ZoneId, ZonedDateTime}
 
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("config").service("config").updateConfig(_.withMetricDailyReset.withMetricReport(hourly))
+    TaskGuard[IO]("config").service("config").updateConfig(_.withMetricDailyReset.withMetricReport(cron_1hour))
 
   test("1.counting") {
     val as = service.eventStream { agent =>

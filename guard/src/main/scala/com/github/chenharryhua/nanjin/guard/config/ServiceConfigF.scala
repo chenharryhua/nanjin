@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Functor, Show}
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
-import com.github.chenharryhua.nanjin.common.guard.{QueueCapacity, ServiceName}
+import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import cron4s.{Cron, CronExpr}
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.cats.*
@@ -45,7 +45,6 @@ object MetricParams {
   taskParams: TaskParams,
   retryPolicy: String, // service restart policy
   policyThreshold: Option[Duration], // policy start over interval
-  queueCapacity: Int, // event queue capacity
   metricParams: MetricParams,
   brief: String,
   serviceId: UUID,
@@ -77,7 +76,6 @@ object ServiceParams extends zoneddatetime with duration {
       taskParams = taskParams,
       retryPolicy = retryPolicy,
       policyThreshold = None,
-      queueCapacity = Int.MaxValue, // unbounded by default
       metricParams = MetricParams(
         reportSchedule = None,
         resetSchedule = None,
@@ -96,7 +94,6 @@ private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
   final case class InitParams[K]() extends ServiceConfigF[K]
-  final case class WithQueueCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   final case class WithReportSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
   final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
@@ -115,7 +112,6 @@ private object ServiceConfigF {
     retryPolicy: String): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams() => ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy)
-      case WithQueueCapacity(v, c) => ServiceParams.queueCapacity.set(v)(c)
 
       case WithReportSchedule(v, c) =>
         ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(v)(c)
@@ -135,9 +131,6 @@ private object ServiceConfigF {
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
-
-  def withQueueCapacity(size: QueueCapacity): ServiceConfig =
-    ServiceConfig(Fix(WithQueueCapacity(size.value, value)))
 
   def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
 

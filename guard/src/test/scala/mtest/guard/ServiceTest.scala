@@ -32,13 +32,9 @@ class ServiceTest extends AnyFunSuite {
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
       .withRestartPolicy(RetryPolicies.constantDelay[IO](3.seconds))
-      .updateConfig(_.withMetricReport(hourly))
+      .updateConfig(_.withMetricReport(cron_1hour))
       .updateConfig(
-        _.withQueueCapacity(1)
-          .withMetricReset("*/30 * * ? * *")
-          .withMetricDailyReset
-          .withMetricMonthlyReset
-          .withMetricWeeklyReset)
+        _.withMetricReset("*/30 * * ? * *").withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset)
       .eventStream(gd => gd.action("t", _.silent).retry(Try(1)).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -52,7 +48,6 @@ class ServiceTest extends AnyFunSuite {
   test("2.escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
       .withRestartPolicy(policies.jitterBackoff[IO](30.minutes, 50.minutes))
-      .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run
       }
@@ -74,7 +69,6 @@ class ServiceTest extends AnyFunSuite {
   test("3.should stop when fatal error occurs") {
     val List(a, b, c, d) = guard
       .withRestartPolicy(Cron.unsafeParse("0-59 * * ? * *"))
-      .updateConfig(_.withQueueCapacity(2))
       .eventStream { gd =>
         gd.action("fatal error", _.notice)
           .withRetryPolicy(policy)
@@ -95,7 +89,6 @@ class ServiceTest extends AnyFunSuite {
   test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
-      .updateConfig(_.withQueueCapacity(3))
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(Left(new Exception("oops"))).run
 
@@ -115,7 +108,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -131,7 +124,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("6.force reset") {
     val s :: b :: c :: _ = guard
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
@@ -145,7 +138,6 @@ class ServiceTest extends AnyFunSuite {
 
   test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
-      .updateConfig(_.withQueueCapacity(10))
       .eventStream(gd =>
         gd.action("t", _.notice).retry(Try(1)).run >> gd.action("t", _.notice).retry(IO(2)).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)

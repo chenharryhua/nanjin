@@ -238,7 +238,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(
         _.action("cron", _.notice)
-          .withRetryPolicy(secondly, _.join(RetryPolicies.limitRetries(3)))
+          .withRetryPolicy(cron_1second, _.join(RetryPolicies.limitRetries(3)))
           .retry(IO.raiseError(new Exception("oops")))
           .run)
       .evalTap(console.simple[IO])

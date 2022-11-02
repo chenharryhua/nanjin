@@ -45,16 +45,16 @@ class MetricSamplingTest extends AnyFunSuite {
     val ts10              = ts.plusSeconds(10)
 
     val interval = 3.second
-    assert(!sampling(interval)(metricReport(secondly, ts1)))
-    assert(!sampling(interval)(metricReport(secondly, ts2)))
-    assert(sampling(interval)(metricReport(secondly, ts3)))
-    assert(!sampling(interval)(metricReport(secondly, ts4)))
-    assert(!sampling(interval)(metricReport(secondly, ts5)))
-    assert(sampling(interval)(metricReport(secondly, ts6)))
-    assert(!sampling(interval)(metricReport(secondly, ts7)))
-    assert(!sampling(interval)(metricReport(secondly, ts8)))
-    assert(sampling(interval)(metricReport(secondly, ts9)))
-    assert(!sampling(interval)(metricReport(secondly, ts10)))
+    assert(!sampling(interval)(metricReport(cron_1second, ts1)))
+    assert(!sampling(interval)(metricReport(cron_1second, ts2)))
+    assert(sampling(interval)(metricReport(cron_1second, ts3)))
+    assert(!sampling(interval)(metricReport(cron_1second, ts4)))
+    assert(!sampling(interval)(metricReport(cron_1second, ts5)))
+    assert(sampling(interval)(metricReport(cron_1second, ts6)))
+    assert(!sampling(interval)(metricReport(cron_1second, ts7)))
+    assert(!sampling(interval)(metricReport(cron_1second, ts8)))
+    assert(sampling(interval)(metricReport(cron_1second, ts9)))
+    assert(!sampling(interval)(metricReport(cron_1second, ts10)))
   }
 
   test("cron bi-secondly") {
@@ -71,16 +71,16 @@ class MetricSamplingTest extends AnyFunSuite {
     val ts10              = ts.plusSeconds(20)
 
     val interval = 3.second
-    assert(!sampling(interval)(metricReport(bisecondly, ts1)))
-    assert(sampling(interval)(metricReport(bisecondly, ts2)))
-    assert(sampling(interval)(metricReport(bisecondly, ts3)))
-    assert(!sampling(interval)(metricReport(bisecondly, ts4)))
-    assert(sampling(interval)(metricReport(bisecondly, ts5)))
-    assert(sampling(interval)(metricReport(bisecondly, ts6)))
-    assert(!sampling(interval)(metricReport(bisecondly, ts7)))
-    assert(sampling(interval)(metricReport(bisecondly, ts8)))
-    assert(sampling(interval)(metricReport(bisecondly, ts9)))
-    assert(!sampling(interval)(metricReport(bisecondly, ts10)))
+    assert(!sampling(interval)(metricReport(cron_2second, ts1)))
+    assert(sampling(interval)(metricReport(cron_2second, ts2)))
+    assert(sampling(interval)(metricReport(cron_2second, ts3)))
+    assert(!sampling(interval)(metricReport(cron_2second, ts4)))
+    assert(sampling(interval)(metricReport(cron_2second, ts5)))
+    assert(sampling(interval)(metricReport(cron_2second, ts6)))
+    assert(!sampling(interval)(metricReport(cron_2second, ts7)))
+    assert(sampling(interval)(metricReport(cron_2second, ts8)))
+    assert(sampling(interval)(metricReport(cron_2second, ts9)))
+    assert(!sampling(interval)(metricReport(cron_2second, ts10)))
   }
 
   test("cron sampling - cron") {
@@ -96,14 +96,14 @@ class MetricSamplingTest extends AnyFunSuite {
     val ts9               = ts.plusMinutes(2).plusNanos(10)
 
     val hourly: CronExpr = Cron.unsafeParse("0 0 0-23 ? * *")
-    assert(!sampling(hourly)(metricReport(minutely, ts1)))
-    assert(!sampling(hourly)(metricReport(minutely, ts2)))
-    assert(sampling(hourly)(metricReport(minutely, ts3)))
-    assert(sampling(hourly)(metricReport(minutely, ts4)))
-    assert(!sampling(hourly)(metricReport(minutely, ts5)))
-    assert(!sampling(hourly)(metricReport(minutely, ts6)))
-    assert(!sampling(hourly)(metricReport(minutely, ts7)))
-    assert(!sampling(hourly)(metricReport(minutely, ts8)))
-    assert(!sampling(hourly)(metricReport(minutely, ts9)))
+    assert(!sampling(hourly)(metricReport(cron_1minute, ts1)))
+    assert(!sampling(hourly)(metricReport(cron_1minute, ts2)))
+    assert(sampling(hourly)(metricReport(cron_1minute, ts3)))
+    assert(sampling(hourly)(metricReport(cron_1minute, ts4)))
+    assert(!sampling(hourly)(metricReport(cron_1minute, ts5)))
+    assert(!sampling(hourly)(metricReport(cron_1minute, ts6)))
+    assert(!sampling(hourly)(metricReport(cron_1minute, ts7)))
+    assert(!sampling(hourly)(metricReport(cron_1minute, ts8)))
+    assert(!sampling(hourly)(metricReport(cron_1minute, ts9)))
   }
 }

@@ -4,14 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionStart,
-  ActionSucc,
-  PassThrough,
-  ServiceStart,
-  ServiceStop
-}
-import cron4s.Cron
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionStart, ActionSucc, PassThrough, ServiceStart, ServiceStop}
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
@@ -23,11 +16,14 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 class TicksTest extends AnyFunSuite {
   val service = TaskGuard[IO]("awake").service("every")
-  val cron    = Cron.unsafeParse("0-59 * * ? * *")
   test("1. should not lock - even") {
     val List(a, b, c, d) = service
       .eventStream(agent =>
-        agent.ticks(cron).evalMap(idx => agent.action("even", _.notice).retry(IO(idx)).run).compile.drain)
+        agent
+          .ticks(cron_1second)
+          .evalMap(idx => agent.action("even", _.notice).retry(IO(idx)).run)
+          .compile
+          .drain)
       .take(4)
       .compile
       .toList
@@ -41,7 +37,11 @@ class TicksTest extends AnyFunSuite {
   test("2. should not lock - odd") {
     val List(a, b, c, d, e) = service
       .eventStream(agent =>
-        agent.ticks(cron).evalMap(idx => agent.action("odd", _.notice).retry(IO(idx)).run).compile.drain)
+        agent
+          .ticks(cron_1second)
+          .evalMap(idx => agent.action("odd", _.notice).retry(IO(idx)).run)
+          .compile
+          .drain)
       .take(5)
       .compile
       .toList
@@ -58,7 +58,7 @@ class TicksTest extends AnyFunSuite {
       service
         .eventStream(agent =>
           agent
-            .ticks(cron, _.join(RetryPolicies.limitRetries(3)))
+            .ticks(cron_1second, _.join(RetryPolicies.limitRetries(3)))
             .evalMap(idx => agent.action("policy", _.notice).retry(IO(idx)).run)
             .compile
             .drain)
@@ -79,7 +79,7 @@ class TicksTest extends AnyFunSuite {
 
     val lst = service
       .eventStream(ag =>
-        ag.ticks(Cron.unsafeParse("0 */5 * ? * *"), RetryPolicies.capDelay[IO](1.second, _))
+        ag.ticks(cron_1minute, RetryPolicies.capDelay[IO](1.second, _))
           .evalMap(x => ag.broker("pt").passThrough(x.asJson))
           .take(3)
           .compile
@@ -111,7 +111,7 @@ class TicksTest extends AnyFunSuite {
   }
 
   test("6.tick ") {
-    val policy = policies.cronBackoff[IO](Cron.unsafeParse("* * * ? * *"), ZoneId.systemDefault())
+    val policy = policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault())
     val ticks  = awakeEvery(policy)
 
     ticks
@@ -145,20 +145,31 @@ class TicksTest extends AnyFunSuite {
   }
 
   test("6.process longer than 1 second") {
-    val policy = policies.cronBackoff[IO](Cron.unsafeParse("* * * ? * *"), ZoneId.systemDefault())
+    val policy = policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault())
     val ticks  = awakeEvery(policy)
 
     val fds: List[FiniteDuration] =
       ticks.evalMap(_ => IO.sleep(1.5.seconds) >> IO.monotonic).take(5).compile.toList.unsafeRunSync()
 
-    fds
-      .sliding(2)
-      .map {
-        case List(a, b) =>
-          val diff = b - a
-          assert(diff > 1.9.seconds && diff < 2.1.seconds)
-        case _ => throw new Exception("not happen")
-      }
-      .toList
+    fds.sliding(2).foreach {
+      case List(a, b) =>
+        val diff = b - a
+        assert(diff > 1.9.seconds && diff < 2.1.seconds)
+      case _ => throw new Exception("not happen")
+    }
+  }
+
+  test("7.process less than 1 second") {
+    val policy = policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault())
+    val ticks  = awakeEvery(policy)
+
+    val fds: List[FiniteDuration] =
+      ticks.evalMap(_ => IO.sleep(0.5.seconds) >> IO.monotonic).take(5).compile.toList.unsafeRunSync()
+    fds.sliding(2).foreach {
+      case List(a, b) =>
+        val diff = b - a
+        assert(diff > 0.9.seconds && diff < 1.1.seconds)
+      case _ => throw new Exception("not happen")
+    }
   }
 }

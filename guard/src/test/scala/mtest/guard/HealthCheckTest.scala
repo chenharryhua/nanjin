@@ -22,7 +22,7 @@ class HealthCheckTest extends AnyFunSuite {
       .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
-      .updateConfig(_.withMetricReport(bisecondly))
+      .updateConfig(_.withMetricReport(cron_2second))
       .eventStream(gd => gd.action("cron", _.notice).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -42,7 +42,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("2.success-test") {
     val s :: a :: b :: c :: d :: _ = guard
       .service("success-test")
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream(gd =>
         gd.action("a", _.notice).retry(IO(1)).run >>
           gd.action("b", _.notice).retry(never_fun).run)
@@ -65,7 +65,7 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(secondly)
+      .updateConfig(_.withMetricReport(cron_1second)
         .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
         .withMetricRateTimeUnit(TimeUnit.MINUTES))
       .eventStream(gd =>
@@ -89,7 +89,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("4.metrics reset") {
     val list = guard
       .service("metrics-reset-test")
-      .updateConfig(_.withMetricReport(bisecondly).withMetricReset(trisecondly))
+      .updateConfig(_.withMetricReport(cron_2second).withMetricReset(cron_3second))
       .eventStream(_.action("ok", _.silent).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
