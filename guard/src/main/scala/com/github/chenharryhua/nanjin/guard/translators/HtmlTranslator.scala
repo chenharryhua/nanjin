@@ -37,23 +37,17 @@ private object HtmlTranslator extends all {
         th("Service"),
         th("Task"),
         th("Host"),
-        th("ServiceID")
+        th("ServiceID"),
+        th("UpTime")
       ),
       tr(
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
         serviceName,
         td(evt.serviceParams.taskParams.taskName.value),
         td(evt.serviceParams.taskParams.hostName.value),
-        td(evt.serviceId.show)
+        td(evt.serviceId.show),
+        td(fmt.format(evt.upTime))
       )
-    )
-  }
-
-  private def actionTable(evt: ActionEvent): generic.Frag[Builder, String] = {
-    val tid = evt.traceId.getOrElse("none")
-    frag(
-      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID"))),
-      tr(td(evt.actionParams.importance.show), td(evt.actionId), td(tid))
     )
   }
 
@@ -68,7 +62,6 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
-      p(b("UpTime: "), fmt.format(evt.upTime)),
       briefText(evt.serviceParams.brief)
     )
 
@@ -79,7 +72,6 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
       p(b(msg)),
-      p(b("UpTime: "), fmt.format(evt.upTime)),
       p(b("Policy: "), evt.serviceParams.retryPolicy),
       causeText(evt.error)
     )
@@ -89,7 +81,6 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
-      p(b("UpTime: "), fmt.format(evt.upTime)),
       p(b("Cause: "), evt.cause.show)
     )
 
@@ -97,7 +88,6 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(metricTitle(evt)),
       table(hostServiceTable(evt)),
-      p(b("UpTime: "), fmt.format(evt.upTime)),
       snapshotText(evt.snapshot)
     )
 
@@ -116,27 +106,48 @@ private object HtmlTranslator extends all {
       pre(evt.message)
     )
 
-  private def actionStart(evt: ActionStart): Text.TypedTag[String] =
+  private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
+    val start = frag(
+      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID"))),
+      tr(td(evt.actionParams.importance.show), td(evt.actionId), td(evt.traceId))
+    )
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
-      table(hostServiceTable(evt), actionTable(evt)),
+      table(hostServiceTable(evt), start),
       p(b("Input: "), jsonText(evt.input))
     )
+  }
 
-  private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] =
+  private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] = {
+
+    val retry = frag(
+      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID")), td(b("Index")), td(b("Resume"))),
+      tr(
+        td(evt.actionParams.importance.show),
+        td(evt.actionId),
+        td(evt.traceId),
+        td(evt.retriesSoFar + 1),
+        td(evt.resumeTime.toLocalTime.show))
+    )
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
-      table(hostServiceTable(evt), actionTable(evt)),
+      table(hostServiceTable(evt), retry),
       p(b("Policy: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
+    )
+  }
+
+  private def actionResultTable(evt: ActionResultEvent): generic.Frag[Builder, String] =
+    frag(
+      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID")), td(b("Took"))),
+      tr(td(evt.actionParams.importance.show), td(evt.actionId), td(evt.traceId), td(fmt.format(evt.took)))
     )
 
   private def actionFailed(evt: ActionFail): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
-      table(hostServiceTable(evt), actionTable(evt)),
+      table(hostServiceTable(evt), actionResultTable(evt)),
       p(b("Policy: "), evt.actionInfo.actionParams.retryPolicy),
-      p(b("Took: "), fmt.format(evt.took)),
       p(b("Input: "), jsonText(evt.input)),
       causeText(evt.error)
     )
@@ -144,8 +155,7 @@ private object HtmlTranslator extends all {
   private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
-      table(hostServiceTable(evt), actionTable(evt)),
-      p(b("Took: "), fmt.format(evt.took)),
+      table(hostServiceTable(evt), actionResultTable(evt)),
       p(b("Output: "), jsonText(evt.output))
     )
 

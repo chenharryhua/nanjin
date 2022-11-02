@@ -48,7 +48,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("2.counter") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val counter =
           ag.counter("one/two/three/counter").asError
@@ -68,7 +68,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("3.alert") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(hourly))
+      .updateConfig(_.withMetricReport(cron_1hour))
       .eventStream { ag =>
         val alert = ag.alert("oops").withCounting
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
@@ -85,7 +85,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("4.meter") {
     guard
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
         val meter = agent.meter("nj.test.meter").withCounting
         (meter.mark(1000) >> agent.metrics.reset
@@ -99,7 +99,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("5.histogram") {
     guard
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
         val meter = agent.histogram("nj.test.histogram").withCounting
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)

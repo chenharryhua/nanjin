@@ -81,7 +81,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
-    chn <- Resource.eval(Channel.bounded[F, NJEvent](sp.queueCapacity))
+    chn <- Resource.eval(Channel.unbounded[F, NJEvent])
     _ <- chn.stream
       .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
       .compile
@@ -92,7 +92,7 @@ final class ServiceGuard[F[_]] private[guard] (
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
-      event <- Stream.eval(Channel.bounded[F, NJEvent](serviceParams.queueCapacity)).flatMap { channel =>
+      event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = {
           val mr = new MetricRegistry()
           metricSet.foreach(mr.registerAll)

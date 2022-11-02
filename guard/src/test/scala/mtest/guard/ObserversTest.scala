@@ -23,11 +23,11 @@ class ObserversTest extends AnyFunSuite {
 
   def ok(agent: Agent[IO]) = agent.action("ok", _.notice).retry(IO(1)).run
 
-  test("1.logging") {
+  test("1.logging verbose") {
     TaskGuard[IO]("logging")
       .service("text")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(hourly).withQueueCapacity(20))
+      .updateConfig(_.withMetricReport(cron_1hour))
       .eventStream { ag =>
         val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
@@ -38,18 +38,18 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("2.console - text") {
+  test("2.console - simple text") {
     TaskGuard[IO]("console")
       .service("text")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val err = ag
           .action("error", _.critical.withTiming)
           .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
           .retry(err_fun(1))
           .run
-        ok(ag) >> err
+        ok(ag) >> ag.alert("alarm").error("alarm") >> err
       }
       .evalTap(console.simple[IO])
       .take(10)
@@ -58,11 +58,11 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("3.console - json") {
+  test("3.console - simple json") {
     TaskGuard[IO]("console")
       .service("json")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(secondly).withQueueCapacity(20))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
@@ -78,7 +78,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val err = ag
           .action("error", _.critical)
@@ -102,7 +102,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("sesService")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(secondly).withBrief("*Good Morning*"))
+      .updateConfig(_.withMetricReport(cron_1second).withBrief("*Good Morning*"))
       .eventStream { ag =>
         val err =
           ag.action("error", _.critical.withTiming.withCounting)
@@ -185,7 +185,7 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("sqs")
       .service("sqs")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(secondly).withMetricDailyReset)
+      .updateConfig(_.withMetricReport(cron_1second).withMetricDailyReset)
       .eventStream(
         _.action("sqs", _.critical).retry(IO.raiseError(new Exception)).run.delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)

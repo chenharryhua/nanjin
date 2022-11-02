@@ -20,7 +20,8 @@ class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry-test").withRestartPolicy(constant_1second)
 
-  val policy = policies.cronBackoff[IO](secondly, ZoneId.systemDefault()).join(RetryPolicies.limitRetries(3))
+  val policy =
+    policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault()).join(RetryPolicies.limitRetries(3))
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard
@@ -146,7 +147,7 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("7.cancellation - parallel") {
-    val policy2 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
+    val policy2 = constant_1second.join(RetryPolicies.limitRetries(1))
     val v =
       serviceGuard
         .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])

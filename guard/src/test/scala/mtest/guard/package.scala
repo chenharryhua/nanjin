@@ -12,13 +12,18 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 package object guard {
-  val snsArn: SnsArn              = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
-  final val trisecondly: CronExpr = Cron.unsafeParse("*/3 * * ? * *")
-  final val hourly: CronExpr      = Cron.unsafeParse("0 0 0-23 ? * *")
-  final val secondly: CronExpr    = Cron.unsafeParse("0-59 * * ? * *")
-  final val bisecondly: CronExpr  = Cron.unsafeParse("*/2 * * ? * *")
-  val minutely: CronExpr          = Cron.unsafeParse("0 0-59 * ? * *")
-  final val beijingTime: ZoneId   = ZoneId.of("Asia/Shanghai")
+  val snsArn: SnsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
+
+  final val cron_1hour: CronExpr   = Cron.unsafeParse("0 0 0-23 ? * *")
+  final val cron_1second: CronExpr = Cron.unsafeParse("0-59 * * ? * *")
+  final val cron_2second: CronExpr = Cron.unsafeParse("*/2 * * ? * *")
+  final val cron_3second: CronExpr = Cron.unsafeParse("*/3 * * ? * *")
+  final val cron_1minute: CronExpr = Cron.unsafeParse("0 0-59 * ? * *")
+
+  val constant_1second = RetryPolicies.constantDelay[IO](1.seconds)
+  val constant_1hour   = RetryPolicies.constantDelay[IO](1.hour)
+
+  final val beijingTime: ZoneId = ZoneId.of("Asia/Shanghai")
 
   def unit_fun: IO[Unit] = IO(())
 
@@ -40,8 +45,5 @@ package object guard {
   def fun3fut(a: Int, b: Int, c: Int)                 = Future(a + b + c)
   def fun4fut(a: Int, b: Int, c: Int, d: Int)         = Future(a + b + c + d)
   def fun5fut(a: Int, b: Int, c: Int, d: Int, e: Int) = Future(a + b + c + d + e)
-
-  val constant_1second = RetryPolicies.constantDelay[IO](1.seconds)
-  val constant_1hour   = RetryPolicies.constantDelay[IO](1.hour)
 
 }

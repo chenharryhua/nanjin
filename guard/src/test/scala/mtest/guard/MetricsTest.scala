@@ -26,11 +26,11 @@ class MetricsTest extends AnyFunSuite {
     TaskGuard[IO]("metrics")
       .updateConfig(_.withZoneId(zoneId))
       .service("delta")
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
 
   test("1.delta") {
     val last = service("delta")
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .addMetricSet(new ThreadStatesGaugeSet)
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
@@ -58,7 +58,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("3.ongoing action alignment") {
     service
-      .updateConfig(_.withMetricReport(secondly))
+      .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val one = ag.action("one", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
         val two = ag.action("two", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
@@ -103,7 +103,7 @@ class MetricsTest extends AnyFunSuite {
     assert(i4.asJson.noSpaces === """ "Trivial" """.trim)
   }
 
-  test("6. show timestamp") {
+  test("6.show timestamp") {
     val s = service("timing").updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
 
     val s1 = s("s1").eventStream(_ => IO.never)

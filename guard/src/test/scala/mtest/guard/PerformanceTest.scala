@@ -29,7 +29,7 @@ import scala.concurrent.duration.*
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("performance").service("actions").updateConfig(_.withMetricReport(secondly))
+    TaskGuard[IO]("performance").service("actions").updateConfig(_.withMetricReport(cron_1second))
   val take: FiniteDuration = 100.seconds
 
   def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"

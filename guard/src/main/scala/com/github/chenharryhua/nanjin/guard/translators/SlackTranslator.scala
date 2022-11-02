@@ -130,9 +130,9 @@ private object SlackTranslator extends all {
   private def instantAlert(evt: InstantAlert): SlackApp = {
     val title = evt.importance match {
       case Importance.Critical => ":warning: Error"
-      case Importance.Notice     => ":warning: Warning"
+      case Importance.Notice   => ":warning: Warning"
       case Importance.Silent   => ":information_source: Info"
-      case Importance.Trivial      => "oops. should not happen"
+      case Importance.Trivial  => "oops. should not happen"
     }
     val msg: Option[Section] =
       if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
@@ -151,7 +151,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def traceId(evt: ActionEvent): String   = s"*Trace ID:* ${evt.traceId.getOrElse("none")}"
+  private def traceId(evt: ActionEvent): String   = s"*Trace ID:* ${evt.traceId}"
   private def actionId(evt: ActionEvent): String  = s"*Action ID:* ${evt.actionId}"
   private def serviceId(evt: ActionEvent): String = s"*Service ID:* ${evt.serviceId.show}"
   private def took(evt: ActionEvent): String      = s"*Took:* ${fmt.format(evt.took)}"
