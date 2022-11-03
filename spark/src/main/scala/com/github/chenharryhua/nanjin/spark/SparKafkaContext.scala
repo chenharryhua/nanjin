@@ -1,9 +1,12 @@
 package com.github.chenharryhua.nanjin.spark
 
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KUnknown, SerdeOf}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import io.circe.Json
 import org.apache.spark.sql.SparkSession
 import org.typelevel.cats.time.instances.zoneid
@@ -28,4 +31,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def jsonTopic(topicName: TopicName): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
     topic[KJson[Json], KJson[Json]](topicName)
+
+  def dumpTopic(topicName: TopicName, path: NJPath, dr: NJDateTimeRange)(implicit F: Sync[F]): F[Unit] =
+    topic[KUnknown, KUnknown](topicName).fromKafka(dr).output.circe(path).run
 }
