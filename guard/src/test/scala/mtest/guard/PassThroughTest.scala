@@ -63,7 +63,7 @@ class PassThroughTest extends AnyFunSuite {
       last
         .asInstanceOf[MetricReport]
         .snapshot
-        .counterMap("03.counter.[one/two/three/counter][1a8af341].error") == 1)
+        .counterMap("counter.[one/two/three/counter][1a8af341].error") == 1)
   }
 
   test("3.alert") {
@@ -80,7 +80,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("01.alert.[oops][a32b945e].error") == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("alert.[oops][a32b945e].error") == 1)
   }
 
   test("4.meter") {
