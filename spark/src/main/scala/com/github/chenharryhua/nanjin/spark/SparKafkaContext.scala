@@ -32,6 +32,9 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def jsonTopic(topicName: TopicName): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
     topic[KJson[Json], KJson[Json]](topicName)
 
-  def dumpTopic(topicName: TopicName, path: NJPath, dr: NJDateTimeRange)(implicit F: Sync[F]): F[Unit] =
+  def dumpTopic(
+    topicName: TopicName,
+    path: NJPath,
+    dr: NJDateTimeRange = NJDateTimeRange(kafkaContext.settings.zoneId))(implicit F: Sync[F]): F[Unit] =
     topic[KUnknown, KUnknown](topicName).fromKafka(dr).output.circe(path).run
 }
