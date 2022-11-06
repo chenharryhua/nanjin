@@ -1,11 +1,11 @@
 package mtest.msg.codec
 
-import io.circe.generic.auto._
+import io.circe.generic.auto.*
 import io.circe.parser.decode
-import io.circe.shapes._
-import io.circe.syntax._
+import io.circe.shapes.*
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import shapeless._
+import shapeless.*
 
 object CoproductJsons {
   final case class Foo(a: Int, b: String)
@@ -16,7 +16,7 @@ object CoproductJsons {
 }
 
 class CoproductJsonTest extends AnyFunSuite {
-  import CoproductJsons._
+  import CoproductJsons.*
   val foo: Foo = Foo(1, "foo-1")
   val bar: Bar = Bar(2, "bar-2")
   val fb1: FB  = FB(Coproduct[FooBar](foo), 0)

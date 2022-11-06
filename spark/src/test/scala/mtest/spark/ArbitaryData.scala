@@ -1,12 +1,12 @@
 package mtest.spark
 
-import java.sql.{Date, Timestamp}
-import java.time._
-
-import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8._
+import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
 import frameless.{SQLDate, SQLTimestamp}
-import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.{Arbitrary, Cogen, Gen}
+import org.scalacheck.Arbitrary.arbitrary
+
+import java.sql.{Date, Timestamp}
+import java.time.*
 
 object ArbitaryData {
   implicit val zoneId: ZoneId = ZoneId.systemDefault()

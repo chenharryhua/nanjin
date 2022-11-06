@@ -1,9 +1,8 @@
 package mtest.spark
 
 import org.scalatest.funsuite.AnyFunSuite
-import shapeless.test.illTyped
 import shapeless.{:+:, CNil}
-import frameless.TypedEncoder
+import shapeless.test.illTyped
 
 object SparkCoproductTestData {
   sealed trait Parent
@@ -23,7 +22,6 @@ object SparkCoproductTestData {
 }
 
 class SparkCoproductTest extends AnyFunSuite {
-  import SparkCoproductTestData._
   test("spark frameless does not directly support coproduct yet - wonderful if fail") {
     illTyped(""" implicitly[TypedEncoder[Parent]] """)
     illTyped(""" implicitly[TypedEncoder[CoParent]] """)

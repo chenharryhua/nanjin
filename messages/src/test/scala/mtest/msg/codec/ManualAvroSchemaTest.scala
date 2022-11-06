@@ -86,7 +86,7 @@ object ManualAvroSchemaTestData {
 }
 
 class ManualAvroSchemaTest extends AnyFunSuite {
-  import ManualAvroSchemaTestData._
+  import ManualAvroSchemaTestData.*
 
   test("decoder/encoder have the same schema") {
     val input = (new Schema.Parser).parse(UnderTest.schema1)
