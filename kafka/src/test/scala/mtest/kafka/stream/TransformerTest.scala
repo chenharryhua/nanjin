@@ -8,9 +8,8 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
-import org.apache.kafka.streams.KeyValue
-import org.apache.kafka.streams.kstream.{Transformer, TransformerSupplier}
-import org.apache.kafka.streams.processor.ProcessorContext
+import org.apache.kafka.streams.processor.api
+import org.apache.kafka.streams.processor.api.{Processor, ProcessorSupplier, Record}
 import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
@@ -28,35 +27,36 @@ class TransformerTest extends AnyFunSuite {
     val topic2 = ctx.topic[Int, String]("stream.builder.test.table2")
     val tgt    = ctx.topic[Int, String]("stream.builder.test.target")
 
-    val transformer: TransformerSupplier[Int, String, KeyValue[Int, String]] =
-      () =>
-        new Transformer[Int, String, KeyValue[Int, String]] {
-          var kvStore: KeyValueStore[Int, String] = _
-
-          override def init(processorContext: ProcessorContext): Unit = {
-            kvStore = processorContext.getStateStore[KeyValueStore[Int, String]](store.name)
+    val processor: ProcessorSupplier[Int, String, Int, String] =
+      new ProcessorSupplier[Int, String, Int, String] {
+        var kvStore: KeyValueStore[Int, String]    = _
+        var ctx: api.ProcessorContext[Int, String] = _
+        override def get(): Processor[Int, String, Int, String] = new Processor[Int, String, Int, String] {
+          override def init(context: api.ProcessorContext[Int, String]): Unit = {
+            kvStore = context.getStateStore[KeyValueStore[Int, String]](store.name)
+            ctx = context
             println("transformer initialized")
           }
 
-          override def transform(k: Int, v: String): KeyValue[Int, String] = {
-            kvStore.put(k, v)
-            println((k, v))
-            new KeyValue[Int, String](k, v + "-local-transformed-")
-          }
-
           override def close(): Unit =
+            // kvStore.close()
             println("transformer closed")
+
+          override def process(record: Record[Int, String]): Unit = {
+            println(record.toString)
+            kvStore.put(record.key(), record.value())
+            ctx.forward(record)
+          }
         }
+      }
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       s1 <- topic1.asConsumer.kstream
       t2 <- topic2.asConsumer.ktable
-    } yield s1.transform(transformer, store.name).join(t2)(_ + _).to(tgt.topicName)(tgt.asProduced)
+    } yield s1.process(processor, store.name).join(t2)(_ + _).to(tgt.topicName)(tgt.asProduced)
 
-    val kafkaStreamService = ctx
-      .buildStreams(top)
-      .addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
-      .withProperty("unknown-feature", "unused")
+    val kafkaStreamService =
+      ctx.buildStreams(top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
     println(kafkaStreamService.topology.describe())
 
     val t2Data = Stream(

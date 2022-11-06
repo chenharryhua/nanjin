@@ -8,8 +8,8 @@ ThisBuild / versionScheme      := Some("early-semver")
 val catsCoreV   = "2.8.0"
 val catsEffectV = "3.4.0-RC2"
 val monocleV    = "2.1.0"
-val confluentV  = "7.2.2"
-val kafkaV      = "7.2.2-ce"
+val confluentV  = "7.3.0"
+val kafkaV      = "7.3.0-ce"
 val avroV       = "1.11.1"
 val slf4jV      = "1.7.36"
 val metricsV    = "4.2.12"
@@ -56,26 +56,26 @@ val hadoopLib = List(
     .exclude("commons-logging", "commons-logging"))
 
 val circeLib = List(
-  "io.circe" %% "circe-core"           % "0.14.3",
-  "io.circe" %% "circe-generic"        % "0.14.3",
-  "io.circe" %% "circe-parser"         % "0.14.3",
-  "io.circe" %% "circe-shapes"         % "0.14.3",
-  "io.circe" %% "circe-jawn"           % "0.14.3",
-  "io.circe" %% "circe-optics"         % "0.14.1",
-  "io.circe" %% "circe-jackson212"     % "0.14.0",
-  "io.circe" %% "circe-refined"        % "0.14.3",
-  "org.gnieh" %% "diffson-circe"       % "4.3.0"
+  "io.circe" %% "circe-core"       % "0.14.3",
+  "io.circe" %% "circe-generic"    % "0.14.3",
+  "io.circe" %% "circe-parser"     % "0.14.3",
+  "io.circe" %% "circe-shapes"     % "0.14.3",
+  "io.circe" %% "circe-jawn"       % "0.14.3",
+  "io.circe" %% "circe-optics"     % "0.14.1",
+  "io.circe" %% "circe-jackson212" % "0.14.0",
+  "io.circe" %% "circe-refined"    % "0.14.3",
+  "org.gnieh" %% "diffson-circe"   % "4.3.0"
 )
 
 val jacksonLib = List(
-  "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.13.4",
-  "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.13.4",
-  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.13.4.2",
-  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.13.4",
-  "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.13.4",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.13.4",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.13.4",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4"
+  "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.14.0",
+  "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.14.0",
+  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.14.0",
+  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.14.0",
+  "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.14.0",
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.14.0",
+  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.14.0",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.14.0"
 )
 
 val kantanLib = List(
@@ -221,7 +221,7 @@ val baseLib = List(
   "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % "2.3.10",
   "com.github.cb372" %% "cats-retry"               % "3.1.0",
-  "org.typelevel" %% "cats-time"                   % "0.5.0"
+  "org.typelevel" %% "cats-time"                   % "0.5.1"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
@@ -351,3 +351,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
