@@ -65,10 +65,7 @@ final class Agent[F[_]] private[service] (
     )
 
   def counter(counterName: String): NJCounter[F] =
-    new NJCounter(
-      digested = Digested(serviceParams, counterName),
-      metricRegistry = metricRegistry,
-      isError = false)
+    new NJCounter(digested = Digested(serviceParams, counterName), metricRegistry = metricRegistry)
 
   def meter(meterName: String): NJMeter[F] =
     new NJMeter[F](
