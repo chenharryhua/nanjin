@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import eu.timepit.refined.auto.*
+import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 import skunk.Session
@@ -109,7 +110,12 @@ class ObserversTest extends AnyFunSuite {
             .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
             .retry(err_fun(1))
             .run
-        ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >> ag.metrics.reset >> err
+        ok(ag) >> ag.alert("alert").withCounting.warn("alarm")
+        ag.meter("meter").withCounting.mark(1) >>
+          ag.counter("counter").inc(1) >>
+          ag.histogram("histo").withCounting.update(1) >>
+          ag.broker("broker").asError.withCounting.passThrough(Json.fromString("path-error")) >>
+          ag.metrics.reset >> err
       }
       .take(12)
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))

@@ -50,8 +50,7 @@ class PassThroughTest extends AnyFunSuite {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
-        val counter =
-          ag.counter("one/two/three/counter").asError
+        val counter = ag.counter("one/two/three/counter")
         (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
       }
       .filter(_.isInstanceOf[MetricReport])
@@ -60,10 +59,7 @@ class PassThroughTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
     assert(
-      last
-        .asInstanceOf[MetricReport]
-        .snapshot
-        .counterMap("counter.[one/two/three/counter][1a8af341].error") == 1)
+      last.asInstanceOf[MetricReport].snapshot.counterMap("counter.[one/two/three/counter][1a8af341]") == 1)
   }
 
   test("3.alert") {

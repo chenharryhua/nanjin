@@ -31,7 +31,7 @@ class MetricSamplingTest extends AnyFunSuite {
     MetricSnapshot(Map.empty[String, Long], Json.Null, "")
   )
 
-  test("cron secondly") {
+  test("1.cron secondly") {
     val ts: ZonedDateTime = ZonedDateTime.of(2021, 1, 1, 0, 0, 0, 0, beijingTime)
     val ts1               = ts.plusSeconds(1).plusNanos(10)
     val ts2               = ts.plusSeconds(2)
@@ -57,7 +57,7 @@ class MetricSamplingTest extends AnyFunSuite {
     assert(!sampling(interval)(metricReport(cron_1second, ts10)))
   }
 
-  test("cron bi-secondly") {
+  test("2.cron bi-secondly") {
     val ts: ZonedDateTime = ZonedDateTime.of(2021, 1, 1, 0, 0, 0, 0, beijingTime)
     val ts1               = ts.plusSeconds(2).plusNanos(10)
     val ts2               = ts.plusSeconds(4)
@@ -83,7 +83,7 @@ class MetricSamplingTest extends AnyFunSuite {
     assert(!sampling(interval)(metricReport(cron_2second, ts10)))
   }
 
-  test("cron sampling - cron") {
+  test("3.cron sampling - cron") {
     val ts: ZonedDateTime = ZonedDateTime.of(2021, 1, 1, 16, 0, 0, 0, beijingTime)
     val ts1               = ts.minusMinutes(2).plusNanos(10)
     val ts2               = ts.minusMinutes(2)

@@ -172,7 +172,7 @@ class ServiceTest extends AnyFunSuite {
     guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
   }
 
-  test("10. multiple service restart") {
+  test("10.multiple service restart") {
     val a :: b :: c :: d :: e :: f :: g :: h :: i :: _ = guard
       .withRestartPolicy(constant_1second)
       .eventStream(_.action("oops", _.silent).retry(IO.raiseError[Int](new Exception("oops"))).run)
@@ -217,7 +217,7 @@ class ServiceTest extends AnyFunSuite {
     dummy.use(_.action("test", _.notice).retry(IO(1)).run.replicateA(3)).unsafeRunSync()
   }
 
-  test("13. policy start over") {
+  test("13.policy start over") {
     import java.time.Duration
     val p1 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
     val p2 = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(2))
@@ -247,7 +247,7 @@ class ServiceTest extends AnyFunSuite {
     assert(500 < d7 && d7 < 1500) // start over again, p1
   }
 
-  test("14. policy threshold start over") {
+  test("14.policy threshold start over") {
     import java.time.Duration
     val List(a, b, c, d, e, f, g) = guard
       .withRestartPolicy(RetryPolicies.fibonacciBackoff[IO](1.seconds))
@@ -270,7 +270,7 @@ class ServiceTest extends AnyFunSuite {
     assert(500 < fg && fg < 1500)
   }
 
-  test("15. eval policy") {
+  test("15.eval policy") {
     val p1 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
     val p2 = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(5))
     Stream

@@ -10,8 +10,9 @@ final class NJMeter[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
   isCounting: Boolean)(implicit F: Sync[F]) {
 
-  private lazy val meter: Meter     = metricRegistry.meter(meterMRName(digested))
-  private lazy val counter: Counter = metricRegistry.counter(counterMRName(digested, asError = false))
+  private val name: String          = meterMRName(digested)
+  private lazy val meter: Meter     = metricRegistry.meter(name)
+  private lazy val counter: Counter = metricRegistry.counter(name + ".count")
 
   def withCounting: NJMeter[F] = new NJMeter[F](digested, metricRegistry, true)
 

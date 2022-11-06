@@ -56,7 +56,7 @@ object SchemaChangeTestData {
 }
 
 class SchemaChangeTest extends AnyFunSuite {
-  import SchemaChangeTestData._
+  import SchemaChangeTestData.*
   test("change namespace") {
     val newCodec: NJAvroCodec[UnderTest] = codec.withNamespace("mtest.avro.SchemaChangeTestData")
 

@@ -14,6 +14,7 @@ import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
+import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -121,5 +122,22 @@ class MetricsTest extends AnyFunSuite {
         .take(20)
         .compile
         .drain).unsafeRunSync()
+  }
+  test("7.name conflict") {
+    service("name.conflict")
+      .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
+      .eventStream { agent =>
+        val name = "metric.name"
+        agent.counter(name).inc(1) >>
+          agent.meter(name).withCounting.mark(1) >>
+          agent.histogram(name).withCounting.update(1) >>
+          agent.broker(name).asError.withCounting.passThrough(Json.fromString("broker")) >>
+          agent.action(name, _.withTiming.withCounting).retry(IO(())).run.foreverM
+      }
+      .take(6)
+      .debug()
+      .compile
+      .lastOrError
+      .unsafeRunSync()
   }
 }
