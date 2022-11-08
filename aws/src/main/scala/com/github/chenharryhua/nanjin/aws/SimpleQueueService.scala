@@ -14,6 +14,7 @@ import io.circe.parser.*
 import io.circe.Json
 import io.circe.jackson.jacksonToCirce
 import io.circe.syntax.EncoderOps
+import monocle.macros.Lenses
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
@@ -186,7 +187,7 @@ object SimpleQueueService {
 }
 
 object sqsS3Parser {
-  @JsonCodec
+  @JsonCodec @Lenses
   final case class SqsS3File(path: S3Path, size: Long)
   object SqsS3File {
     implicit val showSqsS3File: Show[SqsS3File] = cats.derived.semiauto.show[SqsS3File]
