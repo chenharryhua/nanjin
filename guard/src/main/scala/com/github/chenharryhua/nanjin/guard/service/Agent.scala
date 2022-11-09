@@ -15,7 +15,7 @@ import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
 import retry.{RetryPolicies, RetryPolicy}
 
-import java.time.ZoneId
+import java.time.{ZoneId, ZonedDateTime}
 
 final class Agent[F[_]] private[service] (
   val serviceParams: ServiceParams,
@@ -34,6 +34,8 @@ final class Agent[F[_]] private[service] (
     entryPoint.flatMap(_.continueOrElseRoot(name, kernel))
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
+
+  val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
 
   def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
