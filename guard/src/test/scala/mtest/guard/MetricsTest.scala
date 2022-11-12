@@ -128,6 +128,7 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
       .eventStream { agent =>
         val name = "metric.name"
+        agent.gauge("free.memory", Runtime.getRuntime.freeMemory())
         agent.counter(name).inc(1) >>
           agent.meter(name).withCounting.mark(1) >>
           agent.histogram(name).withCounting.update(1) >>

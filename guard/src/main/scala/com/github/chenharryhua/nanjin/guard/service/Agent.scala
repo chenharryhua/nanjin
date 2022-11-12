@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.Endo
+import cats.{Endo, Eval}
 import cats.effect.kernel.Async
 import cats.effect.Resource
 import cats.implicits.toFlatMapOps
-import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -81,6 +81,14 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       isCounting = false
     )
+
+  def gauge[A](gaugeName: String, value: Eval[A]): Gauge[A] =
+    metricRegistry.register(
+      "gauge." + Digested(serviceParams, gaugeName).metricRepr,
+      new Gauge[A] { override def getValue: A = value.value })
+
+  def gauge[A](gaugeName: String, value: => A): Gauge[A] =
+    gauge[A](gaugeName, Eval.always(value))
 
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
