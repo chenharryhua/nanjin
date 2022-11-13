@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.Show
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
@@ -15,10 +16,14 @@ import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
 import io.circe.Json
+import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
+
+@JsonCodec
+final case class SystemInfo(now: ZonedDateTime, on: Boolean, size: Int)
 
 class MetricsTest extends AnyFunSuite {
   val zoneId: ZoneId = ZoneId.systemDefault()
@@ -123,12 +128,18 @@ class MetricsTest extends AnyFunSuite {
         .compile
         .drain).unsafeRunSync()
   }
+
   test("7.name conflict") {
+    implicit val showSys: Show[SystemInfo] = cats.derived.semiauto.show[SystemInfo]
     service("name.conflict")
       .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
       .eventStream { agent =>
         val name = "metric.name"
-        agent.gauge("free.memory", Runtime.getRuntime.freeMemory())
+        agent.registerGauge("free.memory", Runtime.getRuntime.freeMemory())
+        agent.registerGauge(
+          "sys.info",
+          SystemInfo(agent.zonedNow.unsafeRunSync(), true, Runtime.getRuntime.availableProcessors()))
+        agent.registerGauge("exception", IO.raiseError[Int](new Exception("oops")).unsafeRunSync())
         agent.counter(name).inc(1) >>
           agent.meter(name).withCounting.mark(1) >>
           agent.histogram(name).withCounting.update(1) >>

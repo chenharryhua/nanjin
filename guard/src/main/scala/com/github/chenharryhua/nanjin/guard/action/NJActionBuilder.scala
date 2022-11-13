@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.{Alternative, Endo, Traverse}
+import cats.{Alternative, Endo, Eval, Traverse}
 import cats.data.{Ior, Validated}
 import cats.effect.kernel.Async
 import cats.implicits.{
@@ -147,6 +147,7 @@ final class NJActionBuilder[F[_]](
   def retry[Z](e: Either[Throwable, Z]): NJAction0[F, Z] = retry(F.fromEither(e))
   def retry[Z](o: Option[Z]): NJAction0[F, Z] = retry(F.fromOption(o, new Exception("fail on None")))
   def retry[Z](v: Validated[Throwable, Z]): NJAction0[F, Z] = retry(F.fromValidated(v))
+  def retry[Z](e: Eval[Z]): NJAction0[F, Z]                 = retry(F.catchNonFatalEval(e))
 
   // helpers
   private def mode(par: Option[Int]): (String, Json) =
