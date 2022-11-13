@@ -10,7 +10,7 @@ final class NJHistogram[F[_]] private[guard] (
   isCounting: Boolean)(implicit F: Sync[F]) {
   private val name: String          = histogramMRName(digested)
   private lazy val histo: Histogram = metricRegistry.histogram(name)
-  private lazy val counter: Counter = metricRegistry.counter(name + ".count")
+  private lazy val counter: Counter = metricRegistry.counter(name + ".recent")
 
   def withCounting: NJHistogram[F] = new NJHistogram[F](digested, metricRegistry, true)
 

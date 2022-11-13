@@ -12,7 +12,7 @@ final class NJMeter[F[_]] private[guard] (
 
   private val name: String          = meterMRName(digested)
   private lazy val meter: Meter     = metricRegistry.meter(name)
-  private lazy val counter: Counter = metricRegistry.counter(name + ".count")
+  private lazy val counter: Counter = metricRegistry.counter(name + ".recent")
 
   def withCounting: NJMeter[F] = new NJMeter[F](digested, metricRegistry, true)
 

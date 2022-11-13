@@ -12,7 +12,7 @@ package object action {
     }
 
   private[action] def passThroughMRName(name: Digested, asError: Boolean): String =
-    if (asError) s"passThrough.${name.metricRepr}.error" else s"passThrough.${name.metricRepr}.count"
+    if (asError) s"passThrough.${name.metricRepr}.error" else s"passThrough.${name.metricRepr}"
 
   private[action] def counterMRName(name: Digested): String = s"counter.${name.metricRepr}"
 
