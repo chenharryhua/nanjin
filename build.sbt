@@ -6,7 +6,7 @@ ThisBuild / version            := "0.16.4-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val catsEffectV = "3.4.0-RC2"
+val catsEffectV = "3.4.0"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.0"
 val kafkaV      = "7.3.0-ce"
