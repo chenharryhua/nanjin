@@ -129,6 +129,7 @@ class MetricsTest extends AnyFunSuite {
       .eventStream { agent =>
         val name = "metric.name"
         agent.gauge("free.memory", Runtime.getRuntime.freeMemory())
+        agent.gauge("now", agent.zonedNow.map(_.asJson.noSpaces).unsafeRunSync())
         agent.counter(name).inc(1) >>
           agent.meter(name).withCounting.mark(1) >>
           agent.histogram(name).withCounting.update(1) >>

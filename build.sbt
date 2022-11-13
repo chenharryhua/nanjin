@@ -5,7 +5,7 @@ ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / version            := "0.16.4-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
-val catsCoreV   = "2.8.0"
+val catsCoreV   = "2.9.0"
 val catsEffectV = "3.4.0-RC2"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.0"
@@ -142,7 +142,7 @@ val testLib = List(
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
-  "org.typelevel" %% "algebra-laws"                           % "2.8.0",
+  "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.1"
 ).map(_ % Test)
 
@@ -170,13 +170,13 @@ val catsLib = List(
   "org.typelevel" %% "cats-kernel",
   "org.typelevel" %% "cats-core",
   "org.typelevel" %% "cats-free",
-  "org.typelevel" %% "alleycats-core"
+  "org.typelevel" %% "alleycats-core",
+  "org.typelevel" %% "algebra"
 ).map(_ % catsCoreV) ++
   List(
     "org.typelevel" %% "cats-mtl"              % "1.3.0",
     "org.typelevel" %% "kittens"               % "3.0.0",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
-    "org.typelevel" %% "algebra"               % "2.8.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.5"
   )
 
