@@ -4,6 +4,7 @@ import cats.data.Validated
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import cats.Eval
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -274,7 +275,8 @@ class RetryTest extends AnyFunSuite {
       val e2 = ag.action("e2").retry(Some(1)).run
       val e3 = ag.action("e3").retry(Right(1)).run
       val e4 = ag.action("e4").retry(Validated.Valid(1)).run
-      a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> e1 >> e2 >> e3 >> e4
+      val e5 = ag.action("e5").retry(Eval.always(3)).run
+      a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> e1 >> e2 >> e3 >> e4 >> e5
     }.compile.drain.unsafeRunSync()
   }
 

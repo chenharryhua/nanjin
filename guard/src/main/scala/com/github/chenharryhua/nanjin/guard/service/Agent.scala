@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.{Endo, Eval}
+import cats.{Endo, Show}
 import cats.effect.kernel.Async
 import cats.effect.Resource
 import cats.implicits.toFlatMapOps
@@ -13,9 +13,11 @@ import cron4s.CronExpr
 import fs2.concurrent.Channel
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.{RetryPolicies, RetryPolicy}
 
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.{ZonedDateTime, ZoneId}
+import scala.util.Try
 
 final class Agent[F[_]] private[service] (
   val serviceParams: ServiceParams,
@@ -82,13 +84,13 @@ final class Agent[F[_]] private[service] (
       isCounting = false
     )
 
-  def gauge[A](gaugeName: String, value: Eval[A]): Gauge[A] =
-    metricRegistry.register(
+  def registerGauge[A](gaugeName: String, value: => A)(implicit ev: Show[A]): Gauge[String] =
+    metricRegistry.registerGauge(
       "gauge." + Digested(serviceParams, gaugeName).metricRepr,
-      new Gauge[A] { override def getValue: A = value.value })
-
-  def gauge[A](gaugeName: String, value: => A): Gauge[A] =
-    gauge[A](gaugeName, Eval.always(value))
+      new Gauge[String] {
+        override def getValue: String = Try(value).toEither.fold(ExceptionUtils.getMessage, ev.show)
+      }
+    )
 
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
