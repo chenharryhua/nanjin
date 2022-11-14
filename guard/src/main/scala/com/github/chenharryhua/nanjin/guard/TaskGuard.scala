@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
+import io.circe.Json
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
 import retry.RetryPolicies
@@ -34,7 +35,8 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
       metricSet = Nil,
       jmxBuilder = None,
       entryPoint = entryPoint,
-      restartPolicy = RetryPolicies.alwaysGiveUp
+      restartPolicy = RetryPolicies.alwaysGiveUp[F],
+      brief = Async[F].pure(Json.Null)
     )
 }
 

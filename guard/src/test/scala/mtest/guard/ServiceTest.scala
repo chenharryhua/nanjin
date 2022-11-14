@@ -12,6 +12,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.parser.decode
 import io.circe.syntax.*
+import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import retry.{PolicyDecision, RetryPolicies, RetryStatus}
 
@@ -25,7 +26,7 @@ class ServiceTest extends AnyFunSuite {
     .updateConfig(_.withHostName(HostName.local_host).withHomePage("https://abc.com/efg"))
     .service("service")
     .withRestartPolicy(constant_1second)
-    .updateConfig(_.withBrief("test"))
+    .withBrief(Json.fromString("test"))
 
   val policy = RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
 

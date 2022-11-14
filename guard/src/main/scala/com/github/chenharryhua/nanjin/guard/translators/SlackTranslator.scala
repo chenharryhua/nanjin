@@ -39,7 +39,7 @@ private object SlackTranslator extends all {
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
             ),
             MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
-            MarkdownSection(evt.serviceParams.brief)
+            MarkdownSection(s"```${abbreviate(evt.serviceParams.brief.spaces2)}```")
           )
         ))
     )
@@ -100,7 +100,9 @@ private object SlackTranslator extends all {
             metricsSection(evt.snapshot)
           )
         ),
-        Attachment(color = coloring(evt), blocks = List(MarkdownSection(evt.serviceParams.brief)))
+        Attachment(
+          color = coloring(evt),
+          blocks = List(MarkdownSection(s"```${abbreviate(evt.serviceParams.brief.spaces2)}```")))
       )
     )
   }

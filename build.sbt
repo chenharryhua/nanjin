@@ -2,11 +2,11 @@ ThisBuild / scalaVersion       := "2.13.10"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.4-SNAPSHOT"
+ThisBuild / version            := "0.16.5-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val catsEffectV = "3.4.0-RC2"
+val catsEffectV = "3.4.0"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.0"
 val kafkaV      = "7.3.0-ce"
@@ -248,7 +248,11 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= awsLib ++ logLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-ember-client" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV) ++
+      awsLib ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)

@@ -103,7 +103,8 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withHomePage("https://google.com"))
       .service("sesService")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second).withBrief("*Good Morning*"))
+      .updateConfig(_.withMetricReport(cron_1second))
+      .withBrief(Json.fromString("good morning"))
       .eventStream { ag =>
         val err =
           ag.action("error", _.critical.withTiming.withCounting)
