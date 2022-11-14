@@ -248,7 +248,11 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings: _*)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= awsLib ++ logLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-ember-client" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV) ++
+      awsLib ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
