@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.Show
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
@@ -18,9 +17,11 @@ import io.circe.syntax.*
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
+import scala.util.Random
 
 @JsonCodec
 final case class SystemInfo(now: ZonedDateTime, on: Boolean, size: Int)
@@ -130,20 +131,16 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("7.name conflict") {
-    implicit val showSys: Show[SystemInfo] = cats.derived.semiauto.show[SystemInfo]
     service("name.conflict")
       .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
+      .withRestartPolicy(RetryPolicies.constantDelay[IO](2.seconds))
       .eventStream { agent =>
         val name = "metric.name"
-        agent.registerGauge("free.memory", Runtime.getRuntime.freeMemory())
-        agent.registerGauge(
-          "sys.info",
-          SystemInfo(agent.zonedNow.unsafeRunSync(), true, Runtime.getRuntime.availableProcessors()))
-        agent.registerGauge("exception", IO.raiseError[Int](new Exception("oops")).unsafeRunSync())
         agent.counter(name).inc(1) >>
           agent.meter(name).withCounting.mark(1) >>
           agent.histogram(name).withCounting.update(1) >>
-          agent.broker(name).asError.withCounting.passThrough(Json.fromString("broker")) >>
+          agent.broker(name).withCounting.passThrough(Json.fromString("broker.good")) >>
+          agent.broker(name).asError.withCounting.passThrough(Json.fromString("broker.error")) >>
           agent.action(name, _.withTiming.withCounting).retry(IO(())).run.foreverM
       }
       .take(6)
@@ -151,5 +148,22 @@ class MetricsTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
+  }
+
+  test("gauge") {
+    service("gauge").eventStream { agent =>
+      agent.gauge("free.memory").register(Runtime.getRuntime.freeMemory())
+      agent.gauge("exception").register[Int](throw new Exception(Random.nextPrintableChar().toString))
+
+      for {
+        state <- IO.ref(0)
+        _ = agent.gauge("state").register(state.get.unsafeRunSync())
+        _ <- agent
+          .ticks(RetryPolicies.constantDelay[IO](1.seconds))
+          .evalTap(_ => state.update(_ + 1))
+          .compile
+          .drain
+      } yield ()
+    }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
   }
 }
