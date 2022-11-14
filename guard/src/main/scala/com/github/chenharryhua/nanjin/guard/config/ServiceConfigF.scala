@@ -9,7 +9,7 @@ import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.cats.*
 import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
-import io.circe.{Decoder, Encoder}
+import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import io.scalaland.enumz.Enum
@@ -46,7 +46,7 @@ object MetricParams {
   retryPolicy: String, // service restart policy
   policyThreshold: Option[Duration], // policy start over interval
   metricParams: MetricParams,
-  brief: String,
+  brief: Json,
   serviceId: UUID,
   launchTime: ZonedDateTime
 ) {
@@ -69,7 +69,8 @@ object ServiceParams extends zoneddatetime with duration {
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
-    retryPolicy: String // for display
+    retryPolicy: String, // for display
+    brief: Json
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName,
@@ -82,7 +83,7 @@ object ServiceParams extends zoneddatetime with duration {
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
-      brief = "no brief",
+      brief = brief,
       serviceId = serviceId,
       launchTime = launchTime.atZone(taskParams.zoneId)
     )
@@ -102,16 +103,15 @@ private object ServiceConfigF {
 
   final case class WithPolicyThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
 
-  final case class WithBrief[K](value: String, cont: K) extends ServiceConfigF[K]
-
   def algebra(
     serviceName: ServiceName,
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
-    retryPolicy: String): Algebra[ServiceConfigF, ServiceParams] =
+    retryPolicy: String,
+    brief: Json): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams() => ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy)
+      case InitParams() => ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
 
       case WithReportSchedule(v, c) =>
         ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(v)(c)
@@ -123,19 +123,13 @@ private object ServiceConfigF {
         ServiceParams.metricParams.composeLens(MetricParams.durationTimeUnit).set(v)(c)
 
       case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.set(v)(c)
-
-      case WithBrief(v, c) => ServiceParams.brief.set(v)(c)
-
     }
 }
 
 final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
-  def withBrief(text: String): ServiceConfig = ServiceConfig(Fix(WithBrief(text, value)))
-
   // metrics
-
   def withMetricReport(crontab: CronExpr): ServiceConfig =
     ServiceConfig(Fix(WithReportSchedule(Some(crontab), value)))
 
@@ -164,8 +158,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF]) {
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
-    retryPolicy: String): ServiceParams =
-    scheme.cata(algebra(serviceName, taskParams, serviceId, launchTime, retryPolicy)).apply(value)
+    retryPolicy: String,
+    brief: Json): ServiceParams =
+    scheme.cata(algebra(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)).apply(value)
 }
 
 private[guard] object ServiceConfig {

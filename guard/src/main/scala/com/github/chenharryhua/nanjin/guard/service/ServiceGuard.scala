@@ -16,6 +16,7 @@ import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.Channel
+import io.circe.Json
 import natchez.EntryPoint
 import retry.RetryPolicy
 
@@ -38,7 +39,8 @@ final class ServiceGuard[F[_]] private[guard] (
   metricSet: List[MetricSet],
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   entryPoint: Resource[F, EntryPoint[F]],
-  restartPolicy: RetryPolicy[F])(implicit F: Async[F])
+  restartPolicy: RetryPolicy[F],
+  brief: F[Json])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
   private def copy(
@@ -46,7 +48,8 @@ final class ServiceGuard[F[_]] private[guard] (
     serviceConfig: ServiceConfig = serviceConfig,
     metricSet: List[MetricSet] = metricSet,
     jmxBuilder: Option[Endo[JmxReporter.Builder]] = jmxBuilder,
-    restartPolicy: RetryPolicy[F] = restartPolicy
+    restartPolicy: RetryPolicy[F] = restartPolicy,
+    brief: F[Json] = brief
   ): ServiceGuard[F] = new ServiceGuard[F](
     serviceName,
     taskParams,
@@ -54,7 +57,8 @@ final class ServiceGuard[F[_]] private[guard] (
     metricSet,
     jmxBuilder,
     entryPoint,
-    restartPolicy)
+    restartPolicy,
+    brief)
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
   def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
@@ -70,6 +74,9 @@ final class ServiceGuard[F[_]] private[guard] (
   def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
     withRestartPolicy(policies.cronBackoff[F](cronExpr, taskParams.zoneId))
 
+  def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
+  def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
+
   /** https://metrics.dropwizard.io/4.2.0/manual/core.html#metric-sets
     */
   def addMetricSet(ms: MetricSet): ServiceGuard[F] = copy(metricSet = ms :: metricSet)
@@ -77,7 +84,8 @@ final class ServiceGuard[F[_]] private[guard] (
   private val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
-  } yield serviceConfig.evalConfig(serviceName, taskParams, uuid, ts, restartPolicy.show)
+    json <- brief
+  } yield serviceConfig.evalConfig(serviceName, taskParams, uuid, ts, restartPolicy.show, json)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
