@@ -4,6 +4,7 @@ import cats.{Applicative, Eval}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
+import io.circe.Json
 import org.typelevel.cats.time.instances.all
 
 import java.time.Duration
@@ -24,6 +25,9 @@ private object SlackTranslator extends all {
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection =
     KeyValueSection("Metrics", s"```${abbreviate(snapshot.show.replace("-- ", ""))}```")
 
+  private def brief(json: Json): KeyValueSection =
+    KeyValueSection("Brief", s"```${abbreviate(json.spaces2)}```")
+
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp =
     SlackApp(
@@ -38,10 +42,11 @@ private object SlackTranslator extends all {
               first = TextField("Up Time", fmt.format(evt.upTime)),
               second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
             ),
-            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
-            MarkdownSection(s"```${abbreviate(evt.serviceParams.brief.spaces2)}```")
+            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}")
           )
-        ))
+        ),
+        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
+      )
     )
 
   private def servicePanic(evt: ServicePanic): SlackApp = {
@@ -60,7 +65,8 @@ private object SlackTranslator extends all {
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
-        )
+        ),
+        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
       )
     )
   }
@@ -78,7 +84,8 @@ private object SlackTranslator extends all {
                                 |*Service ID:* ${evt.serviceId.show}
                                 |*Cause:* ${evt.cause.show}""".stripMargin)
           )
-        )
+        ),
+        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
       )
     )
 
@@ -100,9 +107,7 @@ private object SlackTranslator extends all {
             metricsSection(evt.snapshot)
           )
         ),
-        Attachment(
-          color = coloring(evt),
-          blocks = List(MarkdownSection(s"```${abbreviate(evt.serviceParams.brief.spaces2)}```")))
+        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
       )
     )
   }
@@ -218,7 +223,8 @@ private object SlackTranslator extends all {
                                 |${serviceId(evt)}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(msg)}```""".stripMargin)
           )
-        )
+        ),
+        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
       )
     )
   }

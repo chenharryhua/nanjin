@@ -42,13 +42,13 @@ object MetricParams {
 
 @Lenses @JsonCodec final case class ServiceParams(
   serviceName: ServiceName,
-  taskParams: TaskParams,
+  serviceId: UUID,
+  launchTime: ZonedDateTime,
   retryPolicy: String, // service restart policy
   policyThreshold: Option[Duration], // policy start over interval
+  taskParams: TaskParams,
   metricParams: MetricParams,
-  brief: Json,
-  serviceId: UUID,
-  launchTime: ZonedDateTime
+  brief: Json
 ) {
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
@@ -74,6 +74,8 @@ object ServiceParams extends zoneddatetime with duration {
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName,
+      serviceId = serviceId,
+      launchTime = launchTime.atZone(taskParams.zoneId),
       taskParams = taskParams,
       retryPolicy = retryPolicy,
       policyThreshold = None,
@@ -83,9 +85,7 @@ object ServiceParams extends zoneddatetime with duration {
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
-      brief = brief,
-      serviceId = serviceId,
-      launchTime = launchTime.atZone(taskParams.zoneId)
+      brief = brief
     )
 }
 
