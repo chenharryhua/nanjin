@@ -35,5 +35,5 @@ final class SaveCirce[F[_], A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Bool
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
-      F.interruptibleMany(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)))
+      F.blocking(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)))
 }

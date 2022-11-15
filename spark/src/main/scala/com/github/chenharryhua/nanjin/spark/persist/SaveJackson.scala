@@ -30,5 +30,5 @@ final class SaveJackson[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptibleMany(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
+      .checkAndRun(F.blocking(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
 }

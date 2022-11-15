@@ -31,5 +31,5 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptibleMany(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)))
+      .checkAndRun(F.blocking(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)))
 }

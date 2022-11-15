@@ -19,5 +19,5 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <
 
   def run(implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptibleMany(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)))
+      .checkAndRun(F.blocking(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)))
 }

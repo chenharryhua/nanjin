@@ -38,7 +38,7 @@ final class NJTable[F[_], A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) 
 
   def upload(hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode)(implicit
     F: Sync[F]): F[Unit] =
-    F.delay {
+    F.blocking {
       dataset.write
         .mode(saveMode)
         .format("jdbc")
