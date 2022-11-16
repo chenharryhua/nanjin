@@ -24,7 +24,7 @@ final class LoadTable[F[_], A] private[spark] (ate: AvroTypedEncoder[A], ss: Spa
   def data[G[_]: Foldable](list: G[A]): NJTable[F, A] =
     new NJTable[F, A](F.blocking(ate.normalize(ss.createDataset(list.toList)(ate.sparkEncoder))), ate)
 
-  def empty: NJTable[F, A] = new NJTable[F, A](F.pure(ate.emptyDataset(ss)), ate)
+  def empty: NJTable[F, A] = new NJTable[F, A](F.blocking(ate.emptyDataset(ss)), ate)
 
   def parquet(path: NJPath): NJTable[F, A] =
     new NJTable[F, A](F.blocking(loaders.parquet[A](path, ss, ate)), ate)

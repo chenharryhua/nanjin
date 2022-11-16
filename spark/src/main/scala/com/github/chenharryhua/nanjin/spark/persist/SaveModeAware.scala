@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
-import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.SaveMode
 

@@ -7,7 +7,7 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.{col, countDistinct}
 
 import java.time.{Instant, LocalDateTime, ZoneId}
-import scala.annotation.nowarn
+import scala.annotation.unused
 
 final case class CRMetaInfo(
   topic: String,
@@ -42,7 +42,7 @@ final case class MisplacedKey[K](key: Option[K], count: Long)
 object functions {
   implicit final class NJConsumerRecordDatasetExt[K, V](dataset: Dataset[NJConsumerRecord[K, V]]) {
 
-    def misorderedKey(implicit @nowarn tek: TypedEncoder[K]): Dataset[MisorderedKey[K]] = {
+    def misorderedKey(implicit @unused tek: TypedEncoder[K]): Dataset[MisorderedKey[K]] = {
       val teok: TypedEncoder[Option[K]]        = shapeless.cachedImplicit
       val temk: TypedEncoder[MisorderedKey[K]] = shapeless.cachedImplicit
       dataset
@@ -70,7 +70,7 @@ object functions {
         }(TypedExpressionEncoder(temk))
     }
 
-    def misplacedKey(implicit @nowarn tek: TypedEncoder[K]): Dataset[MisplacedKey[K]] = {
+    def misplacedKey(implicit @unused tek: TypedEncoder[K]): Dataset[MisplacedKey[K]] = {
       val te: TypedEncoder[MisplacedKey[K]] = shapeless.cachedImplicit
       dataset
         .groupBy(col("key"))
