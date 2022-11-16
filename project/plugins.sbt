@@ -7,7 +7,7 @@ addSbtPlugin("com.github.cb372"          % "sbt-explicit-dependencies" % "0.2.16
 addSbtPlugin("de.heikoseeberger"         % "sbt-header"                % "5.8.0")
 addSbtPlugin("net.virtual-void"          % "sbt-dependency-graph"      % "0.10.0-RC1")
 addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"              % "0.4.1")
-addSbtPlugin("org.scalameta"             % "sbt-scalafmt"              % "2.4.6")
+addSbtPlugin("org.scalameta"             % "sbt-scalafmt"              % "2.5.0")
 
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
 
