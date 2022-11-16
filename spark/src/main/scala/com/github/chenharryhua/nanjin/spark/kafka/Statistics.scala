@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.Show
-import cats.implicits.catsSyntaxEq
-import cats.syntax.show.*
+import cats.{Monad, Show}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
 import com.github.chenharryhua.nanjin.spark.SPARK_ZONE_ID
@@ -91,52 +90,67 @@ final case class Disorder(
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
-final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializable {
-  private val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+final class Statistics[F[_]: Monad] private[kafka] (fds: F[Dataset[CRMetaInfo]]) extends Serializable {
+  // private val zoneId: ZoneId = ZoneId.of(fds.sparkSession.conf.get(SPARK_ZONE_ID))
 
-  def minutely: Dataset[MinutelyAggResult] = {
+  def minutely: F[List[MinutelyAggResult]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
+    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     ds.map(m => m.localDateTime(zoneId).getMinute)
       .groupByKey(identity)
       .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
       .orderBy("minute")
+      .collect()
+      .toList
   }
 
-  def hourly: Dataset[HourlyAggResult] = {
+  def hourly: F[List[HourlyAggResult]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
+    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     ds.map(m => m.localDateTime(zoneId).getHour)
       .groupByKey(identity)
       .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
       .orderBy("hour")
+      .collect()
+      .toList
   }
 
-  def daily: Dataset[DailyAggResult] = {
+  def daily: F[List[DailyAggResult]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
+    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     ds.map(m => dayResolution(m.localDateTime(zoneId)))
       .groupByKey(identity)
       .mapGroups((m, iter) => DailyAggResult(m, iter.size))
       .orderBy("date")
+      .collect()
+      .toList
   }
 
-  def dailyHour: Dataset[DailyHourAggResult] = {
+  def dailyHour: F[List[DailyHourAggResult]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
+    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     ds.map(m => hourResolution(m.localDateTime(zoneId)).toString)
       .groupByKey(identity)
       .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
       .orderBy("dateTime")
+      .collect()
+      .toList
   }
 
-  def dailyMinute: Dataset[DailyMinuteAggResult] = {
+  def dailyMinute: F[List[DailyMinuteAggResult]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
+    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     ds.map(m => minuteResolution(m.localDateTime(zoneId)).toString)
       .groupByKey(identity)
       .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
       .orderBy("dateTime")
+      .collect()
+      .toList
   }
 
   private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
     import ids.sparkSession.implicits.*
-    import org.apache.spark.sql.functions.{min, max, count, lit, asc, first}
+    import org.apache.spark.sql.functions.*
     ids
       .groupBy("partition")
       .agg(
@@ -153,11 +167,14 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializ
       .toList
   }
 
-  def summary: List[KafkaSummary] = internalSummary(ds).map(_.toKafkaSummary(zoneId))
+  def summary: F[List[KafkaSummary]] = fds.map { ds =>
+    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+    internalSummary(ds).map(_.toKafkaSummary(zoneId))
+  }
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
-  def missingOffsets: Dataset[MissingOffset] = {
+  def missingOffsets: F[Dataset[MissingOffset]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
     val all: List[Dataset[MissingOffset]] = internalSummary(ds).map { kds =>
@@ -174,9 +191,10 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializ
     *
     * Timestamp is supposed to be ordered along with offset
     */
-  def disorders: Dataset[Disorder] = {
+  def disorders: F[Dataset[Disorder]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
+    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     val all: Array[Dataset[Disorder]] =
       ds.map(_.partition).distinct().collect().map { pt =>
         val curr: Dataset[(Long, CRMetaInfo)] = ds.filter(_.partition === pt).map(x => (x.offset, x))
@@ -203,7 +221,7 @@ final class Statistics private[kafka] (ds: Dataset[CRMetaInfo]) extends Serializ
 
   /** Notes: partition + offset supposed to be unique, of a topic
     */
-  def dupRecords: Dataset[DuplicateRecord] = {
+  def dupRecords: F[Dataset[DuplicateRecord]] = fds.map { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.{asc, col, count, lit}
     ds.groupBy(col("partition"), col("offset"))

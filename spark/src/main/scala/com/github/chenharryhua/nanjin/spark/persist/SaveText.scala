@@ -5,14 +5,14 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{NJCompression, TextCompression}
 import org.apache.spark.rdd.RDD
 
-final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) extends Serializable {
+final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, suffix: String) extends Serializable {
 
-  def withSuffix(suffix: String): SaveText[F, A] = new SaveText[F, A](rdd, cfg, suffix)
+  def withSuffix(suffix: String): SaveText[F, A] = new SaveText[F, A](frdd, cfg, suffix)
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
-    new SaveText[F, A](rdd, cfg, suffix)
+    new SaveText[F, A](frdd, cfg, suffix)
 
   def append: SaveText[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveText[F, A]      = updateConfig(cfg.overwriteMode)
@@ -29,6 +29,8 @@ final class SaveText[F[_], A](rdd: RDD[A], cfg: HoarderConfig, suffix: String) e
   def withCompression(tc: TextCompression): SaveText[F, A] = updateConfig(cfg.outputCompression(tc))
 
   def run(implicit F: Sync[F], show: Show[A]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.blocking(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
+    F.flatMap(frdd) { rdd =>
+      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+        .checkAndRun(F.blocking(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
+    }
 }

@@ -79,10 +79,5 @@ object functions {
         .filter(col("count") > 1)
         .orderBy(col("count").desc)
     }
-
-    def stats: Statistics = {
-      val te = TypedEncoder[CRMetaInfo]
-      new Statistics(dataset.map(CRMetaInfo(_))(TypedExpressionEncoder(te)))
-    }
   }
 }

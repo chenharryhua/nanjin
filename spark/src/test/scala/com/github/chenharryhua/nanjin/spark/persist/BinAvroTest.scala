@@ -15,7 +15,7 @@ import org.scalatest.DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
 
   def saver(path: NJPath) =
-    new RddAvroFileHoarder[IO, Rooster](RoosterData.rdd.repartition(2), Rooster.avroCodec.avroEncoder)
+    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(2)), Rooster.avroCodec.avroEncoder)
       .binAvro(path)
       .overwrite
 
@@ -105,8 +105,7 @@ class BinAvroTest extends AnyFunSuite {
   val reverseRoot = root / "reverse"
   test("reverse read/write gzip") {
     val path = reverseRoot / "rooster.binary.avro.gz"
-    RoosterData.rdd
-      .output[IO]
+    IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
@@ -120,8 +119,7 @@ class BinAvroTest extends AnyFunSuite {
   }
   test("reverse read/write bzip2") {
     val path = reverseRoot / "rooster.binary.avro.bz2"
-    RoosterData.rdd
-      .output[IO]
+    IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
@@ -136,8 +134,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("reverse read/write uncompress") {
     val path = reverseRoot / "rooster.binary.avro"
-    RoosterData.rdd
-      .output[IO]
+    IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
@@ -152,8 +149,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("ftp") {
     val path = NJPath("ftp://localhost/data2/bin_avro.avro")
-    RoosterData.rdd
-      .output[IO]
+    IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
       .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))

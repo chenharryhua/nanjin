@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.{Endo, Monad}
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import cats.Endo
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -13,14 +13,14 @@ import fs2.kafka.ProducerRecords
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 
-final class PrRdd[F[_], K, V] private[kafka] (
-  val rdd: RDD[NJProducerRecord[K, V]],
+final class PrRdd[F[_]: Monad, K, V] private[kafka] (
+  val frdd: F[RDD[NJProducerRecord[K, V]]],
   codec: NJAvroCodec[NJProducerRecord[K, V]]
 ) extends Serializable {
 
   // transform
   def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](f(rdd), codec)
+    new PrRdd[F, K, V](frdd.map(f), codec)
 
   def partitionOf(num: Int): PrRdd[F, K, V] = transform(_.filter(_.partition.exists(_ === num)))
 
@@ -44,12 +44,17 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   // actions
 
-  def count(implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
+  def count: F[Long] = frdd.map(_.count())
 
   def output: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](rdd, codec.avroEncoder)
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](frdd, codec.avroEncoder)
 
   def producerRecords(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
-    Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value).chunks.map(_.map(_.toProducerRecord))
+    Stream.force(
+      frdd.map(rdd =>
+        Stream
+          .fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
+          .chunks
+          .map(_.map(_.toProducerRecord))))
 
 }

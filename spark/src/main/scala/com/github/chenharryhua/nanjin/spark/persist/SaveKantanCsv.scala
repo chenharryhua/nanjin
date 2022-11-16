@@ -6,7 +6,7 @@ import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
 
 final class SaveKantanCsv[F[_], A](
-  rdd: RDD[A],
+  frdd: F[RDD[A]],
   csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   encoder: HeaderEncoder[A])
@@ -15,7 +15,7 @@ final class SaveKantanCsv[F[_], A](
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](rdd, csvConfiguration, cfg, encoder)
+    new SaveKantanCsv[F, A](frdd, csvConfiguration, cfg, encoder)
 
   def append: SaveKantanCsv[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveKantanCsv[F, A]      = updateConfig(cfg.overwriteMode)
@@ -33,8 +33,10 @@ final class SaveKantanCsv[F[_], A](
   def withCompression(kc: KantanCompression): SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(kc))
 
   def run(implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.blocking {
-        saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)
-      })
+    F.flatMap(frdd) { rdd =>
+      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+        .checkAndRun(F.blocking {
+          saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)
+        })
+    }
 }

@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import mtest.spark.sparkSession
@@ -35,27 +37,27 @@ object StatisticsTestData {
 
 class StatisticsTest extends AnyFunSuite {
   import StatisticsTestData.*
-  val stats = new Statistics(ds)
+  val stats = new Statistics(IO(ds))
 
-  val emptyStats = new Statistics(empty)
+  val emptyStats = new Statistics(IO(empty))
 
   test("dupRecords") {
-    val res = stats.dupRecords.collect().toSet
+    val res = stats.dupRecords.map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(DuplicateRecord(0, 7, 3)))
-    assert(emptyStats.dupRecords.count() == 0)
-    stats.summary.foreach(x => println(x.show))
+    assert(emptyStats.dupRecords.map(_.count()).unsafeRunSync() == 0)
+    stats.summary.unsafeRunSync().foreach(x => println(x.show))
   }
 
   test("disorders") {
-    val res = stats.disorders.collect().toSet
+    val res = stats.disorders.map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(Disorder(0, 3, 1351620000000L, "2012-10-31T05:00", "2012-10-28T05:00", 259200000L, 0)))
 
-    assert(emptyStats.disorders.count() == 0)
+    assert(emptyStats.disorders.map(_.count()).unsafeRunSync() == 0)
   }
 
   test("missingOffsets") {
-    val res = stats.missingOffsets.collect().toSet
+    val res = stats.missingOffsets.map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(MissingOffset(0, 1)))
-    assert(emptyStats.missingOffsets.count() == 0)
+    assert(emptyStats.missingOffsets.map(_.count()).unsafeRunSync() == 0)
   }
 }

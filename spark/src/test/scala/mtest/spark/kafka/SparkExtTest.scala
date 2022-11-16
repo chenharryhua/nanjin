@@ -11,7 +11,6 @@ import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import io.circe.generic.auto.*
 import mtest.spark.sparkSession
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -36,39 +35,20 @@ class SparkExtTest extends AnyFunSuite {
     sparKafka.topic(topic).fromKafka.output.stream(100).compile.drain.unsafeRunSync()
   }
 
-  test("sparKafka rdd deal with primitive null ") {
-    val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(List(1, null.asInstanceOf[Int], 3))
-    assert(rdd.dismissNulls.collect().toList == List(1, 0, 3))
-    assert(rdd.numOfNulls == 0)
-  }
-
-  test("sparKafka rdd remove null object") {
-    import SparkExtTestData.*
-    val rdd: RDD[Foo] = sparkSession.sparkContext.parallelize(list)
-    assert(rdd.dismissNulls.collect().toList == List(Foo(1, "a"), Foo(3, "c")))
-    assert(rdd.numOfNulls == 1)
-  }
-  test("sparKafka typed dataset deal with primitive null ") {
-    import sparkSession.implicits.*
-    val tds = sparkSession.createDataset[Int](List(1, null.asInstanceOf[Int], 3))
-    assert(tds.dismissNulls.collect().toList == List(1, 0, 3))
-    assert(tds.numOfNulls == 0)
-  }
-
   test("save syntax") {
     import SparkExtTestData.*
     import sparkSession.implicits.*
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
-    rdd
-      .output[IO](ate.avroCodec.avroEncoder)
+    IO(rdd)
+      .output(ate.avroCodec.avroEncoder)
       .avro(NJPath("./data/test/spark/sytax/rdd/avro"))
       .run
       .unsafeRunSync()
-    rdd.output[IO].circe(NJPath("./data/test/spark/sytax/rdd/circe")).run.unsafeRunSync()
+    IO(rdd).output.circe(NJPath("./data/test/spark/sytax/rdd/circe")).run.unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
-    ds.rdd
-      .output[IO](ate.avroCodec.avroEncoder)
+    IO(ds.rdd)
+      .output(ate.avroCodec.avroEncoder)
       .parquet(NJPath("./data/test/spark/sytax/ds/parquet"))
       .run
       .unsafeRunSync()

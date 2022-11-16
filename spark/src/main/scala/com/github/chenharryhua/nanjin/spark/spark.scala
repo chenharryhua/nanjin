@@ -10,10 +10,8 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types.DataType
-
-import scala.reflect.ClassTag
 
 package object spark {
   final val SPARK_ZONE_ID: String = "spark.sql.session.timeZone"
@@ -22,20 +20,12 @@ package object spark {
 
   private[spark] val SparkDatetimeConversionConstant: Int = 1000
 
-  implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
+  implicit final class RddExt[F[_], A](frdd: F[RDD[A]]) extends Serializable {
 
-    def dismissNulls(implicit ev: ClassTag[A]): RDD[A] = rdd.flatMap(Option(_))
-    def numOfNulls(implicit ev: ClassTag[A]): Long     = rdd.subtract(dismissNulls).count()
+    def output: RddFileHoarder[F, A] = new RddFileHoarder[F, A](frdd)
 
-    def output[F[_]]: RddFileHoarder[F, A] = new RddFileHoarder[F, A](rdd)
-
-    def output[F[_]](encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
-      new RddAvroFileHoarder[F, A](rdd, encoder)
-  }
-
-  implicit final class DatasetExt[A](ds: Dataset[A]) extends Serializable {
-    def dismissNulls: Dataset[A] = ds.flatMap(Option(_))(ds.encoder)
-    def numOfNulls: Long         = ds.except(dismissNulls).count()
+    def output(encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
+      new RddAvroFileHoarder[F, A](frdd, encoder)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
@@ -63,7 +53,7 @@ package object spark {
     }
 
     final class PartialApplyAvroTypedEncoder[F[_]] {
-      def apply[A](ate: AvroTypedEncoder[A]) = new LoadTable[F, A](ate, ss)
+      def apply[A](ate: AvroTypedEncoder[A])(implicit F: Sync[F]) = new LoadTable[F, A](ate, ss)
     }
 
     def loadTable[F[_]]: PartialApplyAvroTypedEncoder[F] = new PartialApplyAvroTypedEncoder[F]

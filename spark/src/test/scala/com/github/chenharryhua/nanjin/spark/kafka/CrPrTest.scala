@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{sydneyTime, NJDateTimeRange}
 import com.github.chenharryhua.nanjin.kafka.TopicDef
@@ -45,9 +46,9 @@ class CrPrTest extends AnyFunSuite {
 
   val crRdd: CrRdd[IO, Long, Rooster] = sparKafka
     .topic(rooster)
-    .crRdd(RoosterData.rdd.zipWithIndex().map { case (r, i) =>
+    .crRdd(IO(RoosterData.rdd.zipWithIndex().map { case (r, i) =>
       NJConsumerRecord(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0)
-    })
+    }))
     .normalize
 
   val expectSchema = StructType(
@@ -75,17 +76,17 @@ class CrPrTest extends AnyFunSuite {
       NJDateTimeRange(sydneyTime)
         .withStartTime(Instant.now.minusSeconds(50))
         .withEndTime(Instant.now().plusSeconds(10))
-    assert(crRdd.timeRange(dr).rdd.collect().size == 4)
-    assert(crRdd.prRdd.partitionOf(0).timeRange(dr).rdd.collect().size == 4)
-    assert(crRdd.prRdd.timeRange(dr).rdd.collect().size == 4)
+    assert(crRdd.timeRange(dr).frdd.map(_.collect().length).unsafeRunSync() == 4)
+    assert(crRdd.prRdd.partitionOf(0).timeRange(dr).frdd.map(_.collect().length).unsafeRunSync() == 4)
+    assert(crRdd.prRdd.timeRange(dr).frdd.map(_.collect().size).unsafeRunSync() == 4)
   }
 
   test("offset range") {
-    assert(crRdd.offsetRange(0, 2).rdd.collect().size == 3)
-    assert(crRdd.prRdd.offsetRange(0, 2).rdd.collect().size == 3)
+    assert(crRdd.offsetRange(0, 2).frdd.map(_.collect().size).unsafeRunSync() == 3)
+    assert(crRdd.prRdd.offsetRange(0, 2).frdd.map(_.collect().size).unsafeRunSync() == 3)
   }
   test("replicate") {
-    assert(crRdd.replicate(3).rdd.count() == 12)
-    assert(prRdd.replicate(3).rdd.count() == 12)
+    assert(crRdd.replicate(3).frdd.map(_.count()).unsafeRunSync() == 12)
+    assert(prRdd.replicate(3).frdd.map(_.count()).unsafeRunSync() == 12)
   }
 }

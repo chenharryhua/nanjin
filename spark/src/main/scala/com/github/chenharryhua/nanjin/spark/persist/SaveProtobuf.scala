@@ -4,13 +4,13 @@ import cats.effect.kernel.Sync
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
-final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <:< GeneratedMessage)
+final class SaveProtobuf[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, evidence: A <:< GeneratedMessage)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveProtobuf[F, A] =
-    new SaveProtobuf[F, A](rdd, cfg, evidence)
+    new SaveProtobuf[F, A](frdd, cfg, evidence)
 
   def append: SaveProtobuf[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveProtobuf[F, A]      = updateConfig(cfg.overwriteMode)
@@ -18,6 +18,8 @@ final class SaveProtobuf[F[_], A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <
   def ignoreIfExists: SaveProtobuf[F, A] = updateConfig(cfg.ignoreMode)
 
   def run(implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.blocking(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)))
+    F.flatMap(frdd) { rdd =>
+      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+        .checkAndRun(F.blocking(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)))
+    }
 }

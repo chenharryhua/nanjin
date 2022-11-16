@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class JacksonTest extends AnyFunSuite {
 
   def rooster(path: NJPath) =
-    new RddAvroFileHoarder[IO, Rooster](RoosterData.rdd.repartition(3), Rooster.avroCodec.avroEncoder)
+    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(3)), Rooster.avroCodec.avroEncoder)
       .jackson(path)
 
   val hdp = sparkSession.hadoop[IO]
@@ -45,7 +45,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   def bee(path: NJPath) =
-    new RddAvroFileHoarder[IO, Bee](BeeData.rdd.repartition(3), Bee.avroCodec.avroEncoder).jackson(path)
+    new RddAvroFileHoarder[IO, Bee](IO(BeeData.rdd.repartition(3)), Bee.avroCodec.avroEncoder).jackson(path)
 
   test("byte-array read/write identity - multi") {
     import cats.implicits.*
@@ -98,7 +98,7 @@ class JacksonTest extends AnyFunSuite {
   test("jackson jacket") {
     val path = NJPath("./data/test/spark/persist/jackson/jacket.json")
     val saver =
-      new RddAvroFileHoarder[IO, Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec.avroEncoder)
+      new RddAvroFileHoarder[IO, Jacket](IO(JacketData.rdd.repartition(3)), Jacket.avroCodec.avroEncoder)
         .jackson(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.jackson(path, sparkSession, Jacket.avroCodec.avroDecoder)
