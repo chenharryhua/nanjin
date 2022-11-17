@@ -39,7 +39,7 @@ final class SaveCirce[F[_], A](
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>
-      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-        .checkAndRun(F.blocking(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)))
+      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
+        F.interruptible(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)))
     }
 }

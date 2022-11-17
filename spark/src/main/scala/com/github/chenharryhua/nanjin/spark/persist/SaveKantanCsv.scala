@@ -34,9 +34,8 @@ final class SaveKantanCsv[F[_], A](
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>
-      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-        .checkAndRun(F.blocking {
-          saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)
-        })
+      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
+        F.interruptible(
+          saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)))
     }
 }

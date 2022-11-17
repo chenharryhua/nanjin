@@ -29,6 +29,6 @@ final class SaveAvro[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: Hoa
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>
       new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-        .checkAndRun(F.blocking(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
+        .checkAndRun(F.interruptible(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
     }
 }

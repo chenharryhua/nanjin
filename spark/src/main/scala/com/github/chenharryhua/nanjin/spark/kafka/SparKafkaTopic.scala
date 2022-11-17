@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.{Foldable, Monad}
+import cats.Foldable
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
@@ -86,7 +86,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
 
   private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
-    crRdd(F.blocking(sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.toNJConsumerRecord)))
+    crRdd(F.interruptible(sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.toNJConsumerRecord)))
 
   /** download topic according to datetime
     *
@@ -122,7 +122,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
           KafkaTopicPartition(topicPartition)
         })
         .flatMap(offsetRange =>
-          F.blocking(sk.kafkaBatch(topic, sparkSession, offsetRange).map(_.toNJConsumerRecord))))
+          F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange).map(_.toNJConsumerRecord))))
 
   /** load topic data from disk
     */
@@ -132,20 +132,20 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   /** rdd and dataset
     */
 
-  def crRdd(rdd: F[RDD[NJConsumerRecord[K, V]]])(implicit M: Monad[F]): CrRdd[F, K, V] =
+  def crRdd(rdd: F[RDD[NJConsumerRecord[K, V]]])(implicit F: Sync[F]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, avroKeyCodec, avroValCodec, sparkSession)
 
-  def emptyCrRdd(implicit M: Monad[F]): CrRdd[F, K, V] = crRdd(
-    M.pure(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
+  def emptyCrRdd(implicit F: Sync[F]): CrRdd[F, K, V] =
+    crRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
 
-  def prRdd(rdd: F[RDD[NJProducerRecord[K, V]]])(implicit M: Monad[F]): PrRdd[F, K, V] =
+  def prRdd(rdd: F[RDD[NJProducerRecord[K, V]]])(implicit F: Sync[F]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, prCodec)
 
-  def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]])(implicit M: Monad[F]): PrRdd[F, K, V] =
-    prRdd(M.pure(sparkSession.sparkContext.parallelize(list.toList)))
+  def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]])(implicit F: Sync[F]): PrRdd[F, K, V] =
+    prRdd(F.blocking(sparkSession.sparkContext.parallelize(list.toList)))
 
-  def emptyPrRdd(implicit M: Monad[F]): PrRdd[F, K, V] =
-    prRdd(M.pure(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]]))
+  def emptyPrRdd(implicit F: Sync[F]): PrRdd[F, K, V] =
+    prRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]]))
 
   /** DStream
     */

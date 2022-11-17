@@ -17,6 +17,6 @@ final class SaveObjectFile[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig) extends
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>
       new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-        .checkAndRun(F.blocking(rdd.saveAsObjectFile(params.outPath.pathStr)))
+        .checkAndRun(F.interruptible(rdd.saveAsObjectFile(params.outPath.pathStr)))
     }
 }

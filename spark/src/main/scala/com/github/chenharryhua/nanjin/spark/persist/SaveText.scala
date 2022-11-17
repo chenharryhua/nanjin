@@ -31,6 +31,6 @@ final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, suffix: Strin
   def run(implicit F: Sync[F], show: Show[A]): F[Unit] =
     F.flatMap(frdd) { rdd =>
       new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-        .checkAndRun(F.blocking(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
+        .checkAndRun(F.interruptible(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
     }
 }

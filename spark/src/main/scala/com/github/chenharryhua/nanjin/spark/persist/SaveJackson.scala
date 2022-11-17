@@ -31,6 +31,6 @@ final class SaveJackson[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>
       new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-        .checkAndRun(F.blocking(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
+        .checkAndRun(F.interruptible(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
     }
 }
