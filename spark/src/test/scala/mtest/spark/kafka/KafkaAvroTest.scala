@@ -73,7 +73,7 @@ class KafkaAvroTest extends AnyFunSuite {
         topicCO.schemaRegistry.register >>
         data.compile.drain >>
         sk.fromKafka.output.avro(path).run >>
-        IO(sk.load.avro(path).rdd.collect().toSet)
+        sk.load.avro(path).frdd.map(_.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -97,7 +97,7 @@ class KafkaAvroTest extends AnyFunSuite {
       sk.fromKafka.output.avro(avroPath).run >>
       sk.fromKafka.output.jackson(jacksonPath).run >>
       sk.fromKafka.output.circe(circePath).run >>
-      IO(sk.load.avro(avroPath).rdd.take(10).toSet)
+      (sk.load.avro(avroPath).frdd.map(_.take(10).toSet))
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
   }
@@ -119,7 +119,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.output.avro(path).run >>
-      IO(sk.load.avro(path).rdd.take(10).toSet)
+      sk.load.avro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -140,7 +140,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.output.avro(path).snappy.run >>
-      IO(sk.load.avro(path).rdd.take(10).toSet)
+      sk.load.avro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to binary bzip2 avro") {
@@ -159,7 +159,7 @@ class KafkaAvroTest extends AnyFunSuite {
       topicEnum.schemaRegistry.register >>
       data.compile.drain >>
       sk.fromKafka.output.binAvro(path).bzip2.run >>
-      IO(sk.load.binAvro(path).rdd.take(10).toSet)
+      sk.load.binAvro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 

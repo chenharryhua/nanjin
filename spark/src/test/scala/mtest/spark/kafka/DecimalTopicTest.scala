@@ -102,7 +102,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/decimal.circe")
     stopic.fromKafka.output.circe(path).run.unsafeRunSync()
 
-    val res = stopic.load.circe(path).rdd.collect().head.value.get
+    val res = stopic.load.circe(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
     assert(res == expected)
   }
 
@@ -110,7 +110,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/decimal.parquet")
     stopic.fromKafka.output.parquet(path).run.unsafeRunSync()
 
-    val res = stopic.load.parquet(path).rdd.collect().head.value.get
+    val res = stopic.load.parquet(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
     assert(res == expected)
   }
 
@@ -118,7 +118,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/decimal.jackson")
     stopic.fromKafka.output.jackson(path).run.unsafeRunSync()
 
-    val res = stopic.load.jackson(path).rdd.collect().head.value.get
+    val res = stopic.load.jackson(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
     assert(res == expected)
   }
 
@@ -126,7 +126,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/decimal.avro")
     stopic.fromKafka.output.avro(path).run.unsafeRunSync()
 
-    val res = stopic.load.avro(path).rdd.collect().head.value.get
+    val res = stopic.load.avro(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
     assert(res == expected)
   }
 
@@ -134,7 +134,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/decimal.obj")
     stopic.fromKafka.output.objectFile(path).run.unsafeRunSync()
 
-    val res = stopic.load.objectFile(path).rdd.collect().head.value.get
+    val res = stopic.load.objectFile(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
     assert(res == expected)
   }
 
@@ -142,7 +142,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/decimal.bin.avro")
     stopic.fromKafka.output.binAvro(path).run.unsafeRunSync()
 
-    val res = stopic.load.binAvro(path).rdd.collect().head.value.get
+    val res = stopic.load.binAvro(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
     assert(res == expected)
   }
 

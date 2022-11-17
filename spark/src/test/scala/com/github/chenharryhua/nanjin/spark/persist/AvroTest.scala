@@ -25,7 +25,7 @@ class AvroTest extends AnyFunSuite {
       .toSet
 
   def rooster =
-    new RddAvroFileHoarder[IO, Rooster](RoosterData.ds.rdd.repartition(3), Rooster.avroCodec.avroEncoder)
+    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.ds.rdd.repartition(3)), Rooster.avroCodec.avroEncoder)
 
   def loadRoosters(path: NJPath): IO[List[Rooster]] = {
     val rst =
@@ -126,7 +126,7 @@ class AvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t)
   }
 
-  def bee = new RddAvroFileHoarder[IO, Bee](BeeData.rdd, Bee.avroCodec.avroEncoder)
+  def bee = new RddAvroFileHoarder[IO, Bee](IO(BeeData.rdd), Bee.avroCodec.avroEncoder)
   test("byte-array read/write identity - multi") {
     import cats.implicits.*
     val path = NJPath("./data/test/spark/persist/avro/bee/multi.raw")
@@ -144,7 +144,7 @@ class AvroTest extends AnyFunSuite {
     * https://github.com/apache/spark/blob/branch-3.0/external/avro/src/main/scala/org/apache/spark/sql/avro/AvroDeserializer.scala#L158
     */
 
-  def ant = new RddAvroFileHoarder[IO, Ant](AntData.rdd, Ant.avroCodec.avroEncoder)
+  def ant = new RddAvroFileHoarder[IO, Ant](IO(AntData.rdd), Ant.avroCodec.avroEncoder)
 
   test("collection read/write identity multi") {
     import AntData.*
@@ -160,7 +160,7 @@ class AvroTest extends AnyFunSuite {
   test("enum read/write identity multi") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/avro/emcop/raw")
-    val saver = new RddAvroFileHoarder[IO, EmCop](emRDD, EmCop.avroCodec.avroEncoder).avro(path)
+    val saver = new RddAvroFileHoarder[IO, EmCop](IO(emRDD), EmCop.avroCodec.avroEncoder).avro(path)
     saver.run.unsafeRunSync()
     val t = loaders.avro[EmCop](path, sparkSession, EmCop.ate).collect().toSet
     val r = loaders.rdd.avro[EmCop](path, sparkSession, EmCop.avroCodec.avroDecoder).collect().toSet
@@ -171,7 +171,7 @@ class AvroTest extends AnyFunSuite {
   test("sealed trait read/write identity multi/raw (happy failure)") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/avro/cocop/multi.avro")
-    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.avroCodec.avroEncoder).avro(path)
+    val saver = new RddAvroFileHoarder[IO, CoCop](IO(coRDD), CoCop.avroCodec.avroEncoder).avro(path)
     intercept[Throwable](saver.run.unsafeRunSync())
     //  val t = loaders.raw.avro[CoCop](path).collect().toSet
     //  assert(coCops.toSet == t)
@@ -180,7 +180,7 @@ class AvroTest extends AnyFunSuite {
   test("coproduct read/write identity - rdd") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/avro/cpcop/multi.avro")
-    val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder).avro(path)
+    val saver = new RddAvroFileHoarder[IO, CpCop](IO(cpRDD), CpCop.avroCodec.avroEncoder).avro(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, sparkSession, CpCop.avroCodec.avroDecoder).collect().toSet
     assert(cpCops.toSet == t)
@@ -189,7 +189,7 @@ class AvroTest extends AnyFunSuite {
   test("coproduct read/write identity - dataset - happy failure") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/avro/cpcop/ds/multi.avro")
-    val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder).avro(path)
+    val saver = new RddAvroFileHoarder[IO, CpCop](IO(cpRDD), CpCop.avroCodec.avroEncoder).avro(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, sparkSession, CpCop.avroCodec.avroDecoder).collect().toSet
     assert(cpCops.toSet == t)

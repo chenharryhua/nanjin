@@ -1,5 +1,8 @@
 package mtest.spark
 
+import cats.effect.IO
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil}
 import shapeless.test.illTyped
@@ -27,4 +30,11 @@ class SparkCoproductTest extends AnyFunSuite {
     illTyped(""" implicitly[TypedEncoder[CoParent]] """)
     illTyped(""" implicitly[TypedEncoder[Address]] """)
   }
+}
+
+final class SerializableIoRdd(ioRdd: IO[RDD[Int]]) extends Serializable {
+  def count: IO[Long] = ioRdd.map(_.count())
+}
+final class SerializableIoDS(ioRdd: IO[Dataset[Int]]) extends Serializable {
+  def count: IO[Long] = ioRdd.map(_.count())
 }

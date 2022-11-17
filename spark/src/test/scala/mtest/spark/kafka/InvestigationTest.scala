@@ -1,6 +1,8 @@
 package mtest.spark.kafka
 
+import cats.derived.auto.iterable.kittensMkIterable
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.spark.kafka.*
@@ -75,13 +77,13 @@ class InvestigationTest extends AnyFunSuite {
   test("sparKafka identical") {
     val m1 = table.data(mouses1)
     val m2 = table.data(mouses2)
-    assert(0 === m1.diff(m2).dataset.count())
+    assert(0 === m1.diff(m2).fdataset.map(_.count()).unsafeRunSync())
   }
 
   test("sparKafka one mismatch") {
     val m1  = table.data(mouses1)
     val m3  = table.data(mouses3)
-    val rst = m1.diff(m3).dataset.collect().toSet
+    val rst = m1.diff(m3).fdataset.map(_.collect().toSet).unsafeRunSync()
     assert(rst === Set(NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)))
   }
 
@@ -90,7 +92,7 @@ class InvestigationTest extends AnyFunSuite {
     val m4 = table.data(mouses4)
 
     assert(
-      m1.diff(m4).dataset.collect().toSet === Set(
+      m1.diff(m4).fdataset.map(_.collect().toSet).unsafeRunSync() === Set(
         NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0)))
   }
 

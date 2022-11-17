@@ -5,13 +5,13 @@ import com.github.chenharryhua.nanjin.terminals.{BinaryAvroCompression, NJCompre
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
-final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+final class SaveBinaryAvro[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[F, A] =
-    new SaveBinaryAvro[F, A](rdd, encoder, cfg)
+    new SaveBinaryAvro[F, A](frdd, encoder, cfg)
 
   def append: SaveBinaryAvro[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveBinaryAvro[F, A]      = updateConfig(cfg.overwriteMode)
@@ -30,6 +30,8 @@ final class SaveBinaryAvro[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: H
     updateConfig(cfg.outputCompression(bc))
 
   def run(implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptibleMany(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)))
+    F.flatMap(frdd) { rdd =>
+      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+        .checkAndRun(F.interruptible(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)))
+    }
 }

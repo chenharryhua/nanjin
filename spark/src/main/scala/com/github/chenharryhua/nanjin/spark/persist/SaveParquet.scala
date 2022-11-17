@@ -3,16 +3,15 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{NJCompression, ParquetCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.spark.rdd.RDD
-final class SaveParquet[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig)
+final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
-    new SaveParquet[F, A](rdd, encoder, cfg)
+    new SaveParquet[F, A](frdd, encoder, cfg)
 
   def append: SaveParquet[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveParquet[F, A]      = updateConfig(cfg.overwriteMode)
@@ -37,14 +36,14 @@ final class SaveParquet[F[_], A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoar
       case CompressionCodecName.LZO          => NJCompression.Lzo
       case CompressionCodecName.BROTLI       => NJCompression.Brotli
       case CompressionCodecName.LZ4          => NJCompression.Lz4
-      case CompressionCodecName.ZSTD =>
-        NJCompression.Zstandard(
-          ZlibFactory.getCompressionLevel(rdd.sparkContext.hadoopConfiguration).ordinal())
+      case CompressionCodecName.ZSTD         => NJCompression.Zstandard(5)
     }
     withCompression(pc)
   }
 
   def run(implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptibleMany(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)))
+    F.flatMap(frdd) { rdd =>
+      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
+        .checkAndRun(F.interruptible(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)))
+    }
 }

@@ -48,8 +48,8 @@ class CopyDataTest extends AnyFunSuite {
         .through(tgt.produce.pipe)
         .compile
         .drain
-      srcData = sparKafka.topic(src.topicDef).fromKafka.rdd.collect()
-      tgtData = sparKafka.topic(tgt.topicDef).fromKafka.rdd.collect()
+      srcData = sparKafka.topic(src.topicDef).fromKafka.frdd.map(_.collect()).unsafeRunSync()
+      tgtData = sparKafka.topic(tgt.topicDef).fromKafka.frdd.map(_.collect()).unsafeRunSync()
     } yield {
 
       assert(srcData.size == 5)

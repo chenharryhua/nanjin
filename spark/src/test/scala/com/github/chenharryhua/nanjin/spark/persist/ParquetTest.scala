@@ -28,7 +28,7 @@ class ParquetTest extends AnyFunSuite {
       .map(_.toSet)
 
   def roosterSaver(path: NJPath) =
-    new RddAvroFileHoarder[IO, Rooster](RoosterData.rdd, Rooster.avroCodec.avroEncoder).parquet(path)
+    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd), Rooster.avroCodec.avroEncoder).parquet(path)
 
   val root = NJPath("./data/test/spark/persist/parquet")
 
@@ -112,7 +112,7 @@ class ParquetTest extends AnyFunSuite {
 //  }
 
   def beeSaver(path: NJPath) =
-    new RddAvroFileHoarder[IO, Bee](BeeData.rdd, Bee.avroEncoder).parquet(path)
+    new RddAvroFileHoarder[IO, Bee](IO(BeeData.rdd), Bee.avroEncoder).parquet(path)
 
   test("byte-array read/write identity mulit uncompress") {
     import BeeData.*
@@ -126,7 +126,7 @@ class ParquetTest extends AnyFunSuite {
   test("collection read/write identity multi uncompress") {
     import AntData.*
     val path  = NJPath("./data/test/spark/persist/parquet/ant/multi.parquet")
-    val saver = new RddAvroFileHoarder[IO, Ant](rdd, Ant.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, Ant](IO(rdd), Ant.avroEncoder).parquet(path)
     saver.uncompress.run.unsafeRunSync()
     val t = loaders.parquet[Ant](path, sparkSession, Ant.ate).collect().toSet
     assert(ants.toSet == t)
@@ -135,7 +135,7 @@ class ParquetTest extends AnyFunSuite {
   test("enum cop read/write identity") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/parquet/emcop/multi.parquet")
-    val saver = new RddAvroFileHoarder[IO, EmCop](emRDD, EmCop.avroCodec.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, EmCop](IO(emRDD), EmCop.avroCodec.avroEncoder).parquet(path)
     saver.uncompress.run.unsafeRunSync()
     val t = loaders.parquet[EmCop](path, sparkSession, EmCop.ate).collect().toSet
     assert(emCops.toSet == t)
@@ -144,7 +144,7 @@ class ParquetTest extends AnyFunSuite {
   test("coproduct cop read/write identity - happy failure") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/parquet/cpcop/multi.parquet")
-    val saver = new RddAvroFileHoarder[IO, CpCop](cpRDD, CpCop.avroCodec.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, CpCop](IO(cpRDD), CpCop.avroCodec.avroEncoder).parquet(path)
     intercept[Throwable](saver.uncompress.run.unsafeRunSync())
     // assert(cpCops.toSet == t)
   }
@@ -152,7 +152,7 @@ class ParquetTest extends AnyFunSuite {
   test("case object cop read/write identity - happy failure") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/parquet/cocop/multi.parquet")
-    val saver = new RddAvroFileHoarder[IO, CoCop](coRDD, CoCop.avroCodec.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, CoCop](IO(coRDD), CoCop.avroCodec.avroEncoder).parquet(path)
     intercept[Throwable](saver.uncompress.run.unsafeRunSync())
     // assert(coCops.toSet == t)
   }
@@ -163,7 +163,7 @@ class ParquetTest extends AnyFunSuite {
   test("parquet jacket multi uncompress") {
     import JacketData.*
     val path  = NJPath("./data/test/spark/persist/parquet/jacket/multi/jacket.parquet")
-    val saver = new RddAvroFileHoarder[IO, Jacket](rdd, Jacket.avroCodec.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, Jacket](IO(rdd), Jacket.avroCodec.avroEncoder).parquet(path)
     saver.uncompress.run.unsafeRunSync()
     val t = loaders.parquet(path, sparkSession, Jacket.ate)
     assert(expected.toSet == t.collect().toSet)

@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class TextTest extends AnyFunSuite {
   import TabletData.*
-  def saver(path: NJPath) = new RddFileHoarder[IO, Tablet](rdd).text(path)
+  def saver(path: NJPath) = new RddFileHoarder[IO, Tablet](IO(rdd)).text(path)
   val root                = NJPath("./data/test/spark/persist/text/tablet")
   test("tablet") {
     val path = root / "uncompressed"

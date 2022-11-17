@@ -81,7 +81,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
-      p(b("Cause: "), evt.cause.show)
+      p(b("Cause: "), evt.cause.show),
+      briefText(evt.serviceParams.brief)
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =

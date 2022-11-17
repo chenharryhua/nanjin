@@ -14,7 +14,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   def rooster =
     new RddAvroFileHoarder[IO, Rooster](
-      RoosterData.bigset.repartition(2).persist().rdd,
+      IO(RoosterData.bigset.repartition(2).persist().rdd),
       Rooster.avroCodec.avroEncoder)
   test("avro") {
     val root = NJPath("./data/test/spark/persist/interlope/avro/rooster/")

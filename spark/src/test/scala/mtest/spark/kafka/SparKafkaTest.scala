@@ -9,10 +9,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{KUnknown, NJAvroCode
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
-import frameless.TypedDataset
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.spark.sparkSession
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
@@ -51,74 +50,76 @@ class SparKafkaTest extends AnyFunSuite {
     .unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
-    val rst = sparKafka.topic(topic.topicDef).fromKafka.rdd.collect()
+    val rst = sparKafka.topic(topic.topicDef).fromKafka.frdd.map(_.collect()).unsafeRunSync()
     assert(rst.toList.flatMap(_.value) === List(data, data))
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.stats.minutely.count()
+    sparKafka.topic(topic.topicDef).fromKafka.stats.minutely.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.dailyHour.collect()
+    sparKafka.topic(topic).fromKafka.stats.dailyHour.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.dailyMinute.count()
+    sparKafka.topic(topic).fromKafka.stats.dailyMinute.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.daily.count()
+    sparKafka.topic(topic).fromKafka.stats.daily.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.hourly.count()
+    sparKafka.topic(topic).fromKafka.stats.hourly.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.stats.summary
+    sparKafka.topic(topic).fromKafka.stats.summary.unsafeRunSync()
   }
+  import sparkSession.implicits.*
   test("sparKafka should be able to bimap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
-    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
-    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
-    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+
+    val src: KafkaTopic[IO, Int, Int]           = ctx.topic[Int, Int]("src.topic")
+    val d1: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
+    val d4: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(List(d1, d2, d3, d4))
 
     val birst =
       sparKafka
         .topic(src)
-        .crRdd(ds.rdd)
+        .crRdd(IO(ds.rdd))
         .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
-        .rdd
-        .collect()
-        .toSet
+        .frdd
+        .map(_.collect().toSet)
+        .unsafeRunSync()
     assert(birst.flatMap(_.value) == Set(2, 3, 5))
   }
 
   test("sparKafka should be able to flatmap to other topic") {
-    val src: KafkaTopic[IO, Int, Int]                = ctx.topic[Int, Int]("src.topic")
-    val d1: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
-    val d3: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
-    val d4: NJConsumerRecord[Int, Int]               = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
-    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(List(d1, d2, d3, d4))
+    val src: KafkaTopic[IO, Int, Int]           = ctx.topic[Int, Int]("src.topic")
+    val d1: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val d2: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
+    val d3: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
+    val d4: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(List(d1, d2, d3, d4))
 
     val birst =
       sparKafka
         .topic(src)
-        .crRdd(ds.rdd)
+        .crRdd(IO(ds.rdd))
         .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(
           NJAvroCodec[Int],
           NJAvroCodec[Int])
-        .rdd
-        .collect()
-        .toSet
+        .frdd
+        .map(_.collect().toSet)
+        .unsafeRunSync()
     assert(birst.flatMap(_.value) == Set(0, 1, 3))
   }
 
   test("sparKafka someValue should filter out none values") {
-    val cr1: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val cr2: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 2, 0, Some(2), None, "t", 0)
-    val cr3: NJConsumerRecord[Int, Int]              = NJConsumerRecord(0, 3, 0, Some(3), None, "t", 0)
-    val crs: List[NJConsumerRecord[Int, Int]]        = List(cr1, cr2, cr3)
-    val ds: TypedDataset[NJConsumerRecord[Int, Int]] = TypedDataset.create(crs)
+    val cr1: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
+    val cr2: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 2, 0, Some(2), None, "t", 0)
+    val cr3: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 3, 0, Some(3), None, "t", 0)
+    val crs: List[NJConsumerRecord[Int, Int]]   = List(cr1, cr2, cr3)
+    val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(crs)
 
     println(cr1.asJson.spaces2)
     println(
@@ -135,12 +136,11 @@ class SparKafkaTest extends AnyFunSuite {
     val t =
       sparKafka
         .topic[Int, Int]("some.value")
-        .crRdd(ds.rdd)
+        .crRdd(IO(ds.rdd))
         .repartition(3)
         .descendTimestamp
-        .dismissNulls
         .transform(_.distinct())
-    val rst = t.rdd.collect().flatMap(_.value)
+    val rst = t.frdd.map(_.collect().flatMap(_.value)).unsafeRunSync()
     assert(rst === Seq(cr1.value.get))
   }
 

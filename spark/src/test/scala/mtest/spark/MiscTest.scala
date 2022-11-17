@@ -1,5 +1,7 @@
 package mtest.spark
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import frameless.{TypedDataset, TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -75,5 +77,13 @@ class MiscTest extends AnyFunSuite {
     val tds: TypedDataset[Sister] = TypedDataset.create(rdd)
     df.printSchema()
     tds.printSchema()
+  }
+
+  test("io serializable") {
+    val is = new SerializableIoRdd(IO(sparkSession.sparkContext.parallelize(List(1, 2, 3))))
+    println(is.count.unsafeRunSync())
+    import sparkSession.implicits.*
+    val id = new SerializableIoDS(IO(sparkSession.createDataset(List(1, 2, 3))))
+    println(id.count.unsafeRunSync())
   }
 }

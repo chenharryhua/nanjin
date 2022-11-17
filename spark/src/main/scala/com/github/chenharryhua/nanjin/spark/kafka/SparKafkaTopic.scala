@@ -2,8 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Foldable
 import cats.data.Kleisli
-import cats.effect.kernel.Async
-import cats.effect.SyncIO
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.PathSegment
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
@@ -86,18 +85,21 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
 
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
 
-  private def downloadKafka(dateTimeRange: NJDateTimeRange): CrRdd[F, K, V] =
-    crRdd(sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.toNJConsumerRecord))
+  private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
+    crRdd(F.interruptible(sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.toNJConsumerRecord)))
+
+  /** download topic according to datetime
+    *
+    * @param dtr
+    *   : datetime
+    */
+  def fromKafka(dtr: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
+    downloadKafka(dtr)
 
   /** download all topic data, up to now
     */
-  def fromKafka: CrRdd[F, K, V] = downloadKafka(NJDateTimeRange(topic.context.settings.zoneId))
-
-  /** download topic according to datetime
-    * @param dtr:
-    *   datetime
-    */
-  def fromKafka(dtr: NJDateTimeRange): CrRdd[F, K, V] = downloadKafka(dtr)
+  def fromKafka(implicit F: Sync[F]): CrRdd[F, K, V] =
+    fromKafka(NJDateTimeRange(topic.context.settings.zoneId))
 
   /** download topic according to offset range
     * @param offsets
@@ -107,12 +109,9 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     * @return
     *   CrRdd
     */
-  def fromKafka(offsets: Map[Int, (Long, Long)]): CrRdd[F, K, V] = {
-    val offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      topic.context.settings
-        .context[SyncIO]
-        .byteTopic(topic.topicName)
-        .shortLiveConsumer
+  def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Sync[F]): CrRdd[F, K, V] =
+    crRdd(
+      topic.shortLiveConsumer
         .use(_.partitionsFor.map { partitions =>
           val topicPartition = partitions.value.map { tp =>
             val ofs = offsets
@@ -122,30 +121,31 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
           }.toMap
           KafkaTopicPartition(topicPartition)
         })
-        .unsafeRunSync()
-    crRdd(sk.kafkaBatch(topic, sparkSession, offsetRange).map(_.toNJConsumerRecord))
-  }
+        .flatMap(offsetRange =>
+          F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange).map(_.toNJConsumerRecord))))
 
   /** load topic data from disk
     */
 
-  def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, sparkSession)
+  def load(implicit F: Sync[F]): LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, sparkSession)
 
   /** rdd and dataset
     */
 
-  def crRdd(rdd: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
+  def crRdd(rdd: F[RDD[NJConsumerRecord[K, V]]])(implicit F: Sync[F]): CrRdd[F, K, V] =
     new CrRdd[F, K, V](rdd, avroKeyCodec, avroValCodec, sparkSession)
 
-  def emptyCrRdd: CrRdd[F, K, V] = crRdd(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]])
+  def emptyCrRdd(implicit F: Sync[F]): CrRdd[F, K, V] =
+    crRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
 
-  def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
+  def prRdd(rdd: F[RDD[NJProducerRecord[K, V]]])(implicit F: Sync[F]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, prCodec)
 
-  def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[F, K, V] =
-    prRdd(sparkSession.sparkContext.parallelize(list.toList))
+  def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]])(implicit F: Sync[F]): PrRdd[F, K, V] =
+    prRdd(F.blocking(sparkSession.sparkContext.parallelize(list.toList)))
 
-  def emptyPrRdd: PrRdd[F, K, V] = prRdd(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]])
+  def emptyPrRdd(implicit F: Sync[F]): PrRdd[F, K, V] =
+    prRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]]))
 
   /** DStream
     */

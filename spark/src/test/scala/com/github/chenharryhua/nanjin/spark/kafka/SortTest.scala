@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
@@ -28,53 +29,49 @@ class SortTest extends AnyFunSuite {
     NJConsumerRecord[Int, Int](2, 100, 100, Some(2), Some(Random.nextInt()), "topic", 0)
   )
   val rdd   = sparKafka.sparkSession.sparkContext.parallelize(data)
-  val crRdd = sparKafka.topic(topic).crRdd(rdd)
+  val crRdd = sparKafka.topic(topic).crRdd(IO(rdd))
   val prRdd = crRdd.prRdd
 
-  val njDataset = sparKafka.sparkSession.loadTable[IO](ate).data(rdd).dataset
+  val njDataset = sparKafka.sparkSession.loadTable[IO](ate).data(rdd).fdataset
 
   test("produce record") {
     assert(
-      prRdd.ascendTimestamp.rdd.collect().toList.map(_.key) == crRdd.ascendTimestamp.rdd
-        .collect()
-        .toList
-        .map(_.key))
+      prRdd.ascendTimestamp.frdd
+        .map(_.collect().toList.map(_.key))
+        .unsafeRunSync() == crRdd.ascendTimestamp.frdd.map(_.collect().toList.map(_.key)).unsafeRunSync())
 
     assert(
-      prRdd.ascendOffset.rdd.collect().toList.map(_.key) == crRdd.ascendOffset.rdd
-        .collect()
-        .toList
-        .map(_.key))
+      prRdd.ascendOffset.frdd.map(_.collect().toList.map(_.key)).unsafeRunSync() == crRdd.ascendOffset.frdd
+        .map(_.collect().toList.map(_.key))
+        .unsafeRunSync())
     assert(
-      prRdd.descendTimestamp.rdd.collect().toList.map(_.key) == crRdd.descendTimestamp.rdd
-        .collect()
-        .toList
-        .map(_.key))
+      prRdd.descendTimestamp.frdd
+        .map(_.collect().toList.map(_.key))
+        .unsafeRunSync() == crRdd.descendTimestamp.frdd.map(_.collect().toList.map(_.key)).unsafeRunSync())
 
     assert(
-      prRdd.descendOffset.rdd.collect().toList.map(_.key) == crRdd.descendOffset.rdd
-        .collect()
-        .toList
-        .map(_.key))
+      prRdd.descendOffset.frdd.map(_.collect().toList.map(_.key)).unsafeRunSync() == crRdd.descendOffset.frdd
+        .map(_.collect().toList.map(_.key))
+        .unsafeRunSync())
   }
   test("disorders") {
-    assert(crRdd.stats.disorders.count() == 4)
+    assert(crRdd.stats.disorders.map(_.count()).unsafeRunSync() == 4)
   }
   test("dup") {
-    assert(crRdd.stats.dupRecords.count() == 1)
+    assert(crRdd.stats.dupRecords.map(_.count()).unsafeRunSync() == 1)
   }
   test("missing offsets") {
 
-    assert(crRdd.stats.missingOffsets.count() == 1)
+    assert(crRdd.stats.missingOffsets.map(_.count()).unsafeRunSync() == 1)
   }
 
   test("misorder keys") {
     import com.github.chenharryhua.nanjin.spark.kafka.functions.NJConsumerRecordDatasetExt
-    assert(njDataset.misorderedKey.count() == 4)
+    assert(njDataset.map(_.misorderedKey.count()).unsafeRunSync() == 4)
   }
 
   test("misplaced keys") {
     import com.github.chenharryhua.nanjin.spark.kafka.functions.NJConsumerRecordDatasetExt
-    assert(njDataset.misplacedKey.count() == 1)
+    assert(njDataset.map(_.misplacedKey.count()).unsafeRunSync() == 1)
   }
 }
