@@ -105,7 +105,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
       F.blocking(rdd.collect().headOption))
 
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](F.flatMap(frdd)(rdd => F.blocking(rdd.subtract(other))), ack, acv, ss)
+    transform(_.subtract(other))
 
   def diff(other: CrRdd[F, K, V]): CrRdd[F, K, V] = {
     val rdd = for {

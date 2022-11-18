@@ -286,4 +286,34 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
+  test("16.locker should survive panic") {
+    val List(a, b, c, d, e, f, g, h) = guard
+      .withRestartPolicy(RetryPolicies.constantDelay[IO](0.1.seconds))
+      .eventStream { agent =>
+        val locker = agent.locker[Int](None)
+        val broker = agent.broker("locker")
+        for {
+          _ <- locker.get.flatMap {
+            case None               => locker.put(10)
+            case Some(v) if v < 100 => locker.update(_ * v)
+            case Some(_)            => locker.reset
+          }
+          _ <- locker.get
+            .flatMap(v => broker.passThrough(v.asJson))
+            .flatMap(_ => IO.raiseError[Int](new Exception("oops")))
+        } yield ()
+      }
+      .take(8)
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 10))
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ServiceStart])
+    assert(e.asInstanceOf[PassThrough].value.as[Int].exists(_ == 100))
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStart])
+    assert(h.asInstanceOf[PassThrough].value == Json.Null)
+  }
 }
