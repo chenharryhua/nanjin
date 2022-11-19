@@ -332,7 +332,6 @@ class ServiceTest extends AnyFunSuite {
               .flatMap(_ => IO.raiseError[Int](new Exception("oops")))
           } yield ()
         }
-        // .debug()
         .take(8)
         .compile
         .toList
