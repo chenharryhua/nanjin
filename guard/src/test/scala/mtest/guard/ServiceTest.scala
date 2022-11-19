@@ -325,14 +325,11 @@ class ServiceTest extends AnyFunSuite {
           val locker = agent.locker(10)
           val broker = agent.broker("locker")
           for {
-            _ <- IO.println("why need this line to get it work?")
             _ <- locker.update(_ + 1)
-            _ <- locker.get
-              .flatMap(v => broker.passThrough(v.asJson))
-              .flatMap(_ => IO.raiseError[Int](new Exception("oops")))
+            v <- locker.get
+            _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception("oops")))
           } yield ()
         }
-        // .debug()
         .take(8)
         .compile
         .toList
@@ -346,4 +343,5 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStart])
     assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 13))
   }
+
 }

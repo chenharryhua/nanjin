@@ -12,7 +12,7 @@ val confluentV  = "7.3.0"
 val kafkaV      = "7.3.0-ce"
 val avroV       = "1.11.1"
 val slf4jV      = "1.7.36"
-val metricsV    = "4.2.12"
+val metricsV    = "4.2.13"
 val log4catsV   = "2.5.0"
 val skunkV      = "0.3.2"
 val http4sV     = "0.23.16"
@@ -321,7 +321,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % "1.4.4" % Test
+    "ch.qos.logback" % "logback-classic" % "1.4.5" % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
