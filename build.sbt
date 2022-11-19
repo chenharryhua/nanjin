@@ -321,7 +321,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings: _*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % "1.4.4" % Test
+    "ch.qos.logback" % "logback-classic" % "1.4.5" % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
 lazy val spark = (project in file("spark"))
