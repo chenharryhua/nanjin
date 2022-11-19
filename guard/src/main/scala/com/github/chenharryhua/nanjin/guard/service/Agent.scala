@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Unique}
 import cats.effect.Resource
+import cats.effect.std.AtomicCell
 import cats.implicits.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
@@ -13,6 +14,7 @@ import cron4s.CronExpr
 import fs2.concurrent.Channel
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
+import org.typelevel.vault.{Key, Vault}
 import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -21,7 +23,8 @@ final class Agent[F[_]] private[service] (
   val serviceParams: ServiceParams,
   val metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  entryPoint: Resource[F, EntryPoint[F]])(implicit F: Async[F])
+  entryPoint: Resource[F, EntryPoint[F]],
+  vault: AtomicCell[F, Vault])(implicit F: Async[F])
     extends EntryPoint[F] {
 
   override def root(name: String): Resource[F, Span[F]] =
@@ -92,6 +95,12 @@ final class Agent[F[_]] private[service] (
 
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
     awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
+
+  def locker[A]: NJLockerOption[F, A] =
+    new NJLockerOption[F, A](vault, new Key[A](new Unique.Token))
+
+  def locker[A](initValue: A): NJLocker[F, A] =
+    new NJLocker[F, A](vault, new Key[A](new Unique.Token), initValue)
 
   // for convenience
 

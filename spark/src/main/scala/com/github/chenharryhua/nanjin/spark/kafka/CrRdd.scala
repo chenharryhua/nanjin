@@ -101,10 +101,11 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def count: F[Long] = F.flatMap(frdd)(rdd => F.blocking(rdd.count()))
 
   def cherrypick(partition: Int, offset: Long): F[Option[NJConsumerRecord[K, V]]] =
-    partitionOf(partition).offsetRange(offset, offset).frdd.map(_.collect().headOption)
+    F.flatMap(partitionOf(partition).offsetRange(offset, offset).frdd)(rdd =>
+      F.blocking(rdd.collect().headOption))
 
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](F.flatMap(frdd)(rdd => F.blocking(rdd.subtract(other))), ack, acv, ss)
+    transform(_.subtract(other))
 
   def diff(other: CrRdd[F, K, V]): CrRdd[F, K, V] = {
     val rdd = for {

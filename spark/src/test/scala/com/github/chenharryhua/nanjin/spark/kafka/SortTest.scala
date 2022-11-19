@@ -67,11 +67,11 @@ class SortTest extends AnyFunSuite {
 
   test("misorder keys") {
     import com.github.chenharryhua.nanjin.spark.kafka.functions.NJConsumerRecordDatasetExt
-    assert(njDataset.map(_.misorderedKey.count()).unsafeRunSync() == 4)
+    assert(njDataset.misorderedKey.unsafeRunSync().count() == 4)
   }
 
   test("misplaced keys") {
     import com.github.chenharryhua.nanjin.spark.kafka.functions.NJConsumerRecordDatasetExt
-    assert(njDataset.map(_.misplacedKey.count()).unsafeRunSync() == 1)
+    assert(njDataset.misplacedKey.unsafeRunSync().count() == 1)
   }
 }
