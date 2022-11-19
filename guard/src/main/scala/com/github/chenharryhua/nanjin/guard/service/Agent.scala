@@ -91,16 +91,16 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
+  def locker[A]: NJLockerOption[F, A] =
+    new NJLockerOption[F, A](vault, new Key[A](new Unique.Token()))
+
+  def locker[A](initValue: A): NJLocker[F, A] =
+    new NJLocker[F, A](vault, new Key[A](new Unique.Token()), initValue)
+
   def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
 
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
     awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
-
-  def locker[A]: NJLockerOption[F, A] =
-    new NJLockerOption[F, A](vault, new Key[A](new Unique.Token))
-
-  def locker[A](initValue: A): NJLocker[F, A] =
-    new NJLocker[F, A](vault, new Key[A](new Unique.Token), initValue)
 
   // for convenience
 
