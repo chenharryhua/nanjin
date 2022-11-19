@@ -290,7 +290,7 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(RetryPolicies.constantDelay[IO](0.1.seconds))
       .eventStream { agent =>
-        val locker = agent.locker[Int](None)
+        val locker = agent.locker[Int]
         val broker = agent.broker("locker")
         for {
           _ <- locker.get.flatMap {
@@ -315,5 +315,35 @@ class ServiceTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
     assert(h.asInstanceOf[PassThrough].value == Json.Null)
+  }
+
+  test("17.locker has init value") {
+    val List(a, b, c, d, e, f, g, h) =
+      guard
+        .withRestartPolicy(RetryPolicies.constantDelay[IO](0.1.seconds))
+        .eventStream { agent =>
+          val locker = agent.locker(10)
+          val broker = agent.broker("locker")
+          for {
+            _ <- IO.println("why need this line to get it work?")
+            _ <- locker.update(_ + 1)
+            _ <- locker.get
+              .flatMap(v => broker.passThrough(v.asJson))
+              .flatMap(_ => IO.raiseError[Int](new Exception("oops")))
+          } yield ()
+        }
+        // .debug()
+        .take(8)
+        .compile
+        .toList
+        .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 11))
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ServiceStart])
+    assert(e.asInstanceOf[PassThrough].value.as[Int].exists(_ == 12))
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStart])
+    assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 13))
   }
 }

@@ -96,7 +96,10 @@ final class Agent[F[_]] private[service] (
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
     awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
 
-  def locker[A](initValue: Option[A]): NJLocker[F, A] =
+  def locker[A]: NJLockerOption[F, A] =
+    new NJLockerOption[F, A](vault, new Key[A](new Unique.Token))
+
+  def locker[A](initValue: A): NJLocker[F, A] =
     new NJLocker[F, A](vault, new Key[A](new Unique.Token), initValue)
 
   // for convenience
