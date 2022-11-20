@@ -18,7 +18,6 @@ import com.github.chenharryhua.nanjin.guard.policies
 import cron4s.CronExpr
 import fs2.concurrent.Channel
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import retry.RetryPolicy
 
 import scala.concurrent.Future
@@ -151,10 +150,10 @@ final class NJActionBuilder[F[_]](
 
   // helpers
   private def mode(par: Option[Int]): (String, Json) =
-    "mode" -> par.fold("sequential")(p => s"parallel-$p").asJson
-  private def jobs(size: Long): (String, Json) = "jobs" -> size.asJson
-  private def succ(size: Long): (String, Json) = "succed" -> size.asJson
-  private def fail(size: Long): (String, Json) = "failed" -> size.asJson
+    "mode" -> Json.fromString(par.fold("sequential")(p => s"parallel-$p"))
+  private def jobs(size: Long): (String, Json) = "jobs" -> Json.fromLong(size)
+  private def succ(size: Long): (String, Json) = "succed" -> Json.fromLong(size)
+  private def fail(size: Long): (String, Json) = "failed" -> Json.fromLong(size)
 
   private def outputJson[G[_]: Traverse, Z](
     ior: Ior[G[Throwable], G[Z]],

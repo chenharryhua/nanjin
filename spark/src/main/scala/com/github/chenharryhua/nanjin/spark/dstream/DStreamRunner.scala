@@ -41,31 +41,31 @@ final class DStreamRunner[F[_]] private (
       extends StreamingListener {
 
     override def onStreamingStarted(event: StreamingListenerStreamingStarted): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onReceiverStarted(event: StreamingListenerReceiverStarted): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onReceiverError(event: StreamingListenerReceiverError): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onReceiverStopped(event: StreamingListenerReceiverStopped): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onBatchSubmitted(event: StreamingListenerBatchSubmitted): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onBatchStarted(event: StreamingListenerBatchStarted): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onBatchCompleted(event: StreamingListenerBatchCompleted): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onOutputOperationStarted(event: StreamingListenerOutputOperationStarted): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
     override def onOutputOperationCompleted(event: StreamingListenerOutputOperationCompleted): Unit =
-      dispatcher.unsafeRunSync(bus.send(event).void)
+      dispatcher.unsafeRunAndForget(bus.send(event))
 
   }
 

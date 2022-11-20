@@ -25,7 +25,7 @@ final class NJBytes[F[_]] private (
     for {
       is <- Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
       byte <- readInputStream[F](
-        F.pure(is),
+        F.blocking(is),
         bufferSize.toBytes.toInt,
         closeAfterUse = false
       ) // avoid double close
