@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.spark.table.NJTable
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import frameless.{TypedEncoder, TypedExpressionEncoder}
+import frameless.TypedEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -37,21 +37,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def ascendOffset: CrRdd[F, K, V]     = transform(sort.ascend.cr.offset)
   def descendOffset: CrRdd[F, K, V]    = transform(sort.descend.cr.offset)
 
-  def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = {
-    val rdd = for {
-      me <- frdd
-      you <- other.frdd
-      rdd <- F.blocking(me.union(you))
-    } yield rdd
-    new CrRdd[F, K, V](rdd, ack, acv, ss)
-  }
-
   def repartition(num: Int): CrRdd[F, K, V] = transform(_.repartition(num))
 
   def normalize: CrRdd[F, K, V] = transform(_.map(codec.idConversion))
-
-  def replicate(num: Int): CrRdd[F, K, V] =
-    transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
   // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(
@@ -93,8 +81,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   // statistics
   def stats: Statistics[F] = {
-    val te = TypedExpressionEncoder(TypedEncoder[CRMetaInfo])
-    val ds = F.flatMap(frdd)(rdd => F.blocking(ss.createDataset(rdd.map(CRMetaInfo(_)))(te)))
+    val ds = F.flatMap(frdd)(rdd => F.blocking(ss.createDataset(rdd.map(CRMetaInfo(_)))))
     new Statistics[F](ds)
   }
 
@@ -104,14 +91,22 @@ final class CrRdd[F[_], K, V] private[kafka] (
     F.flatMap(partitionOf(partition).offsetRange(offset, offset).frdd)(rdd =>
       F.blocking(rdd.collect().headOption))
 
-  def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] =
-    transform(_.subtract(other))
-
+  def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] = transform(_.subtract(other))
   def diff(other: CrRdd[F, K, V]): CrRdd[F, K, V] = {
     val rdd = for {
       me <- frdd
       you <- other.frdd
       rdd <- F.blocking(me.subtract(you))
+    } yield rdd
+    new CrRdd[F, K, V](rdd, ack, acv, ss)
+  }
+
+  def union(other: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] = transform(_.union(other))
+  def union(other: CrRdd[F, K, V]): CrRdd[F, K, V] = {
+    val rdd = for {
+      me <- frdd
+      you <- other.frdd
+      rdd <- F.blocking(me.union(you))
     } yield rdd
     new CrRdd[F, K, V](rdd, ack, acv, ss)
   }

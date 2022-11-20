@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import frameless.{TypedEncoder, TypedExpressionEncoder}
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, Encoder}
 import org.apache.spark.sql.functions.{col, countDistinct}
 
 import java.time.{Instant, LocalDateTime, ZoneId}
@@ -21,7 +21,8 @@ final case class CRMetaInfo(
 }
 
 object CRMetaInfo {
-  implicit val typedEncoder: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
+  implicit val typedEncoderCRMetaInfo: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
+  implicit val encoderCRMetaInfo: Encoder[CRMetaInfo] = TypedExpressionEncoder(typedEncoderCRMetaInfo)
 
   def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
     CRMetaInfo(cr.topic, cr.partition, cr.offset, cr.timestamp, cr.timestampType)
@@ -85,5 +86,7 @@ object functions {
             .filter(col("count") > 1)
             .orderBy(col("count").desc)))
     }
+
+    def stats: Statistics[F] = new Statistics[F](F.flatMap(fdataset)(ds => F.blocking(ds.map(CRMetaInfo(_)))))
   }
 }

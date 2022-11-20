@@ -86,7 +86,6 @@ class CrPrTest extends AnyFunSuite {
     assert(crRdd.prRdd.offsetRange(0, 2).frdd.map(_.collect().size).unsafeRunSync() == 3)
   }
   test("replicate") {
-    assert(crRdd.replicate(3).frdd.map(_.count()).unsafeRunSync() == 12)
     assert(prRdd.replicate(3).frdd.map(_.count()).unsafeRunSync() == 12)
   }
 }
