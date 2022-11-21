@@ -7,6 +7,9 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val catsEffectV = "3.4.1"
+val fs2V        = "3.4.0"
+val awsV        = "1.12.330"
+val hadoopV     = "3.3.4"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.0"
 val kafkaV      = "7.3.0-ce"
@@ -15,8 +18,10 @@ val slf4jV      = "1.7.36"
 val metricsV    = "4.2.13"
 val log4catsV   = "2.5.0"
 val skunkV      = "0.3.2"
+val natchezV    = "0.2.0"
 val http4sV     = "0.23.16"
 val cron4sV     = "0.6.1"
+val jacksonV    = "2.14.0"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -36,17 +41,17 @@ lazy val commonSettings = List(
 //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % "1.12.330")
+val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % awsV)
 
 val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % "3.3.4",
-  "org.apache.hadoop" % "hadoop-aws"                   % "3.3.4",
-  "org.apache.hadoop" % "hadoop-auth"                  % "3.3.4",
-  "org.apache.hadoop" % "hadoop-annotations"           % "3.3.4",
-  "org.apache.hadoop" % "hadoop-common"                % "3.3.4",
-  "org.apache.hadoop" % "hadoop-client"                % "3.3.4",
-  "org.apache.hadoop" % "hadoop-client-runtime"        % "3.3.4",
-  "org.apache.hadoop" % "hadoop-hdfs"                  % "3.3.4",
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
+  "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
+  "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
+  "org.apache.hadoop" % "hadoop-annotations"           % hadoopV,
+  "org.apache.hadoop" % "hadoop-common"                % hadoopV,
+  "org.apache.hadoop" % "hadoop-client"                % hadoopV,
+  "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
+  "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
   "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
 ).map(
   _.exclude("log4j", "log4j")
@@ -68,15 +73,15 @@ val circeLib = List(
 )
 
 val jacksonLib = List(
-  "com.fasterxml.jackson.core"                             % "jackson-annotations"             % "2.14.0",
-  "com.fasterxml.jackson.core"                             % "jackson-core"                    % "2.14.0",
-  "com.fasterxml.jackson.core"                             % "jackson-databind"                % "2.14.0",
-  "com.fasterxml.jackson.datatype"                         % "jackson-datatype-jdk8"           % "2.14.0",
-  "com.fasterxml.jackson.module"                           % "jackson-module-jaxb-annotations" % "2.14.0",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-base"              % "2.14.0",
-  "com.fasterxml.jackson.jaxrs"                            % "jackson-jaxrs-json-provider"     % "2.14.0",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.14.0"
-)
+  "com.fasterxml.jackson.core"     % "jackson-annotations",
+  "com.fasterxml.jackson.core"     % "jackson-core",
+  "com.fasterxml.jackson.core"     % "jackson-databind",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala"
+).map(_ % jacksonV)
 
 val kantanLib = List(
   "com.nrinaudo" %% "kantan.csv",
@@ -105,7 +110,7 @@ val fs2Lib = List(
   "co.fs2" %% "fs2-core",
   "co.fs2" %% "fs2-reactive-streams",
   "co.fs2" %% "fs2-io"
-).map(_ % "3.3.0")
+).map(_ % fs2V)
 
 val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-core",
@@ -276,10 +281,10 @@ lazy val guard = (project in file("guard"))
       "com.lihaoyi" %% "scalatags"                     % "0.12.0",
       "org.tpolecat" %% "skunk-core"                   % skunkV,
       "org.tpolecat" %% "skunk-circe"                  % skunkV,
-      "org.tpolecat" %% "natchez-core"                 % "0.1.6",
-      "org.tpolecat" %% "natchez-noop"                 % "0.1.6",
-      "org.tpolecat" %% "natchez-jaeger"               % "0.1.6"          % Test,
-      "org.tpolecat" %% "natchez-log"                  % "0.1.6"          % Test,
+      "org.tpolecat" %% "natchez-core"                 % natchezV,
+      "org.tpolecat" %% "natchez-noop"                 % natchezV,
+      "org.tpolecat" %% "natchez-jaeger"               % natchezV         % Test,
+      "org.tpolecat" %% "natchez-log"                  % natchezV         % Test,
       "org.slf4j"                                      % "slf4j-reload4j" % slf4jV % Test
     ) ++ metricLib ++ logLib ++ testLib
   )

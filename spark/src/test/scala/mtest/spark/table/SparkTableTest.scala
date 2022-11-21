@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.datetime.sydneyTime
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.spark.injection.*
+import com.github.chenharryhua.nanjin.spark.listeners.SparkContextListener
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.zaxxer.hikari.HikariConfig
@@ -17,6 +18,7 @@ import doobie.hikari.HikariTransactor
 import doobie.implicits.*
 import eu.timepit.refined.auto.*
 import frameless.{TypedDataset, TypedEncoder}
+import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import kantan.csv.generic.*
@@ -24,11 +26,11 @@ import kantan.csv.java8.*
 import mtest.spark.sparkSession
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
-import io.circe.generic.auto.*
 
 import java.sql.Date
 import java.time.*
 import java.time.temporal.ChronoUnit
+import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
 final case class DomainObject(
@@ -76,6 +78,8 @@ class SparkTableTest extends AnyFunSuite {
   implicit val rd: RowDecoder[DBTable]           = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[DBTable]             = AvroTypedEncoder[DBTable](te, codec)
 
+  val listener = SparkContextListener[IO](ss.sparkContext).debug()
+
   val sample: DomainObject =
     DomainObject(
       LocalDate.now,
@@ -103,6 +107,13 @@ class SparkTableTest extends AnyFunSuite {
     val d4  = loader.data(tds.dataset.rdd)
     assert(d1.diff(d2).fdataset.map(_.count()).unsafeRunSync() == 0)
     assert(d3.diff(d4).fdataset.map(_.count()).unsafeRunSync() == 0)
+    fs2.Stream
+      .eval(IO.sleep(2.seconds) >> d1.diff(d2).fdataset)
+      .concurrently(listener)
+      .compile
+      .drain
+      .unsafeRunSync()
+
   }
 
   test("upload dataset to table") {

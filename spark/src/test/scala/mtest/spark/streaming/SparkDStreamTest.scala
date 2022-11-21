@@ -1,4 +1,4 @@
-package mtest.spark.sstream
+package mtest.spark.streaming
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -6,12 +6,14 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import com.github.chenharryhua.nanjin.spark.dstream.DStreamRunner
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
+import com.github.chenharryhua.nanjin.spark.listeners.SparkDStreamListener
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.auto.*
 import mtest.spark.kafka.sparKafka
+import org.apache.spark.streaming.scheduler.StreamingListenerEvent
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -48,18 +50,18 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
     val runner: DStreamRunner[IO] =
       DStreamRunner[IO](sparKafka.sparkSession.sparkContext, checkpoint, 3.second)
-    sender
-      .concurrently(
-        runner.withFreshStart
-          .signup(topic.dstream)(_.coalesce.avro(avro))
-          .signup(topic.dstream)(_.coalesce.jackson(jackson))
-          .signup(topic.dstream)(_.coalesce.circe(circe))
-          .stream
-          .debug()
-      )
-      .compile
-      .drain
-      .unsafeRunSync()
+
+    val dstream: Stream[IO, StreamingListenerEvent] =
+      Stream
+        .resource(
+          runner.withFreshStart
+            .signup(topic.dstream)(_.coalesce.avro(avro))
+            .signup(topic.dstream)(_.coalesce.jackson(jackson))
+            .signup(topic.dstream)(_.coalesce.circe(circe))
+            .resource)
+        .flatMap(SparkDStreamListener[IO](_))
+
+    sender.concurrently(dstream.debug()).compile.drain.unsafeRunSync()
 
     val ts = LocalDate.now()
 

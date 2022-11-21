@@ -5,10 +5,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
-import fs2.Stream
-import fs2.concurrent.Channel
 import org.apache.spark.SparkContext
-import org.apache.spark.streaming.scheduler.*
 import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
 import scala.concurrent.duration.FiniteDuration
@@ -37,39 +34,7 @@ final class DStreamRunner[F[_]] private (
     ssc
   }
 
-  private class Listener(dispatcher: Dispatcher[F], bus: Channel[F, StreamingListenerEvent])
-      extends StreamingListener {
-
-    override def onStreamingStarted(event: StreamingListenerStreamingStarted): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onReceiverStarted(event: StreamingListenerReceiverStarted): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onReceiverError(event: StreamingListenerReceiverError): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onReceiverStopped(event: StreamingListenerReceiverStopped): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onBatchSubmitted(event: StreamingListenerBatchSubmitted): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onBatchStarted(event: StreamingListenerBatchStarted): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onBatchCompleted(event: StreamingListenerBatchCompleted): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onOutputOperationStarted(event: StreamingListenerOutputOperationStarted): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-    override def onOutputOperationCompleted(event: StreamingListenerOutputOperationCompleted): Unit =
-      dispatcher.unsafeRunAndForget(bus.send(event))
-
-  }
-
-  private val resource: Resource[F, StreamingContext] =
+  val resource: Resource[F, StreamingContext] =
     for {
       dispatcher <- Dispatcher.sequential[F]
       _ <- Resource.eval(NJHadoop[F](sparkContext.hadoopConfiguration).delete(checkpoint).whenA(freshStart))
@@ -79,14 +44,6 @@ final class DStreamRunner[F[_]] private (
         .evalMap(ssc => F.blocking(ssc.start()).as(ssc))
     } yield sc
 
-  def stream: Stream[F, StreamingListenerEvent] = for {
-    dispatcher <- Stream.resource(Dispatcher.sequential[F])
-    ssc <- Stream.resource(resource)
-    event <- Stream.eval(Channel.unbounded[F, StreamingListenerEvent]).flatMap { bus =>
-      ssc.addStreamingListener(new Listener(dispatcher, bus))
-      bus.stream
-    }
-  } yield event
 }
 
 object DStreamRunner {

@@ -1,4 +1,4 @@
-package mtest.spark.sstream
+package mtest.spark.streaming
 
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import eu.timepit.refined.auto.*
