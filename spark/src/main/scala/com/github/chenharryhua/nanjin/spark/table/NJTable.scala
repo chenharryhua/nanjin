@@ -48,11 +48,11 @@ final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[
   def output: RddAvroFileHoarder[F, A] =
     new RddAvroFileHoarder[F, A](F.flatMap(fdataset)(ds => F.blocking(ds.rdd)), ate.avroCodec.avroEncoder)
 
-  def count: F[Long] = F.flatMap(fdataset)(ds => F.blocking(ds.count()))
+  def count: F[Long] = F.flatMap(fdataset)(ds => F.interruptible(ds.count()))
 
   def upload(hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode): F[Unit] =
     F.flatMap(fdataset)(ds =>
-      F.blocking(
+      F.interruptible(
         ds.write
           .mode(saveMode)
           .format("jdbc")
