@@ -134,28 +134,31 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def instantAlert(evt: InstantAlert): SlackApp = {
+  private def instantAlert(evt: InstantAlert): Option[SlackApp] = {
     val title = evt.importance match {
       case Importance.Critical => ":warning: Error"
       case Importance.Notice   => ":warning: Warning"
       case Importance.Silent   => ":information_source: Info"
-      case Importance.Trivial  => "oops. should not happen"
+      case Importance.Trivial  => ":information_source: Debug"
     }
-    val msg: Option[Section] =
-      if (evt.message.nonEmpty) Some(MarkdownSection(abbreviate(evt.message))) else None
-    SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = coloring(evt),
-          blocks = List(
-            MarkdownSection(s"*$title:* ${evt.digested.metricRepr}"),
-            hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}")
-          ).appendedAll(msg)
-        )
-      )
-    )
+
+    if (evt.importance > Importance.Trivial) {
+      Some(
+        SlackApp(
+          username = evt.serviceParams.taskParams.taskName.value,
+          attachments = List(
+            Attachment(
+              color = coloring(evt),
+              blocks = List(
+                MarkdownSection(s"*$title:* ${evt.digested.metricRepr}"),
+                hostServiceSection(evt.serviceParams),
+                MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
+                MarkdownSection(abbreviate(evt.message))
+              )
+            )
+          )
+        ))
+    } else None
   }
 
   private def traceId(evt: ActionEvent): String   = s"*Trace ID:* ${evt.traceId}"

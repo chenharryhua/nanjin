@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
+import cats.implicits.catsSyntaxEq
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
@@ -92,17 +93,20 @@ private object SimpleJsonTranslator {
           timestamp(evt)
         ))
 
-  private def instantAlert(evt: InstantAlert): Json =
-    Json.obj(
-      "Alert" ->
+  private def instantAlert(evt: InstantAlert): Option[Json] =
+    if (evt.importance === Importance.Trivial) None
+    else
+      Some(
         Json.obj(
-          name(evt.digested),
-          importance(evt.importance),
-          ("message", Json.fromString(evt.message)),
-          digest(evt.digested),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+          "Alert" ->
+            Json.obj(
+              name(evt.digested),
+              importance(evt.importance),
+              ("message", Json.fromString(evt.message)),
+              digest(evt.digested),
+              serviceId(evt),
+              timestamp(evt)
+            )))
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(

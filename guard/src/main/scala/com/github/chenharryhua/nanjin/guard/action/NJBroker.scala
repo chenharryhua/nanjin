@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import cats.Monad
+import cats.effect.std.Dispatcher
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Digested, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -17,15 +18,16 @@ final class NJBroker[F[_]: Monad: Clock] private[guard] (
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
   isError: Boolean,
-  isCounting: Boolean) {
+  isCounting: Boolean,
+  dispatcher: Dispatcher[F]) {
 
   private lazy val counter: Counter = metricRegistry.counter(passThroughMRName(digested, isError))
 
   def asError: NJBroker[F] =
-    new NJBroker[F](digested, metricRegistry, channel, serviceParams, isError = true, isCounting)
+    new NJBroker[F](digested, metricRegistry, channel, serviceParams, isError = true, isCounting, dispatcher)
 
   def withCounting: NJBroker[F] =
-    new NJBroker[F](digested, metricRegistry, channel, serviceParams, isError, true)
+    new NJBroker[F](digested, metricRegistry, channel, serviceParams, isError, true, dispatcher)
 
   def passThrough[A: Encoder](a: A): F[Unit] =
     for {
@@ -38,5 +40,8 @@ final class NJBroker[F[_]: Monad: Clock] private[guard] (
           isError = isError,
           value = a.asJson))
     } yield if (isCounting) counter.inc(1)
+
+  def unsafePassThrough[A: Encoder](a: A): Unit =
+    dispatcher.unsafeRunSync(passThrough(a))
 
 }

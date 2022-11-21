@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.{AtomicCell, Console, UUIDGen}
+import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import cats.Endo
 import cats.effect.implicits.genSpawnOps
@@ -91,18 +91,20 @@ final class ServiceGuard[F[_]] private[guard] (
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
     vault <- Resource.eval(AtomicCell[F].of(Vault.empty))
+    dispatcher <- Dispatcher.parallel[F]
     chn <- Resource.eval(Channel.unbounded[F, NJEvent])
     _ <- chn.stream
       .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
       .compile
       .drain
       .background
-  } yield new Agent[F](sp, new MetricRegistry, chn, entryPoint, vault)
+  } yield new Agent[F](sp, new MetricRegistry, chn, entryPoint, vault, dispatcher)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
       vault <- Stream.eval(AtomicCell[F].of(Vault.empty))
+      dispatcher <- Stream.resource(Dispatcher.parallel[F])
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = {
           val mr = new MetricRegistry()
@@ -140,13 +142,13 @@ final class ServiceGuard[F[_]] private[guard] (
             case None => Stream.empty
             case Some(builder) =>
               Stream
-                .bracket(F.delay(builder(JmxReporter.forRegistry(metricRegistry)).build()))(r =>
-                  F.delay(r.close()))
-                .evalMap(jr => F.delay(jr.start()))
+                .bracket(F.blocking(builder(JmxReporter.forRegistry(metricRegistry)).build()))(r =>
+                  F.blocking(r.close()))
+                .evalMap(jr => F.blocking(jr.start()))
                 .flatMap(_ => Stream.never[F])
           }
 
-        val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint, vault)
+        val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint, vault, dispatcher)
 
         // put together
         channel.stream

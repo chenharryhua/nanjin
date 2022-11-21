@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Unique}
 import cats.effect.Resource
-import cats.effect.std.AtomicCell
+import cats.effect.std.{AtomicCell, Dispatcher}
 import cats.implicits.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
@@ -24,7 +24,8 @@ final class Agent[F[_]] private[service] (
   val metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   entryPoint: Resource[F, EntryPoint[F]],
-  vault: AtomicCell[F, Vault])(implicit F: Async[F])
+  vault: AtomicCell[F, Vault],
+  dispatcher: Dispatcher[F])(implicit F: Async[F])
     extends EntryPoint[F] {
 
   override def root(name: String): Resource[F, Span[F]] =
@@ -57,7 +58,8 @@ final class Agent[F[_]] private[service] (
       channel = channel,
       serviceParams = serviceParams,
       isError = false,
-      isCounting = false
+      isCounting = false,
+      dispatcher = dispatcher
     )
 
   def alert(alertName: String): NJAlert[F] =
@@ -66,7 +68,8 @@ final class Agent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
-      isCounting = false
+      isCounting = false,
+      dispatcher = dispatcher
     )
 
   def counter(counterName: String): NJCounter[F] =
@@ -85,8 +88,8 @@ final class Agent[F[_]] private[service] (
       isCounting = false
     )
 
-  def gauge(gaugeName: String): NJGauge =
-    new NJGauge(Digested(serviceParams, gaugeName), metricRegistry)
+  def gauge(gaugeName: String): NJGauge[F] =
+    new NJGauge[F](Digested(serviceParams, gaugeName), metricRegistry, dispatcher)
 
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
