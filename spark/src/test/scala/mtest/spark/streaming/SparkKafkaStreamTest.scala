@@ -1,4 +1,4 @@
-package mtest.spark.sstream
+package mtest.spark.streaming
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef

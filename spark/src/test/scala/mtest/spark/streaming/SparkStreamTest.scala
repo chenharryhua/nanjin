@@ -1,4 +1,4 @@
-package mtest.spark.sstream
+package mtest.spark.streaming
 
 import org.scalatest.Sequential
 
