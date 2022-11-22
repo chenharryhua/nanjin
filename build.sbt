@@ -21,7 +21,7 @@ val skunkV      = "0.3.2"
 val natchezV    = "0.2.0"
 val http4sV     = "0.23.16"
 val cron4sV     = "0.6.1"
-val jacksonV    = "2.14.0"
+val jacksonV    = "2.14.1"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
