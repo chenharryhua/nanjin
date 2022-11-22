@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Resource, Unique}
-import cats.effect.std.{Console, Dispatcher, UUIDGen}
+import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import cats.Endo
 import cats.effect.implicits.genSpawnOps
@@ -18,7 +18,7 @@ import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import io.circe.Json
 import natchez.EntryPoint
-import org.typelevel.vault.Locker
+import org.typelevel.vault.{Locker, Vault}
 import retry.RetryPolicy
 
 // format: off
@@ -90,7 +90,8 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
-    vault <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+    lockers <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+    vault <- Resource.eval(AtomicCell[F].of(Vault.empty))
     dispatcher <- Dispatcher.parallel[F]
     chn <- Resource.eval(Channel.unbounded[F, NJEvent])
     _ <- chn.stream
@@ -98,12 +99,13 @@ final class ServiceGuard[F[_]] private[guard] (
       .compile
       .drain
       .background
-  } yield new Agent[F](sp, new MetricRegistry, chn, entryPoint, vault, dispatcher)
+  } yield new Agent[F](sp, new MetricRegistry, chn, entryPoint, lockers, vault, dispatcher)
 
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
-      vault <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+      lockers <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+      vault <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = {
@@ -148,7 +150,15 @@ final class ServiceGuard[F[_]] private[guard] (
                 .flatMap(_ => Stream.never[F])
           }
 
-        val agent = new Agent[F](serviceParams, metricRegistry, channel, entryPoint, vault, dispatcher)
+        val agent =
+          new Agent[F](
+            serviceParams = serviceParams,
+            metricRegistry = metricRegistry,
+            channel = channel,
+            entryPoint = entryPoint,
+            lockers = lockers,
+            vault = vault,
+            dispatcher = dispatcher)
 
         // put together
         channel.stream

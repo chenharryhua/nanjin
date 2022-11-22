@@ -153,7 +153,7 @@ class MetricsTest extends AnyFunSuite {
   test("gauge") {
     service("gauge").eventStream { agent =>
       agent.gauge("random").register(Random.nextInt(100))
-      val box = agent.blackbox(100000)
+      val box = agent.blackBox(100000)
       agent.gauge("locker").register(box.get)
 
       for {
