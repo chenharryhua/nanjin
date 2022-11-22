@@ -21,6 +21,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   private lazy val errorCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Critical))
   private lazy val warnCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Notice))
   private lazy val infoCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Silent))
+  private lazy val debugCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Trivial))
 
   private def alert(msg: String, importance: Importance): F[Unit] =
     for {
@@ -56,7 +57,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   def unsafeInfo[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(info(msg))
 
   def debug[S: Show](msg: S): F[Unit] =
-    alert(msg.show, Importance.Trivial).map(_ => if (isCounting) infoCounter.inc(1))
+    alert(msg.show, Importance.Trivial).map(_ => if (isCounting) debugCounter.inc(1))
   def debug[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(debug(_)).void
   def unsafeDebug[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(debug(msg))
   def unsafeDebug[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(debug(msg))

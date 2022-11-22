@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Unique}
 import cats.effect.Resource
-import cats.effect.std.{AtomicCell, Dispatcher}
+import cats.effect.std.Dispatcher
 import cats.implicits.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
@@ -11,10 +11,10 @@ import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
-import fs2.concurrent.Channel
+import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
-import org.typelevel.vault.{Key, Vault}
+import org.typelevel.vault.{Key, Locker}
 import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -24,7 +24,7 @@ final class Agent[F[_]] private[service] (
   val metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   entryPoint: Resource[F, EntryPoint[F]],
-  vault: AtomicCell[F, Vault],
+  vault: SignallingMapRef[F, Unique.Token, Option[Locker]],
   dispatcher: Dispatcher[F])(implicit F: Async[F])
     extends EntryPoint[F] {
 
@@ -94,11 +94,11 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  def locker[A]: NJLockerOption[F, A] =
-    new NJLockerOption[F, A](vault, new Key[A](new Unique.Token()))
-
-  def locker[A](initValue: A): NJLocker[F, A] =
-    new NJLocker[F, A](vault, new Key[A](new Unique.Token()), initValue)
+  def blakcbox[A](initValue: A): NJBlackBox[F, A] = {
+    val token = new Unique.Token
+    val key   = new Key[A](token)
+    new NJBlackBox[F, A](vault(token), key, initValue)
+  }
 
   def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
 

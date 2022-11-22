@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
+import cats.effect.kernel.{Async, Resource, Unique}
+import cats.effect.std.{Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import cats.Endo
 import cats.effect.implicits.genSpawnOps
@@ -15,10 +15,10 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
 import fs2.Stream
-import fs2.concurrent.Channel
+import fs2.concurrent.{Channel, SignallingMapRef}
 import io.circe.Json
 import natchez.EntryPoint
-import org.typelevel.vault.Vault
+import org.typelevel.vault.Locker
 import retry.RetryPolicy
 
 // format: off
@@ -90,7 +90,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
     sp <- Resource.eval(initStatus)
-    vault <- Resource.eval(AtomicCell[F].of(Vault.empty))
+    vault <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     dispatcher <- Dispatcher.parallel[F]
     chn <- Resource.eval(Channel.unbounded[F, NJEvent])
     _ <- chn.stream
@@ -103,7 +103,7 @@ final class ServiceGuard[F[_]] private[guard] (
   def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
-      vault <- Stream.eval(AtomicCell[F].of(Vault.empty))
+      vault <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = {
