@@ -46,7 +46,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   // actions
 
-  def count: F[Long] = F.flatMap(frdd)(rdd => F.blocking(rdd.count()))
+  def count: F[Long] = F.flatMap(frdd)(rdd => F.interruptible(rdd.count()))
 
   def output: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](frdd, codec.avroEncoder)
