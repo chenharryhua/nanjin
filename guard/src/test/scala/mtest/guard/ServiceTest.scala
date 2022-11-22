@@ -290,7 +290,7 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(RetryPolicies.constantDelay[IO](0.1.seconds))
       .eventStream { agent =>
-        val locker = agent.blakcbox[Option[Int]](None)
+        val locker = agent.blackbox[Option[Int]](None)
         val broker = agent.broker("locker")
         for {
           _ <- locker.get.flatMap {
@@ -322,7 +322,7 @@ class ServiceTest extends AnyFunSuite {
       guard
         .withRestartPolicy(RetryPolicies.constantDelay[IO](0.1.seconds))
         .eventStream { agent =>
-          val locker = agent.blakcbox(10)
+          val locker = agent.blackbox(10)
           val broker = agent.broker("locker")
           for {
             _ <- locker.update(_ + 1)
@@ -349,7 +349,7 @@ class ServiceTest extends AnyFunSuite {
       guard
         .withRestartPolicy(RetryPolicies.constantDelay[IO](0.1.seconds))
         .eventStream { agent =>
-          val locker = agent.blakcbox(10)
+          val locker = agent.blackbox(10)
           val broker = agent.broker("locker")
           agent
             .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
