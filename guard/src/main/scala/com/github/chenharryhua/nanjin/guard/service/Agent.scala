@@ -94,7 +94,7 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  def blakcbox[A](initValue: A): NJBlackBox[F, A] = {
+  def blackbox[A](initValue: A): NJBlackBox[F, A] = {
     val token = new Unique.Token
     val key   = new Key[A](token)
     new NJBlackBox[F, A](vault(token), key, initValue)
