@@ -24,7 +24,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def zoneId: ZoneId
   def zonedNow: F[ZonedDateTime]
   def metrics: NJMetrics[F]
-  def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F]
+  def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F]
   def broker(brokerName: String): NJBroker[F]
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
@@ -58,13 +58,13 @@ final class GeneralAgent[F[_]] private[service] (
 
   val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
 
-  def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
+  def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
       actionName = name,
       serviceParams = serviceParams,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = cfg(ActionConfig()),
+      actionConfig = f(ActionConfig()),
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
 
