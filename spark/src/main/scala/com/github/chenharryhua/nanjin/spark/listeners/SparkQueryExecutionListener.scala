@@ -2,10 +2,12 @@ package com.github.chenharryhua.nanjin.spark.listeners
 
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
+import cats.Functor
+import cats.syntax.functor.*
 import fs2.concurrent.Channel
+import fs2.Stream
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.util.QueryExecutionListener
-import fs2.Stream
 import org.apache.spark.sql.SparkSession
 
 sealed trait QueryExecutionEvent
@@ -16,15 +18,15 @@ object QueryExecutionEvent {
       extends QueryExecutionEvent
 }
 
-final private class SparkQueryExecutionListener[F[_]](
+final private class SparkQueryExecutionListener[F[_]: Functor](
   bus: Channel[F, QueryExecutionEvent],
   dispatcher: Dispatcher[F])
     extends QueryExecutionListener {
   override def onSuccess(funcName: String, qe: QueryExecution, durationNs: Long): Unit =
-    dispatcher.unsafeRunAndForget(bus.send(QueryExecutionEvent.SuccessEvent(funcName, qe, durationNs)))
+    dispatcher.unsafeRunSync(bus.send(QueryExecutionEvent.SuccessEvent(funcName, qe, durationNs)).void)
 
   override def onFailure(funcName: String, qe: QueryExecution, exception: Exception): Unit =
-    dispatcher.unsafeRunAndForget(bus.send(QueryExecutionEvent.FailureEvent(funcName, qe, exception)))
+    dispatcher.unsafeRunSync(bus.send(QueryExecutionEvent.FailureEvent(funcName, qe, exception)).void)
 }
 
 object SparkQueryExecutionListener {

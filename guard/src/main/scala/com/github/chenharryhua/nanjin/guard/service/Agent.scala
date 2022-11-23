@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Unique}
 import cats.effect.Resource
-import cats.effect.std.Dispatcher
+import cats.effect.std.{AtomicCell, Dispatcher}
 import cats.implicits.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
@@ -14,40 +14,57 @@ import cron4s.CronExpr
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
-import org.typelevel.vault.{Key, Locker}
+import org.typelevel.vault.{Key, Locker, Vault}
 import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.{ZoneId, ZonedDateTime}
 
-final class Agent[F[_]] private[service] (
+sealed trait Agent[F[_]] extends EntryPoint[F] {
+  def serviceParams: ServiceParams
+  def zoneId: ZoneId
+  def zonedNow: F[ZonedDateTime]
+  def metrics: NJMetrics[F]
+  def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F]
+  def broker(brokerName: String): NJBroker[F]
+  def alert(alertName: String): NJAlert[F]
+  def counter(counterName: String): NJCounter[F]
+  def meter(meterName: String): NJMeter[F]
+  def histogram(histoName: String): NJHistogram[F]
+  def gauge(gaugeName: String): NJGauge[F]
+  def ticks(policy: RetryPolicy[F]): Stream[F, Int]
+  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int]
+}
+
+final class GeneralAgent[F[_]] private[service] (
   val serviceParams: ServiceParams,
-  val metricRegistry: MetricRegistry,
+  metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   entryPoint: Resource[F, EntryPoint[F]],
-  vault: SignallingMapRef[F, Unique.Token, Option[Locker]],
+  lockers: SignallingMapRef[F, Unique.Token, Option[Locker]],
+  vault: AtomicCell[F, Vault],
   dispatcher: Dispatcher[F])(implicit F: Async[F])
-    extends EntryPoint[F] {
+    extends Agent[F] {
 
-  override def root(name: String): Resource[F, Span[F]] =
+  def root(name: String): Resource[F, Span[F]] =
     entryPoint.flatMap(_.root(name))
 
-  override def continue(name: String, kernel: Kernel): Resource[F, Span[F]] =
+  def continue(name: String, kernel: Kernel): Resource[F, Span[F]] =
     entryPoint.flatMap(_.continue(name, kernel))
 
-  override def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, Span[F]] =
+  def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, Span[F]] =
     entryPoint.flatMap(_.continueOrElseRoot(name, kernel))
 
   val zoneId: ZoneId = serviceParams.taskParams.zoneId
 
   val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
 
-  def action(name: String, cfg: Endo[ActionConfig] = identity): NJActionBuilder[F] =
+  def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
       actionName = name,
       serviceParams = serviceParams,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = cfg(ActionConfig()),
+      actionConfig = f(ActionConfig()),
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
 
@@ -91,21 +108,23 @@ final class Agent[F[_]] private[service] (
   def gauge(gaugeName: String): NJGauge[F] =
     new NJGauge[F](Digested(serviceParams, gaugeName), metricRegistry, dispatcher)
 
-  lazy val metrics: NJMetrics[F] =
-    new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
-
-  def blackbox[A](initValue: A): NJBlackBox[F, A] = {
-    val token = new Unique.Token
-    val key   = new Key[A](token)
-    new NJBlackBox[F, A](vault(token), key, initValue)
-  }
-
   def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
 
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
     awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
 
-  // for convenience
+  lazy val metrics: NJMetrics[F] =
+    new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
+
+  // general agent scope
+
+  def signalBox[A](initValue: A): NJSignalBox[F, A] = {
+    val token = new Unique.Token
+    new NJSignalBox[F, A](lockers(token), new Key[A](token), initValue)
+  }
+
+  def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
+    new NJAtomicBox[F, A](vault, new Key[A](new Unique.Token()), initValue)
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
     action("nonStop", _.withoutTiming.withoutCounting.trivial)

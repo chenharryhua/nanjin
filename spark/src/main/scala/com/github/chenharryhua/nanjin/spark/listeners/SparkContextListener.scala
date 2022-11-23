@@ -2,15 +2,19 @@ package com.github.chenharryhua.nanjin.spark.listeners
 
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
+import cats.Functor
+import cats.syntax.functor.*
 import fs2.concurrent.Channel
 import fs2.Stream
 import org.apache.spark.{SparkContext, SparkFirehoseListener}
 import org.apache.spark.scheduler.*
 
-final private class SparkContextListener[F[_]](bus: Channel[F, SparkListenerEvent], dispatcher: Dispatcher[F])
+final private class SparkContextListener[F[_]: Functor](
+  bus: Channel[F, SparkListenerEvent],
+  dispatcher: Dispatcher[F])
     extends SparkFirehoseListener {
   override def onEvent(event: SparkListenerEvent): Unit =
-    dispatcher.unsafeRunAndForget(bus.send(event))
+    dispatcher.unsafeRunSync(bus.send(event).void)
 }
 
 object SparkContextListener {
