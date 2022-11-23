@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.Show
-import cats.effect.kernel.{RefSource, Sync}
+import cats.effect.kernel.Sync
 import cats.effect.std.Dispatcher
 import cats.syntax.applicativeError.*
 import cats.syntax.show.*
@@ -23,6 +23,5 @@ final class NJGauge[F[_]] private[guard] (
             dispatcher.unsafeRunSync(value.attempt).fold(ExceptionUtils.getMessage, _.show)
         })
 
-  def register[A: Show](value: RefSource[F, A]): Gauge[String] = register(value.get)
-  def register[A: Show](value: => A): Gauge[String]            = register(F.delay(value))
+  def register[A: Show](value: => A): Gauge[String] = register(F.delay(value))
 }

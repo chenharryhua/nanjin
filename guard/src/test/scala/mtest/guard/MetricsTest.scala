@@ -153,12 +153,12 @@ class MetricsTest extends AnyFunSuite {
   test("gauge") {
     service("gauge").eventStream { agent =>
       agent.gauge("random").register(Random.nextInt(100))
-      val box = agent.blackBox(100000)
+      val box = agent.atomicBox(IO(100000))
       agent.gauge("locker").register(box.get)
 
       for {
         state <- IO.ref(0)
-        _ = agent.gauge("state").register(state)
+        _ = agent.gauge("state").register(state.get)
         _ <- agent
           .ticks(RetryPolicies.constantDelay[IO](1.seconds))
           .evalTap(_ => state.update(_ + 1) >> box.update(_ + 1))

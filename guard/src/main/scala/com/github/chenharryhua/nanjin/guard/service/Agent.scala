@@ -95,10 +95,9 @@ final class Agent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  def blackBox[A](initValue: A): NJBlackBox[F, A] = {
+  def signalBox[A](initValue: A): NJSignalBox[F, A] = {
     val token = new Unique.Token
-    val key   = new Key[A](token)
-    new NJBlackBox[F, A](lockers(token), key, initValue)
+    new NJSignalBox[F, A](lockers(token), new Key[A](token), initValue)
   }
   def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
     new NJAtomicBox[F, A](vault, new Key[A](new Unique.Token()), initValue)
