@@ -57,7 +57,7 @@ private object ActionConfigF {
     }
 }
 
-final private[guard] case class ActionConfig private (value: Fix[ActionConfigF]) {
+final case class ActionConfig private (value: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
   def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Trivial, value)))

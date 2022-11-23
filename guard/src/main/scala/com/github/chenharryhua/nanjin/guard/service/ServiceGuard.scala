@@ -99,9 +99,9 @@ final class ServiceGuard[F[_]] private[guard] (
       .compile
       .drain
       .background
-  } yield new Agent[F](sp, new MetricRegistry, chn, entryPoint, lockers, vault, dispatcher)
+  } yield new GeneralAgent[F](sp, new MetricRegistry, chn, entryPoint, lockers, vault, dispatcher)
 
-  def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
+  def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
       lockers <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
@@ -151,7 +151,7 @@ final class ServiceGuard[F[_]] private[guard] (
           }
 
         val agent =
-          new Agent[F](
+          new GeneralAgent[F](
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
