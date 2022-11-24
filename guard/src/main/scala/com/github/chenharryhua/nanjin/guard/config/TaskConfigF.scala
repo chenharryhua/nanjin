@@ -13,16 +13,16 @@ import org.typelevel.cats.time.instances.zoneid
 
 import java.time.ZoneId
 
-@Lenses @JsonCodec final case class TaskParams private (
+@Lenses @JsonCodec final case class TaskParams(
   taskName: TaskName,
   zoneId: ZoneId,
   hostName: HostName,
   homePage: Option[HomePage])
 
-private[guard] object TaskParams extends zoneid {
+object TaskParams extends zoneid {
   implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
 
-  def apply(taskName: TaskName, hostName: HostName, zoneId: ZoneId): TaskParams = TaskParams(
+  def apply(taskName: TaskName, zoneId: ZoneId, hostName: HostName): TaskParams = TaskParams(
     taskName = taskName,
     zoneId = zoneId,
     hostName = hostName,
@@ -35,7 +35,7 @@ sealed private[guard] trait TaskConfigF[X]
 private object TaskConfigF {
   implicit val functorTaskConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
 
-  final case class InitParams[K](taskName: TaskName, hostName: HostName, zoneId: ZoneId)
+  final case class InitParams[K](taskName: TaskName, zoneId: ZoneId, hostName: HostName)
       extends TaskConfigF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
@@ -62,6 +62,6 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
 
 private[guard] object TaskConfig {
 
-  def apply(taskName: TaskName, hostName: HostName, zoneId: ZoneId): TaskConfig = new TaskConfig(
-    Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](taskName, hostName, zoneId)))
+  def apply(taskName: TaskName, zoneId: ZoneId, hostName: HostName): TaskConfig = new TaskConfig(
+    Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](taskName, zoneId, hostName)))
 }

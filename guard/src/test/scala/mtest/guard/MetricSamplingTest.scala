@@ -1,10 +1,8 @@
 package mtest.guard
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
-import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.{MetricParams, ServiceParams}
+import com.github.chenharryhua.nanjin.common.HostName.local_host
+import com.github.chenharryhua.nanjin.guard.config.{MetricParams, ServiceParams, TaskParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.observers.sampling
@@ -15,14 +13,19 @@ import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZonedDateTime
+import java.util.UUID
 import scala.concurrent.duration.*
 
 class MetricSamplingTest extends AnyFunSuite {
-  val launchTime: ZonedDateTime = ZonedDateTime.of(zzffEpoch, beijingTime)
 
-  val serviceParams: ServiceParams =
-    ServiceParams.launchTime.set(launchTime)(
-      TaskGuard[IO]("test").service("sampling").dummyAgent.use(a => IO(a.serviceParams)).unsafeRunSync())
+  val serviceParams: ServiceParams = ServiceParams(
+    "sampling",
+    TaskParams("name", beijingTime, local_host),
+    UUID.randomUUID(),
+    ZonedDateTime.of(zzffEpoch, beijingTime).toInstant,
+    "policy",
+    Json.Null
+  )
 
   def metricReport(cron: CronExpr, now: ZonedDateTime): MetricReport = MetricReport(
     MetricIndex.Periodic(1023),

@@ -20,7 +20,6 @@ import retry.{RetryPolicies, RetryPolicy}
 import java.time.{ZoneId, ZonedDateTime}
 
 sealed trait Agent[F[_]] extends EntryPoint[F] {
-  def serviceParams: ServiceParams
   def zoneId: ZoneId
   def zonedNow: F[ZonedDateTime]
   def metrics: NJMetrics[F]
@@ -36,7 +35,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 }
 
 final class GeneralAgent[F[_]] private[service] (
-  val serviceParams: ServiceParams,
+  serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   entryPoint: Resource[F, EntryPoint[F]],

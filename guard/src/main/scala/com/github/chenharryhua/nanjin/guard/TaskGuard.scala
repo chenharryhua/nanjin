@@ -44,7 +44,7 @@ object TaskGuard {
 
   def apply[F[_]: Async](taskName: TaskName): TaskGuard[F] =
     new TaskGuard[F](
-      TaskConfig(taskName, HostName.local_host, ZoneId.systemDefault()),
+      TaskConfig(taskName, ZoneId.systemDefault(), HostName.local_host),
       Resource.pure(NoopEntrypoint[F]()))
 
   // for repl
