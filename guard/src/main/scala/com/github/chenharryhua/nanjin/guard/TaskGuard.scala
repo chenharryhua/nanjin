@@ -30,8 +30,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
   def service(serviceName: ServiceName): ServiceGuard[F] =
     new ServiceGuard[F](
       serviceName = serviceName,
-      taskParams = taskConfig.evalConfig,
-      serviceConfig = ServiceConfig(),
+      serviceConfig = ServiceConfig(taskConfig.evalConfig),
       metricSet = Nil,
       jmxBuilder = None,
       entryPoint = entryPoint,

@@ -10,7 +10,7 @@ import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams, TaskParams}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
@@ -35,7 +35,6 @@ import retry.RetryPolicy
 
 final class ServiceGuard[F[_]] private[guard] (
   serviceName: ServiceName,
-  taskParams: TaskParams,
   serviceConfig: ServiceConfig,
   metricSet: List[MetricSet],
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
@@ -51,15 +50,8 @@ final class ServiceGuard[F[_]] private[guard] (
     jmxBuilder: Option[Endo[JmxReporter.Builder]] = jmxBuilder,
     restartPolicy: RetryPolicy[F] = restartPolicy,
     brief: F[Json] = brief
-  ): ServiceGuard[F] = new ServiceGuard[F](
-    serviceName,
-    taskParams,
-    serviceConfig,
-    metricSet,
-    jmxBuilder,
-    entryPoint,
-    restartPolicy,
-    brief)
+  ): ServiceGuard[F] =
+    new ServiceGuard[F](serviceName, serviceConfig, metricSet, jmxBuilder, entryPoint, restartPolicy, brief)
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
   def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
@@ -73,7 +65,7 @@ final class ServiceGuard[F[_]] private[guard] (
   def withRestartPolicy(rp: RetryPolicy[F]): ServiceGuard[F] = copy(restartPolicy = rp)
 
   def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
-    withRestartPolicy(policies.cronBackoff[F](cronExpr, taskParams.zoneId))
+    withRestartPolicy(policies.cronBackoff[F](cronExpr, serviceConfig.taskParams.zoneId))
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
   def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
@@ -86,7 +78,7 @@ final class ServiceGuard[F[_]] private[guard] (
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
     json <- brief
-  } yield serviceConfig.evalConfig(serviceName, taskParams, uuid, ts, restartPolicy.show, json)
+  } yield serviceConfig.evalConfig(serviceName, uuid, ts, restartPolicy.show, json)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     sp <- Resource.eval(initStatus)
