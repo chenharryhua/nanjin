@@ -20,7 +20,6 @@ import retry.{RetryPolicies, RetryPolicy}
 import java.time.{ZoneId, ZonedDateTime}
 
 sealed trait Agent[F[_]] extends EntryPoint[F] {
-  def serviceParams: ServiceParams
   def zoneId: ZoneId
   def zonedNow: F[ZonedDateTime]
   def metrics: NJMetrics[F]
@@ -36,7 +35,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 }
 
 final class GeneralAgent[F[_]] private[service] (
-  val serviceParams: ServiceParams,
+  serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   entryPoint: Resource[F, EntryPoint[F]],
@@ -61,10 +60,9 @@ final class GeneralAgent[F[_]] private[service] (
   def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
       actionName = name,
-      serviceParams = serviceParams,
       metricRegistry = metricRegistry,
       channel = channel,
-      actionConfig = f(ActionConfig()),
+      actionConfig = f(ActionConfig(serviceParams)),
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
 
@@ -116,7 +114,7 @@ final class GeneralAgent[F[_]] private[service] (
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  // general agent scope
+  // general agent section
 
   def signalBox[A](initValue: A): NJSignalBox[F, A] = {
     val token = new Unique.Token

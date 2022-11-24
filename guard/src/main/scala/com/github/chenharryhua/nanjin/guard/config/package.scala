@@ -10,4 +10,9 @@ package object config {
   implicit val cronExprEncoder: Encoder[CronExpr] = Encoder[String].contramap(_.toString)
   implicit val cronExprDecoder: Decoder[CronExpr] =
     Decoder[String].emap(Cron.parse(_).leftMap(ex => ExceptionUtils.getMessage(ex)))
+
+  val dailyCron: CronExpr   = Cron.unsafeParse("1 0 0 ? * *")
+  val weeklyCron: CronExpr  = Cron.unsafeParse("1 0 0 ? * 0")
+  val monthlyCron: CronExpr = Cron.unsafeParse("1 0 0 1 * ?")
+
 }

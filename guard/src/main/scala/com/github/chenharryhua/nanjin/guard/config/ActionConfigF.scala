@@ -24,6 +24,7 @@ final case class ActionParams(
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
+
   def apply(actionName: String, retryPolicy: String, serviceParams: ServiceParams): ActionParams =
     ActionParams(
       actionName = actionName,
@@ -57,25 +58,25 @@ private object ActionConfigF {
     }
 }
 
-final case class ActionConfig private (value: Fix[ActionConfigF]) {
+final case class ActionConfig private (value: Fix[ActionConfigF], serviceParams: ServiceParams) {
   import ActionConfigF.*
 
-  def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Trivial, value)))
-  def silent: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Silent, value)))
-  def notice: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Notice, value)))
-  def critical: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Critical, value)))
+  def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Trivial, value)), serviceParams)
+  def silent: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Silent, value)), serviceParams)
+  def notice: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Notice, value)), serviceParams)
+  def critical: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Critical, value)), serviceParams)
 
-  def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, value)))
-  def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, value)))
-  def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)))
-  def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)))
+  def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, value)), serviceParams)
+  def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, value)), serviceParams)
+  def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)), serviceParams)
+  def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)), serviceParams)
 
-  def evalConfig(actionName: String, serviceParams: ServiceParams, retryPolicy: String): ActionParams =
+  def evalConfig(actionName: String, retryPolicy: String): ActionParams =
     scheme.cata(algebra(actionName, serviceParams, retryPolicy)).apply(value)
 }
 
 private[guard] object ActionConfig {
 
-  def apply(): ActionConfig =
-    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]]()))
+  def apply(serviceParams: ServiceParams): ActionConfig =
+    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]]()), serviceParams)
 }
