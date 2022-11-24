@@ -5,7 +5,7 @@ import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
+import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
 import io.circe.Json
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
@@ -48,6 +48,6 @@ object TaskGuard {
       Resource.pure(NoopEntrypoint[F]()))
 
   // for repl
-  def dummyAgent[F[_]: Async: Console]: Resource[F, Agent[F]] =
+  def dummyAgent[F[_]: Async: Console]: Resource[F, GeneralAgent[F]] =
     apply(TaskName("dummy")).service(ServiceName("dummy")).dummyAgent
 }

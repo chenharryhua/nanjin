@@ -88,7 +88,7 @@ final class ServiceGuard[F[_]] private[guard] (
     json <- brief
   } yield serviceConfig.evalConfig(serviceName, taskParams, uuid, ts, restartPolicy.show, json)
 
-  def dummyAgent(implicit C: Console[F]): Resource[F, Agent[F]] = for {
+  def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     sp <- Resource.eval(initStatus)
     lockers <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     vault <- Resource.eval(AtomicCell[F].of(Vault.empty))
