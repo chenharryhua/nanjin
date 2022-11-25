@@ -1,11 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import fs2.Stream
 import io.circe.generic.auto.*
 import org.http4s.{Credentials, Request, Uri, UrlForm}
 import org.http4s.Method.POST
@@ -35,7 +34,7 @@ final class RefreshableToken[F[_]] private (
 
   private val params: AuthParams = cfg.evalConfig
 
-  override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
+  override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
     val authURI: Uri = auth_endpoint.withPath(path"oauth/token")
     val getToken: F[Token] =

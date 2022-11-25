@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.NonEmptyList
-import cats.effect.kernel.{Async, Ref}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import fs2.Stream
 import io.circe.generic.auto.*
 import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
 import org.http4s.{Credentials, Request, Uri, UrlForm}
@@ -43,7 +42,7 @@ object adobe {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
         params
           .authClient(client)
@@ -127,7 +126,7 @@ object adobe {
 
     private val params: AuthParams = cfg.evalConfig
 
-    override def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] = {
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
       val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
         auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
