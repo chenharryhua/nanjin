@@ -1,10 +1,12 @@
 package mtest.guard
 
 import cats.effect.IO
+import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
+import fs2.concurrent.SignallingRef
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Ignore
@@ -24,6 +26,16 @@ import scala.concurrent.duration.*
   * 510k/s trivial with Timing and Counting
   *
   * 264k/s notice with Timing and Counting
+  *
+  * magicBox vs Ref
+  *
+  * 677131360 cats.ref
+  *
+  * 349144613 fs2.signallingRef
+  *
+  * 298075480 signalBox
+  *
+  * 42220016 atomicBox
   */
 
 @Ignore
@@ -41,6 +53,40 @@ class PerformanceTest extends AnyFunSuite {
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} alert")
+  }
+
+  test("magicbox vs std") {
+    service.eventStream { agent =>
+      val signalBox = agent.signalBox(0)
+      val atomicBox = agent.atomicBox(IO(0))
+
+      val fs2Ref = SignallingRef
+        .of[IO, Int](0)
+        .flatMap(r =>
+          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
+            IO.println(s"$c\t fs2.signallingRef")))
+
+      val ref = IO
+        .ref(0)
+        .flatMap(r =>
+          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c => IO.println(s"$c\t cats.ref")))
+
+      val cell = AtomicCell[IO]
+        .of(0)
+        .flatMap(r =>
+          IO(()).flatMap(_ => r.update(_ + 1)).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
+            IO.println(s"$c\t cats.atomicCell")))
+
+      val signal =
+        signalBox.update(_ + 1).foreverM.timeout(take).attempt >> signalBox.get.flatMap(c =>
+          IO.println(s"$c\t signalBox"))
+
+      val atomic =
+        atomicBox.update(_ + 1).foreverM.timeout(take).attempt >> atomicBox.get.flatMap(c =>
+          IO.println(s"$c\t atomicBox"))
+
+      IO.println("magicBox vs std") >> (signal &> atomic &> cell &> fs2Ref &> ref)
+    }.compile.drain.unsafeRunSync()
   }
 
 //  test("trace") {

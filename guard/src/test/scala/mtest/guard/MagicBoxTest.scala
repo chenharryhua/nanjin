@@ -1,6 +1,7 @@
 package mtest.guard
 
 import cats.effect.IO
+import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   PassThrough,
@@ -133,5 +134,29 @@ class MagicBoxTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 21))
     assert(c.isInstanceOf[ServiceStop])
+  }
+
+  test("6. atomicBox exception") {
+    val compute = Random
+      .scalaUtilRandom[IO]
+      .flatMap(_.nextIntBounded(5).map(_ == 0).ifM(IO.raiseError(new Exception("oops")), IO(0)))
+
+    val List(a, b, c, d, e, f, g, h) = service.eventStream { agent =>
+      val box = agent.atomicBox(compute)
+      agent.gauge("box").register(box.get)
+      agent
+        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
+        .evalTap(_ => box.getAndUpdate(_ + 1).flatMap(IO.println))
+        .compile
+        .drain
+    }.take(8).compile.toList.unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ServicePanic])
+    assert(c.isInstanceOf[ServiceStart])
+    assert(d.isInstanceOf[ServicePanic])
+    assert(e.isInstanceOf[ServiceStart])
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStart])
+    assert(h.isInstanceOf[ServicePanic])
   }
 }

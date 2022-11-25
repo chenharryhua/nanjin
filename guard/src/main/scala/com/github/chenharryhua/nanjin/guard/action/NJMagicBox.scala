@@ -41,10 +41,10 @@ final class NJSignalBox[F[_], A] private[guard] (
     locker.update((ol: Option[Locker]) => iso.reverseGet(f(iso.get(ol))))
 
   override def getAndUpdate(f: A => A): F[A] =
-    F.map(locker.getAndUpdate((old: Option[Locker]) => iso.reverseGet(f(iso.get(old)))))(iso.get)
+    F.map(locker.getAndUpdate((ol: Option[Locker]) => iso.reverseGet(f(iso.get(ol)))))(iso.get)
 
   override def updateAndGet(f: A => A): F[A] =
-    F.map(locker.updateAndGet((old: Option[Locker]) => iso.reverseGet(f(iso.get(old)))))(iso.get)
+    F.map(locker.updateAndGet((ol: Option[Locker]) => iso.reverseGet(f(iso.get(ol)))))(iso.get)
 
   // specific for signalBox
   def tryUpdate(f: A => A): F[Boolean] =
