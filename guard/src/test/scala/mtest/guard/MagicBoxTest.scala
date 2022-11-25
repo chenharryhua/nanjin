@@ -1,7 +1,6 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   PassThrough,
@@ -86,7 +85,7 @@ class MagicBoxTest extends AnyFunSuite {
         val broker = agent.broker("box")
         for {
           v <- box.updateAndGet(_ + 1)
-          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception("oops")))
+          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
         } yield ()
       }.take(8).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
@@ -106,7 +105,7 @@ class MagicBoxTest extends AnyFunSuite {
         val broker = agent.broker("box")
         for {
           v <- box.getAndUpdate(_ + 1)
-          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception("oops")))
+          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
         } yield ()
       }.take(8).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
@@ -119,7 +118,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 12))
   }
 
-  test("5.signalBox work as signal") {
+  test("5.signalBox should work as signal") {
     val List(a, b, c) =
       service.eventStream { agent =>
         val box    = agent.signalBox(10)
@@ -136,12 +135,17 @@ class MagicBoxTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStop])
   }
 
-  test("6. atomicBox exception") {
-    val compute = Random
-      .scalaUtilRandom[IO]
-      .flatMap(_.nextIntBounded(5).map(_ == 0).ifM(IO.raiseError(new Exception("oops")), IO(0)))
+  test("6. atomicBox should eval initValue once") {
+    var i: Int = 0
+    val compute = if (i == 0) {
+      i += 1
+      IO(0)
+    } else {
+      i += 1
+      IO.raiseError[Int](new Exception("never happen"))
+    }
 
-    val List(a, b, c, d, e, f, g, h) = service.eventStream { agent =>
+    service.eventStream { agent =>
       val box = agent.atomicBox(compute)
       agent.gauge("box").register(box.get)
       agent
@@ -149,14 +153,23 @@ class MagicBoxTest extends AnyFunSuite {
         .evalTap(_ => box.getAndUpdate(_ + 1).flatMap(IO.println))
         .compile
         .drain
-    }.take(8).compile.toList.unsafeRunSync()
+    }.interruptAfter(3.second).compile.toList.unsafeRunSync()
+    assert(i == 1)
+  }
+
+  test("7. atomicBox exception should trigger service panic") {
+
+    val List(a, b, c) = service.eventStream { agent =>
+      val box = agent.atomicBox(IO.raiseError[Int](new Exception))
+      agent
+        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
+        .evalTap(_ => box.getAndUpdate(_ + 1))
+        .compile
+        .drain
+    }.take(3).compile.toList.unsafeRunSync()
+
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServicePanic])
     assert(c.isInstanceOf[ServiceStart])
-    assert(d.isInstanceOf[ServicePanic])
-    assert(e.isInstanceOf[ServiceStart])
-    assert(f.isInstanceOf[ServicePanic])
-    assert(g.isInstanceOf[ServiceStart])
-    assert(h.isInstanceOf[ServicePanic])
   }
 }

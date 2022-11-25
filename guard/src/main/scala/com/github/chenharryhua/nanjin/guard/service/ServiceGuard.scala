@@ -142,7 +142,7 @@ final class ServiceGuard[F[_]] private[guard] (
                 .flatMap(_ => Stream.never[F])
           }
 
-        val agent =
+        val agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,

@@ -4,7 +4,13 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionStart, ActionSucc, PassThrough, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionStart,
+  ActionSucc,
+  PassThrough,
+  ServiceStart,
+  ServiceStop
+}
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite

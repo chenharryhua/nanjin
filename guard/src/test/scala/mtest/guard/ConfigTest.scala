@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{ZonedDateTime, ZoneId}
+import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 
 class ConfigTest extends AnyFunSuite {

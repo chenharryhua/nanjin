@@ -46,7 +46,7 @@ package object observers {
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc            => true
+          case MetricIndex.Adhoc           => true
           case MetricIndex.Periodic(index) => (index % divisor.value) === 0
         }
       case _ => true
