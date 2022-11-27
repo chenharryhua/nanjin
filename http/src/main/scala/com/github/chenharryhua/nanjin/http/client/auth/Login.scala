@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.effect.kernel.{Async, Concurrent, Ref, Resource}
-import cats.implicits.toFlatMapOps
+import cats.effect.kernel.{Async, Ref, Resource}
+import cats.syntax.all.*
 import fs2.Stream
 import org.http4s.client.Client
 import org.http4s.Request
@@ -12,10 +12,10 @@ import org.http4s.Request
 
 trait Login[F[_], A] {
 
-  def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]]
+  def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]]
 
-  final def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
-    login(client).compile.resource.lastOrError
+  final def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] =
+    Stream.resource(loginR(client))
 
   def withMiddleware(f: Client[F] => Client[F]): A
 
@@ -31,20 +31,20 @@ trait Login[F[_], A] {
     *   Token
     * @return
     */
+
   final protected def loginInternal[T](
     client: Client[F],
     getToken: F[T],
     updateToken: Ref[F, T] => F[Unit],
     withToken: (T, Request[F]) => Request[F]
-  )(implicit F: Concurrent[F]): Stream[F, Client[F]] =
-    Stream.eval(getToken.flatMap(F.ref)).flatMap { refToken =>
-      val nc: Client[F] =
-        Client[F] { req =>
-          for {
-            token <- Resource.eval(refToken.get)
-            out <- client.run(withToken(token, req))
-          } yield out
-        }
-      Stream(nc).concurrently(Stream.repeatEval(updateToken(refToken)))
+  )(implicit F: Async[F]): Resource[F, Client[F]] =
+    for {
+      authToken <- Resource.eval(getToken.flatMap(F.ref))
+      _ <- F.background[Unit](updateToken(authToken).foreverM)
+    } yield Client[F] { req =>
+      for {
+        token <- Resource.eval(authToken.get)
+        out <- client.run(withToken(token, req))
+      } yield out
     }
 }

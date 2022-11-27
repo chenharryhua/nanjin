@@ -32,7 +32,7 @@ final private class ReTry[F[_], IN, OUT](
     if (actionInfo.actionParams.isCounting) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
   }
 
-  private[this] def actionFail(ex: Throwable): F[Unit] =
+  private[this] def sendFailureEvent(ex: Throwable): F[Unit] =
     for {
       ts <- actionInfo.actionParams.serviceParams.zonedNow
       json <- transInput(input)
@@ -40,7 +40,7 @@ final private class ReTry[F[_], IN, OUT](
     } yield timingAndCounting(isSucc = false, ts)
 
   private[this] def fail(ex: Throwable): F[Either[RetryStatus, OUT]] =
-    actionFail(ex) >> F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
+    sendFailureEvent(ex) >> F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
 
   private[this] def retrying(ex: Throwable, status: RetryStatus): F[Either[RetryStatus, OUT]] =
     retryPolicy.decideNextRetry(status).flatMap {
@@ -79,5 +79,5 @@ final private class ReTry[F[_], IN, OUT](
     }
   }
 
-  val execute: F[OUT] = F.onCancel(loop, actionFail(ActionException.ActionCanceled))
+  val execute: F[OUT] = F.onCancel(loop, sendFailureEvent(ActionException.ActionCanceled))
 }
