@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Resource, Unique}
-import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
+import cats.effect.std.{AtomicCell, Console, Dispatcher, MapRef, UUIDGen}
 import cats.syntax.all.*
 import cats.Endo
 import cats.effect.implicits.genSpawnOps
@@ -82,8 +82,9 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     sp <- Resource.eval(initStatus)
-    lockers <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
-    vault <- Resource.eval(AtomicCell[F].of(Vault.empty))
+    signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+    mapRef <- Resource.eval(MapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+    atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
     dispatcher <- Dispatcher.parallel[F]
     chn <- Resource.eval(Channel.unbounded[F, NJEvent])
     _ <- chn.stream
@@ -91,13 +92,23 @@ final class ServiceGuard[F[_]] private[guard] (
       .compile
       .drain
       .background
-  } yield new GeneralAgent[F](sp, new MetricRegistry, chn, entryPoint, lockers, vault, dispatcher)
+  } yield new GeneralAgent[F](
+    serviceParams = sp,
+    metricRegistry = new MetricRegistry,
+    channel = chn,
+    entryPoint = entryPoint,
+    signallingMapRef = signallingMapRef,
+    mapRef = mapRef,
+    atomicCell = atomicCell,
+    dispatcher = dispatcher
+  )
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
-      lockers <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
-      vault <- Stream.eval(AtomicCell[F].of(Vault.empty))
+      signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+      mapRef <- Stream.eval(MapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
+      atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = {
@@ -148,9 +159,11 @@ final class ServiceGuard[F[_]] private[guard] (
             metricRegistry = metricRegistry,
             channel = channel,
             entryPoint = entryPoint,
-            lockers = lockers,
-            vault = vault,
-            dispatcher = dispatcher)
+            signallingMapRef = signallingMapRef,
+            mapRef = mapRef,
+            atomicCell = atomicCell,
+            dispatcher = dispatcher
+          )
 
         // put together
         channel.stream

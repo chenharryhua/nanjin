@@ -48,34 +48,24 @@ class MagicBoxTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("2.signalBox operations") {
-    TaskGuard
-      .dummyAgent[IO]
-      .use { ag =>
-        val box = ag.signalBox(0)
+  test("2.refBox should survive panic") {
+    val List(a, b, c, d, e, f, g, h) =
+      service.eventStream { agent =>
+        val box    = agent.refBox(10)
+        val broker = agent.broker("box")
         for {
-          v1 <- box.getAndSet(-1)
-          _ <- box.set(1) // 1
-          v2 <- box.getAndUpdate(_ + 1) // 2
-          v3 <- box.updateAndGet(_ + 1) // 3
-          _ <- box.update(_ + 1) // 4
-          v4 <- box.tryUpdate(_ + 1) // 5
-          v5 <- box.get
-          acc <- box.access
-          v6 <- acc._2(acc._1)
-          v7 <- acc._2(acc._1)
-        } yield {
-          assert(v1 == 0)
-          assert(v2 == 1)
-          assert(v3 == 3)
-          assert(v4)
-          assert(v5 == 5)
-          assert(acc._1 == 5)
-          assert(v6)
-          assert(!v7)
-        }
-      }
-      .unsafeRunSync()
+          v <- box.updateAndGet(_ + 1)
+          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
+        } yield ()
+      }.take(8).compile.toList.unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 11))
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ServiceStart])
+    assert(e.asInstanceOf[PassThrough].value.as[Int].exists(_ == 12))
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStart])
+    assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 13))
   }
 
   test("3.signalBox should survive panic") {
@@ -104,6 +94,7 @@ class MagicBoxTest extends AnyFunSuite {
         val box    = agent.atomicBox(IO(10))
         val broker = agent.broker("box")
         for {
+          _ <- IO.println("waiting for cats.effect 3.4.2")
           v <- box.getAndUpdate(_ + 1)
           _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
         } yield ()

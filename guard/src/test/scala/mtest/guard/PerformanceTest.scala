@@ -6,7 +6,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
-import fs2.concurrent.SignallingRef
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Ignore
@@ -55,37 +54,20 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} alert")
   }
 
-  test("magicbox vs std") {
+  test("atomicBox vs cats.atomicCell") {
     service.eventStream { agent =>
-      val signalBox = agent.signalBox(0)
-      val atomicBox = agent.atomicBox(IO(0))
-
-      val fs2Ref = SignallingRef
-        .of[IO, Int](0)
+      val box = agent.atomicBox(IO(0))
+      val cats = AtomicCell[IO]
+        .of[Int](0)
         .flatMap(r =>
           r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
-            IO.println(s"$c\t fs2.signallingRef")))
-
-      val ref = IO
-        .ref(0)
-        .flatMap(r =>
-          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c => IO.println(s"$c\t cats.ref")))
-
-      val cell = AtomicCell[IO]
-        .of(0)
-        .flatMap(r =>
-          IO(()).flatMap(_ => r.update(_ + 1)).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
             IO.println(s"$c\t cats.atomicCell")))
 
-      val signal =
-        signalBox.update(_ + 1).foreverM.timeout(take).attempt >> signalBox.get.flatMap(c =>
-          IO.println(s"$c\t signalBox"))
-
-      val atomic =
-        atomicBox.update(_ + 1).foreverM.timeout(take).attempt >> atomicBox.get.flatMap(c =>
+      val nj =
+        box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c =>
           IO.println(s"$c\t atomicBox"))
 
-      IO.println("magicBox vs std") >> (signal &> atomic &> cell &> fs2Ref &> ref)
+      IO.println("atomicBox vs cats.atomicCell") >> (nj &> cats)
     }.compile.drain.unsafeRunSync()
   }
 
