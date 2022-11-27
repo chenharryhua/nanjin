@@ -1,11 +1,13 @@
 package mtest.guard
 
 import cats.effect.IO
+import cats.effect.kernel.Ref
 import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
+import fs2.concurrent.SignallingRef
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Ignore
@@ -26,15 +28,17 @@ import scala.concurrent.duration.*
   *
   * 264k/s notice with Timing and Counting
   *
-  * magicBox vs Ref
+  * signalBox vs fs2.SignallingRef
   *
-  * 677131360 cats.ref
+  * 391591110 fs2.SignallingRef
   *
-  * 349144613 fs2.signallingRef
+  * 204612366 signalBox
   *
-  * 298075480 signalBox
+  * refBox vs cats.Ref
   *
-  * 42220016 atomicBox
+  * 805225572 cats.Ref
+  *
+  * 290779490 refBox
   */
 
 @Ignore
@@ -71,6 +75,37 @@ class PerformanceTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
+  test("signalBox vs fs2.SignallingRef") {
+    service.eventStream { agent =>
+      val box = agent.signalBox(0)
+      val cats = SignallingRef[IO]
+        .of[Int](0)
+        .flatMap(r =>
+          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
+            IO.println(s"$c\t fs2.SignallingRef")))
+
+      val nj =
+        box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c =>
+          IO.println(s"$c\t signalBox"))
+
+      IO.println("signalBox vs fs2.SignallingRef") >> (nj &> cats)
+    }.compile.drain.unsafeRunSync()
+  }
+
+  test("refBox vs cats.Ref") {
+    service.eventStream { agent =>
+      val box = agent.refBox(0)
+      val cats = Ref[IO]
+        .of[Int](0)
+        .flatMap(r =>
+          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c => IO.println(s"$c\t cats.Ref")))
+
+      val nj =
+        box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c => IO.println(s"$c\t refBox"))
+
+      IO.println("refBox vs cats.Ref") >> (nj &> cats)
+    }.compile.drain.unsafeRunSync()
+  }
 //  test("trace") {
 //    var i: Int = 0
 //    service.eventStream { ag =>

@@ -117,24 +117,26 @@ final class GeneralAgent[F[_]] private[service] (
 
   // general agent section
 
-  def signalBox[A](initValue: A): SignallingRef[F, A] = {
+  def signalBox[A](initValue: F[A]): SignallingRef[F, A] = {
     val token = new Unique.Token
     val key   = new Key[A](token)
-    SignallingRef.lens[F, Option[Locker], A](signallingMapRef(token))(
-      (ol: Option[Locker]) => ol.flatMap(_.unlock(key)).getOrElse(initValue),
-      (_: Option[Locker]) => (a: A) => Some(Locker(key, a)))
+    new NJSignalBox[F, A](signallingMapRef(token), key, initValue)
   }
+  def signalBox[A](initValue: => A): SignallingRef[F, A] =
+    signalBox(F.delay(initValue))
 
-  def refBox[A](initValue: A): Ref[F, A] = {
+  def refBox[A](initValue: F[A]): Ref[F, A] = {
     val token = new Unique.Token
     val key   = new Key[A](token)
-    Ref.lens(mapRef(token))(
-      (ol: Option[Locker]) => ol.flatMap(_.unlock(key)).getOrElse(initValue),
-      (_: Option[Locker]) => (a: A) => Some(Locker(key, a)))
+    new NJRefBox[F, A](mapRef(token), key, initValue)
   }
+  def refBox[A](initValue: => A): Ref[F, A] =
+    refBox[A](F.delay(initValue))
 
-  def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
+  def atomicBox[A](initValue: F[A]): AtomicCell[F, A] =
     new NJAtomicBox[F, A](atomicCell, new Key[A](new Unique.Token()), initValue)
+  def atomicBox[A](initValue: => A): AtomicCell[F, A] =
+    atomicBox[A](F.delay(initValue))
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
     action("nonStop", _.withoutTiming.withoutCounting.trivial)
