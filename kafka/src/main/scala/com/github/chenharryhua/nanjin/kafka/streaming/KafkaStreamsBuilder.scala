@@ -61,11 +61,12 @@ final class KafkaStreamsBuilder[F[_]] private (
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
       stopSignal <- Stream.eval(F.deferred[Either[Throwable, Unit]])
       kafkaStreams <- Stream
-        .bracket(F.pure(new KafkaStreams(topology, settings.javaProperties)))(ks => F.blocking(ks.close()))
+        .bracket(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
+          F.blocking(ks.close()))
         .evalTap { kss =>
           for {
             latch <- CountDownLatch[F](1)
-            _ <- F.delay(kss.setStateListener(new StateChange(dispatcher, latch, stopSignal, bus)))
+            _ <- F.blocking(kss.setStateListener(new StateChange(dispatcher, latch, stopSignal, bus)))
             _ <- F.blocking(kss.start())
             _ <- F.timeout(latch.await, startUpTimeout)
           } yield ()
@@ -77,7 +78,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     */
   val kafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
 
-  val stream: Stream[F, StateUpdate] = for {
+  val stateUpdates: Stream[F, StateUpdate] = for {
     bus <- Stream.eval(Channel.unbounded[F, StateUpdate])
     _ <- kickoff(Some(bus))
     state <- bus.stream

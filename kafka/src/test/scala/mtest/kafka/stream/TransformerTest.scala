@@ -81,7 +81,7 @@ class TransformerTest extends AnyFunSuite {
 
     val res =
       havest
-        .concurrently(kafkaStreamService.stream)
+        .concurrently(kafkaStreamService.stateUpdates)
         .concurrently(t2Data)
         .concurrently(s1Data)
         .interruptAfter(15.seconds)
