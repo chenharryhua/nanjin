@@ -9,9 +9,13 @@ import fs2.concurrent.SignallingRef
 import fs2.Stream
 import org.typelevel.vault.{Key, Locker, Vault}
 
-final private class NJAtomicBox[F[_], A](vault: AtomicCell[F, Vault], key: Key[A], initValue: F[A])(implicit
+sealed trait NJMagicBox[F[_]] {
+  def release: F[Unit]
+}
+
+final class NJAtomicBox[F[_], A](vault: AtomicCell[F, Vault], key: Key[A], initValue: F[A])(implicit
   F: Monad[F])
-    extends AtomicCell[F, A] {
+    extends AtomicCell[F, A] with NJMagicBox[F] {
 
   override def evalModify[B](f: A => F[(A, B)]): F[B] =
     vault.evalModify { vt =>
@@ -37,13 +41,15 @@ final private class NJAtomicBox[F[_], A](vault: AtomicCell[F, Vault], key: Key[A
 
   override def get: F[A]          = getAndUpdate(identity)
   override def set(a: A): F[Unit] = update(_ => a)
+
+  override def release: F[Unit] = vault.update(_.delete(key))
 }
 
-final private class NJSignalBox[F[_]: Monad, A](
+final class NJSignalBox[F[_]: Monad, A](
   locker: SignallingRef[F, Option[Locker]],
   key: Key[A],
   initValue: F[A])
-    extends SignallingRef[F, A] {
+    extends SignallingRef[F, A] with NJMagicBox[F] {
 
   private[this] val fsr: F[SignallingRef[F, A]] = initValue.map(init =>
     SignallingRef.lens[F, Option[Locker], A](locker)(
@@ -61,10 +67,12 @@ final private class NJSignalBox[F[_]: Monad, A](
   override def tryModifyState[B](state: State[A, B]): F[Option[B]] = fsr.flatMap(_.tryModifyState(state))
   override def modifyState[B](state: State[A, B]): F[B]            = fsr.flatMap(_.modifyState(state))
   override def set(a: A): F[Unit]                                  = fsr.flatMap(_.set(a))
+
+  override def release: F[Unit] = locker.set(None)
 }
 
-final private class NJRefBox[F[_]: Monad, A](locker: Ref[F, Option[Locker]], key: Key[A], initValue: F[A])
-    extends Ref[F, A] {
+final class NJRefBox[F[_]: Monad, A](locker: Ref[F, Option[Locker]], key: Key[A], initValue: F[A])
+    extends Ref[F, A] with NJMagicBox[F] {
 
   private[this] val fref: F[Ref[F, A]] = initValue.map(init =>
     Ref.lens[F, Option[Locker], A](locker)(
@@ -80,4 +88,6 @@ final private class NJRefBox[F[_]: Monad, A](locker: Ref[F, Option[Locker]], key
   override def modifyState[B](state: State[A, B]): F[B]            = fref.flatMap(_.modifyState(state))
   override def set(a: A): F[Unit]                                  = fref.flatMap(_.set(a))
   override def get: F[A]                                           = fref.flatMap(_.get)
+
+  override def release: F[Unit] = locker.set(None)
 }

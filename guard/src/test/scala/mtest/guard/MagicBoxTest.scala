@@ -180,16 +180,16 @@ class MagicBoxTest extends AnyFunSuite {
       IO.raiseError[Int](new Exception("never happen"))
     }
 
-    service.eventStream { agent =>
+    val List(a) = service.eventStream { agent =>
       val box = agent.atomicBox(compute)
-      agent.gauge("box").register(box.get)
       agent
-        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
-        .evalTap(_ => box.getAndUpdate(_ + 1).flatMap(IO.println))
+        .ticks(RetryPolicies.constantDelay[IO](0.5.seconds))
+        .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
-        .drain
+        .drain >> box.get.map(c => assert(c > 5))
     }.interruptAfter(3.second).compile.toList.unsafeRunSync()
     assert(i == 1)
+    assert(a.isInstanceOf[ServiceStart])
   }
 
   test("9.signalBox should eval initValue once") {
@@ -202,16 +202,16 @@ class MagicBoxTest extends AnyFunSuite {
       IO.raiseError[Int](new Exception("never happen"))
     }
 
-    service.eventStream { agent =>
+    val List(a) = service.eventStream { agent =>
       val box = agent.signalBox(compute)
-      agent.gauge("box").register(box.get)
       agent
-        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
-        .evalTap(_ => box.getAndUpdate(_ + 1).flatMap(IO.println))
+        .ticks(RetryPolicies.constantDelay[IO](0.5.seconds))
+        .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
-        .drain
+        .drain >> box.get.map(c => assert(c > 5))
     }.interruptAfter(3.second).compile.toList.unsafeRunSync()
     assert(i == 1)
+    assert(a.isInstanceOf[ServiceStart])
   }
 
   test("10.refBox should eval initValue once") {
@@ -224,16 +224,16 @@ class MagicBoxTest extends AnyFunSuite {
       IO.raiseError[Int](new Exception("never happen"))
     }
 
-    service.eventStream { agent =>
+    val List(a) = service.eventStream { agent =>
       val box = agent.refBox(compute)
-      agent.gauge("box").register(box.get)
       agent
-        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
-        .evalTap(_ => box.getAndUpdate(_ + 1).flatMap(IO.println))
+        .ticks(RetryPolicies.constantDelay[IO](0.5.seconds))
+        .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
-        .drain
+        .drain >> box.get.map(c => assert(c > 5))
     }.interruptAfter(3.second).compile.toList.unsafeRunSync()
     assert(i == 1)
+    assert(a.isInstanceOf[ServiceStart])
   }
 
   test("11.atomicBox exception should trigger service panic") {
@@ -282,5 +282,21 @@ class MagicBoxTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServicePanic])
     assert(c.isInstanceOf[ServiceStart])
+  }
+
+  test("14. reset") {
+    service.eventStream { agent =>
+      val box = agent.signalBox(0)
+      for {
+        v0 <- box.get
+        v1 <- box.updateAndGet(_ + 1)
+        _ <- box.release
+        v3 <- box.get
+      } yield {
+        assert(v0 == 0)
+        assert(v1 == 1)
+        assert(v3 == 0)
+      }
+    }.compile.drain.unsafeRunSync()
   }
 }
