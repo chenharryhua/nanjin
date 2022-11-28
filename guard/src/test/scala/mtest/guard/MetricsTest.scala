@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxFlatMapOps
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
@@ -95,7 +96,7 @@ class MetricsTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
 
-    assert(last.get.asInstanceOf[MetricReport].snapshot.counterMap.size === 0)
+    assert(last.get.asInstanceOf[MetricReport].snapshot.counterMap.isEmpty)
   }
 
   test("5.Importance json") {
@@ -104,10 +105,10 @@ class MetricsTest extends AnyFunSuite {
     val i3: Importance = Importance.Silent
     val i4: Importance = Importance.Trivial
 
-    assert(i1.asJson.noSpaces === """ "Critical" """.trim)
-    assert(i2.asJson.noSpaces === """ "Notice" """.trim)
-    assert(i3.asJson.noSpaces === """ "Silent" """.trim)
-    assert(i4.asJson.noSpaces === """ "Trivial" """.trim)
+    assert(i1.asJson.noSpaces == """ "Critical" """.trim)
+    assert(i2.asJson.noSpaces == """ "Notice" """.trim)
+    assert(i3.asJson.noSpaces == """ "Silent" """.trim)
+    assert(i4.asJson.noSpaces == """ "Trivial" """.trim)
   }
 
   test("6.show timestamp") {
@@ -152,19 +153,18 @@ class MetricsTest extends AnyFunSuite {
 
   test("gauge") {
     service("gauge").eventStream { agent =>
-      agent.gauge("random").register(Random.nextInt(100))
-      val box = agent.atomicBox(IO(100000))
-      agent.gauge("locker").register(box.get)
+      val box = agent.signalBox(IO(100000))
+      val gauge =
+        agent.gauge("random").register(Random.nextInt(100))
+          >> (agent.gauge("locker").register(box.get))
 
-      for {
-        state <- IO.ref(0)
-        _ = agent.gauge("state").register(state.get)
-        _ <- agent
+      gauge.surround(
+        agent
           .ticks(RetryPolicies.constantDelay[IO](1.seconds))
-          .evalTap(_ => state.update(_ + 1) >> box.update(_ + 1))
+          .evalTap(_ => box.updateAndGet(_ + 1))
           .compile
-          .drain
-      } yield ()
+          .drain)
+
     }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
   }
 }

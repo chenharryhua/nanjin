@@ -1,17 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref, Unique}
+import cats.effect.kernel.{Async, Unique}
 import cats.effect.Resource
 import cats.effect.std.{AtomicCell, Dispatcher, MapRef}
-import cats.implicits.toFlatMapOps
+import cats.syntax.flatMap.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import cron4s.CronExpr
-import fs2.concurrent.{Channel, SignallingMapRef, SignallingRef}
+import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.Stream
 import natchez.{EntryPoint, Kernel, Span}
 import org.typelevel.vault.{Key, Locker, Vault}
@@ -97,7 +97,7 @@ final class GeneralAgent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       isCounting = false)
 
-  def histogram(histoName: String): NJHistogram[F] =
+  override def histogram(histoName: String): NJHistogram[F] =
     new NJHistogram[F](
       digested = Digested(serviceParams, histoName),
       metricRegistry = metricRegistry,
@@ -117,25 +117,25 @@ final class GeneralAgent[F[_]] private[service] (
 
   // general agent section
 
-  def signalBox[A](initValue: F[A]): SignallingRef[F, A] = {
+  def signalBox[A](initValue: F[A]): NJSignalBox[F, A] = {
     val token = new Unique.Token
     val key   = new Key[A](token)
     new NJSignalBox[F, A](signallingMapRef(token), key, initValue)
   }
-  def signalBox[A](initValue: => A): SignallingRef[F, A] =
+  def signalBox[A](initValue: => A): NJSignalBox[F, A] =
     signalBox(F.delay(initValue))
 
-  def refBox[A](initValue: F[A]): Ref[F, A] = {
+  def refBox[A](initValue: F[A]): NJRefBox[F, A] = {
     val token = new Unique.Token
     val key   = new Key[A](token)
     new NJRefBox[F, A](mapRef(token), key, initValue)
   }
-  def refBox[A](initValue: => A): Ref[F, A] =
+  def refBox[A](initValue: => A): NJRefBox[F, A] =
     refBox[A](F.delay(initValue))
 
-  def atomicBox[A](initValue: F[A]): AtomicCell[F, A] =
+  def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
     new NJAtomicBox[F, A](atomicCell, new Key[A](new Unique.Token()), initValue)
-  def atomicBox[A](initValue: => A): AtomicCell[F, A] =
+  def atomicBox[A](initValue: => A): NJAtomicBox[F, A] =
     atomicBox[A](F.delay(initValue))
 
   def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
