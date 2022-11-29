@@ -51,6 +51,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
   def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
     streaming.KafkaStreamsBuilder[F](settings.streamSettings, topology)
 
+  def buildStreams(topology: StreamsBuilder => Unit)(implicit F: Async[F]): KafkaStreamsBuilder[F] =
+    buildStreams(Reader(topology))
+
   def schema(topicName: String)(implicit F: Sync[F]): F[String] =
     new SchemaRegistryApi[F](settings.schemaRegistrySettings)
       .kvSchema(TopicName.unsafeFrom(topicName))
