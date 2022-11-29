@@ -47,7 +47,7 @@ class PerformanceTest extends AnyFunSuite {
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withMetricReport(cron_1second))
   val take: FiniteDuration = 100.seconds
 
-  def speed(i: Int): String = s"${i / (take.toSeconds * 1000)}k/s"
+  def speed(i: Int): String = f"${i / (take.toSeconds * 1000)}%4dk/s"
 
   ignore("alert") {
     var i = 0
@@ -65,11 +65,11 @@ class PerformanceTest extends AnyFunSuite {
         .of[Int](0)
         .flatMap(r =>
           r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
-            IO.println(s"$c\t cats.atomicCell")))
+            IO.println(s"${speed(c)} cats.atomicCell")))
 
       val nj =
         box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c =>
-          IO.println(s"$c\t atomicBox"))
+          IO.println(s"${speed(c)} atomicBox"))
 
       IO.println("atomicBox vs cats.atomicCell") >> (nj &> cats)
     }.compile.drain.unsafeRunSync()
@@ -82,11 +82,11 @@ class PerformanceTest extends AnyFunSuite {
         .of[Int](0)
         .flatMap(r =>
           r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
-            IO.println(s"$c\t fs2.SignallingRef")))
+            IO.println(s"${speed(c)} fs2.SignallingRef")))
 
       val nj =
         box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c =>
-          IO.println(s"$c\t signalBox"))
+          IO.println(s"${speed(c)} signalBox"))
 
       IO.println("signalBox vs fs2.SignallingRef") >> (nj &> cats)
     }.compile.drain.unsafeRunSync()
@@ -98,10 +98,12 @@ class PerformanceTest extends AnyFunSuite {
       val cats = Ref[IO]
         .of[Int](0)
         .flatMap(r =>
-          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c => IO.println(s"$c\t cats.Ref")))
+          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
+            IO.println(s"${speed(c)} cats.Ref")))
 
       val nj =
-        box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c => IO.println(s"$c\t refBox"))
+        box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c =>
+          IO.println(s"${speed(c)} refBox"))
 
       IO.println("refBox vs cats.Ref") >> (nj &> cats)
     }.compile.drain.unsafeRunSync()

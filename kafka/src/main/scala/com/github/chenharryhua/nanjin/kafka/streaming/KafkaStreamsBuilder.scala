@@ -16,6 +16,7 @@ import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
 
+import java.util.Properties
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 case object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were stopped abnormally")
@@ -34,6 +35,7 @@ object StateUpdate {
 
 final class KafkaStreamsBuilder[F[_]] private (
   settings: KafkaStreamSettings,
+  javaProperties: Properties,
   top: Reader[StreamsBuilder, Unit],
   localStateStores: Cont[StreamsBuilder, StreamsBuilder],
   startUpTimeout: Duration)(implicit F: Async[F]) {
@@ -56,13 +58,15 @@ final class KafkaStreamsBuilder[F[_]] private (
     }
   }
 
-  private def kickoff(bus: Option[Channel[F, StateUpdate]]): Stream[F, KafkaStreams] =
+  private def kickoff(bus: Option[Channel[F, StateUpdate]]): Stream[F, KafkaStreams] = {
+    val props = new Properties()
+    props.putAll(settings.javaProperties)
+    props.putAll(javaProperties)
     for { // fully initialized kafka-streams
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
       stopSignal <- Stream.eval(F.deferred[Either[Throwable, Unit]])
       kafkaStreams <- Stream
-        .bracket(F.blocking(new KafkaStreams(topology, settings.javaProperties)))(ks =>
-          F.blocking(ks.close()))
+        .bracket(F.blocking(new KafkaStreams(topology, props)))(ks => F.blocking(ks.close()))
         .evalTap { kss =>
           for {
             latch <- CountDownLatch[F](1)
@@ -73,6 +77,7 @@ final class KafkaStreamsBuilder[F[_]] private (
         }
         .interruptWhen(stopSignal)
     } yield kafkaStreams
+  }
 
   /** one object KafkaStreams stream. for interactive state store query
     */
@@ -87,6 +92,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings = settings,
+      javaProperties = javaProperties,
       top = top,
       localStateStores = localStateStores,
       startUpTimeout = value)
@@ -94,6 +100,16 @@ final class KafkaStreamsBuilder[F[_]] private (
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings = KafkaStreamSettings.config.composeLens(at(key)).set(Some(value))(settings),
+      javaProperties = javaProperties,
+      top = top,
+      localStateStores = localStateStores,
+      startUpTimeout = startUpTimeout
+    )
+
+  def withProperties(properties: Properties): KafkaStreamsBuilder[F] =
+    new KafkaStreamsBuilder[F](
+      settings = settings,
+      javaProperties = properties,
       top = top,
       localStateStores = localStateStores,
       startUpTimeout = startUpTimeout
@@ -102,9 +118,11 @@ final class KafkaStreamsBuilder[F[_]] private (
   def addStateStore[S <: StateStore](storeBuilder: StoreBuilder[S]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       settings = settings,
+      javaProperties = javaProperties,
       top = top,
       localStateStores = localStateStores.map(sb => new StreamsBuilder(sb.addStateStore(storeBuilder))),
-      startUpTimeout = startUpTimeout)
+      startUpTimeout = startUpTimeout
+    )
 
   lazy val topology: Topology = {
     val builder: StreamsBuilder = localStateStores.eval.value
@@ -117,5 +135,10 @@ object KafkaStreamsBuilder {
   def apply[F[_]: Async](
     settings: KafkaStreamSettings,
     top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](settings, top, Cont.defer(new StreamsBuilder()), Duration.Inf)
+    new KafkaStreamsBuilder[F](
+      settings = settings,
+      javaProperties = new Properties(),
+      top = top,
+      localStateStores = Cont.defer(new StreamsBuilder()),
+      startUpTimeout = Duration.Inf)
 }
