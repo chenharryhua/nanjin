@@ -70,49 +70,7 @@ class MagicBoxTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("3.refBox operations") {
-    TaskGuard
-      .dummyAgent[IO]
-      .use { ag =>
-        val box = ag.refBox(0)
-        for {
-          v1 <- box.getAndSet(-1)
-          _ <- box.set(1) // 1
-          v2 <- box.getAndUpdate(_ + 1) // 2
-          v3 <- box.updateAndGet(_ + 1) // 3
-          _ <- box.update(_ + 1) // 4
-          v6 <- box.get
-        } yield {
-          assert(v1 == 0)
-          assert(v2 == 1)
-          assert(v3 == 3)
-          assert(v6 == 4)
-        }
-      }
-      .unsafeRunSync()
-  }
-
-  test("4.refBox should survive panic") {
-    val List(a, b, c, d, e, f, g, h) =
-      service.eventStream { agent =>
-        val box    = agent.refBox(IO(10))
-        val broker = agent.broker("box")
-        for {
-          v <- box.updateAndGet(_ + 1)
-          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
-        } yield ()
-      }.take(8).compile.toList.unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 11))
-    assert(c.isInstanceOf[ServicePanic])
-    assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[PassThrough].value.as[Int].exists(_ == 12))
-    assert(f.isInstanceOf[ServicePanic])
-    assert(g.isInstanceOf[ServiceStart])
-    assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 13))
-  }
-
-  test("5.signalBox should survive panic") {
+  test("3.signalBox should survive panic") {
     val List(a, b, c, d, e, f, g, h) =
       service.eventStream { agent =>
         val box    = agent.signalBox(IO(10))
@@ -132,13 +90,12 @@ class MagicBoxTest extends AnyFunSuite {
     assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 13))
   }
 
-  test("6.atomicbox should survive panic") {
+  test("4.atomicbox should survive panic") {
     val List(a, b, c, d, e, f, g, h) =
       service.eventStream { agent =>
         val box    = agent.atomicBox(IO(10))
         val broker = agent.broker("box")
         for {
-          _ <- IO.println("waiting for cats.effect 3.4.2")
           v <- box.getAndUpdate(_ + 1)
           _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
         } yield ()
@@ -153,7 +110,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 12))
   }
 
-  test("7.signalBox should work as signal") {
+  test("5.signalBox should work as signal") {
     val List(a, b, c) =
       service.eventStream { agent =>
         val box    = agent.signalBox(10)
@@ -170,7 +127,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStop])
   }
 
-  test("8.atomicBox should eval initValue once") {
+  test("6.atomicBox should eval initValue once") {
     var i: Int = 0
     val compute = if (i == 0) {
       i += 1
@@ -192,7 +149,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
   }
 
-  test("9.signalBox should eval initValue once") {
+  test("7.signalBox should eval initValue once") {
     var i: Int = 0
     val compute = if (i == 0) {
       i += 1
@@ -214,29 +171,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
   }
 
-  test("10.refBox should eval initValue once") {
-    var i: Int = 0
-    val compute = if (i == 0) {
-      i += 1
-      IO(0)
-    } else {
-      i += 1
-      IO.raiseError[Int](new Exception("never happen"))
-    }
-
-    val List(a) = service.eventStream { agent =>
-      val box = agent.refBox(compute)
-      agent
-        .ticks(RetryPolicies.constantDelay[IO](0.5.seconds))
-        .evalTap(_ => box.getAndUpdate(_ + 1))
-        .compile
-        .drain >> box.get.map(c => assert(c > 5))
-    }.interruptAfter(3.second).compile.toList.unsafeRunSync()
-    assert(i == 1)
-    assert(a.isInstanceOf[ServiceStart])
-  }
-
-  test("11.atomicBox exception should trigger service panic") {
+  test("8.atomicBox exception should trigger service panic") {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.atomicBox(IO.raiseError[Int](new Exception))
@@ -252,23 +187,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStart])
   }
 
-  test("12.refBox exception should trigger service panic") {
-
-    val List(a, b, c) = service.eventStream { agent =>
-      val box = agent.refBox(IO.raiseError[Int](new Exception))
-      agent
-        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
-        .evalTap(_ => box.getAndUpdate(_ + 1))
-        .compile
-        .drain
-    }.take(3).compile.toList.unsafeRunSync()
-
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServicePanic])
-    assert(c.isInstanceOf[ServiceStart])
-  }
-
-  test("13.signalBox exception should trigger service panic") {
+  test("9.signalBox exception should trigger service panic") {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.signalBox(IO.raiseError[Int](new Exception))
@@ -284,9 +203,24 @@ class MagicBoxTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStart])
   }
 
-  test("14. reset") {
+  test("10. signalBox release") {
     service.eventStream { agent =>
       val box = agent.signalBox(0)
+      for {
+        v0 <- box.get
+        v1 <- box.updateAndGet(_ + 1)
+        _ <- box.release
+        v3 <- box.get
+      } yield {
+        assert(v0 == 0)
+        assert(v1 == 1)
+        assert(v3 == 0)
+      }
+    }.compile.drain.unsafeRunSync()
+  }
+  test("11. atomicBox release") {
+    service.eventStream { agent =>
+      val box = agent.atomicBox(0)
       for {
         v0 <- box.get
         v1 <- box.updateAndGet(_ + 1)

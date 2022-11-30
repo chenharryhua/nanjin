@@ -147,7 +147,7 @@ final class NJActionBuilder[F[_]](
   def retry[Z](v: Validated[Throwable, Z]): NJAction0[F, Z] = retry(F.fromValidated(v))
   def retry[Z](e: Eval[Z]): NJAction0[F, Z]                 = retry(F.catchNonFatalEval(e))
 
-  // helpers
+  // quasi
   private def mode(par: Option[Int]): (String, Json) =
     "mode" -> Json.fromString(par.fold("sequential")(p => s"parallel-$p"))
   private def jobs(size: Long): (String, Json) = "jobs" -> Json.fromLong(size)
@@ -169,8 +169,7 @@ final class NJActionBuilder[F[_]](
   private def inputJson(size: Long, par: Option[Int]): Json =
     Json.obj("quasi" -> Json.obj(jobs(size), mode(par)))
 
-  // quasi never raise exception
-
+  // seq quasi
   def quasi[G[_]: Traverse: Alternative, Z](gfz: G[F[Z]]): NJAction0[F, Ior[G[Throwable], G[Z]]] = {
     val size = gfz.size
     retry(gfz.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, succ) =>
@@ -184,7 +183,8 @@ final class NJActionBuilder[F[_]](
 
   def quasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = quasi[List, Z](fzs.toList)
 
-  def quasi[G[_]: Traverse: Alternative, Z](
+  // par quasi
+  def parQuasi[G[_]: Traverse: Alternative, Z](
     parallelism: Int,
     gfz: G[F[Z]]): NJAction0[F, Ior[G[Throwable], G[Z]]] = {
     val size = gfz.size
@@ -198,7 +198,8 @@ final class NJActionBuilder[F[_]](
       }).logOutput(outputJson(_, size, Some(parallelism))).logInput(inputJson(size, Some(parallelism)))
   }
 
-  def quasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =
-    quasi[List, Z](parallelism, fzs.toList)
+  def parQuasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =
+    parQuasi[List, Z](parallelism, fzs.toList)
 
+  def parQuasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = parQuasi(fzs.size, fzs.toList)
 }
