@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.std.AtomicCell
 import cats.Monad
 import cats.data.State
-import cats.effect.kernel.Ref
 import cats.syntax.all.*
 import fs2.concurrent.SignallingRef
 import fs2.Stream
@@ -67,27 +66,6 @@ final class NJSignalBox[F[_]: Monad, A](
   override def tryModifyState[B](state: State[A, B]): F[Option[B]] = fsr.flatMap(_.tryModifyState(state))
   override def modifyState[B](state: State[A, B]): F[B]            = fsr.flatMap(_.modifyState(state))
   override def set(a: A): F[Unit]                                  = fsr.flatMap(_.set(a))
-
-  override def release: F[Unit] = locker.set(None)
-}
-
-final class NJRefBox[F[_]: Monad, A](locker: Ref[F, Option[Locker]], key: Key[A], initValue: F[A])
-    extends Ref[F, A] with NJMagicBox[F] {
-
-  private[this] val fref: F[Ref[F, A]] = initValue.map(init =>
-    Ref.lens[F, Option[Locker], A](locker)(
-      (ol: Option[Locker]) => ol.flatMap(_.unlock(key)).getOrElse(init),
-      (_: Option[Locker]) => (a: A) => Some(Locker(key, a))))
-
-  override def access: F[(A, A => F[Boolean])]                     = fref.flatMap(_.access)
-  override def tryUpdate(f: A => A): F[Boolean]                    = fref.flatMap(_.tryUpdate(f))
-  override def tryModify[B](f: A => (A, B)): F[Option[B]]          = fref.flatMap(_.tryModify(f))
-  override def update(f: A => A): F[Unit]                          = fref.flatMap(_.update(f))
-  override def modify[B](f: A => (A, B)): F[B]                     = fref.flatMap(_.modify(f))
-  override def tryModifyState[B](state: State[A, B]): F[Option[B]] = fref.flatMap(_.tryModifyState(state))
-  override def modifyState[B](state: State[A, B]): F[B]            = fref.flatMap(_.modifyState(state))
-  override def set(a: A): F[Unit]                                  = fref.flatMap(_.set(a))
-  override def get: F[A]                                           = fref.flatMap(_.get)
 
   override def release: F[Unit] = locker.set(None)
 }

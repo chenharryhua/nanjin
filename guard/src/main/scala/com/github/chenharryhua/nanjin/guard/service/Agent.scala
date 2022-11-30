@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Unique}
 import cats.effect.Resource
-import cats.effect.std.{AtomicCell, Dispatcher, MapRef}
+import cats.effect.std.{AtomicCell, Dispatcher}
 import cats.syntax.flatMap.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
@@ -17,11 +17,12 @@ import natchez.{EntryPoint, Kernel, Span}
 import org.typelevel.vault.{Key, Locker, Vault}
 import retry.{RetryPolicies, RetryPolicy}
 
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.{Instant, ZoneId, ZonedDateTime}
 
 sealed trait Agent[F[_]] extends EntryPoint[F] {
   def zoneId: ZoneId
   def zonedNow: F[ZonedDateTime]
+  def toZonedDateTime(ts: Instant): ZonedDateTime
   def metrics: NJMetrics[F]
   def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F]
   def broker(brokerName: String): NJBroker[F]
@@ -29,9 +30,9 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def counter(counterName: String): NJCounter[F]
   def meter(meterName: String): NJMeter[F]
   def histogram(histoName: String): NJHistogram[F]
-  def gauge(gaugeName: String): NJGauge[F]
   def ticks(policy: RetryPolicy[F]): Stream[F, Int]
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int]
+  def gauge(gaugeName: String): NJGauge[F]
 }
 
 final class GeneralAgent[F[_]] private[service] (
@@ -40,7 +41,6 @@ final class GeneralAgent[F[_]] private[service] (
   channel: Channel[F, NJEvent],
   entryPoint: Resource[F, EntryPoint[F]],
   signallingMapRef: SignallingMapRef[F, Unique.Token, Option[Locker]],
-  mapRef: MapRef[F, Unique.Token, Option[Locker]],
   atomicCell: AtomicCell[F, Vault],
   dispatcher: Dispatcher[F])(implicit F: Async[F])
     extends Agent[F] {
@@ -54,9 +54,9 @@ final class GeneralAgent[F[_]] private[service] (
   def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, Span[F]] =
     entryPoint.flatMap(_.continueOrElseRoot(name, kernel))
 
-  val zoneId: ZoneId = serviceParams.taskParams.zoneId
-
-  val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
+  val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
+  val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
+  def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
 
   def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
@@ -97,15 +97,12 @@ final class GeneralAgent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       isCounting = false)
 
-  override def histogram(histoName: String): NJHistogram[F] =
+  def histogram(histoName: String): NJHistogram[F] =
     new NJHistogram[F](
       digested = Digested(serviceParams, histoName),
       metricRegistry = metricRegistry,
       isCounting = false
     )
-
-  def gauge(gaugeName: String): NJGauge[F] =
-    new NJGauge[F](Digested(serviceParams, gaugeName), metricRegistry, dispatcher)
 
   def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
 
@@ -114,6 +111,9 @@ final class GeneralAgent[F[_]] private[service] (
 
   lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
+
+  def gauge(gaugeName: String): NJGauge[F] =
+    new NJGauge[F](Digested(serviceParams, gaugeName), metricRegistry, dispatcher)
 
   // general agent section
 
@@ -124,14 +124,6 @@ final class GeneralAgent[F[_]] private[service] (
   }
   def signalBox[A](initValue: => A): NJSignalBox[F, A] =
     signalBox(F.delay(initValue))
-
-  def refBox[A](initValue: F[A]): NJRefBox[F, A] = {
-    val token = new Unique.Token
-    val key   = new Key[A](token)
-    new NJRefBox[F, A](mapRef(token), key, initValue)
-  }
-  def refBox[A](initValue: => A): NJRefBox[F, A] =
-    refBox[A](F.delay(initValue))
 
   def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
     new NJAtomicBox[F, A](atomicCell, new Key[A](new Unique.Token()), initValue)

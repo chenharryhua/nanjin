@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Async, Resource, Unique}
-import cats.effect.std.{AtomicCell, Console, Dispatcher, MapRef, UUIDGen}
+import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import cats.Endo
 import cats.effect.implicits.genSpawnOps
@@ -83,7 +83,6 @@ final class ServiceGuard[F[_]] private[guard] (
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     sp <- Resource.eval(initStatus)
     signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
-    mapRef <- Resource.eval(MapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
     dispatcher <- Dispatcher.parallel[F]
     chn <- Resource.eval(Channel.unbounded[F, NJEvent])
@@ -98,7 +97,6 @@ final class ServiceGuard[F[_]] private[guard] (
     channel = chn,
     entryPoint = entryPoint,
     signallingMapRef = signallingMapRef,
-    mapRef = mapRef,
     atomicCell = atomicCell,
     dispatcher = dispatcher
   )
@@ -107,7 +105,6 @@ final class ServiceGuard[F[_]] private[guard] (
     for {
       serviceParams <- Stream.eval(initStatus)
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
-      mapRef <- Stream.eval(MapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
@@ -160,7 +157,6 @@ final class ServiceGuard[F[_]] private[guard] (
             channel = channel,
             entryPoint = entryPoint,
             signallingMapRef = signallingMapRef,
-            mapRef = mapRef,
             atomicCell = atomicCell,
             dispatcher = dispatcher
           )
