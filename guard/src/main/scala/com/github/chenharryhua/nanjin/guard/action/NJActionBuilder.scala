@@ -201,5 +201,8 @@ final class NJActionBuilder[F[_]](
   def parQuasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =
     parQuasi[List, Z](parallelism, fzs.toList)
 
-  def parQuasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = parQuasi(fzs.size, fzs.toList)
+  def parQuasi[Z](lfz: List[F[Z]]): NJAction0[F, Ior[List[Throwable], List[Z]]] =
+    parQuasi[List, Z](lfz.size, lfz)
+  def parQuasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =
+    parQuasi[Z](fzs.toList)
 }

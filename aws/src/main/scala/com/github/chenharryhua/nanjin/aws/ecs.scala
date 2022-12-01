@@ -22,15 +22,15 @@ object ecs {
     EmberClientBuilder.default[F].build.use { client =>
       for {
         uri <- meta_uri[F]
-        json <- uri.traverse(addr => client.expect[Json](addr).attempt.map(_.toOption))
-      } yield json.flatten.getOrElse(Json.Null)
+        json <- uri.flatTraverse(addr => client.expect[Json](addr).attempt.map(_.toOption))
+      } yield json.getOrElse(Json.Null)
     }
 
   def container_metadata_task[F[_]: Async]: F[Json] =
     EmberClientBuilder.default[F].build.use { client =>
       for {
         uri <- meta_uri[F]
-        json <- uri.traverse(addr => client.expect[Json](addr / "task").attempt.map(_.toOption))
-      } yield json.flatten.getOrElse(Json.Null)
+        json <- uri.flatTraverse(addr => client.expect[Json](addr / "task").attempt.map(_.toOption))
+      } yield json.getOrElse(Json.Null)
     }
 }
