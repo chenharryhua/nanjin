@@ -4,7 +4,7 @@ import cats.Show
 import cats.data.NonEmptyList
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.auto.*
-import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
+import eu.timepit.refined.cats.*
 import eu.timepit.refined.collection.{MaxSize, NonEmpty}
 import eu.timepit.refined.numeric
 import eu.timepit.refined.predicates.all.{And, Not}
@@ -55,7 +55,7 @@ object aws {
   }
 
   @JsonCodec
-  final case class EmailContent(from: String, to: NonEmptyList[String], subject: String, body: String)
+  final case class EmailContent(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String, body: String)
 
   object EmailContent {
     implicit val showEmailContent: Show[EmailContent] = cats.derived.semiauto.show[EmailContent]
