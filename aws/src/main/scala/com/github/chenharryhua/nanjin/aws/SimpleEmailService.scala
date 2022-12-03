@@ -9,6 +9,8 @@ import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
+import scala.jdk.CollectionConverters.*
+
 sealed trait SimpleEmailService[F[_]] {
   def send(txt: EmailContent): F[SendEmailResult]
   def updateBuilder(f: Endo[AmazonSimpleEmailServiceClientBuilder]): SimpleEmailService[F]
@@ -45,12 +47,11 @@ object SimpleEmailService {
 
     override def send(content: EmailContent): F[SendEmailResult] = {
       val request = new SendEmailRequest()
-        .withDestination(new Destination().withToAddresses(content.to.distinct.toList*))
-        .withMessage(
-          new Message()
-            .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))
-            .withSubject(new Content().withCharset("UTF-8").withData(content.subject)))
-        .withSource(content.from)
+        .withDestination(new Destination().withToAddresses(content.to.map(_.value).distinct.toList.asJava))
+        .withMessage(new Message()
+          .withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(content.body)))
+          .withSubject(new Content().withCharset("UTF-8").withData(content.subject)))
+        .withSource(content.from.value)
       F.blocking(client.sendEmail(request)).onError(ex => logger.error(ex)(request.toString))
     }
 

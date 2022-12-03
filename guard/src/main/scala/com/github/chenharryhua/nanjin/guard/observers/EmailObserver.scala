@@ -91,7 +91,7 @@ final class EmailObserver[F[_]] private (
       header,
       body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
 
-    ses.send(EmailContent(from.value, to.map(_.value), subject, content)).attempt
+    ses.send(EmailContent(from, to, subject, content)).attempt
   }
 
   def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, Nothing] = {
