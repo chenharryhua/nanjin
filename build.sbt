@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.10"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.5-SNAPSHOT"
+ThisBuild / version            := "0.16.6-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
@@ -163,7 +163,7 @@ val enumLib = List(
   "com.beachape" %% "enumeratum-cats",
   "com.beachape" %% "enumeratum",
   "com.beachape" %% "enumeratum-circe"
-).map(_ % "1.7.0")
+).map(_ % "1.7.2")
 
 val drosteLib = List(
   "io.higherkindness" %% "droste-core",

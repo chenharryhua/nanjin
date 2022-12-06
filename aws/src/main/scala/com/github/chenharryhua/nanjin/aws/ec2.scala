@@ -1,16 +1,14 @@
-package com.github.chenharryhua.nanjin
+package com.github.chenharryhua.nanjin.aws
 
 import com.amazonaws.util.EC2MetadataUtils
 import com.github.chenharryhua.nanjin.common.HostName
 
 import scala.util.Try
 
-package object aws {
-
-  lazy val ec2_instance_id: HostName =
+object ec2 {
+  lazy val instance_id: HostName =
     HostName(Try(Option(EC2MetadataUtils.getInstanceId)).toOption.flatten.getOrElse("none"))
 
-  lazy val ec2_private_ip: HostName =
+  lazy val private_ip: HostName =
     HostName(Try(Option(EC2MetadataUtils.getPrivateIpAddress)).toOption.flatten.getOrElse("none"))
-
 }
