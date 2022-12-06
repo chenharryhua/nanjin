@@ -150,7 +150,7 @@ class TicksTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("6.process longer than 1 second") {
+  test("7.process longer than 1 second") {
     val policy = policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault())
     val ticks  = awakeEvery(policy)
 
@@ -160,12 +160,12 @@ class TicksTest extends AnyFunSuite {
     fds.sliding(2).foreach {
       case List(a, b) =>
         val diff = b - a
-        assert(diff > 1.9.seconds && diff < 2.1.seconds)
+        assert(diff > 1.9.seconds && diff < 2.2.seconds)
       case _ => throw new Exception("not happen")
     }
   }
 
-  test("7.process less than 1 second") {
+  test("8.process less than 1 second") {
     val policy = policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault())
     val ticks  = awakeEvery(policy)
 
