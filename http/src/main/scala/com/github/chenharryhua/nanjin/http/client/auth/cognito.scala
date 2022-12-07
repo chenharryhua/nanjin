@@ -85,7 +85,7 @@ object cognito {
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware)
+      loginInternal(middleware(client), getToken, updateToken, withToken)
     }
 
     override def withMiddleware(f: Client[F] => Client[F]): AuthorizationCode[F] =
@@ -175,7 +175,7 @@ object cognito {
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware)
+      loginInternal(middleware(client), getToken, updateToken, withToken)
     }
 
     override def withMiddleware(f: Endo[Client[F]]): ClientCredentials[F] =

@@ -67,7 +67,7 @@ object adobe {
           Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
           "x-api-key" -> client_id)
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware)
+      loginInternal(middleware(client), getToken, updateToken, withToken)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
@@ -165,7 +165,7 @@ object adobe {
           "x-gw-ims-org-id" -> ims_org_id,
           "x-api-key" -> client_id)
 
-      loginInternal(client, getToken(1.day), updateToken, withToken).map(middleware)
+      loginInternal(middleware(client), getToken(12.hours), updateToken, withToken)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): JWT[F] =
