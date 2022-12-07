@@ -76,7 +76,7 @@ object salesforce {
           .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
       }
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware)
+      loginInternal(middleware(client), getToken, updateToken, withToken)
 
     }
 
@@ -165,7 +165,7 @@ object salesforce {
           .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
           .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken).map(middleware)
+      loginInternal(middleware(client), getToken, updateToken, withToken)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): Iot[F] =

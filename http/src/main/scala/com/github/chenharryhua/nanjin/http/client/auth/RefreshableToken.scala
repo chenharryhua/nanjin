@@ -70,7 +70,7 @@ final class RefreshableToken[F[_]] private (
     def withToken(token: Token, req: Request[F]): Request[F] =
       req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-    loginInternal(client, getToken, updateToken, withToken).map(middleware)
+    loginInternal(middleware(client), getToken, updateToken, withToken)
 
   }
 
