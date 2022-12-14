@@ -22,6 +22,7 @@ val natchezV    = "0.2.2"
 val http4sV     = "0.23.16"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.1"
+val protobufV   = "3.21.12"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -92,8 +93,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.12",
-  "com.google.protobuf"                       % "protobuf-java"             % "3.21.11",
-  "com.google.protobuf"                       % "protobuf-java-util"        % "3.21.11",
+  "com.google.protobuf"                       % "protobuf-java"             % protobufV,
+  "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
 )
 
