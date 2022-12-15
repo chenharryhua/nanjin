@@ -42,6 +42,8 @@ final class NJAtomicBox[F[_], A](vault: AtomicCell[F, Vault], key: Key[A], initV
   override def set(a: A): F[Unit] = update(_ => a)
 
   override def release: F[Unit] = vault.update(_.delete(key))
+
+  def size: F[Int] = vault.get.map(_.size)
 }
 
 final class NJSignalBox[F[_]: Monad, A](

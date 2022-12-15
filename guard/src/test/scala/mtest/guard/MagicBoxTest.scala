@@ -220,16 +220,20 @@ class MagicBoxTest extends AnyFunSuite {
   }
   test("11. atomicBox release") {
     service.eventStream { agent =>
-      val box = agent.atomicBox(0)
+      val box = agent.atomicBox(100)
       for {
-        v0 <- box.get
-        v1 <- box.updateAndGet(_ + 1)
+        v0 <- box.size
+        v1 <- box.get
+        v2 <- box.updateAndGet(_ + 1)
         _ <- box.release
-        v3 <- box.get
+        v3 <- box.size
+        v4 <- box.get
       } yield {
-        assert(v0 == 0)
-        assert(v1 == 1)
+        assert(v0 == 1)
+        assert(v1 == 100)
+        assert(v2 == 101)
         assert(v3 == 0)
+        assert(v4 == 100)
       }
     }.compile.drain.unsafeRunSync()
   }
