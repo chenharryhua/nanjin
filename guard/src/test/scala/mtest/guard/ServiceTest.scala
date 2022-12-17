@@ -23,8 +23,9 @@ import scala.util.Try
 class ServiceTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateConfig(_.withHostName(HostName.local_host).withHomePage("https://abc.com/efg"))
+    .updateConfig(_.withHostName(HostName.local_host))
     .service("service")
+    .updateConfig(_.withHomePage("https://abc.com/efg"))
     .withRestartPolicy(constant_1second)
     .withBrief(Json.fromString("test"))
 

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.{Functor, Show}
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
-import com.github.chenharryhua.nanjin.common.guard.ServiceName
+import com.github.chenharryhua.nanjin.common.guard.{HomePage, ServiceName}
 import cron4s.{Cron, CronExpr}
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.cats.*
@@ -48,7 +48,8 @@ object MetricParams {
   policyThreshold: Option[Duration], // policy start over interval
   taskParams: TaskParams,
   metricParams: MetricParams,
-  brief: Json
+  brief: Json,
+  homePage: Option[HomePage]
 ) {
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
@@ -85,7 +86,8 @@ object ServiceParams extends zoneddatetime with duration {
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
-      brief = brief
+      brief = brief,
+      homePage = None
     )
 }
 
@@ -102,6 +104,8 @@ private object ServiceConfigF {
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
 
   final case class WithPolicyThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
+
+  final case class WithHomePage[K](value: Option[HomePage], cont: K) extends ServiceConfigF[K]
 
   def algebra(
     serviceName: ServiceName,
@@ -123,6 +127,8 @@ private object ServiceConfigF {
         ServiceParams.metricParams.composeLens(MetricParams.durationTimeUnit).set(v)(c)
 
       case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.set(v)(c)
+
+      case WithHomePage(v, c) => ServiceParams.homePage.set(v)(c)
     }
 }
 
@@ -153,6 +159,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF], taskParams: 
 
   def withPolicyThreshold(fd: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), value)), taskParams)
+
+  def withHomePage(hp: HomePage): ServiceConfig =
+    ServiceConfig(Fix(WithHomePage(Some(hp), value)), taskParams)
 
   def evalConfig(
     serviceName: ServiceName,

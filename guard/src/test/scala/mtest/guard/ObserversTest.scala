@@ -76,10 +76,10 @@ class ObserversTest extends AnyFunSuite {
 
   test("4.slack") {
     TaskGuard[IO]("sns")
-      .updateConfig(_.withHomePage("https://abc.com/efg"))
       .service("slack")
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .updateConfig(_.withMetricReport(cron_1second))
+      .updateConfig(_.withHomePage("https://abc.com/efg"))
       .eventStream { ag =>
         val err = ag
           .action("error", _.critical)
@@ -100,10 +100,10 @@ class ObserversTest extends AnyFunSuite {
       EmailObserver(SimpleEmailService.fake[IO]).withInterval(5.seconds).withChunkSize(100).withOldestFirst
 
     TaskGuard[IO]("sesTask")
-      .updateConfig(_.withHomePage("https://google.com"))
       .service("sesService")
       .withRestartPolicy(constant_1hour)
       .updateConfig(_.withMetricReport(cron_1second))
+      .updateConfig(_.withHomePage("https://google.com"))
       .withBrief(Json.fromString("good morning"))
       .eventStream { ag =>
         val err =

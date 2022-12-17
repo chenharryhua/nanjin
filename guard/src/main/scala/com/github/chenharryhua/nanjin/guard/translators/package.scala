@@ -23,7 +23,7 @@ package object translators {
 
   final private[translators] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
-      sp.taskParams.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
+      sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
     JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName.value))
   }
 
