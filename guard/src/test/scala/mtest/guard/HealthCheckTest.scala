@@ -19,7 +19,7 @@ class HealthCheckTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("health-check")
   test("1.should receive 3 MetricsReport event") {
     val s :: a :: b :: c :: _ = guard
-      .updateConfig(_.withZoneId(ZoneId.of("Australia/Sydney")))
+      .withZoneId(ZoneId.of("Australia/Sydney"))
       .service("normal")
       .withJmxReporter(_.inDomain("abc"))
       .updateConfig(_.withMetricReport(cron_2second))

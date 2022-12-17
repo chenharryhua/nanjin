@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -23,7 +22,6 @@ import scala.util.Try
 class ServiceTest extends AnyFunSuite {
 
   val guard = TaskGuard[IO]("service-level-guard")
-    .updateConfig(_.withHostName(HostName.local_host))
     .service("service")
     .updateConfig(_.withHomePage("https://abc.com/efg"))
     .withRestartPolicy(constant_1second)

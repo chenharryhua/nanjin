@@ -32,7 +32,7 @@ class MetricsTest extends AnyFunSuite {
 
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("metrics")
-      .updateConfig(_.withZoneId(zoneId))
+      .withZoneId(zoneId)
       .service("delta")
       .updateConfig(_.withMetricReport(cron_1second))
 
