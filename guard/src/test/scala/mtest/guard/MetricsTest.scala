@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet
+import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -32,7 +33,7 @@ class MetricsTest extends AnyFunSuite {
 
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("metrics")
-      .withZoneId(zoneId)
+      .updateConfig(_.withZoneId(zoneId).withHostName(HostName.local_host))
       .service("delta")
       .updateConfig(_.withMetricReport(cron_1second))
 

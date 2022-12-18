@@ -53,10 +53,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     for {
       ts <- actionParams.serviceParams.zonedNow
-      token <- F.unique.map(_.hash)
-      ai = ActionInfo(traceInfo = traceInfo, actionParams = actionParams, actionId = token, launchTime = ts)
-      _ <- F.whenA(actionParams.isNotice)(transInput(input).flatMap(json =>
-        channel.send(ActionStart(actionInfo = ai, input = json))))
+      ai <- F.unique.map(token => ActionInfo(actionParams, token.hash, traceInfo, ts))
+      _ <- F.whenA(actionParams.isNotice)(transInput(input).flatMap(in => channel.send(ActionStart(ai, in))))
       out <- new ReTry[F, IN, OUT](
         channel = channel,
         retryPolicy = retryPolicy,

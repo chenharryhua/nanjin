@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
-import com.github.chenharryhua.nanjin.common.HostName
+import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
@@ -15,18 +15,14 @@ import java.time.ZoneId
 
 /** poor man's telemetry
   */
-final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: Resource[F, EntryPoint[F]]) {
+final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: Resource[F, EntryPoint[F]])
+    extends UpdateConfig[TaskConfig, TaskGuard[F]] {
 
-  private def updateConfig(f: Endo[TaskConfig]): TaskGuard[F] =
+  override def updateConfig(f: Endo[TaskConfig]): TaskGuard[F] =
     new TaskGuard[F](f(taskConfig), entryPoint)
 
-  def withZoneId(zoneId: ZoneId): TaskGuard[F] = updateConfig(_.withZoneId(zoneId))
-
-  def withEntryPoint(ep: Resource[F, EntryPoint[F]]): TaskGuard[F] =
-    new TaskGuard[F](taskConfig, ep)
-
-  def withEntryPoint(ep: EntryPoint[F]): TaskGuard[F] =
-    withEntryPoint(Resource.pure[F, EntryPoint[F]](ep))
+  def withEntryPoint(ep: Resource[F, EntryPoint[F]]): TaskGuard[F] = new TaskGuard[F](taskConfig, ep)
+  def withEntryPoint(ep: EntryPoint[F]): TaskGuard[F] = withEntryPoint(Resource.pure[F, EntryPoint[F]](ep))
 
   def service(serviceName: ServiceName): ServiceGuard[F] =
     new ServiceGuard[F](
