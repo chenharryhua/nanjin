@@ -21,11 +21,8 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
   override def updateConfig(f: Endo[TaskConfig]): TaskGuard[F] =
     new TaskGuard[F](f(taskConfig), entryPoint)
 
-  def withEntryPoint(ep: Resource[F, EntryPoint[F]]): TaskGuard[F] =
-    new TaskGuard[F](taskConfig, ep)
-
-  def withEntryPoint(ep: EntryPoint[F]): TaskGuard[F] =
-    withEntryPoint(Resource.pure[F, EntryPoint[F]](ep))
+  def withEntryPoint(ep: Resource[F, EntryPoint[F]]): TaskGuard[F] = new TaskGuard[F](taskConfig, ep)
+  def withEntryPoint(ep: EntryPoint[F]): TaskGuard[F] = withEntryPoint(Resource.pure[F, EntryPoint[F]](ep))
 
   def service(serviceName: ServiceName): ServiceGuard[F] =
     new ServiceGuard[F](

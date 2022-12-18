@@ -7,8 +7,8 @@ import scala.util.Try
 
 object ec2 {
   lazy val instance_id: HostName =
-    HostName(Try(Option(EC2MetadataUtils.getInstanceId)).toOption.flatten.getOrElse("none"))
+    HostName(Try(Option(EC2MetadataUtils.getInstanceId)).toOption.flatten.getOrElse("ec2.id.none"))
 
   lazy val private_ip: HostName =
-    HostName(Try(Option(EC2MetadataUtils.getPrivateIpAddress)).toOption.flatten.getOrElse("none"))
+    HostName(Try(Option(EC2MetadataUtils.getPrivateIpAddress)).toOption.flatten.getOrElse("ec2.ip.none"))
 }

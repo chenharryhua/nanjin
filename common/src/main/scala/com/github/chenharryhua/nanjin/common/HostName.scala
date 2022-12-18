@@ -30,5 +30,5 @@ object HostName {
   implicit final val decoderHostName: Decoder[HostName] = Decoder.decodeString.map(HostName(_))
 
   val local_host: HostName =
-    HostName(Try(Option(InetAddress.getLocalHost.getHostName)).toOption.flatten.getOrElse("none"))
+    HostName(Try(Option(InetAddress.getLocalHost.getHostName)).toOption.flatten.getOrElse("local.host.none"))
 }
