@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ActionStart
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import natchez.{Span, Trace}
@@ -54,7 +53,6 @@ final class NJAction[F[_], IN, OUT] private[action] (
     for {
       ts <- actionParams.serviceParams.zonedNow
       ai <- F.unique.map(token => ActionInfo(actionParams, token.hash, traceInfo, ts))
-      _ <- F.whenA(actionParams.isNotice)(transInput(input).flatMap(in => channel.send(ActionStart(ai, in))))
       out <- new ReTry[F, IN, OUT](
         channel = channel,
         retryPolicy = retryPolicy,

@@ -4,7 +4,7 @@ import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, Timer}
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionSucc}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc}
 import fs2.concurrent.Channel
 import io.circe.Json
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
@@ -62,22 +62,27 @@ final private class ReTry[F[_], IN, OUT](
         } yield Left(status.addRetry(delay))
     }
 
-  private[this] val loop: F[OUT] = F.tailRecM(RetryStatus.NoRetriesYet) { status =>
-    arrow(input).attempt.flatMap {
-      case Right(out) =>
-        for {
-          ts <- actionInfo.actionParams.serviceParams.zonedNow
-          _ <- F.whenA(actionInfo.actionParams.isNotice)(transOutput(input, out).flatMap(json =>
-            channel.send(ActionSucc(actionInfo, ts, json))))
-        } yield {
-          timingAndCounting(isSucc = true, ts)
-          Right(out)
-        }
+  private[this] val sendActionStartEvent: F[Unit] =
+    F.whenA(actionInfo.actionParams.isNotice)(transInput(input).flatMap(in =>
+      channel.send(ActionStart(actionInfo, in))))
 
-      case Left(ex) if !NonFatal(ex) => fail(ex)
-      case Left(ex)                  => isWorthRetry(ex).ifM(retrying(ex, status), fail(ex))
+  private[this] val loop: F[OUT] = sendActionStartEvent >>
+    F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+      arrow(input).attempt.flatMap {
+        case Right(out) =>
+          for {
+            ts <- actionInfo.actionParams.serviceParams.zonedNow
+            _ <- F.whenA(actionInfo.actionParams.isNotice)(transOutput(input, out).flatMap(json =>
+              channel.send(ActionSucc(actionInfo, ts, json))))
+          } yield {
+            timingAndCounting(isSucc = true, ts)
+            Right(out)
+          }
+
+        case Left(ex) if !NonFatal(ex) => fail(ex)
+        case Left(ex)                  => isWorthRetry(ex).ifM(retrying(ex, status), fail(ex))
+      }
     }
-  }
 
   val execute: F[OUT] = F.onCancel(loop, sendFailureEvent(ActionException.ActionCanceled))
 }
