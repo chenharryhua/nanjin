@@ -334,4 +334,38 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(i == 3)
   }
+
+  test("16. input json exception") {
+    val List(a, b, c, d) = serviceGuard
+      .eventStream(agent =>
+        agent
+          .action("input error", _.notice)
+          .retry((a: Int) => IO(a))
+          .logInputM(_ => IO.raiseError[Json](new Exception("oops")))
+          .run(1))
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionSucc])
+    assert(d.isInstanceOf[ServiceStop])
+  }
+
+  test("17. output json exception") {
+    val List(a, b, c, d) = serviceGuard
+      .eventStream(agent =>
+        agent
+          .action("output error", _.notice)
+          .retry((a: Int) => IO(a))
+          .logOutputM((_, _) => IO.raiseError[Json](new Exception("oops")))
+          .run(1))
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
+    assert(c.isInstanceOf[ActionSucc])
+    assert(d.isInstanceOf[ServiceStop])
+  }
 }
