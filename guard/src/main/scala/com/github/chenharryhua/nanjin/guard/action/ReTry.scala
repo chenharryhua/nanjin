@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc}
 import fs2.concurrent.Channel
 import io.circe.Json
+import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import java.time.{Duration, ZonedDateTime}
@@ -32,10 +33,13 @@ final private class ReTry[F[_], IN, OUT](
     if (actionInfo.actionParams.isCounting) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
   }
 
+  @inline private[this] def buildJson(json: Either[Throwable, Json]): Json =
+    json.fold(ex => Json.fromString(ExceptionUtils.getMessage(ex)), identity)
+
   private[this] def sendFailureEvent(ex: Throwable): F[Unit] =
     for {
       ts <- actionInfo.actionParams.serviceParams.zonedNow
-      json <- transInput(input)
+      json <- transInput(input).attempt.map(buildJson)
       _ <- channel.send(ActionFail(actionInfo, ts, NJError(ex), json))
     } yield timingAndCounting(isSucc = false, ts)
 
@@ -63,8 +67,8 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   private[this] val sendActionStartEvent: F[Unit] =
-    F.whenA(actionInfo.actionParams.isNotice)(transInput(input).flatMap(in =>
-      channel.send(ActionStart(actionInfo, in))))
+    F.whenA(actionInfo.actionParams.isNotice)(transInput(input).attempt.flatMap(json =>
+      channel.send(ActionStart(actionInfo, buildJson(json)))))
 
   private[this] val loop: F[OUT] = sendActionStartEvent >>
     F.tailRecM(RetryStatus.NoRetriesYet) { status =>
@@ -72,8 +76,8 @@ final private class ReTry[F[_], IN, OUT](
         case Right(out) =>
           for {
             ts <- actionInfo.actionParams.serviceParams.zonedNow
-            _ <- F.whenA(actionInfo.actionParams.isNotice)(transOutput(input, out).flatMap(json =>
-              channel.send(ActionSucc(actionInfo, ts, json))))
+            _ <- F.whenA(actionInfo.actionParams.isNotice)(transOutput(input, out).attempt.flatMap(json =>
+              channel.send(ActionSucc(actionInfo, ts, buildJson(json)))))
           } yield {
             timingAndCounting(isSucc = true, ts)
             Right(out)
