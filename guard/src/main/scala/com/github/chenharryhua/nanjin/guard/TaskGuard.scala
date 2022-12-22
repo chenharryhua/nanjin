@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
-import com.github.chenharryhua.nanjin.common.{HostName, UpdateConfig}
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
@@ -10,8 +10,6 @@ import io.circe.Json
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
 import retry.RetryPolicies
-
-import java.time.ZoneId
 
 /** poor man's telemetry
   */
@@ -39,9 +37,7 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
 object TaskGuard {
 
   def apply[F[_]: Async](taskName: TaskName): TaskGuard[F] =
-    new TaskGuard[F](
-      TaskConfig(taskName, ZoneId.systemDefault(), HostName.local_host),
-      Resource.pure(NoopEntrypoint[F]()))
+    new TaskGuard[F](TaskConfig(taskName), Resource.pure(NoopEntrypoint[F]()))
 
   // for repl
   def dummyAgent[F[_]: Async: Console]: Resource[F, GeneralAgent[F]] =
