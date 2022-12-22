@@ -24,16 +24,15 @@ sealed private[guard] trait TaskConfigF[X]
 private object TaskConfigF {
   implicit val functorTaskConfigF: Functor[TaskConfigF] = cats.derived.semiauto.functor[TaskConfigF]
 
-  final case class InitParams[K](taskName: TaskName, zoneId: ZoneId, hostName: HostName)
-      extends TaskConfigF[K]
+  final case class InitParams[K](taskName: TaskName) extends TaskConfigF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
 
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
-      case InitParams(taskName, hostName, zoneId) => TaskParams(taskName, hostName, zoneId)
-      case WithZoneId(v, c)                       => TaskParams.zoneId.set(v)(c)
-      case WithHostName(v, c)                     => TaskParams.hostName.set(v)(c)
+      case InitParams(taskName) => TaskParams(taskName, ZoneId.systemDefault(), HostName.local_host)
+      case WithZoneId(v, c)     => TaskParams.zoneId.set(v)(c)
+      case WithHostName(v, c)   => TaskParams.hostName.set(v)(c)
     }
 }
 
@@ -48,6 +47,6 @@ final case class TaskConfig private (value: Fix[TaskConfigF]) {
 
 private[guard] object TaskConfig {
 
-  def apply(taskName: TaskName, zoneId: ZoneId, hostName: HostName): TaskConfig = new TaskConfig(
-    Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](taskName, zoneId, hostName)))
+  def apply(taskName: TaskName): TaskConfig =
+    new TaskConfig(Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](taskName)))
 }
