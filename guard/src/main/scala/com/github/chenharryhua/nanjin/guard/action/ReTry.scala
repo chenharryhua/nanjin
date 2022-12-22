@@ -34,7 +34,10 @@ final private class ReTry[F[_], IN, OUT](
   }
 
   @inline private[this] def buildJson(json: Either[Throwable, Json]): Json =
-    json.fold(ex => Json.fromString(ExceptionUtils.getMessage(ex)), identity)
+    json match {
+      case Right(value) => value
+      case Left(value)  => Json.fromString(ExceptionUtils.getMessage(value))
+    }
 
   private[this] def sendFailureEvent(ex: Throwable): F[Unit] =
     for {
