@@ -278,7 +278,7 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= List(
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
-      "org.typelevel" %% "vault"                       % "3.4.0",
+      "org.typelevel" %% "vault"                       % "3.5.0",
       "com.lihaoyi" %% "scalatags"                     % "0.12.0",
       "org.tpolecat" %% "skunk-core"                   % skunkV,
       "org.tpolecat" %% "skunk-circe"                  % skunkV,
