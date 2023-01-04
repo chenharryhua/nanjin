@@ -266,7 +266,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(
     libraryDependencies ++= List(
-      "org.typelevel" %% "cats-parse"                  % "0.3.8",
+      "org.typelevel" %% "cats-parse"                  % "0.3.9",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV) ++
       testLib
   )
