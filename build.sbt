@@ -144,7 +144,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.14",
+  "org.scalatest" %% "scalatest"                              % "3.2.15",
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
