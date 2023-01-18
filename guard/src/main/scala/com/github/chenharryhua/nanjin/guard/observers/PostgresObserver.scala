@@ -40,7 +40,7 @@ final class PostgresObserver[F[_]: Clock](session: Resource[F, Session[F]], tran
   def observe(tableName: TableName): Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) => {
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
     for {
-      pg <- Stream.resource(session.flatMap(_.prepare(cmd)))
+      pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
       ofm <- Stream.eval(
         F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
       event <- events
