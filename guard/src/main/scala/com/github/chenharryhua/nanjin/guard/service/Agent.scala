@@ -45,14 +45,14 @@ final class GeneralAgent[F[_]] private[service] (
   dispatcher: Dispatcher[F])(implicit F: Async[F])
     extends Agent[F] {
 
-  def root(name: String): Resource[F, Span[F]] =
-    entryPoint.flatMap(_.root(name))
+  def root(name: String, options: Span.Options): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.root(name, options))
 
-  def continue(name: String, kernel: Kernel): Resource[F, Span[F]] =
-    entryPoint.flatMap(_.continue(name, kernel))
+  def continue(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.continue(name, kernel, options))
 
-  def continueOrElseRoot(name: String, kernel: Kernel): Resource[F, Span[F]] =
-    entryPoint.flatMap(_.continueOrElseRoot(name, kernel))
+  def continueOrElseRoot(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
+    entryPoint.flatMap(_.continueOrElseRoot(name, kernel, options))
 
   val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
   val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]

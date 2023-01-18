@@ -88,11 +88,11 @@ object TraceInfo {
     knl <- trace.kernel.map(_.toHeaders)
     id <- trace.traceId
     uri <- trace.traceUri
-  } yield TraceInfo(knl, id, uri)
+  } yield TraceInfo(knl.map { case (ci, v) => ci.toString -> v }, id, uri)
 
   def apply[F[_]: Monad](span: Span[F]): F[TraceInfo] = for {
     knl <- span.kernel.map(_.toHeaders)
     id <- span.traceId
     uri <- span.traceUri
-  } yield TraceInfo(knl, id, uri)
+  } yield TraceInfo(knl.map { case (ci, v) => ci.toString -> v }, id, uri)
 }
