@@ -14,7 +14,7 @@ val monocleV    = "2.1.0"
 val confluentV  = "7.3.1"
 val kafkaV      = "7.3.1-ce"
 val avroV       = "1.11.1"
-val slf4jV      = "1.7.36"
+val slf4jV      = "2.0.6"
 val metricsV    = "4.2.15"
 val log4catsV   = "2.5.0"
 val skunkV      = "0.5.0"
@@ -338,8 +338,9 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all" % "4.1.87.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.2.1"     % Test
+      "io.netty"                               % "netty-all"       % "4.1.87.Final",
+      "com.julianpeeters" %% "avrohugger-core" % "1.2.1"           % Test,
+      "ch.qos.logback"                         % "logback-classic" % "1.4.5" % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
