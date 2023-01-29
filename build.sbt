@@ -21,7 +21,7 @@ val skunkV      = "0.5.1"
 val natchezV    = "0.3.0"
 val http4sV     = "0.23.18"
 val cron4sV     = "0.6.1"
-val jacksonV    = "2.14.1"
+val jacksonV    = "2.14.2"
 val protobufV   = "3.21.12"
 
 lazy val commonSettings = List(
