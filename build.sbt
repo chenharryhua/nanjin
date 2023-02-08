@@ -149,7 +149,7 @@ val testLib = List(
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.6.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
-  "com.github.pathikrit" %% "better-files"                    % "3.9.1"
+  "com.github.pathikrit" %% "better-files"                    % "3.9.2"
 ).map(_ % Test)
 
 val kafkaLib = List(
