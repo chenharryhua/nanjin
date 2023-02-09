@@ -6,7 +6,7 @@ ThisBuild / version            := "0.16.7-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val fs2V        = "3.6.0"
+val fs2V        = "3.6.1"
 val awsV        = "1.12.400"
 val catsEffectV = "3.4.6"
 val hadoopV     = "3.3.4"
@@ -62,14 +62,14 @@ val hadoopLib = List(
     .exclude("commons-logging", "commons-logging"))
 
 val circeLib = List(
-  "io.circe" %% "circe-core"       % "0.14.3",
-  "io.circe" %% "circe-generic"    % "0.14.3",
-  "io.circe" %% "circe-parser"     % "0.14.3",
-  "io.circe" %% "circe-shapes"     % "0.14.3",
-  "io.circe" %% "circe-jawn"       % "0.14.3",
+  "io.circe" %% "circe-core"       % "0.14.4",
+  "io.circe" %% "circe-generic"    % "0.14.4",
+  "io.circe" %% "circe-parser"     % "0.14.4",
+  "io.circe" %% "circe-shapes"     % "0.14.4",
+  "io.circe" %% "circe-jawn"       % "0.14.4",
   "io.circe" %% "circe-optics"     % "0.14.1",
   "io.circe" %% "circe-jackson212" % "0.14.0",
-  "io.circe" %% "circe-refined"    % "0.14.3",
+  "io.circe" %% "circe-refined"    % "0.14.4",
   "org.gnieh" %% "diffson-circe"   % "4.3.0"
 )
 
