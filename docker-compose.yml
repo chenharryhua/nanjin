@@ -1,4 +1,4 @@
-version: '2'
+version: '3'
 
 services:
   kafka:
@@ -48,3 +48,24 @@ services:
       - "9411:9411"
     environment:
       COLLECTOR_ZIPKIN_HOST_PORT: 9411
+
+  influxdb:
+    image: influxdb:latest
+    ports:
+      - "8086:8086"
+    environment:
+      INFLUXDB_DB: nanjin
+      INFLUXDB_ORG: nanjin
+      INFLUXDB_USER: chenh
+      INFLUXDB_USER_PASSWORD: chenhchenh
+      INFLUXDB_ADMIN_USER: admin
+      INFLUXDB_ADMIN_PASSWORD: admin
+      
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    links:
+      - influxdb

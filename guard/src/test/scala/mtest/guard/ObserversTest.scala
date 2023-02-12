@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
+import com.influxdb.client.{InfluxDBClientFactory, InfluxDBClientOptions}
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
@@ -75,7 +76,7 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("4.slack") {
-    TaskGuard[IO]("sns")
+    TaskGuard[IO]("observers")
       .service("slack")
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .updateConfig(_.withMetricReport(cron_1second))
@@ -99,7 +100,7 @@ class ObserversTest extends AnyFunSuite {
     val mail =
       EmailObserver(SimpleEmailService.fake[IO]).withInterval(5.seconds).withChunkSize(100).withOldestFirst
 
-    TaskGuard[IO]("sesTask")
+    TaskGuard[IO]("observers")
       .service("sesService")
       .withRestartPolicy(constant_1hour)
       .updateConfig(_.withMetricReport(cron_1second))
@@ -177,7 +178,7 @@ class ObserversTest extends AnyFunSuite {
               timestamp timestamptz default current_timestamp)""".command
 
     val run = session.use(_.execute(cmd)) >>
-      TaskGuard[IO]("postgres")
+      TaskGuard[IO]("observers")
         .service("postgres")
         .eventStream(_.action("sql", _.notice).retry(IO(0)).run)
         .evalTap(console.verbose[IO])
@@ -197,6 +198,41 @@ class ObserversTest extends AnyFunSuite {
         _.action("sqs", _.critical).retry(IO.raiseError(new Exception)).run.delayBy(3.seconds).foreverM)
       .interruptAfter(7.seconds)
       .through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo")))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("11.influx db") {
+    val options = InfluxDBClientOptions
+      .builder()
+      .url("http://localhost:8086")
+      .authenticate("chenh", "chenhchenh".toCharArray)
+      .bucket("nanjin")
+      .org("nanjin")
+      .build()
+    val client = IO(InfluxDBClientFactory.create(options))
+
+    TaskGuard[IO]("observers")
+      .service("influxDB")
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(cron_1second))
+      .eventStream { ag =>
+        val err =
+          ag.action("error", _.critical.withTiming.withCounting)
+            .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
+            .retry(err_fun(1))
+            .run
+        ok(ag) >> ag.alert("alert").withCounting.warn("alarm")
+        ag.meter("meter").withCounting.mark(1) >>
+          ag.counter("counter").inc(1) >>
+          ag.histogram("histo").withCounting.update(1) >>
+          ag.broker("broker").asError.withCounting.passThrough(Json.fromString("path-error")) >>
+          ag.metrics.reset >> err
+      }
+      .take(12)
+      .evalTap(console.simple[IO])
+      .through(InfluxdbObserver[IO](client).withWriteOptions(_.batchSize(10)).addTag("tag","tag").observe)
       .compile
       .drain
       .unsafeRunSync()

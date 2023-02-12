@@ -2,7 +2,7 @@ ThisBuild / scalaVersion       := "2.13.10"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.7-SNAPSHOT"
+ThisBuild / version            := "0.16.8-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
@@ -39,7 +39,7 @@ lazy val commonSettings = List(
   ),
   scalacOptions ++= List("-Ymacro-annotations", "-Xsource:3"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
-//  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
+  //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
 
 val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % awsV)
@@ -277,6 +277,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
+      "com.influxdb"                                   % "influxdb-client-java" % "6.7.0",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "vault"                       % "3.5.0",
       "com.lihaoyi" %% "scalatags"                     % "0.12.0",
@@ -284,9 +285,9 @@ lazy val guard = (project in file("guard"))
       "org.tpolecat" %% "skunk-circe"                  % skunkV,
       "org.tpolecat" %% "natchez-core"                 % natchezV,
       "org.tpolecat" %% "natchez-noop"                 % natchezV,
-      "org.tpolecat" %% "natchez-jaeger"               % natchezV         % Test,
-      "org.tpolecat" %% "natchez-log"                  % natchezV         % Test,
-      "org.slf4j"                                      % "slf4j-reload4j" % slf4jV % Test
+      "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
+      "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
+      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
     ) ++ metricLib ++ logLib ++ testLib
   )
 
