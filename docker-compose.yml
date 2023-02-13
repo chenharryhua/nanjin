@@ -60,12 +60,3 @@ services:
       INFLUXDB_USER_PASSWORD: chenhchenh
       INFLUXDB_ADMIN_USER: admin
       INFLUXDB_ADMIN_PASSWORD: admin
-      
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    links:
-      - influxdb

@@ -35,18 +35,18 @@ final class InfluxdbObserver[F[_]](
         F.blocking(c.close()))
       event <- events.evalTap {
         case NJEvent.MetricReport(_, sp, ts, snapshot) =>
-          val points: java.util.List[Point] = snapshot.counterMap.map { case (name, count) =>
+          val counters: List[Point] = snapshot.counterMap.map { case (measurement, count) =>
             Point
-              .measurement(sp.taskParams.taskName.value)
+              .measurement(measurement)
               .time(ts.toInstant, WritePrecision.MS)
               .addField("count", count)
-              .addTag("name", name)
+              .addTag("task", sp.taskParams.taskName.value)
               .addTag("service", sp.serviceName.value)
               .addTag("host", sp.taskParams.hostName.value)
               .addTag("launchDate", sp.launchTime.toLocalDate.show)
               .addTags(tags.asJava)
-          }.toList.asJava
-          F.blocking(writer.writePoints(points))
+          }.toList
+          F.blocking(writer.writePoints(counters.asJava))
         case _ => F.unit
       }
     } yield event
