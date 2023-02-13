@@ -49,7 +49,7 @@ class MetricsTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.isEmpty))
+    assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counters.isEmpty))
   }
 
   test("2.full") {
@@ -62,7 +62,7 @@ class MetricsTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counterMap.nonEmpty))
+    assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counters.nonEmpty))
   }
 
   test("3.ongoing action alignment") {
@@ -97,7 +97,7 @@ class MetricsTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
 
-    assert(last.get.asInstanceOf[MetricReport].snapshot.counterMap.isEmpty)
+    assert(last.get.asInstanceOf[MetricReport].snapshot.counters.isEmpty)
   }
 
   test("5.Importance json") {
@@ -152,7 +152,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("gauge") {
+  test("8.gauge") {
     service("gauge").eventStream { agent =>
       val box = agent.signalBox(IO(100000))
       val gauge =

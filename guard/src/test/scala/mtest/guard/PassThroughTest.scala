@@ -54,12 +54,16 @@ class PassThroughTest extends AnyFunSuite {
         (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
       }
       .filter(_.isInstanceOf[MetricReport])
-      .debug()
       .compile
       .last
       .unsafeRunSync()
     assert(
-      last.asInstanceOf[MetricReport].snapshot.counterMap("counter.[one/two/three/counter][1a8af341]") == 1)
+      last
+        .asInstanceOf[MetricReport]
+        .snapshot
+        .counters
+        .find(_.name == "counter.[one/two/three/counter][1a8af341]")
+        .size == 1)
   }
 
   test("3.alert") {
@@ -76,7 +80,13 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counterMap("alert.[oops][a32b945e].error") == 1)
+    assert(
+      last
+        .asInstanceOf[MetricReport]
+        .snapshot
+        .counters
+        .find(_.name == "alert.[oops][a32b945e].error")
+        .size == 1)
   }
 
   test("4.meter") {
