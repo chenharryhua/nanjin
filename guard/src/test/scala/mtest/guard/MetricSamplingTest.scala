@@ -31,7 +31,7 @@ class MetricSamplingTest extends AnyFunSuite {
     MetricIndex.Periodic(1023),
     ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(Some(cron))(serviceParams),
     now,
-    MetricSnapshot(Map.empty[String, Long], Json.Null, "")
+    MetricSnapshot(Nil, Nil, Nil, Nil, Nil, "")
   )
 
   test("1.cron secondly") {

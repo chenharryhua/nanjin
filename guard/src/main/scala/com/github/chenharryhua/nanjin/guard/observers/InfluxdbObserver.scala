@@ -35,18 +35,53 @@ final class InfluxdbObserver[F[_]](
         F.blocking(c.close()))
       event <- events.evalTap {
         case NJEvent.MetricReport(_, sp, ts, snapshot) =>
-          val points: java.util.List[Point] = snapshot.counterMap.map { case (name, count) =>
+          val tagToAdd: Map[String, String] = Map(
+            "task" -> sp.taskParams.taskName.value,
+            "service" -> sp.serviceName.value,
+            "host" -> sp.taskParams.hostName.value,
+            "launchDate" -> sp.launchTime.toLocalDate.show
+          ) ++ tags // allow override fixed tags
+
+          val counters: List[Point] = snapshot.counters.map(counter =>
             Point
-              .measurement(sp.taskParams.taskName.value)
+              .measurement(counter.name)
               .time(ts.toInstant, WritePrecision.MS)
-              .addField("count", count)
-              .addTag("name", name)
-              .addTag("service", sp.serviceName.value)
-              .addTag("host", sp.taskParams.hostName.value)
-              .addTag("launchDate", sp.launchTime.toLocalDate.show)
-              .addTags(tags.asJava)
-          }.toList.asJava
-          F.blocking(writer.writePoints(points))
+              .addTags(tagToAdd.asJava)
+              .addField("count", counter.count))
+
+          val timers: List[Point] = snapshot.timers.map(timer =>
+            Point
+              .measurement(timer.name)
+              .time(ts.toInstant, WritePrecision.MS)
+              .addTags(tagToAdd.asJava)
+              .addTag("rate_units", timer.rate_units)
+              .addTag("duration_units", timer.duration_units)
+              .addField("count", timer.count)
+              .addField("mean_rate", timer.mean_rate)
+              .addField("stddev", timer.stddev)
+              .addField("95%", timer.p95)
+              .addField("99.9%", timer.p999))
+
+          val meters: List[Point] = snapshot.meters.map(meter =>
+            Point
+              .measurement(meter.name)
+              .time(ts.toInstant, WritePrecision.MS)
+              .addTags(tagToAdd.asJava)
+              .addTag("units", meter.units)
+              .addField("count", meter.count)
+              .addField("mean_rate", meter.mean_rate))
+
+          val histograms: List[Point] = snapshot.histograms.map(histo =>
+            Point
+              .measurement(histo.name)
+              .time(ts.toInstant, WritePrecision.MS)
+              .addTags(tagToAdd.asJava)
+              .addField("count", histo.count)
+              .addField("stddev", histo.stddev)
+              .addField("95%", histo.p95)
+              .addField("99.9%", histo.p999))
+
+          F.blocking(writer.writePoints((counters ::: timers ::: meters ::: histograms).asJava))
         case _ => F.unit
       }
     } yield event

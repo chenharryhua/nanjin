@@ -179,8 +179,8 @@ class ObserversTest extends AnyFunSuite {
 
     val run = session.use(_.execute(cmd)) >>
       TaskGuard[IO]("observers")
-        .service("postgres")
-        .eventStream(_.action("sql", _.notice).retry(IO(0)).run)
+        .service("postgres").updateConfig(_.withMetricReport(cron_1second))
+        .eventStream(_.action("sql", _.notice.withTiming.withCounting).retry(IO(0)).run >> IO.sleep(3.seconds))
         .evalTap(console.verbose[IO])
         .through(PostgresObserver(session).observe("log"))
         .compile
