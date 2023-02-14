@@ -55,13 +55,13 @@ final class InfluxdbObserver[F[_]](
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
               .addTag("category", SnapshotCategory.Timer.name)
-              .addTag("rate_units", timer.rate_units.name())
-              .addTag("duration_units", timer.duration_units.name())
+              .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
+              .addTag("duration_unit", sp.metricParams.durationTimeUnit.name())
               .addField("count", timer.count)
               .addField("mean_rate", timer.mean_rate)
-              .addField("stddev", timer.stddev)
-              .addField("95%", timer.p95)
-              .addField("99.9%", timer.p999))
+              .addField("stddev", sp.metricParams.durationTimeUnit.convert(timer.stddev))
+              .addField("95%", sp.metricParams.durationTimeUnit.convert(timer.p95))
+              .addField("99.9%", sp.metricParams.durationTimeUnit.convert(timer.p999)))
 
           val meters: List[Point] = snapshot.meters.map(meter =>
             Point
@@ -69,7 +69,7 @@ final class InfluxdbObserver[F[_]](
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
               .addTag("category", SnapshotCategory.Meter.name)
-              .addTag("units", meter.units.name())
+              .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
               .addField("count", meter.count)
               .addField("mean_rate", meter.mean_rate))
 

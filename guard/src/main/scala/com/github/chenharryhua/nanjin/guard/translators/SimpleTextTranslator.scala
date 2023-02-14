@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.{Applicative, Eval}
 import cats.syntax.all.*
+import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 
 private object SimpleTextTranslator {
@@ -57,13 +57,13 @@ private object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${coloring(metricTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
-       |${evt.snapshot.show}
+       |${showSnapshot(evt.serviceParams, evt.snapshot)}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${coloring(metricTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
-       |${evt.snapshot.show}
+       |${showSnapshot(evt.serviceParams, evt.snapshot)}
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =

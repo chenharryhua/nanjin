@@ -1,10 +1,10 @@
 package mtest.guard
 
-import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.common.HostName.local_host
+import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.guard.config.{MetricParams, ServiceParams, TaskParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.observers.sampling
 import cron4s.Cron
 import cron4s.expr.CronExpr
@@ -31,7 +31,7 @@ class MetricSamplingTest extends AnyFunSuite {
     MetricIndex.Periodic(1023),
     ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(Some(cron))(serviceParams),
     now,
-    MetricSnapshot(Nil, Nil, Nil, Nil, Nil, "")
+    MetricSnapshot(Nil, Nil, Nil, Nil, Nil)
   )
 
   test("1.cron secondly") {

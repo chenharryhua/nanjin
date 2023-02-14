@@ -146,7 +146,7 @@ class MetricsTest extends AnyFunSuite {
           agent.action(name, _.withTiming.withCounting).retry(IO(())).run.foreverM
       }
       .take(6)
-      .debug()
+      .evalTap(console.simple[IO])
       .compile
       .lastOrError
       .unsafeRunSync()
