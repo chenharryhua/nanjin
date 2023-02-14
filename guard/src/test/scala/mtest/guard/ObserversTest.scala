@@ -231,7 +231,7 @@ class ObserversTest extends AnyFunSuite {
           ag.metrics.reset >> err
       }
       .take(12)
-      .evalTap(console.simple[IO])
+      .evalTap(console.json[IO].updateTranslator(_.skipActionStart.skipActionSucc.skipServiceStart.skipServiceStop.skipServicePanic))
       .through(InfluxdbObserver[IO](client).withWriteOptions(_.batchSize(10)).addTag("tag","tag").observe)
       .compile
       .drain
