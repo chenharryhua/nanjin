@@ -30,7 +30,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
     new CloudWatchObserver(client, storageResolution)
   }
 
-  private def buildMetricDatum(
+  private def buildCountDatum(
     report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
@@ -38,7 +38,6 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
       MetricKey(
         report.serviceParams.serviceId,
         report.serviceParams.taskParams.hostName.value,
-        StandardUnit.Count,
         report.serviceParams.taskParams.taskName.value,
         report.serviceParams.serviceName.value,
         counter.name,
@@ -50,11 +49,18 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
       last.get(key) match {
         case Some(old) =>
           if (count > old)
-            (key.metricDatum(report.timestamp.toInstant, count - old) :: mds, last.updated(key, count))
+            (
+              key.metricDatum(report.timestamp.toInstant, (count - old).toDouble, StandardUnit.Count) :: mds,
+              last.updated(key, count))
           else if (count === old) (mds, last)
-          else (key.metricDatum(report.timestamp.toInstant, count) :: mds, last.updated(key, count))
+          else
+            (
+              key.metricDatum(report.timestamp.toInstant, count.toDouble, StandardUnit.Count) :: mds,
+              last.updated(key, count))
         case None =>
-          (key.metricDatum(report.timestamp.toInstant, count) :: mds, last.updated(key, count))
+          (
+            key.metricDatum(report.timestamp.toInstant, count.toDouble, StandardUnit.Count) :: mds,
+            last.updated(key, count))
       }
     }
   }
@@ -69,7 +75,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
           val (mds, next) =
             events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
               case ((lmd, last), mr) =>
-                val (mds, newLast) = buildMetricDatum(mr, last)
+                val (mds, newLast) = buildCountDatum(mr, last)
                 (mds ::: lmd, newLast)
             }
 
@@ -97,12 +103,11 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
 final private case class MetricKey(
   uuid: UUID,
   hostName: String,
-  standardUnit: StandardUnit,
   task: String,
   service: String,
   metricName: String,
   launchDate: String) {
-  def metricDatum(ts: Instant, count: Long): MetricDatum =
+  def metricDatum(ts: Instant, value: Double, standardUnit: StandardUnit): MetricDatum =
     new MetricDatum()
       .withDimensions(
         new Dimension().withName("Task").withValue(task),
@@ -113,5 +118,5 @@ final private case class MetricKey(
       .withMetricName(metricName)
       .withUnit(standardUnit)
       .withTimestamp(Date.from(ts))
-      .withValue(count)
+      .withValue(value)
 }

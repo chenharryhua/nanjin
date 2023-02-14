@@ -3,13 +3,12 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Endo
 import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toShow}
-import com.influxdb.client.InfluxDBClient
-import org.typelevel.cats.time.instances.localdate
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.influxdb.client.WriteOptions
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, SnapshotCategory}
+import com.influxdb.client.{InfluxDBClient, WriteOptions}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import fs2.{Pipe, Stream}
+import org.typelevel.cats.time.instances.localdate
 
 import scala.jdk.CollectionConverters.*
 
@@ -47,6 +46,7 @@ final class InfluxdbObserver[F[_]](
               .measurement(counter.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
+              .addTag("category", SnapshotCategory.Counter.name)
               .addField("count", counter.count))
 
           val timers: List[Point] = snapshot.timers.map(timer =>
@@ -54,8 +54,9 @@ final class InfluxdbObserver[F[_]](
               .measurement(timer.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
-              .addTag("rate_units", timer.rate_units)
-              .addTag("duration_units", timer.duration_units)
+              .addTag("category", SnapshotCategory.Timer.name)
+              .addTag("rate_units", timer.rate_units.name())
+              .addTag("duration_units", timer.duration_units.name())
               .addField("count", timer.count)
               .addField("mean_rate", timer.mean_rate)
               .addField("stddev", timer.stddev)
@@ -67,7 +68,8 @@ final class InfluxdbObserver[F[_]](
               .measurement(meter.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
-              .addTag("units", meter.units)
+              .addTag("category", SnapshotCategory.Meter.name)
+              .addTag("units", meter.units.name())
               .addField("count", meter.count)
               .addField("mean_rate", meter.mean_rate))
 
@@ -76,6 +78,7 @@ final class InfluxdbObserver[F[_]](
               .measurement(histo.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
+              .addTag("category", SnapshotCategory.Histogram.name)
               .addField("count", histo.count)
               .addField("stddev", histo.stddev)
               .addField("95%", histo.p95)

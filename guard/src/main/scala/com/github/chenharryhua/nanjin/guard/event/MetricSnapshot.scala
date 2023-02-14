@@ -4,7 +4,9 @@ import cats.Show
 import cats.implicits.catsSyntaxSemigroup
 import cats.kernel.Monoid
 import com.codahale.metrics.*
+import com.github.chenharryhua.nanjin.guard.config.MetricParams.{decoderTimeUnit, encoderTimeUnit}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 
 import java.io.{ByteArrayOutputStream, PrintStream}
@@ -12,7 +14,20 @@ import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
+import scala.collection.immutable
 import scala.jdk.CollectionConverters.*
+
+sealed abstract class SnapshotCategory(val name: String) extends EnumEntry with Product with Serializable
+
+object SnapshotCategory
+    extends Enum[SnapshotCategory] with CirceEnum[SnapshotCategory] with CatsEnum[SnapshotCategory] {
+  override val values: immutable.IndexedSeq[SnapshotCategory] = findValues
+  case object Meter extends SnapshotCategory("meter")
+  case object Gauge extends SnapshotCategory("gauge")
+  case object Counter extends SnapshotCategory("counter")
+  case object Timer extends SnapshotCategory("timer")
+  case object Histogram extends SnapshotCategory("histogram")
+}
 
 @JsonCodec
 final case class CounterSnapshot(name: String, count: Long)
@@ -24,7 +39,7 @@ final case class CounterSnapshot(name: String, count: Long)
   m1_rate: Double,
   m5_rate: Double,
   m15_rate: Double,
-  units: String
+  units: TimeUnit
 )
 
 @JsonCodec
@@ -45,8 +60,8 @@ final case class TimerSnapshot(
   p98: Double,
   p99: Double,
   p999: Double,
-  duration_units: String,
-  rate_units: String
+  duration_units: TimeUnit,
+  rate_units: TimeUnit
 )
 
 @JsonCodec
@@ -136,7 +151,7 @@ object MetricSnapshot {
         m1_rate = meter.getOneMinuteRate * rateFactor,
         m5_rate = meter.getFiveMinuteRate * rateFactor,
         m15_rate = meter.getFifteenMinuteRate * rateFactor,
-        units = rateTimeUnit.name()
+        units = rateTimeUnit
       )
     }
   }
@@ -167,8 +182,8 @@ object MetricSnapshot {
         m5_rate = timer.getFiveMinuteRate * rateFactor,
         m15_rate = timer.getFifteenMinuteRate * rateFactor,
         mean_rate = timer.getMeanRate * rateFactor,
-        duration_units = durationTimeUnit.name(),
-        rate_units = rateTimeUnit.name()
+        duration_units = durationTimeUnit,
+        rate_units = rateTimeUnit
       )
     }
   }
