@@ -22,7 +22,8 @@ val natchezV    = "0.3.1"
 val http4sV     = "0.23.18"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.2"
-val protobufV   = "3.21.12"
+val protobufV   = "3.22.0"
+val sparkV      = "3.3.2"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -130,7 +131,7 @@ val sparkLib = List(
   "org.apache.spark" %% "spark-sql-kafka-0-10",
   "org.apache.spark" %% "spark-avro",
   "org.apache.spark" %% "spark-graphx"
-).map(_ % "3.3.1") ++ List(
+).map(_ % sparkV) ++ List(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
 ).map(_ % "0.13.0") ++ List(
@@ -285,6 +286,7 @@ lazy val guard = (project in file("guard"))
       "org.tpolecat" %% "skunk-circe"                  % skunkV,
       "org.tpolecat" %% "natchez-core"                 % natchezV,
       "org.tpolecat" %% "natchez-noop"                 % natchezV,
+      "org.tpolecat" %% "natchez-http4s"               % "0.5.0",
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
       "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test

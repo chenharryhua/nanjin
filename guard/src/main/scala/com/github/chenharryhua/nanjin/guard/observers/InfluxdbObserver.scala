@@ -47,7 +47,7 @@ final class InfluxdbObserver[F[_]](
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
               .addTag("category", SnapshotCategory.Counter.name)
-              .addField("count", counter.count))
+              .addField("count", counter.count)) // Long
 
           val timers: List[Point] = snapshot.timers.map(timer =>
             Point
@@ -57,11 +57,11 @@ final class InfluxdbObserver[F[_]](
               .addTag("category", SnapshotCategory.Timer.name)
               .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
               .addTag("duration_unit", sp.metricParams.durationTimeUnit.name())
-              .addField("count", timer.count)
-              .addField("mean_rate", timer.mean_rate)
-              .addField("stddev", sp.metricParams.durationTimeUnit.convert(timer.stddev))
-              .addField("95%", sp.metricParams.durationTimeUnit.convert(timer.p95))
-              .addField("99.9%", sp.metricParams.durationTimeUnit.convert(timer.p999)))
+              .addField("count", timer.count) // Long
+              .addField("mean_rate", timer.mean_rate) // Double
+              .addField("stddev", sp.metricParams.durationTimeUnit.convert(timer.stddev).toDouble) // Double
+              .addField("95%", sp.metricParams.durationTimeUnit.convert(timer.p95).toDouble) // Double
+              .addField("99.9%", sp.metricParams.durationTimeUnit.convert(timer.p999).toDouble)) // Double
 
           val meters: List[Point] = snapshot.meters.map(meter =>
             Point
@@ -70,8 +70,8 @@ final class InfluxdbObserver[F[_]](
               .addTags(tagToAdd.asJava)
               .addTag("category", SnapshotCategory.Meter.name)
               .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
-              .addField("count", meter.count)
-              .addField("mean_rate", meter.mean_rate))
+              .addField("count", meter.count) // Long
+              .addField("mean_rate", meter.mean_rate)) // Double
 
           val histograms: List[Point] = snapshot.histograms.map(histo =>
             Point
@@ -79,10 +79,10 @@ final class InfluxdbObserver[F[_]](
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
               .addTag("category", SnapshotCategory.Histogram.name)
-              .addField("count", histo.count)
-              .addField("stddev", histo.stddev)
-              .addField("95%", histo.p95)
-              .addField("99.9%", histo.p999))
+              .addField("count", histo.count) // Long
+              .addField("stddev", histo.stddev) // Double
+              .addField("95%", histo.p95) // Double
+              .addField("99.9%", histo.p999)) // Double
 
           F.blocking(writer.writePoints((counters ::: timers ::: meters ::: histograms).asJava))
         case _ => F.unit
