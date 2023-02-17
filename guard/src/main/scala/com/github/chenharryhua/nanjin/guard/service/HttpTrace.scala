@@ -4,9 +4,9 @@ import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits.monadCancelOps
 import cats.effect.kernel.{MonadCancel, Outcome, Resource}
 import cats.implicits.{catsSyntaxApply, toFlatMapOps}
+import natchez.*
 import natchez.http4s.AnsiFilterStream
 import natchez.http4s.syntax.EntryPointOps
-import natchez.{EntryPoint, Kernel, Tags, TraceValue}
 import org.http4s.{HttpRoutes, Response}
 
 import java.io.{ByteArrayOutputStream, PrintStream}
@@ -16,7 +16,7 @@ private object HttpTrace {
   // combine EntryPoint#liftT and NatchezMiddleware together
   // https://github.com/tpolecat/natchez-http4s
 
-  def server[F[_]](routes: HttpRoutes[F], entryPoint: Resource[F, EntryPoint[F]])(implicit
+  def server[F[_]](routes: Span[F] => HttpRoutes[F], entryPoint: Resource[F, EntryPoint[F]])(implicit
     F: MonadCancel[F, Throwable]): HttpRoutes[F] =
     Kleisli { req =>
       val kernelHeaders = req.headers.headers.collect {
@@ -54,7 +54,7 @@ private object HttpTrace {
             }
           )
 
-        routes(req).value.guaranteeCase {
+        routes(span)(req).value.guaranteeCase {
           case Outcome.Errored(e) => addRequestFields *> addErrorFields(e)
           case Outcome.Canceled() =>
             addRequestFields *> span.put(("cancelled", TraceValue.BooleanValue(true)), Tags.error(true))
