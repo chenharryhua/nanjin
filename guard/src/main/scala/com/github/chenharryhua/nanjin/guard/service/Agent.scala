@@ -23,7 +23,7 @@ import java.time.{Instant, ZoneId, ZonedDateTime}
 sealed trait Agent[F[_]] extends EntryPoint[F] {
   // trace
   def entryPoint: Resource[F, EntryPoint[F]]
-  def traceServer(routes: HttpRoutes[F]): HttpRoutes[F]
+  def traceServer(routes: Span[F] => HttpRoutes[F]): HttpRoutes[F]
 
   // date-time
   def zoneId: ZoneId
@@ -65,7 +65,8 @@ final class GeneralAgent[F[_]] private[service] (
   override def continueOrElseRoot(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
     entryPoint.flatMap(_.continueOrElseRoot(name, kernel, options))
 
-  override def traceServer(routes: HttpRoutes[F]): HttpRoutes[F] = HttpTrace.server[F](routes, entryPoint)
+  override def traceServer(routes: Span[F] => HttpRoutes[F]): HttpRoutes[F] =
+    HttpTrace.server[F](routes, entryPoint)
 
   // data time
   override val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
