@@ -20,6 +20,8 @@ import retry.{RetryPolicies, RetryPolicy}
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
 sealed trait Agent[F[_]] extends EntryPoint[F] {
+  def entryPoint: Resource[F, EntryPoint[F]]
+
   def zoneId: ZoneId
   def zonedNow: F[ZonedDateTime]
   def toZonedDateTime(ts: Instant): ZonedDateTime
@@ -36,29 +38,29 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 }
 
 final class GeneralAgent[F[_]] private[service] (
+  val entryPoint: Resource[F, EntryPoint[F]],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  entryPoint: Resource[F, EntryPoint[F]],
   signallingMapRef: SignallingMapRef[F, Unique.Token, Option[Locker]],
   atomicCell: AtomicCell[F, Vault],
   dispatcher: Dispatcher[F])(implicit F: Async[F])
     extends Agent[F] {
 
-  def root(name: String, options: Span.Options): Resource[F, Span[F]] =
+  override def root(name: String, options: Span.Options): Resource[F, Span[F]] =
     entryPoint.flatMap(_.root(name, options))
 
-  def continue(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
+  override def continue(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
     entryPoint.flatMap(_.continue(name, kernel, options))
 
-  def continueOrElseRoot(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
+  override def continueOrElseRoot(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
     entryPoint.flatMap(_.continueOrElseRoot(name, kernel, options))
 
-  val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
-  val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
-  def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
+  override val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
+  override val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
+  override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
 
-  def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
+  override def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
       actionName = name,
       metricRegistry = metricRegistry,
@@ -67,7 +69,7 @@ final class GeneralAgent[F[_]] private[service] (
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
 
-  def broker(brokerName: String): NJBroker[F] =
+  override def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
       digested = Digested(serviceParams, brokerName),
       metricRegistry = metricRegistry,
@@ -78,7 +80,7 @@ final class GeneralAgent[F[_]] private[service] (
       dispatcher = dispatcher
     )
 
-  def alert(alertName: String): NJAlert[F] =
+  override def alert(alertName: String): NJAlert[F] =
     new NJAlert(
       digested = Digested(serviceParams, alertName),
       metricRegistry = metricRegistry,
@@ -88,31 +90,31 @@ final class GeneralAgent[F[_]] private[service] (
       dispatcher = dispatcher
     )
 
-  def counter(counterName: String): NJCounter[F] =
+  override def counter(counterName: String): NJCounter[F] =
     new NJCounter(digested = Digested(serviceParams, counterName), metricRegistry = metricRegistry)
 
-  def meter(meterName: String): NJMeter[F] =
+  override def meter(meterName: String): NJMeter[F] =
     new NJMeter[F](
       digested = Digested(serviceParams, meterName),
       metricRegistry = metricRegistry,
       isCounting = false)
 
-  def histogram(histoName: String): NJHistogram[F] =
+  override def histogram(histoName: String): NJHistogram[F] =
     new NJHistogram[F](
       digested = Digested(serviceParams, histoName),
       metricRegistry = metricRegistry,
       isCounting = false
     )
 
-  def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
+  override def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
 
-  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
+  override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
     awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
 
-  lazy val metrics: NJMetrics[F] =
+  override lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
-  def gauge(gaugeName: String): NJGauge[F] =
+  override def gauge(gaugeName: String): NJGauge[F] =
     new NJGauge[F](Digested(serviceParams, gaugeName), metricRegistry, dispatcher)
 
   // general agent section
