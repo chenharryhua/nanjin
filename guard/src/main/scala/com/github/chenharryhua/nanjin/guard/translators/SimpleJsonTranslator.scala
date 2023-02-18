@@ -18,7 +18,7 @@ private object SimpleJsonTranslator {
 
   private def name(dg: Digested): (String, Json)          = "name" -> Json.fromString(dg.name)
   private def digest(dg: Digested): (String, Json)        = "digest" -> Json.fromString(dg.digest)
-  private def actionId(evt: ActionEvent): (String, Json)  = "id" -> Json.fromInt(evt.actionId)
+  private def actionId(evt: ActionEvent): (String, Json)  = "id" -> Json.fromString(evt.actionId)
   private def traceInfo(evt: ActionEvent): (String, Json) = "traceInfo" -> evt.actionInfo.traceInfo.asJson
   private def importance(imp: Importance): (String, Json) = "importance" -> imp.asJson
 
