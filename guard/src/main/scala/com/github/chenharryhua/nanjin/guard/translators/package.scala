@@ -120,7 +120,7 @@ package object translators {
           |            99.9%% <= ${h.p999}%2.2f""".stripMargin
     }
 
-    (counters ::: gauges ::: timers ::: meters ::: histograms).mkString("\n")
+    (counters ::: gauges ::: meters ::: histograms ::: timers).mkString("\n")
   }
 
 }
