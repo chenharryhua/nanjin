@@ -58,10 +58,9 @@ final class InfluxdbObserver[F[_]](
               .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
               .addTag("duration_unit", sp.metricParams.durationTimeUnit.name())
               .addField("count", timer.count) // Long
-              .addField("mean_rate", timer.mean_rate) // Double
-              .addField("stddev", sp.metricParams.durationTimeUnit.convert(timer.stddev).toDouble) // Double
-              .addField("95%", sp.metricParams.durationTimeUnit.convert(timer.p95).toDouble) // Double
-              .addField("99.9%", sp.metricParams.durationTimeUnit.convert(timer.p999).toDouble)) // Double
+              .addField("minutely",timer.m1_rate) // Double
+              .addField("median", sp.metricParams.durationTimeUnit.convert(timer.median).toDouble) // Double
+              .addField("p95", sp.metricParams.durationTimeUnit.convert(timer.p95).toDouble)) // Double
 
           val meters: List[Point] = snapshot.meters.map(meter =>
             Point
@@ -71,7 +70,9 @@ final class InfluxdbObserver[F[_]](
               .addTag("category", SnapshotCategory.Meter.name)
               .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
               .addField("count", meter.count) // Long
-              .addField("mean_rate", meter.mean_rate)) // Double
+              .addField("minutely",meter.m1_rate) // Double
+          )
+
 
           val histograms: List[Point] = snapshot.histograms.map(histo =>
             Point
@@ -80,9 +81,8 @@ final class InfluxdbObserver[F[_]](
               .addTags(tagToAdd.asJava)
               .addTag("category", SnapshotCategory.Histogram.name)
               .addField("count", histo.count) // Long
-              .addField("stddev", histo.stddev) // Double
-              .addField("95%", histo.p95) // Double
-              .addField("99.9%", histo.p999)) // Double
+              .addField("median", histo.median) // Double
+              .addField("p95", histo.p95)) // Double
 
           F.blocking(writer.writePoints((counters ::: timers ::: meters ::: histograms).asJava))
         case _ => F.unit

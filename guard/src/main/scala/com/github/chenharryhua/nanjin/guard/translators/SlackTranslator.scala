@@ -23,8 +23,8 @@ private object SlackTranslator extends all {
     .value
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
-    val timers     = snapshot.timers.map(t => s"${t.name}.stddev = ${fmt.format(t.stddev)}")
-    val histograms = snapshot.histograms.map(h => f"${h.name}.stddev = ${h.stddev}%2.2f")
+    val timers     = snapshot.timers.map(t => s"${t.name}.p95 = ${fmt.format(t.p95)}")
+    val histograms = snapshot.histograms.map(h => f"${h.name}.p95 = ${h.p95}%2.2f")
     val counters   = snapshot.counters.map(c => s"${c.name} = ${c.count}")
     val meters     = snapshot.meters.map(m => f"${m.name}.mean_rate = ${m.mean_rate}%2.2f")
     val gauges     = snapshot.gauges.map(g => s"${g.name} = ${g.value}")
