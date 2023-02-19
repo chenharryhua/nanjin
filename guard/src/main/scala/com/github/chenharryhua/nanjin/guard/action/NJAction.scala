@@ -7,8 +7,8 @@ import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
-import io.circe.{Encoder, Json}
-import natchez.{Span, Trace}
+import io.circe.Json
+import natchez.Span
 import retry.RetryPolicy
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
@@ -39,8 +39,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInputM(f: IN => F[Json]): NJAction[F, IN, OUT]            = copy(transInput = f)
-  def logInput(implicit encode: Encoder[IN]): NJAction[F, IN, OUT] = logInputM((a: IN) => F.pure(encode(a)))
+  def logInputM(f: IN => F[Json]): NJAction[F, IN, OUT] = copy(transInput = f)
+  def logInput(f: IN => Json): NJAction[F, IN, OUT]     = logInputM((a: IN) => F.pure(f(a)))
 
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
@@ -52,7 +52,10 @@ final class NJAction[F[_], IN, OUT] private[action] (
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     for {
       ts <- actionParams.serviceParams.zonedNow
-      ai <- F.unique.map(token => ActionInfo(actionParams, token.hash, traceInfo, ts))
+      ai <- traceInfo match {
+        case Some(ti) => F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, ts))
+        case None     => F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, ts))
+      }
       out <- new ReTry[F, IN, OUT](
         channel = channel,
         retryPolicy = retryPolicy,
@@ -70,20 +73,15 @@ final class NJAction[F[_], IN, OUT] private[action] (
 
   def run(input: IN): F[OUT] = internal(input, None)
 
-  def runWithTrace(input: IN)(implicit trace: Trace[F]): F[OUT] =
-    for {
-      _ <- trace.put("nj_action" -> actionParams.digested.metricRepr)
-      ti <- TraceInfo(trace)
-      out <- internal(input, Some(ti))
-    } yield out
-
   def runWithSpan(input: IN)(span: Span[F]): F[OUT] =
-    for {
-      _ <- span.put("nj_action" -> actionParams.digested.metricRepr)
-      ti <- TraceInfo(span)
-      out <- internal(input, Some(ti))
-    } yield out
-
+    span.span(actionParams.digested.name).use { sub =>
+      for {
+        _ <- sub.put("service_id" -> actionParams.serviceParams.serviceId.show)
+        _ <- sub.put("digest" -> actionParams.digested.digest)
+        ti <- TraceInfo(sub)
+        out <- internal(input, ti)
+      } yield out
+    }
 }
 
 final class NJAction0[F[_], OUT] private[guard] (
@@ -116,8 +114,8 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logInputM(info: F[Json]): NJAction0[F, OUT] = copy(transInput = info)
   def logInput(info: => Json): NJAction0[F, OUT]  = logInputM(F.delay(info))
 
-  def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT]            = copy(transOutput = f)
-  def logOutput(implicit encode: Encoder[OUT]): NJAction0[F, OUT] = logOutputM((b: OUT) => F.pure(encode(b)))
+  def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT] = copy(transOutput = f)
+  def logOutput(f: OUT => Json): NJAction0[F, OUT]     = logOutputM((b: OUT) => F.pure(f(b)))
 
   private lazy val njAction = new NJAction[F, Unit, OUT](
     metricRegistry = metricRegistry,
@@ -130,7 +128,6 @@ final class NJAction0[F[_], OUT] private[guard] (
     isWorthRetry = isWorthRetry
   )
 
-  val run: F[OUT]                                    = njAction.run(())
-  def runWithSpan(span: Span[F]): F[OUT]             = njAction.runWithSpan(())(span)
-  def runWithTrace(implicit trace: Trace[F]): F[OUT] = njAction.runWithTrace(())
+  val run: F[OUT]                        = njAction.run(())
+  def runWithSpan(span: Span[F]): F[OUT] = njAction.runWithSpan(())(span)
 }

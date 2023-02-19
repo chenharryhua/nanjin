@@ -1,15 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.{Monad, Show}
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
+import cats.{Monad, Show}
 import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.*
-import natchez.{Span, Trace}
+import natchez.Span
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.zoneddatetime
 
-import java.net.URI
 import java.time.ZonedDateTime
 
 @JsonCodec
@@ -32,7 +31,7 @@ object MetricIndex {
 @JsonCodec
 final case class ActionInfo(
   actionParams: ActionParams,
-  actionId: Int,
+  actionId: String, // spanId if exist
   traceInfo: Option[TraceInfo],
   launchTime: ZonedDateTime)
 
@@ -79,20 +78,13 @@ object ServiceStopCause {
 }
 
 @JsonCodec
-final case class TraceInfo(kernel: Map[String, String], traceId: Option[String], traceUri: Option[URI])
+final case class TraceInfo(kernel: Map[String, String], traceId: String, spanId: String)
 object TraceInfo {
-  implicit final val showURI: Show[URI]             = _.toString
   implicit final val showTraceInfo: Show[TraceInfo] = cats.derived.semiauto.show
 
-  def apply[F[_]: Monad](trace: Trace[F]): F[TraceInfo] = for {
-    knl <- trace.kernel.map(_.toHeaders)
-    id <- trace.traceId
-    uri <- trace.traceUri
-  } yield TraceInfo(knl.map { case (ci, v) => ci.toString -> v }, id, uri)
-
-  def apply[F[_]: Monad](span: Span[F]): F[TraceInfo] = for {
+  def apply[F[_]: Monad](span: Span[F]): F[Option[TraceInfo]] = for {
     knl <- span.kernel.map(_.toHeaders)
-    id <- span.traceId
-    uri <- span.traceUri
-  } yield TraceInfo(knl.map { case (ci, v) => ci.toString -> v }, id, uri)
+    tid <- span.traceId
+    sid <- span.spanId
+  } yield (tid, sid).mapN(TraceInfo(knl.map { case (ci, v) => ci.toString -> v }, _, _))
 }

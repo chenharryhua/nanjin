@@ -8,7 +8,6 @@ import eu.timepit.refined.auto.*
 import io.jaegertracing.Configuration
 import natchez.jaeger.Jaeger
 import natchez.log.Log
-import natchez.Trace
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -60,18 +59,16 @@ class TraceTest extends AnyFunSuite {
         .service("jaeger")
         .eventStream { ag =>
           val span = ag.root("jaeger-root")
-          val a1   = ag.action("a1").retry(unit_fun)
-          val a2   = ag.action("a2").retry(add_fun _)
-          val a3   = ag.action("a3").retry(err_fun _)
+          val a1   = ag.action("a1", _.notice).retry(unit_fun)
+          val a2   = ag.action("a2", _.notice).retry(add_fun _)
+          val a3   = ag.action("a3", _.notice).retry(err_fun _)
 
-          span
-            .evalMap(Trace.ioTrace)
-            .use(implicit ns =>
-              (a1.runWithTrace) >>
-                ns.span("cs2")(a2.runWithTrace((1, 2))) >>
-                ns.span("cs3")(a3.runWithTrace(1).attempt))
+          span.use(ns =>
+            a1.runWithSpan(ns) >>
+              a2.runWithSpan((1, 2))(ns) >>
+              a3.runWithSpan(1)(ns).attempt)
         }
-        .evalTap(console.simple[IO])
+        .evalTap(console.json[IO])
         .compile
         .drain
 

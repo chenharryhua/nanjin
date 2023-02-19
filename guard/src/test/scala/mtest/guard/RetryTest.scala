@@ -42,7 +42,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - success notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag =
-        gd.action("t", _.notice).retry(fun5 _).logInput.withWorthRetry(_ => true)
+        gd.action("t", _.notice).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -136,7 +136,7 @@ class RetryTest extends AnyFunSuite {
         gd.action("t")
           .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3)))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
-          .logInput
+          .logInput(_.asJson)
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -163,7 +163,7 @@ class RetryTest extends AnyFunSuite {
         ag.action("t")
           .withRetryPolicy(policy)
           .retry(IO.raiseError[Int](new NullPointerException))
-          .logOutput
+          .logOutput(_.asJson)
           .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .take(6)
