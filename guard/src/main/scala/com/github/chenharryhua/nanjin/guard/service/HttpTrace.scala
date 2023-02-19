@@ -5,22 +5,40 @@ import cats.effect.implicits.monadCancelOps
 import cats.effect.kernel.{MonadCancel, Outcome, Resource}
 import cats.implicits.{catsSyntaxApply, toFlatMapOps}
 import natchez.*
-import natchez.http4s.AnsiFilterStream
-import natchez.http4s.syntax.EntryPointOps
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.http4s.{HttpRoutes, Response}
-
-import java.io.{ByteArrayOutputStream, PrintStream}
+import org.typelevel.ci.*
 
 private object HttpTrace {
+  // copy from https://github.com/tpolecat/natchez-http4s
+  private val ExcludedHeaders: Set[CIString] = {
+    import org.http4s.headers.*
+    val payload = Set(
+      `Content-Length`.name,
+      ci"Content-Type",
+      `Content-Range`.name,
+      ci"Trailer",
+      `Transfer-Encoding`.name
+    )
 
-  // combine EntryPoint#liftT and NatchezMiddleware together
-  // https://github.com/tpolecat/natchez-http4s
+    val security: Set[CIString] = Set(
+      Authorization.name,
+      Cookie.name,
+      `Set-Cookie`.name
+    )
+    payload ++ security
+  }
+
+  /** Notes: AWS X-Ray requires that annotation keys be strings of at most 200 characters that only contain
+    * alphanumeric characters, hyphens, and underscores
+    * https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html
+    */
 
   def server[F[_]](routes: Span[F] => HttpRoutes[F], entryPoint: Resource[F, EntryPoint[F]])(implicit
     F: MonadCancel[F, Throwable]): HttpRoutes[F] =
     Kleisli { req =>
       val kernelHeaders = req.headers.headers.collect {
-        case header if !EntryPointOps.ExcludedHeaders.contains(header.name) => header.name -> header.value
+        case header if !ExcludedHeaders.contains(header.name) => header.name -> header.value
       }.toMap
 
       val kernel = Kernel(kernelHeaders)
@@ -28,30 +46,16 @@ private object HttpTrace {
 
       val response: F[Option[Response[F]]] = spanR.use { span =>
         val addRequestFields: F[Unit] =
-          span.put(
-            Tags.http.method(req.method.name),
-            Tags.http.url(req.uri.renderString)
-          )
+          span.put("http_method" -> req.method.name, "http_url" -> req.uri.renderString)
 
         def addResponseFields(res: Response[F]): F[Unit] =
-          span.put(
-            Tags.http.status_code(res.status.code.toString)
-          )
+          span.put("http_status_code" -> res.status.code.toString)
 
         def addErrorFields(e: Throwable): F[Unit] =
           span.put(
             Tags.error(true),
-            "error.message" -> e.getMessage(),
-            "error.stacktrace" -> {
-              val baos = new ByteArrayOutputStream
-              val fs   = new AnsiFilterStream(baos)
-              val ps   = new PrintStream(fs, true, "UTF-8")
-              e.printStackTrace(ps)
-              ps.close()
-              fs.close()
-              baos.close()
-              new String(baos.toByteArray, "UTF-8")
-            }
+            "error_message" -> e.getMessage(),
+            "error_stacktrace" -> ExceptionUtils.getStackTrace(e)
           )
 
         routes(span)(req).value.guaranteeCase {

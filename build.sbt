@@ -286,7 +286,7 @@ lazy val guard = (project in file("guard"))
       "org.tpolecat" %% "skunk-circe"                  % skunkV,
       "org.tpolecat" %% "natchez-core"                 % natchezV,
       "org.tpolecat" %% "natchez-noop"                 % natchezV,
-      "org.tpolecat" %% "natchez-http4s"               % "0.5.0",
+      "org.http4s" %% "http4s-core"                    % http4sV,
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
       "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
