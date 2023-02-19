@@ -39,8 +39,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInputM(f: IN => F[Json]): NJAction[F, IN, OUT]            = copy(transInput = f)
-  def logInput(implicit encode: Encoder[IN]): NJAction[F, IN, OUT] = logInputM((a: IN) => F.pure(encode(a)))
+  def logInputM(f: IN => F[Json]): NJAction[F, IN, OUT] = copy(transInput = f)
+  def logInput(f: IN => Json): NJAction[F, IN, OUT]     = logInputM((a: IN) => F.pure(f(a)))
 
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
