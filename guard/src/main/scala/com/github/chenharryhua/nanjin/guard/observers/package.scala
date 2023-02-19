@@ -14,6 +14,34 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object observers {
+  final val METRICS_CATEGORY: String = "category"
+
+  final val METRICS_RATE_UNIT: String     = "rate_unit"
+  final val METRICS_DURATION_UNIT: String = "duration_unit"
+
+  final val METRICS_COUNT: String = "count"
+
+  final val METRICS_MEAN_RATE: String      = "mean_rate"
+  final val METRICS_1_MINUTE_RATE: String  = "1_minute_rate"
+  final val METRICS_5_MINUTE_RATE: String  = "5_minute_rate"
+  final val METRICS_15_MINUTE_RATE: String = "15_minute_rate"
+
+  final val METRICS_MIN: String     = "min"
+  final val METRICS_MAX: String     = "max"
+  final val METRICS_MEAN: String    = "mean"
+  final val METRICS_STD_DEV: String = "stddev"
+  final val METRICS_MEDIAN: String  = "median"
+
+  final val METRICS_P75: String  = "p75"
+  final val METRICS_P95: String  = "p95"
+  final val METRICS_P98: String  = "p98"
+  final val METRICS_P99: String  = "p99"
+  final val METRICS_P999: String = "p999"
+
+  final val METRICS_TASK: String        = "Task"
+  final val METRICS_SERVICE: String     = "Service"
+  final val METRICS_HOST: String        = "Host"
+  final val METRICS_LAUNCH_TIME: String = "LaunchTime"
 
   /** interval based sampling
     *

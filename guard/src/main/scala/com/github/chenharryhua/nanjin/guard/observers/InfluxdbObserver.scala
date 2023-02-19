@@ -4,12 +4,13 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, SnapshotCategory}
-import com.influxdb.client.{InfluxDBClient, WriteOptions}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
+import com.influxdb.client.{InfluxDBClient, WriteOptions}
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.localdate
 
+import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.*
 
 object InfluxdbObserver {
@@ -35,10 +36,10 @@ final class InfluxdbObserver[F[_]](
       event <- events.evalTap {
         case NJEvent.MetricReport(_, sp, ts, snapshot) =>
           val tagToAdd: Map[String, String] = Map(
-            "task" -> sp.taskParams.taskName.value,
-            "service" -> sp.serviceName.value,
-            "host" -> sp.taskParams.hostName.value,
-            "launchDate" -> sp.launchTime.toLocalDate.show
+            METRICS_TASK -> sp.taskParams.taskName.value,
+            METRICS_SERVICE -> sp.serviceName.value,
+            METRICS_HOST -> sp.taskParams.hostName.value,
+            METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
           ) ++ tags // allow override fixed tags
 
           val counters: List[Point] = snapshot.counters.map(counter =>
@@ -46,44 +47,68 @@ final class InfluxdbObserver[F[_]](
               .measurement(counter.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
-              .addTag("category", SnapshotCategory.Counter.name)
-              .addField("count", counter.count)) // Long
-
+              .addTag(METRICS_CATEGORY, SnapshotCategory.Counter.name)
+              .addField(METRICS_COUNT, counter.count) // Long
+          )
+          val durationTimeUnit: TimeUnit = sp.metricParams.durationTimeUnit
           val timers: List[Point] = snapshot.timers.map(timer =>
             Point
               .measurement(timer.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
-              .addTag("category", SnapshotCategory.Timer.name)
-              .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
-              .addTag("duration_unit", sp.metricParams.durationTimeUnit.name())
-              .addField("count", timer.count) // Long
-              .addField("minutely",timer.m1_rate) // Double
-              .addField("median", sp.metricParams.durationTimeUnit.convert(timer.median).toDouble) // Double
-              .addField("p95", sp.metricParams.durationTimeUnit.convert(timer.p95).toDouble)) // Double
-
+              .addTag(METRICS_CATEGORY, SnapshotCategory.Timer.name)
+              .addTag(METRICS_RATE_UNIT, sp.metricParams.rateTimeUnit.name())
+              .addTag(METRICS_DURATION_UNIT, durationTimeUnit.name())
+              .addField(METRICS_COUNT, timer.count) // Long
+              // meter
+              .addField(METRICS_MEAN_RATE, timer.mean_rate) // Double
+              .addField(METRICS_1_MINUTE_RATE, timer.m1_rate) // Double
+              .addField(METRICS_5_MINUTE_RATE, timer.m5_rate) // Double
+              .addField(METRICS_15_MINUTE_RATE, timer.m15_rate) // Double
+              // histogram
+              .addField(METRICS_MIN, durationTimeUnit.convert(timer.min).toDouble) // Double
+              .addField(METRICS_MAX, durationTimeUnit.convert(timer.max).toDouble) // Double
+              .addField(METRICS_MEAN, durationTimeUnit.convert(timer.mean).toDouble) // Double
+              .addField(METRICS_STD_DEV, durationTimeUnit.convert(timer.stddev).toDouble) // Double
+              .addField(METRICS_MEDIAN, durationTimeUnit.convert(timer.median).toDouble) // Double
+              .addField(METRICS_P75, durationTimeUnit.convert(timer.p75).toDouble) // Double
+              .addField(METRICS_P95, durationTimeUnit.convert(timer.p95).toDouble) // Double
+              .addField(METRICS_P98, durationTimeUnit.convert(timer.p98).toDouble) // Double
+              .addField(METRICS_P99, durationTimeUnit.convert(timer.p99).toDouble) // Double
+              .addField(METRICS_P999, durationTimeUnit.convert(timer.p999).toDouble) // Double
+          )
           val meters: List[Point] = snapshot.meters.map(meter =>
             Point
               .measurement(meter.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
-              .addTag("category", SnapshotCategory.Meter.name)
-              .addTag("rate_unit", sp.metricParams.rateTimeUnit.name())
-              .addField("count", meter.count) // Long
-              .addField("minutely",meter.m1_rate) // Double
+              .addTag(METRICS_CATEGORY, SnapshotCategory.Meter.name)
+              .addTag(METRICS_RATE_UNIT, sp.metricParams.rateTimeUnit.name())
+              .addField(METRICS_COUNT, meter.count) // Long
+              .addField(METRICS_MEAN_RATE, meter.mean_rate) // Double
+              .addField(METRICS_1_MINUTE_RATE, meter.m1_rate) // Double
+              .addField(METRICS_5_MINUTE_RATE, meter.m5_rate) // Double
+              .addField(METRICS_15_MINUTE_RATE, meter.m15_rate) // Double
           )
-
 
           val histograms: List[Point] = snapshot.histograms.map(histo =>
             Point
               .measurement(histo.name)
               .time(ts.toInstant, WritePrecision.MS)
               .addTags(tagToAdd.asJava)
-              .addTag("category", SnapshotCategory.Histogram.name)
-              .addField("count", histo.count) // Long
-              .addField("median", histo.median) // Double
-              .addField("p95", histo.p95)) // Double
-
+              .addTag(METRICS_CATEGORY, SnapshotCategory.Histogram.name)
+              .addField(METRICS_COUNT, histo.count) // Long
+              .addField(METRICS_MIN, histo.min) // Double
+              .addField(METRICS_MAX, histo.max) // Double
+              .addField(METRICS_MEAN, histo.mean) // Double
+              .addField(METRICS_STD_DEV, histo.stddev) // Double
+              .addField(METRICS_MEDIAN, histo.median) // Double
+              .addField(METRICS_P75, histo.p75) // Double
+              .addField(METRICS_P95, histo.p95) // Double
+              .addField(METRICS_P98, histo.p98) // Double
+              .addField(METRICS_P99, histo.p99) // Double
+              .addField(METRICS_P999, histo.p999) // Double
+          )
           F.blocking(writer.writePoints((counters ::: timers ::: meters ::: histograms).asJava))
         case _ => F.unit
       }

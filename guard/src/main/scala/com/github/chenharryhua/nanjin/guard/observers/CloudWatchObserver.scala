@@ -110,10 +110,10 @@ final private case class MetricKey(
   def metricDatum(ts: Instant, value: Double, standardUnit: StandardUnit): MetricDatum =
     new MetricDatum()
       .withDimensions(
-        new Dimension().withName("Task").withValue(task),
-        new Dimension().withName("Service").withValue(service),
-        new Dimension().withName("Host").withValue(hostName),
-        new Dimension().withName("LaunchDate").withValue(launchDate)
+        new Dimension().withName(METRICS_TASK).withValue(task),
+        new Dimension().withName(METRICS_SERVICE).withValue(service),
+        new Dimension().withName(METRICS_HOST).withValue(hostName),
+        new Dimension().withName(METRICS_LAUNCH_TIME).withValue(launchDate)
       )
       .withMetricName(metricName)
       .withUnit(standardUnit)
