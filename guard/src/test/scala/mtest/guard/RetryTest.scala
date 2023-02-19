@@ -163,7 +163,7 @@ class RetryTest extends AnyFunSuite {
         ag.action("t")
           .withRetryPolicy(policy)
           .retry(IO.raiseError[Int](new NullPointerException))
-          .logOutput
+          .logOutput(_.asJson)
           .run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .take(6)

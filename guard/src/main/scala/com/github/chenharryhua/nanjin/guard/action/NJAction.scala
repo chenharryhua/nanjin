@@ -7,7 +7,7 @@ import com.codahale.metrics.{Counter, MetricRegistry, Timer}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
-import io.circe.{Encoder, Json}
+import io.circe.Json
 import natchez.Span
 import retry.RetryPolicy
 
@@ -74,9 +74,10 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def run(input: IN): F[OUT] = internal(input, None)
 
   def runWithSpan(input: IN)(span: Span[F]): F[OUT] =
-    span.span(actionParams.digested.metricRepr).use { sub =>
+    span.span(actionParams.digested.name).use { sub =>
       for {
         _ <- sub.put("service_id" -> actionParams.serviceParams.serviceId.show)
+        _ <- sub.put("digest" -> actionParams.digested.digest)
         ti <- TraceInfo(sub)
         out <- internal(input, ti)
       } yield out
@@ -113,8 +114,8 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logInputM(info: F[Json]): NJAction0[F, OUT] = copy(transInput = info)
   def logInput(info: => Json): NJAction0[F, OUT]  = logInputM(F.delay(info))
 
-  def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT]            = copy(transOutput = f)
-  def logOutput(implicit encode: Encoder[OUT]): NJAction0[F, OUT] = logOutputM((b: OUT) => F.pure(encode(b)))
+  def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT] = copy(transOutput = f)
+  def logOutput(f: OUT => Json): NJAction0[F, OUT]     = logOutputM((b: OUT) => F.pure(f(b)))
 
   private lazy val njAction = new NJAction[F, Unit, OUT](
     metricRegistry = metricRegistry,
