@@ -8,8 +8,8 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import fs2.concurrent.SignallingRef
 import io.circe.Json
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Ignore
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
 
@@ -55,6 +55,15 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} alert")
   }
 
+  test("with trace") {
+    var i = 0
+    service.eventStream { ag =>
+      val ts = ag.action("trace").retry(IO(i += 1))
+      ag.root("root").use(s => ts.runWithSpan(s).foreverM.timeout(take)).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} trace")
+  }
+
   test("atomicBox vs cats.atomicCell") {
     service.eventStream { agent =>
       val box = agent.atomicBox(IO(0))
@@ -88,15 +97,6 @@ class PerformanceTest extends AnyFunSuite {
       IO.println("signalBox vs fs2.SignallingRef") >> (nj &> cats)
     }.compile.drain.unsafeRunSync()
   }
-
-//  test("trace") {
-//    var i: Int = 0
-//    service.eventStream { ag =>
-//      val ts = ag.trace("trace", _.silent.withoutTiming.withoutCounting).use(_.retry(IO(i += 1)).run)
-//      ts.foreverM.timeout(take).attempt
-//    }.compile.drain.unsafeRunSync()
-//    println(s"${speed(i)} trace")
-//  }
 
   test("critical") {
     var i = 0

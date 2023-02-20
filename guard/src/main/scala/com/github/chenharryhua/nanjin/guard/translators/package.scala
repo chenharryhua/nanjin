@@ -79,13 +79,13 @@ package object translators {
   final private[translators] def showSnapshot(sp: ServiceParams, ss: MetricSnapshot): String = {
     val counters = ss.counters.map(c => s"  ${c.name} = ${c.count}")
     val gauges   = ss.gauges.map(g => s"  ${g.name} = ${g.value}")
-    val rate     = s"calls/${sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)}"
+    val unit = sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)
     val timers = ss.timers.map { t =>
       f"""|  ${t.name} = ${t.count}%d
-          |         mean rate = ${t.mean_rate}%2.2f $rate
-          |     1-minute rate = ${t.m1_rate}%2.2f $rate
-          |     5-minute rate = ${t.m5_rate}%2.2f $rate
-          |    15-minute rate = ${t.m15_rate}%2.2f $rate
+          |         mean rate = ${t.mean_rate}%2.2f calls/$unit
+          |     1-minute rate = ${t.m1_rate}%2.2f calls/$unit
+          |     5-minute rate = ${t.m5_rate}%2.2f calls/$unit
+          |    15-minute rate = ${t.m15_rate}%2.2f calls/$unit
           |               min = ${fmt.format(t.min)}
           |               max = ${fmt.format(t.max)}
           |              mean = ${fmt.format(t.mean)}
@@ -100,10 +100,10 @@ package object translators {
 
     val meters = ss.meters.map { m =>
       f"""|  ${m.name} = ${m.count}%d
-          |         mean rate = ${m.mean_rate}%2.2f $rate
-          |     1-minute rate = ${m.m1_rate}%2.2f $rate
-          |     5-minute rate = ${m.m5_rate}%2.2f $rate
-          |    15-minute rate = ${m.m15_rate}%2.2f $rate""".stripMargin
+          |         mean rate = ${m.mean_rate}%2.2f events/$unit
+          |     1-minute rate = ${m.m1_rate}%2.2f events/$unit
+          |     5-minute rate = ${m.m5_rate}%2.2f events/$unit
+          |    15-minute rate = ${m.m15_rate}%2.2f events/$unit""".stripMargin
     }
 
     val histograms = ss.histograms.map { h =>

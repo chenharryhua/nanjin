@@ -45,20 +45,20 @@ final class InfluxdbObserver[F[_]](
           val counters: List[Point] = snapshot.counters.map(counter =>
             Point
               .measurement(counter.name)
-              .time(ts.toInstant, WritePrecision.MS)
+              .time(ts.toInstant, WritePrecision.NS)
               .addTags(tagToAdd.asJava)
               .addTag(METRICS_CATEGORY, SnapshotCategory.Counter.name)
               .addField(METRICS_COUNT, counter.count) // Long
           )
-          val durationTimeUnit: TimeUnit = sp.metricParams.durationTimeUnit
+          val durationUnit: TimeUnit = sp.metricParams.durationTimeUnit
           val timers: List[Point] = snapshot.timers.map(timer =>
             Point
               .measurement(timer.name)
-              .time(ts.toInstant, WritePrecision.MS)
+              .time(ts.toInstant, WritePrecision.NS)
               .addTags(tagToAdd.asJava)
               .addTag(METRICS_CATEGORY, SnapshotCategory.Timer.name)
               .addTag(METRICS_RATE_UNIT, sp.metricParams.rateTimeUnit.name())
-              .addTag(METRICS_DURATION_UNIT, durationTimeUnit.name())
+              .addTag(METRICS_DURATION_UNIT, durationUnit.name())
               .addField(METRICS_COUNT, timer.count) // Long
               // meter
               .addField(METRICS_MEAN_RATE, timer.mean_rate) // Double
@@ -66,21 +66,21 @@ final class InfluxdbObserver[F[_]](
               .addField(METRICS_5_MINUTE_RATE, timer.m5_rate) // Double
               .addField(METRICS_15_MINUTE_RATE, timer.m15_rate) // Double
               // histogram
-              .addField(METRICS_MIN, durationTimeUnit.convert(timer.min).toDouble) // Double
-              .addField(METRICS_MAX, durationTimeUnit.convert(timer.max).toDouble) // Double
-              .addField(METRICS_MEAN, durationTimeUnit.convert(timer.mean).toDouble) // Double
-              .addField(METRICS_STD_DEV, durationTimeUnit.convert(timer.stddev).toDouble) // Double
-              .addField(METRICS_MEDIAN, durationTimeUnit.convert(timer.median).toDouble) // Double
-              .addField(METRICS_P75, durationTimeUnit.convert(timer.p75).toDouble) // Double
-              .addField(METRICS_P95, durationTimeUnit.convert(timer.p95).toDouble) // Double
-              .addField(METRICS_P98, durationTimeUnit.convert(timer.p98).toDouble) // Double
-              .addField(METRICS_P99, durationTimeUnit.convert(timer.p99).toDouble) // Double
-              .addField(METRICS_P999, durationTimeUnit.convert(timer.p999).toDouble) // Double
+              .addField(METRICS_MIN, durationUnit.convert(timer.min).toDouble) // Double
+              .addField(METRICS_MAX, durationUnit.convert(timer.max).toDouble) // Double
+              .addField(METRICS_MEAN, durationUnit.convert(timer.mean).toDouble) // Double
+              .addField(METRICS_STD_DEV, durationUnit.convert(timer.stddev).toDouble) // Double
+              .addField(METRICS_MEDIAN, durationUnit.convert(timer.median).toDouble) // Double
+              .addField(METRICS_P75, durationUnit.convert(timer.p75).toDouble) // Double
+              .addField(METRICS_P95, durationUnit.convert(timer.p95).toDouble) // Double
+              .addField(METRICS_P98, durationUnit.convert(timer.p98).toDouble) // Double
+              .addField(METRICS_P99, durationUnit.convert(timer.p99).toDouble) // Double
+              .addField(METRICS_P999, durationUnit.convert(timer.p999).toDouble) // Double
           )
           val meters: List[Point] = snapshot.meters.map(meter =>
             Point
               .measurement(meter.name)
-              .time(ts.toInstant, WritePrecision.MS)
+              .time(ts.toInstant, WritePrecision.NS)
               .addTags(tagToAdd.asJava)
               .addTag(METRICS_CATEGORY, SnapshotCategory.Meter.name)
               .addTag(METRICS_RATE_UNIT, sp.metricParams.rateTimeUnit.name())
@@ -94,7 +94,7 @@ final class InfluxdbObserver[F[_]](
           val histograms: List[Point] = snapshot.histograms.map(histo =>
             Point
               .measurement(histo.name)
-              .time(ts.toInstant, WritePrecision.MS)
+              .time(ts.toInstant, WritePrecision.NS)
               .addTags(tagToAdd.asJava)
               .addTag(METRICS_CATEGORY, SnapshotCategory.Histogram.name)
               .addField(METRICS_COUNT, histo.count) // Long
