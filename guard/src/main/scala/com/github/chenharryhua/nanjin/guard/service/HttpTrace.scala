@@ -54,7 +54,7 @@ private object HttpTrace {
         def addErrorFields(e: Throwable): F[Unit] =
           span.put(
             Tags.error(true),
-            "error_message" -> e.getMessage(),
+            "error_message" -> ExceptionUtils.getMessage(e),
             "error_stacktrace" -> ExceptionUtils.getStackTrace(e)
           )
 

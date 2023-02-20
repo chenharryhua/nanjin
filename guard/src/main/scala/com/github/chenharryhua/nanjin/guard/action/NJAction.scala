@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.Json
-import natchez.Span
+import natchez.{Span, TraceValue}
 import retry.RetryPolicy
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
@@ -73,11 +73,16 @@ final class NJAction[F[_], IN, OUT] private[action] (
 
   def run(input: IN): F[OUT] = internal(input, None)
 
+  private val traceTags: List[(String, TraceValue)] = List(
+    "service_id" -> TraceValue.StringValue(actionParams.serviceParams.serviceId.show),
+    "digest" -> TraceValue.StringValue(actionParams.digested.digest),
+    "importance" -> TraceValue.StringValue(actionParams.importance.entryName)
+  )
+
   def runWithSpan(input: IN)(span: Span[F]): F[OUT] =
     span.span(actionParams.digested.name).use { sub =>
       for {
-        _ <- sub.put("service_id" -> actionParams.serviceParams.serviceId.show)
-        _ <- sub.put("digest" -> actionParams.digested.digest)
+        _ <- sub.put(traceTags*)
         ti <- TraceInfo(sub)
         out <- internal(input, ti)
       } yield out
