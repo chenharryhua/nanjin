@@ -60,7 +60,10 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot)
       extends MetricEvent {
-    override val title: String = titles.metricReport
+    override val title: String = index match {
+      case MetricIndex.Adhoc         => "Adhoc Metric Report"
+      case MetricIndex.Periodic(idx) => s"Metric Report(index=$idx)"
+    }
   }
 
   final case class MetricReset(
@@ -69,7 +72,10 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot)
       extends MetricEvent {
-    override val title: String = titles.metricReset
+    override val title: String = index match {
+      case MetricIndex.Adhoc         => "Adhoc Metric Reset"
+      case MetricIndex.Periodic(idx) => s"Metric Reset(index=$idx)"
+    }
   }
 
   sealed trait ActionEvent extends ServiceEvent {
@@ -155,6 +161,4 @@ private object titles {
   @inline final val actionSucc: String   = "Action Succed"
   @inline final val instantAlert: String = "Alert"
   @inline final val passThrough: String  = "Pass Through"
-  @inline final val metricReport: String = "Metric Report"
-  @inline final val metricReset: String  = "Metric Reset"
 }

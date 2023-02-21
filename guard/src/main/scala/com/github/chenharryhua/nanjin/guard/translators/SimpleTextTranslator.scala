@@ -55,13 +55,13 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""${coloring(metricTitle(evt))(evt)}
+    s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |${showSnapshot(evt.serviceParams, evt.snapshot)}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""${coloring(metricTitle(evt))(evt)}
+    s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |${showSnapshot(evt.serviceParams, evt.snapshot)}
        |""".stripMargin

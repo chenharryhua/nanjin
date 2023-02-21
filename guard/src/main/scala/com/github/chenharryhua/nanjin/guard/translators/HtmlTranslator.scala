@@ -89,14 +89,14 @@ private object HtmlTranslator extends all {
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(metricTitle(evt)),
+      h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
       snapshotText(evt.serviceParams, evt.snapshot)
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(metricTitle(evt)),
+      h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
       briefText(evt.serviceParams.brief),
       snapshotText(evt.serviceParams, evt.snapshot)
