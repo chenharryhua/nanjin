@@ -79,7 +79,7 @@ package object translators {
   final private[translators] def showSnapshot(sp: ServiceParams, ss: MetricSnapshot): String = {
     val counters = ss.counters.map(c => s"  ${c.name} = ${c.count}")
     val gauges   = ss.gauges.map(g => s"  ${g.name} = ${g.value}")
-    val unit = sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)
+    val unit     = sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)
     val timers = ss.timers.map { t =>
       f"""|  ${t.name} = ${t.count}%d
           |         mean rate = ${t.mean_rate}%2.2f calls/$unit
@@ -120,7 +120,6 @@ package object translators {
           |            99.9%% <= ${h.p999}%2.2f""".stripMargin
     }
 
-    (counters ::: gauges ::: meters ::: histograms ::: timers).mkString("\n")
+    (gauges ::: counters ::: meters ::: histograms ::: timers).mkString("\n")
   }
-
 }
