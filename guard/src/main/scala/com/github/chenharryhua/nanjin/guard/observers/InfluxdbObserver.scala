@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Endo
-import cats.effect.kernel.Sync
+import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, SnapshotCategory}
 import com.influxdb.client.domain.WritePrecision
@@ -11,17 +11,18 @@ import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.localdate
 
 import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 
 object InfluxdbObserver {
-  def apply[F[_]: Sync](client: F[InfluxDBClient]): InfluxdbObserver[F] =
+  def apply[F[_]: Async](client: F[InfluxDBClient]): InfluxdbObserver[F] =
     new InfluxdbObserver[F](client, identity, Map.empty[String, String])
 }
 
 final class InfluxdbObserver[F[_]](
   client: F[InfluxDBClient],
   writeOptions: Endo[WriteOptions.Builder],
-  tags: Map[String, String])(implicit F: Sync[F])
+  tags: Map[String, String])(implicit F: Async[F])
     extends localdate {
   def withWriteOptions(writeOptions: Endo[WriteOptions.Builder]): InfluxdbObserver[F] =
     new InfluxdbObserver[F](client, writeOptions, tags)
@@ -29,7 +30,7 @@ final class InfluxdbObserver[F[_]](
   def addTag(key: String, value: String): InfluxdbObserver[F] =
     new InfluxdbObserver[F](client, writeOptions, tags + (key -> value))
 
-  val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
+  val aggregatedObserver: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {
       writer <- Stream.bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(c =>
         F.blocking(c.close()))
@@ -39,8 +40,7 @@ final class InfluxdbObserver[F[_]](
             METRICS_TASK -> sp.taskParams.taskName.value,
             METRICS_SERVICE -> sp.serviceName.value,
             METRICS_SERVICE_ID -> sp.serviceId.show,
-            METRICS_HOST -> sp.taskParams.hostName.value,
-            METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
+            METRICS_HOST -> sp.taskParams.hostName.value
           ) ++ tags // allow override fixed tags
 
           val counters: List[Point] = snapshot.counters.map(counter =>
@@ -114,4 +114,31 @@ final class InfluxdbObserver[F[_]](
         case _ => F.unit
       }
     } yield event
+
+  def observe(chunkSize: Int, period: FiniteDuration): Pipe[F, NJEvent, NJEvent] =
+    (events: Stream[F, NJEvent]) =>
+      for {
+        writer <- Stream.bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(
+          c => F.blocking(c.close()))
+        event <- events
+          .groupWithin[F](chunkSize, period)
+          .evalTap { chunk =>
+            val points = chunk.mapFilter {
+              case ar: NJEvent.ActionResultEvent =>
+                val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
+                Some(
+                  Point
+                    .measurement(ar.actionParams.digested.metricRepr)
+                    .time(ar.timestamp.toInstant, WritePrecision.NS)
+                    .addTag("action_id", ar.actionId)
+                    .addTags(tags.asJava)
+                    .addField(unit.name(), unit.convert(ar.took).toDouble) // Double
+                    .addField("isSucc", ar.isSucc) // Boolean
+                )
+              case _ => None
+            }.toList.asJava
+            F.blocking(writer.writePoints(points))
+          }
+          .unchunks
+      } yield event
 }

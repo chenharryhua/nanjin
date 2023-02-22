@@ -170,11 +170,11 @@ private object SlackTranslator extends all {
     } else None
   }
 
-  private def traceId(evt: ActionEvent): String   = s"*Trace ID:* ${evt.traceId}"
-  private def actionId(evt: ActionEvent): String  = s"*Action ID:* ${evt.actionId}"
-  private def serviceId(evt: ActionEvent): String = s"*Service ID:* ${evt.serviceId.show}"
-  private def took(evt: ActionEvent): String      = s"*Took:* ${fmt.format(evt.took)}"
-  private def policy(evt: ActionEvent): String    = s"*Policy:* ${evt.actionParams.retryPolicy}"
+  private def traceId(evt: ActionEvent): String    = s"*Trace ID:* ${evt.traceId}"
+  private def actionId(evt: ActionEvent): String   = s"*Action ID:* ${evt.actionId}"
+  private def serviceId(evt: ActionEvent): String  = s"*Service ID:* ${evt.serviceId.show}"
+  private def took(evt: ActionResultEvent): String = s"*Took:* ${fmt.format(evt.took)}"
+  private def policy(evt: ActionEvent): String     = s"*Policy:* ${evt.actionParams.retryPolicy}"
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(

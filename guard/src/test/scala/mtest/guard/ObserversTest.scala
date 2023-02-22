@@ -219,7 +219,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val err =
-          ag.action("error", _.critical.withTiming.withCounting)
+          ag.action("error.action", _.critical.withTiming.withCounting)
             .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
             .retry(err_fun(1))
             .run
@@ -232,7 +232,7 @@ class ObserversTest extends AnyFunSuite {
       }
       .take(12)
       .evalTap(console.json[IO].updateTranslator(_.skipActionStart.skipActionSucc.skipServiceStart.skipServiceStop.skipServicePanic))
-      .through(InfluxdbObserver[IO](client).withWriteOptions(_.batchSize(10)).addTag("tag","tag").observe)
+      .through(InfluxdbObserver[IO](client).withWriteOptions(_.batchSize(10)).addTag("tag","tag").observe(10,1.second))
       .compile
       .drain
       .unsafeRunSync()

@@ -88,7 +88,6 @@ object NJEvent extends zoneddatetime {
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: String           = actionInfo.actionId
 
-    final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
   @Lenses
@@ -105,14 +104,20 @@ object NJEvent extends zoneddatetime {
     error: NJError)
       extends ActionEvent {
     override val title: String = titles.actionRetry
+
+    val tookSoFar: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
-  sealed trait ActionResultEvent extends ActionEvent {}
+  sealed trait ActionResultEvent extends ActionEvent {
+    final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
+    def isSucc: Boolean
+  }
 
   @Lenses
   final case class ActionFail(actionInfo: ActionInfo, timestamp: ZonedDateTime, error: NJError, input: Json)
       extends ActionResultEvent {
-    override val title: String = titles.actionFail
+    override val title: String   = titles.actionFail
+    override val isSucc: Boolean = false
   }
 
   @Lenses
@@ -121,7 +126,8 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     output: Json // output of the action
   ) extends ActionResultEvent {
-    override val title: String = titles.actionSucc
+    override val title: String   = titles.actionSucc
+    override val isSucc: Boolean = true
   }
 
   sealed trait InstantEvent extends ServiceEvent {

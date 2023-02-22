@@ -87,7 +87,7 @@ private object SimpleTextTranslator {
   private def actionRetrying(evt: ActionRetry): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
+       |  Took:${fmt.format(evt.tookSoFar)}
        |  Policy:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
