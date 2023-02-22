@@ -8,8 +8,9 @@ sealed abstract class Importance(val value: Int) extends EnumEntry with Product
 object Importance extends CatsEnum[Importance] with Enum[Importance] with CirceEnum[Importance] {
   override val values: IndexedSeq[Importance] = findValues
 
-  case object Critical extends Importance(40)
-  case object Notice extends Importance(30)
+  case object Critical extends Importance(50)
+  case object Notice extends Importance(40)
+  case object Aware extends Importance(30)
   case object Silent extends Importance(20)
   case object Trivial extends Importance(10)
 

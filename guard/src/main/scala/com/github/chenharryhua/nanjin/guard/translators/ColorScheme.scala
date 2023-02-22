@@ -28,6 +28,7 @@ object ColorScheme {
         importance match {
           case Importance.Critical => ErrorColor
           case Importance.Notice   => WarnColor
+          case Importance.Aware    => WarnColor
           case Importance.Silent   => InfoColor
           case Importance.Trivial  => InfoColor
         }

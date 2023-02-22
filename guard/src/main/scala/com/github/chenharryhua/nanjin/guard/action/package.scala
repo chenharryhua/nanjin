@@ -7,6 +7,7 @@ package object action {
     importance match {
       case Importance.Critical => s"alert.${name.metricRepr}.error"
       case Importance.Notice   => s"alert.${name.metricRepr}.warn"
+      case Importance.Aware    => s"alert.${name.metricRepr}.warn"
       case Importance.Silent   => s"alert.${name.metricRepr}.info"
       case Importance.Trivial  => s"alert.${name.metricRepr}.debug"
     }

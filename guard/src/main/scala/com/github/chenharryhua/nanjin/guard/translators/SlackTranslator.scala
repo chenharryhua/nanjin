@@ -147,6 +147,7 @@ private object SlackTranslator extends all {
     val title = evt.importance match {
       case Importance.Critical => ":warning: Error"
       case Importance.Notice   => ":warning: Warning"
+      case Importance.Aware    => ":warning: Warning"
       case Importance.Silent   => ":information_source: Info"
       case Importance.Trivial  => ":information_source: Debug"
     }

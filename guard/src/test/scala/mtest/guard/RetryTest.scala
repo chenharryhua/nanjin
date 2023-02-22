@@ -368,4 +368,18 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionSucc])
     assert(d.isInstanceOf[ServiceStop])
   }
+
+  test("18.retry - aware") {
+    val Vector(s, a, b, c, d) = serviceGuard.eventStream { gd =>
+      val ag =
+        gd.action("t", _.aware).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
+      List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
+    }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
+
+    assert(s.isInstanceOf[ServiceStart])
+    assert(a.isInstanceOf[ActionSucc])
+    assert(b.isInstanceOf[ActionSucc])
+    assert(c.isInstanceOf[ActionSucc])
+    assert(d.isInstanceOf[ServiceStop])
+  }
 }
