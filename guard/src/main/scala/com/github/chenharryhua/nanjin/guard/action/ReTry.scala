@@ -79,7 +79,7 @@ final private class ReTry[F[_], IN, OUT](
         case Right(out) =>
           for {
             ts <- actionInfo.actionParams.serviceParams.zonedNow
-            _ <- F.whenA(actionInfo.actionParams.isNotice)(transOutput(input, out).attempt.flatMap(json =>
+            _ <- F.whenA(actionInfo.actionParams.isAware)(transOutput(input, out).attempt.flatMap(json =>
               channel.send(ActionSucc(actionInfo, ts, buildJson(json)))))
           } yield {
             timingAndCounting(isSucc = true, ts)

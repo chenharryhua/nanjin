@@ -179,8 +179,10 @@ class ObserversTest extends AnyFunSuite {
 
     val run = session.use(_.execute(cmd)) >>
       TaskGuard[IO]("observers")
-        .service("postgres").updateConfig(_.withMetricReport(cron_1second))
-        .eventStream(_.action("sql", _.notice.withTiming.withCounting).retry(IO(0)).run >> IO.sleep(3.seconds))
+        .service("postgres")
+        .updateConfig(_.withMetricReport(cron_1second))
+        .eventStream(
+          _.action("sql", _.notice.withTiming.withCounting).retry(IO(0)).run >> IO.sleep(3.seconds))
         .evalTap(console.verbose[IO])
         .through(PostgresObserver(session).observe("log"))
         .compile
@@ -219,7 +221,7 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val err =
-          ag.action("error", _.critical.withTiming.withCounting)
+          ag.action("error.action", _.critical.withTiming.withCounting)
             .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
             .retry(err_fun(1))
             .run
@@ -231,8 +233,14 @@ class ObserversTest extends AnyFunSuite {
           ag.metrics.reset >> err
       }
       .take(12)
-      .evalTap(console.json[IO].updateTranslator(_.skipActionStart.skipActionSucc.skipServiceStart.skipServiceStop.skipServicePanic))
-      .through(InfluxdbObserver[IO](client).withWriteOptions(_.batchSize(10)).addTag("tag","tag").observe)
+      .evalTap(console
+        .json[IO]
+        .updateTranslator(_.skipActionStart.skipActionSucc.skipServiceStart.skipServiceStop.skipServicePanic))
+      .through(InfluxdbObserver[IO](client)
+        .withWriteOptions(_.batchSize(10))
+        .addTag("tag", "tag")
+        .addTags(Map("a" -> "b"))
+        .observe(10, 1.second))
       .compile
       .drain
       .unsafeRunSync()

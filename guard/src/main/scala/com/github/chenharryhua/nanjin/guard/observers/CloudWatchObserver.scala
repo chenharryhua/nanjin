@@ -101,7 +101,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
 }
 
 final private case class MetricKey(
-  uuid: UUID,
+  serviceId: UUID,
   hostName: String,
   task: String,
   service: String,
@@ -112,6 +112,7 @@ final private case class MetricKey(
       .withDimensions(
         new Dimension().withName(METRICS_TASK).withValue(task),
         new Dimension().withName(METRICS_SERVICE).withValue(service),
+        new Dimension().withName(METRICS_SERVICE_ID).withName(serviceId.show),
         new Dimension().withName(METRICS_HOST).withValue(hostName),
         new Dimension().withName(METRICS_LAUNCH_TIME).withValue(launchDate)
       )

@@ -18,7 +18,8 @@ final case class ActionParams(
   val digested: Digested = Digested(serviceParams, actionName)
 
   val isCritical: Boolean   = importance === Importance.Critical // Critical
-  val isNotice: Boolean     = importance > Importance.Silent // Hight + Critical
+  val isNotice: Boolean     = importance > Importance.Aware // Hight + Critical
+  val isAware: Boolean      = importance > Importance.Silent
   val isNonTrivial: Boolean = importance > Importance.Trivial // Medium + High + Critical
 }
 
@@ -63,6 +64,7 @@ final case class ActionConfig private (value: Fix[ActionConfigF], serviceParams:
 
   def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Trivial, value)), serviceParams)
   def silent: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Silent, value)), serviceParams)
+  def aware: ActionConfig    = ActionConfig(Fix(WithImportance(Importance.Aware, value)), serviceParams)
   def notice: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Notice, value)), serviceParams)
   def critical: ActionConfig = ActionConfig(Fix(WithImportance(Importance.Critical, value)), serviceParams)
 

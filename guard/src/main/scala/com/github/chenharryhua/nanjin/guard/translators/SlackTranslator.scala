@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
@@ -108,7 +108,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${metricTitle(evt)}*"),
+            MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Report:* $nextReport
@@ -131,7 +131,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${metricTitle(evt)}*"),
+            MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Reset:* $nextReset
@@ -143,38 +143,33 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def instantAlert(evt: InstantAlert): Option[SlackApp] = {
-    val title = evt.importance match {
-      case Importance.Critical => ":warning: Error"
-      case Importance.Notice   => ":warning: Warning"
-      case Importance.Silent   => ":information_source: Info"
-      case Importance.Trivial  => ":information_source: Debug"
+  private def instantAlert(evt: InstantAlert): SlackApp = {
+    val title = evt.alertLevel match {
+      case AlertLevel.Error => ":warning: Error"
+      case AlertLevel.Warn  => ":warning: Warning"
+      case AlertLevel.Info  => ":information_source: Info"
     }
-
-    if (evt.importance > Importance.Trivial) {
-      Some(
-        SlackApp(
-          username = evt.serviceParams.taskParams.taskName.value,
-          attachments = List(
-            Attachment(
-              color = coloring(evt),
-              blocks = List(
-                MarkdownSection(s"*$title:* ${evt.digested.metricRepr}"),
-                hostServiceSection(evt.serviceParams),
-                MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
-                MarkdownSection(abbreviate(evt.message))
-              )
-            )
+    SlackApp(
+      username = evt.serviceParams.taskParams.taskName.value,
+      attachments = List(
+        Attachment(
+          color = coloring(evt),
+          blocks = List(
+            MarkdownSection(s"*$title:* ${evt.digested.metricRepr}"),
+            hostServiceSection(evt.serviceParams),
+            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
+            MarkdownSection(abbreviate(evt.message))
           )
-        ))
-    } else None
+        )
+      )
+    )
   }
 
-  private def traceId(evt: ActionEvent): String   = s"*Trace ID:* ${evt.traceId}"
-  private def actionId(evt: ActionEvent): String  = s"*Action ID:* ${evt.actionId}"
-  private def serviceId(evt: ActionEvent): String = s"*Service ID:* ${evt.serviceId.show}"
-  private def took(evt: ActionEvent): String      = s"*Took:* ${fmt.format(evt.took)}"
-  private def policy(evt: ActionEvent): String    = s"*Policy:* ${evt.actionParams.retryPolicy}"
+  private def traceId(evt: ActionEvent): String    = s"*Trace ID:* ${evt.traceId}"
+  private def actionId(evt: ActionEvent): String   = s"*Action ID:* ${evt.actionId}"
+  private def serviceId(evt: ActionEvent): String  = s"*Service ID:* ${evt.serviceId.show}"
+  private def took(evt: ActionResultEvent): String = s"*Took:* ${fmt.format(evt.took)}"
+  private def policy(evt: ActionEvent): String     = s"*Policy:* ${evt.actionParams.retryPolicy}"
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(

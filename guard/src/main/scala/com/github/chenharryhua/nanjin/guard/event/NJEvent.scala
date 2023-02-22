@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, Digested, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
@@ -60,7 +60,10 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot)
       extends MetricEvent {
-    override val title: String = titles.metricReport
+    override val title: String = index match {
+      case MetricIndex.Adhoc         => "Adhoc Metric Report"
+      case MetricIndex.Periodic(idx) => s"Metric Report(index=$idx)"
+    }
   }
 
   final case class MetricReset(
@@ -69,7 +72,10 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     snapshot: MetricSnapshot)
       extends MetricEvent {
-    override val title: String = titles.metricReset
+    override val title: String = index match {
+      case MetricIndex.Adhoc         => "Adhoc Metric Reset"
+      case MetricIndex.Periodic(idx) => s"Metric Reset(index=$idx)"
+    }
   }
 
   sealed trait ActionEvent extends ServiceEvent {
@@ -82,7 +88,6 @@ object NJEvent extends zoneddatetime {
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: String           = actionInfo.actionId
 
-    final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
   @Lenses
@@ -99,14 +104,20 @@ object NJEvent extends zoneddatetime {
     error: NJError)
       extends ActionEvent {
     override val title: String = titles.actionRetry
+
+    val tookSoFar: Duration = Duration.between(actionInfo.launchTime, timestamp)
   }
 
-  sealed trait ActionResultEvent extends ActionEvent {}
+  sealed trait ActionResultEvent extends ActionEvent {
+    final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
+    def isSucc: Boolean
+  }
 
   @Lenses
   final case class ActionFail(actionInfo: ActionInfo, timestamp: ZonedDateTime, error: NJError, input: Json)
       extends ActionResultEvent {
-    override val title: String = titles.actionFail
+    override val title: String   = titles.actionFail
+    override val isSucc: Boolean = false
   }
 
   @Lenses
@@ -115,7 +126,8 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     output: Json // output of the action
   ) extends ActionResultEvent {
-    override val title: String = titles.actionSucc
+    override val title: String   = titles.actionSucc
+    override val isSucc: Boolean = true
   }
 
   sealed trait InstantEvent extends ServiceEvent {
@@ -126,7 +138,7 @@ object NJEvent extends zoneddatetime {
     digested: Digested,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
-    importance: Importance,
+    alertLevel: AlertLevel,
     message: String)
       extends InstantEvent {
     override val title: String = titles.instantAlert
@@ -142,7 +154,6 @@ object NJEvent extends zoneddatetime {
       extends InstantEvent {
     override val title: String = titles.passThrough
   }
-
 }
 
 private object titles {
@@ -155,6 +166,4 @@ private object titles {
   @inline final val actionSucc: String   = "Action Succed"
   @inline final val instantAlert: String = "Alert"
   @inline final val passThrough: String  = "Pass Through"
-  @inline final val metricReport: String = "Metric Report"
-  @inline final val metricReset: String  = "Metric Reset"
 }

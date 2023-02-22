@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.guard
 
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, Digested}
 package object action {
 
-  private[action] def alertMRName(name: Digested, importance: Importance): String =
-    importance match {
-      case Importance.Critical => s"alert.${name.metricRepr}.error"
-      case Importance.Notice   => s"alert.${name.metricRepr}.warn"
-      case Importance.Silent   => s"alert.${name.metricRepr}.info"
-      case Importance.Trivial  => s"alert.${name.metricRepr}.debug"
+  private[action] def alertMRName(name: Digested, level: AlertLevel): String =
+    level match {
+      case AlertLevel.Error => s"alert.${name.metricRepr}.error"
+      case AlertLevel.Warn  => s"alert.${name.metricRepr}.warn"
+      case AlertLevel.Info  => s"alert.${name.metricRepr}.info"
     }
 
   private[action] def passThroughMRName(name: Digested, asError: Boolean): String =
