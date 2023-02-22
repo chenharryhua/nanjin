@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Digested, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, Digested, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
@@ -138,7 +138,7 @@ object NJEvent extends zoneddatetime {
     digested: Digested,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
-    importance: Importance,
+    alertLevel: AlertLevel,
     message: String)
       extends InstantEvent {
     override val title: String = titles.instantAlert
@@ -154,7 +154,6 @@ object NJEvent extends zoneddatetime {
       extends InstantEvent {
     override val title: String = titles.passThrough
   }
-
 }
 
 private object titles {

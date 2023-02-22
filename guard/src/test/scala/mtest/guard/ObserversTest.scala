@@ -179,8 +179,10 @@ class ObserversTest extends AnyFunSuite {
 
     val run = session.use(_.execute(cmd)) >>
       TaskGuard[IO]("observers")
-        .service("postgres").updateConfig(_.withMetricReport(cron_1second))
-        .eventStream(_.action("sql", _.notice.withTiming.withCounting).retry(IO(0)).run >> IO.sleep(3.seconds))
+        .service("postgres")
+        .updateConfig(_.withMetricReport(cron_1second))
+        .eventStream(
+          _.action("sql", _.notice.withTiming.withCounting).retry(IO(0)).run >> IO.sleep(3.seconds))
         .evalTap(console.verbose[IO])
         .through(PostgresObserver(session).observe("log"))
         .compile
@@ -231,8 +233,14 @@ class ObserversTest extends AnyFunSuite {
           ag.metrics.reset >> err
       }
       .take(12)
-      .evalTap(console.json[IO].updateTranslator(_.skipActionStart.skipActionSucc.skipServiceStart.skipServiceStop.skipServicePanic))
-      .through(InfluxdbObserver[IO](client).withWriteOptions(_.batchSize(10)).addTag("tag","tag").observe(10,1.second))
+      .evalTap(console
+        .json[IO]
+        .updateTranslator(_.skipActionStart.skipActionSucc.skipServiceStart.skipServiceStop.skipServicePanic))
+      .through(InfluxdbObserver[IO](client)
+        .withWriteOptions(_.batchSize(10))
+        .addTag("tag", "tag")
+        .addTags(Map("a" -> "b"))
+        .observe(10, 1.second))
       .compile
       .drain
       .unsafeRunSync()

@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.{Monad, Show}
 import cats.effect.kernel.Clock
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
+import cats.{Monad, Show}
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, Digested, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.InstantAlert
 import fs2.concurrent.Channel
@@ -18,12 +18,11 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   isCounting: Boolean,
   dispatcher: Dispatcher[F]
 ) {
-  private lazy val errorCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Critical))
-  private lazy val warnCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Notice))
-  private lazy val infoCounter: Counter  = metricRegistry.counter(alertMRName(digested, Importance.Silent))
-  private lazy val debugCounter: Counter = metricRegistry.counter(alertMRName(digested, Importance.Trivial))
+  private lazy val errorCounter: Counter = metricRegistry.counter(alertMRName(digested, AlertLevel.Error))
+  private lazy val warnCounter: Counter  = metricRegistry.counter(alertMRName(digested, AlertLevel.Warn))
+  private lazy val infoCounter: Counter  = metricRegistry.counter(alertMRName(digested, AlertLevel.Info))
 
-  private def alert(msg: String, importance: Importance): F[Unit] =
+  private def alert(msg: String, alertLevel: AlertLevel): F[Unit] =
     for {
       ts <- serviceParams.zonedNow
       _ <- channel.send(
@@ -31,7 +30,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
           digested = digested,
           timestamp = ts,
           serviceParams = serviceParams,
-          importance = importance,
+          alertLevel = alertLevel,
           message = msg))
     } yield ()
 
@@ -39,26 +38,20 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
     new NJAlert[F](digested, metricRegistry, channel, serviceParams, true, dispatcher)
 
   def error[S: Show](msg: S): F[Unit] =
-    alert(msg.show, Importance.Critical).map(_ => if (isCounting) errorCounter.inc(1))
+    alert(msg.show, AlertLevel.Error).map(_ => if (isCounting) errorCounter.inc(1))
   def error[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(error(_)).void
   def unsafeError[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(error(msg))
   def unsafeError[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(error(msg))
 
   def warn[S: Show](msg: S): F[Unit] =
-    alert(msg.show, Importance.Notice).map(_ => if (isCounting) warnCounter.inc(1))
+    alert(msg.show, AlertLevel.Warn).map(_ => if (isCounting) warnCounter.inc(1))
   def warn[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(warn(_)).void
   def unsafeWarn[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(warn(msg))
   def unsafeWarn[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(warn(msg))
 
   def info[S: Show](msg: S): F[Unit] =
-    alert(msg.show, Importance.Silent).map(_ => if (isCounting) infoCounter.inc(1))
+    alert(msg.show, AlertLevel.Info).map(_ => if (isCounting) infoCounter.inc(1))
   def info[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(info(_)).void
   def unsafeInfo[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(info(msg))
   def unsafeInfo[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(info(msg))
-
-  def debug[S: Show](msg: S): F[Unit] =
-    alert(msg.show, Importance.Trivial).map(_ => if (isCounting) debugCounter.inc(1))
-  def debug[S: Show](msg: Option[S]): F[Unit]    = msg.traverse(debug(_)).void
-  def unsafeDebug[S: Show](msg: S): Unit         = dispatcher.unsafeRunSync(debug(msg))
-  def unsafeDebug[S: Show](msg: Option[S]): Unit = dispatcher.unsafeRunSync(debug(msg))
 }

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.data.Cont
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.config.AlertLevel
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 
 sealed trait ColorScheme extends Product with Serializable
@@ -24,13 +24,11 @@ object ColorScheme {
       case _: ActionRetry           => WarnColor
       case _: ActionFail            => ErrorColor
       case _: ActionSucc            => GoodColor
-      case InstantAlert(_, _, _, importance, _) =>
-        importance match {
-          case Importance.Critical => ErrorColor
-          case Importance.Notice   => WarnColor
-          case Importance.Aware    => WarnColor
-          case Importance.Silent   => InfoColor
-          case Importance.Trivial  => InfoColor
+      case InstantAlert(_, _, _, alertLevel, _) =>
+        alertLevel match {
+          case AlertLevel.Error => ErrorColor
+          case AlertLevel.Warn  => WarnColor
+          case AlertLevel.Info  => InfoColor
         }
       case PassThrough(_, _, _, isError, _) => if (isError) ErrorColor else InfoColor
     }
