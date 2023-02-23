@@ -30,7 +30,7 @@ private object SlackTranslator extends all {
     val counters   = snapshot.counters.map(c => f"${c.name} = ${c.count}%d")
     val meters     = snapshot.meters.map(m => f"${m.name}.mean_rate = ${m.mean_rate}%2.2f events/$unit")
     val gauges     = snapshot.gauges.map(g => s"${g.name} = ${g.value}")
-    val text = abbreviate((timers ::: counters ::: meters ::: gauges ::: histograms).sorted.mkString("\n"))
+    val text = abbreviate(((timers ::: counters ::: meters ::: histograms).sorted ::: gauges).mkString("\n"))
     KeyValueSection("Metrics", if (text.isEmpty) "```No Metrics```" else s"```$text```")
   }
 

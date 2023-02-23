@@ -9,14 +9,12 @@ import monocle.macros.Lenses
 
 @JsonCodec @Lenses
 final case class ActionParams(
-  actionName: String,
+  digested: Digested,
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
   retryPolicy: String, // for display
   serviceParams: ServiceParams) {
-  val digested: Digested = Digested(serviceParams, actionName)
-
   val isCritical: Boolean   = importance === Importance.Critical // Critical
   val isNotice: Boolean     = importance > Importance.Aware // Hight + Critical
   val isAware: Boolean      = importance > Importance.Silent
@@ -28,12 +26,13 @@ object ActionParams {
 
   def apply(actionName: String, retryPolicy: String, serviceParams: ServiceParams): ActionParams =
     ActionParams(
-      actionName = actionName,
+      digested = Digested(serviceParams, actionName),
       importance = Importance.Silent,
       isCounting = false,
       isTiming = false,
       retryPolicy = retryPolicy,
-      serviceParams = serviceParams)
+      serviceParams = serviceParams
+    )
 }
 
 sealed private[guard] trait ActionConfigF[X]
