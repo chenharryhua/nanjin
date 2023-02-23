@@ -1,18 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.Endo
+import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
-import cats.Endo
-import cats.effect.implicits.genSpawnOps
 import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
-import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
+import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
@@ -37,7 +36,6 @@ final class ServiceGuard[F[_]] private[guard] (
   serviceName: ServiceName,
   serviceConfig: ServiceConfig,
   metricSet: List[MetricSet],
-  jmxBuilder: Option[Endo[JmxReporter.Builder]],
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F],
   brief: F[Json])(implicit F: Async[F])
@@ -47,18 +45,13 @@ final class ServiceGuard[F[_]] private[guard] (
     serviceName: ServiceName = serviceName,
     serviceConfig: ServiceConfig = serviceConfig,
     metricSet: List[MetricSet] = metricSet,
-    jmxBuilder: Option[Endo[JmxReporter.Builder]] = jmxBuilder,
     restartPolicy: RetryPolicy[F] = restartPolicy,
     brief: F[Json] = brief
   ): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, serviceConfig, metricSet, jmxBuilder, entryPoint, restartPolicy, brief)
+    new ServiceGuard[F](serviceName, serviceConfig, metricSet, entryPoint, restartPolicy, brief)
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
   def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
-
-  /** https://metrics.dropwizard.io/4.2.0/getting-started.html#reporting-via-jmx
-    */
-  def withJmxReporter(builder: Endo[JmxReporter.Builder]): ServiceGuard[F] = copy(jmxBuilder = Some(builder))
 
   /** https://cb372.github.io/cats-retry/docs/policies.html
     */
@@ -139,17 +132,6 @@ final class ServiceGuard[F[_]] private[guard] (
                 .drain
           }
 
-        val jmxReporting: Stream[F, Nothing] =
-          jmxBuilder match {
-            case None => Stream.empty
-            case Some(builder) =>
-              Stream
-                .bracket(F.blocking(builder(JmxReporter.forRegistry(metricRegistry)).build()))(r =>
-                  F.blocking(r.close()))
-                .evalMap(jr => F.blocking(jr.start()))
-                .flatMap(_ => Stream.never[F])
-          }
-
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
@@ -165,7 +147,6 @@ final class ServiceGuard[F[_]] private[guard] (
         channel.stream
           .concurrently(metricsReset)
           .concurrently(metricsReport)
-          .concurrently(jmxReporting)
           .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
       }
     } yield event

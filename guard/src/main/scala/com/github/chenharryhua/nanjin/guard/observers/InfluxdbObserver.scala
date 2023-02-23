@@ -111,30 +111,31 @@ final class InfluxdbObserver[F[_]](
       }
     } yield event
 
-  def observe(chunkSize: Int, period: FiniteDuration): Pipe[F, NJEvent, NJEvent] =
+  def observe(chunkSize: Int, period: FiniteDuration): Pipe[F, NJEvent, Nothing] = {
     (events: Stream[F, NJEvent]) =>
-      for {
-        writer <- Stream.bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(
-          c => F.blocking(c.close()))
-        event <- events
-          .groupWithin[F](chunkSize, period)
-          .evalTap { chunk =>
-            val points = chunk.mapFilter {
-              case ar: NJEvent.ActionResultEvent =>
-                val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
-                Some(
-                  Point
-                    .measurement(ar.actionParams.digested.name)
-                    .time(ar.timestamp.toInstant, WritePrecision.NS)
-                    .addTag("digest", ar.actionParams.digested.digest)
-                    .addTags(tags.asJava)
-                    .addField(unit.name(), unit.convert(ar.took).toDouble) // Double
-                    .addField("is_succ", ar.isSucc) // Boolean
-                )
-              case _ => None
-            }.toList.asJava
-            F.blocking(writer.writePoints(points))
-          }
-          .unchunks
-      } yield event
+      Stream
+        .bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(c =>
+          F.blocking(c.close()))
+        .flatMap(writer =>
+          events
+            .groupWithin(chunkSize, period)
+            .evalMap { chunk => // tried parEvalMap no performance gain
+              val points = chunk.mapFilter {
+                case ar: NJEvent.ActionResultEvent =>
+                  val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
+                  Some(
+                    Point
+                      .measurement(ar.actionParams.digested.name)
+                      .time(ar.timestamp.toInstant, WritePrecision.NS)
+                      .addTag("digest", ar.actionParams.digested.digest)
+                      .addTags(tags.asJava)
+                      .addField(unit.name(), unit.convert(ar.took).toDouble) // Double
+                      .addField("is_succ", ar.isSucc) // Boolean
+                  )
+                case _ => None
+              }.toList.asJava
+              F.blocking(writer.writePoints(points))
+            }
+            .drain)
+  }
 }

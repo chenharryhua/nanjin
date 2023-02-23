@@ -82,7 +82,7 @@ final case class MetricSnapshot(
   meters: List[MeterSnapshot],
   timers: List[TimerSnapshot],
   histograms: List[HistogramSnapshot],
-  gauges: List[GaugeSnapshot] )
+  gauges: List[GaugeSnapshot])
 
 object MetricSnapshot extends duration {
 
@@ -184,7 +184,7 @@ object MetricSnapshot extends duration {
     metricRegistry: MetricRegistry,
     serviceParams: ServiceParams,
     filter: MetricFilter): MetricSnapshot = {
-    val newFilter  = filter |+| positiveFilter
+    val newFilter = filter |+| positiveFilter
     val rate_unit = serviceParams.metricParams.rateTimeUnit
     MetricSnapshot(
       counters = counters(metricRegistry, newFilter),
