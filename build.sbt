@@ -6,9 +6,9 @@ ThisBuild / version            := "0.16.8-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val fs2V        = "3.6.1"
+val fs2V        = "3.7.0-RC1"
 val awsV        = "1.12.410"
-val catsEffectV = "3.4.8"
+val catsEffectV = "3.5.0-RC2"
 val hadoopV     = "3.3.4"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.1"
@@ -210,13 +210,6 @@ val jwtLib = List(
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"
 )
 
-val metricLib = List(
-  "io.dropwizard.metrics" % "metrics-core",
-  "io.dropwizard.metrics" % "metrics-json",
-  "io.dropwizard.metrics" % "metrics-jmx",
-  "io.dropwizard.metrics" % "metrics-jvm"
-).map(_ % metricsV)
-
 val baseLib = List(
   "org.typelevel" %% "cats-effect"                 % catsEffectV,
   "org.apache.commons"                             % "commons-lang3" % "3.12.0",
@@ -278,6 +271,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
+      "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
       "com.influxdb"                                   % "influxdb-client-java" % "6.7.0",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "vault"                       % "3.5.0",
@@ -287,10 +281,11 @@ lazy val guard = (project in file("guard"))
       "org.tpolecat" %% "natchez-core"                 % natchezV,
       "org.tpolecat" %% "natchez-noop"                 % natchezV,
       "org.http4s" %% "http4s-core"                    % http4sV,
+      "io.dropwizard.metrics"                          % "metrics-jvm"          % metricsV % Test,
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
-      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
-    ) ++ metricLib ++ logLib ++ testLib
+      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV   % Test
+    ) ++ logLib ++ testLib
   )
 
 lazy val messages = (project in file("messages"))
