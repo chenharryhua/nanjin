@@ -124,8 +124,9 @@ final class InfluxdbObserver[F[_]](
                 val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
                 Some(
                   Point
-                    .measurement(ar.actionParams.digested.metricRepr)
+                    .measurement(ar.actionParams.digested.name)
                     .time(ar.timestamp.toInstant, WritePrecision.NS)
+                    .addTag("digest", ar.actionParams.digested.digest)
                     .addTags(tags.asJava)
                     .addField(unit.name(), unit.convert(ar.took).toDouble) // Double
                     .addField("is_succ", ar.isSucc) // Boolean
