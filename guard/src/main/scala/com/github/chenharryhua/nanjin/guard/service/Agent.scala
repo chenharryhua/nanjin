@@ -89,7 +89,6 @@ final class GeneralAgent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
-      isError = false,
       isCounting = false,
       dispatcher = dispatcher
     )

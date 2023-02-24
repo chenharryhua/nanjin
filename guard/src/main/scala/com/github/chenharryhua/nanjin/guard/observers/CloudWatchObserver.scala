@@ -40,7 +40,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
         report.serviceParams.taskParams.hostName.value,
         report.serviceParams.taskParams.taskName.value,
         report.serviceParams.serviceName.value,
-        counter.name,
+        counter.metricName.show,
         report.serviceParams.launchTime.toLocalDate.show
       ) -> counter.count
     }.toMap
@@ -112,7 +112,6 @@ final private case class MetricKey(
       .withDimensions(
         new Dimension().withName(METRICS_TASK).withValue(task),
         new Dimension().withName(METRICS_SERVICE).withValue(service),
-        new Dimension().withName(METRICS_SERVICE_ID).withName(serviceId.show),
         new Dimension().withName(METRICS_HOST).withValue(hostName),
         new Dimension().withName(METRICS_LAUNCH_TIME).withValue(launchDate)
       )

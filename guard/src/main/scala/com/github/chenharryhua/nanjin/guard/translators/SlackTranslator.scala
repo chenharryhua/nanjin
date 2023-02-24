@@ -25,11 +25,12 @@ private object SlackTranslator extends all {
   private def metricsSection(snapshot: MetricSnapshot, sp: ServiceParams): KeyValueSection = {
     val unit = sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)
 
-    val timers     = snapshot.timers.map(t => s"${t.name}.p95 = ${fmt.format(t.p95)}")
-    val histograms = snapshot.histograms.map(h => f"${h.name}.p95 = ${h.p95}%2.2f")
-    val counters   = snapshot.counters.map(c => f"${c.name} = ${c.count}%d")
-    val meters     = snapshot.meters.map(m => f"${m.name}.mean_rate = ${m.mean_rate}%2.2f events/$unit")
-    val gauges     = snapshot.gauges.map(g => s"${g.name} = ${g.value}")
+    val timers     = snapshot.timers.map(t => s"${t.metricName.show}.p95 = ${fmt.format(t.p95)}")
+    val histograms = snapshot.histograms.map(h => f"${h.metricName.show}.p95 = ${h.p95}%2.2f")
+    val counters   = snapshot.counters.map(c => f"${c.metricName.show} = ${c.count}%d")
+    val meters =
+      snapshot.meters.map(m => f"${m.metricName.show}.mean_rate = ${m.mean_rate}%2.2f events/$unit")
+    val gauges = snapshot.gauges.map(g => s"${g.metricName.show} = ${g.value}")
     val text = abbreviate(((timers ::: counters ::: meters ::: histograms).sorted ::: gauges).mkString("\n"))
     KeyValueSection("Metrics", if (text.isEmpty) "```No Metrics```" else s"```$text```")
   }
@@ -155,7 +156,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*$title:* ${evt.digested.metricRepr}"),
+            MarkdownSection(s"*$title:* ${evt.digested.show}"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
             MarkdownSection(abbreviate(evt.message))

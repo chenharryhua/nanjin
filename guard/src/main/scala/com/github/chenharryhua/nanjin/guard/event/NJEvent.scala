@@ -149,7 +149,6 @@ object NJEvent extends zoneddatetime {
     digested: Digested,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
-    isError: Boolean, // the payload json represent an error
     value: Json)
       extends InstantEvent {
     override val title: String = titles.passThrough

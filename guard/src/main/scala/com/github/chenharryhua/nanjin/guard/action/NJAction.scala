@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 import natchez.{Span, TraceValue}
 import retry.RetryPolicy
 
@@ -45,9 +46,12 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  private val failCounter: Counter = metricRegistry.counter(actionFailMRName(actionParams))
-  private val succCounter: Counter = metricRegistry.counter(actionSuccMRName(actionParams))
-  private val timer: Timer         = metricRegistry.timer(actionTimerMRName(actionParams))
+  private val failCounter: Counter =
+    metricRegistry.counter(MetricName(actionParams.digested, MetricCategory.ActionFail).asJson.noSpaces)
+  private val succCounter: Counter =
+    metricRegistry.counter(MetricName(actionParams.digested, MetricCategory.ActionSucc).asJson.noSpaces)
+  private val timer: Timer =
+    metricRegistry.timer(MetricName(actionParams.digested, MetricCategory.ActionTime).asJson.noSpaces)
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     for {

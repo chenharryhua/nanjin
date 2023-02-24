@@ -116,7 +116,7 @@ class ObserversTest extends AnyFunSuite {
         ag.meter("meter").withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
           ag.histogram("histo").withCounting.update(1) >>
-          ag.broker("broker").asError.withCounting.passThrough(Json.fromString("path-error")) >>
+          ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           ag.metrics.reset >> err
       }
       .take(12)
@@ -229,7 +229,7 @@ class ObserversTest extends AnyFunSuite {
         ag.meter("meter").withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
           ag.histogram("histo").withCounting.update(1) >>
-          ag.broker("broker").asError.withCounting.passThrough(Json.fromString("path-error")) >>
+          ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           ag.metrics.reset >> err
       }
       .take(12)

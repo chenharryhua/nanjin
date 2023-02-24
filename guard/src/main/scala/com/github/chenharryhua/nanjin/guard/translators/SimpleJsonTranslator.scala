@@ -85,7 +85,6 @@ private object SimpleJsonTranslator {
       "PassThrough" ->
         Json.obj(
           name(evt.digested),
-          ("isError", Json.fromBoolean(evt.isError)),
           ("value", evt.value),
           digest(evt.digested),
           serviceId(evt),
