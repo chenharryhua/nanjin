@@ -26,7 +26,6 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
     new ServiceGuard[F](
       serviceName = serviceName,
       serviceConfig = ServiceConfig(taskConfig.evalConfig),
-      metricSet = Nil,
       entryPoint = entryPoint,
       restartPolicy = RetryPolicies.alwaysGiveUp[F],
       brief = Async[F].pure(Json.Null)

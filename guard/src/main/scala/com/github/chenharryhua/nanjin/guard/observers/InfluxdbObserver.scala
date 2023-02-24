@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Endo
 import cats.effect.kernel.Async
-import cats.implicits.toFunctorOps
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, SnapshotCategory}
+import cats.implicits.{toFunctorOps, toShow}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}
@@ -33,7 +33,7 @@ final class InfluxdbObserver[F[_]](
   def addTags(tagsToAdd: Map[String, String]): InfluxdbObserver[F] =
     new InfluxdbObserver[F](client, writeOptions, tags ++ tagsToAdd)
 
-  val aggregatedObserver: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
+  val observeMetrics: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {
       writer <- Stream.bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(c =>
         F.blocking(c.close()))
@@ -41,21 +41,19 @@ final class InfluxdbObserver[F[_]](
         case NJEvent.MetricReport(_, sp, ts, snapshot) =>
           val counters: List[Point] = snapshot.counters.map(counter =>
             Point
-              .measurement(counter.name)
+              .measurement(counter.metricName.show)
               .time(ts.toInstant, WritePrecision.NS)
               .addTags(tags.asJava)
-              .addTag(METRICS_CATEGORY, SnapshotCategory.Counter.name)
               .addField(METRICS_COUNT, counter.count) // Long
           )
           val durationUnit: TimeUnit = sp.metricParams.durationTimeUnit
           val timers: List[Point] = snapshot.timers.map(timer =>
             Point
-              .measurement(timer.name)
+              .measurement(timer.metricName.show)
               .time(ts.toInstant, WritePrecision.NS)
-              .addTags(tags.asJava)
-              .addTag(METRICS_CATEGORY, SnapshotCategory.Timer.name)
               .addTag(METRICS_RATE_UNIT, sp.metricParams.rateTimeUnit.name())
               .addTag(METRICS_DURATION_UNIT, durationUnit.name())
+              .addTags(tags.asJava)
               .addField(METRICS_COUNT, timer.count) // Long
               // meter
               .addField(METRICS_MEAN_RATE, timer.mean_rate) // Double
@@ -76,11 +74,10 @@ final class InfluxdbObserver[F[_]](
           )
           val meters: List[Point] = snapshot.meters.map(meter =>
             Point
-              .measurement(meter.name)
+              .measurement(meter.metricName.show)
               .time(ts.toInstant, WritePrecision.NS)
-              .addTags(tags.asJava)
-              .addTag(METRICS_CATEGORY, SnapshotCategory.Meter.name)
               .addTag(METRICS_RATE_UNIT, sp.metricParams.rateTimeUnit.name())
+              .addTags(tags.asJava)
               .addField(METRICS_COUNT, meter.count) // Long
               .addField(METRICS_MEAN_RATE, meter.mean_rate) // Double
               .addField(METRICS_1_MINUTE_RATE, meter.m1_rate) // Double
@@ -90,10 +87,9 @@ final class InfluxdbObserver[F[_]](
 
           val histograms: List[Point] = snapshot.histograms.map(histo =>
             Point
-              .measurement(histo.name)
+              .measurement(histo.metricName.show)
               .time(ts.toInstant, WritePrecision.NS)
               .addTags(tags.asJava)
-              .addTag(METRICS_CATEGORY, SnapshotCategory.Histogram.name)
               .addField(METRICS_COUNT, histo.count) // Long
               .addField(METRICS_MIN, histo.min) // Double
               .addField(METRICS_MAX, histo.max) // Double
@@ -127,7 +123,7 @@ final class InfluxdbObserver[F[_]](
                     Point
                       .measurement(ar.actionParams.digested.name)
                       .time(ar.timestamp.toInstant, WritePrecision.NS)
-                      .addTag("digest", ar.actionParams.digested.digest)
+                      .addTag(METRICS_DIGEST, ar.actionParams.digested.digest)
                       .addTags(tags.asJava)
                       .addField(unit.name(), unit.convert(ar.took).toDouble) // Double
                       .addField("is_succ", ar.isSucc) // Boolean

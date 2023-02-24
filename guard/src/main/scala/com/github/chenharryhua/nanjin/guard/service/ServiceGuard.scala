@@ -5,7 +5,7 @@ import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
-import com.codahale.metrics.{MetricFilter, MetricRegistry, MetricSet}
+import com.codahale.metrics.{MetricFilter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
@@ -35,7 +35,6 @@ import retry.RetryPolicy
 final class ServiceGuard[F[_]] private[guard] (
   serviceName: ServiceName,
   serviceConfig: ServiceConfig,
-  metricSet: List[MetricSet],
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F],
   brief: F[Json])(implicit F: Async[F])
@@ -44,11 +43,10 @@ final class ServiceGuard[F[_]] private[guard] (
   private def copy(
     serviceName: ServiceName = serviceName,
     serviceConfig: ServiceConfig = serviceConfig,
-    metricSet: List[MetricSet] = metricSet,
     restartPolicy: RetryPolicy[F] = restartPolicy,
     brief: F[Json] = brief
   ): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, serviceConfig, metricSet, entryPoint, restartPolicy, brief)
+    new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, brief)
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
   def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
@@ -62,10 +60,6 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
   def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
-
-  /** https://metrics.dropwizard.io/4.2.0/manual/core.html#metric-sets
-    */
-  def addMetricSet(ms: MetricSet): ServiceGuard[F] = copy(metricSet = ms :: metricSet)
 
   private val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
@@ -101,11 +95,7 @@ final class ServiceGuard[F[_]] private[guard] (
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
-        val metricRegistry: MetricRegistry = {
-          val mr = new MetricRegistry()
-          metricSet.foreach(mr.registerAll)
-          mr
-        }
+        val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val metricsReport: Stream[F, Nothing] =
           serviceParams.metricParams.reportSchedule match {

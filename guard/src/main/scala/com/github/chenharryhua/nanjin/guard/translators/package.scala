@@ -57,17 +57,18 @@ package object translators {
   }
 
   final private[translators] def actionTitle(ae: ActionEvent): String =
-    ae.title + " " + ae.digested.metricRepr
+    s"${ae.title} ${ae.digested.show}"
 
   final private[translators] def instantEventTitle(ie: InstantEvent): String =
-    ie.title + " " + ie.digested.metricRepr
+    s"${ie.title} ${ie.digested.show}"
 
   final private[translators] def showSnapshot(sp: ServiceParams, ss: MetricSnapshot): String = {
-    val counters = ss.counters.map(c => s"  ${c.name} = ${c.count}")
-    val gauges   = ss.gauges.map(g => s"  ${g.name} = ${g.value}")
+    val counters = ss.counters.map(c => s"  ${c.metricName.show} = ${c.count}")
+    val gauges   = ss.gauges.map(g => s"  ${g.metricName.show} = ${g.value}")
     val unit     = sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)
     val timers = ss.timers.map { t =>
-      f"""|  ${t.name} = ${t.count}%d
+      f"""|  ${t.metricName.show}
+          |             count = ${t.count}%d
           |         mean rate = ${t.mean_rate}%2.2f calls/$unit
           |     1-minute rate = ${t.m1_rate}%2.2f calls/$unit
           |     5-minute rate = ${t.m5_rate}%2.2f calls/$unit
@@ -85,7 +86,8 @@ package object translators {
     }
 
     val meters = ss.meters.map { m =>
-      f"""|  ${m.name} = ${m.count}%d
+      f"""|  ${m.metricName.show}
+          |             count = ${m.count}%d
           |         mean rate = ${m.mean_rate}%2.2f events/$unit
           |     1-minute rate = ${m.m1_rate}%2.2f events/$unit
           |     5-minute rate = ${m.m5_rate}%2.2f events/$unit
@@ -93,7 +95,8 @@ package object translators {
     }
 
     val histograms = ss.histograms.map { h =>
-      f"""|  ${h.name} = ${h.count}%d
+      f"""|  ${h.metricName.show}
+          |             count = ${h.count}%d
           |               min = ${h.min}%d
           |               max = ${h.max}%d
           |              mean = ${h.mean}%2.2f

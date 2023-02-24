@@ -29,11 +29,11 @@ class PassThroughTest extends AnyFunSuite {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
       List
         .range(0, 9)
-        .traverse(n => action.broker("pt").withCounting.asError.passThrough(PassThroughObject(n, "a")))
+        .traverse(n => action.broker("pt").withCounting.passThrough(PassThroughObject(n, "a")))
     }.map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .map {
-        case PassThrough(_, _, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
+        case PassThrough(_, _, _,  v) => Decoder[PassThroughObject].decodeJson(v).toOption
         case _                          => None
       }
       .unNone
@@ -62,7 +62,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.name == "counter.[one/two/three/counter][1a8af341]")
+        .find(_.metricName.digested.digest == "1a8af341")
         .size == 1)
   }
 
@@ -85,7 +85,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.name == "alert.[oops][a32b945e].error")
+        .find(_.metricName.digested.digest == "a32b945e")
         .size == 1)
   }
 

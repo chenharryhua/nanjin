@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.Digested
+import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricName}
+import io.circe.syntax.EncoderOps
 
 // counter can be reset, meter can't
 final class NJMeter[F[_]] private[guard] (
@@ -10,9 +12,10 @@ final class NJMeter[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
   isCounting: Boolean)(implicit F: Sync[F]) {
 
-  private val name: String          = meterMRName(digested)
-  private lazy val meter: Meter     = metricRegistry.meter(name)
-  private lazy val counter: Counter = metricRegistry.counter(name + ".recent")
+  private lazy val meter: Meter =
+    metricRegistry.meter(MetricName(digested, MetricCategory.Meter).asJson.noSpaces)
+  private lazy val counter: Counter =
+    metricRegistry.counter(MetricName(digested, MetricCategory.MeterCount).asJson.noSpaces)
 
   def withCounting: NJMeter[F] = new NJMeter[F](digested, metricRegistry, true)
 

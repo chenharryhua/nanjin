@@ -3,7 +3,6 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
-import com.codahale.metrics.jvm.ThreadStatesGaugeSet
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Importance
@@ -14,10 +13,10 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.Cron
 import eu.timepit.refined.auto.*
-import io.circe.parser.decode
-import io.circe.syntax.*
 import io.circe.Json
 import io.circe.generic.JsonCodec
+import io.circe.parser.decode
+import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
@@ -40,7 +39,6 @@ class MetricsTest extends AnyFunSuite {
   test("1.delta") {
     val last = service("delta")
       .updateConfig(_.withMetricReport(cron_1second))
-      .addMetricSet(new ThreadStatesGaugeSet)
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
       .map(_.asJson.noSpaces)
@@ -142,7 +140,6 @@ class MetricsTest extends AnyFunSuite {
           agent.meter(name).withCounting.mark(1) >>
           agent.histogram(name).withCounting.update(1) >>
           agent.broker(name).withCounting.passThrough(Json.fromString("broker.good")) >>
-          agent.broker(name).asError.withCounting.passThrough(Json.fromString("broker.error")) >>
           agent.action(name, _.withTiming.withCounting).retry(IO(())).run.foreverM
       }
       .take(6)
