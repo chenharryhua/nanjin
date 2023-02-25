@@ -20,25 +20,25 @@ object MetricCategory
     extends CatsEnum[MetricCategory] with Enum[MetricCategory] with CirceEnum[MetricCategory] {
   override val values: IndexedSeq[MetricCategory] = findValues
 
-  case object ActionTime extends MetricCategory("action.time")
-  case object ActionSucc extends MetricCategory("action.succ")
-  case object ActionFail extends MetricCategory("action.fail")
+  case object ActionTimer extends MetricCategory("action.timer")
+  case object ActionSuccCounter extends MetricCategory("action.succ")
+  case object ActionFailCounter extends MetricCategory("action.fail")
 
   case object Meter extends MetricCategory("meter")
-  case object MeterCount extends MetricCategory("meter.recently")
+  case object MeterCounter extends MetricCategory("meter.recently")
 
   case object Histogram extends MetricCategory("histogram")
-  case object HistogramCount extends MetricCategory("histogram.recently")
+  case object HistogramCounter extends MetricCategory("histogram.recently")
 
-  case object Count extends MetricCategory("count")
+  case object Counter extends MetricCategory("count")
 
   case object Gauge extends MetricCategory("gauge")
 
-  case object PassThrough extends MetricCategory("passThrough")
+  case object PassThroughCounter extends MetricCategory("passThrough")
 
-  case object AlertError extends MetricCategory("alert.error")
-  case object AlertWarn extends MetricCategory("alert.warn")
-  case object AlertInfo extends MetricCategory("alert.info")
+  case object AlertErrorCounter extends MetricCategory("alert.error")
+  case object AlertWarnCounter extends MetricCategory("alert.warn")
+  case object AlertInfoCounter extends MetricCategory("alert.info")
 }
 
 @JsonCodec

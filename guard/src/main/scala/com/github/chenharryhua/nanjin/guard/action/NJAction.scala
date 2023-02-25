@@ -47,11 +47,13 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
   private val failCounter: Counter =
-    metricRegistry.counter(MetricName(actionParams.digested, MetricCategory.ActionFail).asJson.noSpaces)
+    metricRegistry.counter(
+      MetricName(actionParams.digested, MetricCategory.ActionFailCounter).asJson.noSpaces)
   private val succCounter: Counter =
-    metricRegistry.counter(MetricName(actionParams.digested, MetricCategory.ActionSucc).asJson.noSpaces)
+    metricRegistry.counter(
+      MetricName(actionParams.digested, MetricCategory.ActionSuccCounter).asJson.noSpaces)
   private val timer: Timer =
-    metricRegistry.timer(MetricName(actionParams.digested, MetricCategory.ActionTime).asJson.noSpaces)
+    metricRegistry.timer(MetricName(actionParams.digested, MetricCategory.ActionTimer).asJson.noSpaces)
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     for {

@@ -10,7 +10,7 @@ final class NJCounter[F[_]] private[guard] (digested: Digested, metricRegistry: 
   F: Sync[F]) {
 
   private lazy val counter: Counter =
-    metricRegistry.counter(MetricName(digested, MetricCategory.Count).asJson.noSpaces)
+    metricRegistry.counter(MetricName(digested, MetricCategory.Counter).asJson.noSpaces)
 
   def unsafeInc(num: Long): Unit = counter.inc(num)
   def unsafeDec(num: Long): Unit = counter.dec(num)
