@@ -11,7 +11,7 @@ val awsV        = "1.12.410"
 val catsEffectV = "3.5.0-RC2"
 val hadoopV     = "3.3.4"
 val monocleV    = "2.1.0"
-val confluentV  = "7.3.1"
+val confluentV  = "7.3.2"
 val kafkaV      = "7.3.2-ce"
 val avroV       = "1.11.1"
 val slf4jV      = "2.0.6"
@@ -184,7 +184,7 @@ val catsLib = List(
     "org.typelevel" %% "cats-mtl"              % "1.3.0",
     "org.typelevel" %% "kittens"               % "3.0.0",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
-    "org.typelevel" %% "cats-collections-core" % "0.9.5"
+    "org.typelevel" %% "cats-collections-core" % "0.9.6"
   )
 
 val refinedLib = List(
@@ -216,7 +216,7 @@ val baseLib = List(
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
   "org.typelevel" %% "case-insensitive"            % "1.3.0",
-  "io.scalaland" %% "chimney"                      % "0.6.2",
+  "io.scalaland" %% "chimney"                      % "0.7.0",
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % "2.3.10",
@@ -281,7 +281,6 @@ lazy val guard = (project in file("guard"))
       "org.tpolecat" %% "natchez-core"                 % natchezV,
       "org.tpolecat" %% "natchez-noop"                 % natchezV,
       "org.http4s" %% "http4s-core"                    % http4sV,
-      "io.dropwizard.metrics"                          % "metrics-jvm"          % metricsV % Test,
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
       "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV   % Test

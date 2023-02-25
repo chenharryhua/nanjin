@@ -13,7 +13,7 @@ final class NJHistogram[F[_]] private[guard] (
   private lazy val histogram: Histogram =
     metricRegistry.histogram(MetricName(digested, MetricCategory.Histogram).asJson.noSpaces)
   private lazy val counter: Counter =
-    metricRegistry.counter(MetricName(digested, MetricCategory.HistogramCount).asJson.noSpaces)
+    metricRegistry.counter(MetricName(digested, MetricCategory.HistogramCounter).asJson.noSpaces)
 
   def withCounting: NJHistogram[F] = new NJHistogram[F](digested, metricRegistry, true)
 

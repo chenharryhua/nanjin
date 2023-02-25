@@ -21,7 +21,7 @@ final class NJBroker[F[_]: Monad: Clock] private[guard] (
   dispatcher: Dispatcher[F]) {
 
   private lazy val counter: Counter =
-    metricRegistry.counter(MetricName(digested, MetricCategory.PassThrough).asJson.noSpaces)
+    metricRegistry.counter(MetricName(digested, MetricCategory.PassThroughCounter).asJson.noSpaces)
 
   def withCounting: NJBroker[F] =
     new NJBroker[F](digested, metricRegistry, channel, serviceParams, true, dispatcher)
