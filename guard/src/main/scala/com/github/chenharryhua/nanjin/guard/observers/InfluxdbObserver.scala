@@ -107,14 +107,20 @@ final class InfluxdbObserver[F[_]](
       }
     } yield event
 
-  def observe(chunkSize: Int, period: FiniteDuration): Pipe[F, NJEvent, Nothing] = {
+  /** @param chunkSize
+    *   is the maximum number of elements to include in a chunk.
+    * @param timeout
+    *   is the maximum duration of time to wait before emitting a chunk, even if it doesn't contain chunkSize
+    *   elements.
+    */
+  def observe(chunkSize: Int, timeout: FiniteDuration): Pipe[F, NJEvent, Nothing] = {
     (events: Stream[F, NJEvent]) =>
       Stream
         .bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(c =>
           F.blocking(c.close()))
         .flatMap(writer =>
           events
-            .groupWithin(chunkSize, period)
+            .groupWithin(chunkSize, timeout)
             .evalMap { chunk => // tried parEvalMap no performance gain
               val points = chunk.mapFilter {
                 case ar: NJEvent.ActionResultEvent =>
