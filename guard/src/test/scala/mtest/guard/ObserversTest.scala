@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
+import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.{InfluxDBClientFactory, InfluxDBClientOptions}
 import eu.timepit.refined.auto.*
 import io.circe.Json
@@ -23,7 +24,7 @@ import scala.concurrent.duration.*
 // sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
 
-  def ok(agent: Agent[IO]) = agent.action("ok", _.notice).retry(IO(1)).run
+  def ok(agent: Agent[IO]) = agent.action("nj_ok", _.notice).retry(IO(1)).run
 
   test("1.logging verbose") {
     TaskGuard[IO]("logging")
@@ -112,8 +113,8 @@ class ObserversTest extends AnyFunSuite {
             .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
             .retry(err_fun(1))
             .run
-        ok(ag) >> ag.alert("alert").withCounting.warn("alarm")
-        ag.meter("meter").withCounting.mark(1) >>
+        ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >>
+          ag.meter("meter").withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
           ag.histogram("histo").withCounting.update(1) >>
           ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
@@ -213,34 +214,29 @@ class ObserversTest extends AnyFunSuite {
       .bucket("nanjin")
       .org("nanjin")
       .build()
-    val client = IO(InfluxDBClientFactory.create(options))
 
+    val influx = InfluxdbObserver[IO](IO(InfluxDBClientFactory.create(options)))
+      .withWriteOptions(_.batchSize(1).flushInterval())
+      .withWritePrecision(WritePrecision.NS)
+      .addTag("tag", "customer")
+      .addTags(Map("a" -> "b"))
     TaskGuard[IO]("observers")
       .service("influxDB")
       .withRestartPolicy(constant_1hour)
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
-        val err =
-          ag.action("error.action", _.critical.withTiming.withCounting)
-            .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
-            .retry(err_fun(1))
-            .run
-        ok(ag) >> ag.alert("alert").withCounting.warn("alarm")
-        ag.meter("meter").withCounting.mark(1) >>
-          ag.counter("counter").inc(1) >>
-          ag.histogram("histo").withCounting.update(1) >>
-          ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
-          ag.metrics.reset >> err
+        val err  = ag.action("nj_error_action", _.withTiming.withCounting).retry(err_fun(1)).run
+        val good = ag.action("nj_good_action", _.withCounting.withTiming).retry(IO(())).run
+        good >> ag.alert("nj_alert").withCounting.warn("alarm") >>
+          ag.meter("nj_meter").withCounting.mark(1) >>
+          ag.counter("nj_counter").inc(1) >>
+          ag.histogram("nj_histo").withCounting.update(1) >>
+          ag.broker("nj_broker").withCounting.passThrough(Json.fromString("path-error")) >>
+          err
       }
-      .take(12)
-      .evalTap(console
-        .json[IO]
-        .updateTranslator(_.skipActionStart.skipActionSucc.skipServiceStart.skipServiceStop.skipServicePanic))
-      .through(InfluxdbObserver[IO](client)
-        .withWriteOptions(_.batchSize(10))
-        .addTag("tag", "tag")
-        .addTags(Map("a" -> "b"))
-        .observe(10, 1.second))
+      .take(15)
+      .evalTap(console.simple[IO])
+      .through(influx.observe)
       .compile
       .drain
       .unsafeRunSync()
