@@ -16,8 +16,12 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 
 object InfluxdbObserver {
+
+  /** The default write precision for InfluxDB is nanosecond (ns). When a new database is created in InfluxDB,
+    * the default write precision is set to nanosecond unless otherwise specified
+    */
   def apply[F[_]: Async](client: F[InfluxDBClient]): InfluxdbObserver[F] =
-    new InfluxdbObserver[F](client, identity, WritePrecision.MS, Map.empty[String, String])
+    new InfluxdbObserver[F](client, identity, WritePrecision.NS, Map.empty[String, String])
 }
 
 final class InfluxdbObserver[F[_]](
