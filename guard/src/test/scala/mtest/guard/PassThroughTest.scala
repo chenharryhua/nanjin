@@ -27,14 +27,12 @@ class PassThroughTest extends AnyFunSuite {
   val guard: ServiceGuard[IO] = TaskGuard[IO]("test").service("pass-throught")
   test("1.pass-through") {
     val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
-      List
-        .range(0, 9)
-        .traverse(n => action.broker("pt").withCounting.passThrough(PassThroughObject(n, "a")))
+      List.range(0, 9).traverse(n => action.broker("pt").withCounting.passThrough(PassThroughObject(n, "a")))
     }.map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .map {
-        case PassThrough(_, _, _,  v) => Decoder[PassThroughObject].decodeJson(v).toOption
-        case _                          => None
+        case PassThrough(_, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
+        case _                       => None
       }
       .unNone
       .compile

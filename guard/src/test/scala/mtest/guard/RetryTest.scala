@@ -30,7 +30,7 @@ class RetryTest extends AnyFunSuite {
 
   val policy = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
 
-  test("1.retry - success trivial") {
+  test("1.retry - completed trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
       gd.action("t").retry(fun3 _).logOutput((a, _) => a.asJson).withWorthRetry(_ => true).run((1, 1, 1))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
@@ -39,7 +39,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStop])
   }
 
-  test("2.retry - success notice") {
+  test("2.retry - completed notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag =
         gd.action("t", _.notice).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
@@ -48,11 +48,11 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionSucc])
+    assert(b.isInstanceOf[ActionComplete])
     assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[ActionSucc])
+    assert(d.isInstanceOf[ActionComplete])
     assert(e.isInstanceOf[ActionStart])
-    assert(f.isInstanceOf[ActionSucc])
+    assert(f.isInstanceOf[ActionComplete])
     assert(g.isInstanceOf[ServiceStop])
   }
 
@@ -103,7 +103,7 @@ class RetryTest extends AnyFunSuite {
     assert(a.isInstanceOf[ActionStart])
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionSucc])
+    assert(d.isInstanceOf[ActionComplete])
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -125,7 +125,7 @@ class RetryTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionSucc])
+    assert(e.isInstanceOf[ActionComplete])
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -348,7 +348,7 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionSucc])
+    assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -365,7 +365,7 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionSucc])
+    assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -377,9 +377,9 @@ class RetryTest extends AnyFunSuite {
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionSucc])
-    assert(b.isInstanceOf[ActionSucc])
-    assert(c.isInstanceOf[ActionSucc])
+    assert(a.isInstanceOf[ActionComplete])
+    assert(b.isInstanceOf[ActionComplete])
+    assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ServiceStop])
   }
 }

@@ -61,7 +61,7 @@ final class InfluxdbObserver[F[_]](
                       .measurement(ar.actionParams.digested.name)
                       .time(ar.timestamp.toInstant, writePrecision)
                       .addTag(METRICS_DIGEST, ar.actionParams.digested.digest)
-                      .addTag("isSucc", ar.isSucc.show) // for query
+                      .addTag("done", ar.isDone.show) // for query
                       .addTags(tags.asJava)
                       .addField(unit.name(), unit.convert(ar.took).toDouble) // Double
                   )

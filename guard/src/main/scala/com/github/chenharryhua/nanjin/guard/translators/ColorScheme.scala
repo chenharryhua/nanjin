@@ -23,7 +23,7 @@ object ColorScheme {
       case _: ActionStart           => InfoColor
       case _: ActionRetry           => WarnColor
       case _: ActionFail            => ErrorColor
-      case _: ActionSucc            => GoodColor
+      case _: ActionComplete        => GoodColor
       case InstantAlert(_, _, _, alertLevel, _) =>
         alertLevel match {
           case AlertLevel.Error => ErrorColor

@@ -153,7 +153,7 @@ class ObserversTest extends AnyFunSuite {
       .withInterval(1.minute)
       .withChunkSize(10)
       .updateTranslator(
-        _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionSucc.skipInstantAlert.skipPassThrough.skipServiceStart.skipServicePanic.skipServiceStop.skipAll)
+        _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionComplete.skipInstantAlert.skipPassThrough.skipServiceStart.skipServicePanic.skipServiceStop.skipAll)
 
     logging.simple[IO]
     console.verbose[IO]
@@ -192,7 +192,7 @@ class ObserversTest extends AnyFunSuite {
     run.unsafeRunSync()
   }
   test("10.sqs") {
-    val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionSucc)
+    val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionComplete)
     TaskGuard[IO]("sqs")
       .service("sqs")
       .withRestartPolicy(constant_1hour)
@@ -216,7 +216,7 @@ class ObserversTest extends AnyFunSuite {
       .build()
 
     val influx = InfluxdbObserver[IO](IO(InfluxDBClientFactory.create(options)))
-      .withWriteOptions(_.batchSize(1).flushInterval())
+      .withWriteOptions(_.batchSize(1))
       .withWritePrecision(WritePrecision.NS)
       .addTag("tag", "customer")
       .addTags(Map("a" -> "b"))

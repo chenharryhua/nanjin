@@ -51,7 +51,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       MetricName(actionParams.digested, MetricCategory.ActionFailCounter).asJson.noSpaces)
   private val succCounter: Counter =
     metricRegistry.counter(
-      MetricName(actionParams.digested, MetricCategory.ActionSuccCounter).asJson.noSpaces)
+      MetricName(actionParams.digested, MetricCategory.ActionCompleteCounter).asJson.noSpaces)
   private val timer: Timer =
     metricRegistry.timer(MetricName(actionParams.digested, MetricCategory.ActionTimer).asJson.noSpaces)
 

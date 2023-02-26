@@ -8,10 +8,10 @@ import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionComplete,
   ActionFail,
   ActionRetry,
   ActionStart,
-  ActionSucc,
   ServiceStart
 }
 import com.github.chenharryhua.nanjin.guard.translators.*
@@ -67,11 +67,11 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case ai: ActionStart => ai.actionParams.isCritical
-            case ai: ActionSucc  => ai.actionParams.isCritical
-            case ai: ActionRetry => ai.actionParams.isNotice
-            case ai: ActionFail  => ai.actionParams.isNonTrivial
-            case _               => true
+            case ai: ActionStart    => ai.actionParams.isCritical
+            case ai: ActionComplete => ai.actionParams.isCritical
+            case ai: ActionRetry    => ai.actionParams.isNotice
+            case ai: ActionFail     => ai.actionParams.isNonTrivial
+            case _                  => true
           }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalizeCase(
           ofm.terminated(_).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)

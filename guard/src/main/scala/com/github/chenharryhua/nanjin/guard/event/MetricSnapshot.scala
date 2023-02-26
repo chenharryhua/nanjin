@@ -21,7 +21,7 @@ object MetricCategory
   override val values: IndexedSeq[MetricCategory] = findValues
 
   case object ActionTimer extends MetricCategory("action.timer")
-  case object ActionSuccCounter extends MetricCategory("action.succ")
+  case object ActionCompleteCounter extends MetricCategory("action.done")
   case object ActionFailCounter extends MetricCategory("action.fail")
 
   case object Meter extends MetricCategory("meter")

@@ -237,7 +237,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def actionSucced(evt: ActionSucc): SlackApp =
+  private def actionCompleted(evt: ActionComplete): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -268,5 +268,5 @@ private object SlackTranslator extends all {
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed)
-      .withActionSucc(actionSucced)
+      .withActionComplete(actionCompleted)
 }
