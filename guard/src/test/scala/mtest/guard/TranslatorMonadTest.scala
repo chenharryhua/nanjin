@@ -40,7 +40,7 @@ object gendata {
           .withPassThrough(_ => 7)
           .withActionStart(_ => 8)
           .withActionFail(_ => 9)
-          .withActionSucc(_ => 10)
+          .withActionComplete(_ => 10)
           .withActionRetry(_ => 11)))
 
   val add: Int => Int = _ + 1
@@ -59,7 +59,7 @@ object gendata {
           .withPassThrough(_ => add)
           .withActionStart(_ => add)
           .withActionFail(_ => add)
-          .withActionSucc(_ => add)
+          .withActionComplete(_ => add)
           .withActionRetry(_ => add)))
 
   implicit val eqAbc: Eq[Translator[Option, (Int, Int, Int)]] =
@@ -79,7 +79,7 @@ object gendata {
           .withPassThrough(_ => Option(7))
           .withActionStart(_ => Option(8))
           .withActionFail(_ => Option(9))
-          .withActionSucc(_ => Option(10))
+          .withActionComplete(_ => Option(10))
           .withActionRetry(_ => Option(11))))
 }
 

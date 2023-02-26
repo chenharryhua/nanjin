@@ -36,7 +36,7 @@ class HealthCheckTest extends AnyFunSuite {
     assert(c.isInstanceOf[MetricReport])
   }
 
-  test("2.success-test") {
+  test("2.complete-test") {
     val s :: a :: b :: c :: d :: _ = guard
       .service("success-test")
       .updateConfig(_.withMetricReport(cron_1second))
@@ -53,12 +53,12 @@ class HealthCheckTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionSucc])
+    assert(b.isInstanceOf[ActionComplete])
     assert(c.isInstanceOf[ActionStart])
     assert(d.isInstanceOf[MetricReport])
   }
 
-  test("3.never success") {
+  test("3.never complete") {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
       .withRestartPolicy(constant_1hour)

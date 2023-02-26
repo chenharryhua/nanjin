@@ -4,7 +4,12 @@ import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, Timer}
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionRetry, ActionStart, ActionSucc}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionComplete,
+  ActionFail,
+  ActionRetry,
+  ActionStart
+}
 import fs2.concurrent.Channel
 import io.circe.Json
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -28,9 +33,9 @@ final private class ReTry[F[_], IN, OUT](
   input: IN
 )(implicit F: Temporal[F]) {
 
-  private[this] def timingAndCounting(isSucc: Boolean, now: ZonedDateTime): Unit = {
+  private[this] def timingAndCounting(isComplete: Boolean, now: ZonedDateTime): Unit = {
     if (actionInfo.actionParams.isTiming) timer.update(Duration.between(actionInfo.launchTime, now))
-    if (actionInfo.actionParams.isCounting) { if (isSucc) succCounter.inc(1) else failCounter.inc(1) }
+    if (actionInfo.actionParams.isCounting) { if (isComplete) succCounter.inc(1) else failCounter.inc(1) }
   }
 
   @inline private[this] def buildJson(json: Either[Throwable, Json]): Json =
@@ -44,7 +49,7 @@ final private class ReTry[F[_], IN, OUT](
       ts <- actionInfo.actionParams.serviceParams.zonedNow
       json <- transInput(input).attempt.map(buildJson)
       _ <- channel.send(ActionFail(actionInfo, ts, NJError(ex), json))
-    } yield timingAndCounting(isSucc = false, ts)
+    } yield timingAndCounting(isComplete = false, ts)
 
   private[this] def fail(ex: Throwable): F[Either[RetryStatus, OUT]] =
     sendFailureEvent(ex) >> F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
@@ -80,9 +85,9 @@ final private class ReTry[F[_], IN, OUT](
           for {
             ts <- actionInfo.actionParams.serviceParams.zonedNow
             _ <- F.whenA(actionInfo.actionParams.isAware)(transOutput(input, out).attempt.flatMap(json =>
-              channel.send(ActionSucc(actionInfo, ts, buildJson(json)))))
+              channel.send(ActionComplete(actionInfo, ts, buildJson(json)))))
           } yield {
-            timingAndCounting(isSucc = true, ts)
+            timingAndCounting(isComplete = true, ts)
             Right(out)
           }
 

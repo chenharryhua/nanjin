@@ -110,24 +110,24 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionResultEvent extends ActionEvent {
     final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
-    def isSucc: Boolean
+    def isDone: Boolean
   }
 
   @Lenses
   final case class ActionFail(actionInfo: ActionInfo, timestamp: ZonedDateTime, error: NJError, input: Json)
       extends ActionResultEvent {
     override val title: String   = titles.actionFail
-    override val isSucc: Boolean = false
+    override val isDone: Boolean = false
   }
 
   @Lenses
-  final case class ActionSucc(
+  final case class ActionComplete(
     actionInfo: ActionInfo,
     timestamp: ZonedDateTime,
     output: Json // output of the action
   ) extends ActionResultEvent {
-    override val title: String   = titles.actionSucc
-    override val isSucc: Boolean = true
+    override val title: String   = titles.actionComplete
+    override val isDone: Boolean = true
   }
 
   sealed trait InstantEvent extends ServiceEvent {
@@ -156,13 +156,13 @@ object NJEvent extends zoneddatetime {
 }
 
 private object titles {
-  @inline final val serviceStart: String = "(Re)Start Service"
-  @inline final val serviceStop: String  = "Service Stopped"
-  @inline final val servicePanic: String = "Service Panic"
-  @inline final val actionStart: String  = "Start Action"
-  @inline final val actionRetry: String  = "Action Retrying"
-  @inline final val actionFail: String   = "Action Failed"
-  @inline final val actionSucc: String   = "Action Succed"
-  @inline final val instantAlert: String = "Alert"
-  @inline final val passThrough: String  = "Pass Through"
+  @inline final val serviceStart: String   = "(Re)Start Service"
+  @inline final val serviceStop: String    = "Service Stopped"
+  @inline final val servicePanic: String   = "Service Panic"
+  @inline final val actionStart: String    = "Start Action"
+  @inline final val actionRetry: String    = "Action Retrying"
+  @inline final val actionFail: String     = "Action Failed"
+  @inline final val actionComplete: String = "Action Completed"
+  @inline final val instantAlert: String   = "Alert"
+  @inline final val passThrough: String    = "Pass Through"
 }

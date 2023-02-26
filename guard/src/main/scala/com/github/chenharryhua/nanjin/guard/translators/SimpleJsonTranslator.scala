@@ -130,7 +130,7 @@ private object SimpleJsonTranslator {
           timestamp(evt)
         ))
 
-  private def actionFailed(evt: ActionFail): Json =
+  private def actionFail(evt: ActionFail): Json =
     Json.obj(
       "ActionFail" ->
         Json.obj(
@@ -145,9 +145,9 @@ private object SimpleJsonTranslator {
           timestamp(evt)
         ))
 
-  private def actionSucced(evt: ActionSucc): Json =
+  private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
-      "ActionSucc" ->
+      "ActionComplete" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
           name(evt.digested),
@@ -171,6 +171,6 @@ private object SimpleJsonTranslator {
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
-      .withActionFail(actionFailed)
-      .withActionSucc(actionSucced)
+      .withActionFail(actionFail)
+      .withActionComplete(actionComplete)
 }

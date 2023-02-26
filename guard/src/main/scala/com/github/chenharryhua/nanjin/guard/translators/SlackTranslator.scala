@@ -29,7 +29,7 @@ private object SlackTranslator extends all {
     val histograms = snapshot.histograms.map(h => f"${h.metricName.show}.p95 = ${h.p95}%2.2f")
     val counters   = snapshot.counters.map(c => f"${c.metricName.show} = ${c.count}%d")
     val meters =
-      snapshot.meters.map(m => f"${m.metricName.show}.mean_rate = ${m.mean_rate}%2.2f events/$unit")
+      snapshot.meters.map(m => f"${m.metricName.show}.rate = ${m.m15_rate}%2.2f events/$unit")
     val gauges = snapshot.gauges.map(g => s"${g.metricName.show} = ${g.value}")
     val text = abbreviate(((timers ::: counters ::: meters ::: histograms).sorted ::: gauges).mkString("\n"))
     KeyValueSection("Metrics", if (text.isEmpty) "```No Metrics```" else s"```$text```")
@@ -237,7 +237,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def actionSucced(evt: ActionSucc): SlackApp =
+  private def actionCompleted(evt: ActionComplete): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -268,5 +268,5 @@ private object SlackTranslator extends all {
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed)
-      .withActionSucc(actionSucced)
+      .withActionComplete(actionCompleted)
 }

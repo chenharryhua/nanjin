@@ -147,9 +147,9 @@ class ServiceTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionSucc])
+    assert(b.isInstanceOf[ActionComplete])
     assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[ActionSucc])
+    assert(d.isInstanceOf[ActionComplete])
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -164,7 +164,7 @@ class ServiceTest extends AnyFunSuite {
       gd.action("t", _.notice).retry(IO(1)).run >> gd.action("t", _.notice).retry(IO(2)).run)
 
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
-    assert(vector.count(_.isInstanceOf[ActionSucc]) == 4)
+    assert(vector.count(_.isInstanceOf[ActionComplete]) == 4)
     assert(vector.count(_.isInstanceOf[ServiceStop]) == 2)
   }
 

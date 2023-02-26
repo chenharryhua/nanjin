@@ -84,7 +84,7 @@ private object SimpleTextTranslator {
        |  Input:${evt.input.noSpaces}
        |""".stripMargin
 
-  private def actionRetrying(evt: ActionRetry): String =
+  private def actionRetry(evt: ActionRetry): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.tookSoFar)}
@@ -92,7 +92,7 @@ private object SimpleTextTranslator {
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
-  private def actionFailed(evt: ActionFail): String =
+  private def actionFail(evt: ActionFail): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
@@ -101,7 +101,7 @@ private object SimpleTextTranslator {
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
-  private def actionSucced(evt: ActionSucc): String =
+  private def actionComplete(evt: ActionComplete): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
@@ -119,8 +119,8 @@ private object SimpleTextTranslator {
       .withPassThrough(passThrough)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
-      .withActionRetry(actionRetrying)
-      .withActionFail(actionFailed)
-      .withActionSucc(actionSucced)
+      .withActionRetry(actionRetry)
+      .withActionFail(actionFail)
+      .withActionComplete(actionComplete)
 
 }

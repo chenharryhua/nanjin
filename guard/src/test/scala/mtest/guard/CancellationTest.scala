@@ -96,7 +96,7 @@ class CancellationTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("5.cancellation - sequentially - cancel after two succ") {
+  test("5.cancellation - sequentially - cancel after two complete") {
     val Vector(s, a, b, c, d, e) = serviceGuard
       .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
@@ -113,9 +113,9 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionParams.digested.digest == "6f340f3f")
+    assert(b.asInstanceOf[ActionComplete].actionParams.digested.digest == "6f340f3f")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionSucc].actionParams.digested.digest == "56199b40")
+    assert(d.asInstanceOf[ActionComplete].actionParams.digested.digest == "56199b40")
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -138,7 +138,7 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionSucc].actionParams.digested.digest == "6f340f3f")
+    assert(b.asInstanceOf[ActionComplete].actionParams.digested.digest == "6f340f3f")
     assert(c.isInstanceOf[ActionStart])
     assert(d.asInstanceOf[ActionRetry].actionParams.digested.digest == "56199b40")
     assert(e.asInstanceOf[ActionFail].actionParams.digested.digest == "56199b40")
@@ -152,7 +152,7 @@ class CancellationTest extends AnyFunSuite {
       serviceGuard
         .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
         .eventStream { ag =>
-          val a1 = ag.action("succ-1", _.notice).retry(IO.sleep(1.second) >> IO(1)).run
+          val a1 = ag.action("complete-1", _.notice).retry(IO.sleep(1.second) >> IO(1)).run
           val a2 =
             ag.action("fail-2", _.notice).withRetryPolicy(policy).retry(IO.raiseError[Int](new Exception)).run
           val a3 = ag.action("cancel-3", _.notice).retry(never_fun).run
@@ -174,8 +174,8 @@ class CancellationTest extends AnyFunSuite {
     assert(v(4).isInstanceOf[ActionStart])
 
     assert(v(5).isInstanceOf[ActionRetry]) // a2
-    assert(v(6).isInstanceOf[ActionSucc] || v(6).isInstanceOf[ActionRetry]) // a1
-    assert(v(7).isInstanceOf[ActionRetry] || v(7).isInstanceOf[ActionSucc]) // a2
+    assert(v(6).isInstanceOf[ActionComplete] || v(6).isInstanceOf[ActionRetry]) // a1
+    assert(v(7).isInstanceOf[ActionRetry] || v(7).isInstanceOf[ActionComplete]) // a2
     assert(v(8).isInstanceOf[ActionRetry]) // a2
     assert(v(9).isInstanceOf[ActionFail]) // a2 failed
     assert(v(10).isInstanceOf[ActionFail]) // a3 cancelled
@@ -185,9 +185,9 @@ class CancellationTest extends AnyFunSuite {
     assert(v(13).isInstanceOf[ActionStart])
     assert(v(14).isInstanceOf[ActionStart])
 
-    assert(v(15).isInstanceOf[ActionRetry] || v(15).isInstanceOf[ActionSucc]) // a1 or a2
-    assert(v(16).isInstanceOf[ActionSucc] || v(16).isInstanceOf[ActionRetry]) // a1 or a2
-    assert(v(17).isInstanceOf[ActionRetry] || v(17).isInstanceOf[ActionSucc]) // a1 or a2
+    assert(v(15).isInstanceOf[ActionRetry] || v(15).isInstanceOf[ActionComplete]) // a1 or a2
+    assert(v(16).isInstanceOf[ActionComplete] || v(16).isInstanceOf[ActionRetry]) // a1 or a2
+    assert(v(17).isInstanceOf[ActionRetry] || v(17).isInstanceOf[ActionComplete]) // a1 or a2
     assert(v(18).isInstanceOf[ActionRetry]) // a2
     assert(v(19).isInstanceOf[ActionFail]) // a2 failed
     assert(v(20).isInstanceOf[ActionFail]) // a3 cancelled

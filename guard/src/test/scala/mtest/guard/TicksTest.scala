@@ -5,8 +5,8 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionComplete,
   ActionStart,
-  ActionSucc,
   PassThrough,
   ServiceStart,
   ServiceStop
@@ -36,7 +36,7 @@ class TicksTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionSucc])
+    assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ActionStart])
   }
 
@@ -54,9 +54,9 @@ class TicksTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionSucc])
+    assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionSucc])
+    assert(e.isInstanceOf[ActionComplete])
   }
 
   test("3. policy based awakeEvery") {
@@ -73,11 +73,11 @@ class TicksTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionSucc])
+    assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionSucc])
+    assert(e.isInstanceOf[ActionComplete])
     assert(f.isInstanceOf[ActionStart])
-    assert(g.isInstanceOf[ActionSucc])
+    assert(g.isInstanceOf[ActionComplete])
     assert(h.isInstanceOf[ServiceStop])
   }
 
@@ -108,11 +108,11 @@ class TicksTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionSucc])
+    assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionSucc])
+    assert(e.isInstanceOf[ActionComplete])
     assert(f.isInstanceOf[ActionStart])
-    assert(g.isInstanceOf[ActionSucc])
+    assert(g.isInstanceOf[ActionComplete])
     assert(h.isInstanceOf[ServiceStop])
   }
 

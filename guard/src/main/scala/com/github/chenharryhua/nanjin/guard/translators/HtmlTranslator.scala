@@ -155,7 +155,7 @@ private object HtmlTranslator extends all {
       causeText(evt.error)
     )
 
-  private def actionSucced(evt: ActionSucc): Text.TypedTag[String] =
+  private def actionCompleted(evt: ActionComplete): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
@@ -174,5 +174,5 @@ private object HtmlTranslator extends all {
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed)
-      .withActionSucc(actionSucced)
+      .withActionComplete(actionCompleted)
 }
