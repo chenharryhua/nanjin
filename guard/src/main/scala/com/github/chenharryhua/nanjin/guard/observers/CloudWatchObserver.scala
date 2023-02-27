@@ -60,14 +60,13 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
       case ((mds, last), (key, count)) =>
         last.get(key) match {
           case Some(old) =>
-            if (count > old)
+            if (count >= old)
               (
                 key.metricDatum(
                   report.timestamp.toInstant,
                   (count - old).toDouble,
                   StandardUnit.Count) :: mds,
                 last.updated(key, count))
-            else if (count === old) (mds, last)
             else
               (
                 key.metricDatum(report.timestamp.toInstant, count.toDouble, StandardUnit.Count) :: mds,

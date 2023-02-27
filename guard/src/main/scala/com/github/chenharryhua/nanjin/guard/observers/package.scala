@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import cron4s.lib.javatime.javaTemporalInstance
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
 import cron4s.CronExpr
+import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import org.typelevel.cats.time.instances.zoneddatetime.*
@@ -14,18 +14,17 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 package object observers {
-  final val METRICS_DIGEST: String = "digest"
 
-  final val METRICS_RATE_UNIT: String     = "rate_unit"
-  final val METRICS_DURATION_UNIT: String = "duration_unit"
-
+  // counters
   final val METRICS_COUNT: String = "count"
 
+  // meters
   final val METRICS_MEAN_RATE: String      = "mean_rate"
   final val METRICS_1_MINUTE_RATE: String  = "1_minute_rate"
   final val METRICS_5_MINUTE_RATE: String  = "5_minute_rate"
   final val METRICS_15_MINUTE_RATE: String = "15_minute_rate"
 
+  // histograms
   final val METRICS_MIN: String     = "min"
   final val METRICS_MAX: String     = "max"
   final val METRICS_MEAN: String    = "mean"
@@ -38,11 +37,13 @@ package object observers {
   final val METRICS_P99: String  = "p99"
   final val METRICS_P999: String = "p999"
 
+  // dimensions
   final val METRICS_TASK: String        = "Task"
   final val METRICS_SERVICE: String     = "Service"
   final val METRICS_HOST: String        = "Host"
   final val METRICS_LAUNCH_TIME: String = "LaunchTime"
   final val METRICS_CATEGORY: String    = "Category"
+  final val METRICS_DIGEST: String      = "Digest"
 
   /** interval based sampling
     *

@@ -5,7 +5,7 @@ import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
@@ -103,12 +103,7 @@ final class ServiceGuard[F[_]] private[guard] (
             case Some(cron) =>
               awakeEvery[F](policies.cronBackoff(cron, serviceParams.taskParams.zoneId))
                 .evalMap(idx =>
-                  publisher.metricReport(
-                    channel,
-                    serviceParams,
-                    metricRegistry,
-                    MetricFilter.ALL,
-                    MetricIndex.Periodic(idx)))
+                  publisher.metricReport(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
                 .drain
           }
 

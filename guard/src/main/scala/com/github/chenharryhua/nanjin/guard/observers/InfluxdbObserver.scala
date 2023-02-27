@@ -76,15 +76,11 @@ final class InfluxdbObserver[F[_]](
             .drain)
   }
 
-
-  /** InfluxDB tag key constraints:
-   * Tag keys must be strings.
-   * Tag keys must be non-empty.
-   * Tag keys must not contain any control characters (e.g., '\n', '\r', '\t').
-   * Tag keys must not contain commas or spaces.
-   * Tag keys must not start with an underscore ('_'), as these are reserved for system tags.
-   * Tag keys must not exceed 256 bytes in length.
-   */
+  /** InfluxDB tag key constraints: Tag keys must be strings. Tag keys must be non-empty. Tag keys must not
+    * contain any control characters (e.g., '\n', '\r', '\t'). Tag keys must not contain commas or spaces. Tag
+    * keys must not start with an underscore ('_'), as these are reserved for system tags. Tag keys must not
+    * exceed 256 bytes in length.
+    */
 
   private def dimension(sp: ServiceParams): Map[String, String] =
     Map(

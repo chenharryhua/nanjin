@@ -185,7 +185,7 @@ class RetryTest extends AnyFunSuite {
         gd.action("t")
           .withRetryPolicy(RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3)))
           .retry(IO.raiseError(MyException()))
-          .withWorthRetry(_.isInstanceOf[MyException])
+          .withWorthRetryM(x => IO(x.isInstanceOf[MyException]))
           .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
