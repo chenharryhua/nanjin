@@ -42,42 +42,40 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
       case TimeUnit.DAYS         => (TimeUnit.SECONDS.convert(duration), StandardUnit.Seconds)
     }
 
-  private def buildCountDatum(
+  private def computeDatum(
     report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
-    val timers: List[MetricDatum] = report.snapshot.timers.map { timer =>
+    val timer_p95: List[MetricDatum] = report.snapshot.timers.map { timer =>
       val (p95, unit) = unitConversion(timer.p95, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.metricName)
+      MetricKey(report.serviceParams, timer.metricName, METRICS_P95)
         .metricDatum(report.timestamp.toInstant, p95.toDouble, unit)
     }
 
-    val counterKeyMap: Map[MetricKey, Long] = report.snapshot.counters.map { counter =>
-      MetricKey(report.serviceParams, counter.metricName) -> counter.count
+    val timer_count = report.snapshot.timers.map { timer =>
+      MetricKey(report.serviceParams, timer.metricName, METRICS_COUNT) -> timer.count
     }.toMap
+
+    val meter_count = report.snapshot.meters.map { meter =>
+      MetricKey(report.serviceParams, meter.metricName, METRICS_COUNT) -> meter.count
+    }.toMap
+
+    val counterKeyMap: Map[MetricKey, Long] = timer_count ++ meter_count
 
     val (counters, lastUpdates) = counterKeyMap.foldLeft((List.empty[MetricDatum], last)) {
       case ((mds, last), (key, count)) =>
         last.get(key) match {
-          case Some(old) =>
-            if (count >= old)
-              (
-                key.metricDatum(
-                  report.timestamp.toInstant,
-                  (count - old).toDouble,
-                  StandardUnit.Count) :: mds,
-                last.updated(key, count))
-            else
-              (
-                key.metricDatum(report.timestamp.toInstant, count.toDouble, StandardUnit.Count) :: mds,
-                last.updated(key, count))
+          case Some(old) => // counters of timer/meter increase monotonically.
+            (
+              key.metricDatum(report.timestamp.toInstant, (count - old).toDouble, StandardUnit.Count) :: mds,
+              last.updated(key, count))
           case None =>
             (
               key.metricDatum(report.timestamp.toInstant, count.toDouble, StandardUnit.Count) :: mds,
               last.updated(key, count))
         }
     }
-    (counters ::: timers, lastUpdates)
+    (counters ::: timer_p95, lastUpdates)
   }
 
   def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
@@ -90,7 +88,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
           val (mds, next) =
             events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
               case ((lmd, last), mr) =>
-                val (mds, newLast) = buildCountDatum(mr, last)
+                val (mds, newLast) = computeDatum(mr, last)
                 (mds ::: lmd, newLast)
             }
 
@@ -115,7 +113,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
   }
 }
 
-final private case class MetricKey(serviceParams: ServiceParams, metricName: MetricName) {
+final private case class MetricKey(serviceParams: ServiceParams, metricName: MetricName, suffix: String) {
   def metricDatum(ts: Instant, value: Double, standardUnit: StandardUnit): MetricDatum =
     new MetricDatum()
       .withDimensions(
@@ -124,7 +122,7 @@ final private case class MetricKey(serviceParams: ServiceParams, metricName: Met
         new Dimension().withName(METRICS_HOST).withValue(serviceParams.taskParams.hostName.value),
         new Dimension().withName(METRICS_LAUNCH_TIME).withValue(serviceParams.launchTime.toLocalDate.show),
         new Dimension().withName(METRICS_DIGEST).withValue(metricName.digested.digest),
-        new Dimension().withName(METRICS_CATEGORY).withValue(metricName.category.entryName)
+        new Dimension().withName(METRICS_CATEGORY).withValue(s"${metricName.category.entryName}.$suffix")
       )
       .withMetricName(metricName.digested.name)
       .withUnit(standardUnit)

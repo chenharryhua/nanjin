@@ -5,7 +5,12 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.aws.{SimpleEmailService, SimpleNotificationService, SimpleQueueService}
+import com.github.chenharryhua.nanjin.aws.{
+  CloudWatchClient,
+  SimpleEmailService,
+  SimpleNotificationService,
+  SimpleQueueService
+}
 import com.github.chenharryhua.nanjin.common.aws.SqsConfig
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.*
@@ -237,6 +242,24 @@ class ObserversTest extends AnyFunSuite {
       .take(15)
       .evalTap(console.simple[IO])
       .through(influx.observe)
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+  test("12.cloudwatch") {
+    val cloudwatch = CloudWatchObserver(CloudWatchClient.fake[IO])
+    TaskGuard[IO]("cloudwatch")
+      .service("cloudwatch")
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(cron_1second).withMetricDailyReset)
+      .eventStream(
+        _.action("cloudwatch", _.critical.withTiming.withCounting)
+          .retry(IO(()))
+          .run
+          .delayBy(2.seconds)
+          .foreverM)
+      .interruptAfter(5.seconds)
+      .through(cloudwatch.observe("cloudwatch"))
       .compile
       .drain
       .unsafeRunSync()
