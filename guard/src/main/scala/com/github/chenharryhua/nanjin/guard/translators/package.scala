@@ -64,8 +64,8 @@ package object translators {
 
   final private[translators] def showSnapshot(sp: ServiceParams, ss: MetricSnapshot): String = {
     val counters = ss.counters.map(c => s"  ${c.metricName.show} = ${c.count}")
-    val gauges   = ss.gauges.map(g => s"  ${g.metricName.show} = ${g.value}")
-    val unit     = sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)
+    val gauges   = ss.gauges.map(g => s"  ${g.metricName.digested.name}.gauge = ${g.value}")
+    val unit     = sp.metricParams.rateUnitName
     val timers = ss.timers.map { t =>
       f"""|  ${t.metricName.show}
           |             count = ${t.count}%d

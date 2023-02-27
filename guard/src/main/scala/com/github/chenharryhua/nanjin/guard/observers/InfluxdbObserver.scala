@@ -60,6 +60,7 @@ final class InfluxdbObserver[F[_]](
               val points = chunk.mapFilter {
                 case ar: NJEvent.ActionResultEvent =>
                   val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
+                  val name = ar.actionParams.serviceParams.metricParams.durationUnitName
                   Some(
                     Point
                       .measurement(ar.actionParams.digested.name)
@@ -67,7 +68,7 @@ final class InfluxdbObserver[F[_]](
                       .addTag(METRICS_DIGEST, ar.actionParams.digested.digest)
                       .addTag("done", ar.isDone.show) // for query
                       .addTags(tags.asJava)
-                      .addField(unit.name(), unit.convert(ar.took).toDouble) // Double
+                      .addField(name, unit.convert(ar.took).toDouble) // Double
                   )
                 case _ => None
               }.toList.asJava
@@ -76,15 +77,11 @@ final class InfluxdbObserver[F[_]](
             .drain)
   }
 
-
-  /** InfluxDB tag key constraints:
-   * Tag keys must be strings.
-   * Tag keys must be non-empty.
-   * Tag keys must not contain any control characters (e.g., '\n', '\r', '\t').
-   * Tag keys must not contain commas or spaces.
-   * Tag keys must not start with an underscore ('_'), as these are reserved for system tags.
-   * Tag keys must not exceed 256 bytes in length.
-   */
+  /** InfluxDB tag key constraints: Tag keys must be strings. Tag keys must be non-empty. Tag keys must not
+    * contain any control characters (e.g., '\n', '\r', '\t'). Tag keys must not contain commas or spaces. Tag
+    * keys must not start with an underscore ('_'), as these are reserved for system tags. Tag keys must not
+    * exceed 256 bytes in length.
+    */
 
   private def dimension(sp: ServiceParams): Map[String, String] =
     Map(
@@ -107,12 +104,13 @@ final class InfluxdbObserver[F[_]](
       event <- events.evalTap {
         case NJEvent.MetricReport(_, sp, ts, snapshot) =>
           val spDimensions: Map[String, String] = dimension(sp)
-          val rateName: String = s"(calls/${sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)})"
+
           val durationUnit: TimeUnit = sp.metricParams.durationTimeUnit
-          val durationName: String   = s"(${durationUnit.name().toLowerCase()})"
+          val durationName: String   = sp.metricParams.durationUnitName
 
           val timers: List[Point] = snapshot.timers.map { timer =>
-            val tagToAdd = dimension(timer) ++ spDimensions ++ tags
+            val tagToAdd         = dimension(timer) ++ spDimensions ++ tags
+            val rateName: String = s"(calls/${sp.metricParams.rateUnitName})"
             Point
               .measurement(timer.metricName.digested.name)
               .time(ts.toInstant, writePrecision)
@@ -136,7 +134,8 @@ final class InfluxdbObserver[F[_]](
               .addField(METRICS_P999 + durationName, durationUnit.convert(timer.p999).toDouble) // Double
           }
           val meters: List[Point] = snapshot.meters.map { meter =>
-            val tagToAdd = dimension(meter) ++ spDimensions ++ tags
+            val tagToAdd         = dimension(meter) ++ spDimensions ++ tags
+            val rateName: String = s"(events/${sp.metricParams.rateUnitName})"
             Point
               .measurement(meter.metricName.digested.name)
               .time(ts.toInstant, writePrecision)

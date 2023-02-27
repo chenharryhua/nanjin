@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.Monad
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
-import cats.Monad
-import com.codahale.metrics.{MetricFilter, MetricRegistry}
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
@@ -25,7 +25,6 @@ private object publisher {
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    metricFilter: MetricFilter,
     index: MetricIndex): F[Unit] =
     serviceParams.zonedNow
       .flatMap(ts =>
@@ -34,7 +33,7 @@ private object publisher {
             index = index,
             serviceParams = serviceParams,
             timestamp = ts,
-            snapshot = MetricSnapshot(metricRegistry, serviceParams, metricFilter))))
+            snapshot = MetricSnapshot(metricRegistry, serviceParams))))
       .void
 
   def metricReset[F[_]: Monad: Clock](
@@ -49,7 +48,7 @@ private object publisher {
           index = index,
           serviceParams = serviceParams,
           timestamp = ts,
-          snapshot = MetricSnapshot(metricRegistry, serviceParams, MetricFilter.ALL)
+          snapshot = MetricSnapshot(metricRegistry, serviceParams)
         ))
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 

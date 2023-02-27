@@ -124,24 +124,14 @@ object MetricSnapshot extends duration {
       (name: String, metric: Metric) => x.matches(name, metric) && y.matches(name, metric)
   }
 
-  private val positiveFilter: MetricFilter =
-    (_: String, metric: Metric) =>
-      metric match {
-        case c: Counting => c.getCount > 0
-        case _           => true
-      }
-
-  private def counters(metricRegistry: MetricRegistry, metricFilter: MetricFilter): List[Snapshot.Counter] =
-    metricRegistry.getCounters(metricFilter).asScala.toList.mapFilter { case (name, counter) =>
+  private def counters(metricRegistry: MetricRegistry): List[Snapshot.Counter] =
+    metricRegistry.getCounters().asScala.toList.mapFilter { case (name, counter) =>
       decode[MetricName](name).toOption.map(Snapshot.Counter(_, counter.getCount))
     }
 
-  private def meters(
-    metricRegistry: MetricRegistry,
-    metricFilter: MetricFilter,
-    rateTimeUnit: TimeUnit): List[Snapshot.Meter] = {
+  private def meters(metricRegistry: MetricRegistry, rateTimeUnit: TimeUnit): List[Snapshot.Meter] = {
     val rateFactor = rateTimeUnit.toSeconds(1)
-    metricRegistry.getMeters(metricFilter).asScala.toList.mapFilter { case (name, meter) =>
+    metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricName](name).toOption.map(mn =>
         Snapshot.Meter(
           metricName = mn,
@@ -154,12 +144,9 @@ object MetricSnapshot extends duration {
     }
   }
 
-  private def timers(
-    metricRegistry: MetricRegistry,
-    metricFilter: MetricFilter,
-    rateTimeUnit: TimeUnit): List[Snapshot.Timer] = {
+  private def timers(metricRegistry: MetricRegistry, rateTimeUnit: TimeUnit): List[Snapshot.Timer] = {
     val rateFactor = rateTimeUnit.toSeconds(1)
-    metricRegistry.getTimers(metricFilter).asScala.toList.mapFilter { case (name, timer) =>
+    metricRegistry.getTimers().asScala.toList.mapFilter { case (name, timer) =>
       decode[MetricName](name).toOption.map { mn =>
         val ss = timer.getSnapshot
         Snapshot.Timer(
@@ -186,10 +173,8 @@ object MetricSnapshot extends duration {
     }
   }
 
-  private def histograms(
-    metricRegistry: MetricRegistry,
-    metricFilter: MetricFilter): List[Snapshot.Histogram] =
-    metricRegistry.getHistograms(metricFilter).asScala.toList.mapFilter { case (name, histo) =>
+  private def histograms(metricRegistry: MetricRegistry): List[Snapshot.Histogram] =
+    metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
       decode[MetricName](name).toOption.map { mn =>
         val ss = histo.getSnapshot
         Snapshot.Histogram(
@@ -209,23 +194,19 @@ object MetricSnapshot extends duration {
       }
     }
 
-  private def gauges(metricRegistry: MetricRegistry, metricFilter: MetricFilter): List[Snapshot.Gauge] =
-    metricRegistry.getGauges(metricFilter).asScala.toList.mapFilter { case (name, gauge) =>
+  private def gauges(metricRegistry: MetricRegistry): List[Snapshot.Gauge] =
+    metricRegistry.getGauges().asScala.toList.mapFilter { case (name, gauge) =>
       decode[MetricName](name).toOption.map(Snapshot.Gauge(_, gauge.getValue.toString))
     }
 
-  def apply(
-    metricRegistry: MetricRegistry,
-    serviceParams: ServiceParams,
-    filter: MetricFilter): MetricSnapshot = {
-    val newFilter = filter |+| positiveFilter
+  def apply(metricRegistry: MetricRegistry, serviceParams: ServiceParams): MetricSnapshot = {
     val rate_unit = serviceParams.metricParams.rateTimeUnit
     MetricSnapshot(
-      counters = counters(metricRegistry, newFilter),
-      meters = meters(metricRegistry, newFilter, rate_unit),
-      timers = timers(metricRegistry, newFilter, rate_unit),
-      histograms = histograms(metricRegistry, newFilter),
-      gauges = gauges(metricRegistry, newFilter)
+      counters = counters(metricRegistry),
+      meters = meters(metricRegistry, rate_unit),
+      timers = timers(metricRegistry, rate_unit),
+      histograms = histograms(metricRegistry),
+      gauges = gauges(metricRegistry)
     )
   }
 }

@@ -36,7 +36,7 @@ class MetricsTest extends AnyFunSuite {
       .service("delta")
       .updateConfig(_.withMetricReport(cron_1second))
 
-  test("1.delta") {
+  test("1.lazy counting") {
     val last = service("delta")
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
@@ -83,8 +83,8 @@ class MetricsTest extends AnyFunSuite {
   test("4.reset") {
     val last = service.eventStream { ag =>
       val metric = ag.metrics
-      ag.action("one", _.notice).retry(IO(0)).run >> ag
-        .action("two", _.notice)
+      ag.action("one", _.notice.withTiming.withCounting).retry(IO(0)).run >> ag
+        .action("two", _.notice.withTiming.withCounting)
         .retry(IO(1))
         .run >> metric.report >> metric.reset >> IO.sleep(10.minutes)
     }.evalTap(console(Translator.simpleText[IO]))
@@ -95,7 +95,7 @@ class MetricsTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
 
-    assert(last.get.asInstanceOf[MetricReport].snapshot.counters.isEmpty)
+    assert(last.get.asInstanceOf[MetricReport].snapshot.counters.forall(_.count == 0))
   }
 
   test("5.Importance json") {

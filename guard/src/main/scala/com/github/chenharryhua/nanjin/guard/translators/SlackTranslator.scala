@@ -23,14 +23,14 @@ private object SlackTranslator extends all {
     .value
 
   private def metricsSection(snapshot: MetricSnapshot, sp: ServiceParams): KeyValueSection = {
-    val unit = sp.metricParams.rateTimeUnit.name().toLowerCase().dropRight(1)
+    val rateUnitName: String = sp.metricParams.rateUnitName
 
     val timers     = snapshot.timers.map(t => s"${t.metricName.show}.p95 = ${fmt.format(t.p95)}")
     val histograms = snapshot.histograms.map(h => f"${h.metricName.show}.p95 = ${h.p95}%2.2f")
     val counters   = snapshot.counters.map(c => f"${c.metricName.show} = ${c.count}%d")
     val meters =
-      snapshot.meters.map(m => f"${m.metricName.show}.rate = ${m.m15_rate}%2.2f events/$unit")
-    val gauges = snapshot.gauges.map(g => s"${g.metricName.show} = ${g.value}")
+      snapshot.meters.map(m => f"${m.metricName.show}.rate = ${m.m15_rate}%2.2f events/$rateUnitName")
+    val gauges = snapshot.gauges.map(g => s"${g.metricName.digested.name}.gauge = ${g.value}")
     val text = abbreviate(((timers ::: counters ::: meters ::: histograms).sorted ::: gauges).mkString("\n"))
     KeyValueSection("Metrics", if (text.isEmpty) "```No Metrics```" else s"```$text```")
   }

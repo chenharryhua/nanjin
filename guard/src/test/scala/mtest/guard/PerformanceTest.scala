@@ -64,6 +64,65 @@ class PerformanceTest extends AnyFunSuite {
     println(s"${speed(i)} trace")
   }
 
+  test("trivial with Timing and Counting") {
+    var i = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.trivial.withTiming.withCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} trivial with Timing and Counting")
+  }
+
+  test("aware with Timing and Counting") {
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.aware.withCounting.withTiming).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} aware with Timing and Counting")
+  }
+
+  test("silent") {
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} silent")
+  }
+
+  test("notice") {
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.notice).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} notice")
+  }
+
+  test("critical") {
+    var i = 0
+    service.eventStream { ag =>
+      val ts =
+        ag.action("t", _.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} critical")
+  }
+
+  test("critical with notes") {
+    var i = 0
+    service.eventStream { ag =>
+      val ts = ag
+        .action("t", _.critical.withoutTiming.withoutCounting)
+        .retry((_: Int) => IO(i += 1))
+        .logOutput((i, _) => Json.fromInt(i))
+
+      ts.run(1).foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(s"${speed(i)} critical with notes")
+  }
+
   test("atomicBox vs cats.atomicCell") {
     service.eventStream { agent =>
       val box = agent.atomicBox(IO(0))
@@ -96,56 +155,6 @@ class PerformanceTest extends AnyFunSuite {
 
       IO.println("signalBox vs fs2.SignallingRef") >> (nj &> cats)
     }.compile.drain.unsafeRunSync()
-  }
-
-  test("critical") {
-    var i = 0
-    service.eventStream { ag =>
-      val ts =
-        ag.action("t", _.critical.withoutTiming.withoutCounting).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} critical")
-  }
-
-  test("silent") {
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag.action("t", _.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} silent")
-  }
-
-  test("critical with notes") {
-    var i = 0
-    service.eventStream { ag =>
-      val ts = ag
-        .action("t", _.critical.withoutTiming.withoutCounting)
-        .retry((_: Int) => IO(i += 1))
-        .logOutput((i, _) => Json.fromInt(i))
-
-      ts.run(1).foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} critical with notes")
-  }
-
-  test("trivial with Timing and Counting") {
-    var i = 0
-    service.eventStream { ag =>
-      val ts = ag.action("t", _.trivial.withTiming.withCounting).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} trivial with Timing and Counting")
-  }
-
-  test("notice notice with Timing and Counting") {
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag.action("t", _.notice.withTiming.withCounting).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} notice with Timing and Counting")
   }
 
 }

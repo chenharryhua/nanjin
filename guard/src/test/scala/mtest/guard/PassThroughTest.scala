@@ -3,7 +3,6 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.codahale.metrics.MetricFilter
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -70,8 +69,7 @@ class PassThroughTest extends AnyFunSuite {
       .eventStream { ag =>
         val alert = ag.alert("oops").withCounting
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
-          ag.metrics.report >>
-          ag.metrics.report(MetricFilter.ALL)
+          ag.metrics.report
       }
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)

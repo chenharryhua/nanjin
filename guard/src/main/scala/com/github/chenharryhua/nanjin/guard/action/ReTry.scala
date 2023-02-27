@@ -26,16 +26,16 @@ final private class ReTry[F[_], IN, OUT](
   transInput: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
   isWorthRetry: Throwable => F[Boolean],
-  failCounter: Counter,
-  succCounter: Counter,
-  timer: Timer,
+  failCounter: Option[Counter],
+  succCounter: Option[Counter],
+  timer: Option[Timer],
   actionInfo: ActionInfo,
   input: IN
 )(implicit F: Temporal[F]) {
 
   private[this] def timingAndCounting(isComplete: Boolean, now: ZonedDateTime): Unit = {
-    if (actionInfo.actionParams.isTiming) timer.update(Duration.between(actionInfo.launchTime, now))
-    if (actionInfo.actionParams.isCounting) { if (isComplete) succCounter.inc(1) else failCounter.inc(1) }
+    timer.foreach(_.update(Duration.between(actionInfo.launchTime, now)))
+    if (isComplete) succCounter.foreach(_.inc(1)) else failCounter.foreach(_.inc(1))
   }
 
   @inline private[this] def buildJson(json: Either[Throwable, Json]): Json =
