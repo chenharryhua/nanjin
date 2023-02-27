@@ -29,6 +29,9 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   durationTimeUnit: TimeUnit) {
   def nextReport(now: ZonedDateTime): Option[ZonedDateTime] = reportSchedule.flatMap(_.next(now))
   def nextReset(now: ZonedDateTime): Option[ZonedDateTime]  = resetSchedule.flatMap(_.next(now))
+
+  val rateUnitName: String     = rateTimeUnit.name().toLowerCase.dropRight(1)
+  val durationUnitName: String = durationTimeUnit.name().toLowerCase().dropRight(1)
 }
 
 object MetricParams {
