@@ -20,7 +20,7 @@ object MetricCategory
     extends CatsEnum[MetricCategory] with Enum[MetricCategory] with CirceEnum[MetricCategory] {
   override val values: IndexedSeq[MetricCategory] = findValues
 
-  case object ActionTimer extends MetricCategory("action.timer")
+  case object ActionTimer extends MetricCategory("timer")
   case object ActionCompleteCounter extends MetricCategory("action.done")
   case object ActionFailCounter extends MetricCategory("action.fail")
 
