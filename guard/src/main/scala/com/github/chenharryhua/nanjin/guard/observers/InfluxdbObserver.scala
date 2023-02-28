@@ -159,23 +159,23 @@ final class InfluxdbObserver[F[_]](
 
           val histograms: List[Point] = snapshot.histograms.map { histo =>
             val tagToAdd = dimension(histo) ++ spDimensions ++ tags
-            val unit     = s"(${histo.unitOfMeasure})"
+            val unitName = s"(${histo.unitOfMeasure})"
             Point
               .measurement(histo.digested.name)
               .time(ts.toInstant, writePrecision)
               .addTag(METRICS_CATEGORY, "histogram")
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, histo.count) // Long
-              .addField(METRICS_MIN + unit, histo.min) // Long
-              .addField(METRICS_MAX + unit, histo.max) // Long
-              .addField(METRICS_MEAN + unit, histo.mean) // Double
-              .addField(METRICS_STD_DEV + unit, histo.stddev) // Double
-              .addField(METRICS_MEDIAN + unit, histo.median) // Double
-              .addField(METRICS_P75 + unit, histo.p75) // Double
-              .addField(METRICS_P95 + unit, histo.p95) // Double
-              .addField(METRICS_P98 + unit, histo.p98) // Double
-              .addField(METRICS_P99 + unit, histo.p99) // Double
-              .addField(METRICS_P999 + unit, histo.p999) // Double
+              .addField(METRICS_MIN + unitName, histo.min) // Long
+              .addField(METRICS_MAX + unitName, histo.max) // Long
+              .addField(METRICS_MEAN + unitName, histo.mean) // Double
+              .addField(METRICS_STD_DEV + unitName, histo.stddev) // Double
+              .addField(METRICS_MEDIAN + unitName, histo.median) // Double
+              .addField(METRICS_P75 + unitName, histo.p75) // Double
+              .addField(METRICS_P95 + unitName, histo.p95) // Double
+              .addField(METRICS_P98 + unitName, histo.p98) // Double
+              .addField(METRICS_P99 + unitName, histo.p99) // Double
+              .addField(METRICS_P999 + unitName, histo.p999) // Double
           }
           F.blocking(writer.writePoints((counters ::: timers ::: meters ::: histograms).asJava))
         case _ => F.unit
