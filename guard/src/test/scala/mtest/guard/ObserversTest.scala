@@ -248,6 +248,17 @@ class ObserversTest extends AnyFunSuite {
   }
   test("12.cloudwatch") {
     val cloudwatch = CloudWatchObserver(CloudWatchClient.fake[IO])
+      .withStorageResolution(10)
+      .withMax
+      .withMin
+      .withMean
+      .withStdDev
+      .withMedian
+      .withP75
+      .withP95
+      .withP98
+      .withP99
+      .withP999
     TaskGuard[IO]("cloudwatch")
       .service("cloudwatch")
       .withRestartPolicy(constant_1hour)

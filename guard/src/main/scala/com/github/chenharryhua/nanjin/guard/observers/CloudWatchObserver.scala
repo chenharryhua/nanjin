@@ -18,17 +18,32 @@ import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatchClient[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 60)
-
+    new CloudWatchObserver[F](client, 60, List.empty)
 }
 
-final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[F]], storageResolution: Int) {
+final class CloudWatchObserver[F[_]: Sync](
+  client: Resource[F, CloudWatchClient[F]],
+  storageResolution: Int,
+  fields: List[HistogramField]) {
+  private def update(hf: HistogramField): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](client, storageResolution, hf :: fields)
+
+  def withMin: CloudWatchObserver[F]    = update(HistogramField.Min)
+  def withMax: CloudWatchObserver[F]    = update(HistogramField.Max)
+  def withMean: CloudWatchObserver[F]   = update(HistogramField.Mean)
+  def withStdDev: CloudWatchObserver[F] = update(HistogramField.StdDev)
+  def withMedian: CloudWatchObserver[F] = update(HistogramField.Median)
+  def withP75: CloudWatchObserver[F]    = update(HistogramField.P75)
+  def withP95: CloudWatchObserver[F]    = update(HistogramField.P95)
+  def withP98: CloudWatchObserver[F]    = update(HistogramField.P98)
+  def withP99: CloudWatchObserver[F]    = update(HistogramField.P99)
+  def withP999: CloudWatchObserver[F]   = update(HistogramField.P999)
 
   def withStorageResolution(storageResolution: Int): CloudWatchObserver[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchObserver(client, storageResolution)
+    new CloudWatchObserver(client, storageResolution, fields)
   }
 
   private def unitConversion(duration: Duration, timeUnit: TimeUnit): (Long, StandardUnit) =
@@ -42,21 +57,35 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
       case TimeUnit.DAYS         => (TimeUnit.SECONDS.convert(duration), StandardUnit.Seconds)
     }
 
+  private lazy val interestedHistogramFields: List[HistogramField] = fields.distinct
   private def computeDatum(
     report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
-    val timer_p95: List[MetricDatum] = report.snapshot.timers.map { timer =>
-      val (p95, unit) = unitConversion(timer.p95, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.metricName, METRICS_P95)
-        .metricDatum(report.timestamp.toInstant, p95.toDouble, unit)
+    val timer_histo: List[MetricDatum] = for {
+      timer <- report.snapshot.timers
+      hf <- interestedHistogramFields
+    } yield {
+      val (dur, suffix) = hf.pick(timer)
+      val (item, unit)  = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
+      MetricKey(report.serviceParams, timer.metricName, suffix)
+        .metricDatum(report.timestamp.toInstant, item.toDouble, unit)
     }
 
-    val timer_count = report.snapshot.timers.map { timer =>
+    val histograms: List[MetricDatum] = for {
+      histo <- report.snapshot.histograms
+      hf <- interestedHistogramFields
+    } yield {
+      val (value, suffix) = hf.pick(histo)
+      MetricKey(report.serviceParams, histo.metricName, suffix)
+        .metricDatum(report.timestamp.toInstant, value, StandardUnit.None)
+    }
+
+    val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
       MetricKey(report.serviceParams, timer.metricName, METRICS_COUNT) -> timer.count
     }.toMap
 
-    val meter_count = report.snapshot.meters.map { meter =>
+    val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
       MetricKey(report.serviceParams, meter.metricName, METRICS_COUNT) -> meter.count
     }.toMap
 
@@ -75,7 +104,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
               last.updated(key, count))
         }
     }
-    (counters ::: timer_p95, lastUpdates)
+    (counters ::: timer_histo ::: histograms, lastUpdates)
   }
 
   def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
