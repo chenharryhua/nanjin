@@ -37,7 +37,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
   def meter(meterName: String): NJMeter[F]
-  def histogram(histoName: String): NJHistogram[F]
+  def histogram(histoName: String, unitOfMeasure: String): NJHistogram[F]
   def gauge(gaugeName: String): NJGauge[F]
 
   // ticks
@@ -112,9 +112,10 @@ final class GeneralAgent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       isCounting = false)
 
-  override def histogram(histoName: String): NJHistogram[F] =
+  override def histogram(histoName: String, unitOfMeasure: String): NJHistogram[F] =
     new NJHistogram[F](
       digested = Digested(serviceParams, histoName),
+      unitOfMeasure,
       metricRegistry = metricRegistry,
       isCounting = false
     )

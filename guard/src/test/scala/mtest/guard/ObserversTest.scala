@@ -121,7 +121,7 @@ class ObserversTest extends AnyFunSuite {
         ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >>
           ag.meter("meter").withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
-          ag.histogram("histo").withCounting.update(1) >>
+          ag.histogram("histo", "kw").withCounting.update(1) >>
           ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           ag.metrics.reset >> err
       }
@@ -228,15 +228,15 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("observers")
       .service("influxDB")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second))
+      .updateConfig(_.withMetricReport(cron_1second).withMetricNamePrefix("nnj_"))
       .eventStream { ag =>
-        val err  = ag.action("nj_error_action", _.withTiming.withCounting).retry(err_fun(1)).run
-        val good = ag.action("nj_good_action", _.withCounting.withTiming).retry(IO(())).run
-        good >> ag.alert("nj_alert").withCounting.warn("alarm") >>
-          ag.meter("nj_meter").withCounting.mark(1) >>
-          ag.counter("nj_counter").inc(1) >>
-          ag.histogram("nj_histo").withCounting.update(1) >>
-          ag.broker("nj_broker").withCounting.passThrough(Json.fromString("path-error")) >>
+        val err  = ag.action("error_action", _.withTiming.withCounting).retry(err_fun(1)).run
+        val good = ag.action("good_action", _.withCounting.withTiming).retry(IO(())).run
+        good >> ag.alert("alert").withCounting.warn("alarm") >>
+          ag.meter("meter").withCounting.mark(1) >>
+          ag.counter("counter").inc(1) >>
+          ag.histogram("histo", "hours").withCounting.update(1) >>
+          ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           err
       }
       .take(15)

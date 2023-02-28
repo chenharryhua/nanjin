@@ -13,8 +13,9 @@ object Digested {
   implicit val showDigested: Show[Digested] = Show.fromToString
 
   def apply(serviceParams: ServiceParams, name: String): Digested = {
+    val withPrefix = serviceParams.metricParams.namePrefix + name
     val fullName: List[String] =
-      serviceParams.taskParams.taskName.value :: serviceParams.serviceName.value :: name :: Nil
-    Digested(name, DigestUtils.sha1Hex(fullName.mkString("/")).take(8))
+      serviceParams.taskParams.taskName.value :: serviceParams.serviceName.value :: withPrefix :: Nil
+    Digested(withPrefix, DigestUtils.sha1Hex(fullName.mkString("/")).take(8))
   }
 }

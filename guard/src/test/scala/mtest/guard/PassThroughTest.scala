@@ -59,7 +59,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricName.digested.digest == "1a8af341")
+        .find(_.digested.digest == "1a8af341")
         .size == 1)
   }
 
@@ -81,7 +81,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricName.digested.digest == "a32b945e")
+        .find(_.digested.digest == "a32b945e")
         .size == 1)
   }
 
@@ -103,7 +103,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram").withCounting
+        val meter = agent.histogram("nj.test.histogram","watts").withCounting
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))
@@ -111,5 +111,4 @@ class PassThroughTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
-
 }

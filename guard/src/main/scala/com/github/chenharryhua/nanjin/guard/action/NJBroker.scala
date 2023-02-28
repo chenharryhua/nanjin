@@ -7,7 +7,7 @@ import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Digested, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.PassThrough
-import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricName, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import io.circe.syntax.*
@@ -21,7 +21,7 @@ final class NJBroker[F[_]: Monad: Clock] private[guard] (
   dispatcher: Dispatcher[F]) {
 
   private lazy val counter: Counter =
-    metricRegistry.counter(MetricName(digested, MetricCategory.PassThroughCounter).asJson.noSpaces)
+    metricRegistry.counter(MetricID(digested, MetricCategory.PassThroughCounter).asJson.noSpaces)
 
   def withCounting: NJBroker[F] =
     new NJBroker[F](digested, metricRegistry, channel, serviceParams, true, dispatcher)

@@ -63,11 +63,11 @@ package object translators {
     s"${ie.title} ${ie.digested.show}"
 
   final private[translators] def showSnapshot(sp: ServiceParams, ss: MetricSnapshot): String = {
-    val counters = ss.counters.map(c => s"  ${c.metricName.show} = ${c.count}")
-    val gauges   = ss.gauges.map(g => s"  ${g.metricName.digested.name}.gauge = ${g.value}")
+    val counters = ss.counters.map(c => s"  ${c.digested.show}.${c.category} = ${c.count}")
+    val gauges   = ss.gauges.map(g => s"  ${g.digested.name}.gauge = ${g.value}")
     val unit     = sp.metricParams.rateUnitName
     val timers = ss.timers.map { t =>
-      f"""|  ${t.metricName.show}
+      f"""|  ${t.digested.show}.timer
           |             count = ${t.count}%d
           |         mean rate = ${t.mean_rate}%2.2f calls/$unit
           |     1-minute rate = ${t.m1_rate}%2.2f calls/$unit
@@ -86,7 +86,7 @@ package object translators {
     }
 
     val meters = ss.meters.map { m =>
-      f"""|  ${m.metricName.show}
+      f"""|  ${m.digested.show}.meter
           |             count = ${m.count}%d
           |         mean rate = ${m.mean_rate}%2.2f events/$unit
           |     1-minute rate = ${m.m1_rate}%2.2f events/$unit
@@ -95,18 +95,19 @@ package object translators {
     }
 
     val histograms = ss.histograms.map { h =>
-      f"""|  ${h.metricName.show}
+      val unit = h.unitOfMeasure
+      f"""|  ${h.digested.show}.histogram
           |             count = ${h.count}%d
-          |               min = ${h.min}%d
-          |               max = ${h.max}%d
-          |              mean = ${h.mean}%2.2f
-          |            stddev = ${h.stddev}%2.2f
-          |            median = ${h.median}%2.2f
-          |              75%% <= ${h.p75}%2.2f
-          |              95%% <= ${h.p95}%2.2f
-          |              98%% <= ${h.p98}%2.2f
-          |              99%% <= ${h.p99}%2.2f
-          |            99.9%% <= ${h.p999}%2.2f""".stripMargin
+          |               min = ${h.min}%d $unit
+          |               max = ${h.max}%d $unit
+          |              mean = ${h.mean}%2.2f $unit
+          |            stddev = ${h.stddev}%2.2f $unit
+          |            median = ${h.median}%2.2f $unit
+          |              75%% <= ${h.p75}%2.2f $unit
+          |              95%% <= ${h.p95}%2.2f $unit
+          |              98%% <= ${h.p98}%2.2f $unit
+          |              99%% <= ${h.p99}%2.2f $unit
+          |            99.9%% <= ${h.p999}%2.2f $unit""".stripMargin
     }
 
     (gauges ::: counters ::: meters ::: histograms ::: timers).mkString("\n")
