@@ -82,15 +82,15 @@ final class CloudWatchObserver[F[_]: Sync](
     }
 
     val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
-      MetricKey(report.serviceParams, timer.digested, METRICS_COUNT) -> timer.count
+      MetricKey(report.serviceParams, timer.digested, s"timer.$METRICS_COUNT") -> timer.count
     }.toMap
 
     val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
-      MetricKey(report.serviceParams, meter.digested, METRICS_COUNT) -> meter.count
+      MetricKey(report.serviceParams, meter.digested, s"meter.$METRICS_COUNT") -> meter.count
     }.toMap
 
     val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
-      MetricKey(report.serviceParams, histo.digested, METRICS_COUNT) -> histo.count
+      MetricKey(report.serviceParams, histo.digested, s"histogram.$METRICS_COUNT") -> histo.count
     }.toMap
 
     val counterKeyMap: Map[MetricKey, Long] = timer_count ++ meter_count ++ histogram_count
