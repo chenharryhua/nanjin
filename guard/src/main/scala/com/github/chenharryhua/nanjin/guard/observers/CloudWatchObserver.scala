@@ -63,8 +63,8 @@ final class CloudWatchObserver[F[_]: Sync](
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
     val timer_histo: List[MetricDatum] = for {
-      timer <- report.snapshot.timers
       hf <- interestedHistogramFields
+      timer <- report.snapshot.timers
     } yield {
       val (dur, suffix) = hf.pick(timer)
       val (item, unit)  = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
@@ -73,8 +73,8 @@ final class CloudWatchObserver[F[_]: Sync](
     }
 
     val histograms: List[MetricDatum] = for {
-      histo <- report.snapshot.histograms
       hf <- interestedHistogramFields
+      histo <- report.snapshot.histograms
     } yield {
       val (value, suffix) = hf.pick(histo)
       MetricKey(report.serviceParams, histo.metricName, suffix)
