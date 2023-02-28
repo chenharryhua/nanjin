@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import cats.{Monad, Show}
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, Digested, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricName, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.InstantAlert
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
@@ -20,11 +20,11 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   dispatcher: Dispatcher[F]
 ) {
   private lazy val errorCounter: Counter =
-    metricRegistry.counter(MetricName(digested, MetricCategory.AlertErrorCounter).asJson.noSpaces)
+    metricRegistry.counter(MetricID(digested, MetricCategory.AlertErrorCounter).asJson.noSpaces)
   private lazy val warnCounter: Counter =
-    metricRegistry.counter(MetricName(digested, MetricCategory.AlertWarnCounter).asJson.noSpaces)
+    metricRegistry.counter(MetricID(digested, MetricCategory.AlertWarnCounter).asJson.noSpaces)
   private lazy val infoCounter: Counter =
-    metricRegistry.counter(MetricName(digested, MetricCategory.AlertInfoCounter).asJson.noSpaces)
+    metricRegistry.counter(MetricID(digested, MetricCategory.AlertInfoCounter).asJson.noSpaces)
 
   private def alert(msg: String, alertLevel: AlertLevel): F[Unit] =
     for {

@@ -50,17 +50,17 @@ final class NJAction[F[_], IN, OUT] private[action] (
     if (actionParams.isCounting) {
       val fail = Some(
         metricRegistry.counter(
-          MetricName(actionParams.digested, MetricCategory.ActionFailCounter).asJson.noSpaces))
+          MetricID(actionParams.digested, MetricCategory.ActionFailCounter).asJson.noSpaces))
       val succ = Some(
         metricRegistry.counter(
-          MetricName(actionParams.digested, MetricCategory.ActionCompleteCounter).asJson.noSpaces))
+          MetricID(actionParams.digested, MetricCategory.ActionCompleteCounter).asJson.noSpaces))
       (fail, succ)
     } else (None, None)
 
   private lazy val timer: Option[Timer] =
     if (actionParams.isTiming)
       Some(
-        metricRegistry.timer(MetricName(actionParams.digested, MetricCategory.ActionTimer).asJson.noSpaces))
+        metricRegistry.timer(MetricID(actionParams.digested, MetricCategory.ActionTimer).asJson.noSpaces))
     else None
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =

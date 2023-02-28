@@ -25,6 +25,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 @Lenses @JsonCodec final case class MetricParams(
   reportSchedule: Option[CronExpr],
   resetSchedule: Option[CronExpr],
+  namePrefix: String,
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit) {
   def nextReport(now: ZonedDateTime): Option[ZonedDateTime] = reportSchedule.flatMap(_.next(now))
@@ -86,6 +87,7 @@ object ServiceParams extends zoneddatetime with duration {
       metricParams = MetricParams(
         reportSchedule = None,
         resetSchedule = None,
+        namePrefix = "",
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
@@ -105,6 +107,7 @@ private object ServiceConfigF {
   final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
+  final case class WithMetricNamePrefix[K](value: String, cont: K) extends ServiceConfigF[K]
 
   final case class WithPolicyThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
 
@@ -128,6 +131,8 @@ private object ServiceConfigF {
         ServiceParams.metricParams.composeLens(MetricParams.rateTimeUnit).set(v)(c)
       case WithDurationTimeUnit(v, c) =>
         ServiceParams.metricParams.composeLens(MetricParams.durationTimeUnit).set(v)(c)
+      case WithMetricNamePrefix(v, c) =>
+        ServiceParams.metricParams.composeLens(MetricParams.namePrefix).set(v)(c)
 
       case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.set(v)(c)
 
@@ -159,6 +164,9 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF], taskParams: 
     ServiceConfig(Fix(WithRateTimeUnit(tu, value)), taskParams)
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig =
     ServiceConfig(Fix(WithDurationTimeUnit(tu, value)), taskParams)
+
+  def withMetricNamePrefix(prefix: String): ServiceConfig =
+    ServiceConfig(Fix(WithMetricNamePrefix(prefix, value)), taskParams)
 
   def withPolicyThreshold(fd: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), value)), taskParams)

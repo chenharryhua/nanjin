@@ -5,9 +5,9 @@ import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
 import com.github.chenharryhua.nanjin.aws.CloudWatchClient
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{Digested, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{MetricName, NJEvent}
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
 
@@ -18,17 +18,32 @@ import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatchClient[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 60)
-
+    new CloudWatchObserver[F](client, 60, List.empty)
 }
 
-final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[F]], storageResolution: Int) {
+final class CloudWatchObserver[F[_]: Sync](
+  client: Resource[F, CloudWatchClient[F]],
+  storageResolution: Int,
+  fields: List[HistogramField]) {
+  private def update(hf: HistogramField): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](client, storageResolution, hf :: fields)
+
+  def withMin: CloudWatchObserver[F]    = update(HistogramField.Min)
+  def withMax: CloudWatchObserver[F]    = update(HistogramField.Max)
+  def withMean: CloudWatchObserver[F]   = update(HistogramField.Mean)
+  def withStdDev: CloudWatchObserver[F] = update(HistogramField.StdDev)
+  def withMedian: CloudWatchObserver[F] = update(HistogramField.Median)
+  def withP75: CloudWatchObserver[F]    = update(HistogramField.P75)
+  def withP95: CloudWatchObserver[F]    = update(HistogramField.P95)
+  def withP98: CloudWatchObserver[F]    = update(HistogramField.P98)
+  def withP99: CloudWatchObserver[F]    = update(HistogramField.P99)
+  def withP999: CloudWatchObserver[F]   = update(HistogramField.P999)
 
   def withStorageResolution(storageResolution: Int): CloudWatchObserver[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchObserver(client, storageResolution)
+    new CloudWatchObserver(client, storageResolution, fields)
   }
 
   private def unitConversion(duration: Duration, timeUnit: TimeUnit): (Long, StandardUnit) =
@@ -42,25 +57,43 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
       case TimeUnit.DAYS         => (TimeUnit.SECONDS.convert(duration), StandardUnit.Seconds)
     }
 
+  private lazy val interestedHistogramFields: List[HistogramField] = fields.distinct
   private def computeDatum(
     report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
 
-    val timer_p95: List[MetricDatum] = report.snapshot.timers.map { timer =>
-      val (p95, unit) = unitConversion(timer.p95, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.metricName, METRICS_P95)
-        .metricDatum(report.timestamp.toInstant, p95.toDouble, unit)
+    val timer_histo: List[MetricDatum] = for {
+      hf <- interestedHistogramFields
+      timer <- report.snapshot.timers
+    } yield {
+      val (dur, suffix) = hf.pick(timer)
+      val (item, unit)  = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
+      MetricKey(report.serviceParams, timer.digested, s"timer.$suffix")
+        .metricDatum(report.timestamp.toInstant, item.toDouble, unit)
     }
 
-    val timer_count = report.snapshot.timers.map { timer =>
-      MetricKey(report.serviceParams, timer.metricName, METRICS_COUNT) -> timer.count
+    val histograms: List[MetricDatum] = for {
+      hf <- interestedHistogramFields
+      histo <- report.snapshot.histograms
+    } yield {
+      val (value, suffix) = hf.pick(histo)
+      MetricKey(report.serviceParams, histo.digested, s"histogram.$suffix(${histo.unitOfMeasure})")
+        .metricDatum(report.timestamp.toInstant, value, StandardUnit.None)
+    }
+
+    val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
+      MetricKey(report.serviceParams, timer.digested, METRICS_COUNT) -> timer.count
     }.toMap
 
-    val meter_count = report.snapshot.meters.map { meter =>
-      MetricKey(report.serviceParams, meter.metricName, METRICS_COUNT) -> meter.count
+    val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
+      MetricKey(report.serviceParams, meter.digested, METRICS_COUNT) -> meter.count
     }.toMap
 
-    val counterKeyMap: Map[MetricKey, Long] = timer_count ++ meter_count
+    val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
+      MetricKey(report.serviceParams, histo.digested, METRICS_COUNT) -> histo.count
+    }.toMap
+
+    val counterKeyMap: Map[MetricKey, Long] = timer_count ++ meter_count ++ histogram_count
 
     val (counters, lastUpdates) = counterKeyMap.foldLeft((List.empty[MetricDatum], last)) {
       case ((mds, last), (key, count)) =>
@@ -75,7 +108,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
               last.updated(key, count))
         }
     }
-    (counters ::: timer_p95, lastUpdates)
+    (counters ::: timer_histo ::: histograms, lastUpdates)
   }
 
   def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
@@ -113,7 +146,7 @@ final class CloudWatchObserver[F[_]: Sync](client: Resource[F, CloudWatchClient[
   }
 }
 
-final private case class MetricKey(serviceParams: ServiceParams, metricName: MetricName, suffix: String) {
+final private case class MetricKey(serviceParams: ServiceParams, digested: Digested, category: String) {
   def metricDatum(ts: Instant, value: Double, standardUnit: StandardUnit): MetricDatum =
     new MetricDatum()
       .withDimensions(
@@ -121,10 +154,10 @@ final private case class MetricKey(serviceParams: ServiceParams, metricName: Met
         new Dimension().withName(METRICS_SERVICE).withValue(serviceParams.serviceName.value),
         new Dimension().withName(METRICS_HOST).withValue(serviceParams.taskParams.hostName.value),
         new Dimension().withName(METRICS_LAUNCH_TIME).withValue(serviceParams.launchTime.toLocalDate.show),
-        new Dimension().withName(METRICS_DIGEST).withValue(metricName.digested.digest),
-        new Dimension().withName(METRICS_CATEGORY).withValue(s"${metricName.category.entryName}.$suffix")
+        new Dimension().withName(METRICS_DIGEST).withValue(digested.digest),
+        new Dimension().withName(METRICS_CATEGORY).withValue(category)
       )
-      .withMetricName(metricName.digested.name)
+      .withMetricName(digested.name)
       .withUnit(standardUnit)
       .withTimestamp(Date.from(ts))
       .withValue(value)

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.AlertLevel
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
@@ -22,17 +22,11 @@ private object SlackTranslator extends all {
     }
     .value
 
-  private def metricsSection(snapshot: MetricSnapshot, sp: ServiceParams): KeyValueSection = {
-    val rateUnitName: String = sp.metricParams.rateUnitName
-
-    val timers     = snapshot.timers.map(t => s"${t.metricName.show}.p95 = ${fmt.format(t.p95)}")
-    val histograms = snapshot.histograms.map(h => f"${h.metricName.show}.p95 = ${h.p95}%2.2f")
-    val counters   = snapshot.counters.map(c => f"${c.metricName.show} = ${c.count}%d")
-    val meters =
-      snapshot.meters.map(m => f"${m.metricName.show}.rate = ${m.m15_rate}%2.2f events/$rateUnitName")
-    val gauges = snapshot.gauges.map(g => s"${g.metricName.digested.name}.gauge = ${g.value}")
-    val text = abbreviate(((timers ::: counters ::: meters ::: histograms).sorted ::: gauges).mkString("\n"))
-    KeyValueSection("Metrics", if (text.isEmpty) "```No Metrics```" else s"```$text```")
+  private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
+    val counters = snapshot.counters.map(c => f"${c.digested.show} = ${c.count}%d").sorted
+    val gauges   = snapshot.gauges.map(g => s"${g.digested.show} = ${g.value}")
+    val text     = abbreviate((counters ::: gauges).mkString("\n"))
+    KeyValueSection("Metrics", if (text.isEmpty) "`No Metrics`" else s"```$text```")
   }
 
   private def brief(json: Json): KeyValueSection =
@@ -114,7 +108,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Report:* $nextReport
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
-            metricsSection(evt.snapshot, evt.serviceParams)
+            metricsSection(evt.snapshot)
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
@@ -137,7 +131,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Reset:* $nextReset
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
-            metricsSection(evt.snapshot, evt.serviceParams)
+            metricsSection(evt.snapshot)
           )
         )
       )
