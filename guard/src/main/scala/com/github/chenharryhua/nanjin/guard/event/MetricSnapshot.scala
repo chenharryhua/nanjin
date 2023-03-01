@@ -26,7 +26,7 @@ private[guard] object MetricCategory {
   case object MeterCounter extends MetricCategory("meter.recently")
 
   final case class Histogram(unitOfMeasure: String) extends MetricCategory("histogram")
-  case object HistogramCounter extends MetricCategory("histogram.recently")
+  case object HistogramCounter extends MetricCategory("histogram.updates")
 
   case object Counter extends MetricCategory("count")
 

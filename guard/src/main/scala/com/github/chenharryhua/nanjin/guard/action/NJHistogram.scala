@@ -20,7 +20,7 @@ final class NJHistogram[F[_]] private[guard] (
 
   def unsafeUpdate(num: Long): Unit = {
     histogram.update(num)
-    if (isCounting) counter.inc(num)
+    if (isCounting) counter.inc(1) // number of updates
   }
 
   def update(num: Long): F[Unit] = F.delay(unsafeUpdate(num))

@@ -24,7 +24,7 @@ private object SlackTranslator extends all {
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
     val counters = snapshot.counters.map(c => f"${c.digested.show}.${c.category} = ${c.count}%d").sorted
-    val gauges   = snapshot.gauges.map(g => s"${g.digested.show} = ${g.value}")
+    val gauges   = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value}")
     val text     = abbreviate((counters ::: gauges).mkString("\n"))
     KeyValueSection("Metrics", if (text.isEmpty) "`No Metrics`" else s"```$text```")
   }
