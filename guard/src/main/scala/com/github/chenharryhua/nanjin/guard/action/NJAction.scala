@@ -46,7 +46,10 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  private lazy val (failCounter: Option[Counter], succCounter: Option[Counter]) =
+  private lazy val (
+    failCounter: Option[Counter],
+    succCounter: Option[Counter],
+    retryCounter: Option[Counter]) =
     if (actionParams.isCounting) {
       val fail = Some(
         metricRegistry.counter(
@@ -54,13 +57,15 @@ final class NJAction[F[_], IN, OUT] private[action] (
       val succ = Some(
         metricRegistry.counter(
           MetricID(actionParams.digested, MetricCategory.ActionCompleteCounter).asJson.noSpaces))
-      (fail, succ)
-    } else (None, None)
+      val retries = Some(
+        metricRegistry.counter(
+          MetricID(actionParams.digested, MetricCategory.ActionRetryCounter).asJson.noSpaces))
+      (fail, succ, retries)
+    } else (None, None, None)
 
   private lazy val timer: Option[Timer] =
     if (actionParams.isTiming)
-      Some(
-        metricRegistry.timer(MetricID(actionParams.digested, MetricCategory.ActionTimer).asJson.noSpaces))
+      Some(metricRegistry.timer(MetricID(actionParams.digested, MetricCategory.ActionTimer).asJson.noSpaces))
     else None
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
@@ -79,6 +84,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
         isWorthRetry = isWorthRetry,
         failCounter = failCounter,
         succCounter = succCounter,
+        retryCounter = retryCounter,
         timer = timer,
         actionInfo = ai,
         input = input

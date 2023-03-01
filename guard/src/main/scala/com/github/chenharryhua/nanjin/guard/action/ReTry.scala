@@ -28,6 +28,7 @@ final private class ReTry[F[_], IN, OUT](
   isWorthRetry: Throwable => F[Boolean],
   failCounter: Option[Counter],
   succCounter: Option[Counter],
+  retryCounter: Option[Counter],
   timer: Option[Timer],
   actionInfo: ActionInfo,
   input: IN
@@ -71,7 +72,10 @@ final private class ReTry[F[_], IN, OUT](
               ))
           } yield ())
           _ <- F.sleep(delay)
-        } yield Left(status.addRetry(delay))
+        } yield {
+          retryCounter.foreach(_.inc(1))
+          Left(status.addRetry(delay))
+        }
     }
 
   private[this] val sendActionStartEvent: F[Unit] =

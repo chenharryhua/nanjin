@@ -33,6 +33,10 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
   val rateUnitName: String     = rateTimeUnit.name().toLowerCase.dropRight(1)
   val durationUnitName: String = durationTimeUnit.name().toLowerCase().dropRight(1)
+
+  // dropwizard default is times / second
+  private val factor: Long                 = rateTimeUnit.toSeconds(1)
+  def rateConversion(rate: Double): Double = rate * factor
 }
 
 object MetricParams {

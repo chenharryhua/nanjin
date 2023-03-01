@@ -4,13 +4,12 @@ import cats.Show
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.guard.config.{Digested, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.Digested
 import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import org.typelevel.cats.time.instances.duration
 
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.*
 
 @JsonCodec
@@ -21,12 +20,13 @@ private[guard] object MetricCategory {
   case object ActionTimer extends MetricCategory("timer")
   case object ActionCompleteCounter extends MetricCategory("action.done")
   case object ActionFailCounter extends MetricCategory("action.fail")
+  case object ActionRetryCounter extends MetricCategory("action.retry")
 
   case object Meter extends MetricCategory("meter")
   case object MeterCounter extends MetricCategory("meter.recently")
 
   final case class Histogram(unitOfMeasure: String) extends MetricCategory("histogram")
-  case object HistogramCounter extends MetricCategory("histogram.recently")
+  case object HistogramCounter extends MetricCategory("histogram.updates")
 
   case object Counter extends MetricCategory("count")
 
@@ -123,23 +123,20 @@ object MetricSnapshot extends duration {
         Snapshot.Counter(mn.digested, mn.category.value, counter.getCount))
     }
 
-  private def meters(metricRegistry: MetricRegistry, rateTimeUnit: TimeUnit): List[Snapshot.Meter] = {
-    val rateFactor = rateTimeUnit.toSeconds(1)
+  private def meters(metricRegistry: MetricRegistry): List[Snapshot.Meter] =
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricID](name).toOption.map(mn =>
         Snapshot.Meter(
           digested = mn.digested,
           count = meter.getCount,
-          mean_rate = meter.getMeanRate * rateFactor,
-          m1_rate = meter.getOneMinuteRate * rateFactor,
-          m5_rate = meter.getFiveMinuteRate * rateFactor,
-          m15_rate = meter.getFifteenMinuteRate * rateFactor
+          mean_rate = meter.getMeanRate,
+          m1_rate = meter.getOneMinuteRate,
+          m5_rate = meter.getFiveMinuteRate,
+          m15_rate = meter.getFifteenMinuteRate
         ))
     }
-  }
 
-  private def timers(metricRegistry: MetricRegistry, rateTimeUnit: TimeUnit): List[Snapshot.Timer] = {
-    val rateFactor = rateTimeUnit.toSeconds(1)
+  private def timers(metricRegistry: MetricRegistry): List[Snapshot.Timer] =
     metricRegistry.getTimers().asScala.toList.mapFilter { case (name, timer) =>
       decode[MetricID](name).toOption.map { mn =>
         val ss = timer.getSnapshot
@@ -147,10 +144,10 @@ object MetricSnapshot extends duration {
           digested = mn.digested,
           count = timer.getCount,
           // meter
-          mean_rate = timer.getMeanRate * rateFactor,
-          m1_rate = timer.getOneMinuteRate * rateFactor,
-          m5_rate = timer.getFiveMinuteRate * rateFactor,
-          m15_rate = timer.getFifteenMinuteRate * rateFactor,
+          mean_rate = timer.getMeanRate,
+          m1_rate = timer.getOneMinuteRate,
+          m5_rate = timer.getFiveMinuteRate,
+          m15_rate = timer.getFifteenMinuteRate,
           // histogram
           min = Duration.ofNanos(ss.getMin),
           max = Duration.ofNanos(ss.getMax),
@@ -165,7 +162,6 @@ object MetricSnapshot extends duration {
         )
       }
     }
-  }
 
   private def histograms(metricRegistry: MetricRegistry): List[Snapshot.Histogram] =
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
@@ -199,14 +195,12 @@ object MetricSnapshot extends duration {
       decode[MetricID](name).toOption.map(mn => Snapshot.Gauge(mn.digested, gauge.getValue.toString))
     }
 
-  def apply(metricRegistry: MetricRegistry, serviceParams: ServiceParams): MetricSnapshot = {
-    val rate_unit = serviceParams.metricParams.rateTimeUnit
+  def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
       counters = counters(metricRegistry),
-      meters = meters(metricRegistry, rate_unit),
-      timers = timers(metricRegistry, rate_unit),
+      meters = meters(metricRegistry),
+      timers = timers(metricRegistry),
       histograms = histograms(metricRegistry),
       gauges = gauges(metricRegistry)
     )
-  }
 }
