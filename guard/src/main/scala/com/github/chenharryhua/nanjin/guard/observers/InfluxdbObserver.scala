@@ -11,7 +11,6 @@ import com.influxdb.client.{InfluxDBClient, WriteOptions}
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.localdate
 
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 
@@ -91,8 +90,7 @@ final class InfluxdbObserver[F[_]](
       METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
     )
 
-  private def dimension(ms: Snapshot): Map[String, String] =
-    Map(METRICS_DIGEST -> ms.digested.digest)
+  private def dimension(ms: Snapshot): Map[String, String] = Map(METRICS_DIGEST -> ms.digested.digest)
 
   val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {
@@ -101,13 +99,8 @@ final class InfluxdbObserver[F[_]](
       event <- events.evalTap {
         case NJEvent.MetricReport(_, sp, ts, snapshot) =>
           val spDimensions: Map[String, String] = dimension(sp)
-
-          val durationUnit: TimeUnit = sp.metricParams.durationTimeUnit
-          val durationName: String   = s"(${sp.metricParams.durationUnitName})"
-
           val timers: List[Point] = snapshot.timers.map { timer =>
-            val tagToAdd         = dimension(timer) ++ spDimensions ++ tags
-            val rateName: String = s"(calls/${sp.metricParams.rateUnitName})"
+            val tagToAdd = dimension(timer) ++ spDimensions ++ tags
             Point
               .measurement(timer.digested.name)
               .time(ts.toInstant, writePrecision)
@@ -115,25 +108,24 @@ final class InfluxdbObserver[F[_]](
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, timer.count) // Long
               // meter
-              .addField(METRICS_MEAN_RATE + rateName, timer.mean_rate) // Double
-              .addField(METRICS_1_MINUTE_RATE + rateName, timer.m1_rate) // Double
-              .addField(METRICS_5_MINUTE_RATE + rateName, timer.m5_rate) // Double
-              .addField(METRICS_15_MINUTE_RATE + rateName, timer.m15_rate) // Double
+              .addField(METRICS_MEAN_RATE, timer.mean_rate) // Double
+              .addField(METRICS_1_MINUTE_RATE, timer.m1_rate) // Double
+              .addField(METRICS_5_MINUTE_RATE, timer.m5_rate) // Double
+              .addField(METRICS_15_MINUTE_RATE, timer.m15_rate) // Double
               // histogram
-              .addField(METRICS_MIN + durationName, durationUnit.convert(timer.min)) // Long
-              .addField(METRICS_MAX + durationName, durationUnit.convert(timer.max)) // Long
-              .addField(METRICS_MEAN + durationName, durationUnit.convert(timer.mean)) // Long
-              .addField(METRICS_STD_DEV + durationName, durationUnit.convert(timer.stddev)) // Long
-              .addField(METRICS_MEDIAN + durationName, durationUnit.convert(timer.median)) // Long
-              .addField(METRICS_P75 + durationName, durationUnit.convert(timer.p75)) // Long
-              .addField(METRICS_P95 + durationName, durationUnit.convert(timer.p95)) // Long
-              .addField(METRICS_P98 + durationName, durationUnit.convert(timer.p98)) // Long
-              .addField(METRICS_P99 + durationName, durationUnit.convert(timer.p99)) // Long
-              .addField(METRICS_P999 + durationName, durationUnit.convert(timer.p999)) // Long
+              .addField(METRICS_MIN, timer.min.toNanos) // Long
+              .addField(METRICS_MAX, timer.max.toNanos) // Long
+              .addField(METRICS_MEAN, timer.mean.toNanos) // Long
+              .addField(METRICS_STD_DEV, timer.stddev.toNanos) // Long
+              .addField(METRICS_MEDIAN, timer.median.toNanos) // Long
+              .addField(METRICS_P75, timer.p75.toNanos) // Long
+              .addField(METRICS_P95, timer.p95.toNanos) // Long
+              .addField(METRICS_P98, timer.p98.toNanos) // Long
+              .addField(METRICS_P99, timer.p99.toNanos) // Long
+              .addField(METRICS_P999, timer.p999.toNanos) // Long
           }
           val meters: List[Point] = snapshot.meters.map { meter =>
-            val tagToAdd         = dimension(meter) ++ spDimensions ++ tags
-            val rateName: String = s"(events/${sp.metricParams.rateUnitName})"
+            val tagToAdd = dimension(meter) ++ spDimensions ++ tags
             Point
               .measurement(meter.digested.name)
               .time(ts.toInstant, writePrecision)
@@ -141,10 +133,10 @@ final class InfluxdbObserver[F[_]](
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, meter.count) // Long
               // meter
-              .addField(METRICS_MEAN_RATE + rateName, meter.mean_rate) // Double
-              .addField(METRICS_1_MINUTE_RATE + rateName, meter.m1_rate) // Double
-              .addField(METRICS_5_MINUTE_RATE + rateName, meter.m5_rate) // Double
-              .addField(METRICS_15_MINUTE_RATE + rateName, meter.m15_rate) // Double
+              .addField(METRICS_MEAN_RATE, meter.mean_rate) // Double
+              .addField(METRICS_1_MINUTE_RATE, meter.m1_rate) // Double
+              .addField(METRICS_5_MINUTE_RATE, meter.m5_rate) // Double
+              .addField(METRICS_15_MINUTE_RATE, meter.m15_rate) // Double
           }
 
           val counters: List[Point] = snapshot.counters.map { counter =>

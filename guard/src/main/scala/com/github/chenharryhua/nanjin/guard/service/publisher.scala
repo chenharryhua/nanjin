@@ -33,7 +33,7 @@ private object publisher {
             index = index,
             serviceParams = serviceParams,
             timestamp = ts,
-            snapshot = MetricSnapshot(metricRegistry, serviceParams))))
+            snapshot = MetricSnapshot(metricRegistry))))
       .void
 
   def metricReset[F[_]: Monad: Clock](
@@ -48,7 +48,7 @@ private object publisher {
           index = index,
           serviceParams = serviceParams,
           timestamp = ts,
-          snapshot = MetricSnapshot(metricRegistry, serviceParams)
+          snapshot = MetricSnapshot(metricRegistry)
         ))
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
