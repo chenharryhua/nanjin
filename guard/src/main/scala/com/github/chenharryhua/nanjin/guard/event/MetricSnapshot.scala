@@ -21,6 +21,7 @@ private[guard] object MetricCategory {
   case object ActionTimer extends MetricCategory("timer")
   case object ActionCompleteCounter extends MetricCategory("action.done")
   case object ActionFailCounter extends MetricCategory("action.fail")
+  case object ActionRetryCounter extends MetricCategory("action.retries")
 
   case object Meter extends MetricCategory("meter")
   case object MeterCounter extends MetricCategory("meter.recently")
