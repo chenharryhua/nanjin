@@ -174,16 +174,16 @@ object MetricSnapshot extends duration {
                 digested = mn.digested,
                 unitOfMeasure = unitOfMeasure,
                 count = histo.getCount,
+                min = ss.getMin,
                 max = ss.getMax,
                 mean = ss.getMean,
-                min = ss.getMin,
+                stddev = ss.getStdDev,
                 p50 = ss.getMedian,
                 p75 = ss.get75thPercentile(),
                 p95 = ss.get95thPercentile(),
                 p98 = ss.get98thPercentile(),
                 p99 = ss.get99thPercentile(),
-                p999 = ss.get999thPercentile(),
-                stddev = ss.getStdDev
+                p999 = ss.get999thPercentile()
               ))
           case _ => None
         }
