@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.syntax.all.*
+import com.codahale.metrics.MetricAttribute
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
 import cron4s.CronExpr
@@ -16,26 +17,26 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 package object observers {
 
   // counters
-  final val METRICS_COUNT: String = "count"
+  final val METRICS_COUNT: String = MetricAttribute.COUNT.getCode
 
   // meters
-  final val METRICS_MEAN_RATE: String      = "mean_rate"
-  final val METRICS_1_MINUTE_RATE: String  = "1_minute_rate"
-  final val METRICS_5_MINUTE_RATE: String  = "5_minute_rate"
-  final val METRICS_15_MINUTE_RATE: String = "15_minute_rate"
+  final val METRICS_MEAN_RATE: String      = MetricAttribute.MEAN_RATE.getCode
+  final val METRICS_1_MINUTE_RATE: String  = MetricAttribute.M1_RATE.getCode
+  final val METRICS_5_MINUTE_RATE: String  = MetricAttribute.M5_RATE.getCode
+  final val METRICS_15_MINUTE_RATE: String = MetricAttribute.M15_RATE.getCode
 
   // histograms
-  final val METRICS_MIN: String     = "min"
-  final val METRICS_MAX: String     = "max"
-  final val METRICS_MEAN: String    = "mean"
-  final val METRICS_STD_DEV: String = "stddev"
-  final val METRICS_MEDIAN: String  = "median"
+  final val METRICS_MIN: String     = MetricAttribute.MIN.getCode
+  final val METRICS_MAX: String     = MetricAttribute.MAX.getCode
+  final val METRICS_MEAN: String    = MetricAttribute.MEAN.getCode
+  final val METRICS_STD_DEV: String = MetricAttribute.STDDEV.getCode
 
-  final val METRICS_P75: String  = "p75"
-  final val METRICS_P95: String  = "p95"
-  final val METRICS_P98: String  = "p98"
-  final val METRICS_P99: String  = "p99"
-  final val METRICS_P999: String = "p999"
+  final val METRICS_P50: String  = MetricAttribute.P50.getCode
+  final val METRICS_P75: String  = MetricAttribute.P75.getCode
+  final val METRICS_P95: String  = MetricAttribute.P95.getCode
+  final val METRICS_P98: String  = MetricAttribute.P98.getCode
+  final val METRICS_P99: String  = MetricAttribute.P99.getCode
+  final val METRICS_P999: String = MetricAttribute.P999.getCode
 
   // dimensions
   final val METRICS_TASK: String        = "Task"

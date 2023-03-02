@@ -26,9 +26,9 @@ private object HistogramField {
     override def pick(timer: Snapshot.Timer): (Duration, String)   = (timer.stddev, METRICS_STD_DEV)
     override def pick(histo: Snapshot.Histogram): (Double, String) = (histo.stddev, METRICS_STD_DEV)
   }
-  case object Median extends HistogramField {
-    override def pick(timer: Snapshot.Timer): (Duration, String)   = (timer.median, METRICS_MEDIAN)
-    override def pick(histo: Snapshot.Histogram): (Double, String) = (histo.median, METRICS_MEDIAN)
+  case object P50 extends HistogramField {
+    override def pick(timer: Snapshot.Timer): (Duration, String)   = (timer.p50, METRICS_P50)
+    override def pick(histo: Snapshot.Histogram): (Double, String) = (histo.p50, METRICS_P50)
   }
   case object P75 extends HistogramField {
     override def pick(timer: Snapshot.Timer): (Duration, String)   = (timer.p75, METRICS_P75)

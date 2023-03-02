@@ -41,40 +41,49 @@ final class InfluxdbObserver[F[_]](
   def addTags(tagsToAdd: Map[String, String]): InfluxdbObserver[F] =
     new InfluxdbObserver[F](client, writeOptions, writePrecision, tags ++ tagsToAdd)
 
+  private def defaultTransform(ar: NJEvent.ActionResultEvent): Option[Point] = {
+    val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
+    val name = ar.actionParams.serviceParams.metricParams.durationUnitName
+    Some(
+      Point
+        .measurement(ar.actionParams.digested.name)
+        .time(ar.timestamp.toInstant, writePrecision)
+        .addTag(METRICS_DIGEST, ar.actionParams.digested.digest)
+        .addTag("done", ar.isDone.show) // for query
+        .addField(name, unit.convert(ar.took)) // Long
+    )
+  }
+
   /** @param chunkSize
     *   is the maximum number of elements to include in a chunk.
     * @param timeout
     *   is the maximum duration of time to wait before emitting a chunk, even if it doesn't contain chunkSize
     *   elements.
     */
-  def observe(chunkSize: Int, timeout: FiniteDuration): Pipe[F, NJEvent, Nothing] = {
+  def observe(
+    chunkSize: Int,
+    timeout: FiniteDuration,
+    f: NJEvent.ActionResultEvent => Option[Point]): Pipe[F, NJEvent, Nothing] = {
     (events: Stream[F, NJEvent]) =>
       Stream
         .bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(c =>
           F.blocking(c.close()))
-        .flatMap(writer =>
+        .flatMap { writer =>
           events
             .groupWithin(chunkSize, timeout)
             .evalMap { chunk =>
-              val points = chunk.mapFilter {
-                case ar: NJEvent.ActionResultEvent =>
-                  val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
-                  val name = ar.actionParams.serviceParams.metricParams.durationUnitName
-                  Some(
-                    Point
-                      .measurement(ar.actionParams.digested.name)
-                      .time(ar.timestamp.toInstant, writePrecision)
-                      .addTag(METRICS_DIGEST, ar.actionParams.digested.digest)
-                      .addTag("done", ar.isDone.show) // for query
-                      .addTags(tags.asJava)
-                      .addField(name, unit.convert(ar.took).toDouble) // Double
-                  )
-                case _ => None
-              }.toList.asJava
-              F.blocking(writer.writePoints(points))
+              val points: List[Point] = chunk.mapFilter {
+                case ar: NJEvent.ActionResultEvent => f(ar).map(_.addTags(tags.asJava))
+                case _                             => None
+              }.toList
+              F.blocking(writer.writePoints(points.asJava))
             }
-            .drain)
+            .drain
+        }
   }
+
+  def observe(chunkSize: Int, timeout: FiniteDuration): Pipe[F, NJEvent, Nothing] =
+    observe(chunkSize, timeout, defaultTransform)
 
   /** InfluxDB tag key constraints: Tag keys must be strings. Tag keys must be non-empty. Tag keys must not
     * contain any control characters (e.g., '\n', '\r', '\t'). Tag keys must not contain commas or spaces. Tag
@@ -117,7 +126,7 @@ final class InfluxdbObserver[F[_]](
               .addField(METRICS_MAX, timer.max.toNanos) // Long
               .addField(METRICS_MEAN, timer.mean.toNanos) // Long
               .addField(METRICS_STD_DEV, timer.stddev.toNanos) // Long
-              .addField(METRICS_MEDIAN, timer.median.toNanos) // Long
+              .addField(METRICS_P50, timer.p50.toNanos) // Long
               .addField(METRICS_P75, timer.p75.toNanos) // Long
               .addField(METRICS_P95, timer.p95.toNanos) // Long
               .addField(METRICS_P98, timer.p98.toNanos) // Long
@@ -162,7 +171,7 @@ final class InfluxdbObserver[F[_]](
               .addField(METRICS_MAX + unitName, histo.max) // Long
               .addField(METRICS_MEAN + unitName, histo.mean) // Double
               .addField(METRICS_STD_DEV + unitName, histo.stddev) // Double
-              .addField(METRICS_MEDIAN + unitName, histo.median) // Double
+              .addField(METRICS_P50 + unitName, histo.p50) // Double
               .addField(METRICS_P75 + unitName, histo.p75) // Double
               .addField(METRICS_P95 + unitName, histo.p95) // Double
               .addField(METRICS_P98 + unitName, histo.p98) // Double

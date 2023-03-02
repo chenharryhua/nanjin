@@ -20,7 +20,7 @@ private[guard] object MetricCategory {
   case object ActionTimer extends MetricCategory("timer")
   case object ActionCompleteCounter extends MetricCategory("action.done")
   case object ActionFailCounter extends MetricCategory("action.fail")
-  case object ActionRetryCounter extends MetricCategory("action.retry")
+  case object ActionRetryCounter extends MetricCategory("action.retries")
 
   case object Meter extends MetricCategory("meter")
   case object MeterCounter extends MetricCategory("meter.recently")
@@ -69,7 +69,7 @@ object Snapshot {
     max: Duration,
     mean: Duration,
     stddev: Duration,
-    median: Duration,
+    p50: Duration,
     p75: Duration,
     p95: Duration,
     p98: Duration,
@@ -86,7 +86,7 @@ object Snapshot {
     max: Long,
     mean: Double,
     stddev: Double,
-    median: Double,
+    p50: Double,
     p75: Double,
     p95: Double,
     p98: Double,
@@ -153,7 +153,7 @@ object MetricSnapshot extends duration {
           max = Duration.ofNanos(ss.getMax),
           mean = Duration.ofNanos(ss.getMean.toLong),
           stddev = Duration.ofNanos(ss.getStdDev.toLong),
-          median = Duration.ofNanos(ss.getMedian.toLong),
+          p50 = Duration.ofNanos(ss.getMedian.toLong),
           p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
           p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
           p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
@@ -177,7 +177,7 @@ object MetricSnapshot extends duration {
                 max = ss.getMax,
                 mean = ss.getMean,
                 min = ss.getMin,
-                median = ss.getMedian,
+                p50 = ss.getMedian,
                 p75 = ss.get75thPercentile(),
                 p95 = ss.get95thPercentile(),
                 p98 = ss.get98thPercentile(),

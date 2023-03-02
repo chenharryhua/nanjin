@@ -78,7 +78,7 @@ package object translators {
           |               max = ${fmt.format(t.max)}
           |              mean = ${fmt.format(t.mean)}
           |            stddev = ${fmt.format(t.stddev)}
-          |            median = ${fmt.format(t.median)}
+          |            median = ${fmt.format(t.p50)}
           |              75%% <= ${fmt.format(t.p75)}
           |              95%% <= ${fmt.format(t.p95)}
           |              98%% <= ${fmt.format(t.p98)}
@@ -103,7 +103,7 @@ package object translators {
           |               max = ${h.max}%d $unit
           |              mean = ${h.mean}%2.2f $unit
           |            stddev = ${h.stddev}%2.2f $unit
-          |            median = ${h.median}%2.2f $unit
+          |            median = ${h.p50}%2.2f $unit
           |              75%% <= ${h.p75}%2.2f $unit
           |              95%% <= ${h.p95}%2.2f $unit
           |              98%% <= ${h.p98}%2.2f $unit

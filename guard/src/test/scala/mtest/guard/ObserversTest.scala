@@ -228,7 +228,7 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("observers")
       .service("influxDB")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second).withMetricNamePrefix("nnj_"))
+      .updateConfig(_.withMetricReport(cron_1second).withMetricNamePrefix("nj_"))
       .eventStream { ag =>
         val err  = ag.action("error_action", _.withTiming.withCounting).retry(err_fun(1)).run
         val good = ag.action("good_action", _.withCounting.withTiming).retry(IO(())).run
@@ -253,7 +253,7 @@ class ObserversTest extends AnyFunSuite {
       .withMin
       .withMean
       .withStdDev
-      .withMedian
+      .withP50
       .withP75
       .withP95
       .withP98

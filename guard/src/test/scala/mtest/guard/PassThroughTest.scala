@@ -54,13 +54,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(
-      last
-        .asInstanceOf[MetricReport]
-        .snapshot
-        .counters
-        .find(_.digested.digest == "1a8af341")
-        .size == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.digested.digest == "1a8af341").size == 1)
   }
 
   test("3.alert") {
@@ -76,13 +70,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(
-      last
-        .asInstanceOf[MetricReport]
-        .snapshot
-        .counters
-        .find(_.digested.digest == "a32b945e")
-        .size == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.digested.digest == "a32b945e").size == 1)
   }
 
   test("4.meter") {
@@ -103,7 +91,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram","watts").withCounting
+        val meter = agent.histogram("nj.test.histogram", "watts").withCounting
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))
