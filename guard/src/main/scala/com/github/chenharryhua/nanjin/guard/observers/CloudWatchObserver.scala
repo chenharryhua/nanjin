@@ -32,7 +32,7 @@ final class CloudWatchObserver[F[_]: Sync](
   def withMax: CloudWatchObserver[F]    = update(HistogramField.Max)
   def withMean: CloudWatchObserver[F]   = update(HistogramField.Mean)
   def withStdDev: CloudWatchObserver[F] = update(HistogramField.StdDev)
-  def withMedian: CloudWatchObserver[F] = update(HistogramField.Median)
+  def withP50: CloudWatchObserver[F]    = update(HistogramField.P50)
   def withP75: CloudWatchObserver[F]    = update(HistogramField.P75)
   def withP95: CloudWatchObserver[F]    = update(HistogramField.P95)
   def withP98: CloudWatchObserver[F]    = update(HistogramField.P98)
