@@ -45,7 +45,7 @@ final class NJActionBuilder[F[_]](
   def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): NJActionBuilder[F] =
     withRetryPolicy(f(policies.cronBackoff[F](cronExpr, actionConfig.serviceParams.taskParams.zoneId)))
 
-  private val alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
+  private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 
   // retries
   def retry[Z](fb: F[Z]): NJAction0[F, Z] = // 0 arity
@@ -55,7 +55,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = fb,
-      transInput = F.pure(Json.Null),
+      transError = F.pure(Json.Null),
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
     )
@@ -67,7 +67,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f,
-      transInput = _ => F.pure(Json.Null),
+      transError = _ => F.pure(Json.Null),
       transOutput = (_: A, _: Z) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
     )
@@ -79,7 +79,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transError = _ => F.pure(Json.Null),
       transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
     )
@@ -91,7 +91,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transError = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
     )
@@ -103,7 +103,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transError = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
     )
@@ -115,7 +115,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transError = _ => F.pure(Json.Null),
       transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
     )
@@ -166,6 +166,7 @@ final class NJActionBuilder[F[_]](
     Json.obj("quasi" -> body)
   }
 
+  // in case cancelled
   private def inputJson(size: Long, par: Option[Int]): Json =
     Json.obj("quasi" -> Json.obj(jobs(size), mode(par)))
 
@@ -178,7 +179,7 @@ final class NJActionBuilder[F[_]](
         case (_, 0) => Ior.left(fail)
         case _      => Ior.Both(fail, done)
       }
-    }).logOutput(outputJson(_, size, None)).logInput(inputJson(size, None))
+    }).logOutput(outputJson(_, size, None)).logError(inputJson(size, None))
   }
 
   def quasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = quasi[List, Z](fzs.toList)
@@ -195,7 +196,7 @@ final class NJActionBuilder[F[_]](
           case (_, 0) => Ior.left(fail)
           case _      => Ior.Both(fail, done)
         }
-      }).logOutput(outputJson(_, size, Some(parallelism))).logInput(inputJson(size, Some(parallelism)))
+      }).logOutput(outputJson(_, size, Some(parallelism))).logError(inputJson(size, Some(parallelism)))
   }
 
   def parQuasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =

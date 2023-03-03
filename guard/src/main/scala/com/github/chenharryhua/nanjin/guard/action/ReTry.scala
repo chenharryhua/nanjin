@@ -23,7 +23,7 @@ final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
-  transInput: IN => F[Json],
+  transError: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
   isWorthRetry: Throwable => F[Boolean],
   failCounter: Option[Counter],
@@ -48,7 +48,7 @@ final private class ReTry[F[_], IN, OUT](
   private[this] def sendFailureEvent(ex: Throwable): F[Unit] =
     for {
       ts <- actionInfo.actionParams.serviceParams.zonedNow
-      json <- transInput(input).attempt.map(buildJson)
+      json <- transError(input).attempt.map(buildJson)
       _ <- channel.send(ActionFail(actionInfo, ts, NJError(ex), json))
     } yield timingAndCounting(isComplete = false, ts)
 
@@ -79,8 +79,7 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   private[this] val sendActionStartEvent: F[Unit] =
-    F.whenA(actionInfo.actionParams.isNotice)(transInput(input).attempt.flatMap(json =>
-      channel.send(ActionStart(actionInfo, buildJson(json)))))
+    F.whenA(actionInfo.actionParams.isNotice)(channel.send(ActionStart(actionInfo)))
 
   private[this] val loop: F[OUT] = sendActionStartEvent >>
     F.tailRecM(RetryStatus.NoRetriesYet) { status =>

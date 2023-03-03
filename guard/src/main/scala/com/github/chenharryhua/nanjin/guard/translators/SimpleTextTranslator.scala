@@ -81,7 +81,6 @@ private object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
-       |  Input:${evt.input.noSpaces}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
@@ -97,7 +96,7 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  Policy:${evt.actionParams.retryPolicy}
-       |  Input:${evt.input.noSpaces}
+       |  Output:${evt.output.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 

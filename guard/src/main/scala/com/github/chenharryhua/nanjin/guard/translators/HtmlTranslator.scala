@@ -116,8 +116,7 @@ private object HtmlTranslator extends all {
     )
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
-      table(hostServiceTable(evt), start),
-      p(b("Input: "), jsonText(evt.input))
+      table(hostServiceTable(evt), start)
     )
   }
 
@@ -151,7 +150,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b("Policy: "), evt.actionInfo.actionParams.retryPolicy),
-      p(b("Input: "), jsonText(evt.input)),
+      p(b("Output: "), jsonText(evt.output)),
       causeText(evt.error)
     )
 

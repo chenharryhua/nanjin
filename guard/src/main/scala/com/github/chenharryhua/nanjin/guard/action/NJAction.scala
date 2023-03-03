@@ -19,11 +19,11 @@ final class NJAction[F[_], IN, OUT] private[action] (
   actionParams: ActionParams,
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
-  transInput: IN => F[Json],
+  transError: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) {
   private def copy(
-    transInput: IN => F[Json] = transInput,
+    transError: IN => F[Json] = transError,
     transOutput: (IN, OUT) => F[Json] = transOutput,
     isWorthRetry: Throwable => F[Boolean] = isWorthRetry): NJAction[F, IN, OUT] =
     new NJAction[F, IN, OUT](
@@ -32,7 +32,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       actionParams,
       retryPolicy,
       arrow,
-      transInput,
+      transError,
       transOutput,
       isWorthRetry)
 
@@ -40,8 +40,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInputM(f: IN => F[Json]): NJAction[F, IN, OUT] = copy(transInput = f)
-  def logInput(f: IN => Json): NJAction[F, IN, OUT]     = logInputM((a: IN) => F.pure(f(a)))
+  def logErrorM(f: IN => F[Json]): NJAction[F, IN, OUT] = copy(transError = f)
+  def logError(f: IN => Json): NJAction[F, IN, OUT]     = logErrorM((a: IN) => F.pure(f(a)))
 
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
@@ -79,7 +79,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
         channel = channel,
         retryPolicy = retryPolicy,
         arrow = arrow,
-        transInput = transInput,
+        transError = transError,
         transOutput = transOutput,
         isWorthRetry = isWorthRetry,
         failCounter = failCounter,
@@ -115,11 +115,11 @@ final class NJAction0[F[_], OUT] private[guard] (
   actionParams: ActionParams,
   retryPolicy: RetryPolicy[F],
   arrow: F[OUT],
-  transInput: F[Json],
+  transError: F[Json],
   transOutput: OUT => F[Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) {
   private def copy(
-    transInput: F[Json] = transInput,
+    transError: F[Json] = transError,
     transOutput: OUT => F[Json] = transOutput,
     isWorthRetry: Throwable => F[Boolean] = isWorthRetry): NJAction0[F, OUT] =
     new NJAction0[F, OUT](
@@ -128,7 +128,7 @@ final class NJAction0[F[_], OUT] private[guard] (
       actionParams,
       retryPolicy,
       arrow,
-      transInput,
+      transError,
       transOutput,
       isWorthRetry)
 
@@ -136,8 +136,8 @@ final class NJAction0[F[_], OUT] private[guard] (
   def withWorthRetry(f: Throwable => Boolean): NJAction0[F, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInputM(info: F[Json]): NJAction0[F, OUT] = copy(transInput = info)
-  def logInput(info: => Json): NJAction0[F, OUT]  = logInputM(F.delay(info))
+  def logErrorM(info: F[Json]): NJAction0[F, OUT] = copy(transError = info)
+  def logError(info: => Json): NJAction0[F, OUT]  = logErrorM(F.delay(info))
 
   def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT] = copy(transOutput = f)
   def logOutput(f: OUT => Json): NJAction0[F, OUT]     = logOutputM((b: OUT) => F.pure(f(b)))
@@ -148,7 +148,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     actionParams = actionParams,
     retryPolicy = retryPolicy,
     arrow = _ => arrow,
-    transInput = _ => transInput,
+    transError = _ => transError,
     transOutput = (_, b: OUT) => transOutput(b),
     isWorthRetry = isWorthRetry
   )
