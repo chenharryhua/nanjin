@@ -117,10 +117,10 @@ final class InfluxdbObserver[F[_]](
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, timer.count) // Long
               // meter
-              .addField(METRICS_MEAN_RATE, timer.mean_rate) // Double
-              .addField(METRICS_1_MINUTE_RATE, timer.m1_rate) // Double
-              .addField(METRICS_5_MINUTE_RATE, timer.m5_rate) // Double
-              .addField(METRICS_15_MINUTE_RATE, timer.m15_rate) // Double
+              .addField(METRICS_MEAN_RATE, timer.mean_rate.toHertz) // Double
+              .addField(METRICS_1_MINUTE_RATE, timer.m1_rate.toHertz) // Double
+              .addField(METRICS_5_MINUTE_RATE, timer.m5_rate.toHertz) // Double
+              .addField(METRICS_15_MINUTE_RATE, timer.m15_rate.toHertz) // Double
               // histogram
               .addField(METRICS_MIN, timer.min.toNanos) // Long
               .addField(METRICS_MAX, timer.max.toNanos) // Long
@@ -142,10 +142,10 @@ final class InfluxdbObserver[F[_]](
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, meter.count) // Long
               // meter
-              .addField(METRICS_MEAN_RATE, meter.mean_rate) // Double
-              .addField(METRICS_1_MINUTE_RATE, meter.m1_rate) // Double
-              .addField(METRICS_5_MINUTE_RATE, meter.m5_rate) // Double
-              .addField(METRICS_15_MINUTE_RATE, meter.m15_rate) // Double
+              .addField(METRICS_MEAN_RATE, meter.mean_rate.toHertz) // Double
+              .addField(METRICS_1_MINUTE_RATE, meter.m1_rate.toHertz) // Double
+              .addField(METRICS_5_MINUTE_RATE, meter.m5_rate.toHertz) // Double
+              .addField(METRICS_15_MINUTE_RATE, meter.m15_rate.toHertz) // Double
           }
 
           val counters: List[Point] = snapshot.counters.map { counter =>

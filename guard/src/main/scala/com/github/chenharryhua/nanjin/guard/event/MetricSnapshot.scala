@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.config.Digested
 import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import org.typelevel.cats.time.instances.duration
+import squants.time.{Frequency, Hertz}
 
 import java.time.Duration
 import scala.jdk.CollectionConverters.*
@@ -23,7 +24,7 @@ private[guard] object MetricCategory {
   case object ActionRetryCounter extends MetricCategory("action.retries")
 
   case object Meter extends MetricCategory("meter")
-  case object MeterCounter extends MetricCategory("meter.recently")
+  case object MeterCounter extends MetricCategory("meter.events")
 
   final case class Histogram(unitOfMeasure: String) extends MetricCategory("histogram")
   case object HistogramCounter extends MetricCategory("histogram.updates")
@@ -51,20 +52,20 @@ object Snapshot {
   @JsonCodec final case class Meter(
     digested: Digested,
     count: Long,
-    mean_rate: Double,
-    m1_rate: Double,
-    m5_rate: Double,
-    m15_rate: Double
+    mean_rate: Frequency,
+    m1_rate: Frequency,
+    m5_rate: Frequency,
+    m15_rate: Frequency
   ) extends Snapshot
 
   @JsonCodec
   final case class Timer(
     digested: Digested,
     count: Long,
-    mean_rate: Double,
-    m1_rate: Double,
-    m5_rate: Double,
-    m15_rate: Double,
+    mean_rate: Frequency,
+    m1_rate: Frequency,
+    m5_rate: Frequency,
+    m15_rate: Frequency,
     min: Duration,
     max: Duration,
     mean: Duration,
@@ -129,10 +130,10 @@ object MetricSnapshot extends duration {
         Snapshot.Meter(
           digested = mn.digested,
           count = meter.getCount,
-          mean_rate = meter.getMeanRate,
-          m1_rate = meter.getOneMinuteRate,
-          m5_rate = meter.getFiveMinuteRate,
-          m15_rate = meter.getFifteenMinuteRate
+          mean_rate = Hertz(meter.getMeanRate),
+          m1_rate = Hertz(meter.getOneMinuteRate),
+          m5_rate = Hertz(meter.getFiveMinuteRate),
+          m15_rate = Hertz(meter.getFifteenMinuteRate)
         ))
     }
 
@@ -144,10 +145,10 @@ object MetricSnapshot extends duration {
           digested = mn.digested,
           count = timer.getCount,
           // meter
-          mean_rate = timer.getMeanRate,
-          m1_rate = timer.getOneMinuteRate,
-          m5_rate = timer.getFiveMinuteRate,
-          m15_rate = timer.getFifteenMinuteRate,
+          mean_rate = Hertz(timer.getMeanRate),
+          m1_rate = Hertz(timer.getOneMinuteRate),
+          m5_rate = Hertz(timer.getFiveMinuteRate),
+          m15_rate = Hertz(timer.getFifteenMinuteRate),
           // histogram
           min = Duration.ofNanos(ss.getMin),
           max = Duration.ofNanos(ss.getMax),

@@ -70,10 +70,10 @@ package object translators {
     val timers = ss.timers.map { t =>
       f"""|  ${t.digested.show}.timer
           |             count = ${t.count}%d
-          |         mean rate = ${convert(t.mean_rate)}%2.2f calls/$unit
-          |     1-minute rate = ${convert(t.m1_rate)}%2.2f calls/$unit
-          |     5-minute rate = ${convert(t.m5_rate)}%2.2f calls/$unit
-          |    15-minute rate = ${convert(t.m15_rate)}%2.2f calls/$unit
+          |         mean rate = ${convert(t.mean_rate.toHertz)}%2.2f calls/$unit
+          |     1-minute rate = ${convert(t.m1_rate.toHertz)}%2.2f calls/$unit
+          |     5-minute rate = ${convert(t.m5_rate.toHertz)}%2.2f calls/$unit
+          |    15-minute rate = ${convert(t.m15_rate.toHertz)}%2.2f calls/$unit
           |               min = ${fmt.format(t.min)}
           |               max = ${fmt.format(t.max)}
           |              mean = ${fmt.format(t.mean)}
@@ -89,10 +89,10 @@ package object translators {
     val meters = ss.meters.map { m =>
       f"""|  ${m.digested.show}.meter
           |             count = ${m.count}%d
-          |         mean rate = ${convert(m.mean_rate)}%2.2f events/$unit
-          |     1-minute rate = ${convert(m.m1_rate)}%2.2f events/$unit
-          |     5-minute rate = ${convert(m.m5_rate)}%2.2f events/$unit
-          |    15-minute rate = ${convert(m.m15_rate)}%2.2f events/$unit""".stripMargin
+          |         mean rate = ${convert(m.mean_rate.toHertz)}%2.2f events/$unit
+          |     1-minute rate = ${convert(m.m1_rate.toHertz)}%2.2f events/$unit
+          |     5-minute rate = ${convert(m.m5_rate.toHertz)}%2.2f events/$unit
+          |    15-minute rate = ${convert(m.m15_rate.toHertz)}%2.2f events/$unit""".stripMargin
     }
 
     val histograms = ss.histograms.map { h =>
