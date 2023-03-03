@@ -20,6 +20,7 @@ trait DurationFormatter {
 }
 
 object DurationFormatter {
+  final private val microsecond: FiniteDuration = Duration(1, TimeUnit.MICROSECONDS)
   final private val millisecond: FiniteDuration = Duration(1, TimeUnit.MILLISECONDS)
   final private val second: FiniteDuration      = Duration(1, TimeUnit.SECONDS)
   final private val minute: FiniteDuration      = Duration(1, TimeUnit.MINUTES)
@@ -28,9 +29,12 @@ object DurationFormatter {
 
   final val defaultFormatter: DurationFormatter = (duration: Duration) => {
     val dur: Duration = if (duration < Duration.Zero) duration.neg() else duration
-    if (dur < millisecond) {
+    if (dur < microsecond) {
       val nano = dur.toNanos
       if (nano == 1) "1 nanosecond" else s"$nano nanoseconds"
+    } else if (dur < millisecond) {
+      val micro = dur.toMicros
+      if (micro == 1) "1 microsecond" else s"$micro microseconds"
     } else if (dur < second) {
       val milli = dur.toMillis
       if (milli == 1) "1 millisecond" else s"$milli milliseconds"

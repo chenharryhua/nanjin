@@ -23,10 +23,13 @@ private object SlackTranslator extends all {
     .value
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
-    val counters = snapshot.counters.map(c => f"${c.digested.show}.${c.category} = ${c.count}%d").sorted
-    val gauges   = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value}")
-    val text     = abbreviate((counters ::: gauges).mkString("\n"))
-    KeyValueSection("Metrics", if (text.isEmpty) "`No Metrics`" else s"```$text```")
+    val counters = snapshot.counters
+      .filter(_.count > 0)
+      .map(c => f"${c.digested.show}.${c.category} = ${c.count}%d")
+      .sorted
+    val gauges = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value}")
+    val text   = abbreviate((counters ::: gauges).mkString("\n"))
+    KeyValueSection("Metrics", if (text.isEmpty) "`No updates`" else s"```$text```")
   }
 
   private def brief(json: Json): KeyValueSection =
@@ -177,8 +180,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|${actionId(evt)}
                                 |${traceId(evt)}
-                                |${serviceId(evt)}""".stripMargin),
-            KeyValueSection("Input", s"""```${abbreviate(evt.input.spaces2)}```""")
+                                |${serviceId(evt)}""".stripMargin)
           )
         ))
     )
@@ -207,8 +209,8 @@ private object SlackTranslator extends all {
 
   private def actionFailed(evt: ActionFail): SlackApp = {
     val msg: String = s"""|${evt.error.message}
-                          |Input:
-                          |${evt.input.spaces2}""".stripMargin
+                          |Output:
+                          |${evt.output.spaces2}""".stripMargin
 
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,

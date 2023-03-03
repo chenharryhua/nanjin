@@ -42,7 +42,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - completed notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag =
-        gd.action("t", _.notice).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
+        gd.action("t", _.notice).retry(fun5 _).logError(_._3.asJson).withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -117,7 +117,7 @@ class RetryTest extends AnyFunSuite {
             i += 1
             throw new Exception
           } else i))
-        .logInput(_.asJson)
+        .logError(_.asJson)
         .run(1)
     }.compile.toVector.unsafeRunSync()
 
@@ -136,7 +136,7 @@ class RetryTest extends AnyFunSuite {
         gd.action("t")
           .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3)))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
-          .logInput(_.asJson)
+          .logError(_.asJson)
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -316,23 +316,15 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("15.logInput is lazy") {
+  test("15.logError is lazy") {
     var i = 0
     serviceGuard
       .eventStream(
-        _.action("lazy", _.silent).retry(IO(1)).logInput { i += 1; Json.fromInt(0) }.run.replicateA(3))
+        _.action("eval", _.notice).retry(IO(1)).logError { i += 1; Json.fromInt(0) }.run.replicateA(3))
       .compile
       .drain
       .unsafeRunSync()
     assert(i == 0)
-
-    serviceGuard
-      .eventStream(
-        _.action("eval", _.notice).retry(IO(1)).logInput { i += 1; Json.fromInt(0) }.run.replicateA(3))
-      .compile
-      .drain
-      .unsafeRunSync()
-    assert(i == 3)
   }
 
   test("16. input json exception") {
@@ -341,7 +333,7 @@ class RetryTest extends AnyFunSuite {
         agent
           .action("input error", _.notice)
           .retry((a: Int) => IO(a))
-          .logInputM(_ => IO.raiseError[Json](new Exception("oops")))
+          .logErrorM(_ => IO.raiseError[Json](new Exception("oops")))
           .run(1))
       .compile
       .toList
@@ -372,7 +364,7 @@ class RetryTest extends AnyFunSuite {
   test("18.retry - aware") {
     val Vector(s, a, b, c, d) = serviceGuard.eventStream { gd =>
       val ag =
-        gd.action("t", _.aware).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
+        gd.action("t", _.aware).retry(fun5 _).logError(_._3.asJson).withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
