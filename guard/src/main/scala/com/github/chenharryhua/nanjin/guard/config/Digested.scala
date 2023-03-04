@@ -6,7 +6,7 @@ import io.circe.generic.JsonCodec
 
 @JsonCodec
 final case class Digested private (name: String, digest: String) {
-  override val toString: String = s"[$name][$digest]"
+  override val toString: String = s"[$digest][$name]"
 }
 
 object Digested {

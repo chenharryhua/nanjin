@@ -23,6 +23,8 @@ import retry.RetryPolicy
 import scala.concurrent.Future
 import scala.util.Try
 
+private object FailOnNoneException extends Exception("option fail on none")
+
 final class NJActionBuilder[F[_]](
   actionName: String,
   metricRegistry: MetricRegistry,
@@ -141,9 +143,9 @@ final class NJActionBuilder[F[_]](
     retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
 
   // error-like
-  def retry[Z](t: Try[Z]): NJAction0[F, Z]               = retry(F.fromTry(t))
-  def retry[Z](e: Either[Throwable, Z]): NJAction0[F, Z] = retry(F.fromEither(e))
-  def retry[Z](o: Option[Z]): NJAction0[F, Z] = retry(F.fromOption(o, new Exception("fail on None")))
+  def retry[Z](t: Try[Z]): NJAction0[F, Z]                  = retry(F.fromTry(t))
+  def retry[Z](e: Either[Throwable, Z]): NJAction0[F, Z]    = retry(F.fromEither(e))
+  def retry[Z](o: Option[Z]): NJAction0[F, Z]               = retry(F.fromOption(o, FailOnNoneException))
   def retry[Z](v: Validated[Throwable, Z]): NJAction0[F, Z] = retry(F.fromValidated(v))
   def retry[Z](e: Eval[Z]): NJAction0[F, Z]                 = retry(F.catchNonFatalEval(e))
 

@@ -3,13 +3,13 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, Timer}
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionComplete,
   ActionFail,
   ActionRetry,
   ActionStart
 }
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Json
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -60,17 +60,15 @@ final private class ReTry[F[_], IN, OUT](
       case PolicyDecision.GiveUp => fail(ex)
       case PolicyDecision.DelayAndRetry(delay) =>
         for {
-          _ <- F.whenA(actionInfo.actionParams.isNonTrivial)(for {
-            ts <- actionInfo.actionParams.serviceParams.zonedNow
-            _ <- channel.send(
-              ActionRetry(
-                actionInfo = actionInfo,
-                timestamp = ts,
-                retriesSoFar = status.retriesSoFar,
-                resumeTime = ts.plus(delay.toJava),
-                error = NJError(ex)
-              ))
-          } yield ())
+          ts <- actionInfo.actionParams.serviceParams.zonedNow
+          _ <- channel.send(
+            ActionRetry(
+              actionInfo = actionInfo,
+              timestamp = ts,
+              retriesSoFar = status.retriesSoFar,
+              resumeTime = ts.plus(delay.toJava),
+              error = NJError(ex)
+            ))
           _ <- F.sleep(delay)
         } yield {
           retryCounter.foreach(_.inc(1))
@@ -79,7 +77,7 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   private[this] val sendActionStartEvent: F[Unit] =
-    F.whenA(actionInfo.actionParams.isNotice)(channel.send(ActionStart(actionInfo)))
+    F.whenA(actionInfo.actionParams.importance.isPublishActionStart)(channel.send(ActionStart(actionInfo)))
 
   private[this] val loop: F[OUT] = sendActionStartEvent >>
     F.tailRecM(RetryStatus.NoRetriesYet) { status =>
@@ -87,8 +85,9 @@ final private class ReTry[F[_], IN, OUT](
         case Right(out) =>
           for {
             ts <- actionInfo.actionParams.serviceParams.zonedNow
-            _ <- F.whenA(actionInfo.actionParams.isAware)(transOutput(input, out).attempt.flatMap(json =>
-              channel.send(ActionComplete(actionInfo, ts, buildJson(json)))))
+            _ <- F.whenA(actionInfo.actionParams.importance.isPublishActionComplete)(
+              transOutput(input, out).attempt.flatMap(json =>
+                channel.send(ActionComplete(actionInfo, ts, buildJson(json)))))
           } yield {
             timingAndCounting(isComplete = true, ts)
             Right(out)
@@ -99,5 +98,7 @@ final private class ReTry[F[_], IN, OUT](
       }
     }
 
-  val execute: F[OUT] = F.onCancel(loop, sendFailureEvent(ActionException.ActionCanceled))
+  val execute: F[OUT] = F.onCancel(loop, sendFailureEvent(ActionCancelException))
 }
+
+final private object ActionCancelException extends Exception("action was canceled")

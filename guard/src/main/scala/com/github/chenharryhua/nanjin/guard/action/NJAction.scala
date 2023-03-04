@@ -93,7 +93,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
 
   def run(input: IN): F[OUT] = internal(input, None)
 
-  private val traceTags: List[(String, TraceValue)] = List(
+  private lazy val traceTags: List[(String, TraceValue)] = List(
     "service_id" -> TraceValue.StringValue(actionParams.serviceParams.serviceId.show),
     "digest" -> TraceValue.StringValue(actionParams.digested.digest),
     "importance" -> TraceValue.StringValue(actionParams.importance.entryName)

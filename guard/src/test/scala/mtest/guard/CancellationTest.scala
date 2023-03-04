@@ -62,7 +62,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, b, c) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { ag =>
-        val a1 = ag.action("never", _.trivial).retry(never_fun).run
+        val a1 = ag.action("never").retry(never_fun).run
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1))
       }
       .map(_.asJson.noSpaces)
