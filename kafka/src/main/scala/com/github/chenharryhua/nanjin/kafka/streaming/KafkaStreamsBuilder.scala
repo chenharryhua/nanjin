@@ -19,7 +19,7 @@ import org.apache.kafka.streams.state.StoreBuilder
 import java.util.Properties
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-case object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were stopped abnormally")
+private object KafkaStreamsAbnormallyStopped extends Exception("Kafka Streams were stopped abnormally")
 
 final case class StateUpdate(newState: State, oldState: State)
 

@@ -27,8 +27,8 @@ private object SlackTranslator extends all {
       .filter(_.count > 0)
       .sortBy(_.digested.name)
       .map(c => f"${c.digested.show}.${c.category} = ${c.count}%d")
-    val gauges = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value}")
-    val text   = abbreviate((counters ::: gauges).mkString("\n"))
+    val gauges = snapshot.gauges.sortBy(_.digested.name).map(g => s"${g.digested.show}.gauge = ${g.value}")
+    val text   = abbreviate((gauges ::: counters).mkString("\n"))
     KeyValueSection("Metrics", if (text.isEmpty) "`No updates`" else s"```$text```")
   }
 

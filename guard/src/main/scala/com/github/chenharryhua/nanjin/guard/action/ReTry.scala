@@ -101,4 +101,4 @@ final private class ReTry[F[_], IN, OUT](
   val execute: F[OUT] = F.onCancel(loop, sendFailureEvent(ActionCancelException))
 }
 
-final private object ActionCancelException extends Exception("action was canceled")
+private object ActionCancelException extends Exception("action was canceled")
