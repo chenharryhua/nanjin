@@ -71,7 +71,7 @@ val circeLib = List(
   "io.circe" %% "circe-optics"     % "0.14.1",
   "io.circe" %% "circe-jackson212" % "0.14.0",
   "io.circe" %% "circe-refined"    % "0.14.4",
-  "org.gnieh" %% "diffson-circe"   % "4.3.0"
+  "org.gnieh" %% "diffson-circe"   % "4.4.0"
 )
 
 val jacksonLib = List(
