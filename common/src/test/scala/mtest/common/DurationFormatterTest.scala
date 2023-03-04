@@ -15,14 +15,25 @@ class DurationFormatterTest extends AnyFunSuite {
 
     assert(fmt.format(now, after) == fmt.format(after, now))
   }
+
   test("nano") {
-    val highest = Duration(999999, TimeUnit.NANOSECONDS)
-    assert(fmt.format(highest) == "999999 nanoseconds")
+    val highest = Duration(999, TimeUnit.NANOSECONDS)
+    assert(fmt.format(highest) == "999 nanoseconds")
     val d1 = Duration(0, TimeUnit.NANOSECONDS)
     assert(fmt.format(d1) == "0 nanoseconds")
     val d2 = Duration(1, TimeUnit.NANOSECONDS)
     assert(fmt.format(d2) == "1 nanosecond")
   }
+
+  test("micro") {
+    val highest = Duration(999, TimeUnit.MICROSECONDS)
+    assert(fmt.format(highest) == "999 microseconds")
+    val d1 = Duration(0, TimeUnit.MICROSECONDS)
+    assert(fmt.format(d1) == "0 nanoseconds")
+    val d2 = Duration(1, TimeUnit.MICROSECONDS)
+    assert(fmt.format(d2) == "1 microsecond")
+  }
+
   test("milli") {
     val lowest = Duration(1000000, TimeUnit.NANOSECONDS)
     assert(fmt.format(lowest) == "1 millisecond")

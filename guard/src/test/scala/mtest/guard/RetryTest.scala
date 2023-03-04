@@ -280,24 +280,6 @@ class RetryTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
-  test("13.retry - nonStop - should retry") {
-    val List(a, b, c, d, e) = serviceGuard
-      .withRestartPolicy(constant_1second)
-      .eventStream(_.nonStop(fs2.Stream(1))) // suppose run forever but...
-      .take(5)
-      .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
-      .unNone
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServicePanic])
-    assert(c.isInstanceOf[ServiceStart])
-    assert(d.isInstanceOf[ServicePanic])
-    assert(e.isInstanceOf[ServiceStart])
-  }
-
   test("14.should not retry fatal error") {
     val List(a, b, c, d) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])

@@ -7,7 +7,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0-RC2"
-val awsV        = "1.12.410"
+val awsV        = "1.12.420"
 val catsEffectV = "3.5.0-RC3"
 val hadoopV     = "3.3.4"
 val monocleV    = "2.1.0"
@@ -24,6 +24,7 @@ val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.2"
 val protobufV   = "3.22.0"
 val sparkV      = "3.3.2"
+val refinedV    = "0.10.2"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -63,15 +64,15 @@ val hadoopLib = List(
     .exclude("commons-logging", "commons-logging"))
 
 val circeLib = List(
-  "io.circe" %% "circe-core"       % "0.14.4",
-  "io.circe" %% "circe-generic"    % "0.14.4",
-  "io.circe" %% "circe-parser"     % "0.14.4",
-  "io.circe" %% "circe-shapes"     % "0.14.4",
-  "io.circe" %% "circe-jawn"       % "0.14.4",
+  "io.circe" %% "circe-core"       % "0.14.5",
+  "io.circe" %% "circe-generic"    % "0.14.5",
+  "io.circe" %% "circe-parser"     % "0.14.5",
+  "io.circe" %% "circe-shapes"     % "0.14.5",
+  "io.circe" %% "circe-jawn"       % "0.14.5",
   "io.circe" %% "circe-optics"     % "0.14.1",
   "io.circe" %% "circe-jackson212" % "0.14.0",
-  "io.circe" %% "circe-refined"    % "0.14.4",
-  "org.gnieh" %% "diffson-circe"   % "4.3.0"
+  "io.circe" %% "circe-refined"    % "0.14.5",
+  "org.gnieh" %% "diffson-circe"   % "4.4.0"
 )
 
 val jacksonLib = List(
@@ -190,7 +191,7 @@ val catsLib = List(
 val refinedLib = List(
   "eu.timepit" %% "refined",
   "eu.timepit" %% "refined-cats"
-).map(_ % "0.10.1")
+).map(_ % refinedV)
 
 val logLib = List(
   "org.typelevel" %% "log4cats-slf4j" % log4catsV,
@@ -336,7 +337,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "io.netty"                               % "netty-all"       % "4.1.89.Final",
-      "com.julianpeeters" %% "avrohugger-core" % "1.3.0"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.3.1"           % Test,
       "ch.qos.logback"                         % "logback-classic" % "1.4.5" % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

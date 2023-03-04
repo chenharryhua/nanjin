@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, sampling}
@@ -96,18 +95,6 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(last.get.asInstanceOf[MetricReport].snapshot.counters.forall(_.count == 0))
-  }
-
-  test("5.Importance json") {
-    val i1: Importance = Importance.Critical
-    val i2: Importance = Importance.Notice
-    val i3: Importance = Importance.Silent
-    val i4: Importance = Importance.Trivial
-
-    assert(i1.asJson.noSpaces == """ "Critical" """.trim)
-    assert(i2.asJson.noSpaces == """ "Notice" """.trim)
-    assert(i3.asJson.noSpaces == """ "Silent" """.trim)
-    assert(i4.asJson.noSpaces == """ "Trivial" """.trim)
   }
 
   test("6.show timestamp") {

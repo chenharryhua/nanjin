@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 import cats.implicits.{toFunctorOps, toTraverseOps}
 import cats.syntax.all.*
 import cats.Endo
+import com.github.chenharryhua.nanjin.guard.config.AlertLevel
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionFail,
@@ -33,8 +34,18 @@ object logging {
 
     override def apply(event: NJEvent): F[Unit] =
       event match {
-        case sa: InstantAlert =>
-          translator.instantAlert.run(sa).value.flatMap(_.traverse(logger.warn(_))).void
+        case sa @ InstantAlert(_, _, _, al, _) =>
+          translator.instantAlert
+            .run(sa)
+            .value
+            .flatMap(_.traverse { m =>
+              al match {
+                case AlertLevel.Error => logger.error(m)
+                case AlertLevel.Warn  => logger.warn(m)
+                case AlertLevel.Info  => logger.info(m)
+              }
+            })
+            .void
         case sp: ServicePanic =>
           translator.servicePanic.run(sp).value.flatMap(_.traverse(o => logger.error(o))).void
         case ar: ActionRetry =>

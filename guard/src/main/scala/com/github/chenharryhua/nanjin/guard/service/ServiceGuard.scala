@@ -61,7 +61,7 @@ final class ServiceGuard[F[_]] private[guard] (
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
   def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
 
-  private val initStatus: F[ServiceParams] = for {
+  private lazy val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
     json <- brief

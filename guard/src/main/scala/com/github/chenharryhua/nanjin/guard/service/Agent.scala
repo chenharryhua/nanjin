@@ -4,7 +4,6 @@ import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Unique}
 import cats.effect.std.{AtomicCell, Dispatcher}
-import cats.syntax.flatMap.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -147,10 +146,4 @@ final class GeneralAgent[F[_]] private[service] (
   def atomicBox[A](initValue: => A): NJAtomicBox[F, A] =
     atomicBox[A](F.delay(initValue))
 
-  def nonStop[A](sfa: Stream[F, A]): F[Nothing] =
-    action("nonStop", _.withoutTiming.withoutCounting.trivial)
-      .withRetryPolicy(RetryPolicies.alwaysGiveUp)
-      .retry(sfa.compile.drain)
-      .run
-      .flatMap[Nothing](_ => F.raiseError(ActionException.UnexpectedlyTerminated))
 }

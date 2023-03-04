@@ -1,19 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
+import cats.Endo
 import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
-import cats.Endo
 import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionComplete,
-  ActionFail,
-  ActionRetry,
-  ActionStart,
-  ServiceStart
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionComplete, ActionStart, ServiceStart}
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*
@@ -67,10 +61,8 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case ai: ActionStart    => ai.actionParams.isCritical
-            case ai: ActionComplete => ai.actionParams.isCritical
-            case ai: ActionRetry    => ai.actionParams.isNotice
-            case ai: ActionFail     => ai.actionParams.isNonTrivial
+            case ai: ActionStart    => ai.actionParams.importance.value
+            case ai: ActionComplete => ai.actionParams.importance.value
             case _                  => true
           }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalizeCase(

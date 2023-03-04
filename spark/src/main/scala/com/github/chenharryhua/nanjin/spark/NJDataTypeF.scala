@@ -7,6 +7,8 @@ import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
 import org.apache.spark.sql.types.*
 
+private object KeyMustBeStringException extends Exception("key must be String")
+
 sealed private[spark] trait NJDataTypeF[A]
 
 private[spark] object NJDataTypeF {
@@ -124,7 +126,7 @@ private[spark] object NJDataTypeF {
         builder.array().items(unionNull(containsNull, sm))
       case NJMapType(NJDataType(NJStringType()), v, n) =>
         builder.map().values(unionNull(n, v.toSchema(builder)))
-      case NJMapType(_, _, _) => throw new Exception("map key must be String")
+      case NJMapType(_, _, _) => throw KeyMustBeStringException
 
       case NJStructType(cn, ns, fields) =>
         val fieldsAssembler = SchemaBuilder.builder(ns).record(cn).fields()

@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
-import cats.implicits.{catsSyntaxEq, catsSyntaxPartialOrder}
-import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
+import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
 
@@ -14,12 +13,7 @@ final case class ActionParams(
   isCounting: Boolean,
   isTiming: Boolean,
   retryPolicy: String, // for display
-  serviceParams: ServiceParams) {
-  val isCritical: Boolean   = importance === Importance.Critical // Critical
-  val isNotice: Boolean     = importance > Importance.Aware // Hight + Critical
-  val isAware: Boolean      = importance > Importance.Silent
-  val isNonTrivial: Boolean = importance > Importance.Trivial // Medium + High + Critical
-}
+  serviceParams: ServiceParams)
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
@@ -61,7 +55,6 @@ private object ActionConfigF {
 final case class ActionConfig private (value: Fix[ActionConfigF], serviceParams: ServiceParams) {
   import ActionConfigF.*
 
-  def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(Importance.Trivial, value)), serviceParams)
   def silent: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Silent, value)), serviceParams)
   def aware: ActionConfig    = ActionConfig(Fix(WithImportance(Importance.Aware, value)), serviceParams)
   def notice: ActionConfig   = ActionConfig(Fix(WithImportance(Importance.Notice, value)), serviceParams)
