@@ -52,7 +52,7 @@ final private class ReTry[F[_], IN, OUT](
   input: IN
 )(implicit F: Temporal[F]) {
 
-  @inline private[this] def timingAndCounting(isComplete: Boolean, now: ZonedDateTime): Unit = {
+  private[this] def timingAndCounting(isComplete: Boolean, now: ZonedDateTime): Unit = {
     timer.foreach(_.update(Duration.between(actionInfo.launchTime, now)))
     if (isComplete) succCounter.foreach(_.inc(1)) else failCounter.foreach(_.inc(1))
   }
