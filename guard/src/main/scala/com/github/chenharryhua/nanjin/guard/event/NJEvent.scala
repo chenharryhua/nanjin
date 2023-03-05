@@ -16,6 +16,7 @@ sealed trait NJEvent extends Product with Serializable {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
   def title: String
+  def isPivotal: Boolean
 
   final def serviceId: UUID          = serviceParams.serviceId
   final def serviceName: ServiceName = serviceParams.serviceName
@@ -26,10 +27,13 @@ sealed trait NJEvent extends Product with Serializable {
 object NJEvent extends zoneddatetime {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
 
+  sealed trait PivotalEvent
+
   sealed trait ServiceEvent extends NJEvent
 
   final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent {
-    override val title: String = titles.serviceStart
+    override val title: String      = titles.serviceStart
+    override val isPivotal: Boolean = true
   }
 
   final case class ServicePanic(
@@ -38,7 +42,8 @@ object NJEvent extends zoneddatetime {
     restartTime: ZonedDateTime,
     error: NJError)
       extends ServiceEvent {
-    override val title: String = titles.servicePanic
+    override val title: String      = titles.servicePanic
+    override val isPivotal: Boolean = true
   }
 
   final case class ServiceStop(
@@ -46,7 +51,8 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     cause: ServiceStopCause)
       extends ServiceEvent {
-    override val title: String = titles.serviceStop
+    override val title: String      = titles.serviceStop
+    override val isPivotal: Boolean = true
   }
 
   sealed trait MetricEvent extends ServiceEvent {
@@ -64,6 +70,7 @@ object NJEvent extends zoneddatetime {
       case MetricIndex.Adhoc         => "Adhoc Metric Report"
       case MetricIndex.Periodic(idx) => s"Metric Report(index=$idx)"
     }
+    override val isPivotal: Boolean = true
   }
 
   final case class MetricReset(
@@ -76,6 +83,7 @@ object NJEvent extends zoneddatetime {
       case MetricIndex.Adhoc         => "Adhoc Metric Reset"
       case MetricIndex.Periodic(idx) => s"Metric Reset(index=$idx)"
     }
+    override val isPivotal: Boolean = true
   }
 
   sealed trait ActionEvent extends ServiceEvent {
@@ -94,6 +102,7 @@ object NJEvent extends zoneddatetime {
   final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
+    override val isPivotal: Boolean       = false
   }
 
   final case class ActionRetry(
@@ -103,9 +112,9 @@ object NJEvent extends zoneddatetime {
     resumeTime: ZonedDateTime,
     error: NJError)
       extends ActionEvent {
-    override val title: String = titles.actionRetry
-
-    val tookSoFar: Duration = Duration.between(actionInfo.launchTime, timestamp)
+    override val title: String      = titles.actionRetry
+    override val isPivotal: Boolean = true
+    val tookSoFar: Duration         = Duration.between(actionInfo.launchTime, timestamp)
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
@@ -117,8 +126,9 @@ object NJEvent extends zoneddatetime {
   @Lenses
   final case class ActionFail(actionInfo: ActionInfo, timestamp: ZonedDateTime, error: NJError, output: Json)
       extends ActionResultEvent {
-    override val title: String   = titles.actionFail
-    override val isDone: Boolean = false
+    override val title: String      = titles.actionFail
+    override val isDone: Boolean    = false
+    override val isPivotal: Boolean = true
   }
 
   @Lenses
@@ -127,8 +137,9 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     output: Json // output of the action
   ) extends ActionResultEvent {
-    override val title: String   = titles.actionComplete
-    override val isDone: Boolean = true
+    override val title: String      = titles.actionComplete
+    override val isDone: Boolean    = true
+    override val isPivotal: Boolean = false
   }
 
   sealed trait InstantEvent extends ServiceEvent {
@@ -142,7 +153,8 @@ object NJEvent extends zoneddatetime {
     alertLevel: AlertLevel,
     message: String)
       extends InstantEvent {
-    override val title: String = titles.instantAlert
+    override val title: String      = titles.instantAlert
+    override val isPivotal: Boolean = true
   }
 
   @Lenses
@@ -152,7 +164,8 @@ object NJEvent extends zoneddatetime {
     serviceParams: ServiceParams,
     value: Json)
       extends InstantEvent {
-    override val title: String = titles.passThrough
+    override val title: String      = titles.passThrough
+    override val isPivotal: Boolean = true
   }
 }
 
