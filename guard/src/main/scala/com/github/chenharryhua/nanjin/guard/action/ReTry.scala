@@ -19,6 +19,24 @@ import java.time.{Duration, ZonedDateTime}
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.control.NonFatal
 
+/** The following are some of the factors that can make a method eligible for inlining:
+  *
+  * The method is marked with the inline keyword. This is the most obvious factor - if the method is not
+  * marked as inline, the compiler will not even consider inlining it.
+  *
+  * The method is small. In general, small methods are better candidates for inlining than large methods.
+  * Small methods have less code to inline, and the inlined code is less likely to exceed cache sizes.
+  *
+  * The method is frequently called. If a method is called frequently, inlining it can reduce the overhead of
+  * function calls and improve performance.
+  *
+  * The method does not have side effects. Methods that modify global state or have side effects are not good
+  * candidates for inlining, as inlining can change the order of execution and produce different results.
+  *
+  * The method's return type is not Unit. Inlining a method that returns Unit (i.e., has no return value) can
+  * cause problems, as the inlined code may produce unintended side effects.
+  */
+
 final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
   retryPolicy: RetryPolicy[F],
