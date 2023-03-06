@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.Temporal
 import cats.effect.kernel.Async
 import cats.syntax.all.*
-import com.codahale.metrics.{Counter, MetricRegistry, Timer}
+import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ActionStart
 import fs2.concurrent.Channel
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import natchez.{Span, TraceValue}
 import retry.RetryPolicy
 
@@ -46,27 +46,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  private lazy val (
-    failCounter: Option[Counter],
-    succCounter: Option[Counter],
-    retryCounter: Option[Counter]) =
-    if (actionParams.isCounting) {
-      val fail = Some(
-        metricRegistry.counter(
-          MetricID(actionParams.digested, MetricCategory.ActionFailCounter).asJson.noSpaces))
-      val succ = Some(
-        metricRegistry.counter(
-          MetricID(actionParams.digested, MetricCategory.ActionCompleteCounter).asJson.noSpaces))
-      val retries = Some(
-        metricRegistry.counter(
-          MetricID(actionParams.digested, MetricCategory.ActionRetryCounter).asJson.noSpaces))
-      (fail, succ, retries)
-    } else (None, None, None)
-
-  private lazy val timer: Option[Timer] =
-    if (actionParams.isTiming)
-      Some(metricRegistry.timer(MetricID(actionParams.digested, MetricCategory.ActionTimer).asJson.noSpaces))
-    else None
+  private lazy val measures: Measures = Measures(actionParams, metricRegistry)
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     for {
@@ -75,6 +55,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
         case Some(ti) => F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, ts))
         case None     => F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, ts))
       }
+      _ <- F.whenA(actionParams.importance.isPublishActionStart)(channel.send(ActionStart(ai)))
       out <- new ReTry[F, IN, OUT](
         channel = channel,
         retryPolicy = retryPolicy,
@@ -82,12 +63,9 @@ final class NJAction[F[_], IN, OUT] private[action] (
         transError = transError,
         transOutput = transOutput,
         isWorthRetry = isWorthRetry,
-        failCounter = failCounter,
-        succCounter = succCounter,
-        retryCounter = retryCounter,
-        timer = timer,
         actionInfo = ai,
-        input = input
+        input = input,
+        measures
       ).execute
     } yield out
 
