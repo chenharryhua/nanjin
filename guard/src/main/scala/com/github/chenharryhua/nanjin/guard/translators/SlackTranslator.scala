@@ -25,9 +25,14 @@ private object SlackTranslator extends all {
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
     val counters =
       snapshot.counters.filter(_.count > 0).map(c => f"${c.digested.show}.${c.category} = ${c.count}%d")
-    val gauges = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value}")
-    val text   = abbreviate((gauges ::: counters).mkString("\n"))
-    KeyValueSection("Metrics", if (text.isEmpty) "`No updates`" else s"```$text```")
+    KeyValueSection(
+      "Metrics",
+      if (counters.isEmpty) "`No updates`"
+      else {
+        val gauges = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value}")
+        s"```${abbreviate((gauges ::: counters).mkString("\n"))}```"
+      }
+    )
   }
 
   private def brief(json: Json): KeyValueSection =
