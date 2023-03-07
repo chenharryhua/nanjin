@@ -49,7 +49,8 @@ object Snapshot {
   @JsonCodec
   final case class Counter(digested: Digested, category: String, count: Long) extends Snapshot
 
-  @JsonCodec final case class Meter(
+  @JsonCodec
+  final case class Meter(
     digested: Digested,
     count: Long,
     mean_rate: Frequency,
