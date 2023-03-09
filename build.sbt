@@ -217,7 +217,7 @@ val baseLib = List(
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
   "org.typelevel" %% "case-insensitive"            % "1.3.0",
-  "io.scalaland" %% "chimney"                      % "0.7.0",
+  "io.scalaland" %% "chimney"                      % "0.7.1",
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % "2.3.10",

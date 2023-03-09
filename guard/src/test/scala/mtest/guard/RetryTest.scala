@@ -178,7 +178,7 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServiceStop])
   }
 
-  test("8.retry - predicate - should retry") {
+  test("8.retry - isWorthRetry - should retry") {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { gd =>
@@ -212,7 +212,28 @@ class RetryTest extends AnyFunSuite {
           .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-      .interruptAfter(5.seconds)
+      .interruptAfter(2.seconds)
+      .compile
+      .toVector
+      .unsafeRunSync()
+    assert(s.isInstanceOf[ServiceStart])
+    assert(a.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ActionFail])
+    assert(c.isInstanceOf[ServicePanic])
+  }
+
+  test("9.1.retry - isWorthRetry - throw exception") {
+    val Vector(s, a, b, c) = serviceGuard
+      .withRestartPolicy(constant_1hour)
+      .eventStream { gd =>
+        gd.action("t", _.notice)
+          .withRetryPolicy(RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3)))
+          .retry(IO.raiseError(new Exception))
+          .withWorthRetryM(_ => IO.raiseError[Boolean](new Exception()))
+          .run
+      }
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .interruptAfter(2.seconds)
       .compile
       .toVector
       .unsafeRunSync()

@@ -79,7 +79,7 @@ final private class ReTry[F[_], IN, OUT](
             Right(out)
           }
         case Left(ex) if !NonFatal(ex) => fail(ex)
-        case Left(ex)                  => isWorthRetry(ex).ifM(retrying(ex, status), fail(ex))
+        case Left(ex) => isWorthRetry(ex).attempt.map(_.exists(identity)).ifM(retrying(ex, status), fail(ex))
       }
     }
 
@@ -126,7 +126,7 @@ private object Measures {
     val timing: (ZonedDateTime, ZonedDateTime) => Unit =
       if (actionParams.isTiming) {
         val mId: MetricID = MetricID(actionParams.digested, MetricCategory.ActionTimer)
-        val timer: Timer = metricRegistry.timer(mId.asJson.noSpaces)
+        val timer: Timer  = metricRegistry.timer(mId.asJson.noSpaces)
         (s: ZonedDateTime, t: ZonedDateTime) => timer.update(Duration.between(s, t))
       } else
         (_: ZonedDateTime, _: ZonedDateTime) => ()
