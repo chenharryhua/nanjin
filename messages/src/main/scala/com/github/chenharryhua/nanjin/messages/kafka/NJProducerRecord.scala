@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
-import fs2.kafka.ProducerRecord
+import fs2.kafka.{Header, Headers, ProducerRecord}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.scalaland.chimney.dsl.*
 import monocle.Optional
@@ -25,7 +25,8 @@ final case class NJProducerRecord[K, V](
   offset: Option[Long], // for sort
   timestamp: Option[Long],
   key: Option[K],
-  value: Option[V]) {
+  value: Option[V],
+  headers: List[NJHeader]) {
 
   def withTopicName(name: TopicName): NJProducerRecord[K, V] = NJProducerRecord.topic.set(name.value)(this)
   def withPartition(pt: Int): NJProducerRecord[K, V]         = NJProducerRecord.partition.set(Some(pt))(this)
@@ -35,9 +36,14 @@ final case class NJProducerRecord[K, V](
 
   def noPartition: NJProducerRecord[K, V] = NJProducerRecord.partition.set(None)(this)
   def noTimestamp: NJProducerRecord[K, V] = NJProducerRecord.timestamp.set(None)(this)
+  def noHeaders: NJProducerRecord[K, V]   = NJProducerRecord.headers.set(Nil)(this)
 
   def noMeta: NJProducerRecord[K, V] =
-    NJProducerRecord.timestamp[K, V].set(None).andThen(NJProducerRecord.partition[K, V].set(None))(this)
+    NJProducerRecord
+      .timestamp[K, V]
+      .set(None)
+      .andThen(NJProducerRecord.partition[K, V].set(None))
+      .andThen(NJProducerRecord.headers.set(Nil))(this)
 
   def modifyKey(f: K => K): NJProducerRecord[K, V] =
     NJProducerRecord.key.modify((_: Option[K]).map(f))(this)
@@ -47,8 +53,10 @@ final case class NJProducerRecord[K, V](
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord: ProducerRecord[K, V] = {
+    val hds = Headers.fromSeq(headers.map(h => Header(h.key, h.value)))
     val pr =
       ProducerRecord(topic, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
+        .withHeaders(hds)
     (partition, timestamp) match {
       case (None, None)       => pr
       case (Some(p), None)    => pr.withPartition(p)
@@ -72,15 +80,17 @@ object NJProducerRecord {
 
   def apply[K, V](pr: KafkaProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(
-      pr.topic(),
-      Option(pr.partition.toInt),
-      None,
-      Option(pr.timestamp.toLong),
-      pr.key,
-      pr.value)
+      topic = pr.topic(),
+      partition = Option(pr.partition.toInt),
+      offset = None,
+      timestamp = Option(pr.timestamp.toLong),
+      key = pr.key,
+      value = pr.value,
+      headers = pr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
+    )
 
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v))
+    NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v), Nil)
 
   def avroCodec[K, V](
     keyCodec: NJAvroCodec[K],

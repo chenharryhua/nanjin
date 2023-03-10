@@ -15,7 +15,8 @@ final case class NJConsumerRecordWithError[K, V](
   key: Either[String, K],
   value: Either[String, V],
   topic: String,
-  timestampType: Int) {
+  timestampType: Int,
+  headers: List[NJHeader]) {
 
   def metaInfo(zoneId: ZoneId): RecordMetaInfo =
     this

@@ -22,14 +22,14 @@ object NJComsumerRecordTestData {
     timestampType <- Gen.oneOf(List(0, 1))
     k <- Gen.option(Gen.posNum[Int])
     v <- Gen.option(Gen.posNum[Int])
-  } yield NJConsumerRecord(partition, offset, timestamp, k, v, "topic", timestampType)
+  } yield NJConsumerRecord(partition, offset, timestamp, k, v, "topic", timestampType, Nil)
 
   val genPR: Gen[NJProducerRecord[Int, Int]] = for {
     partition <- Gen.option(Gen.posNum[Int])
     timestamp <- Gen.option(Gen.posNum[Long])
     k <- Gen.option(Gen.posNum[Int])
     v <- Gen.option(Gen.posNum[Int])
-  } yield NJProducerRecord("topic", partition, None, timestamp, k, v)
+  } yield NJProducerRecord("topic", partition, None, timestamp, k, v, Nil)
 
   implicit val arbPR = Arbitrary(genPR)
   implicit val arbO  = Arbitrary(okv)
@@ -60,7 +60,7 @@ class NJComsumerRecordProp extends Properties("ConsumerRecord") {
         None,
         fpr.timestamp,
         Option(fpr.key),
-        Option(fpr.value))
+        Option(fpr.value),Nil)
     re == op
   }
 }

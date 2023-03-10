@@ -76,10 +76,10 @@ class SparKafkaTest extends AnyFunSuite {
   test("sparKafka should be able to bimap to other topic") {
 
     val src: KafkaTopic[IO, Int, Int]           = ctx.topic[Int, Int]("src.topic")
-    val d1: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
-    val d3: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
-    val d4: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val d1: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0, Nil)
+    val d2: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0, Nil)
+    val d3: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 3, 0, None, None, "t", 0, Nil)
+    val d4: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0, Nil)
     val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(List(d1, d2, d3, d4))
 
     val birst =
@@ -95,10 +95,10 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka should be able to flatmap to other topic") {
     val src: KafkaTopic[IO, Int, Int]           = ctx.topic[Int, Int]("src.topic")
-    val d1: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val d2: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0)
-    val d3: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 3, 0, None, None, "t", 0)
-    val d4: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0)
+    val d1: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0, Nil)
+    val d2: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 2, 0, None, Some(2), "t", 0, Nil)
+    val d3: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 3, 0, None, None, "t", 0, Nil)
+    val d4: NJConsumerRecord[Int, Int]          = NJConsumerRecord(0, 4, 0, None, Some(4), "t", 0, Nil)
     val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(List(d1, d2, d3, d4))
 
     val birst =
@@ -115,9 +115,9 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("sparKafka someValue should filter out none values") {
-    val cr1: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0)
-    val cr2: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 2, 0, Some(2), None, "t", 0)
-    val cr3: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 3, 0, Some(3), None, "t", 0)
+    val cr1: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 1, 0, None, Some(1), "t", 0, Nil)
+    val cr2: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 2, 0, Some(2), None, "t", 0, Nil)
+    val cr3: NJConsumerRecord[Int, Int]         = NJConsumerRecord(0, 3, 0, Some(3), None, "t", 0, Nil)
     val crs: List[NJConsumerRecord[Int, Int]]   = List(cr1, cr2, cr3)
     val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(crs)
 

@@ -8,7 +8,8 @@ import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, N
 import com.github.chenharryhua.nanjin.messages.kafka.{
   NJConsumerMessage,
   NJConsumerRecord,
-  NJConsumerRecordWithError
+  NJConsumerRecordWithError,
+  NJHeader
 }
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.sksamuel.avro4s.AvroInputStream
@@ -51,7 +52,16 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       codec.keyCodec.tryDecode(cr.key()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
     val v: Either[String, V] =
       codec.valCodec.tryDecode(cr.value()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
-    NJConsumerRecordWithError(cr.partition, cr.offset, cr.timestamp, k, v, cr.topic, cr.timestampType.id)
+    NJConsumerRecordWithError(
+      partition = cr.partition,
+      offset = cr.offset,
+      timestamp = cr.timestamp,
+      key = k,
+      value = v,
+      topic = cr.topic,
+      timestampType = cr.timestampType.id,
+      headers = cr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
+    )
   }
 
   def serializeKey(k: K): Array[Byte] = codec.keySerializer.serialize(topicName.value, k)
