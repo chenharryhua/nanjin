@@ -92,7 +92,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Service ID:* ${evt.serviceId.show}
-                                |*Cause:* ${evt.cause.show}""".stripMargin)
+                                |*Cause:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))

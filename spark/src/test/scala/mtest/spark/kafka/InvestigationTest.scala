@@ -16,38 +16,38 @@ object InvestigationTestData {
   final case class Mouse(size: Int, weight: Float)
 
   val mouses1: List[NJConsumerRecord[String, Mouse]] = List(
-    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
-    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0, Nil)
   )
 
   val mouses2: List[NJConsumerRecord[String, Mouse]] = List( // identical to mouse1
-    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
-    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0, Nil)
   )
 
   val mouses3: List[NJConsumerRecord[String, Mouse]] = List( // data diff (1,6) from mouse1
-    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0),
-    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0)
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 2.0f)), "topic", 0, Nil)
   )
 
   val mouses4: List[NJConsumerRecord[String, Mouse]] = List( // missing (1,5) from mouse1
-    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0),
-    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0),
-    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0),
-    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0),
-    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)
+    NJConsumerRecord(0, 1, 10, Some("mike1"), Some(Mouse(1, 0.1f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 2, 20, Some("mike2"), Some(Mouse(2, 0.2f)), "topic", 0, Nil),
+    NJConsumerRecord(0, 3, 30, Some("mike3"), Some(Mouse(3, 0.3f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 4, 40, Some("mike4"), Some(Mouse(4, 0.4f)), "topic", 0, Nil),
+    NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0, Nil)
   )
 
   val mouses5 = List( // missing (1,5)
@@ -84,7 +84,7 @@ class InvestigationTest extends AnyFunSuite {
     val m1  = table.data(mouses1)
     val m3  = table.data(mouses3)
     val rst = m1.diff(m3).fdataset.map(_.collect().toSet).unsafeRunSync()
-    assert(rst === Set(NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0)))
+    assert(rst === Set(NJConsumerRecord(1, 6, 60, Some("mike6"), Some(Mouse(6, 0.6f)), "topic", 0, Nil)))
   }
 
   test("sparKafka one lost") {
@@ -93,7 +93,6 @@ class InvestigationTest extends AnyFunSuite {
 
     assert(
       m1.diff(m4).fdataset.map(_.collect().toSet).unsafeRunSync() === Set(
-        NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0)))
+        NJConsumerRecord(1, 5, 50, Some("mike5"), Some(Mouse(5, 0.5f)), "topic", 0, Nil)))
   }
-
 }

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import fs2.kafka.{ConsumerRecord, Headers, ProducerRecord, Timestamp}
+import fs2.kafka.{ConsumerRecord, Header, Headers, ProducerRecord, Timestamp}
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import monocle.Iso
@@ -12,6 +12,8 @@ import org.apache.kafka.common.record.TimestampType
 import scala.compat.java8.OptionConverters.*
 
 private[kafka] trait Isos {
+  implicit val isoNJHeader: Iso[NJHeader, Header] =
+    Iso[NJHeader, Header](nj => Header(nj.key, nj.value))(r => NJHeader(r.key(), r.value()))
 
   implicit def isoIdentityProducerRecord[K, V]: Iso[KafkaProducerRecord[K, V], KafkaProducerRecord[K, V]] =
     Iso[KafkaProducerRecord[K, V], KafkaProducerRecord[K, V]](identity)(identity)

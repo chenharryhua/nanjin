@@ -152,6 +152,7 @@ final private case class MetricKey(serviceParams: ServiceParams, digested: Diges
       .withDimensions(
         new Dimension().withName(METRICS_TASK).withValue(serviceParams.taskParams.taskName.value),
         new Dimension().withName(METRICS_SERVICE).withValue(serviceParams.serviceName.value),
+        new Dimension().withName(METRICS_SERVICE_ID).withValue(serviceParams.serviceId.show),
         new Dimension().withName(METRICS_HOST).withValue(serviceParams.taskParams.hostName.value),
         new Dimension().withName(METRICS_LAUNCH_TIME).withValue(serviceParams.launchTime.toLocalDate.show),
         new Dimension().withName(METRICS_DIGEST).withValue(digested.digest),

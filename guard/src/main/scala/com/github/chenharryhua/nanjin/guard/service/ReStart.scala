@@ -42,7 +42,7 @@ final private class ReStart[F[_], A](
   private val loop: F[Unit] = F.tailRecM(ReStartState(RetryStatus.NoRetriesYet, None)) { state =>
     (publisher.serviceReStart(channel, serviceParams) >> fa).attempt.flatMap {
       case Right(_)                    => stop(ServiceStopCause.Normally)
-      case Left(err) if !NonFatal(err) => stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
+      case Left(err) if !NonFatal(err) => stop(ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(err)))
       case Left(err) =>
         policy.decideNextRetry(state.retryStatus).flatMap {
           case PolicyDecision.GiveUp => startover(err)
