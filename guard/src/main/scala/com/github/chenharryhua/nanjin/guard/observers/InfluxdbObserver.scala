@@ -48,6 +48,7 @@ final class InfluxdbObserver[F[_]](
       Point
         .measurement(ar.actionParams.digested.name)
         .time(ar.timestamp.toInstant, writePrecision)
+        .addTag(METRICS_SERVICE_ID, ar.serviceParams.serviceId.show)
         .addTag(METRICS_DIGEST, ar.actionParams.digested.digest)
         .addTag("done", ar.isDone.show) // for query
         .addField(name, unit.convert(ar.took)) // Long
@@ -95,6 +96,7 @@ final class InfluxdbObserver[F[_]](
     Map(
       METRICS_TASK -> sp.taskParams.taskName.value,
       METRICS_SERVICE -> sp.serviceName.value,
+      METRICS_SERVICE_ID -> sp.serviceId.show,
       METRICS_HOST -> sp.taskParams.hostName.value,
       METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
     )
