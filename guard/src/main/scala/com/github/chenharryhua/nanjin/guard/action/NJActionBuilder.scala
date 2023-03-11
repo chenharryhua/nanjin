@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.{Alternative, Endo, Eval, Traverse}
-import cats.data.{Ior, Validated}
+import cats.data.Ior
 import cats.effect.kernel.Async
 import cats.implicits.{
   catsSyntaxApplicativeError,
@@ -10,6 +9,7 @@ import cats.implicits.{
   toTraverseOps,
   toUnorderedFoldableOps
 }
+import cats.{Alternative, Endo, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.ActionConfig
@@ -21,9 +21,6 @@ import io.circe.Json
 import retry.RetryPolicy
 
 import scala.concurrent.Future
-import scala.util.Try
-
-private object FailOnNoneException extends Exception("option fail on none")
 
 final class NJActionBuilder[F[_]](
   actionName: String,
@@ -61,6 +58,8 @@ final class NJActionBuilder[F[_]](
       transOutput = _ => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
     )
+
+  def delay[Z](z: => Z): NJAction0[F, Z] = retry(F.delay(z))
 
   def retry[A, Z](f: A => F[Z]): NJAction[F, A, Z] =
     new NJAction[F, A, Z](
@@ -123,7 +122,6 @@ final class NJActionBuilder[F[_]](
     )
 
   // future
-
   def retryFuture[Z](future: F[Future[Z]]): NJAction0[F, Z] = // 0 arity
     retry(F.fromFuture(future))
 
@@ -141,13 +139,6 @@ final class NJActionBuilder[F[_]](
 
   def retryFuture[A, B, C, D, E, Z](f: (A, B, C, D, E) => Future[Z]): NJAction[F, (A, B, C, D, E), Z] =
     retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
-
-  // error-like
-  def retry[Z](t: Try[Z]): NJAction0[F, Z]                  = retry(F.fromTry(t))
-  def retry[Z](e: Either[Throwable, Z]): NJAction0[F, Z]    = retry(F.fromEither(e))
-  def retry[Z](o: Option[Z]): NJAction0[F, Z]               = retry(F.fromOption(o, FailOnNoneException))
-  def retry[Z](v: Validated[Throwable, Z]): NJAction0[F, Z] = retry(F.fromValidated(v))
-  def retry[Z](e: Eval[Z]): NJAction0[F, Z]                 = retry(F.catchNonFatalEval(e))
 
   // quasi
   private def mode(par: Option[Int]): (String, Json) =
