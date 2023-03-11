@@ -47,7 +47,7 @@ class CrPrTest extends AnyFunSuite {
   val crRdd: CrRdd[IO, Long, Rooster] = sparKafka
     .topic(rooster)
     .crRdd(IO(RoosterData.rdd.zipWithIndex().map { case (r, i) =>
-      NJConsumerRecord(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0,Nil)
+      NJConsumerRecord(0, i, Instant.now.getEpochSecond * 1000 + i, Some(i), Some(r), "rooster", 0, Nil)
     }))
     .normalize
 

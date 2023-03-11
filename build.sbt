@@ -22,7 +22,7 @@ val natchezV    = "0.3.1"
 val http4sV     = "0.23.18"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.2"
-val protobufV   = "3.22.0"
+val protobufV   = "3.22.2"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.2"
 
