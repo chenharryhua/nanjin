@@ -186,6 +186,7 @@ class PerformanceTest extends AnyFunSuite {
 
     TaskGuard[IO]("nanjin")
       .service("performance")
+      .withJmx(_.inDomain("nanjin"))
       .eventStream { agent =>
         val s1 = config(agent, "silent.time.count", _.silent.withTiming.withCounting)
         val s2 = config(agent, "silent.time", _.silent.withTiming)

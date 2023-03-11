@@ -6,6 +6,7 @@ import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
+import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
@@ -37,6 +38,7 @@ final class ServiceGuard[F[_]] private[guard] (
   serviceConfig: ServiceConfig,
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F],
+  jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder],
   brief: F[Json])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
 
@@ -44,9 +46,10 @@ final class ServiceGuard[F[_]] private[guard] (
     serviceName: ServiceName = serviceName,
     serviceConfig: ServiceConfig = serviceConfig,
     restartPolicy: RetryPolicy[F] = restartPolicy,
+    jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = jmxBuilder,
     brief: F[Json] = brief
   ): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, brief)
+    new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, jmxBuilder, brief)
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
   def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
@@ -57,6 +60,9 @@ final class ServiceGuard[F[_]] private[guard] (
 
   def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
     withRestartPolicy(policies.cronBackoff[F](cronExpr, serviceConfig.taskParams.zoneId))
+
+  def withJmx(f: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
+    copy(jmxBuilder = Some(f))
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
   def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
@@ -117,6 +123,20 @@ final class ServiceGuard[F[_]] private[guard] (
                 .drain
           }
 
+        val jmxReporting: Stream[F, Nothing] =
+          jmxBuilder match {
+            case None => Stream.empty
+            case Some(build) =>
+              Stream.bracket(F.blocking {
+                val reporter =
+                  build(JmxReporter.forRegistry(metricRegistry))
+                    .createsObjectNamesWith(objectNameFactory) // respect builder except object name factory
+                    .build()
+                reporter.start()
+                reporter
+              })(r => F.blocking(r.stop())) >> Stream.never[F]
+          }
+
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
             serviceParams = serviceParams,
@@ -130,6 +150,7 @@ final class ServiceGuard[F[_]] private[guard] (
 
         // put together
         channel.stream
+          .concurrently(jmxReporting)
           .concurrently(metricsReset)
           .concurrently(metricsReport)
           .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
