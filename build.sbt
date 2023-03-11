@@ -273,6 +273,7 @@ lazy val guard = (project in file("guard"))
   .settings(
     libraryDependencies ++= List(
       "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
+      "io.dropwizard.metrics"                          % "metrics-jmx"          % metricsV,
       "com.influxdb"                                   % "influxdb-client-java" % "6.7.0",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "vault"                       % "3.5.0",
@@ -284,7 +285,7 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-core"                    % http4sV,
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
-      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV   % Test
+      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
     ) ++ logLib ++ testLib
   )
 
