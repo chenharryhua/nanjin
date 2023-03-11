@@ -60,7 +60,8 @@ class NJComsumerRecordProp extends Properties("ConsumerRecord") {
         None,
         fpr.timestamp,
         Option(fpr.key),
-        Option(fpr.value),Nil)
+        Option(fpr.value),
+        Nil)
     re == op
   }
 }

@@ -16,18 +16,15 @@ sealed trait NJEvent extends Product with Serializable {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
   def title: String
-  def isPivotal: Boolean
+  def isPivotal: Boolean // exclude ActionStart and ActionComplete event
 
   final def serviceId: UUID          = serviceParams.serviceId
   final def serviceName: ServiceName = serviceParams.serviceName
   final def upTime: Duration         = serviceParams.upTime(timestamp)
-
 }
 
 object NJEvent extends zoneddatetime {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
-
-  sealed trait PivotalEvent
 
   sealed trait ServiceEvent extends NJEvent
 
@@ -98,7 +95,6 @@ object NJEvent extends zoneddatetime {
 
   }
 
-  @Lenses
   final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
     override val timestamp: ZonedDateTime = actionInfo.launchTime
     override val title: String            = titles.actionStart
