@@ -25,3 +25,4 @@ out/*
 .vscode/*
 .bsp/*
 /http/src/test/scala/mtest/http/auth/LoginTest.scala
+storage/*

@@ -9,15 +9,14 @@ import com.github.chenharryhua.nanjin.guard.observers.console
 import cron4s.Cron
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
-import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import retry.{PolicyDecision, RetryPolicies, RetryStatus}
 
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
-import scala.util.Try
 
 class ServiceTest extends AnyFunSuite {
 
@@ -35,7 +34,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(cron_1hour))
       .updateConfig(
         _.withMetricReset("*/30 * * ? * *").withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset)
-      .eventStream(gd => gd.action("t", _.silent).retry(Try(1)).logOutput(_ => null).run.delayBy(1.second))
+      .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .compile
@@ -90,7 +89,7 @@ class ServiceTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream { gd =>
-        gd.action("t", _.notice).withRetryPolicy(policy).retry(Left(new Exception("oops"))).run
+        gd.action("t", _.notice).withRetryPolicy(policy).delay(throw new Exception("oops")).run
 
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -138,8 +137,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
-      .eventStream(gd =>
-        gd.action("t", _.notice).retry(Try(1)).run >> gd.action("t", _.notice).retry(IO(2)).run)
+      .eventStream(gd => gd.action("t", _.notice).delay(1).run >> gd.action("t", _.notice).retry(IO(2)).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toVector
