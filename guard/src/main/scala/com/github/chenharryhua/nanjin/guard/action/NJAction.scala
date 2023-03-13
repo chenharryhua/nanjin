@@ -21,20 +21,21 @@ final class NJAction[F[_], IN, OUT] private[action] (
   arrow: IN => F[OUT],
   transError: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
-  isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) {
+  isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
-    transError: IN => F[Json] = transError,
-    transOutput: (IN, OUT) => F[Json] = transOutput,
-    isWorthRetry: Throwable => F[Boolean] = isWorthRetry): NJAction[F, IN, OUT] =
+    transError: IN => F[Json] = self.transError,
+    transOutput: (IN, OUT) => F[Json] = self.transOutput,
+    isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
     new NJAction[F, IN, OUT](
-      metricRegistry,
-      channel,
-      actionParams,
-      retryPolicy,
-      arrow,
-      transError,
-      transOutput,
-      isWorthRetry)
+      metricRegistry = metricRegistry,
+      channel = channel,
+      actionParams = actionParams,
+      retryPolicy = retryPolicy,
+      arrow = arrow,
+      transError = transError,
+      transOutput = transOutput,
+      isWorthRetry = isWorthRetry
+    )
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJAction[F, IN, OUT] = copy(isWorthRetry = f)
   def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
@@ -65,7 +66,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
         isWorthRetry = isWorthRetry,
         actionInfo = ai,
         input = input,
-        measures
+        measures = measures
       ).execute
     } yield out
 
@@ -95,20 +96,21 @@ final class NJAction0[F[_], OUT] private[guard] (
   arrow: F[OUT],
   transError: F[Json],
   transOutput: OUT => F[Json],
-  isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) {
+  isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
   private def copy(
-    transError: F[Json] = transError,
-    transOutput: OUT => F[Json] = transOutput,
-    isWorthRetry: Throwable => F[Boolean] = isWorthRetry): NJAction0[F, OUT] =
+    transError: F[Json] = self.transError,
+    transOutput: OUT => F[Json] = self.transOutput,
+    isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction0[F, OUT] =
     new NJAction0[F, OUT](
       metricRegistry,
-      channel,
-      actionParams,
-      retryPolicy,
-      arrow,
-      transError,
-      transOutput,
-      isWorthRetry)
+      channel = channel,
+      actionParams = actionParams,
+      retryPolicy = retryPolicy,
+      arrow = arrow,
+      transError = transError,
+      transOutput = transOutput,
+      isWorthRetry = isWorthRetry
+    )
 
   def withWorthRetryM(f: Throwable => F[Boolean]): NJAction0[F, OUT] = copy(isWorthRetry = f)
   def withWorthRetry(f: Throwable => Boolean): NJAction0[F, OUT] =

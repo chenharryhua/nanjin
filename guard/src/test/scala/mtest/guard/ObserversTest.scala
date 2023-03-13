@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.aws.{
   CloudWatchClient,
   SimpleEmailService,
@@ -34,6 +35,7 @@ class ObserversTest extends AnyFunSuite {
   test("1.logging verbose") {
     TaskGuard[IO]("logging")
       .service("text")
+      .withMetricServer(_.withPort(port"12345"))
       .withRestartPolicy(constant_1hour)
       .updateConfig(_.withMetricReport(cron_1hour))
       .eventStream { ag =>
