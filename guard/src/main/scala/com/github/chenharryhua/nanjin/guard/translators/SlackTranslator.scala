@@ -29,7 +29,7 @@ private object SlackTranslator extends all {
       "Metrics",
       if (counters.isEmpty) "`No updates`"
       else {
-        val gauges = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value}")
+        val gauges = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value.spaces2}")
         s"```${abbreviate((counters ::: gauges).mkString("\n"))}```"
       }
     )

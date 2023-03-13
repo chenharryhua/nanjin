@@ -77,7 +77,7 @@ final class CloudWatchObserver[F[_]: Sync](
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      MetricKey(report.serviceParams, histo.digested, s"histogram.$category(${histo.unitOfMeasure})")
+      MetricKey(report.serviceParams, histo.digested, s"histogram.$category(${histo.unit})")
         .metricDatum(report.timestamp.toInstant, value, StandardUnit.None)
     }
 

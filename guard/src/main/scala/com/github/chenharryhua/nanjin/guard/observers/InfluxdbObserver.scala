@@ -162,7 +162,7 @@ final class InfluxdbObserver[F[_]](
 
           val histograms: List[Point] = snapshot.histograms.map { histo =>
             val tagToAdd = dimension(histo) ++ spDimensions ++ tags
-            val unitName = s"(${histo.unitOfMeasure})"
+            val unitName = s"(${histo.unit})"
             Point
               .measurement(histo.digested.name)
               .time(ts.toInstant, writePrecision)

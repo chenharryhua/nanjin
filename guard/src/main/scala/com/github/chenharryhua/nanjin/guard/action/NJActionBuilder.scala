@@ -29,11 +29,11 @@ final class NJActionBuilder[F[_]](
   actionConfig: ActionConfig,
   retryPolicy: RetryPolicy[F]
 )(implicit F: Async[F])
-    extends UpdateConfig[ActionConfig, NJActionBuilder[F]] {
+    extends UpdateConfig[ActionConfig, NJActionBuilder[F]] { self =>
   private def copy(
-    actionName: String = actionName,
-    actionConfig: ActionConfig = actionConfig,
-    retryPolicy: RetryPolicy[F] = retryPolicy
+    actionName: String = self.actionName,
+    actionConfig: ActionConfig = self.actionConfig,
+    retryPolicy: RetryPolicy[F] = self.retryPolicy
   ): NJActionBuilder[F] =
     new NJActionBuilder[F](actionName, metricRegistry, channel, actionConfig, retryPolicy)
 

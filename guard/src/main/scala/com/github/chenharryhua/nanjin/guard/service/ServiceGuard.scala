@@ -7,6 +7,7 @@ import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
+import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
@@ -16,8 +17,10 @@ import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
+import fs2.io.net.Network
 import io.circe.Json
 import natchez.EntryPoint
+import org.http4s.ember.server.EmberServerBuilder
 import org.typelevel.vault.{Locker, Vault}
 import retry.RetryPolicy
 
@@ -33,23 +36,25 @@ import retry.RetryPolicy
   */
 // format: on
 
-final class ServiceGuard[F[_]] private[guard] (
+final class ServiceGuard[F[_]: Network] private[guard] (
   serviceName: ServiceName,
   serviceConfig: ServiceConfig,
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F],
-  jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder],
+  jmxBuilder: Option[Endo[JmxReporter.Builder]],
+  httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   brief: F[Json])(implicit F: Async[F])
-    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] {
+    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] { self =>
 
   private def copy(
-    serviceName: ServiceName = serviceName,
-    serviceConfig: ServiceConfig = serviceConfig,
-    restartPolicy: RetryPolicy[F] = restartPolicy,
-    jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = jmxBuilder,
-    brief: F[Json] = brief
+    serviceName: ServiceName = self.serviceName,
+    serviceConfig: ServiceConfig = self.serviceConfig,
+    restartPolicy: RetryPolicy[F] = self.restartPolicy,
+    jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
+    httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
+    brief: F[Json] = self.brief
   ): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, jmxBuilder, brief)
+    new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, jmxBuilder, httpBuilder, brief)
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
   def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
@@ -61,8 +66,11 @@ final class ServiceGuard[F[_]] private[guard] (
   def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
     withRestartPolicy(policies.cronBackoff[F](cronExpr, serviceConfig.taskParams.zoneId))
 
-  def withJmx(f: JmxReporter.Builder => JmxReporter.Builder): ServiceGuard[F] =
+  def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] =
     copy(jmxBuilder = Some(f))
+
+  def withMetricServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] =
+    copy(httpBuilder = Some(f))
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
   def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
@@ -129,13 +137,26 @@ final class ServiceGuard[F[_]] private[guard] (
             case Some(build) =>
               Stream.bracket(F.blocking {
                 val reporter =
-                  build(JmxReporter.forRegistry(metricRegistry))
+                  build(
+                    JmxReporter
+                      .forRegistry(metricRegistry)
+                      .convertDurationsTo(serviceParams.metricParams.durationTimeUnit)
+                      .convertRatesTo(serviceParams.metricParams.rateTimeUnit))
                     .createsObjectNamesWith(objectNameFactory) // respect builder except object name factory
                     .build()
                 reporter.start()
                 reporter
               })(r => F.blocking(r.stop())) >> Stream.never[F]
           }
+
+        val metricsServer: Stream[F, Nothing] = httpBuilder match {
+          case None => Stream.empty
+          case Some(build) =>
+            Stream.resource(
+              build(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026"))
+                .withHttpApp(new MetricsRouter[F](metricRegistry).router)
+                .build) >> Stream.never[F]
+        }
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
@@ -148,12 +169,16 @@ final class ServiceGuard[F[_]] private[guard] (
             dispatcher = dispatcher
           )
 
+        val surveillance: Stream[F, Nothing] =
+          new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream
+
         // put together
         channel.stream
           .concurrently(jmxReporting)
           .concurrently(metricsReset)
           .concurrently(metricsReport)
-          .concurrently(new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream)
+          .concurrently(metricsServer)
+          .concurrently(surveillance)
       }
     } yield event
 }

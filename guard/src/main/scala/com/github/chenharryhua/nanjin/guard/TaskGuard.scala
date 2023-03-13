@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
+import fs2.io.net.Network
 import io.circe.Json
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
@@ -13,7 +14,9 @@ import retry.RetryPolicies
 
 /** poor man's telemetry
   */
-final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: Resource[F, EntryPoint[F]])
+final class TaskGuard[F[_]: Async: Network] private (
+  taskConfig: TaskConfig,
+  entryPoint: Resource[F, EntryPoint[F]])
     extends UpdateConfig[TaskConfig, TaskGuard[F]] {
 
   override def updateConfig(f: Endo[TaskConfig]): TaskGuard[F] =
@@ -29,16 +32,17 @@ final class TaskGuard[F[_]: Async] private (taskConfig: TaskConfig, entryPoint: 
       entryPoint = entryPoint,
       restartPolicy = RetryPolicies.alwaysGiveUp[F],
       jmxBuilder = None,
+      httpBuilder = None,
       brief = Async[F].pure(Json.Null)
     )
 }
 
 object TaskGuard {
 
-  def apply[F[_]: Async](taskName: TaskName): TaskGuard[F] =
+  def apply[F[_]: Async: Network](taskName: TaskName): TaskGuard[F] =
     new TaskGuard[F](TaskConfig(taskName), Resource.pure(NoopEntrypoint[F]()))
 
   // for repl
-  def dummyAgent[F[_]: Async: Console]: Resource[F, GeneralAgent[F]] =
+  def dummyAgent[F[_]: Async: Network: Console]: Resource[F, GeneralAgent[F]] =
     apply(TaskName("dummy")).service(ServiceName("dummy")).dummyAgent
 }
