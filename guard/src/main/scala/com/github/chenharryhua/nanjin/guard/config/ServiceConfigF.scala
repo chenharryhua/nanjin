@@ -52,12 +52,12 @@ object MetricParams {
   serviceName: ServiceName,
   serviceId: UUID,
   launchTime: ZonedDateTime,
-  retryPolicy: String, // service restart policy
+  restartPolicy: String, // service restart policy
   policyThreshold: Option[Duration], // policy start over interval
   taskParams: TaskParams,
   metricParams: MetricParams,
-  brief: Json,
-  homePage: Option[HomePage]
+  homePage: Option[HomePage],
+  brief: Json
 ) {
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
@@ -86,7 +86,7 @@ object ServiceParams extends zoneddatetime with duration {
       serviceId = serviceId,
       launchTime = launchTime.atZone(taskParams.zoneId),
       taskParams = taskParams,
-      retryPolicy = retryPolicy,
+      restartPolicy = retryPolicy,
       policyThreshold = None,
       metricParams = MetricParams(
         reportSchedule = None,
@@ -95,8 +95,8 @@ object ServiceParams extends zoneddatetime with duration {
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
-      brief = brief,
-      homePage = None
+      homePage = None,
+      brief = brief
     )
 }
 

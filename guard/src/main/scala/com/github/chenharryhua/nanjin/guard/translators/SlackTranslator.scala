@@ -71,7 +71,7 @@ private object SlackTranslator extends all {
             MarkdownSection(msg),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Policy:* ${evt.serviceParams.retryPolicy}
+                                |*Policy:* ${evt.serviceParams.restartPolicy}
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )

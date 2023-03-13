@@ -28,7 +28,7 @@ private object SimpleJsonTranslator {
     case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
   }
 
-  private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.retryPolicy.asJson
+  private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
 
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(

@@ -5,7 +5,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.Digested
-import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID}
+import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID, NJError}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -26,12 +26,7 @@ final class NJGauge[F[_]] private[guard] (
               override def getValue: String =
                 dispatcher
                   .unsafeRunSync(value.attempt)
-                  .fold(
-                    ex =>
-                      Json
-                        .obj("gaugeError" -> Json.fromString(ExceptionUtils.getRootCauseMessage(ex)))
-                        .noSpaces,
-                    _.asJson.noSpaces)
+                  .fold(ex => NJError(ex).asJson.noSpaces, _.asJson.noSpaces)
             }
         )
         metricId
