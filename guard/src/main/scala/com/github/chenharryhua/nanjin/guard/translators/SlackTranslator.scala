@@ -212,7 +212,7 @@ private object SlackTranslator extends all {
 
   private def actionFailed(evt: ActionFail): SlackApp = {
     val msg: String = s"""|${evt.error.message}
-                          |Output:
+                          |Notes:
                           |${evt.output.spaces2}""".stripMargin
 
     SlackApp(
@@ -249,7 +249,7 @@ private object SlackTranslator extends all {
                                 |${actionId(evt)}
                                 |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin),
-            KeyValueSection("Output", s"""```${abbreviate(evt.output.spaces2)}```""")
+            KeyValueSection("Result", s"""```${abbreviate(evt.output.spaces2)}```""")
           )
         )
       )

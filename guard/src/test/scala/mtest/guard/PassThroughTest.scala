@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.observers.logging
+import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
@@ -95,6 +95,25 @@ class PassThroughTest extends AnyFunSuite {
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("6.gauge") {
+    guard
+      .updateConfig(_.withMetricReport(cron_1second))
+      .eventStream { agent =>
+        val g1 = agent.gauge("good").register(Random.nextInt(10))
+        val g2 = agent.gauge("exception").register(IO.raiseError[Int](new Exception))
+        val g3 = agent.gauge("string").register("abc")
+        g1.both(g2).both(g3).surround(IO.sleep(3.seconds))
+      }
+      .evalTap(console.simple[IO])
+      .map {
+        case event: MetricReport => assert(event.snapshot.gauges.size == 3)
+        case _                   => ()
+      }
       .compile
       .drain
       .unsafeRunSync()

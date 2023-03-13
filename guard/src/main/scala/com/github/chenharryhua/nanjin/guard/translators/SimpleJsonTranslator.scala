@@ -136,7 +136,7 @@ private object SimpleJsonTranslator {
           importance(evt.actionInfo.actionParams.importance),
           name(evt.digested),
           traceInfo(evt),
-          ("output", evt.output),
+          "notes" -> evt.output, // align with slack
           stackTrace(evt.error),
           digest(evt.digested),
           actionId(evt),
@@ -151,7 +151,7 @@ private object SimpleJsonTranslator {
           importance(evt.actionInfo.actionParams.importance),
           name(evt.digested),
           traceInfo(evt),
-          ("output", evt.output),
+          "result" -> evt.output, // align with slack
           digest(evt.digested),
           actionId(evt),
           serviceId(evt),
