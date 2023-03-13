@@ -4,6 +4,7 @@ import cats.Monad
 import cats.data.Kleisli
 import cats.implicits.catsSyntaxEq
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import io.circe.syntax.EncoderOps
 import org.http4s.{HttpRoutes, Request, Response}
@@ -11,8 +12,8 @@ import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.Router
 
-private class MetricsRouter[F[_]: Monad](mr: MetricRegistry) extends Http4sDsl[F] {
-  private val routes = HttpRoutes.of[F] {
+private class MetricsRouter[F[_]: Monad](mr: MetricRegistry, sp: ServiceParams) extends Http4sDsl[F] {
+  private val metrics = HttpRoutes.of[F] {
     // all
     case GET -> Root => Ok(MetricSnapshot(mr).asJson)
     // counters
@@ -39,10 +40,16 @@ private class MetricsRouter[F[_]: Monad](mr: MetricRegistry) extends Http4sDsl[F
     // histograms
     case GET -> Root / "histograms" => Ok(MetricSnapshot.histograms(mr).asJson)
     case GET -> Root / "histogram" / name =>
-      MetricSnapshot.histograms(mr).find(id => id.digested.name === name || id.digested.digest === name) match {
+      MetricSnapshot
+        .histograms(mr)
+        .find(id => id.digested.name === name || id.digested.digest === name) match {
         case Some(value) => Ok(value)
         case None        => NotFound()
       }
   }
-  val router: Kleisli[F, Request[F], Response[F]] = Router("metrics" -> routes).orNotFound
+
+  private val service = HttpRoutes.of[F] { case GET -> Root => Ok(sp.asJson) }
+
+  val router: Kleisli[F, Request[F], Response[F]] =
+    Router("metrics" -> metrics, "service" -> service).orNotFound
 }
