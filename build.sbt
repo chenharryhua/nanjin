@@ -57,7 +57,7 @@ val hadoopLib = List(
   "org.apache.hadoop"      % "hadoop-client-runtime"        % hadoopV,
   "org.apache.hadoop"      % "hadoop-hdfs"                  % hadoopV,
   "org.slf4j"              % "jcl-over-slf4j"               % slf4jV,
-  "org.codehaus.jettison"  % "jettison"                     % "1.5.3", // snyk
+  "org.codehaus.jettison"  % "jettison"                     % "1.5.4", // snyk
   "org.eclipse.jetty"      % "jetty-server"                 % "11.0.14", // snyk
   "org.eclipse.jetty"      % "jetty-client"                 % "11.0.14", // snyk
   "commons-net"            % "commons-net"                  % "3.9.0", // snyk
