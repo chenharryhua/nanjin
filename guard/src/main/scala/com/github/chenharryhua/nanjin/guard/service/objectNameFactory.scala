@@ -13,9 +13,9 @@ private object objectNameFactory extends ObjectNameFactory {
       case Left(ex) => throw ex
       case Right(mId) =>
         val properties = new util.Hashtable[String, String]()
-        properties.put("name", mId.digested.name)
+        properties.put("name", mId.id.name)
         properties.put("type", mId.category.value)
-        properties.put("digest", mId.digested.digest)
+        properties.put("digest", mId.id.digest)
         new ObjectName(domain, properties)
     }
 }

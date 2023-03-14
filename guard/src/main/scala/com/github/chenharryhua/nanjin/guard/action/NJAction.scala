@@ -74,12 +74,12 @@ final class NJAction[F[_], IN, OUT] private[action] (
 
   private lazy val traceTags: List[(String, TraceValue)] = List(
     "service_id" -> TraceValue.StringValue(actionParams.serviceParams.serviceId.show),
-    "digest" -> TraceValue.StringValue(actionParams.digested.digest),
+    "digest" -> TraceValue.StringValue(actionParams.id.digest),
     "importance" -> TraceValue.StringValue(actionParams.importance.entryName)
   )
 
   def runWithSpan(input: IN)(span: Span[F]): F[OUT] =
-    span.span(actionParams.digested.name).use { sub =>
+    span.span(actionParams.id.name).use { sub =>
       for {
         _ <- sub.put(traceTags*)
         ti <- TraceInfo(sub)

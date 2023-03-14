@@ -54,7 +54,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.digested.digest == "1a8af341").size == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.id.digest == "1a8af341").size == 1)
   }
 
   test("3.alert") {
@@ -70,7 +70,7 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.digested.digest == "a32b945e").size == 1)
+    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.id.digest == "a32b945e").size == 1)
   }
 
   test("4.meter") {
@@ -104,9 +104,9 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
-        val g1 = agent.gauge("good").register(Random.nextInt(10))
+        val g1 = agent.gauge("elapse").timed
         val g2 = agent.gauge("exception").register(IO.raiseError[Int](new Exception))
-        val g3 = agent.gauge("string").register("abc")
+        val g3 = agent.gauge("good").register(Random.nextInt(10))
         g1.both(g2).both(g3).surround(IO.sleep(3.seconds))
       }
       .evalTap(console.simple[IO])

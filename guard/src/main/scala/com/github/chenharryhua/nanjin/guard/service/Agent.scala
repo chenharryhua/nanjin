@@ -84,7 +84,7 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
-      digested = Digested(serviceParams, brokerName),
+      id = MeasurementID(serviceParams, brokerName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
@@ -94,7 +94,7 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def alert(alertName: String): NJAlert[F] =
     new NJAlert(
-      digested = Digested(serviceParams, alertName),
+      id = MeasurementID(serviceParams, alertName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
@@ -103,24 +103,27 @@ final class GeneralAgent[F[_]] private[service] (
     )
 
   override def counter(counterName: String): NJCounter[F] =
-    new NJCounter(digested = Digested(serviceParams, counterName), metricRegistry = metricRegistry)
+    new NJCounter(id = MeasurementID(serviceParams, counterName), metricRegistry = metricRegistry)
 
   override def meter(meterName: String): NJMeter[F] =
     new NJMeter[F](
-      digested = Digested(serviceParams, meterName),
+      id = MeasurementID(serviceParams, meterName),
       metricRegistry = metricRegistry,
       isCounting = false)
 
   override def histogram(histoName: String, unitOfMeasure: String): NJHistogram[F] =
     new NJHistogram[F](
-      digested = Digested(serviceParams, histoName),
-      unitOfMeasure,
+      id = MeasurementID(serviceParams, histoName),
+      unitOfMeasure = unitOfMeasure,
       metricRegistry = metricRegistry,
       isCounting = false
     )
 
   override def gauge(gaugeName: String): NJGauge[F] =
-    new NJGauge[F](Digested(serviceParams, gaugeName), metricRegistry, dispatcher)
+    new NJGauge[F](
+      id = MeasurementID(serviceParams, gaugeName),
+      metricRegistry = metricRegistry,
+      dispatcher = dispatcher)
 
   override lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)

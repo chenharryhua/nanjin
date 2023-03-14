@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.config.{Digested, Importance}
+import com.github.chenharryhua.nanjin.guard.config.{Importance, MeasurementID}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
@@ -15,8 +15,8 @@ private object SimpleJsonTranslator {
   private def serviceName(evt: NJEvent): (String, Json) =
     ("serviceName", Json.fromString(evt.serviceName.value))
 
-  private def name(dg: Digested): (String, Json)          = "name" -> Json.fromString(dg.name)
-  private def digest(dg: Digested): (String, Json)        = "digest" -> Json.fromString(dg.digest)
+  private def name(id: MeasurementID): (String, Json)     = "name" -> Json.fromString(id.name)
+  private def digest(id: MeasurementID): (String, Json)   = "digest" -> Json.fromString(id.digest)
   private def actionId(evt: ActionEvent): (String, Json)  = "id" -> Json.fromString(evt.actionId)
   private def traceInfo(evt: ActionEvent): (String, Json) = "traceInfo" -> evt.actionInfo.traceInfo.asJson
   private def importance(imp: Importance): (String, Json) = "importance" -> imp.asJson
@@ -84,9 +84,9 @@ private object SimpleJsonTranslator {
     Json.obj(
       "PassThrough" ->
         Json.obj(
-          name(evt.digested),
+          name(evt.id),
           ("value", evt.value),
-          digest(evt.digested),
+          digest(evt.id),
           serviceId(evt),
           timestamp(evt)
         ))
@@ -96,9 +96,9 @@ private object SimpleJsonTranslator {
       "Alert" ->
         Json.obj(
           "level" -> evt.alertLevel.asJson,
-          name(evt.digested),
+          name(evt.id),
           ("message", Json.fromString(evt.message)),
-          digest(evt.digested),
+          digest(evt.id),
           serviceId(evt),
           timestamp(evt)))
 
@@ -107,9 +107,9 @@ private object SimpleJsonTranslator {
       "ActionStart" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.digested),
+          name(evt.id),
           traceInfo(evt),
-          digest(evt.digested),
+          digest(evt.id),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
@@ -120,10 +120,10 @@ private object SimpleJsonTranslator {
       "ActionRetry" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.digested),
+          name(evt.id),
           traceInfo(evt),
           ("cause", Json.fromString(evt.error.message)),
-          digest(evt.digested),
+          digest(evt.id),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
@@ -134,11 +134,11 @@ private object SimpleJsonTranslator {
       "ActionFail" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.digested),
+          name(evt.id),
           traceInfo(evt),
           "notes" -> evt.output, // align with slack
           stackTrace(evt.error),
-          digest(evt.digested),
+          digest(evt.id),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
@@ -149,10 +149,10 @@ private object SimpleJsonTranslator {
       "ActionComplete" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.digested),
+          name(evt.id),
           traceInfo(evt),
           "result" -> evt.output, // align with slack
-          digest(evt.digested),
+          digest(evt.id),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
