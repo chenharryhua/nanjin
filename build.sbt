@@ -330,7 +330,8 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
+      "org.postgresql"                  % "postgresql" % "42.5.4", // snyk
+      ("com.zaxxer"                     % "HikariCP"   % "5.0.1").exclude("org.slf4j", "slf4j-api")
     ) ++ testLib
   )
 
