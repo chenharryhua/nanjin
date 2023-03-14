@@ -48,20 +48,21 @@ lazy val commonSettings = List(
 val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % awsV)
 
 val hadoopLib = List(
-  "org.apache.hadoop"      % "hadoop-mapreduce-client-core" % hadoopV,
-  "org.apache.hadoop"      % "hadoop-aws"                   % hadoopV,
-  "org.apache.hadoop"      % "hadoop-auth"                  % hadoopV,
-  "org.apache.hadoop"      % "hadoop-annotations"           % hadoopV,
-  "org.apache.hadoop"      % "hadoop-common"                % hadoopV,
-  "org.apache.hadoop"      % "hadoop-client"                % hadoopV,
-  "org.apache.hadoop"      % "hadoop-client-runtime"        % hadoopV,
-  "org.apache.hadoop"      % "hadoop-hdfs"                  % hadoopV,
-  "org.slf4j"              % "jcl-over-slf4j"               % slf4jV,
-  "org.eclipse.jetty"      % "jetty-server"                 % "11.0.14", // snyk
-  "org.eclipse.jetty"      % "jetty-client"                 % "11.0.14", // snyk
-  "commons-net"            % "commons-net"                  % "3.9.0", // snyk
-  "io.netty"               % "netty-all"                    % nettyV, // snyk
-  "com.fasterxml.woodstox" % "woodstox-core"                % "6.5.0" // snyk
+  "org.apache.hadoop"          % "hadoop-mapreduce-client-core" % hadoopV,
+  "org.apache.hadoop"          % "hadoop-aws"                   % hadoopV,
+  "org.apache.hadoop"          % "hadoop-auth"                  % hadoopV,
+  "org.apache.hadoop"          % "hadoop-annotations"           % hadoopV,
+  "org.apache.hadoop"          % "hadoop-common"                % hadoopV,
+  "org.apache.hadoop"          % "hadoop-client"                % hadoopV,
+  "org.apache.hadoop"          % "hadoop-client-runtime"        % hadoopV,
+  "org.apache.hadoop"          % "hadoop-hdfs"                  % hadoopV,
+  "org.slf4j"                  % "jcl-over-slf4j"               % slf4jV,
+  "com.fasterxml.jackson.core" % "jackson-databind"             % jacksonV, // snyk
+  "org.eclipse.jetty"          % "jetty-server"                 % "11.0.14", // snyk
+  "org.eclipse.jetty"          % "jetty-client"                 % "11.0.14", // snyk
+  "commons-net"                % "commons-net"                  % "3.9.0", // snyk
+  "io.netty"                   % "netty-all"                    % nettyV, // snyk
+  "com.fasterxml.woodstox"     % "woodstox-core"                % "6.5.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
