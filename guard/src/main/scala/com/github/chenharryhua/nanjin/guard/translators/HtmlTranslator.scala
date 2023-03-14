@@ -74,7 +74,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
       p(b(msg)),
-      p(b("Policy: "), evt.serviceParams.retryPolicy),
+      p(b("Policy: "), evt.serviceParams.restartPolicy),
       causeText(evt.error)
     )
   }

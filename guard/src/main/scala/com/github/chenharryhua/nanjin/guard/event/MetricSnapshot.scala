@@ -4,7 +4,7 @@ import cats.Show
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.guard.config.Digested
+import com.github.chenharryhua.nanjin.guard.config.MeasurementID
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
@@ -42,17 +42,21 @@ private[guard] object MetricCategory {
 }
 
 @JsonCodec
-final private[guard] case class MetricID(digested: Digested, category: MetricCategory)
+final private[guard] case class MetricID(id: MeasurementID, category: MetricCategory)
 
-trait Snapshot { def digested: Digested }
+sealed trait Snapshot {
+  def id: MeasurementID
+  final def isMatch(str: String): Boolean = id.name === str || id.digest === str
+}
+
 object Snapshot {
 
   @JsonCodec
-  final case class Counter(digested: Digested, category: String, count: Long) extends Snapshot
+  final case class Counter(id: MeasurementID, category: String, count: Long) extends Snapshot
 
   @JsonCodec
   final case class Meter(
-    digested: Digested,
+    id: MeasurementID,
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -62,7 +66,7 @@ object Snapshot {
 
   @JsonCodec
   final case class Timer(
-    digested: Digested,
+    id: MeasurementID,
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -82,7 +86,7 @@ object Snapshot {
 
   @JsonCodec
   final case class Histogram(
-    digested: Digested,
+    id: MeasurementID,
     unit: String,
     count: Long,
     min: Long,
@@ -98,16 +102,16 @@ object Snapshot {
       extends Snapshot
 
   @JsonCodec
-  final case class Gauge(digested: Digested, value: Json) extends Snapshot
+  final case class Gauge(id: MeasurementID, value: Json) extends Snapshot
 }
 
 @JsonCodec
 final case class MetricSnapshot(
+  gauges: List[Snapshot.Gauge], // important measurement comes first.
   counters: List[Snapshot.Counter],
   meters: List[Snapshot.Meter],
   timers: List[Snapshot.Timer],
-  histograms: List[Snapshot.Histogram],
-  gauges: List[Snapshot.Gauge])
+  histograms: List[Snapshot.Histogram])
 
 object MetricSnapshot extends duration {
 
@@ -122,15 +126,14 @@ object MetricSnapshot extends duration {
 
   def counters(metricRegistry: MetricRegistry): List[Snapshot.Counter] =
     metricRegistry.getCounters().asScala.toList.mapFilter { case (name, counter) =>
-      decode[MetricID](name).toOption.map(mn =>
-        Snapshot.Counter(mn.digested, mn.category.value, counter.getCount))
+      decode[MetricID](name).toOption.map(mn => Snapshot.Counter(mn.id, mn.category.value, counter.getCount))
     }
 
   def meters(metricRegistry: MetricRegistry): List[Snapshot.Meter] =
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricID](name).toOption.map(mn =>
         Snapshot.Meter(
-          digested = mn.digested,
+          id = mn.id,
           count = meter.getCount,
           mean_rate = Hertz(meter.getMeanRate),
           m1_rate = Hertz(meter.getOneMinuteRate),
@@ -144,7 +147,7 @@ object MetricSnapshot extends duration {
       decode[MetricID](name).toOption.map { mn =>
         val ss = timer.getSnapshot
         Snapshot.Timer(
-          digested = mn.digested,
+          id = mn.id,
           count = timer.getCount,
           // meter
           mean_rate = Hertz(timer.getMeanRate),
@@ -174,7 +177,7 @@ object MetricSnapshot extends duration {
             val ss = histo.getSnapshot
             Some(
               Snapshot.Histogram(
-                digested = mn.digested,
+                id = mn.id,
                 unit = unitOfMeasure,
                 count = histo.getCount,
                 min = ss.getMin,
@@ -196,16 +199,16 @@ object MetricSnapshot extends duration {
   def gauges(metricRegistry: MetricRegistry): List[Snapshot.Gauge] =
     metricRegistry.getGauges().asScala.toList.mapFilter { case (name, gauge) =>
       (decode[MetricID](name), parse(gauge.getValue.toString))
-        .mapN((id, json) => Snapshot.Gauge(id.digested, json))
+        .mapN((id, json) => Snapshot.Gauge(id.id, json))
         .toOption
     }
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      counters = counters(metricRegistry).sortBy(_.digested.name),
-      meters = meters(metricRegistry).sortBy(_.digested.name),
-      timers = timers(metricRegistry).sortBy(_.digested.name),
-      histograms = histograms(metricRegistry).sortBy(_.digested.name),
-      gauges = gauges(metricRegistry).sortBy(_.digested.name)
+      gauges = gauges(metricRegistry).sortBy(_.id.name),
+      counters = counters(metricRegistry).sortBy(_.id.name),
+      meters = meters(metricRegistry).sortBy(_.id.name),
+      timers = timers(metricRegistry).sortBy(_.id.name),
+      histograms = histograms(metricRegistry).sortBy(_.id.name)
     )
 }

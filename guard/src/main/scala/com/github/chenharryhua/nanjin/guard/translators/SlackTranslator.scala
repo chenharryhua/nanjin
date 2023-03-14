@@ -24,12 +24,12 @@ private object SlackTranslator extends all {
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
     val counters =
-      snapshot.counters.filter(_.count > 0).map(c => f"${c.digested.show}.${c.category} = ${c.count}%d")
+      snapshot.counters.filter(_.count > 0).map(c => f"${c.id.show}.${c.category} = ${c.count}%d")
     KeyValueSection(
       "Metrics",
       if (counters.isEmpty) "`No updates`"
       else {
-        val gauges = snapshot.gauges.map(g => s"${g.digested.show}.gauge = ${g.value.spaces2}")
+        val gauges = snapshot.gauges.map(g => s"${g.id.show}.gauge = ${g.value.spaces2}")
         s"```${abbreviate((counters ::: gauges).mkString("\n"))}```"
       }
     )
@@ -71,7 +71,7 @@ private object SlackTranslator extends all {
             MarkdownSection(msg),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Policy:* ${evt.serviceParams.retryPolicy}
+                                |*Policy:* ${evt.serviceParams.restartPolicy}
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
@@ -156,7 +156,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*$title:* ${evt.digested.show}"),
+            MarkdownSection(s"*$title:* ${evt.id.show}"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
             MarkdownSection(abbreviate(evt.message))
@@ -212,7 +212,7 @@ private object SlackTranslator extends all {
 
   private def actionFailed(evt: ActionFail): SlackApp = {
     val msg: String = s"""|${evt.error.message}
-                          |Output:
+                          |Notes:
                           |${evt.output.spaces2}""".stripMargin
 
     SlackApp(
@@ -249,7 +249,7 @@ private object SlackTranslator extends all {
                                 |${actionId(evt)}
                                 |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin),
-            KeyValueSection("Output", s"""```${abbreviate(evt.output.spaces2)}```""")
+            KeyValueSection("Result", s"""```${abbreviate(evt.output.spaces2)}```""")
           )
         )
       )

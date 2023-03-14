@@ -25,6 +25,7 @@ val jacksonV    = "2.14.2"
 val protobufV   = "3.22.2"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.2"
+val nettyV      = "4.1.89.Final"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -47,21 +48,29 @@ lazy val commonSettings = List(
 val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % awsV)
 
 val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
-  "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
-  "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
-  "org.apache.hadoop" % "hadoop-annotations"           % hadoopV,
-  "org.apache.hadoop" % "hadoop-common"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
-  "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
-  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
+  "org.apache.hadoop"      % "hadoop-mapreduce-client-core" % hadoopV,
+  "org.apache.hadoop"      % "hadoop-aws"                   % hadoopV,
+  "org.apache.hadoop"      % "hadoop-auth"                  % hadoopV,
+  "org.apache.hadoop"      % "hadoop-annotations"           % hadoopV,
+  "org.apache.hadoop"      % "hadoop-common"                % hadoopV,
+  "org.apache.hadoop"      % "hadoop-client"                % hadoopV,
+  "org.apache.hadoop"      % "hadoop-client-runtime"        % hadoopV,
+  "org.apache.hadoop"      % "hadoop-hdfs"                  % hadoopV,
+  "org.slf4j"              % "jcl-over-slf4j"               % slf4jV,
+  "org.eclipse.jetty"      % "jetty-server"                 % "11.0.14", // snyk
+  "org.eclipse.jetty"      % "jetty-client"                 % "11.0.14", // snyk
+  "commons-net"            % "commons-net"                  % "3.9.0", // snyk
+  "io.netty"               % "netty-all"                    % nettyV, // snyk
+  "com.fasterxml.woodstox" % "woodstox-core"                % "6.5.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
     .exclude("org.slf4j", "slf4j-log4j12")
     .exclude("ch.qos.reload4j", "reload4j")
-    .exclude("commons-logging", "commons-logging"))
+    .exclude("commons-logging", "commons-logging")
+    .exclude("org.codehaus.jackson", "jackson-mapper-asl") // snyk
+    .exclude("org.codehaus.jettison", "jettison") // snyk
+)
 
 val circeLib = List(
   "io.circe" %% "circe-core"       % "0.14.5",
@@ -72,7 +81,8 @@ val circeLib = List(
   "io.circe" %% "circe-optics"     % "0.14.1",
   "io.circe" %% "circe-jackson212" % "0.14.0",
   "io.circe" %% "circe-refined"    % "0.14.5",
-  "org.gnieh" %% "diffson-circe"   % "4.4.0"
+  "org.gnieh" %% "diffson-circe"   % "4.4.0",
+  "com.fasterxml.jackson.core"     % "jackson-databind" % jacksonV // snyk
 )
 
 val jacksonLib = List(
@@ -226,7 +236,7 @@ val baseLib = List(
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
@@ -237,7 +247,7 @@ lazy val common = (project in file("common"))
 
 lazy val http = (project in file("http"))
   .dependsOn(common)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-http")
   .settings(
     libraryDependencies ++= List(
@@ -247,7 +257,7 @@ lazy val http = (project in file("http"))
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
@@ -257,7 +267,7 @@ lazy val aws = (project in file("aws"))
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-datetime")
   .settings(
     libraryDependencies ++= List(
@@ -268,7 +278,7 @@ lazy val datetime = (project in file("datetime"))
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
@@ -283,6 +293,8 @@ lazy val guard = (project in file("guard"))
       "org.tpolecat" %% "natchez-core"                 % natchezV,
       "org.tpolecat" %% "natchez-noop"                 % natchezV,
       "org.http4s" %% "http4s-core"                    % http4sV,
+      "org.http4s" %% "http4s-dsl"                     % http4sV,
+      "org.http4s" %% "http4s-ember-server"            % http4sV,
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
       "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
@@ -291,23 +303,26 @@ lazy val guard = (project in file("guard"))
 
 lazy val messages = (project in file("messages"))
   .dependsOn(datetime)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val pipes = (project in file("pipes"))
   .dependsOn(common)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-pipes")
   .settings(
-    libraryDependencies ++= List("org.tukaani" % "xz" % "1.9", "org.slf4j" % "slf4j-jdk14" % slf4jV % Test) ++
+    libraryDependencies ++= List(
+      "io.netty"    % "netty-all"   % nettyV, // snyk
+      "org.tukaani" % "xz"          % "1.9",
+      "org.slf4j"   % "slf4j-jdk14" % slf4jV % Test) ++
       kantanLib ++ hadoopLib ++ awsLib ++
       serdeLib ++ logLib ++ testLib
   )
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
@@ -323,7 +338,7 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
   .dependsOn(datetime)
   .dependsOn(common)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % "1.4.5" % Test
@@ -333,11 +348,11 @@ lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(pipes)
   .dependsOn(database)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all"       % "4.1.89.Final",
+      "io.netty"                               % "netty-all"       % nettyV, // snyk
       "com.julianpeeters" %% "avrohugger-core" % "1.3.1"           % Test,
       "ch.qos.logback"                         % "logback-classic" % "1.4.5" % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
@@ -354,7 +369,7 @@ lazy val example = (project in file("example"))
   .dependsOn(kafka)
   .dependsOn(database)
   .dependsOn(spark)
-  .settings(commonSettings: _*)
+  .settings(commonSettings*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))

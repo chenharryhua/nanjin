@@ -5,17 +5,17 @@ import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
 import io.circe.generic.JsonCodec
 
 @JsonCodec
-final case class Digested private (name: String, digest: String) {
+final case class MeasurementID private (name: String, digest: String) {
   override val toString: String = s"[$digest][$name]"
 }
 
-object Digested {
-  implicit val showDigested: Show[Digested] = Show.fromToString
+object MeasurementID {
+  implicit val showMeasurementID: Show[MeasurementID] = Show.fromToString
 
-  def apply(serviceParams: ServiceParams, name: String): Digested = {
+  def apply(serviceParams: ServiceParams, name: String): MeasurementID = {
     val withPrefix = serviceParams.metricParams.namePrefix + name
     val fullName: List[String] =
       serviceParams.taskParams.taskName.value :: serviceParams.serviceName.value :: withPrefix :: Nil
-    Digested(withPrefix, DigestUtils.sha1Hex(fullName.mkString("/")).take(8))
+    MeasurementID(withPrefix, DigestUtils.sha1Hex(fullName.mkString("/")).take(8))
   }
 }

@@ -42,7 +42,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |  $msg
-       |  Policy:${evt.serviceParams.retryPolicy}
+       |  Policy:${evt.serviceParams.restartPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
   }
@@ -50,7 +50,7 @@ private object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  Policy:${evt.serviceParams.retryPolicy}
+       |  Policy:${evt.serviceParams.restartPolicy}
        |  Cause:${evt.cause.show}
        |""".stripMargin
 
