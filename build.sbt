@@ -143,6 +143,7 @@ val testLib = List(
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
   "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
+  "org.typelevel" %% "discipline-munit"                       % "1.0.9",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.15",
@@ -198,12 +199,6 @@ val logLib = List(
   "org.slf4j"                         % "slf4j-api" % slf4jV
 )
 
-val http4sLib = List(
-  "org.http4s" %% "http4s-circe",
-  "org.http4s" %% "http4s-client",
-  "org.http4s" %% "http4s-dsl"
-).map(_ % http4sV)
-
 val jwtLib = List(
   "org.bouncycastle" % "bcpkix-jdk18on" % "1.72",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
@@ -213,16 +208,15 @@ val jwtLib = List(
 
 val baseLib = List(
   "org.typelevel" %% "cats-effect"                 % catsEffectV,
-  "org.apache.commons"                             % "commons-lang3" % "3.12.0",
+  "org.typelevel" %% "cats-time"                   % "0.5.1",
   "org.typelevel" %% "squants"                     % "1.8.3",
-  "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
   "org.typelevel" %% "case-insensitive"            % "1.3.0",
+  "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
   "io.scalaland" %% "chimney"                      % "0.7.1",
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % "2.3.10",
-  "com.github.cb372" %% "cats-retry"               % "3.1.0",
-  "org.typelevel" %% "cats-time"                   % "0.5.1"
+  "com.github.cb372" %% "cats-retry"               % "3.1.0"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
@@ -230,8 +224,9 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.dropwizard.metrics"            % "metrics-core" % metricsV % Provided,
-      "org.typelevel" %% "log4cats-core" % log4catsV      % Provided
+      "org.apache.commons"               % "commons-lang3" % "3.12.0",
+      "io.dropwizard.metrics"            % "metrics-core"  % metricsV % Provided,
+      "org.typelevel" %% "log4cats-core" % log4catsV       % Provided
     ) ++ baseLib ++ testLib
   )
 
@@ -240,11 +235,14 @@ lazy val http = (project in file("http"))
   .settings(commonSettings*)
   .settings(name := "nj-http")
   .settings(libraryDependencies ++= List(
+    "org.http4s" %% "http4s-circe"        % http4sV,
+    "org.http4s" %% "http4s-client"       % http4sV,
+    "org.http4s" %% "http4s-dsl"          % http4sV,
     "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
     "org.http4s" %% "http4s-ember-server" % http4sV            % Test,
     "org.http4s" %% "http4s-ember-client" % http4sV            % Test,
     "org.slf4j"                           % "slf4j-reload4j"   % slf4jV % Test
-  ) ++ jwtLib ++ http4sLib ++ logLib ++ testLib)
+  ) ++ jwtLib ++ logLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
