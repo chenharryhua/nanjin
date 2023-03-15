@@ -48,23 +48,6 @@ lazy val commonSettings = List(
 
 val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % awsV)
 
-val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
-  "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
-  "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
-  "org.apache.hadoop" % "hadoop-annotations"           % hadoopV,
-  "org.apache.hadoop" % "hadoop-common"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
-  "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
-  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
-).map(
-  _.exclude("log4j", "log4j")
-    .exclude("org.slf4j", "slf4j-reload4j")
-    .exclude("org.slf4j", "slf4j-log4j12")
-    .exclude("ch.qos.reload4j", "reload4j")
-    .exclude("commons-logging", "commons-logging"))
-
 val circeLib = List(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
@@ -121,23 +104,6 @@ val monocleLib = List(
   "com.github.julien-truffaut" %% "monocle-state",
   "com.github.julien-truffaut" %% "monocle-unsafe"
 ).map(_ % monocleV)
-
-val sparkLib = List(
-  "org.apache.spark" %% "spark-catalyst",
-  "org.apache.spark" %% "spark-core",
-  "org.apache.spark" %% "spark-sql",
-  "org.apache.spark" %% "spark-streaming",
-  "org.apache.spark" %% "spark-streaming-kafka-0-10",
-  "org.apache.spark" %% "spark-sql-kafka-0-10",
-  "org.apache.spark" %% "spark-avro",
-  "org.apache.spark" %% "spark-graphx"
-).map(_ % sparkV) ++ List(
-  "org.typelevel" %% "frameless-dataset",
-  "org.typelevel" %% "frameless-core"
-).map(_ % "0.13.0") ++ List(
-  "org.apache.avro" % "avro-compiler",
-  "org.apache.avro" % "avro-mapred"
-).map(_ % avroV)
 
 val testLib = List(
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
@@ -326,7 +292,42 @@ lazy val kafka = (project in file("kafka"))
     "ch.qos.logback" % "logback-classic" % "1.4.5" % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
-// hadoop based
+/** hadoop based
+  */
+
+val hadoopLib = List(
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
+  "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
+  "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
+  "org.apache.hadoop" % "hadoop-annotations"           % hadoopV,
+  "org.apache.hadoop" % "hadoop-common"                % hadoopV,
+  "org.apache.hadoop" % "hadoop-client"                % hadoopV,
+  "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
+  "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
+  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
+).map(
+  _.exclude("log4j", "log4j")
+    .exclude("org.slf4j", "slf4j-reload4j")
+    .exclude("org.slf4j", "slf4j-log4j12")
+    .exclude("ch.qos.reload4j", "reload4j")
+    .exclude("commons-logging", "commons-logging"))
+
+val sparkLib = List(
+  "org.apache.spark" %% "spark-catalyst",
+  "org.apache.spark" %% "spark-core",
+  "org.apache.spark" %% "spark-sql",
+  "org.apache.spark" %% "spark-streaming",
+  "org.apache.spark" %% "spark-streaming-kafka-0-10",
+  "org.apache.spark" %% "spark-sql-kafka-0-10",
+  "org.apache.spark" %% "spark-avro",
+  "org.apache.spark" %% "spark-graphx"
+).map(_ % sparkV) ++ List(
+  "org.typelevel" %% "frameless-dataset",
+  "org.typelevel" %% "frameless-core"
+).map(_ % "0.13.0") ++ List(
+  "org.apache.avro" % "avro-compiler",
+  "org.apache.avro" % "avro-mapred"
+).map(_ % avroV)
 
 lazy val pipes = (project in file("pipes"))
   .dependsOn(common)
