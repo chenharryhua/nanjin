@@ -15,11 +15,12 @@ private object SimpleJsonTranslator {
   private def serviceName(evt: NJEvent): (String, Json) =
     ("serviceName", Json.fromString(evt.serviceName.value))
 
-  private def name(id: MeasurementID): (String, Json)     = "name" -> Json.fromString(id.name)
-  private def digest(id: MeasurementID): (String, Json)   = "digest" -> Json.fromString(id.digest)
-  private def actionId(evt: ActionEvent): (String, Json)  = "id" -> Json.fromString(evt.actionId)
-  private def traceInfo(evt: ActionEvent): (String, Json) = "traceInfo" -> evt.actionInfo.traceInfo.asJson
-  private def importance(imp: Importance): (String, Json) = "importance" -> imp.asJson
+  private def name(id: MeasurementID): (String, Json)      = "name" -> Json.fromString(id.name)
+  private def digest(id: MeasurementID): (String, Json)    = "digest" -> Json.fromString(id.digest)
+  private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
+  private def traceInfo(evt: ActionEvent): (String, Json)  = "traceInfo" -> evt.actionInfo.traceInfo.asJson
+  private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
+  private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
 
   private def stackTrace(err: NJError): (String, Json)    = "stackTrace" -> Json.fromString(err.stackTrace)
   private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
@@ -135,6 +136,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
           name(evt.id),
+          took(evt),
           traceInfo(evt),
           "notes" -> evt.output, // align with slack
           stackTrace(evt.error),
@@ -150,6 +152,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
           name(evt.id),
+          took(evt),
           traceInfo(evt),
           "result" -> evt.output, // align with slack
           digest(evt.id),

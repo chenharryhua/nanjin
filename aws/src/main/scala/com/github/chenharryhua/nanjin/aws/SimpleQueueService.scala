@@ -1,22 +1,20 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.{Endo, Show}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
+import cats.{Endo, Show}
 import com.amazonaws.services.sqs.model.*
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
 import fs2.{Chunk, Pull, Stream}
+import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.optics.JsonPath.*
 import io.circe.parser.*
-import io.circe.Json
-import io.circe.jackson.jacksonToCirce
 import io.circe.syntax.EncoderOps
 import monocle.macros.Lenses
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
 
 import java.net.URLDecoder
@@ -24,7 +22,6 @@ import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.ListHasAsScala
-import scala.util.Try
 
 /** @param messageIndex
   *   one based message index
@@ -38,22 +35,11 @@ final case class SqsMessage(
   batchIndex: Long,
   messageIndex: Int,
   batchSize: Int) {
-  private val om: ObjectMapper = new ObjectMapper()
-  def asJson: Json = {
-    val resp = Try(jacksonToCirce(om.valueToTree[JsonNode](response))).map { js =>
-      // json-ize body
-      val body = parse(response.getBody).toOption.orElse(Option(response.getBody).map(Json.fromString))
-      root.at("body").set(body)(js)
-    }
+  def asJson: Json =
     Json.obj(
-      "response" -> resp.toOption.asJson,
       "batchIndex" -> batchIndex.asJson,
       "messageIndex" -> messageIndex.asJson,
       "batchSize" -> batchSize.asJson)
-  }
-
-  def requestJson: Json =
-    Try(jacksonToCirce(om.valueToTree[JsonNode](request))).getOrElse(Json.Null)
 }
 
 sealed trait SimpleQueueService[F[_]] {
