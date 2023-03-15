@@ -25,7 +25,7 @@ val jacksonV    = "2.14.2"
 val protobufV   = "3.22.2"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.2"
-val nettyV      = "4.1.89.Final"
+val nettyV      = "4.1.90.Final"
 val circeV      = "0.14.5"
 
 lazy val commonSettings = List(
