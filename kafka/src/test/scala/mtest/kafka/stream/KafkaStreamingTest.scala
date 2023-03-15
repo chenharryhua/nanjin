@@ -5,11 +5,12 @@ import cats.data.{Kleisli, Reader}
 import cats.effect.IO
 import cats.effect.kernel.Outcome
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
+import fs2.kafka.{ProducerRecord, ProducerRecords, commitBatchWithin}
 import mtest.kafka.*
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions.*
@@ -51,7 +52,7 @@ object KafkaStreamingData {
   val expected: Set[StreamTarget] =
     Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
 }
-
+//@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
@@ -97,25 +98,25 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   test("kafka stream has bad records") {
     val tn         = TopicName("stream.test.stream.badrecords.one")
     val s1Topic    = ctx.topic[Int, StreamOne](tn)
-    val s1TopicBin = ctx.topic[Int, Array[Byte]](tn)
+    val s1TopicBin = ctx.topic[Array[Byte], Array[Byte]](tn)
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1TopicBin.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
     } yield a
-      .flatMapValues(v => s1Topic.codec.valCodec.tryDecode(v).toOption)
+      .flatMap {(k,v) =>  (s1Topic.codec.keyCodec.tryDecode(k).toOption, s1Topic.codec.valCodec.tryDecode(v).toOption).mapN((_,_))}
       .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
       .peek((k, v) => println(s"out=($k, $v)"))
       .to(tgt.topicName)(tgt.asProduced)
 
     val sendS1Data = Stream
       .emits(List(
-        s1TopicBin.producerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
-        s1TopicBin.producerRecord(2, "exception1".getBytes),
-        s1TopicBin.producerRecord(3, s1Topic.serializeVal(StreamOne("c", 3))),
-        s1TopicBin.producerRecord(4, s1Topic.serializeVal(StreamOne("d", 4))),
-        s1TopicBin.producerRecord(5, "exception2".getBytes),
-        s1TopicBin.producerRecord(6, s1Topic.serializeVal(StreamOne("f", 6)))
+        s1TopicBin.producerRecord(s1Topic.serializeKey(1), s1Topic.serializeVal(StreamOne("a", 1))),
+        s1TopicBin.producerRecord(s1Topic.serializeKey(2), "exception1".getBytes),
+        s1TopicBin.producerRecord(s1Topic.serializeKey(3), s1Topic.serializeVal(StreamOne("c", 3))),
+        s1TopicBin.producerRecord(s1Topic.serializeKey(4), s1Topic.serializeVal(StreamOne("d", 4))),
+        s1TopicBin.producerRecord(s1Topic.serializeKey(5), "exception2".getBytes),
+        s1TopicBin.producerRecord(s1Topic.serializeKey(6), s1Topic.serializeVal(StreamOne("f", 6)))
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)

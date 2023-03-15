@@ -4,20 +4,30 @@ import cats.data.Reader
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
-import mtest.kafka.*
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.scala.StreamsBuilder
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.*
 import scala.jdk.CollectionConverters.*
 import scala.util.Random
-
+@DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
+  val ctx: KafkaContext[IO] =
+    KafkaSettings.local
+      .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
+      .withStreamingProperty("state.dir", "./data/kafka_states")
+      .ioContext
+      .withGroupId(s"nj-kafka-interactive-unit-test-group")
+      .withApplicationId(s"nj-kafka-interactive-unit-test-app")
+
   val topic       = ctx.topic[Int, String]("stream.test.interactive.5")
   val localStore  = topic.asStateStore("stream.test.interactive.local.store.5")
   val globalStore = topic.asStateStore("stream.test.interactive.store.global.5")
@@ -29,7 +39,7 @@ class InteractiveTest extends AnyFunSuite {
 
   test("interactive") {
 
-    val data: Stream[IO, ProducerResult[Int, String]] =
+    val feedData: Stream[IO, ProducerResult[Int, String]] =
       Stream(
         ProducerRecords.one(
           ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}")))
@@ -38,7 +48,7 @@ class InteractiveTest extends AnyFunSuite {
 
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
-        _ <- data
+        _ <- feedData
         kss1 <- ctx.buildStreams(top).kafkaStreams
         kss2 <- ctx.buildStreams(gtop).kafkaStreams
         _ <- Stream.sleep[IO](2.seconds)

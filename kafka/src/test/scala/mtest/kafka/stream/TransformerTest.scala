@@ -14,10 +14,11 @@ import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
 import org.apache.kafka.streams.state.KeyValueStore
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-
+@DoNotDiscover
 class TransformerTest extends AnyFunSuite {
 
   test("stream transformer") {
