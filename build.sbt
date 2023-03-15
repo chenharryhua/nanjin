@@ -26,6 +26,7 @@ val protobufV   = "3.22.2"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.2"
 val nettyV      = "4.1.89.Final"
+val circeV      = "0.14.5"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -48,42 +49,30 @@ lazy val commonSettings = List(
 val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % awsV)
 
 val hadoopLib = List(
-  "org.apache.hadoop"      % "hadoop-mapreduce-client-core" % hadoopV,
-  "org.apache.hadoop"      % "hadoop-aws"                   % hadoopV,
-  "org.apache.hadoop"      % "hadoop-auth"                  % hadoopV,
-  "org.apache.hadoop"      % "hadoop-annotations"           % hadoopV,
-  "org.apache.hadoop"      % "hadoop-common"                % hadoopV,
-  "org.apache.hadoop"      % "hadoop-client"                % hadoopV,
-  "org.apache.hadoop"      % "hadoop-client-runtime"        % hadoopV,
-  "org.apache.hadoop"      % "hadoop-hdfs"                  % hadoopV,
-  "org.slf4j"              % "jcl-over-slf4j"               % slf4jV,
-  "org.codehaus.jettison"  % "jettison"                     % "1.5.4", // snyk
-  "org.eclipse.jetty"      % "jetty-server"                 % "11.0.14", // snyk
-  "org.eclipse.jetty"      % "jetty-client"                 % "11.0.14", // snyk
-  "commons-net"            % "commons-net"                  % "3.9.0", // snyk
-  "io.netty"               % "netty-all"                    % nettyV, // snyk
-  "com.fasterxml.woodstox" % "woodstox-core"                % "6.5.0" // snyk
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
+  "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
+  "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
+  "org.apache.hadoop" % "hadoop-annotations"           % hadoopV,
+  "org.apache.hadoop" % "hadoop-common"                % hadoopV,
+  "org.apache.hadoop" % "hadoop-client"                % hadoopV,
+  "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
+  "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
+  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
     .exclude("org.slf4j", "slf4j-log4j12")
     .exclude("ch.qos.reload4j", "reload4j")
-    .exclude("commons-logging", "commons-logging")
-    .exclude("org.codehaus.jackson", "jackson-mapper-asl") // snyk
-)
+    .exclude("commons-logging", "commons-logging"))
 
 val circeLib = List(
-  "io.circe" %% "circe-core"       % "0.14.5",
-  "io.circe" %% "circe-generic"    % "0.14.5",
-  "io.circe" %% "circe-parser"     % "0.14.5",
-  "io.circe" %% "circe-shapes"     % "0.14.5",
-  "io.circe" %% "circe-jawn"       % "0.14.5",
-  "io.circe" %% "circe-optics"     % "0.14.1",
-  "io.circe" %% "circe-jackson212" % "0.14.0",
-  "io.circe" %% "circe-refined"    % "0.14.5",
-  "org.gnieh" %% "diffson-circe"   % "4.4.0",
-  "com.fasterxml.jackson.core"     % "jackson-databind" % jacksonV // snyk
-)
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser",
+  "io.circe" %% "circe-shapes",
+  "io.circe" %% "circe-jawn",
+  "io.circe" %% "circe-refined"
+).map(_ % circeV)
 
 val jacksonLib = List(
   "com.fasterxml.jackson.core"     % "jackson-annotations",
@@ -160,6 +149,7 @@ val testLib = List(
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
+  "org.postgresql"                                            % "postgresql" % "42.5.4", // snyk
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
 ).map(_ % Test)
@@ -249,11 +239,12 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings*)
   .settings(name := "nj-http")
-  .settings(
-    libraryDependencies ++= List(
-      "org.http4s" %% "http4s-ember-server" % http4sV % Test,
-      "org.http4s" %% "http4s-ember-client" % http4sV % Test,
-      "org.slf4j" % "slf4j-reload4j" % slf4jV % Test) ++ jwtLib ++ http4sLib ++ logLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
+    "org.http4s" %% "http4s-ember-server" % http4sV            % Test,
+    "org.http4s" %% "http4s-ember-client" % http4sV            % Test,
+    "org.slf4j"                           % "slf4j-reload4j"   % slf4jV % Test
+  ) ++ jwtLib ++ http4sLib ++ logLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
@@ -261,9 +252,10 @@ lazy val aws = (project in file("aws"))
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
+      "io.circe" %% "circe-optics"          % "0.14.1",
       "org.http4s" %% "http4s-ember-client" % http4sV,
-      "org.http4s" %% "http4s-circe"        % http4sV) ++
-      awsLib ++ logLib ++ testLib)
+      "org.http4s" %% "http4s-circe"        % http4sV
+    ) ++ awsLib ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -305,20 +297,12 @@ lazy val messages = (project in file("messages"))
   .dependsOn(datetime)
   .settings(commonSettings*)
   .settings(name := "nj-messages")
-  .settings(libraryDependencies ++= serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
-
-lazy val pipes = (project in file("pipes"))
-  .dependsOn(common)
-  .settings(commonSettings*)
-  .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"    % "netty-all"   % nettyV, // snyk
-      "org.tukaani" % "xz"          % "1.9",
-      "org.slf4j"   % "slf4j-jdk14" % slf4jV % Test) ++
-      kantanLib ++ hadoopLib ++ awsLib ++
-      serdeLib ++ logLib ++ testLib
-  )
+      "io.circe" %% "circe-jackson212" % "0.14.0",
+      "io.circe" %% "circe-optics"     % "0.14.1",
+      "org.gnieh" %% "diffson-circe"   % "4.4.0"
+    ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -330,8 +314,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
       "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      "org.postgresql"                  % "postgresql" % "42.5.4", // snyk
-      ("com.zaxxer"                     % "HikariCP"   % "5.0.1").exclude("org.slf4j", "slf4j-api")
+      ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
     ) ++ testLib
   )
 
@@ -345,6 +328,27 @@ lazy val kafka = (project in file("kafka"))
     "ch.qos.logback" % "logback-classic" % "1.4.5" % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
+// hadoop based
+
+lazy val pipes = (project in file("pipes"))
+  .dependsOn(common)
+  .settings(commonSettings*)
+  .settings(name := "nj-pipes")
+  .settings {
+    val libs = List(
+      "io.circe" %% "circe-jackson212" % "0.14.0",
+      "org.tukaani"                    % "xz"            % "1.9",
+      "org.eclipse.jetty"              % "jetty-server"  % "11.0.14", // snyk
+      "org.eclipse.jetty"              % "jetty-client"  % "11.0.14", // snyk
+      "org.codehaus.jettison"          % "jettison"      % "1.5.4", // snyk
+      "io.netty"                       % "netty-all"     % nettyV, // snyk
+      "commons-net"                    % "commons-net"   % "3.9.0", // snyk
+      "com.fasterxml.woodstox"         % "woodstox-core" % "6.5.0", // snyk
+      "org.slf4j"                      % "slf4j-jdk14"   % slf4jV % Test
+    ) ++ kantanLib ++ awsLib ++ serdeLib ++ logLib ++ testLib ++ hadoopLib.map(_.exclude("io.netty", "netty"))
+    libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
+  }
+
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(pipes)
@@ -353,7 +357,6 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "io.netty"                               % "netty-all"       % nettyV, // snyk
       "com.julianpeeters" %% "avrohugger-core" % "1.3.1"           % Test,
       "ch.qos.logback"                         % "logback-classic" % "1.4.5" % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
