@@ -289,7 +289,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % "1.4.5" % Test
+    "ch.qos.logback" % "logback-classic" % "1.4.6" % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
 /** hadoop based
@@ -357,7 +357,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "com.julianpeeters" %% "avrohugger-core" % "1.3.1"           % Test,
-      "ch.qos.logback"                         % "logback-classic" % "1.4.5" % Test
+      "ch.qos.logback"                         % "logback-classic" % "1.4.6" % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
