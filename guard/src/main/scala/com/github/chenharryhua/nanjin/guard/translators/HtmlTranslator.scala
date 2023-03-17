@@ -150,7 +150,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b("Policy: "), evt.actionInfo.actionParams.retryPolicy),
-      p(b("Output: "), jsonText(evt.output)),
+      p(b("Notes: "), jsonText(evt.output)), // align with slack
       causeText(evt.error)
     )
 
@@ -158,7 +158,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b("Output: "), jsonText(evt.output))
+      p(b("Result: "), jsonText(evt.output)) // align with slack
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
