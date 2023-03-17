@@ -310,7 +310,9 @@ val hadoopLib = List(
     .exclude("org.slf4j", "slf4j-reload4j")
     .exclude("org.slf4j", "slf4j-log4j12")
     .exclude("ch.qos.reload4j", "reload4j")
-    .exclude("commons-logging", "commons-logging"))
+    .exclude("commons-logging", "commons-logging")
+    .exclude("io.netty", "netty") // snyk
+)
 
 val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
@@ -344,7 +346,7 @@ lazy val pipes = (project in file("pipes"))
       "commons-net"                    % "commons-net"   % "3.9.0", // snyk
       "com.fasterxml.woodstox"         % "woodstox-core" % "6.5.0", // snyk
       "org.slf4j"                      % "slf4j-jdk14"   % slf4jV % Test
-    ) ++ kantanLib ++ awsLib ++ serdeLib ++ logLib ++ testLib ++ hadoopLib.map(_.exclude("io.netty", "netty"))
+    ) ++ kantanLib ++ awsLib ++ serdeLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }
 
@@ -380,4 +382,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-
+ 
