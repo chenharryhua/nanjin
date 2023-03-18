@@ -2,12 +2,13 @@ ThisBuild / scalaVersion       := "2.13.10"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.8-SNAPSHOT"
+ThisBuild / version            := "0.16.9-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0-RC2"
-val awsV        = "1.12.430"
+val awsV_1      = "1.12.430"
+val awsV_2      = "2.20.26"
 val catsEffectV = "3.5.0-RC3"
 val hadoopV     = "3.3.4"
 val monocleV    = "2.1.0"
@@ -27,7 +28,6 @@ val sparkV      = "3.3.2"
 val refinedV    = "0.10.2"
 val nettyV      = "4.1.90.Final"
 val circeV      = "0.14.5"
-val kotlinV     = "1.8.0"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -44,10 +44,7 @@ lazy val commonSettings = List(
   ),
   scalacOptions ++= List("-Ymacro-annotations", "-Xsource:3"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
-  //  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.ScalaLibrary
 )
-
-val awsLib = List("com.amazonaws" % "aws-java-sdk-bundle" % awsV)
 
 val circeLib = List(
   "io.circe" %% "circe-core",
@@ -80,7 +77,7 @@ val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.13",
   "com.google.protobuf"                       % "protobuf-java"             % protobufV,
   "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
-  "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
+  "io.confluent"                              % "kafka-protobuf-serializer" % confluentV % Provided // snyk
 )
 
 val serdeLib = List(
@@ -217,10 +214,17 @@ lazy val aws = (project in file("aws"))
   .settings(name := "nj-aws")
   .settings(
     libraryDependencies ++= List(
+      "software.amazon.awssdk"              % "cloudwatch"       % awsV_2,
+      "software.amazon.awssdk"              % "sqs"              % awsV_2,
+      "software.amazon.awssdk"              % "ssm"              % awsV_2,
+      "software.amazon.awssdk"              % "sns"              % awsV_2,
+      "software.amazon.awssdk"              % "ses"              % awsV_2,
+      "software.amazon.awssdk"              % "sdk-core"         % awsV_2,
+      "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
       "io.circe" %% "circe-optics"          % "0.14.1",
       "org.http4s" %% "http4s-ember-client" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV
-    ) ++ awsLib ++ logLib ++ testLib)
+    ) ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -239,10 +243,9 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
+      "com.influxdb"                                   % "influxdb-client-java" % "6.7.0" % Provided, // snyk
       "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"                          % "metrics-jmx"          % metricsV,
-      "com.influxdb"                                   % "influxdb-client-java" % "6.7.0",
-      "org.jetbrains.kotlin"                           % "kotlin-stdlib"        % kotlinV, // snyk
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "vault"                       % "3.5.0",
       "com.lihaoyi" %% "scalatags"                     % "0.12.0",
@@ -255,7 +258,7 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-ember-server"            % http4sV,
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
-      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
+      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV  % Test
     ) ++ logLib ++ testLib
   )
 
@@ -263,12 +266,12 @@ lazy val messages = (project in file("messages"))
   .dependsOn(datetime)
   .settings(commonSettings*)
   .settings(name := "nj-messages")
-  .settings(libraryDependencies ++= List(
-    "io.circe" %% "circe-jackson212" % "0.14.0",
-    "io.circe" %% "circe-optics"     % "0.14.1",
-    "org.gnieh" %% "diffson-circe"   % "4.4.0",
-    "org.jetbrains.kotlin"           % "kotlin-stdlib" % kotlinV // snyk
-  ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "io.circe" %% "circe-jackson212" % "0.14.0",
+      "io.circe" %% "circe-optics"     % "0.14.1",
+      "org.gnieh" %% "diffson-circe"   % "4.4.0"
+    ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -339,16 +342,18 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
+      "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "io.circe" %% "circe-jackson212" % "0.14.0",
-      "org.tukaani"                    % "xz"            % "1.9",
-      "org.eclipse.jetty"              % "jetty-server"  % "11.0.14", // snyk
-      "org.eclipse.jetty"              % "jetty-client"  % "11.0.14", // snyk
-      "org.codehaus.jettison"          % "jettison"      % "1.5.4", // snyk
-      "io.netty"                       % "netty-all"     % nettyV, // snyk
-      "commons-net"                    % "commons-net"   % "3.9.0", // snyk
-      "com.fasterxml.woodstox"         % "woodstox-core" % "6.5.0", // snyk
-      "org.slf4j"                      % "slf4j-jdk14"   % slf4jV % Test
-    ) ++ kantanLib ++ awsLib ++ serdeLib ++ logLib ++ testLib ++ hadoopLib
+      "org.tukaani"                    % "xz"                  % "1.9",
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.10", // snyk
+      "org.eclipse.jetty"              % "jetty-server"        % "11.0.14", // snyk
+      "org.eclipse.jetty"              % "jetty-client"        % "11.0.14", // snyk
+      "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
+      "io.netty"                       % "netty-all"           % nettyV, // snyk
+      "commons-net"                    % "commons-net"         % "3.9.0", // snyk
+      "com.fasterxml.woodstox"         % "woodstox-core"       % "6.5.0", // snyk
+      "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
+    ) ++ kantanLib ++ serdeLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }
 

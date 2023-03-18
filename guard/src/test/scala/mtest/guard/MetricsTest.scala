@@ -18,6 +18,7 @@ import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
+import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
@@ -125,7 +126,7 @@ class MetricsTest extends AnyFunSuite {
         val name = "metric.name"
         agent.counter(name).inc(1) >>
           agent.meter(name).withCounting.mark(1) >>
-          agent.histogram(name, "kb").withCounting.update(Random.nextLong(1000)) >>
+          agent.histogram(name, StandardUnit.GIGABITS).withCounting.update(Random.nextLong(1000)) >>
           agent.broker(name).withCounting.passThrough(Json.fromString("broker.good")) >>
           agent.action(name, _.withTiming.withCounting).retry(IO(())).run.foreverM
       }

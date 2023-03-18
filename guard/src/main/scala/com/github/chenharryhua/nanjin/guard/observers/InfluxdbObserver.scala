@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
+import com.github.chenharryhua.nanjin.guard.event.{showStandardUnit, NJEvent, Snapshot}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}
@@ -13,7 +13,6 @@ import org.typelevel.cats.time.instances.localdate
 
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
-
 object InfluxdbObserver {
 
   /** The default write precision for InfluxDB is nanosecond (ns). When a new database is created in InfluxDB,
@@ -162,7 +161,7 @@ final class InfluxdbObserver[F[_]](
 
           val histograms: List[Point] = snapshot.histograms.map { histo =>
             val tagToAdd = dimension(histo) ++ spDimensions ++ tags
-            val unitName = s"(${histo.unit})"
+            val unitName = s"(${histo.unit.show})"
             Point
               .measurement(histo.id.name)
               .time(ts.toInstant, writePrecision)

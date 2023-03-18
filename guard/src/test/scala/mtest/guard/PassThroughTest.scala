@@ -15,6 +15,7 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
+import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
@@ -91,7 +92,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram", "watts").withCounting
+        val meter = agent.histogram("nj.test.histogram", StandardUnit.BYTES_SECOND).withCounting
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))

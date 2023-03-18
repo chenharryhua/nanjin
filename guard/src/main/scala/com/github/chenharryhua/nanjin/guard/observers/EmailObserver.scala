@@ -5,7 +5,6 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import cats.Endo
-import com.amazonaws.services.simpleemail.model.SendEmailResult
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
@@ -17,6 +16,7 @@ import fs2.{Chunk, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
+import software.amazon.awssdk.services.ses.model.SendEmailResponse
 
 import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -61,7 +61,7 @@ final class EmailObserver[F[_]] private (
     ses: SimpleEmailService[F],
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
-    subject: String): F[Either[Throwable, SendEmailResult]] = {
+    subject: String): F[Either[Throwable, SendEmailResponse]] = {
     val (warns, errors) = eventTags.foldLeft((0, 0)) { case ((w, e), i) =>
       i._2 match {
         case ColorScheme.GoodColor  => (w, e)

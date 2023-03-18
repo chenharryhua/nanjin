@@ -7,7 +7,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.aws.{
-  CloudWatchClient,
+  CloudWatch,
   SimpleEmailService,
   SimpleNotificationService,
   SimpleQueueService
@@ -24,6 +24,7 @@ import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 import skunk.Session
+import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.*
 
@@ -123,7 +124,7 @@ class ObserversTest extends AnyFunSuite {
         ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >>
           ag.meter("meter").withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
-          ag.histogram("histo", "kw").withCounting.update(1) >>
+          ag.histogram("histo", StandardUnit.BITS).withCounting.update(1) >>
           ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           ag.metrics.reset >> err
       }
@@ -237,7 +238,7 @@ class ObserversTest extends AnyFunSuite {
         good >> ag.alert("alert").withCounting.warn("alarm") >>
           ag.meter("meter").withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
-          ag.histogram("histo", "hours").withCounting.update(1) >>
+          ag.histogram("histo", StandardUnit.SECONDS).withCounting.update(1) >>
           ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           err
       }
@@ -249,7 +250,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
   test("12.cloudwatch") {
-    val cloudwatch = CloudWatchObserver(CloudWatchClient.fake[IO])
+    val cloudwatch = CloudWatchObserver(CloudWatch.fake[IO])
       .withStorageResolution(10)
       .withMax
       .withMin

@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Endo
 import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
-import com.amazonaws.services.sns.model.{PublishRequest, PublishResult}
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -11,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionComplete, Actio
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*
+import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
 
 import java.util.UUID
 
@@ -47,9 +47,9 @@ final class SlackObserver[F[_]: Clock](
   private def publish(
     client: SimpleNotificationService[F],
     snsArn: SnsArn,
-    msg: String): F[Either[Throwable, PublishResult]] = {
-    val req = new PublishRequest(snsArn.value, msg)
-    client.publish(req).attempt
+    msg: String): F[Either[Throwable, PublishResponse]] = {
+    val req: PublishRequest.Builder = PublishRequest.builder().topicArn(snsArn.value).message(msg)
+    client.publish(req.build()).attempt
   }
 
   def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>

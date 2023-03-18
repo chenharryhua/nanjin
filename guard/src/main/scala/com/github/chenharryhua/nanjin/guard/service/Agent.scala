@@ -16,6 +16,7 @@ import natchez.{EntryPoint, Kernel, Span}
 import org.http4s.HttpRoutes
 import org.typelevel.vault.{Key, Locker, Vault}
 import retry.{RetryPolicies, RetryPolicy}
+import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
@@ -36,7 +37,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
   def meter(meterName: String): NJMeter[F]
-  def histogram(histoName: String, unitOfMeasure: String): NJHistogram[F]
+  def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F]
   def gauge(gaugeName: String): NJGauge[F]
 
   // ticks
@@ -111,10 +112,10 @@ final class GeneralAgent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       isCounting = false)
 
-  override def histogram(histoName: String, unitOfMeasure: String): NJHistogram[F] =
+  override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] =
     new NJHistogram[F](
       id = MeasurementID(serviceParams, histoName),
-      unitOfMeasure = unitOfMeasure,
+      unit = unitOfMeasure,
       metricRegistry = metricRegistry,
       isCounting = false
     )
