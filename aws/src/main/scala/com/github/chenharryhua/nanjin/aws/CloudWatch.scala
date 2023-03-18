@@ -10,7 +10,7 @@ import software.amazon.awssdk.services.cloudwatch.{CloudWatchClient, CloudWatchC
 
 sealed trait CloudWatch[F[_]] {
   def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResponse]
-  def putMetricData(f: Endo[PutMetricDataRequest.Builder]): F[PutMetricDataResponse] =
+  final def putMetricData(f: Endo[PutMetricDataRequest.Builder]): F[PutMetricDataResponse] =
     putMetricData(f(PutMetricDataRequest.builder()).build())
 
   def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatch[F]

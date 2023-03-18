@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerRecords, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions.*
@@ -103,9 +103,10 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1TopicBin.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
-    } yield a
-      .flatMap {(k,v) =>  (s1Topic.codec.keyCodec.tryDecode(k).toOption, s1Topic.codec.valCodec.tryDecode(v).toOption).mapN((_,_))}
-      .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
+    } yield a.flatMap { (k, v) =>
+      (s1Topic.codec.keyCodec.tryDecode(k).toOption, s1Topic.codec.valCodec.tryDecode(v).toOption)
+        .mapN((_, _))
+    }.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
       .peek((k, v) => println(s"out=($k, $v)"))
       .to(tgt.topicName)(tgt.asProduced)
 

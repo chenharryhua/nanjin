@@ -9,6 +9,7 @@ import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
 import org.typelevel.cats.time.instances.duration
+import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.time.{Frequency, Hertz}
 
 import java.time.Duration
@@ -27,7 +28,7 @@ private[guard] object MetricCategory {
   case object Meter extends MetricCategory("meter")
   case object MeterCounter extends MetricCategory("meter.events")
 
-  final case class Histogram(unitOfMeasure: String) extends MetricCategory("histogram")
+  final case class Histogram(unit: StandardUnit) extends MetricCategory("histogram")
   case object HistogramCounter extends MetricCategory("histogram.updates")
 
   case object Counter extends MetricCategory("count")
@@ -87,7 +88,7 @@ object Snapshot {
   @JsonCodec
   final case class Histogram(
     id: MeasurementID,
-    unit: String,
+    unit: StandardUnit,
     count: Long,
     min: Long,
     max: Long,
@@ -173,12 +174,12 @@ object MetricSnapshot extends duration {
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
       decode[MetricID](name).toOption.flatMap { mn =>
         mn.category match {
-          case MetricCategory.Histogram(unitOfMeasure) =>
+          case MetricCategory.Histogram(unit) =>
             val ss = histo.getSnapshot
             Some(
               Snapshot.Histogram(
                 id = mn.id,
-                unit = unitOfMeasure,
+                unit = unit,
                 count = histo.getCount,
                 min = ss.getMin,
                 max = ss.getMax,

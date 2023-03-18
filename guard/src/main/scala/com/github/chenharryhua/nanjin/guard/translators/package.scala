@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, InstantEvent}
+import com.github.chenharryhua.nanjin.guard.event.{showStandardUnit, MetricSnapshot}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
@@ -96,7 +96,7 @@ package object translators {
     }
 
     val histograms = ss.histograms.map { h =>
-      val unit = h.unit
+      val unit = h.unit.show
       f"""|  ${h.id.show}.histogram
           |             count = ${h.count}%d
           |               min = ${h.min}%d $unit

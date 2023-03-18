@@ -9,12 +9,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
-import software.amazon.awssdk.services.cloudwatch.model.{
-  Dimension,
-  MetricDatum,
-  PutMetricDataResponse,
-  StandardUnit
-}
+import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataResponse, StandardUnit}
 
 import java.time.{Duration, Instant}
 import java.util.concurrent.TimeUnit
@@ -81,8 +76,8 @@ final class CloudWatchObserver[F[_]: Sync](
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      MetricKey(report.serviceParams, histo.id, s"histogram.$category(${histo.unit})")
-        .metricDatum(report.timestamp.toInstant, value, StandardUnit.NONE)
+      MetricKey(report.serviceParams, histo.id, s"histogram.$category")
+        .metricDatum(report.timestamp.toInstant, value, histo.unit)
     }
 
     val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
