@@ -8,30 +8,30 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import software.amazon.awssdk.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResponse}
 import software.amazon.awssdk.services.cloudwatch.{CloudWatchClient, CloudWatchClientBuilder}
 
-sealed trait CloudWatchService[F[_]] {
+sealed trait CloudWatch[F[_]] {
   def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResponse]
   def putMetricData(f: Endo[PutMetricDataRequest.Builder]): F[PutMetricDataResponse] =
     putMetricData(f(PutMetricDataRequest.builder()).build())
 
-  def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatchService[F]
+  def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatch[F]
 }
 
-object CloudWatchService {
+object CloudWatch {
 
   private val name: String = "aws.CloudWatch"
 
-  def fake[F[_]](implicit F: Sync[F]): Resource[F, CloudWatchService[F]] = {
+  def fake[F[_]](implicit F: Sync[F]): Resource[F, CloudWatch[F]] = {
     val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.pure[F, CloudWatchService[F]](new CloudWatchService[F] {
+    Resource.pure[F, CloudWatch[F]](new CloudWatch[F] {
       override def putMetricData(putMetricDataRequest: PutMetricDataRequest): F[PutMetricDataResponse] =
         logger.info(putMetricDataRequest.toString) *> F.pure(PutMetricDataResponse.builder().build())
 
-      override def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatchService[F] =
+      override def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatch[F] =
         this
     })
   }
 
-  def apply[F[_]: Sync](f: Endo[CloudWatchClientBuilder]): Resource[F, CloudWatchService[F]] =
+  def apply[F[_]: Sync](f: Endo[CloudWatchClientBuilder]): Resource[F, CloudWatch[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       acw <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsCloudWatch(f, logger))) {
@@ -41,7 +41,7 @@ object CloudWatchService {
 
   final private class AwsCloudWatch[F[_]](buildFrom: Endo[CloudWatchClientBuilder], logger: Logger[F])(
     implicit F: Sync[F])
-      extends ShutdownService[F] with CloudWatchService[F] {
+      extends ShutdownService[F] with CloudWatch[F] {
 
     private lazy val client: CloudWatchClient = buildFrom(CloudWatchClient.builder()).build()
 
@@ -50,7 +50,7 @@ object CloudWatchService {
 
     override protected val closeService: F[Unit] = F.blocking(client.close())
 
-    override def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatchService[F] =
+    override def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatch[F] =
       new AwsCloudWatch[F](buildFrom.andThen(f), logger)
   }
 }

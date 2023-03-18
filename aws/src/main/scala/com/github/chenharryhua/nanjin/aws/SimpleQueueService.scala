@@ -56,7 +56,7 @@ sealed trait SimpleQueueService[F[_]] {
         .maxNumberOfMessages(sqs.maxNumberOfMessages.value)
         .visibilityTimeout(sqs.visibilityTimeout.value)
         .build())
-        
+
   def delete(msg: SqsMessage): F[DeleteMessageResponse]
   def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse]
   def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]
