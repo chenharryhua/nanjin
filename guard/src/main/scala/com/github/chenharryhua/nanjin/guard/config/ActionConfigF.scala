@@ -8,7 +8,7 @@ import monocle.macros.Lenses
 
 @JsonCodec @Lenses
 final case class ActionParams(
-  id: MeasurementID,
+  name: MeasurementName,
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -20,7 +20,7 @@ object ActionParams {
 
   def apply(actionName: String, retryPolicy: String, serviceParams: ServiceParams): ActionParams =
     ActionParams(
-      id = MeasurementID(serviceParams, actionName),
+      name = MeasurementName(serviceParams, actionName),
       importance = Importance.Silent,
       isCounting = false,
       isTiming = false,

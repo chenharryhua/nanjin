@@ -45,10 +45,10 @@ final class InfluxdbObserver[F[_]](
     val name = ar.actionParams.serviceParams.metricParams.durationUnitName
     Some(
       Point
-        .measurement(ar.actionParams.id.name)
+        .measurement(ar.actionParams.name.value)
         .time(ar.timestamp.toInstant, writePrecision)
         .addTag(METRICS_SERVICE_ID, ar.serviceParams.serviceId.show)
-        .addTag(METRICS_DIGEST, ar.actionParams.id.digest)
+        .addTag(METRICS_DIGEST, ar.actionParams.name.digest)
         .addTag("done", ar.isDone.show) // for query
         .addField(name, unit.convert(ar.took)) // Long
     )
@@ -100,7 +100,7 @@ final class InfluxdbObserver[F[_]](
       METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
     )
 
-  private def dimension(ms: Snapshot): Map[String, String] = Map(METRICS_DIGEST -> ms.id.digest)
+  private def dimension(ms: Snapshot): Map[String, String] = Map(METRICS_DIGEST -> ms.id.name.digest)
 
   val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {
@@ -112,9 +112,9 @@ final class InfluxdbObserver[F[_]](
           val timers: List[Point] = snapshot.timers.map { timer =>
             val tagToAdd = dimension(timer) ++ spDimensions ++ tags
             Point
-              .measurement(timer.id.name)
+              .measurement(timer.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, "timer")
+              .addTag(METRICS_CATEGORY, timer.id.category.value)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, timer.count) // Long
               // meter
@@ -137,9 +137,9 @@ final class InfluxdbObserver[F[_]](
           val meters: List[Point] = snapshot.meters.map { meter =>
             val tagToAdd = dimension(meter) ++ spDimensions ++ tags
             Point
-              .measurement(meter.id.name)
+              .measurement(meter.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, "meter")
+              .addTag(METRICS_CATEGORY, meter.id.category.value)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, meter.count) // Long
               // meter
@@ -152,9 +152,9 @@ final class InfluxdbObserver[F[_]](
           val counters: List[Point] = snapshot.counters.map { counter =>
             val tagToAdd = dimension(counter) ++ spDimensions ++ tags
             Point
-              .measurement(counter.id.name)
+              .measurement(counter.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, counter.category)
+              .addTag(METRICS_CATEGORY, counter.id.category.value)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, counter.count) // Long
           }
@@ -163,9 +163,9 @@ final class InfluxdbObserver[F[_]](
             val tagToAdd = dimension(histo) ++ spDimensions ++ tags
             val unitName = s"(${histo.unit.show})"
             Point
-              .measurement(histo.id.name)
+              .measurement(histo.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, "histogram")
+              .addTag(METRICS_CATEGORY, histo.id.category.value)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, histo.count) // Long
               .addField(METRICS_MIN + unitName, histo.min) // Long
