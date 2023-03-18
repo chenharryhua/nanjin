@@ -7,15 +7,15 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0-RC2"
-val awsV        = "1.12.420"
+val awsV        = "1.12.430"
 val catsEffectV = "3.5.0-RC3"
 val hadoopV     = "3.3.4"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.2"
 val kafkaV      = "7.3.2-ce"
 val avroV       = "1.11.1"
-val slf4jV      = "2.0.6"
-val metricsV    = "4.2.17"
+val slf4jV      = "2.0.7"
+val metricsV    = "4.2.18"
 val log4catsV   = "2.5.0"
 val skunkV      = "0.5.1"
 val natchezV    = "0.3.1"
@@ -27,6 +27,7 @@ val sparkV      = "3.3.2"
 val refinedV    = "0.10.2"
 val nettyV      = "4.1.90.Final"
 val circeV      = "0.14.5"
+val kotlinV     = "1.8.0"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -116,7 +117,7 @@ val testLib = List(
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
-  "org.postgresql"                                            % "postgresql" % "42.5.4", // snyk
+  "org.postgresql"                                            % "postgresql" % "42.6.0", // snyk
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
 ).map(_ % Test)
@@ -241,6 +242,7 @@ lazy val guard = (project in file("guard"))
       "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"                          % "metrics-jmx"          % metricsV,
       "com.influxdb"                                   % "influxdb-client-java" % "6.7.0",
+      "org.jetbrains.kotlin"                           % "kotlin-stdlib"        % kotlinV, // snyk
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "vault"                       % "3.5.0",
       "com.lihaoyi" %% "scalatags"                     % "0.12.0",
@@ -261,12 +263,12 @@ lazy val messages = (project in file("messages"))
   .dependsOn(datetime)
   .settings(commonSettings*)
   .settings(name := "nj-messages")
-  .settings(
-    libraryDependencies ++= List(
-      "io.circe" %% "circe-jackson212" % "0.14.0",
-      "io.circe" %% "circe-optics"     % "0.14.1",
-      "org.gnieh" %% "diffson-circe"   % "4.4.0"
-    ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "io.circe" %% "circe-jackson212" % "0.14.0",
+    "io.circe" %% "circe-optics"     % "0.14.1",
+    "org.gnieh" %% "diffson-circe"   % "4.4.0",
+    "org.jetbrains.kotlin"           % "kotlin-stdlib" % kotlinV // snyk
+  ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -289,7 +291,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % "1.4.5" % Test
+    "ch.qos.logback" % "logback-classic" % "1.4.6" % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
 /** hadoop based
@@ -359,7 +361,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "com.julianpeeters" %% "avrohugger-core" % "1.3.1"           % Test,
-      "ch.qos.logback"                         % "logback-classic" % "1.4.5" % Test
+      "ch.qos.logback"                         % "logback-classic" % "1.4.6" % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
@@ -380,6 +382,14 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
- 
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)

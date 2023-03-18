@@ -96,7 +96,7 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
        |  Policy:${evt.actionParams.retryPolicy}
-       |  Notes:${evt.output.noSpaces} // align with slack
+       |  Notes:${evt.output.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
@@ -104,7 +104,7 @@ private object SimpleTextTranslator {
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  Took:${fmt.format(evt.took)}
-       |  Result:${evt.output.noSpaces} // align with slack
+       |  Result:${evt.output.noSpaces}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
