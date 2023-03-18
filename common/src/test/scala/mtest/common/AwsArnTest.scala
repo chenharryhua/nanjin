@@ -3,6 +3,7 @@ package mtest.common
 import com.github.chenharryhua.nanjin.common.aws.*
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.syntax.*
 
 class AwsArnTest extends AnyFunSuite {
   test("iam") {
@@ -54,8 +55,8 @@ class AwsArnTest extends AnyFunSuite {
   }
   test("sqs json") {
     import io.circe.parser.decode
-    val fifo  = SqsConfig.Fifo("https://abc.com/xyz.fifo")
-    val stand = SqsConfig.Standard("https://abc.com")
+    val fifo: SqsConfig  = SqsConfig.Fifo("https://abc.com/xyz.fifo")
+    val stand: SqsConfig = SqsConfig.Standard("https://abc.com")
 
     val ufifo: SqsConfig  = fifo
     val sStand: SqsConfig = stand

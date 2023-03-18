@@ -9,7 +9,6 @@ import eu.timepit.refined.collection.{MaxSize, NonEmpty}
 import eu.timepit.refined.numeric
 import eu.timepit.refined.predicates.all.{And, Not}
 import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
-import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
 import monocle.macros.Lenses
@@ -83,8 +82,6 @@ object aws {
 
     def visibilityTimeout: SqsConfig.VisibilityTimeout
     def withVisibilityTimeout(seconds: SqsConfig.VisibilityTimeout): SqsConfig
-
-    final def asJson: Json = Encoder[SqsConfig].apply(this)
   }
 
   object SqsConfig {
