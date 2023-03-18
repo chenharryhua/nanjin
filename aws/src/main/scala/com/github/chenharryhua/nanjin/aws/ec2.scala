@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.aws
 
-import com.amazonaws.util.EC2MetadataUtils
 import com.github.chenharryhua.nanjin.common.HostName
+import software.amazon.awssdk.regions.internal.util.EC2MetadataUtils
 
 import scala.util.Try
 

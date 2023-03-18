@@ -7,7 +7,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.aws.{
-  CloudWatchClient,
+  CloudWatchService,
   SimpleEmailService,
   SimpleNotificationService,
   SimpleQueueService
@@ -249,7 +249,7 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
   test("12.cloudwatch") {
-    val cloudwatch = CloudWatchObserver(CloudWatchClient.fake[IO])
+    val cloudwatch = CloudWatchObserver(CloudWatchService.fake[IO])
       .withStorageResolution(10)
       .withMax
       .withMin

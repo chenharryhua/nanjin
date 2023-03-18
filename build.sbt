@@ -212,18 +212,19 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings*)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= List(
-    "com.amazonaws"                       % "aws-java-sdk-cloudwatch" % awsV_1,
-    "com.amazonaws"                       % "aws-java-sdk-sqs"        % awsV_1,
-    "com.amazonaws"                       % "aws-java-sdk-ssm"        % awsV_1,
-    "com.amazonaws"                       % "aws-java-sdk-sns"        % awsV_1,
-    "com.amazonaws"                       % "aws-java-sdk-ses"        % awsV_1,
-    "com.amazonaws"                       % "aws-java-sdk-core"       % awsV_1,
-    "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
-    "io.circe" %% "circe-optics"          % "0.14.1",
-    "org.http4s" %% "http4s-ember-client" % http4sV,
-    "org.http4s" %% "http4s-circe"        % http4sV
-  ) ++ logLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "software.amazon.awssdk"              % "cloudwatch"       % awsV_2,
+      "software.amazon.awssdk"              % "sqs"              % awsV_2,
+      "software.amazon.awssdk"              % "ssm"              % awsV_2,
+      "software.amazon.awssdk"              % "sns"              % awsV_2,
+      "software.amazon.awssdk"              % "ses"              % awsV_2,
+      "software.amazon.awssdk"              % "sdk-core"         % awsV_2,
+      "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
+      "io.circe" %% "circe-optics"          % "0.14.1",
+      "org.http4s" %% "http4s-ember-client" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV
+    ) ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -386,6 +387,14 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)

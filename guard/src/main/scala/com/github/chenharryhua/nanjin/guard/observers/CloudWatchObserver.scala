@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.amazonaws.services.cloudwatch.model.*
-import com.github.chenharryhua.nanjin.aws.CloudWatchClient
+import com.github.chenharryhua.nanjin.aws.CloudWatchService
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MeasurementID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -17,14 +17,14 @@ import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatchClient[F]]): CloudWatchObserver[F] =
+  def apply[F[_]: Sync](client: Resource[F, CloudWatchService[F]]): CloudWatchObserver[F] =
     new CloudWatchObserver[F](client, 60, List.empty)
 }
 
 final class CloudWatchObserver[F[_]: Sync](
-  client: Resource[F, CloudWatchClient[F]],
-  storageResolution: Int,
-  fields: List[HistogramField]) {
+                                            client: Resource[F, CloudWatchService[F]],
+                                            storageResolution: Int,
+                                            fields: List[HistogramField]) {
   private def update(hf: HistogramField): CloudWatchObserver[F] =
     new CloudWatchObserver[F](client, storageResolution, hf :: fields)
 
@@ -113,9 +113,9 @@ final class CloudWatchObserver[F[_]: Sync](
 
   def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
     def go(
-      cwc: CloudWatchClient[F],
-      ss: Stream[F, NJEvent],
-      last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
+            cwc: CloudWatchService[F],
+            ss: Stream[F, NJEvent],
+            last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
           val (mds, next) =

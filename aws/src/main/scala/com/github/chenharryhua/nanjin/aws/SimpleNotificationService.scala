@@ -11,6 +11,9 @@ import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishRespons
 sealed trait SimpleNotificationService[F[_]] {
   def publish(request: PublishRequest): F[PublishResponse]
   def updateBuilder(f: Endo[SnsClientBuilder]): SimpleNotificationService[F]
+
+  final def publish(f: Endo[PublishRequest.Builder]): F[PublishResponse] =
+    publish(f(PublishRequest.builder()).build())
 }
 
 object SimpleNotificationService {
@@ -44,7 +47,7 @@ object SimpleNotificationService {
   final private class AwsSNS[F[_]](buildFrom: Endo[SnsClientBuilder], logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with SimpleNotificationService[F] {
 
-    private lazy val client = buildFrom(SnsClient.builder).build()
+    private lazy val client: SnsClient = buildFrom(SnsClient.builder).build()
 
     override def publish(request: PublishRequest): F[PublishResponse] =
       F.blocking(client.publish(request)).onError(ex => logger.error(ex)(request.toString))
