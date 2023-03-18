@@ -3,8 +3,6 @@ package com.github.chenharryhua.nanjin.aws
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import cats.{Endo, Show}
-import com.amazonaws.services.sqs.model.*
-import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
@@ -16,6 +14,8 @@ import monocle.macros.Lenses
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
+import software.amazon.awssdk.services.sqs.model.*
+import software.amazon.awssdk.services.sqs.{SqsClient, SqsClientBuilder}
 
 import java.net.URLDecoder
 import java.util.UUID
@@ -44,21 +44,24 @@ final case class SqsMessage(
 
 sealed trait SimpleQueueService[F[_]] {
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
-  final def receive(f: Endo[ReceiveMessageRequest]): Stream[F, SqsMessage] =
-    receive(f(new ReceiveMessageRequest()))
+  final def receive(f: Endo[ReceiveMessageRequest.Builder]): Stream[F, SqsMessage] =
+    receive(f(ReceiveMessageRequest.builder()).build())
 
   final def receive(sqs: SqsConfig): Stream[F, SqsMessage] =
     receive(
-      new ReceiveMessageRequest(sqs.queueUrl)
-        .withWaitTimeSeconds(sqs.waitTimeSeconds.value)
-        .withMaxNumberOfMessages(sqs.maxNumberOfMessages.value)
-        .withVisibilityTimeout(sqs.visibilityTimeout.value))
+      ReceiveMessageRequest
+        .builder()
+        .queueUrl(sqs.queueUrl)
+        .waitTimeSeconds(sqs.waitTimeSeconds.value)
+        .maxNumberOfMessages(sqs.maxNumberOfMessages.value)
+        .visibilityTimeout(sqs.visibilityTimeout.value)
+        .build())
 
-  def delete(msg: SqsMessage): F[DeleteMessageResult]
-  def sendMessage(msg: SendMessageRequest): F[SendMessageResult]
-  def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult]
+  def delete(msg: SqsMessage): F[DeleteMessageResponse]
+  def sendMessage(msg: SendMessageRequest): F[SendMessageResponse]
+  def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse]
 
-  def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F]
+  def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]
   def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F]
 }
 
@@ -74,27 +77,37 @@ object SimpleQueueService {
         Stream.fixedRate(duration).zipWithIndex.map { case (_, idx) =>
           SqsMessage(
             request = request,
-            response = new Message()
-              .withMessageId(UUID.randomUUID().show)
-              .withBody(body)
-              .withReceiptHandle(idx.toString),
+            response = Message
+              .builder()
+              .messageId(UUID.randomUUID().show)
+              .body(body)
+              .receiptHandle(idx.toString)
+              .build(),
             batchIndex = idx,
             messageIndex = 1,
             batchSize = 1
           )
         }
 
-      override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] = this
-      override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F]   = this
-      override def delete(msg: SqsMessage): F[DeleteMessageResult] = F.pure(new DeleteMessageResult())
-      override def sendMessage(msg: SendMessageRequest): F[SendMessageResult] =
-        logger.info(msg.getMessageBody).map(_ => new SendMessageResult())
+      override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]     = this
+      override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F] = this
+      override def delete(msg: SqsMessage): F[DeleteMessageResponse] =
+        F.pure(DeleteMessageResponse.builder().build())
+      override def sendMessage(msg: SendMessageRequest): F[SendMessageResponse] =
+        logger
+          .info(msg.messageBody())
+          .map(_ =>
+            SendMessageResponse
+              .builder()
+              .messageId("fake.message.id")
+              .sequenceNumber("fake.sequence.number")
+              .build())
 
-      override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult] =
-        F.pure(new ChangeMessageVisibilityResult())
+      override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse] =
+        F.pure(ChangeMessageVisibilityResponse.builder().build())
     }))(_ => F.unit)
 
-  def apply[F[_]: Async](f: Endo[AmazonSQSClientBuilder]): Resource[F, SimpleQueueService[F]] = {
+  def apply[F[_]: Async](f: Endo[SqsClientBuilder]): Resource[F, SimpleQueueService[F]] = {
     val defaultPolicy: DelayPolicy[F] =
       RetryPolicies.capDelay(5.minutes, RetryPolicies.exponentialBackoff(10.seconds))
     for {
@@ -108,14 +121,14 @@ object SimpleQueueService {
   }
 
   final private class AwsSQS[F[_]](
-    buildFrom: Endo[AmazonSQSClientBuilder],
+    buildFrom: Endo[SqsClientBuilder],
     delayPolicy: DelayPolicy[F],
     logger: Logger[F])(implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
-    private lazy val client: AmazonSQS = buildFrom(AmazonSQSClientBuilder.standard()).build()
+    private lazy val client: SqsClient = buildFrom(SqsClient.builder()).build()
 
-    override protected val closeService: F[Unit] = F.blocking(client.shutdown())
+    override protected val closeService: F[Unit] = F.blocking(client.close())
 
     override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {
 
@@ -124,7 +137,7 @@ object SimpleQueueService {
       def receiving(status: RetryStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
           rmr =>
-            val messages: mutable.Buffer[Message] = rmr.getMessages.asScala
+            val messages: mutable.Buffer[Message] = rmr.messages.asScala
             val size: Int                         = messages.size
             if (size > 0) {
               val chunk: Chunk[SqsMessage] = Chunk.iterable(messages).zipWithIndex.map { case (msg, idx) =>
@@ -149,21 +162,29 @@ object SimpleQueueService {
       receiving(RetryStatus.NoRetriesYet, 0L).stream
     }
 
-    override def delete(msg: SqsMessage): F[DeleteMessageResult] = {
-      val request = new DeleteMessageRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle)
+    override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {
+      val request = DeleteMessageRequest
+        .builder()
+        .queueUrl(msg.request.queueUrl)
+        .receiptHandle(msg.response.receiptHandle)
+        .build()
       F.blocking(client.deleteMessage(request)).onError(ex => logger.error(ex)(request.toString))
     }
 
-    override def sendMessage(request: SendMessageRequest): F[SendMessageResult] =
+    override def sendMessage(request: SendMessageRequest): F[SendMessageResponse] =
       F.blocking(client.sendMessage(request)).onError(ex => logger.error(ex)(request.toString))
 
-    override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResult] = {
+    override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse] = {
       val request: ChangeMessageVisibilityRequest =
-        new ChangeMessageVisibilityRequest(msg.request.getQueueUrl, msg.response.getReceiptHandle, 0)
+        ChangeMessageVisibilityRequest.builder
+          .queueUrl(msg.request.queueUrl)
+          .receiptHandle(msg.response.receiptHandle)
+          .visibilityTimeout(0)
+          .build()
       F.blocking(client.changeMessageVisibility(request)).onError(ex => logger.error(ex)(request.toString))
     }
 
-    override def updateBuilder(f: Endo[AmazonSQSClientBuilder]): SimpleQueueService[F] =
+    override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F] =
       new AwsSQS[F](buildFrom.andThen(f), delayPolicy, logger)
 
     override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F] =
@@ -185,7 +206,7 @@ object sqsS3Parser {
     */
   def apply(msg: SqsMessage): List[SqsS3File] =
     Option(msg.response)
-      .flatMap(m => parse(m.getBody).toOption)
+      .flatMap(m => parse(m.body()).toOption)
       .traverse { json =>
         root.Records.each.s3.json.getAll(json).flatMap { js =>
           val bucket = js.hcursor.downField("bucket").get[String]("name")
