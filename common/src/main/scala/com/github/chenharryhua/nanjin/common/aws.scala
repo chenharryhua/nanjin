@@ -54,7 +54,13 @@ object aws {
   }
 
   @JsonCodec
-  final case class EmailContent(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String, body: String)
+  final case class EmailContent(
+    from: EmailAddr,
+    to: NonEmptyList[EmailAddr],
+    subject: String,
+    body: String,
+    cc: List[EmailAddr] = List.empty,
+    bcc: List[EmailAddr] = List.empty)
 
   object EmailContent {
     implicit val showEmailContent: Show[EmailContent] = cats.derived.semiauto.show[EmailContent]
