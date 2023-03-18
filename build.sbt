@@ -7,7 +7,8 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0-RC2"
-val awsV        = "1.12.430"
+val awsV_1      = "1.12.430"
+val awsV_2      = "2.20.26"
 val catsEffectV = "3.5.0-RC3"
 val hadoopV     = "3.3.4"
 val monocleV    = "2.1.0"
@@ -212,12 +213,13 @@ lazy val aws = (project in file("aws"))
   .settings(commonSettings*)
   .settings(name := "nj-aws")
   .settings(libraryDependencies ++= List(
-    "com.amazonaws"                       % "aws-java-sdk-cloudwatch" % awsV,
-    "com.amazonaws"                       % "aws-java-sdk-sqs"        % awsV,
-    "com.amazonaws"                       % "aws-java-sdk-ssm"        % awsV,
-    "com.amazonaws"                       % "aws-java-sdk-sns"        % awsV,
-    "com.amazonaws"                       % "aws-java-sdk-ses"        % awsV,
-    "com.amazonaws"                       % "aws-java-sdk-core"       % awsV,
+    "com.amazonaws"                       % "aws-java-sdk-cloudwatch" % awsV_1,
+    "com.amazonaws"                       % "aws-java-sdk-sqs"        % awsV_1,
+    "com.amazonaws"                       % "aws-java-sdk-ssm"        % awsV_1,
+    "com.amazonaws"                       % "aws-java-sdk-sns"        % awsV_1,
+    "com.amazonaws"                       % "aws-java-sdk-ses"        % awsV_1,
+    "com.amazonaws"                       % "aws-java-sdk-core"       % awsV_1,
+    "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
     "io.circe" %% "circe-optics"          % "0.14.1",
     "org.http4s" %% "http4s-ember-client" % http4sV,
     "org.http4s" %% "http4s-circe"        % http4sV
@@ -339,10 +341,10 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV,
+      "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.0", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.10", // snyk
       "org.eclipse.jetty"              % "jetty-server"        % "11.0.14", // snyk
       "org.eclipse.jetty"              % "jetty-client"        % "11.0.14", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
@@ -384,14 +386,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    guard,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
-import com.amazonaws.thirdparty.apache.codec.digest.DigestUtils
+import org.apache.commons.codec.digest.DigestUtils
 import io.circe.generic.JsonCodec
 
 @JsonCodec
