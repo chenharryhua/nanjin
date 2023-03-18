@@ -5,7 +5,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.MeasurementID
+import com.github.chenharryhua.nanjin.guard.config.MeasurementName
 import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID}
 import io.circe.{Encoder, Json}
 import io.circe.syntax.EncoderOps
@@ -15,10 +15,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.time.Instant
 
 final class NJGauge[F[_]] private[guard] (
-  id: MeasurementID,
+  name: MeasurementName,
   metricRegistry: MetricRegistry,
   dispatcher: Dispatcher[F])(implicit F: Sync[F]) {
-  private val metricId: String = MetricID(id, MetricCategory.Gauge).asJson.noSpaces
+  private val metricId: String = MetricID(name, MetricCategory.Gauge).asJson.noSpaces
 
   private def transErr(ex: Throwable): Json =
     Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))

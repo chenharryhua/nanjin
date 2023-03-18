@@ -24,12 +24,12 @@ private object SlackTranslator extends all {
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
     val counters =
-      snapshot.counters.filter(_.count > 0).map(c => f"${c.id.show}.${c.category} = ${c.count}%d")
+      snapshot.counters.filter(_.count > 0).map(c => f"${c.id.show} = ${c.count}%d")
     KeyValueSection(
       "Metrics",
       if (counters.isEmpty) "`No updates`"
       else {
-        val gauges = snapshot.gauges.map(g => s"${g.id.show}.gauge = ${g.value.spaces2}")
+        val gauges = snapshot.gauges.map(g => s"${g.id.show} = ${g.value.spaces2}")
         s"```${abbreviate((counters ::: gauges).mkString("\n"))}```"
       }
     )
@@ -156,7 +156,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*$title:* ${evt.id.show}"),
+            MarkdownSection(s"*$title:* ${evt.name.show}"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
             MarkdownSection(abbreviate(evt.message))

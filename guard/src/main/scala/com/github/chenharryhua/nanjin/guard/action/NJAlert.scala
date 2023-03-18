@@ -5,14 +5,14 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import cats.{Monad, Show}
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, MeasurementID, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, MeasurementName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.InstantAlert
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
 
 final class NJAlert[F[_]: Monad: Clock] private[guard] (
-  id: MeasurementID,
+  name: MeasurementName,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
@@ -20,18 +20,18 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   dispatcher: Dispatcher[F]
 ) {
   private lazy val errorCounter: Counter =
-    metricRegistry.counter(MetricID(id, MetricCategory.AlertErrorCounter).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, MetricCategory.AlertErrorCounter).asJson.noSpaces)
   private lazy val warnCounter: Counter =
-    metricRegistry.counter(MetricID(id, MetricCategory.AlertWarnCounter).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, MetricCategory.AlertWarnCounter).asJson.noSpaces)
   private lazy val infoCounter: Counter =
-    metricRegistry.counter(MetricID(id, MetricCategory.AlertInfoCounter).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, MetricCategory.AlertInfoCounter).asJson.noSpaces)
 
   private def alert(msg: String, alertLevel: AlertLevel): F[Unit] =
     for {
       ts <- serviceParams.zonedNow
       _ <- channel.send(
         InstantAlert(
-          id = id,
+          name = name,
           timestamp = ts,
           serviceParams = serviceParams,
           alertLevel = alertLevel,
@@ -39,7 +39,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
     } yield ()
 
   def withCounting: NJAlert[F] =
-    new NJAlert[F](id, metricRegistry, channel, serviceParams, true, dispatcher)
+    new NJAlert[F](name, metricRegistry, channel, serviceParams, true, dispatcher)
 
   def error[S: Show](msg: S): F[Unit] =
     alert(msg.show, AlertLevel.Error).map(_ => if (isCounting) errorCounter.inc(1))

@@ -85,7 +85,7 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
-      id = MeasurementID(serviceParams, brokerName),
+      name = MeasurementName(serviceParams, brokerName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
@@ -95,7 +95,7 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def alert(alertName: String): NJAlert[F] =
     new NJAlert(
-      id = MeasurementID(serviceParams, alertName),
+      name = MeasurementName(serviceParams, alertName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
@@ -104,17 +104,17 @@ final class GeneralAgent[F[_]] private[service] (
     )
 
   override def counter(counterName: String): NJCounter[F] =
-    new NJCounter(id = MeasurementID(serviceParams, counterName), metricRegistry = metricRegistry)
+    new NJCounter(name = MeasurementName(serviceParams, counterName), metricRegistry = metricRegistry)
 
   override def meter(meterName: String): NJMeter[F] =
     new NJMeter[F](
-      id = MeasurementID(serviceParams, meterName),
+      name = MeasurementName(serviceParams, meterName),
       metricRegistry = metricRegistry,
       isCounting = false)
 
   override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] =
     new NJHistogram[F](
-      id = MeasurementID(serviceParams, histoName),
+      name = MeasurementName(serviceParams, histoName),
       unit = unitOfMeasure,
       metricRegistry = metricRegistry,
       isCounting = false
@@ -122,7 +122,7 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def gauge(gaugeName: String): NJGauge[F] =
     new NJGauge[F](
-      id = MeasurementID(serviceParams, gaugeName),
+      name = MeasurementName(serviceParams, gaugeName),
       metricRegistry = metricRegistry,
       dispatcher = dispatcher)
 

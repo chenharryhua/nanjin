@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, MeasurementID, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, MeasurementName, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import monocle.macros.Lenses
@@ -89,10 +89,9 @@ object NJEvent extends zoneddatetime {
 
     final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
 
-    final def id: MeasurementID          = actionInfo.actionParams.id
+    final def name: MeasurementName      = actionInfo.actionParams.name
     final def actionParams: ActionParams = actionInfo.actionParams
     final def actionId: String           = actionInfo.actionId
-
   }
 
   final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
@@ -139,11 +138,11 @@ object NJEvent extends zoneddatetime {
   }
 
   sealed trait InstantEvent extends ServiceEvent {
-    def id: MeasurementID
+    def name: MeasurementName
   }
 
   final case class InstantAlert(
-    id: MeasurementID,
+    name: MeasurementName,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     alertLevel: AlertLevel,
@@ -155,7 +154,7 @@ object NJEvent extends zoneddatetime {
 
   @Lenses
   final case class PassThrough(
-    id: MeasurementID,
+    name: MeasurementName,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     value: Json)
