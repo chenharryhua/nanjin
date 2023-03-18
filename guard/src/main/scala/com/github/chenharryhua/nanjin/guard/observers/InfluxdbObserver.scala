@@ -116,23 +116,23 @@ final class InfluxdbObserver[F[_]](
               .time(ts.toInstant, writePrecision)
               .addTag(METRICS_CATEGORY, timer.id.category.value)
               .addTags(tagToAdd.asJava)
-              .addField(METRICS_COUNT, timer.count) // Long
+              .addField(METRICS_COUNT, timer.data.count) // Long
               // meter
-              .addField(METRICS_MEAN_RATE, timer.mean_rate.toHertz) // Double
-              .addField(METRICS_1_MINUTE_RATE, timer.m1_rate.toHertz) // Double
-              .addField(METRICS_5_MINUTE_RATE, timer.m5_rate.toHertz) // Double
-              .addField(METRICS_15_MINUTE_RATE, timer.m15_rate.toHertz) // Double
+              .addField(METRICS_MEAN_RATE, timer.data.mean_rate.toHertz) // Double
+              .addField(METRICS_1_MINUTE_RATE, timer.data.m1_rate.toHertz) // Double
+              .addField(METRICS_5_MINUTE_RATE, timer.data.m5_rate.toHertz) // Double
+              .addField(METRICS_15_MINUTE_RATE, timer.data.m15_rate.toHertz) // Double
               // histogram
-              .addField(METRICS_MIN, timer.min.toNanos) // Long
-              .addField(METRICS_MAX, timer.max.toNanos) // Long
-              .addField(METRICS_MEAN, timer.mean.toNanos) // Long
-              .addField(METRICS_STD_DEV, timer.stddev.toNanos) // Long
-              .addField(METRICS_P50, timer.p50.toNanos) // Long
-              .addField(METRICS_P75, timer.p75.toNanos) // Long
-              .addField(METRICS_P95, timer.p95.toNanos) // Long
-              .addField(METRICS_P98, timer.p98.toNanos) // Long
-              .addField(METRICS_P99, timer.p99.toNanos) // Long
-              .addField(METRICS_P999, timer.p999.toNanos) // Long
+              .addField(METRICS_MIN, timer.data.min.toNanos) // Long
+              .addField(METRICS_MAX, timer.data.max.toNanos) // Long
+              .addField(METRICS_MEAN, timer.data.mean.toNanos) // Long
+              .addField(METRICS_STD_DEV, timer.data.stddev.toNanos) // Long
+              .addField(METRICS_P50, timer.data.p50.toNanos) // Long
+              .addField(METRICS_P75, timer.data.p75.toNanos) // Long
+              .addField(METRICS_P95, timer.data.p95.toNanos) // Long
+              .addField(METRICS_P98, timer.data.p98.toNanos) // Long
+              .addField(METRICS_P99, timer.data.p99.toNanos) // Long
+              .addField(METRICS_P999, timer.data.p999.toNanos) // Long
           }
           val meters: List[Point] = snapshot.meters.map { meter =>
             val tagToAdd = dimension(meter) ++ spDimensions ++ tags
@@ -141,12 +141,12 @@ final class InfluxdbObserver[F[_]](
               .time(ts.toInstant, writePrecision)
               .addTag(METRICS_CATEGORY, meter.id.category.value)
               .addTags(tagToAdd.asJava)
-              .addField(METRICS_COUNT, meter.count) // Long
+              .addField(METRICS_COUNT, meter.data.count) // Long
               // meter
-              .addField(METRICS_MEAN_RATE, meter.mean_rate.toHertz) // Double
-              .addField(METRICS_1_MINUTE_RATE, meter.m1_rate.toHertz) // Double
-              .addField(METRICS_5_MINUTE_RATE, meter.m5_rate.toHertz) // Double
-              .addField(METRICS_15_MINUTE_RATE, meter.m15_rate.toHertz) // Double
+              .addField(METRICS_MEAN_RATE, meter.data.mean_rate.toHertz) // Double
+              .addField(METRICS_1_MINUTE_RATE, meter.data.m1_rate.toHertz) // Double
+              .addField(METRICS_5_MINUTE_RATE, meter.data.m5_rate.toHertz) // Double
+              .addField(METRICS_15_MINUTE_RATE, meter.data.m15_rate.toHertz) // Double
           }
 
           val counters: List[Point] = snapshot.counters.map { counter =>
@@ -161,23 +161,23 @@ final class InfluxdbObserver[F[_]](
 
           val histograms: List[Point] = snapshot.histograms.map { histo =>
             val tagToAdd = dimension(histo) ++ spDimensions ++ tags
-            val unitName = s"(${histo.unit.show})"
+            val unitName = s"(${histo.data.unit.show})"
             Point
               .measurement(histo.id.name.value)
               .time(ts.toInstant, writePrecision)
               .addTag(METRICS_CATEGORY, histo.id.category.value)
               .addTags(tagToAdd.asJava)
-              .addField(METRICS_COUNT, histo.count) // Long
-              .addField(METRICS_MIN + unitName, histo.min) // Long
-              .addField(METRICS_MAX + unitName, histo.max) // Long
-              .addField(METRICS_MEAN + unitName, histo.mean) // Double
-              .addField(METRICS_STD_DEV + unitName, histo.stddev) // Double
-              .addField(METRICS_P50 + unitName, histo.p50) // Double
-              .addField(METRICS_P75 + unitName, histo.p75) // Double
-              .addField(METRICS_P95 + unitName, histo.p95) // Double
-              .addField(METRICS_P98 + unitName, histo.p98) // Double
-              .addField(METRICS_P99 + unitName, histo.p99) // Double
-              .addField(METRICS_P999 + unitName, histo.p999) // Double
+              .addField(METRICS_COUNT, histo.data.count) // Long
+              .addField(METRICS_MIN + unitName, histo.data.min) // Long
+              .addField(METRICS_MAX + unitName, histo.data.max) // Long
+              .addField(METRICS_MEAN + unitName, histo.data.mean) // Double
+              .addField(METRICS_STD_DEV + unitName, histo.data.stddev) // Double
+              .addField(METRICS_P50 + unitName, histo.data.p50) // Double
+              .addField(METRICS_P75 + unitName, histo.data.p75) // Double
+              .addField(METRICS_P95 + unitName, histo.data.p95) // Double
+              .addField(METRICS_P98 + unitName, histo.data.p98) // Double
+              .addField(METRICS_P99 + unitName, histo.data.p99) // Double
+              .addField(METRICS_P999 + unitName, histo.data.p999) // Double
           }
           F.blocking(writer.writePoints((counters ::: timers ::: meters ::: histograms).asJava))
         case _ => F.unit

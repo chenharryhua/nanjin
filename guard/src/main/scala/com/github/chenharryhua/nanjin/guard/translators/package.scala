@@ -69,46 +69,46 @@ package object translators {
     val convert  = sp.metricParams.rateConversion _
     val timers = ss.timers.map { t =>
       f"""|  ${t.id.show}
-          |             count = ${t.count}%d
-          |         mean rate = ${convert(t.mean_rate.toHertz)}%2.2f calls/$unit
-          |     1-minute rate = ${convert(t.m1_rate.toHertz)}%2.2f calls/$unit
-          |     5-minute rate = ${convert(t.m5_rate.toHertz)}%2.2f calls/$unit
-          |    15-minute rate = ${convert(t.m15_rate.toHertz)}%2.2f calls/$unit
-          |               min = ${fmt.format(t.min)}
-          |               max = ${fmt.format(t.max)}
-          |              mean = ${fmt.format(t.mean)}
-          |            stddev = ${fmt.format(t.stddev)}
-          |            median = ${fmt.format(t.p50)}
-          |              75%% <= ${fmt.format(t.p75)}
-          |              95%% <= ${fmt.format(t.p95)}
-          |              98%% <= ${fmt.format(t.p98)}
-          |              99%% <= ${fmt.format(t.p99)}
-          |            99.9%% <= ${fmt.format(t.p999)}""".stripMargin
+          |             count = ${t.data.count}%d
+          |         mean rate = ${convert(t.data.mean_rate.toHertz)}%2.2f calls/$unit
+          |     1-minute rate = ${convert(t.data.m1_rate.toHertz)}%2.2f calls/$unit
+          |     5-minute rate = ${convert(t.data.m5_rate.toHertz)}%2.2f calls/$unit
+          |    15-minute rate = ${convert(t.data.m15_rate.toHertz)}%2.2f calls/$unit
+          |               min = ${fmt.format(t.data.min)}
+          |               max = ${fmt.format(t.data.max)}
+          |              mean = ${fmt.format(t.data.mean)}
+          |            stddev = ${fmt.format(t.data.stddev)}
+          |            median = ${fmt.format(t.data.p50)}
+          |              75%% <= ${fmt.format(t.data.p75)}
+          |              95%% <= ${fmt.format(t.data.p95)}
+          |              98%% <= ${fmt.format(t.data.p98)}
+          |              99%% <= ${fmt.format(t.data.p99)}
+          |            99.9%% <= ${fmt.format(t.data.p999)}""".stripMargin
     }
 
     val meters = ss.meters.map { m =>
       f"""|  ${m.id.show}
-          |             count = ${m.count}%d
-          |         mean rate = ${convert(m.mean_rate.toHertz)}%2.2f events/$unit
-          |     1-minute rate = ${convert(m.m1_rate.toHertz)}%2.2f events/$unit
-          |     5-minute rate = ${convert(m.m5_rate.toHertz)}%2.2f events/$unit
-          |    15-minute rate = ${convert(m.m15_rate.toHertz)}%2.2f events/$unit""".stripMargin
+          |             count = ${m.data.count}%d
+          |         mean rate = ${convert(m.data.mean_rate.toHertz)}%2.2f events/$unit
+          |     1-minute rate = ${convert(m.data.m1_rate.toHertz)}%2.2f events/$unit
+          |     5-minute rate = ${convert(m.data.m5_rate.toHertz)}%2.2f events/$unit
+          |    15-minute rate = ${convert(m.data.m15_rate.toHertz)}%2.2f events/$unit""".stripMargin
     }
 
     val histograms = ss.histograms.map { h =>
-      val unit = h.unit.show
+      val unit = h.data.unit.show
       f"""|  ${h.id.show}
-          |             count = ${h.count}%d
-          |               min = ${h.min}%d $unit
-          |               max = ${h.max}%d $unit
-          |              mean = ${h.mean}%2.2f $unit
-          |            stddev = ${h.stddev}%2.2f $unit
-          |            median = ${h.p50}%2.2f $unit
-          |              75%% <= ${h.p75}%2.2f $unit
-          |              95%% <= ${h.p95}%2.2f $unit
-          |              98%% <= ${h.p98}%2.2f $unit
-          |              99%% <= ${h.p99}%2.2f $unit
-          |            99.9%% <= ${h.p999}%2.2f $unit""".stripMargin
+          |             count = ${h.data.count}%d
+          |               min = ${h.data.min}%d $unit
+          |               max = ${h.data.max}%d $unit
+          |              mean = ${h.data.mean}%2.2f $unit
+          |            stddev = ${h.data.stddev}%2.2f $unit
+          |            median = ${h.data.p50}%2.2f $unit
+          |              75%% <= ${h.data.p75}%2.2f $unit
+          |              95%% <= ${h.data.p95}%2.2f $unit
+          |              98%% <= ${h.data.p98}%2.2f $unit
+          |              99%% <= ${h.data.p99}%2.2f $unit
+          |            99.9%% <= ${h.data.p999}%2.2f $unit""".stripMargin
     }
 
     (gauges ::: counters ::: meters ::: histograms ::: timers).mkString("\n")
