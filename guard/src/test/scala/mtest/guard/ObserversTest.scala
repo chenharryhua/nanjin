@@ -122,7 +122,7 @@ class ObserversTest extends AnyFunSuite {
             .retry(err_fun(1))
             .run
         ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >>
-          ag.meter("meter").withCounting.mark(1) >>
+          ag.meter("meter", StandardUnit.SECONDS).withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
           ag.histogram("histo", StandardUnit.BITS).withCounting.update(1) >>
           ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
@@ -236,7 +236,7 @@ class ObserversTest extends AnyFunSuite {
         val err  = ag.action("error_action", _.withTiming.withCounting).retry(err_fun(1)).run
         val good = ag.action("good_action", _.withCounting.withTiming).retry(IO(())).run
         good >> ag.alert("alert").withCounting.warn("alarm") >>
-          ag.meter("meter").withCounting.mark(1) >>
+          ag.meter("meter",StandardUnit.GIGABITS).withCounting.mark(100) >>
           ag.counter("counter").inc(1) >>
           ag.histogram("histo", StandardUnit.SECONDS).withCounting.update(1) >>
           ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>

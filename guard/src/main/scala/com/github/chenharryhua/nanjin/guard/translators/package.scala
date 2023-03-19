@@ -87,12 +87,13 @@ package object translators {
     }
 
     val meters = ss.meters.map { m =>
+      val meas = m.data.unit.show
       f"""|  ${m.id.show}
           |             count = ${m.data.count}%d
-          |         mean rate = ${convert(m.data.mean_rate.toHertz)}%2.2f events/$unit
-          |     1-minute rate = ${convert(m.data.m1_rate.toHertz)}%2.2f events/$unit
-          |     5-minute rate = ${convert(m.data.m5_rate.toHertz)}%2.2f events/$unit
-          |    15-minute rate = ${convert(m.data.m15_rate.toHertz)}%2.2f events/$unit""".stripMargin
+          |         mean rate = ${convert(m.data.mean_rate.toHertz)}%2.2f $meas/$unit
+          |     1-minute rate = ${convert(m.data.m1_rate.toHertz)}%2.2f $meas/$unit
+          |     5-minute rate = ${convert(m.data.m5_rate.toHertz)}%2.2f $meas/$unit
+          |    15-minute rate = ${convert(m.data.m15_rate.toHertz)}%2.2f $meas/$unit""".stripMargin
     }
 
     val histograms = ss.histograms.map { h =>
