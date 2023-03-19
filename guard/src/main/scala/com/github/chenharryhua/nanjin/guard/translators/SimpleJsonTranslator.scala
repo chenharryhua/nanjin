@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.guard.config.{Importance, MeasurementName}
-import com.github.chenharryhua.nanjin.guard.event.{MetricID, MetricIndex, MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
 
@@ -32,17 +32,12 @@ private object SimpleJsonTranslator {
   private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
 
   private def metrics(ss: MetricSnapshot): (String, Json) = {
-    def idJson(id: MetricID) = Json.obj(
-      "name" -> Json.fromString(id.name.value),
-      "digest" -> Json.fromString(id.name.digest),
-      "category" -> Json.fromString(id.category.value)
-    )
-    val counters   = ss.counters.map(c => idJson(c.id).deepMerge(Json.obj("count" -> Json.fromLong(c.count))))
-    val gauges     = ss.gauges.map(g => idJson(g.id).deepMerge(g.value))
-    val meters     = ss.meters.map(m => idJson(m.id).deepMerge(m.data.asJson))
-    val timers     = ss.timers.map(t => idJson(t.id).deepMerge(t.data.asJson))
-    val histograms = ss.histograms.map(h => idJson(h.id).deepMerge(h.data.asJson))
-    "metrics" -> (gauges ::: counters ::: meters ::: histograms ::: timers).asJson
+    val measures = ss.grouped.map { case (name, pairs) =>
+      Json
+        .obj(pairs*)
+        .deepMerge(Json.obj("name" -> Json.fromString(name.value), "digest" -> Json.fromString(name.digest)))
+    }
+    "metrics" -> measures.asJson
   }
 
   private def serviceStarted(evt: ServiceStart): Json =

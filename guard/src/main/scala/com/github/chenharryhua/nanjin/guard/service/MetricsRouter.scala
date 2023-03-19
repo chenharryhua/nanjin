@@ -23,41 +23,15 @@ private class MetricsRouter[F[_]: Monad](mr: MetricRegistry, sp: ServiceParams) 
   private val metrics = HttpRoutes.of[F] {
     // all
     case GET -> Root =>
-      val ms = MetricSnapshot(mr)
-      val res = ms.gauges.map(gauges) :::
-        ms.counters.map(counters) :::
-        ms.meters.map(meters) :::
-        ms.histograms.map(histograms) :::
-        ms.timers.map(timers)
-      Ok(res.asJson)
-    // counters
-    case GET -> Root / "counters" => Ok(MetricSnapshot.counters(mr).map(counters).asJson)
-    case GET -> Root / "counter" / name =>
-      MetricSnapshot.counters(mr).find(_.isMatch(name)) match {
-        case Some(value) => Ok(counters(value))
-        case None        => NotFound()
+      val ms = MetricSnapshot(mr).grouped.map { case (name, pairs) =>
+        Json.obj(name.show -> Json.obj(pairs*))
       }
-    // gauges
-    case GET -> Root / "gauges" => Ok(MetricSnapshot.gauges(mr).map(gauges).asJson)
-    case GET -> Root / "gauge" / name =>
-      MetricSnapshot.gauges(mr).find(_.isMatch(name)) match {
-        case Some(value) => Ok(gauges(value))
-        case None        => NotFound()
-      }
-    // timers
-    case GET -> Root / "timers" => Ok(MetricSnapshot.timers(mr).map(timers).asJson)
-    case GET -> Root / "timer" / name =>
-      MetricSnapshot.timers(mr).find(_.isMatch(name)) match {
-        case Some(value) => Ok(timers(value))
-        case None        => NotFound()
-      }
-    // histograms
+      Ok(ms)
+    case GET -> Root / "counters"   => Ok(MetricSnapshot.counters(mr).map(counters).asJson)
+    case GET -> Root / "gauges"     => Ok(MetricSnapshot.gauges(mr).map(gauges).asJson)
+    case GET -> Root / "meters"     => Ok(MetricSnapshot.meters(mr).map(meters).asJson)
+    case GET -> Root / "timers"     => Ok(MetricSnapshot.timers(mr).map(timers).asJson)
     case GET -> Root / "histograms" => Ok(MetricSnapshot.histograms(mr).map(histograms).asJson)
-    case GET -> Root / "histogram" / name =>
-      MetricSnapshot.histograms(mr).find(_.isMatch(name)) match {
-        case Some(value) => Ok(histograms(value))
-        case None        => NotFound()
-      }
   }
 
   private val service = HttpRoutes.of[F] { case GET -> Root => Ok(sp.asJson) }

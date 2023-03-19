@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.config.MeasurementName
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
+import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.duration
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.time.{Frequency, Hertz}
@@ -48,10 +49,7 @@ object MetricID {
   implicit val showMetricID: Show[MetricID] = mid => s"${mid.name.show}.${mid.category.value}"
 }
 
-sealed trait Snapshot {
-  def id: MetricID
-  final def isMatch(str: String): Boolean = id.name.value === str || id.name.digest === str
-}
+sealed trait Snapshot { def id: MetricID }
 
 object Snapshot {
 
@@ -119,7 +117,16 @@ final case class MetricSnapshot(
   counters: List[Snapshot.Counter],
   meters: List[Snapshot.Meter],
   timers: List[Snapshot.Timer],
-  histograms: List[Snapshot.Histogram])
+  histograms: List[Snapshot.Histogram]) {
+  val grouped: Map[MeasurementName, List[(String, Json)]] =
+    (gauges.map(g => (g.id.name, g.id.category.value -> g.value)) :::
+      counters.map(c => (c.id.name, c.id.category.value -> Json.fromLong(c.count))) :::
+      meters.map(m => (m.id.name, m.id.category.value -> m.data.asJson)) :::
+      histograms.map(h => (h.id.name, h.id.category.value -> h.data.asJson)) :::
+      timers.map(t => (t.id.name, t.id.category.value -> t.data.asJson))).groupBy(_._1).map {
+      case (name, lst) => name -> lst.map(_._2)
+    }
+}
 
 object MetricSnapshot extends duration {
 
