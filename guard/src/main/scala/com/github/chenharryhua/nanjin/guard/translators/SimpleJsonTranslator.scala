@@ -22,14 +22,23 @@ private object SimpleJsonTranslator {
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
 
-  private def stackTrace(err: NJError): (String, Json)    = "stackTrace" -> Json.fromString(err.stackTrace)
-  private def metrics(ss: MetricSnapshot): (String, Json) = "metrics" -> ss.asJson
+  private def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
+
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
     case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
   }
 
   private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
+
+  private def metrics(ss: MetricSnapshot): (String, Json) = {
+    val measures = ss.grouped.map { case (name, pairs) =>
+      Json
+        .obj(pairs*)
+        .deepMerge(Json.obj("name" -> Json.fromString(name.value), "digest" -> Json.fromString(name.digest)))
+    }
+    "metrics" -> measures.asJson
+  }
 
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(

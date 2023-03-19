@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.config.MeasurementName
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
+import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.duration
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.time.{Frequency, Hertz}
@@ -48,10 +49,7 @@ object MetricID {
   implicit val showMetricID: Show[MetricID] = mid => s"${mid.name.show}.${mid.category.value}"
 }
 
-sealed trait Snapshot {
-  def id: MetricID
-  final def isMatch(str: String): Boolean = id.name.value === str || id.name.digest === str
-}
+sealed trait Snapshot { def id: MetricID }
 
 object Snapshot {
 
@@ -59,18 +57,21 @@ object Snapshot {
   final case class Counter(id: MetricID, count: Long) extends Snapshot
 
   @JsonCodec
-  final case class Meter(
-    id: MetricID,
+  final case class Gauge(id: MetricID, value: Json) extends Snapshot
+
+  @JsonCodec
+  final case class MeterData(
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
     m5_rate: Frequency,
     m15_rate: Frequency
-  ) extends Snapshot
+  )
+  @JsonCodec
+  final case class Meter(id: MetricID, data: MeterData) extends Snapshot
 
   @JsonCodec
-  final case class Timer(
-    id: MetricID,
+  final case class TimerData(
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -86,11 +87,12 @@ object Snapshot {
     p98: Duration,
     p99: Duration,
     p999: Duration
-  ) extends Snapshot
+  )
+  @JsonCodec
+  final case class Timer(id: MetricID, data: TimerData) extends Snapshot
 
   @JsonCodec
-  final case class Histogram(
-    id: MetricID,
+  final case class HistogramData(
     unit: StandardUnit,
     count: Long,
     min: Long,
@@ -102,11 +104,11 @@ object Snapshot {
     p95: Double,
     p98: Double,
     p99: Double,
-    p999: Double)
-      extends Snapshot
+    p999: Double
+  )
 
   @JsonCodec
-  final case class Gauge(id: MetricID, value: Json) extends Snapshot
+  final case class Histogram(id: MetricID, data: HistogramData) extends Snapshot
 }
 
 @JsonCodec
@@ -115,7 +117,16 @@ final case class MetricSnapshot(
   counters: List[Snapshot.Counter],
   meters: List[Snapshot.Meter],
   timers: List[Snapshot.Timer],
-  histograms: List[Snapshot.Histogram])
+  histograms: List[Snapshot.Histogram]) {
+  val grouped: Map[MeasurementName, List[(String, Json)]] =
+    (gauges.map(g => (g.id.name, g.id.category.value -> g.value)) :::
+      counters.map(c => (c.id.name, c.id.category.value -> Json.fromLong(c.count))) :::
+      meters.map(m => (m.id.name, m.id.category.value -> m.data.asJson)) :::
+      histograms.map(h => (h.id.name, h.id.category.value -> h.data.asJson)) :::
+      timers.map(t => (t.id.name, t.id.category.value -> t.data.asJson))).groupBy(_._1).map {
+      case (name, lst) => name -> lst.map(_._2)
+    }
+}
 
 object MetricSnapshot extends duration {
 
@@ -138,11 +149,13 @@ object MetricSnapshot extends duration {
       decode[MetricID](name).toOption.map(id =>
         Snapshot.Meter(
           id = id,
-          count = meter.getCount,
-          mean_rate = Hertz(meter.getMeanRate),
-          m1_rate = Hertz(meter.getOneMinuteRate),
-          m5_rate = Hertz(meter.getFiveMinuteRate),
-          m15_rate = Hertz(meter.getFifteenMinuteRate)
+          Snapshot.MeterData(
+            count = meter.getCount,
+            mean_rate = Hertz(meter.getMeanRate),
+            m1_rate = Hertz(meter.getOneMinuteRate),
+            m5_rate = Hertz(meter.getFiveMinuteRate),
+            m15_rate = Hertz(meter.getFifteenMinuteRate)
+          )
         ))
     }
 
@@ -152,23 +165,25 @@ object MetricSnapshot extends duration {
         val ss = timer.getSnapshot
         Snapshot.Timer(
           id = id,
-          count = timer.getCount,
-          // meter
-          mean_rate = Hertz(timer.getMeanRate),
-          m1_rate = Hertz(timer.getOneMinuteRate),
-          m5_rate = Hertz(timer.getFiveMinuteRate),
-          m15_rate = Hertz(timer.getFifteenMinuteRate),
-          // histogram
-          min = Duration.ofNanos(ss.getMin),
-          max = Duration.ofNanos(ss.getMax),
-          mean = Duration.ofNanos(ss.getMean.toLong),
-          stddev = Duration.ofNanos(ss.getStdDev.toLong),
-          p50 = Duration.ofNanos(ss.getMedian.toLong),
-          p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
-          p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
-          p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
-          p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
-          p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
+          Snapshot.TimerData(
+            count = timer.getCount,
+            // meter
+            mean_rate = Hertz(timer.getMeanRate),
+            m1_rate = Hertz(timer.getOneMinuteRate),
+            m5_rate = Hertz(timer.getFiveMinuteRate),
+            m15_rate = Hertz(timer.getFifteenMinuteRate),
+            // histogram
+            min = Duration.ofNanos(ss.getMin),
+            max = Duration.ofNanos(ss.getMax),
+            mean = Duration.ofNanos(ss.getMean.toLong),
+            stddev = Duration.ofNanos(ss.getStdDev.toLong),
+            p50 = Duration.ofNanos(ss.getMedian.toLong),
+            p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
+            p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
+            p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
+            p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
+            p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
+          )
         )
       }
     }
@@ -182,18 +197,20 @@ object MetricSnapshot extends duration {
             Some(
               Snapshot.Histogram(
                 id = id,
-                unit = unit,
-                count = histo.getCount,
-                min = ss.getMin,
-                max = ss.getMax,
-                mean = ss.getMean,
-                stddev = ss.getStdDev,
-                p50 = ss.getMedian,
-                p75 = ss.get75thPercentile(),
-                p95 = ss.get95thPercentile(),
-                p98 = ss.get98thPercentile(),
-                p99 = ss.get99thPercentile(),
-                p999 = ss.get999thPercentile()
+                Snapshot.HistogramData(
+                  unit = unit,
+                  count = histo.getCount,
+                  min = ss.getMin,
+                  max = ss.getMax,
+                  mean = ss.getMean,
+                  stddev = ss.getStdDev,
+                  p50 = ss.getMedian,
+                  p75 = ss.get75thPercentile(),
+                  p95 = ss.get95thPercentile(),
+                  p98 = ss.get98thPercentile(),
+                  p99 = ss.get99thPercentile(),
+                  p999 = ss.get999thPercentile()
+                )
               ))
           case _ => None
         }
