@@ -26,7 +26,7 @@ private[guard] object MetricCategory {
   case object ActionFailCounter extends MetricCategory("action.fail")
   case object ActionRetryCounter extends MetricCategory("action.retries")
 
-  case object Meter extends MetricCategory("meter")
+  final case class Meter(unit: StandardUnit) extends MetricCategory("meter")
   case object MeterCounter extends MetricCategory("meter.events")
 
   final case class Histogram(unit: StandardUnit) extends MetricCategory("histogram")
@@ -61,6 +61,7 @@ object Snapshot {
 
   @JsonCodec
   final case class MeterData(
+    unit: StandardUnit,
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -146,17 +147,23 @@ object MetricSnapshot extends duration {
 
   def meters(metricRegistry: MetricRegistry): List[Snapshot.Meter] =
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
-      decode[MetricID](name).toOption.map(id =>
-        Snapshot.Meter(
-          id = id,
-          Snapshot.MeterData(
-            count = meter.getCount,
-            mean_rate = Hertz(meter.getMeanRate),
-            m1_rate = Hertz(meter.getOneMinuteRate),
-            m5_rate = Hertz(meter.getFiveMinuteRate),
-            m15_rate = Hertz(meter.getFifteenMinuteRate)
-          )
-        ))
+      decode[MetricID](name).toOption.mapFilter(id =>
+        id.category match {
+          case MetricCategory.Meter(unit) =>
+            Some(
+              Snapshot.Meter(
+                id = id,
+                Snapshot.MeterData(
+                  unit = unit,
+                  count = meter.getCount,
+                  mean_rate = Hertz(meter.getMeanRate),
+                  m1_rate = Hertz(meter.getOneMinuteRate),
+                  m5_rate = Hertz(meter.getFiveMinuteRate),
+                  m15_rate = Hertz(meter.getFifteenMinuteRate)
+                )
+              ))
+          case _ => None
+        })
     }
 
   def timers(metricRegistry: MetricRegistry): List[Snapshot.Timer] =

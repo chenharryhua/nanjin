@@ -72,8 +72,8 @@ final class CloudWatchObserver[F[_]: Sync](
     } yield {
       val (dur, category) = hf.pick(timer)
       val (item, unit)    = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.id, s"${timer.id.category.value}.$category")
-        .metricDatum(report.timestamp.toInstant, item.toDouble, unit)
+      MetricKey(report.serviceParams, timer.id, s"${timer.id.category.value}.$category", unit)
+        .metricDatum(report.timestamp.toInstant, item.toDouble)
     }
 
     val histograms: List[MetricDatum] = for {
@@ -81,20 +81,32 @@ final class CloudWatchObserver[F[_]: Sync](
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      MetricKey(report.serviceParams, histo.id, s"${histo.id.category.value}.$category")
-        .metricDatum(report.timestamp.toInstant, value, histo.data.unit)
+      MetricKey(report.serviceParams, histo.id, s"${histo.id.category.value}.$category", histo.data.unit)
+        .metricDatum(report.timestamp.toInstant, value)
     }
 
     val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
-      MetricKey(report.serviceParams, timer.id, timer.id.category.value) -> timer.data.count
+      MetricKey(
+        report.serviceParams,
+        timer.id,
+        timer.id.category.value,
+        StandardUnit.COUNT) -> timer.data.count
     }.toMap
 
     val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
-      MetricKey(report.serviceParams, meter.id, meter.id.category.value) -> meter.data.count
+      MetricKey(
+        report.serviceParams,
+        meter.id,
+        meter.id.category.value,
+        meter.data.unit) -> meter.data.count
     }.toMap
 
     val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
-      MetricKey(report.serviceParams, histo.id, histo.id.category.value) -> histo.data.count
+      MetricKey(
+        report.serviceParams,
+        histo.id,
+        histo.id.category.value,
+        StandardUnit.COUNT) -> histo.data.count
     }.toMap
 
     val counterKeyMap: Map[MetricKey, Long] = timer_count ++ meter_count ++ histogram_count
@@ -104,12 +116,10 @@ final class CloudWatchObserver[F[_]: Sync](
         last.get(key) match {
           case Some(old) => // counters of timer/meter increase monotonically.
             (
-              key.metricDatum(report.timestamp.toInstant, (count - old).toDouble, StandardUnit.COUNT) :: mds,
+              key.metricDatum(report.timestamp.toInstant, (count - old).toDouble) :: mds,
               last.updated(key, count))
           case None =>
-            (
-              key.metricDatum(report.timestamp.toInstant, count.toDouble, StandardUnit.COUNT) :: mds,
-              last.updated(key, count))
+            (key.metricDatum(report.timestamp.toInstant, count.toDouble) :: mds, last.updated(key, count))
         }
     }
     (counters ::: timer_histo ::: histograms, lastUpdates)
@@ -145,8 +155,12 @@ final class CloudWatchObserver[F[_]: Sync](
   }
 }
 
-final private case class MetricKey(serviceParams: ServiceParams, id: MetricID, category: String) {
-  def metricDatum(ts: Instant, value: Double, standardUnit: StandardUnit): MetricDatum =
+final private case class MetricKey(
+  serviceParams: ServiceParams,
+  id: MetricID,
+  category: String,
+  standardUnit: StandardUnit) {
+  def metricDatum(ts: Instant, value: Double): MetricDatum =
     MetricDatum
       .builder()
       .dimensions(
