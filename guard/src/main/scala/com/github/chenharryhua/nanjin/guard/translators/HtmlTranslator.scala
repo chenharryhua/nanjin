@@ -54,7 +54,7 @@ private object HtmlTranslator extends all {
 
   private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(small(c.stackTrace)))
   private def snapshotText(sp: ServiceParams, ss: MetricSnapshot): Text.TypedTag[String] =
-    pre(small(showSnapshot(sp, ss)))
+    pre(small(new SnapshotJson(ss).toPrettyJson(sp.metricParams).spaces2))
   private def jsonText(js: Json): Text.TypedTag[String]     = pre(small(js.spaces2))
   private def briefText(brief: Json): Text.TypedTag[String] = pre(small(brief.spaces2))
 

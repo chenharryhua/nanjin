@@ -6,6 +6,7 @@ import cats.implicits.toShow
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
+import com.github.chenharryhua.nanjin.guard.translators.SnapshotJson
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
@@ -22,11 +23,7 @@ private class MetricsRouter[F[_]: Monad](mr: MetricRegistry, sp: ServiceParams) 
 
   private val metrics = HttpRoutes.of[F] {
     // all
-    case GET -> Root =>
-      val ms = MetricSnapshot(mr).grouped.map { case (name, pairs) =>
-        Json.obj(name.show -> Json.obj(pairs*))
-      }
-      Ok(ms)
+    case GET -> Root => Ok(new SnapshotJson(MetricSnapshot(mr)).toPrettyJson(sp.metricParams))
     case GET -> Root / "counters"   => Ok(MetricSnapshot.counters(mr).map(counters).asJson)
     case GET -> Root / "gauges"     => Ok(MetricSnapshot.gauges(mr).map(gauges).asJson)
     case GET -> Root / "meters"     => Ok(MetricSnapshot.meters(mr).map(meters).asJson)

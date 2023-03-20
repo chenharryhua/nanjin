@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.AlertLevel
+import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
@@ -22,18 +22,10 @@ private object SlackTranslator extends all {
     }
     .value
 
-  private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
-    val counters =
-      snapshot.counters.filter(_.count > 0).map(c => f"${c.id.show} = ${c.count}%d")
+  private def metricsSection(sp: ServiceParams, snapshot: MetricSnapshot): KeyValueSection =
     KeyValueSection(
       "Metrics",
-      if (counters.isEmpty) "`No updates`"
-      else {
-        val gauges = snapshot.gauges.map(g => s"${g.id.show} = ${g.value.spaces2}")
-        s"```${abbreviate((counters ::: gauges).mkString("\n"))}```"
-      }
-    )
-  }
+      s"```${abbreviate(new SnapshotJson(snapshot).toPrettyJson(sp.metricParams).spaces2)} ```")
 
   private def brief(json: Json): KeyValueSection =
     KeyValueSection("Brief", s"```${abbreviate(json.spaces2)}```")
@@ -114,7 +106,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Report:* $nextReport
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
-            metricsSection(evt.snapshot)
+            metricsSection(evt.serviceParams, evt.snapshot)
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
@@ -137,7 +129,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Reset:* $nextReset
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
-            metricsSection(evt.snapshot)
+            metricsSection(evt.serviceParams, evt.snapshot)
           )
         )
       )

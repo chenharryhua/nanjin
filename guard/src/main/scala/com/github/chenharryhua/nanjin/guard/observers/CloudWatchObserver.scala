@@ -72,7 +72,7 @@ final class CloudWatchObserver[F[_]: Sync](
     } yield {
       val (dur, category) = hf.pick(timer)
       val (item, unit)    = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.id, s"${timer.id.category.value}.$category", unit)
+      MetricKey(report.serviceParams, timer.id, s"${timer.id.category.tag}.$category", unit)
         .metricDatum(report.timestamp.toInstant, item.toDouble)
     }
 
@@ -81,7 +81,7 @@ final class CloudWatchObserver[F[_]: Sync](
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      MetricKey(report.serviceParams, histo.id, s"${histo.id.category.value}.$category", histo.data.unit)
+      MetricKey(report.serviceParams, histo.id, s"${histo.id.category.tag}.$category", histo.data.unit)
         .metricDatum(report.timestamp.toInstant, value)
     }
 
@@ -89,7 +89,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         report.serviceParams,
         timer.id,
-        timer.id.category.value,
+        timer.id.category.tag,
         StandardUnit.COUNT) -> timer.data.count
     }.toMap
 
@@ -97,7 +97,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         report.serviceParams,
         meter.id,
-        meter.id.category.value,
+        meter.id.category.tag,
         meter.data.unit) -> meter.data.count
     }.toMap
 
@@ -105,7 +105,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         report.serviceParams,
         histo.id,
-        histo.id.category.value,
+        histo.id.category.tag,
         StandardUnit.COUNT) -> histo.data.count
     }.toMap
 

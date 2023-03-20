@@ -104,28 +104,32 @@ final class GeneralAgent[F[_]] private[service] (
     )
 
   override def counter(counterName: String): NJCounter[F] =
-    new NJCounter(name = MeasurementName(serviceParams, counterName), metricRegistry = metricRegistry)
+    new NJCounter(
+      name = MeasurementName(serviceParams, counterName),
+      metricRegistry = metricRegistry,
+      tag = None)
 
   override def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F] =
     new NJMeter[F](
       name = MeasurementName(serviceParams, meterName),
       metricRegistry = metricRegistry,
       unit = unitOfMeasure,
-      isCounting = false)
+      tag = None)
 
   override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] =
     new NJHistogram[F](
       name = MeasurementName(serviceParams, histoName),
       unit = unitOfMeasure,
       metricRegistry = metricRegistry,
-      isCounting = false
+      None
     )
 
   override def gauge(gaugeName: String): NJGauge[F] =
     new NJGauge[F](
       name = MeasurementName(serviceParams, gaugeName),
       metricRegistry = metricRegistry,
-      dispatcher = dispatcher)
+      dispatcher = dispatcher,
+      tag = None)
 
   override lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)

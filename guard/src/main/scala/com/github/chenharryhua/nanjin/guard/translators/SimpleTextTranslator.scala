@@ -57,13 +57,13 @@ private object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |${showSnapshot(evt.serviceParams, evt.snapshot)}
+       |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |${showSnapshot(evt.serviceParams, evt.snapshot)}
+       |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
        |""".stripMargin
 
   private def passThrough(evt: PassThrough): String =

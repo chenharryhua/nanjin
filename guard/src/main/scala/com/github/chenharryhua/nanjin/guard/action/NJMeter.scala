@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
-import com.codahale.metrics.{Counter, Meter, MetricRegistry}
+import com.codahale.metrics.{Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.MeasurementName
 import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID}
 import io.circe.syntax.EncoderOps
@@ -12,19 +12,14 @@ final class NJMeter[F[_]] private[guard] (
   name: MeasurementName,
   metricRegistry: MetricRegistry,
   unit: StandardUnit,
-  isCounting: Boolean)(implicit F: Sync[F]) {
+  tag: Option[String])(implicit F: Sync[F]) {
 
   private lazy val meter: Meter =
-    metricRegistry.meter(MetricID(name, MetricCategory.Meter(unit)).asJson.noSpaces)
-  private lazy val counter: Counter =
-    metricRegistry.counter(MetricID(name, MetricCategory.MeterCounter).asJson.noSpaces)
+    metricRegistry.meter(MetricID(name, MetricCategory.Meter(unit, tag.getOrElse("meter"))).asJson.noSpaces)
 
-  def withCounting: NJMeter[F] = new NJMeter[F](name, metricRegistry, unit, true)
+  def withTag(tag: String): NJMeter[F] = new NJMeter[F](name, metricRegistry, unit, Some(tag))
 
-  def unsafeMark(num: Long): Unit = {
-    meter.mark(num)
-    if (isCounting) counter.inc(num)
-  }
+  def unsafeMark(num: Long): Unit = meter.mark(num)
 
   def mark(num: Long): F[Unit] = F.delay(unsafeMark(num))
 

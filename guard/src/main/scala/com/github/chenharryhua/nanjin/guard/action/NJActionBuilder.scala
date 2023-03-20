@@ -44,6 +44,8 @@ final class NJActionBuilder[F[_]](
   def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): NJActionBuilder[F] =
     withRetryPolicy(f(policies.cronBackoff[F](cronExpr, actionConfig.serviceParams.taskParams.zoneId)))
 
+  def withTag(tag: String): NJActionBuilder[F] = updateConfig(_.withTag(tag))
+
   private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 
   // retries

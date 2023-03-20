@@ -78,7 +78,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
-        val meter = agent.meter("nj.test.meter", StandardUnit.BYTES_SECOND).withCounting
+        val meter = agent.meter("nj.test.meter", StandardUnit.BYTES_SECOND)
         (meter.mark(1000) >> agent.metrics.reset
           .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
@@ -92,7 +92,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram", StandardUnit.BYTES_SECOND).withCounting
+        val meter = agent.histogram("nj.test.histogram", StandardUnit.BYTES_SECOND)
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))

@@ -17,14 +17,17 @@ import java.time.Instant
 final class NJGauge[F[_]] private[guard] (
   name: MeasurementName,
   metricRegistry: MetricRegistry,
-  dispatcher: Dispatcher[F])(implicit F: Sync[F]) {
-  private val metricId: String = MetricID(name, MetricCategory.Gauge).asJson.noSpaces
+  dispatcher: Dispatcher[F],
+  tag: Option[String])(implicit F: Sync[F]) {
+  private val metricId: String = MetricID(name, MetricCategory.Gauge(tag.getOrElse("gauge"))).asJson.noSpaces
 
   private def transErr(ex: Throwable): Json =
     Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
 
   private def elapse(start: Instant, end: Instant): Json =
     Json.fromString(DurationFormatter.defaultFormatter.format(start, end))
+
+  def withTag(tag: String): NJGauge[F] = new NJGauge[F](name, metricRegistry, dispatcher, tag = Some(tag))
 
   def register[A: Encoder](value: F[A]): Resource[F, Unit] =
     Resource
