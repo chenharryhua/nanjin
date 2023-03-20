@@ -114,7 +114,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(timer.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, timer.id.category.value)
+              .addTag(METRICS_CATEGORY, timer.id.category.tag)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, timer.data.count) // Long
               // meter
@@ -139,7 +139,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(meter.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, meter.id.category.value)
+              .addTag(METRICS_CATEGORY, meter.id.category.tag)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, meter.data.count) // Long
               // meter
@@ -154,7 +154,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(counter.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, counter.id.category.value)
+              .addTag(METRICS_CATEGORY, counter.id.category.tag)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, counter.count) // Long
           }
@@ -165,7 +165,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(histo.id.name.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, histo.id.category.value)
+              .addTag(METRICS_CATEGORY, histo.id.category.tag)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, histo.data.count) // Long
               .addField(METRICS_MIN + unitName, histo.data.min) // Long

@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.guard.config.MeasurementName
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
-import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.duration
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.time.{Frequency, Hertz}
@@ -17,36 +16,20 @@ import java.time.Duration
 import scala.jdk.CollectionConverters.*
 
 @JsonCodec
-sealed abstract private[guard] class MetricCategory(val value: String)
+sealed private[guard] trait MetricCategory { def tag: String }
 
 private[guard] object MetricCategory {
-
-  case object ActionTimer extends MetricCategory("timer")
-  case object ActionCompleteCounter extends MetricCategory("action.done")
-  case object ActionFailCounter extends MetricCategory("action.fail")
-  case object ActionRetryCounter extends MetricCategory("action.retries")
-
-  final case class Meter(unit: StandardUnit) extends MetricCategory("meter")
-  case object MeterCounter extends MetricCategory("meter.events")
-
-  final case class Histogram(unit: StandardUnit) extends MetricCategory("histogram")
-  case object HistogramCounter extends MetricCategory("histogram.updates")
-
-  case object Counter extends MetricCategory("count")
-
-  case object Gauge extends MetricCategory("gauge")
-
-  case object PassThroughCounter extends MetricCategory("passThrough")
-
-  case object AlertErrorCounter extends MetricCategory("alert.error")
-  case object AlertWarnCounter extends MetricCategory("alert.warn")
-  case object AlertInfoCounter extends MetricCategory("alert.info")
+  final case class ActionTimer(tag: String) extends MetricCategory
+  final case class Meter(unit: StandardUnit, tag: String) extends MetricCategory
+  final case class Histogram(unit: StandardUnit, tag: String) extends MetricCategory
+  final case class Counter(tag: String) extends MetricCategory
+  final case class Gauge(tag: String) extends MetricCategory
 }
 
 @JsonCodec
 final case class MetricID(name: MeasurementName, category: MetricCategory)
 object MetricID {
-  implicit val showMetricID: Show[MetricID] = mid => s"${mid.name.show}.${mid.category.value}"
+  implicit val showMetricID: Show[MetricID] = mid => s"${mid.name.show}.${mid.category.tag}"
 }
 
 sealed trait Snapshot { def id: MetricID }
@@ -67,7 +50,9 @@ object Snapshot {
     m1_rate: Frequency,
     m5_rate: Frequency,
     m15_rate: Frequency
-  )
+  ) {
+    val unitShow: String = unit.show
+  }
   @JsonCodec
   final case class Meter(id: MetricID, data: MeterData) extends Snapshot
 
@@ -106,7 +91,9 @@ object Snapshot {
     p98: Double,
     p99: Double,
     p999: Double
-  )
+  ) {
+    val unitShow: String = unit.show
+  }
 
   @JsonCodec
   final case class Histogram(id: MetricID, data: HistogramData) extends Snapshot
@@ -118,16 +105,7 @@ final case class MetricSnapshot(
   counters: List[Snapshot.Counter],
   meters: List[Snapshot.Meter],
   timers: List[Snapshot.Timer],
-  histograms: List[Snapshot.Histogram]) {
-  val grouped: Map[MeasurementName, List[(String, Json)]] =
-    (gauges.map(g => (g.id.name, g.id.category.value -> g.value)) :::
-      counters.map(c => (c.id.name, c.id.category.value -> Json.fromLong(c.count))) :::
-      meters.map(m => (m.id.name, m.id.category.value -> m.data.asJson)) :::
-      histograms.map(h => (h.id.name, h.id.category.value -> h.data.asJson)) :::
-      timers.map(t => (t.id.name, t.id.category.value -> t.data.asJson))).groupBy(_._1).map {
-      case (name, lst) => name -> lst.map(_._2)
-    }
-}
+  histograms: List[Snapshot.Histogram])
 
 object MetricSnapshot extends duration {
 
@@ -149,7 +127,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricID](name).toOption.mapFilter(id =>
         id.category match {
-          case MetricCategory.Meter(unit) =>
+          case MetricCategory.Meter(unit, _) =>
             Some(
               Snapshot.Meter(
                 id = id,
@@ -199,7 +177,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
       decode[MetricID](name).toOption.flatMap { id =>
         id.category match {
-          case MetricCategory.Histogram(unit) =>
+          case MetricCategory.Histogram(unit, _) =>
             val ss = histo.getSnapshot
             Some(
               Snapshot.Histogram(
@@ -233,10 +211,10 @@ object MetricSnapshot extends duration {
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      gauges = gauges(metricRegistry).sortBy(_.id.name.value),
-      counters = counters(metricRegistry).sortBy(_.id.name.value),
-      meters = meters(metricRegistry).sortBy(_.id.name.value),
-      timers = timers(metricRegistry).sortBy(_.id.name.value),
-      histograms = histograms(metricRegistry).sortBy(_.id.name.value)
+      gauges = gauges(metricRegistry).sortBy(_.id.category.tag),
+      counters = counters(metricRegistry).sortBy(_.id.category.tag),
+      meters = meters(metricRegistry).sortBy(_.id.category.tag),
+      timers = timers(metricRegistry).sortBy(_.id.category.tag),
+      histograms = histograms(metricRegistry).sortBy(_.id.category.tag)
     )
 }

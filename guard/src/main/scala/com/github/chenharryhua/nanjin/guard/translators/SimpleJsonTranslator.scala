@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.config.{Importance, MeasurementName}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MeasurementName}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
@@ -16,6 +16,7 @@ private object SimpleJsonTranslator {
     ("serviceName", Json.fromString(evt.serviceName.value))
 
   private def name(id: MeasurementName): (String, Json)    = "name" -> Json.fromString(id.value)
+  private def tag(ap: ActionParams): (String, Json)        = "tag" -> ap.tag.asJson
   private def digest(id: MeasurementName): (String, Json)  = "digest" -> Json.fromString(id.digest)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
   private def traceInfo(evt: ActionEvent): (String, Json)  = "traceInfo" -> evt.actionInfo.traceInfo.asJson
@@ -31,14 +32,8 @@ private object SimpleJsonTranslator {
 
   private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
 
-  private def metrics(ss: MetricSnapshot): (String, Json) = {
-    val measures = ss.grouped.map { case (name, pairs) =>
-      Json
-        .obj(pairs*)
-        .deepMerge(Json.obj("name" -> Json.fromString(name.value), "digest" -> Json.fromString(name.digest)))
-    }
-    "metrics" -> measures.asJson
-  }
+  private def metrics(ss: MetricSnapshot): (String, Json) =
+    "metrics" -> new SnapshotJson(ss).toVanillaJson
 
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(
@@ -118,6 +113,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
           name(evt.name),
+          tag(evt.actionParams),
           traceInfo(evt),
           digest(evt.name),
           actionId(evt),
@@ -131,6 +127,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
           name(evt.name),
+          tag(evt.actionParams),
           traceInfo(evt),
           ("cause", Json.fromString(evt.error.message)),
           digest(evt.name),
@@ -145,6 +142,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
           name(evt.name),
+          tag(evt.actionParams),
           took(evt),
           traceInfo(evt),
           "notes" -> evt.output, // align with slack
@@ -161,6 +159,7 @@ private object SimpleJsonTranslator {
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
           name(evt.name),
+          tag(evt.actionParams),
           took(evt),
           traceInfo(evt),
           "result" -> evt.output, // align with slack

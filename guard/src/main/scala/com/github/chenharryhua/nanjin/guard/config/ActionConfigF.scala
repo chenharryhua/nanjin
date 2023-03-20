@@ -12,6 +12,7 @@ final case class ActionParams(
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
+  tag: Option[String],
   retryPolicy: String, // for display
   serviceParams: ServiceParams)
 
@@ -24,6 +25,7 @@ object ActionParams {
       importance = Importance.Silent,
       isCounting = false,
       isTiming = false,
+      tag = None,
       retryPolicy = retryPolicy,
       serviceParams = serviceParams
     )
@@ -39,6 +41,7 @@ private object ActionConfigF {
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
+  final case class WithTag[K](value: Option[String], cont: K) extends ActionConfigF[K]
 
   def algebra(
     actionName: String,
@@ -49,6 +52,7 @@ private object ActionConfigF {
       case WithImportance(v, c) => ActionParams.importance.set(v)(c)
       case WithTiming(v, c)     => ActionParams.isTiming.set(v)(c)
       case WithCounting(v, c)   => ActionParams.isCounting.set(v)(c)
+      case WithTag(v, c)        => ActionParams.tag.set(v)(c)
     }
 }
 
@@ -64,6 +68,8 @@ final case class ActionConfig private (value: Fix[ActionConfigF], serviceParams:
   def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, value)), serviceParams)
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)), serviceParams)
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)), serviceParams)
+
+  def withTag(tag: String): ActionConfig = ActionConfig(Fix(WithTag(value = Some(tag), value)), serviceParams)
 
   def evalConfig(actionName: String, retryPolicy: String): ActionParams =
     scheme.cata(algebra(actionName, serviceParams, retryPolicy)).apply(value)

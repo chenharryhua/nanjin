@@ -113,20 +113,26 @@ private object Measures {
       if (actionParams.isCounting) {
         val fail = Some(
           metricRegistry.counter(
-            MetricID(actionParams.name, MetricCategory.ActionFailCounter).asJson.noSpaces))
+            MetricID(
+              actionParams.name,
+              MetricCategory.Counter(actionParams.tag.fold("action.fail")(_ + ".fail"))).asJson.noSpaces))
         val succ = Some(
           metricRegistry.counter(
-            MetricID(actionParams.name, MetricCategory.ActionCompleteCounter).asJson.noSpaces))
+            MetricID(
+              actionParams.name,
+              MetricCategory.Counter(actionParams.tag.fold("action.done")(_ + ".done"))).asJson.noSpaces))
         val retries = Some(
-          metricRegistry.counter(
-            MetricID(actionParams.name, MetricCategory.ActionRetryCounter).asJson.noSpaces))
+          metricRegistry.counter(MetricID(
+            actionParams.name,
+            MetricCategory.Counter(actionParams.tag.fold("action.retries")(_ + ".retries"))).asJson.noSpaces))
         (fail, succ, retries)
       } else (None, None, None)
 
     val timing: (ZonedDateTime, ZonedDateTime) => Unit =
       if (actionParams.isTiming) {
-        val mId: MetricID = MetricID(actionParams.name, MetricCategory.ActionTimer)
-        val timer: Timer  = metricRegistry.timer(mId.asJson.noSpaces)
+        val mId: MetricID =
+          MetricID(actionParams.name, MetricCategory.ActionTimer(actionParams.tag.getOrElse("action.timer")))
+        val timer: Timer = metricRegistry.timer(mId.asJson.noSpaces)
         (s: ZonedDateTime, t: ZonedDateTime) => timer.update(Duration.between(s, t))
       } else
         (_: ZonedDateTime, _: ZonedDateTime) => ()
