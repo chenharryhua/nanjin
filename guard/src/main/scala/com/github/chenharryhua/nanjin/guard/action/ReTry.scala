@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.config.ActionParams
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Category, MetricID}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionComplete, ActionFail, ActionRetry}
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, MetricCategory, MetricID, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -111,28 +111,21 @@ private object Measures {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): Measures = {
     val (failCounter: Option[Counter], succCounter: Option[Counter], retryCounter: Option[Counter]) =
       if (actionParams.isCounting) {
-        val fail = Some(
-          metricRegistry.counter(
-            MetricID(
-              actionParams.name,
-              MetricCategory.Counter(actionParams.tag.fold("action.fail")(_ + ".fail"))).asJson.noSpaces))
-        val succ = Some(
-          metricRegistry.counter(
-            MetricID(
-              actionParams.name,
-              MetricCategory.Counter(actionParams.tag.fold("action.done")(_ + ".done"))).asJson.noSpaces))
+        val fail = Some(metricRegistry.counter(
+          MetricID(actionParams.metricID.metricName, Category.Counter(Some("action.fail"))).asJson.noSpaces))
+        val succ = Some(metricRegistry.counter(
+          MetricID(actionParams.metricID.metricName, Category.Counter(Some("action.done"))).asJson.noSpaces))
         val retries = Some(
-          metricRegistry.counter(MetricID(
-            actionParams.name,
-            MetricCategory.Counter(actionParams.tag.fold("action.retries")(_ + ".retries"))).asJson.noSpaces))
+          metricRegistry.counter(
+            MetricID(
+              actionParams.metricID.metricName,
+              Category.Counter(Some("action.retries"))).asJson.noSpaces))
         (fail, succ, retries)
       } else (None, None, None)
 
     val timing: (ZonedDateTime, ZonedDateTime) => Unit =
       if (actionParams.isTiming) {
-        val mId: MetricID =
-          MetricID(actionParams.name, MetricCategory.ActionTimer(actionParams.tag.getOrElse("action.timer")))
-        val timer: Timer = metricRegistry.timer(mId.asJson.noSpaces)
+        val timer: Timer = metricRegistry.timer(actionParams.metricID.asJson.noSpaces)
         (s: ZonedDateTime, t: ZonedDateTime) => timer.update(Duration.between(s, t))
       } else
         (_: ZonedDateTime, _: ZonedDateTime) => ()

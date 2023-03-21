@@ -10,7 +10,7 @@ import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{Measurement, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
@@ -99,7 +99,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     entryPoint = entryPoint,
     signallingMapRef = signallingMapRef,
     atomicCell = atomicCell,
-    dispatcher = dispatcher
+    dispatcher = dispatcher,
+    measurement = Measurement(sp.serviceName.value)
   )
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
@@ -166,7 +167,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
             entryPoint = entryPoint,
             signallingMapRef = signallingMapRef,
             atomicCell = atomicCell,
-            dispatcher = dispatcher
+            dispatcher = dispatcher,
+            measurement = Measurement(serviceParams.serviceName.value)
           )
 
         val surveillance: Stream[F, Nothing] =

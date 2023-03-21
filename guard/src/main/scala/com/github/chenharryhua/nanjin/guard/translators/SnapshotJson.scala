@@ -1,21 +1,26 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.implicits.toShow
-import com.github.chenharryhua.nanjin.guard.config.{MeasurementName, MetricParams}
+import com.github.chenharryhua.nanjin.guard.config.MetricParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-final class SnapshotJson(snapshot: MetricSnapshot) {
+final private class SnapshotJson(snapshot: MetricSnapshot) {
 
-  private def grouping[A](f: Snapshot => A): Map[MeasurementName, List[(String, A)]] =
-    (snapshot.gauges.map(g => (g.id.name, g.id.category.tag -> f(g))) :::
-      snapshot.counters.map(c => (c.id.name, c.id.category.tag -> f(c))) :::
-      snapshot.timers.map(t => (t.id.name, t.id.category.tag -> f(t))) :::
-      snapshot.meters.map(m => (m.id.name, m.id.category.tag -> f(m))) :::
-      snapshot.histograms.map(h => (h.id.name, h.id.category.tag -> f(h)))).groupBy(_._1).map {
-      case (name, lst) => (name, lst.map(_._2))
-    }
+  private def grouping(f: Snapshot => Json): Json =
+    (snapshot.gauges.map(g => (g.id.metricName.measurement.value, g.id.show -> f(g))) :::
+      snapshot.counters.map(c => (c.id.metricName.measurement.value, c.id.show -> f(c))) :::
+      snapshot.timers.map(t => (t.id.metricName.measurement.value, t.id.show -> f(t))) :::
+      snapshot.meters.map(m => (m.id.metricName.measurement.value, m.id.show -> f(m))) :::
+      snapshot.histograms.map(h => (h.id.metricName.measurement.value, h.id.show -> f(h))))
+      .groupBy(_._1)
+      .map { case (name, lst) =>
+        val js = Json.obj(lst.map(_._2)*)
+        Json.obj(name -> js)
+      }
+      .asJson
+
   // for db
   def toVanillaJson: Json =
     grouping {
@@ -24,10 +29,7 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
       case Snapshot.Meter(_, data)     => data.asJson
       case Snapshot.Timer(_, data)     => data.asJson
       case Snapshot.Histogram(_, data) => data.asJson
-    }.map { case (name, lst) =>
-      val idJson = Json.obj("name" -> name.value.asJson, "digest" -> name.digest.asJson)
-      Json.obj(lst*).deepMerge(idJson)
-    }.asJson
+    }
 
   // for std-out, slack etc
   def toPrettyJson(mp: MetricParams): Json = {
@@ -79,6 +81,6 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
           "p99" -> Json.fromString(f"${data.p99}%2.2f $unit"),
           "p999" -> Json.fromString(f"${data.p999}%2.2f $unit")
         )
-    }.map { case (name, lst) => Json.obj(name.show -> Json.obj(lst*)) }.asJson
+    }
   }
 }

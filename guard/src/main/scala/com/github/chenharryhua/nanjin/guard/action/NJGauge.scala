@@ -5,29 +5,25 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.MeasurementName
-import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID}
-import io.circe.{Encoder, Json}
+import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, MetricName}
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Instant
 
 final class NJGauge[F[_]] private[guard] (
-  name: MeasurementName,
+  name: MetricName,
   metricRegistry: MetricRegistry,
-  dispatcher: Dispatcher[F],
-  tag: Option[String])(implicit F: Sync[F]) {
-  private val metricId: String = MetricID(name, MetricCategory.Gauge(tag.getOrElse("gauge"))).asJson.noSpaces
+  dispatcher: Dispatcher[F])(implicit F: Sync[F]) {
+  private val metricId: String = MetricID(name, Category.Gauge).asJson.noSpaces
 
   private def transErr(ex: Throwable): Json =
     Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
 
   private def elapse(start: Instant, end: Instant): Json =
     Json.fromString(DurationFormatter.defaultFormatter.format(start, end))
-
-  def withTag(tag: String): NJGauge[F] = new NJGauge[F](name, metricRegistry, dispatcher, tag = Some(tag))
 
   def register[A: Encoder](value: F[A]): Resource[F, Unit] =
     Resource

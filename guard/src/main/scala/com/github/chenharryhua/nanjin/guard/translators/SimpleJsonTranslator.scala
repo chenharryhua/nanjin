@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MeasurementName}
+import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricName}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
@@ -15,9 +15,10 @@ private object SimpleJsonTranslator {
   private def serviceName(evt: NJEvent): (String, Json) =
     ("serviceName", Json.fromString(evt.serviceName.value))
 
-  private def name(id: MeasurementName): (String, Json)    = "name" -> Json.fromString(id.value)
-  private def tag(ap: ActionParams): (String, Json)        = "tag" -> ap.tag.asJson
-  private def digest(id: MeasurementName): (String, Json)  = "digest" -> Json.fromString(id.digest)
+  private def name(id: MetricName): (String, Json)   = "name" -> Json.fromString(id.value)
+  private def digest(id: MetricName): (String, Json) = "digest" -> Json.fromString(id.digest.value)
+  private def measurement(id: MetricName): (String, Json) =
+    "measurement" -> Json.fromString(id.measurement.value)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
   private def traceInfo(evt: ActionEvent): (String, Json)  = "traceInfo" -> evt.actionInfo.traceInfo.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
@@ -89,9 +90,9 @@ private object SimpleJsonTranslator {
     Json.obj(
       "PassThrough" ->
         Json.obj(
-          name(evt.name),
+          name(evt.metricName),
           ("value", evt.value),
-          digest(evt.name),
+          digest(evt.metricName),
           serviceId(evt),
           timestamp(evt)
         ))
@@ -101,9 +102,9 @@ private object SimpleJsonTranslator {
       "Alert" ->
         Json.obj(
           "level" -> evt.alertLevel.asJson,
-          name(evt.name),
+          name(evt.metricName),
           ("message", Json.fromString(evt.message)),
-          digest(evt.name),
+          digest(evt.metricName),
           serviceId(evt),
           timestamp(evt)))
 
@@ -112,10 +113,10 @@ private object SimpleJsonTranslator {
       "ActionStart" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.name),
-          tag(evt.actionParams),
+          name(evt.metricID.metricName),
+          measurement(evt.actionParams.metricID.metricName),
           traceInfo(evt),
-          digest(evt.name),
+          digest(evt.metricID.metricName),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
@@ -126,11 +127,11 @@ private object SimpleJsonTranslator {
       "ActionRetry" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.name),
-          tag(evt.actionParams),
+          name(evt.metricID.metricName),
+          measurement(evt.actionParams.metricID.metricName),
           traceInfo(evt),
           ("cause", Json.fromString(evt.error.message)),
-          digest(evt.name),
+          digest(evt.metricID.metricName),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
@@ -141,13 +142,13 @@ private object SimpleJsonTranslator {
       "ActionFail" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.name),
-          tag(evt.actionParams),
+          name(evt.metricID.metricName),
+          measurement(evt.actionParams.metricID.metricName),
           took(evt),
           traceInfo(evt),
           "notes" -> evt.output, // align with slack
           stackTrace(evt.error),
-          digest(evt.name),
+          digest(evt.metricID.metricName),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
@@ -158,12 +159,12 @@ private object SimpleJsonTranslator {
       "ActionComplete" ->
         Json.obj(
           importance(evt.actionInfo.actionParams.importance),
-          name(evt.name),
-          tag(evt.actionParams),
+          name(evt.metricID.metricName),
+          measurement(evt.actionParams.metricID.metricName),
           took(evt),
           traceInfo(evt),
           "result" -> evt.output, // align with slack
-          digest(evt.name),
+          digest(evt.metricID.metricName),
           actionId(evt),
           serviceId(evt),
           timestamp(evt)
