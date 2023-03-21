@@ -4,7 +4,13 @@ import cats.Show
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.guard.config.MeasurementName
+import com.github.chenharryhua.nanjin.guard.config.{
+  showStandardUnit,
+  standardUnitDecoder,
+  standardUnitEncoder,
+  Category,
+  MetricID
+}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
@@ -14,23 +20,6 @@ import squants.time.{Frequency, Hertz}
 
 import java.time.Duration
 import scala.jdk.CollectionConverters.*
-
-@JsonCodec
-sealed private[guard] trait MetricCategory { def tag: String }
-
-private[guard] object MetricCategory {
-  final case class ActionTimer(tag: String) extends MetricCategory
-  final case class Meter(unit: StandardUnit, tag: String) extends MetricCategory
-  final case class Histogram(unit: StandardUnit, tag: String) extends MetricCategory
-  final case class Counter(tag: String) extends MetricCategory
-  final case class Gauge(tag: String) extends MetricCategory
-}
-
-@JsonCodec
-final case class MetricID(name: MeasurementName, category: MetricCategory)
-object MetricID {
-  implicit val showMetricID: Show[MetricID] = mid => s"${mid.name.show}.${mid.category.tag}"
-}
 
 sealed trait Snapshot { def id: MetricID }
 
@@ -127,7 +116,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricID](name).toOption.mapFilter(id =>
         id.category match {
-          case MetricCategory.Meter(unit, _) =>
+          case Category.Meter(unit) =>
             Some(
               Snapshot.Meter(
                 id = id,
@@ -177,7 +166,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
       decode[MetricID](name).toOption.flatMap { id =>
         id.category match {
-          case MetricCategory.Histogram(unit, _) =>
+          case Category.Histogram(unit) =>
             val ss = histo.getSnapshot
             Some(
               Snapshot.Histogram(
@@ -211,10 +200,10 @@ object MetricSnapshot extends duration {
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      gauges = gauges(metricRegistry).sortBy(_.id.category.tag),
-      counters = counters(metricRegistry).sortBy(_.id.category.tag),
-      meters = meters(metricRegistry).sortBy(_.id.category.tag),
-      timers = timers(metricRegistry).sortBy(_.id.category.tag),
-      histograms = histograms(metricRegistry).sortBy(_.id.category.tag)
+      gauges = gauges(metricRegistry).sortBy(_.id.metricName.value),
+      counters = counters(metricRegistry).sortBy(_.id.metricName.value),
+      meters = meters(metricRegistry).sortBy(_.id.metricName.value),
+      timers = timers(metricRegistry).sortBy(_.id.metricName.value),
+      histograms = histograms(metricRegistry).sortBy(_.id.metricName.value)
     )
 }

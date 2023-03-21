@@ -125,10 +125,10 @@ class MetricsTest extends AnyFunSuite {
       .eventStream { agent =>
         val name = "metric.name"
         agent.counter(name).inc(1) >>
-          agent.meter(name, StandardUnit.COUNT).withTag("test.meter").mark(1) >>
-          agent.histogram(name, StandardUnit.GIGABITS).withTag("test.histogram").update(Random.nextLong(1000)) >>
+          agent.meter(name, StandardUnit.COUNT).mark(1) >>
+          agent.histogram(name, StandardUnit.GIGABITS).update(Random.nextLong(1000)) >>
           agent.broker(name).withCounting.passThrough(Json.fromString("broker.good")) >>
-          agent.action(name, _.withTiming.withCounting).withTag("tagged.action").retry(IO(())).run.foreverM
+          agent.action(name, _.withTiming.withCounting).retry(IO(())).run.foreverM
       }
       .take(6)
       .evalTap(console.simple[IO])

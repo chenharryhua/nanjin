@@ -5,33 +5,33 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import cats.{Monad, Show}
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, MeasurementName, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricCategory, MetricID, NJEvent}
+import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, Category, MetricID, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.InstantAlert
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
 
 final class NJAlert[F[_]: Monad: Clock] private[guard] (
-  name: MeasurementName,
+  name: MetricName,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
-  isCounting: Boolean,
-  dispatcher: Dispatcher[F]
+  dispatcher: Dispatcher[F],
+  isCounting: Boolean
 ) {
   private lazy val errorCounter: Counter =
-    metricRegistry.counter(MetricID(name, MetricCategory.Counter("alert.error")).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, Category.Counter(Some("alert.error"))).asJson.noSpaces)
   private lazy val warnCounter: Counter =
-    metricRegistry.counter(MetricID(name, MetricCategory.Counter("alert.warn")).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, Category.Counter(Some("alert.warn"))).asJson.noSpaces)
   private lazy val infoCounter: Counter =
-    metricRegistry.counter(MetricID(name, MetricCategory.Counter("alert.info")).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, Category.Counter(Some("alert.info"))).asJson.noSpaces)
 
   private def alert(msg: String, alertLevel: AlertLevel): F[Unit] =
     for {
       ts <- serviceParams.zonedNow
       _ <- channel.send(
         InstantAlert(
-          name = name,
+          metricName = name,
           timestamp = ts,
           serviceParams = serviceParams,
           alertLevel = alertLevel,
@@ -39,7 +39,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
     } yield ()
 
   def withCounting: NJAlert[F] =
-    new NJAlert[F](name, metricRegistry, channel, serviceParams, true, dispatcher)
+    new NJAlert[F](name, metricRegistry, channel, serviceParams, dispatcher, true)
 
   def error[S: Show](msg: S): F[Unit] =
     alert(msg.show, AlertLevel.Error).map(_ => if (isCounting) errorCounter.inc(1))

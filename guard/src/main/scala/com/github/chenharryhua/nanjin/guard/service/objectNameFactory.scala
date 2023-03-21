@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import com.codahale.metrics.jmx.ObjectNameFactory
-import com.github.chenharryhua.nanjin.guard.event.MetricID
+import com.github.chenharryhua.nanjin.guard.config.MetricID
 import io.circe.parser.decode
 
 import java.util
@@ -13,9 +13,9 @@ private object objectNameFactory extends ObjectNameFactory {
       case Left(ex) => throw ex
       case Right(mId) =>
         val properties = new util.Hashtable[String, String]()
-        properties.put("name", mId.name.value)
-        properties.put("digest", mId.name.digest)
-        properties.put("tag", mId.category.tag)
+        properties.put("name", mId.metricName.value)
+        properties.put("digest", mId.metricName.digest.value)
+        properties.put("category", mId.category.name)
         properties.put("type", tipe)
         new ObjectName(domain, properties)
     }

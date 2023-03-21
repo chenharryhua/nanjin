@@ -148,7 +148,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*$title:* ${evt.name.show}"),
+            MarkdownSection(s"*$title:* ${evt.metricName.show}"),
             hostServiceSection(evt.serviceParams),
             MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
             MarkdownSection(abbreviate(evt.message))

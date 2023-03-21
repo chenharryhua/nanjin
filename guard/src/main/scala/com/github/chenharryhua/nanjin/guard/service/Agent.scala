@@ -31,6 +31,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def toZonedDateTime(ts: Instant): ZonedDateTime
 
   // metrics
+  def withMeasurement(measurement: String): Agent[F]
   def metrics: NJMetrics[F]
   def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F]
   def broker(brokerName: String): NJBroker[F]
@@ -53,7 +54,8 @@ final class GeneralAgent[F[_]] private[service] (
   channel: Channel[F, NJEvent],
   signallingMapRef: SignallingMapRef[F, Unique.Token, Option[Locker]],
   atomicCell: AtomicCell[F, Vault],
-  dispatcher: Dispatcher[F])(implicit F: Async[F])
+  dispatcher: Dispatcher[F],
+  measurement: Measurement)(implicit F: Async[F])
     extends Agent[F] {
   // trace
   override def root(name: String, options: Span.Options): Resource[F, Span[F]] =
@@ -74,9 +76,21 @@ final class GeneralAgent[F[_]] private[service] (
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
 
   // metrics
+  override def withMeasurement(measurement: String): Agent[F] =
+    new GeneralAgent[F](
+      entryPoint,
+      serviceParams,
+      metricRegistry,
+      channel,
+      signallingMapRef,
+      atomicCell,
+      dispatcher,
+      measurement = Measurement(measurement))
+
   override def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
       actionName = name,
+      measurement = measurement,
       metricRegistry = metricRegistry,
       channel = channel,
       actionConfig = f(ActionConfig(serviceParams)),
@@ -85,7 +99,7 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def broker(brokerName: String): NJBroker[F] =
     new NJBroker[F](
-      name = MeasurementName(serviceParams, brokerName),
+      name = MetricName(serviceParams, measurement, brokerName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
@@ -95,7 +109,7 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def alert(alertName: String): NJAlert[F] =
     new NJAlert(
-      name = MeasurementName(serviceParams, alertName),
+      name = MetricName(serviceParams, measurement, alertName),
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
@@ -104,32 +118,26 @@ final class GeneralAgent[F[_]] private[service] (
     )
 
   override def counter(counterName: String): NJCounter[F] =
-    new NJCounter(
-      name = MeasurementName(serviceParams, counterName),
-      metricRegistry = metricRegistry,
-      tag = None)
+    new NJCounter(name = MetricName(serviceParams, measurement, counterName), metricRegistry = metricRegistry)
 
   override def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F] =
     new NJMeter[F](
-      name = MeasurementName(serviceParams, meterName),
+      name = MetricName(serviceParams, measurement, meterName),
       metricRegistry = metricRegistry,
-      unit = unitOfMeasure,
-      tag = None)
+      unit = unitOfMeasure)
 
   override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] =
     new NJHistogram[F](
-      name = MeasurementName(serviceParams, histoName),
+      name = MetricName(serviceParams, measurement, histoName),
       unit = unitOfMeasure,
-      metricRegistry = metricRegistry,
-      None
+      metricRegistry = metricRegistry
     )
 
   override def gauge(gaugeName: String): NJGauge[F] =
     new NJGauge[F](
-      name = MeasurementName(serviceParams, gaugeName),
+      name = MetricName(serviceParams, measurement, gaugeName),
       metricRegistry = metricRegistry,
-      dispatcher = dispatcher,
-      tag = None)
+      dispatcher = dispatcher)
 
   override lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)

@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{showStandardUnit, NJEvent, Snapshot}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}
@@ -13,6 +13,7 @@ import org.typelevel.cats.time.instances.localdate
 
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
+
 object InfluxdbObserver {
 
   /** The default write precision for InfluxDB is nanosecond (ns). When a new database is created in InfluxDB,
@@ -45,10 +46,10 @@ final class InfluxdbObserver[F[_]](
     val name = ar.actionParams.serviceParams.metricParams.durationUnitName
     Some(
       Point
-        .measurement(ar.actionParams.name.value)
+        .measurement(ar.actionParams.metricID.metricName.measurement.value)
         .time(ar.timestamp.toInstant, writePrecision)
         .addTag(METRICS_SERVICE_ID, ar.serviceParams.serviceId.show)
-        .addTag(METRICS_DIGEST, ar.actionParams.name.digest)
+        .addTag(METRICS_DIGEST, ar.actionParams.metricID.metricName.digest.value)
         .addTag("done", ar.isDone.show) // for query
         .addField(name, unit.convert(ar.took)) // Long
     )
@@ -100,7 +101,8 @@ final class InfluxdbObserver[F[_]](
       METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
     )
 
-  private def dimension(ms: Snapshot): Map[String, String] = Map(METRICS_DIGEST -> ms.id.name.digest)
+  private def dimension(ms: Snapshot): Map[String, String] = Map(
+    METRICS_DIGEST -> ms.id.metricName.digest.value)
 
   val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {
@@ -112,9 +114,9 @@ final class InfluxdbObserver[F[_]](
           val timers: List[Point] = snapshot.timers.map { timer =>
             val tagToAdd = dimension(timer) ++ spDimensions ++ tags
             Point
-              .measurement(timer.id.name.value)
+              .measurement(timer.id.metricName.measurement.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, timer.id.category.tag)
+              .addTag(METRICS_CATEGORY, timer.id.category.name)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, timer.data.count) // Long
               // meter
@@ -137,9 +139,9 @@ final class InfluxdbObserver[F[_]](
           val meters: List[Point] = snapshot.meters.map { meter =>
             val tagToAdd = dimension(meter) ++ spDimensions ++ tags
             Point
-              .measurement(meter.id.name.value)
+              .measurement(meter.id.metricName.measurement.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, meter.id.category.tag)
+              .addTag(METRICS_CATEGORY, meter.id.category.name)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, meter.data.count) // Long
               // meter
@@ -152,20 +154,20 @@ final class InfluxdbObserver[F[_]](
           val counters: List[Point] = snapshot.counters.map { counter =>
             val tagToAdd = dimension(counter) ++ spDimensions ++ tags
             Point
-              .measurement(counter.id.name.value)
+              .measurement(counter.id.metricName.measurement.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, counter.id.category.tag)
+              .addTag(METRICS_CATEGORY, counter.id.category.name)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, counter.count) // Long
           }
 
           val histograms: List[Point] = snapshot.histograms.map { histo =>
             val tagToAdd = dimension(histo) ++ spDimensions ++ tags
-            val unitName = s"(${histo.data.unit.show})"
+            val unitName = s"(${histo.data.unitShow})"
             Point
-              .measurement(histo.id.name.value)
+              .measurement(histo.id.metricName.measurement.value)
               .time(ts.toInstant, writePrecision)
-              .addTag(METRICS_CATEGORY, histo.id.category.tag)
+              .addTag(METRICS_CATEGORY, histo.id.category.name)
               .addTags(tagToAdd.asJava)
               .addField(METRICS_COUNT, histo.data.count) // Long
               .addField(METRICS_MIN + unitName, histo.data.min) // Long

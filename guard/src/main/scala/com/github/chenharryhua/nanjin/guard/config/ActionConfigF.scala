@@ -8,24 +8,27 @@ import monocle.macros.Lenses
 
 @JsonCodec @Lenses
 final case class ActionParams(
-  name: MeasurementName,
+  metricID: MetricID,
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
-  tag: Option[String],
   retryPolicy: String, // for display
   serviceParams: ServiceParams)
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
 
-  def apply(actionName: String, retryPolicy: String, serviceParams: ServiceParams): ActionParams =
+  def apply(
+    actionName: String,
+    measurement: Measurement,
+    retryPolicy: String,
+    serviceParams: ServiceParams
+  ): ActionParams =
     ActionParams(
-      name = MeasurementName(serviceParams, actionName),
+      metricID = MetricID(serviceParams, measurement, Category.ActionTimer, actionName),
       importance = Importance.Silent,
       isCounting = false,
       isTiming = false,
-      tag = None,
       retryPolicy = retryPolicy,
       serviceParams = serviceParams
     )
@@ -41,18 +44,17 @@ private object ActionConfigF {
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
-  final case class WithTag[K](value: Option[String], cont: K) extends ActionConfigF[K]
 
   def algebra(
     actionName: String,
+    measurement: Measurement,
     serviceParams: ServiceParams,
     retryPolicy: String): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams()         => ActionParams(actionName, retryPolicy, serviceParams)
+      case InitParams()         => ActionParams(actionName, measurement, retryPolicy, serviceParams)
       case WithImportance(v, c) => ActionParams.importance.set(v)(c)
       case WithTiming(v, c)     => ActionParams.isTiming.set(v)(c)
       case WithCounting(v, c)   => ActionParams.isCounting.set(v)(c)
-      case WithTag(v, c)        => ActionParams.tag.set(v)(c)
     }
 }
 
@@ -69,10 +71,8 @@ final case class ActionConfig private (value: Fix[ActionConfigF], serviceParams:
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, value)), serviceParams)
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, value)), serviceParams)
 
-  def withTag(tag: String): ActionConfig = ActionConfig(Fix(WithTag(value = Some(tag), value)), serviceParams)
-
-  def evalConfig(actionName: String, retryPolicy: String): ActionParams =
-    scheme.cata(algebra(actionName, serviceParams, retryPolicy)).apply(value)
+  def evalConfig(actionName: String, measurement: Measurement, retryPolicy: String): ActionParams =
+    scheme.cata(algebra(actionName, measurement, serviceParams, retryPolicy)).apply(value)
 }
 
 private[guard] object ActionConfig {

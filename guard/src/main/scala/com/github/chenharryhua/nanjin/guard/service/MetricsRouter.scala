@@ -23,7 +23,7 @@ private class MetricsRouter[F[_]: Monad](mr: MetricRegistry, sp: ServiceParams) 
 
   private val metrics = HttpRoutes.of[F] {
     // all
-    case GET -> Root => Ok(new SnapshotJson(MetricSnapshot(mr)).toPrettyJson(sp.metricParams))
+    case GET -> Root                => Ok(new SnapshotJson(MetricSnapshot(mr)).toPrettyJson(sp.metricParams))
     case GET -> Root / "counters"   => Ok(MetricSnapshot.counters(mr).map(counters).asJson)
     case GET -> Root / "gauges"     => Ok(MetricSnapshot.gauges(mr).map(gauges).asJson)
     case GET -> Root / "meters"     => Ok(MetricSnapshot.meters(mr).map(meters).asJson)

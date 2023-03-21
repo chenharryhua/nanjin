@@ -56,9 +56,9 @@ package object translators {
   }
 
   final private[translators] def actionTitle(ae: ActionEvent): String =
-    s"""${ae.title} ${ae.actionParams.tag.fold(ae.name.show)(tag => s"${ae.name.show}.$tag")}"""
+    s"""${ae.title} ${ae.actionParams.metricID.metricName.show}"""
 
   final private[translators] def instantEventTitle(ie: InstantEvent): String =
-    s"${ie.title} ${ie.name.show}"
+    s"${ie.title} ${ie.metricName.show}"
 
 }

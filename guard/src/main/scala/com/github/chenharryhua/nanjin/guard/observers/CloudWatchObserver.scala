@@ -4,9 +4,9 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{MetricID, NJEvent}
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
 import software.amazon.awssdk.services.cloudwatch.model.{
@@ -72,7 +72,7 @@ final class CloudWatchObserver[F[_]: Sync](
     } yield {
       val (dur, category) = hf.pick(timer)
       val (item, unit)    = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.id, s"${timer.id.category.tag}.$category", unit)
+      MetricKey(report.serviceParams, timer.id, s"${timer.id.category.name}.$category", unit)
         .metricDatum(report.timestamp.toInstant, item.toDouble)
     }
 
@@ -81,7 +81,7 @@ final class CloudWatchObserver[F[_]: Sync](
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      MetricKey(report.serviceParams, histo.id, s"${histo.id.category.tag}.$category", histo.data.unit)
+      MetricKey(report.serviceParams, histo.id, s"${histo.id.category.name}.$category", histo.data.unit)
         .metricDatum(report.timestamp.toInstant, value)
     }
 
@@ -89,23 +89,19 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         report.serviceParams,
         timer.id,
-        timer.id.category.tag,
+        timer.id.category.name,
         StandardUnit.COUNT) -> timer.data.count
     }.toMap
 
     val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
-      MetricKey(
-        report.serviceParams,
-        meter.id,
-        meter.id.category.tag,
-        meter.data.unit) -> meter.data.count
+      MetricKey(report.serviceParams, meter.id, meter.id.category.name, meter.data.unit) -> meter.data.count
     }.toMap
 
     val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
       MetricKey(
         report.serviceParams,
         histo.id,
-        histo.id.category.tag,
+        histo.id.category.name,
         StandardUnit.COUNT) -> histo.data.count
     }.toMap
 
@@ -173,10 +169,10 @@ final private case class MetricKey(
           .name(METRICS_LAUNCH_TIME)
           .value(serviceParams.launchTime.toLocalDate.show)
           .build(),
-        Dimension.builder().name(METRICS_DIGEST).value(id.name.digest).build(),
+        Dimension.builder().name(METRICS_DIGEST).value(id.metricName.digest.value).build(),
         Dimension.builder().name(METRICS_CATEGORY).value(category).build()
       )
-      .metricName(id.name.value)
+      .metricName(id.metricName.value)
       .unit(standardUnit)
       .timestamp(ts)
       .value(value)
