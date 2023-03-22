@@ -40,8 +40,8 @@ object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
   object AlertWarn extends CounterKind("alert_warn")
   object AlertInfo extends CounterKind("alert_info")
 
-  object HistoCounter extends CounterKind("histogram_updates")
-  object MeterCounter extends CounterKind("meter_events")
+  object HistoCounter extends CounterKind("histogram_count")
+  object MeterCounter extends CounterKind("meter_count")
 
   object PassThrough extends CounterKind("pass_through")
 }
@@ -53,8 +53,8 @@ object Category {
   final case object Gauge extends Category {
     override val name: String = "gauge"
   }
-  final case object Timer extends Category {
-    override val name: String = "timer"
+  final case object ActionTimer extends Category {
+    override val name: String = "action_timer"
   }
   final case class Meter(unit: StandardUnit) extends Category {
     override val name: String = "meter"
