@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.config.AlertLevel
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Snapshot}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
 
@@ -22,10 +22,15 @@ private object SlackTranslator extends all {
     }
     .value
 
-  private def metricsSection(sp: ServiceParams, snapshot: MetricSnapshot): KeyValueSection =
-    KeyValueSection(
-      "Metrics",
-      s"```${abbreviate(new SnapshotJson(snapshot).toPrettyJson(sp.metricParams).spaces2)} ```")
+  private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
+    val counters: List[Snapshot.Counter] = snapshot.counters.filter(_.count > 0)
+    if (counters.isEmpty) KeyValueSection("Metrics", "`No updates`")
+    else {
+      val body: List[String] = counters.map(f => s"${f.metricId.show} = ${f.count}") :::
+        snapshot.gauges.map(f => s"${f.metricId.show} = ${f.value.spaces2}")
+      KeyValueSection("Metrics", s"""```${abbreviate(body.mkString("\n"))}```""")
+    }
+  }
 
   private def brief(json: Json): KeyValueSection =
     KeyValueSection("Brief", s"```${abbreviate(json.spaces2)}```")
@@ -106,7 +111,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Report:* $nextReport
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
-            metricsSection(evt.serviceParams, evt.snapshot)
+            metricsSection(evt.snapshot)
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
@@ -129,7 +134,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
                                 |*Next Reset:* $nextReset
                                 |*Service ID:* ${evt.serviceId.show}""".stripMargin),
-            metricsSection(evt.serviceParams, evt.snapshot)
+            metricsSection(evt.snapshot)
           )
         )
       )

@@ -1,23 +1,30 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.MetricParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-final private class SnapshotJson(snapshot: MetricSnapshot) {
+final class SnapshotJson(snapshot: MetricSnapshot) {
 
   private def grouping(f: Snapshot => Json): Json =
-    (snapshot.gauges.map(g => (g.id.metricName.measurement.value, g.id.show -> f(g))) :::
-      snapshot.counters.map(c => (c.id.metricName.measurement.value, c.id.show -> f(c))) :::
-      snapshot.timers.map(t => (t.id.metricName.measurement.value, t.id.show -> f(t))) :::
-      snapshot.meters.map(m => (m.id.metricName.measurement.value, m.id.show -> f(m))) :::
-      snapshot.histograms.map(h => (h.id.metricName.measurement.value, h.id.show -> f(h))))
-      .groupBy(_._1)
-      .map { case (name, lst) =>
-        val js = Json.obj(lst.map(_._2)*)
-        Json.obj(name -> js)
+    (snapshot.gauges.map(g => (g.metricId, f(g))) :::
+      snapshot.counters.map(c => (c.metricId, f(c))) :::
+      snapshot.timers.map(t => (t.metricId, f(t))) :::
+      snapshot.meters.map(m => (m.metricId, f(m))) :::
+      snapshot.histograms.map(h => (h.metricId, f(h))))
+      .groupBy(_._1.metricName.measurement.value) // measurement group
+      .map { case (measurement, lst) =>
+        val arr = lst
+          .groupBy(_._1.metricName) // metric-name group
+          .map { case (name, js) =>
+            val inner =
+              js.map { case (mId, j) => Json.obj(mId.category.name -> j) }
+                .foldLeft(Json.obj("digest" -> Json.fromString(name.digest.value)))((a, b) => b.deepMerge(a))
+            Json.obj(name.value -> inner)
+          }
+          .toList
+        Json.obj(measurement -> Json.arr(arr*))
       }
       .asJson
 
@@ -31,7 +38,7 @@ final private class SnapshotJson(snapshot: MetricSnapshot) {
       case Snapshot.Histogram(_, data) => data.asJson
     }
 
-  // for std-out, slack etc
+  // for std-out etc
   def toPrettyJson(mp: MetricParams): Json = {
     val rateUnit = mp.rateUnitName
     val convert  = mp.rateConversion _

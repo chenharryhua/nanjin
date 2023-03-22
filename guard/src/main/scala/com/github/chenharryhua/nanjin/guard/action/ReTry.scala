@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry, Timer}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Category, MetricID}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Category, CounterKind, MetricID}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionComplete, ActionFail, ActionRetry}
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import fs2.concurrent.Channel
@@ -111,15 +111,16 @@ private object Measures {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): Measures = {
     val (failCounter: Option[Counter], succCounter: Option[Counter], retryCounter: Option[Counter]) =
       if (actionParams.isCounting) {
-        val fail = Some(metricRegistry.counter(
-          MetricID(actionParams.metricID.metricName, Category.Counter(Some("action.fail"))).asJson.noSpaces))
-        val succ = Some(metricRegistry.counter(
-          MetricID(actionParams.metricID.metricName, Category.Counter(Some("action.done"))).asJson.noSpaces))
+        val metricName = actionParams.metricID.metricName
+        val fail = Some(
+          metricRegistry.counter(
+            MetricID(metricName, Category.Counter(Some(CounterKind.ActionFail))).asJson.noSpaces))
+        val succ = Some(
+          metricRegistry.counter(
+            MetricID(metricName, Category.Counter(Some(CounterKind.ActionComplete))).asJson.noSpaces))
         val retries = Some(
           metricRegistry.counter(
-            MetricID(
-              actionParams.metricID.metricName,
-              Category.Counter(Some("action.retries"))).asJson.noSpaces))
+            MetricID(metricName, Category.Counter(Some(CounterKind.ActionRetry))).asJson.noSpaces))
         (fail, succ, retries)
       } else (None, None, None)
 

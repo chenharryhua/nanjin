@@ -21,15 +21,15 @@ import squants.time.{Frequency, Hertz}
 import java.time.Duration
 import scala.jdk.CollectionConverters.*
 
-sealed trait Snapshot { def id: MetricID }
+sealed trait Snapshot { def metricId: MetricID }
 
 object Snapshot {
 
   @JsonCodec
-  final case class Counter(id: MetricID, count: Long) extends Snapshot
+  final case class Counter(metricId: MetricID, count: Long) extends Snapshot
 
   @JsonCodec
-  final case class Gauge(id: MetricID, value: Json) extends Snapshot
+  final case class Gauge(metricId: MetricID, value: Json) extends Snapshot
 
   @JsonCodec
   final case class MeterData(
@@ -43,7 +43,7 @@ object Snapshot {
     val unitShow: String = unit.show
   }
   @JsonCodec
-  final case class Meter(id: MetricID, data: MeterData) extends Snapshot
+  final case class Meter(metricId: MetricID, meter: MeterData) extends Snapshot
 
   @JsonCodec
   final case class TimerData(
@@ -64,7 +64,7 @@ object Snapshot {
     p999: Duration
   )
   @JsonCodec
-  final case class Timer(id: MetricID, data: TimerData) extends Snapshot
+  final case class Timer(metricId: MetricID, timer: TimerData) extends Snapshot
 
   @JsonCodec
   final case class HistogramData(
@@ -85,7 +85,7 @@ object Snapshot {
   }
 
   @JsonCodec
-  final case class Histogram(id: MetricID, data: HistogramData) extends Snapshot
+  final case class Histogram(metricId: MetricID, histogram: HistogramData) extends Snapshot
 }
 
 @JsonCodec
@@ -119,7 +119,7 @@ object MetricSnapshot extends duration {
           case Category.Meter(unit) =>
             Some(
               Snapshot.Meter(
-                id = id,
+                metricId = id,
                 Snapshot.MeterData(
                   unit = unit,
                   count = meter.getCount,
@@ -138,7 +138,7 @@ object MetricSnapshot extends duration {
       decode[MetricID](name).toOption.map { id =>
         val ss = timer.getSnapshot
         Snapshot.Timer(
-          id = id,
+          metricId = id,
           Snapshot.TimerData(
             count = timer.getCount,
             // meter
@@ -170,7 +170,7 @@ object MetricSnapshot extends duration {
             val ss = histo.getSnapshot
             Some(
               Snapshot.Histogram(
-                id = id,
+                metricId = id,
                 Snapshot.HistogramData(
                   unit = unit,
                   count = histo.getCount,
@@ -200,10 +200,10 @@ object MetricSnapshot extends duration {
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      gauges = gauges(metricRegistry).sortBy(_.id.metricName.value),
-      counters = counters(metricRegistry).sortBy(_.id.metricName.value),
-      meters = meters(metricRegistry).sortBy(_.id.metricName.value),
-      timers = timers(metricRegistry).sortBy(_.id.metricName.value),
-      histograms = histograms(metricRegistry).sortBy(_.id.metricName.value)
+      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName.value),
+      counters = counters(metricRegistry).sortBy(_.metricId.metricName.value),
+      meters = meters(metricRegistry).sortBy(_.metricId.metricName.value),
+      timers = timers(metricRegistry).sortBy(_.metricId.metricName.value),
+      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName.value)
     )
 }

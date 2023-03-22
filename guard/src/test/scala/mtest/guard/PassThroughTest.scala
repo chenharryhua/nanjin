@@ -55,7 +55,13 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.id.metricName.digest.value == "c795c559").size == 1)
+    assert(
+      last
+        .asInstanceOf[MetricReport]
+        .snapshot
+        .counters
+        .find(_.metricId.metricName.digest.value == "c795c559")
+        .size == 1)
   }
 
   test("3.alert") {
@@ -71,7 +77,13 @@ class PassThroughTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(last.asInstanceOf[MetricReport].snapshot.counters.find(_.id.metricName.digest.value == "ec73b711").size == 1)
+    assert(
+      last
+        .asInstanceOf[MetricReport]
+        .snapshot
+        .counters
+        .find(_.metricId.metricName.digest.value == "ec73b711")
+        .size == 1)
   }
 
   test("4.meter") {

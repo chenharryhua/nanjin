@@ -44,7 +44,6 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   // ticks
   def ticks(policy: RetryPolicy[F]): Stream[F, Int]
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int]
-
 }
 
 final class GeneralAgent[F[_]] private[service] (
@@ -85,7 +84,8 @@ final class GeneralAgent[F[_]] private[service] (
       signallingMapRef,
       atomicCell,
       dispatcher,
-      measurement = Measurement(measurement))
+      measurement = Measurement(measurement)
+    )
 
   override def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
     new NJActionBuilder[F](
@@ -103,8 +103,8 @@ final class GeneralAgent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
-      isCounting = false,
-      dispatcher = dispatcher
+      dispatcher = dispatcher,
+      isCounting = false
     )
 
   override def alert(alertName: String): NJAlert[F] =
@@ -113,8 +113,8 @@ final class GeneralAgent[F[_]] private[service] (
       metricRegistry = metricRegistry,
       channel = channel,
       serviceParams = serviceParams,
-      isCounting = false,
-      dispatcher = dispatcher
+      dispatcher = dispatcher,
+      isCounting = false
     )
 
   override def counter(counterName: String): NJCounter[F] =
@@ -124,20 +124,24 @@ final class GeneralAgent[F[_]] private[service] (
     new NJMeter[F](
       name = MetricName(serviceParams, measurement, meterName),
       metricRegistry = metricRegistry,
-      unit = unitOfMeasure)
+      unit = unitOfMeasure,
+      isCounting = false
+    )
 
   override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] =
     new NJHistogram[F](
       name = MetricName(serviceParams, measurement, histoName),
       unit = unitOfMeasure,
-      metricRegistry = metricRegistry
+      metricRegistry = metricRegistry,
+      isCounting = false
     )
 
   override def gauge(gaugeName: String): NJGauge[F] =
     new NJGauge[F](
       name = MetricName(serviceParams, measurement, gaugeName),
       metricRegistry = metricRegistry,
-      dispatcher = dispatcher)
+      dispatcher = dispatcher
+    )
 
   override lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
@@ -155,12 +159,10 @@ final class GeneralAgent[F[_]] private[service] (
     val key   = new Key[A](token)
     new NJSignalBox[F, A](signallingMapRef(token), key, initValue)
   }
-  def signalBox[A](initValue: => A): NJSignalBox[F, A] =
-    signalBox(F.delay(initValue))
+  def signalBox[A](initValue: => A): NJSignalBox[F, A] = signalBox(F.delay(initValue))
 
   def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
-    new NJAtomicBox[F, A](atomicCell, new Key[A](new Unique.Token()), initValue)
-  def atomicBox[A](initValue: => A): NJAtomicBox[F, A] =
-    atomicBox[A](F.delay(initValue))
+    new NJAtomicBox[F, A](atomicCell, new Key[A](new Unique.Token), initValue)
+  def atomicBox[A](initValue: => A): NJAtomicBox[F, A] = atomicBox[A](F.delay(initValue))
 
 }

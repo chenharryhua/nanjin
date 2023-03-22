@@ -122,10 +122,10 @@ class ObserversTest extends AnyFunSuite {
             .retry(err_fun(1))
             .run
         ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >>
-          ag.meter("meter", StandardUnit.SECONDS).mark(1) >>
+          ag.meter("meter", StandardUnit.SECONDS).withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
-          ag.histogram("histo", StandardUnit.BITS).update(1) >>
-          ag.broker("broker").passThrough(Json.fromString("path-error")) >>
+          ag.histogram("histo", StandardUnit.BITS).withCounting.update(1) >>
+          ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           ag.metrics.reset >> err
       }
       .take(12)
