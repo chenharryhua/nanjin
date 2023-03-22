@@ -1,13 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.MetricParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 final class SnapshotJson(snapshot: MetricSnapshot) {
-
-  private def grouping(f: Snapshot => Json): Json =
+  // for db
+  private def grouping1(f: Snapshot => Json): Json =
     (snapshot.gauges.map(g => (g.metricId, f(g))) :::
       snapshot.counters.map(c => (c.metricId, f(c))) :::
       snapshot.timers.map(t => (t.metricId, f(t))) :::
@@ -28,9 +29,8 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
       }
       .asJson
 
-  // for db
   def toVanillaJson: Json =
-    grouping {
+    grouping1 {
       case Snapshot.Counter(_, count)  => Json.fromLong(count)
       case Snapshot.Gauge(_, value)    => value
       case Snapshot.Meter(_, data)     => data.asJson
@@ -39,10 +39,30 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
     }
 
   // for std-out etc
+  private def grouping2(f: Snapshot => Json): Json =
+    (snapshot.gauges.map(g => (g.metricId, f(g))) :::
+      snapshot.counters.map(c => (c.metricId, f(c))) :::
+      snapshot.timers.map(t => (t.metricId, f(t))) :::
+      snapshot.meters.map(m => (m.metricId, f(m))) :::
+      snapshot.histograms.map(h => (h.metricId, f(h))))
+      .groupBy(_._1.metricName.measurement.value) // measurement group
+      .map { case (measurement, lst) =>
+        val arr = lst
+          .groupBy(_._1.metricName) // metric-name group
+          .map { case (name, js) =>
+            val inner =
+              js.map { case (mId, j) => Json.obj(mId.category.name -> j) }.reduce((a, b) => b.deepMerge(a))
+            Json.obj(name.show -> inner)
+          }
+          .toList
+        Json.obj(measurement -> Json.arr(arr*))
+      }
+      .asJson
+
   def toPrettyJson(mp: MetricParams): Json = {
     val rateUnit = mp.rateUnitName
     val convert  = mp.rateConversion _
-    grouping {
+    grouping2 {
       case Snapshot.Counter(_, count) => Json.fromLong(count)
       case Snapshot.Gauge(_, value)   => value
       case Snapshot.Meter(_, data) =>
