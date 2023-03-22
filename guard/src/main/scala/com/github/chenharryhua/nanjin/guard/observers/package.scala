@@ -46,6 +46,8 @@ package object observers {
   final val METRICS_LAUNCH_TIME: String = "LaunchTime"
   final val METRICS_CATEGORY: String    = "Category"
   final val METRICS_DIGEST: String      = "Digest"
+  final val METRICS_MEASUREMENT: String = "Measurement"
+  final val METRICS_NAME: String        = "MetricName"
 
   /** interval based sampling
     *

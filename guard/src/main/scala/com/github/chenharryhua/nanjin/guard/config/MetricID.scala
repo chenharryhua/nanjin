@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.implicits.toShow
+import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import org.apache.commons.codec.digest.DigestUtils
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
@@ -27,6 +28,24 @@ object MetricName {
   }
 }
 
+sealed abstract class CounterKind(override val entryName: String) extends EnumEntry
+object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
+  val values: IndexedSeq[CounterKind] = findValues
+
+  object ActionComplete extends CounterKind("action_done")
+  object ActionFail extends CounterKind("action_fail")
+  object ActionRetry extends CounterKind("action_retries")
+
+  object AlertError extends CounterKind("alert_error")
+  object AlertWarn extends CounterKind("alert_warn")
+  object AlertInfo extends CounterKind("alert_info")
+
+  object HistoCounter extends CounterKind("histogram_updates")
+  object MeterCounter extends CounterKind("meter_events")
+
+  object PassThrough extends CounterKind("pass_through")
+}
+
 @JsonCodec
 sealed trait Category { def name: String }
 
@@ -34,9 +53,8 @@ object Category {
   final case object Gauge extends Category {
     override val name: String = "gauge"
   }
-
-  final case object ActionTimer extends Category {
-    override val name: String = "action.timer"
+  final case object Timer extends Category {
+    override val name: String = "timer"
   }
   final case class Meter(unit: StandardUnit) extends Category {
     override val name: String = "meter"
@@ -44,9 +62,8 @@ object Category {
   final case class Histogram(unit: StandardUnit) extends Category {
     override val name: String = "histogram"
   }
-
-  final case class Counter(sub: Option[String]) extends Category {
-    override val name: String = sub.fold("counter")(identity)
+  final case class Counter(sub: Option[CounterKind]) extends Category {
+    override val name: String = sub.fold("count")(_.entryName)
   }
 }
 

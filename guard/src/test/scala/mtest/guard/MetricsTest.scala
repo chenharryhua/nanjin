@@ -118,25 +118,6 @@ class MetricsTest extends AnyFunSuite {
         .drain).unsafeRunSync()
   }
 
-  test("7.name conflict") {
-    service("name.conflict")
-      .updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
-      .withRestartPolicy(RetryPolicies.constantDelay[IO](2.seconds))
-      .eventStream { agent =>
-        val name = "metric.name"
-        agent.counter(name).inc(1) >>
-          agent.meter(name, StandardUnit.COUNT).mark(1) >>
-          agent.histogram(name, StandardUnit.GIGABITS).update(Random.nextLong(1000)) >>
-          agent.broker(name).withCounting.passThrough(Json.fromString("broker.good")) >>
-          agent.action(name, _.withTiming.withCounting).retry(IO(())).run.foreverM
-      }
-      .take(6)
-      .evalTap(console.simple[IO])
-      .compile
-      .lastOrError
-      .unsafeRunSync()
-  }
-
   test("8.gauge") {
     service("gauge").eventStream { agent =>
       val box = agent.signalBox(IO(100000))
@@ -152,5 +133,31 @@ class MetricsTest extends AnyFunSuite {
           .drain)
 
     }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
+  }
+
+  test("9. namespace merge") {
+    val name = "name.space.test"
+    TaskGuard[IO]("observers")
+      .service("same_name_space")
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(cron_1second).withMetricNamePrefix("nj_"))
+      .eventStream { ag =>
+        ag.gauge(name)
+          .timed
+          .surround(
+            ag.action(name, _.notice.withCounting.withTiming).retry(IO(())).run >>
+              ag.alert(name).withCounting.error("error") >>
+              ag.alert(name).withCounting.warn("warn") >>
+              ag.alert(name).withCounting.info("info") >>
+              ag.meter(name, StandardUnit.GIGABITS).withCounting.mark(100) >>
+              ag.counter(name).inc(32) >>
+              ag.histogram(name, StandardUnit.SECONDS).withCounting.update(64) >>
+              ag.broker(name).withCounting.passThrough(Json.fromString("pass-through")) >>
+              ag.metrics.report)
+      }
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

@@ -72,7 +72,7 @@ final class CloudWatchObserver[F[_]: Sync](
     } yield {
       val (dur, category) = hf.pick(timer)
       val (item, unit)    = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.id, s"${timer.id.category.name}.$category", unit)
+      MetricKey(report.serviceParams, timer.metricId, s"${timer.metricId.category.name}.$category", unit)
         .metricDatum(report.timestamp.toInstant, item.toDouble)
     }
 
@@ -81,28 +81,35 @@ final class CloudWatchObserver[F[_]: Sync](
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      MetricKey(report.serviceParams, histo.id, s"${histo.id.category.name}.$category", histo.data.unit)
-        .metricDatum(report.timestamp.toInstant, value)
+      MetricKey(
+        report.serviceParams,
+        histo.metricId,
+        s"${histo.metricId.category.name}.$category",
+        histo.histogram.unit).metricDatum(report.timestamp.toInstant, value)
     }
 
     val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
       MetricKey(
         report.serviceParams,
-        timer.id,
-        timer.id.category.name,
-        StandardUnit.COUNT) -> timer.data.count
+        timer.metricId,
+        timer.metricId.category.name,
+        StandardUnit.COUNT) -> timer.timer.count
     }.toMap
 
     val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
-      MetricKey(report.serviceParams, meter.id, meter.id.category.name, meter.data.unit) -> meter.data.count
+      MetricKey(
+        report.serviceParams,
+        meter.metricId,
+        meter.metricId.category.name,
+        meter.meter.unit) -> meter.meter.count
     }.toMap
 
     val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
       MetricKey(
         report.serviceParams,
-        histo.id,
-        histo.id.category.name,
-        StandardUnit.COUNT) -> histo.data.count
+        histo.metricId,
+        histo.metricId.category.name,
+        StandardUnit.COUNT) -> histo.histogram.count
     }.toMap
 
     val counterKeyMap: Map[MetricKey, Long] = timer_count ++ meter_count ++ histogram_count
@@ -170,7 +177,8 @@ final private case class MetricKey(
           .value(serviceParams.launchTime.toLocalDate.show)
           .build(),
         Dimension.builder().name(METRICS_DIGEST).value(id.metricName.digest.value).build(),
-        Dimension.builder().name(METRICS_CATEGORY).value(category).build()
+        Dimension.builder().name(METRICS_CATEGORY).value(category).build(),
+        Dimension.builder().name(METRICS_MEASUREMENT).value(id.metricName.measurement.value).build()
       )
       .metricName(id.metricName.value)
       .unit(standardUnit)
