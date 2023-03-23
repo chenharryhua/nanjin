@@ -53,8 +53,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
     for {
       ts <- actionParams.serviceParams.zonedNow
       ai <- traceInfo match {
-        case Some(ti) => F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, ts))
         case None     => F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, ts))
+        case Some(ti) => F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, ts))
       }
       _ <- F.whenA(actionParams.importance.isPublishActionStart)(channel.send(ActionStart(ai)))
       out <- new ReTry[F, IN, OUT](
