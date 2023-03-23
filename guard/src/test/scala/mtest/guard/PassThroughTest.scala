@@ -4,45 +4,19 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
-import io.circe.Decoder
-import io.circe.generic.JsonCodec
-import io.circe.parser.decode
-import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
-@JsonCodec
-final case class PassThroughObject(a: Int, b: String)
-
 class PassThroughTest extends AnyFunSuite {
   val guard: ServiceGuard[IO] = TaskGuard[IO]("test").service("pass-throught")
-  test("1.pass-through") {
-    val PassThroughObject(a, b) :: rest = guard.eventStream { action =>
-      List.range(0, 9).traverse(n => action.broker("pt").withCounting.passThrough(PassThroughObject(n, "a")))
-    }.map(_.asJson.noSpaces)
-      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .map {
-        case PassThrough(_, _, _, v) => Decoder[PassThroughObject].decodeJson(v).toOption
-        case _                       => None
-      }
-      .unNone
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(a == 0)
-    assert(b == "a")
-    assert(rest.last.a == 8)
-    assert(rest.size == 8)
-  }
 
   test("2.counter") {
     val Some(last) = guard

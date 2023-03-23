@@ -86,17 +86,6 @@ private object SimpleJsonTranslator {
           timestamp(evt)
         ))
 
-  private def passThrough(evt: PassThrough): Json =
-    Json.obj(
-      "PassThrough" ->
-        Json.obj(
-          name(evt.metricName),
-          ("value", evt.value),
-          digest(evt.metricName),
-          serviceId(evt),
-          timestamp(evt)
-        ))
-
   private def instantAlert(evt: InstantAlert): Json =
     Json.obj(
       "Alert" ->
@@ -178,7 +167,6 @@ private object SimpleJsonTranslator {
       .withServicePanic(servicePanic)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
-      .withPassThrough(passThrough)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)

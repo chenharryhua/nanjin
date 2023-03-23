@@ -143,29 +143,14 @@ object NJEvent extends zoneddatetime {
     override val isPivotal: Boolean = false
   }
 
-  sealed trait InstantEvent extends ServiceEvent {
-    def metricName: MetricName
-  }
-
   final case class InstantAlert(
     metricName: MetricName,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     alertLevel: AlertLevel,
     message: String)
-      extends InstantEvent {
+      extends ServiceEvent {
     override val title: String      = titles.instantAlert
-    override val isPivotal: Boolean = true
-  }
-
-  @Lenses
-  final case class PassThrough(
-    metricName: MetricName,
-    timestamp: ZonedDateTime,
-    serviceParams: ServiceParams,
-    value: Json)
-      extends InstantEvent {
-    override val title: String      = titles.passThrough
     override val isPivotal: Boolean = true
   }
 }
@@ -179,5 +164,4 @@ private object titles {
   @inline final val actionFail: String     = "Action Failed"
   @inline final val actionComplete: String = "Action Completed"
   @inline final val instantAlert: String   = "Alert"
-  @inline final val passThrough: String    = "Pass Through"
 }

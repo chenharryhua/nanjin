@@ -66,12 +66,6 @@ private object SimpleTextTranslator {
        |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
        |""".stripMargin
 
-  private def passThrough(evt: PassThrough): String =
-    s"""${coloring(instantEventTitle(evt))(evt)}
-       |  ${serviceEvent(evt)}
-       |  Message:${evt.value.noSpaces}
-       |""".stripMargin
-
   private def instantAlert(evt: InstantAlert): String =
     s"""${coloring(instantEventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
@@ -115,7 +109,6 @@ private object SimpleTextTranslator {
       .withServicePanic(servicePanic)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
-      .withPassThrough(passThrough)
       .withInstantAlert(instantAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetry)

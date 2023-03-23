@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import alleycats.Pure
-import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
+import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
@@ -23,7 +23,6 @@ trait UpdateTranslator[F[_], A, B] {
   metricReport: Kleisli[OptionT[F, *], MetricReport, A],
   metricReset: Kleisli[OptionT[F, *], MetricReset, A],
   instantAlert: Kleisli[OptionT[F, *], InstantAlert, A],
-  passThrough: Kleisli[OptionT[F, *], PassThrough, A],
   actionStart: Kleisli[OptionT[F, *], ActionStart, A],
   actionRetry: Kleisli[OptionT[F, *], ActionRetry, A],
   actionFail: Kleisli[OptionT[F, *], ActionFail, A],
@@ -37,7 +36,6 @@ trait UpdateTranslator[F[_], A, B] {
     case e: MetricReport   => metricReport.run(e).value
     case e: MetricReset    => metricReset.run(e).value
     case e: InstantAlert   => instantAlert.run(e).value
-    case e: PassThrough    => passThrough.run(e).value
     case e: ActionStart    => actionStart.run(e).value
     case e: ActionRetry    => actionRetry.run(e).value
     case e: ActionFail     => actionFail.run(e).value
@@ -52,7 +50,6 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) metricReport.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) metricReset.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) instantAlert.run(ss) else OptionT(F.pure(None))),
-      Kleisli(ss => if (f(ss)) passThrough.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionStart.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionRetry.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) actionFail.run(ss) else OptionT(F.pure(None))),
@@ -75,8 +72,6 @@ trait UpdateTranslator[F[_], A, B] {
     copy(metricReset = Translator.noop[F, A])
   def skipInstantAlert(implicit F: Applicative[F]): Translator[F, A] =
     copy(instantAlert = Translator.noop[F, A])
-  def skipPassThrough(implicit F: Applicative[F]): Translator[F, A] =
-    copy(passThrough = Translator.noop[F, A])
   def skipActionStart(implicit F: Applicative[F]): Translator[F, A] =
     copy(actionStart = Translator.noop[F, A])
   def skipActionRetry(implicit F: Applicative[F]): Translator[F, A] =
@@ -160,18 +155,6 @@ trait UpdateTranslator[F[_], A, B] {
   def withInstantAlert(f: InstantAlert => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(instantAlert = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withPassThrough(f: PassThrough => F[Option[A]]): Translator[F, A] =
-    copy(passThrough = Kleisli(a => OptionT(f(a))))
-
-  def withPassThrough(f: PassThrough => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(passThrough = Kleisli(a => OptionT(F.pure(f(a)))))
-
-  def withPassThrough(f: PassThrough => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(passThrough = Kleisli(a => OptionT(f(a).map(Some(_)))))
-
-  def withPassThrough(f: PassThrough => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(passThrough = Kleisli(a => OptionT(F.pure(Some(f(a))))))
-
   def withActionStart(f: ActionStart => F[Option[A]]): Translator[F, A] =
     copy(actionStart = Kleisli(a => OptionT(f(a))))
 
@@ -228,7 +211,6 @@ trait UpdateTranslator[F[_], A, B] {
       .withServicePanic(evt => go(evt).flatMap(_.flatTraverse(_.servicePanic.run(evt).value)))
       .withServiceStop(evt => go(evt).flatMap(_.flatTraverse(_.serviceStop.run(evt).value)))
       .withInstantAlert(evt => go(evt).flatMap(_.flatTraverse(_.instantAlert.run(evt).value)))
-      .withPassThrough(evt => go(evt).flatMap(_.flatTraverse(_.passThrough.run(evt).value)))
       .withMetricReport(evt => go(evt).flatMap(_.flatTraverse(_.metricReport.run(evt).value)))
       .withMetricReset(evt => go(evt).flatMap(_.flatTraverse(_.metricReset.run(evt).value)))
       .withActionStart(evt => go(evt).flatMap(_.flatTraverse(_.actionStart.run(evt).value)))
@@ -277,10 +259,6 @@ object Translator extends zoneddatetime {
           Kleisli((ss: InstantAlert) =>
             OptionT(F.tailRecM(a)(x => f(x).instantAlert.run(ss).value.map(mapper))))
 
-        val passThrough: Kleisli[OptionT[F, *], PassThrough, B] =
-          Kleisli((ss: PassThrough) =>
-            OptionT(F.tailRecM(a)(x => f(x).passThrough.run(ss).value.map(mapper))))
-
         val actionStart: Kleisli[OptionT[F, *], ActionStart, B] =
           Kleisli((ss: ActionStart) =>
             OptionT(F.tailRecM(a)(x => f(x).actionStart.run(ss).value.map(mapper))))
@@ -303,7 +281,6 @@ object Translator extends zoneddatetime {
           metricReport,
           metricReset,
           instantAlert,
-          passThrough,
           actionStart,
           actionRetry,
           actionFail,
@@ -313,7 +290,6 @@ object Translator extends zoneddatetime {
 
       override def pure[A](x: A): Translator[F, A] =
         Translator[F, A](
-          Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
           Kleisli(_ => OptionT(F.pure[Option[A]](Some(x)))),
@@ -336,7 +312,6 @@ object Translator extends zoneddatetime {
           .withServicePanic(go)
           .withServiceStop(go)
           .withInstantAlert(go)
-          .withPassThrough(go)
           .withMetricReport(go)
           .withMetricReset(go)
           .withActionStart(go)
@@ -360,13 +335,11 @@ object Translator extends zoneddatetime {
       noop[F, A],
       noop[F, A],
       noop[F, A],
-      noop[F, A],
       noop[F, A]
     )
 
   def idTranslator[F[_]](implicit F: Applicative[F]): Translator[F, NJEvent] =
     Translator[F, NJEvent](
-      Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),
@@ -385,7 +358,6 @@ object Translator extends zoneddatetime {
       .withServicePanic((_: NJEvent).asJson)
       .withServiceStop((_: NJEvent).asJson)
       .withInstantAlert((_: NJEvent).asJson)
-      .withPassThrough((_: NJEvent).asJson)
       .withMetricReset((_: NJEvent).asJson)
       .withMetricReport((_: NJEvent).asJson)
       .withActionStart((_: NJEvent).asJson)
@@ -399,7 +371,6 @@ object Translator extends zoneddatetime {
       .withServicePanic((_: NJEvent).show)
       .withServiceStop((_: NJEvent).show)
       .withInstantAlert((_: NJEvent).show)
-      .withPassThrough((_: NJEvent).show)
       .withMetricReset((_: NJEvent).show)
       .withMetricReport((_: NJEvent).show)
       .withActionStart((_: NJEvent).show)
