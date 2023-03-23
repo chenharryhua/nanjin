@@ -30,6 +30,5 @@ object ColorScheme {
           case AlertLevel.Warn  => WarnColor
           case AlertLevel.Info  => InfoColor
         }
-      case _: PassThrough => InfoColor
     }
 }

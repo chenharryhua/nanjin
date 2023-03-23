@@ -125,7 +125,6 @@ class ObserversTest extends AnyFunSuite {
           ag.meter("meter", StandardUnit.SECONDS).withCounting.mark(1) >>
           ag.counter("counter").inc(1) >>
           ag.histogram("histo", StandardUnit.BITS).withCounting.update(1) >>
-          ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           ag.metrics.reset >> err
       }
       .take(12)
@@ -157,11 +156,9 @@ class ObserversTest extends AnyFunSuite {
   }
 
   test("8.syntax") {
-    EmailObserver(SimpleEmailService.fake[IO])
-      .withInterval(1.minute)
-      .withChunkSize(10)
-      .updateTranslator(
-        _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionComplete.skipInstantAlert.skipPassThrough.skipServiceStart.skipServicePanic.skipServiceStop.skipAll)
+    EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10).updateTranslator {
+      _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionComplete.skipInstantAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
+    }
 
     logging.simple[IO]
     console.verbose[IO]
@@ -239,7 +236,6 @@ class ObserversTest extends AnyFunSuite {
           ag.meter("meter", StandardUnit.GIGABITS).mark(100) >>
           ag.counter("counter").inc(1) >>
           ag.histogram("histo", StandardUnit.SECONDS).update(1) >>
-          ag.broker("broker").withCounting.passThrough(Json.fromString("path-error")) >>
           err
       }
       .take(15)

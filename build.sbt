@@ -8,9 +8,9 @@ ThisBuild / versionScheme      := Some("early-semver")
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0-RC2"
 val awsV_1      = "1.12.430"
-val awsV_2      = "2.20.29"
+val awsV_2      = "2.20.30"
 val catsEffectV = "3.5.0-RC3"
-val hadoopV     = "3.3.4"
+val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.2"
 val kafkaV      = "7.3.2-ce"
@@ -28,6 +28,7 @@ val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.90.Final"
 val circeV      = "0.14.5"
+val chimneyV    = "0.7.2"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -176,7 +177,7 @@ val baseLib = List(
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.typelevel" %% "case-insensitive"            % "1.3.0",
   "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
-  "io.scalaland" %% "chimney"                      % "0.7.1",
+  "io.scalaland" %% "chimney"                      % chimneyV,
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.twitter" %% "algebird-core"                 % "0.13.9",
   "com.chuusai" %% "shapeless"                     % "2.3.10",
@@ -212,19 +213,18 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings*)
   .settings(name := "nj-aws")
-  .settings(
-    libraryDependencies ++= List(
-      "software.amazon.awssdk"              % "cloudwatch"       % awsV_2,
-      "software.amazon.awssdk"              % "sqs"              % awsV_2,
-      "software.amazon.awssdk"              % "ssm"              % awsV_2,
-      "software.amazon.awssdk"              % "sns"              % awsV_2,
-      "software.amazon.awssdk"              % "ses"              % awsV_2,
-      "software.amazon.awssdk"              % "sdk-core"         % awsV_2,
-      "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
-      "io.circe" %% "circe-optics"          % "0.14.1",
-      "org.http4s" %% "http4s-ember-client" % http4sV,
-      "org.http4s" %% "http4s-circe"        % http4sV
-    ) ++ logLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "software.amazon.awssdk"              % "cloudwatch"       % awsV_2,
+    "software.amazon.awssdk"              % "sqs"              % awsV_2,
+    "software.amazon.awssdk"              % "ssm"              % awsV_2,
+    "software.amazon.awssdk"              % "sns"              % awsV_2,
+    "software.amazon.awssdk"              % "ses"              % awsV_2,
+    "software.amazon.awssdk"              % "sdk-core"         % awsV_2,
+    "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
+    "io.circe" %% "circe-optics"          % "0.14.1",
+    "org.http4s" %% "http4s-ember-client" % http4sV,
+    "org.http4s" %% "http4s-circe"        % http4sV
+  ) ++ logLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -309,6 +309,7 @@ val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-client"                % hadoopV,
   "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
   "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
+  "org.apache.hadoop" % "hadoop-hdfs-client"           % hadoopV,
   "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
 ).map(
   _.exclude("log4j", "log4j")
@@ -387,14 +388,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    guard,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+

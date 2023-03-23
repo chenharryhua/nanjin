@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  PassThrough,
+  ActionComplete,
   ServicePanic,
   ServiceStart,
   ServiceStop
@@ -71,59 +71,55 @@ class MagicBoxTest extends AnyFunSuite {
   }
 
   test("3.signalBox should survive panic") {
-    val List(a, b, c, d, e, f, g, h) =
+    val List(a, b, c, d, e, f, g) =
       service.eventStream { agent =>
-        val box    = agent.signalBox(IO(10))
-        val broker = agent.broker("box")
+        val box = agent.signalBox(IO(10))
         for {
-          v <- box.updateAndGet(_ + 1)
-          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
+          _ <- box.updateAndGet(_ + 1)
+          _ <- agent.action("publish", _.aware).retry(box.get).logOutput(_.asJson).run
+          _ <- IO.raiseError[Int](new Exception)
         } yield ()
-      }.take(8).compile.toList.unsafeRunSync()
+      }.debug().take(7).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 11))
+    assert(b.asInstanceOf[ActionComplete].output.asNumber.flatMap(_.toInt).get == 11)
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[PassThrough].value.as[Int].exists(_ == 12))
+    assert(e.asInstanceOf[ActionComplete].output.asNumber.flatMap(_.toInt).get == 12)
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
-    assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 13))
   }
 
   test("4.atomicbox should survive panic") {
-    val List(a, b, c, d, e, f, g, h) =
+    val List(a, b, c, d, e, f, g) =
       service.eventStream { agent =>
-        val box    = agent.atomicBox(IO(10))
-        val broker = agent.broker("box")
+        val box = agent.atomicBox(IO(10))
         for {
-          v <- box.getAndUpdate(_ + 1)
-          _ <- broker.passThrough(v.asJson).flatMap(_ => IO.raiseError[Int](new Exception))
+          _ <- box.getAndUpdate(_ + 1)
+          _ <- agent.action("publish", _.aware).retry(box.get).logOutput(_.asJson).run
+          _ <- IO.raiseError[Int](new Exception)
         } yield ()
-      }.take(8).compile.toList.unsafeRunSync()
+      }.take(7).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 10))
+    assert(b.asInstanceOf[ActionComplete].output.asNumber.flatMap(_.toInt).get == 11)
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[PassThrough].value.as[Int].exists(_ == 11))
+    assert(e.asInstanceOf[ActionComplete].output.asNumber.flatMap(_.toInt).get == 12)
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
-    assert(h.asInstanceOf[PassThrough].value.as[Int].exists(_ == 12))
   }
 
   test("5.signalBox should work as signal") {
-    val List(a, b, c) =
+    val List(a, c) =
       service.eventStream { agent =>
-        val box    = agent.signalBox(10)
-        val broker = agent.broker("box")
+        val box = agent.signalBox(10)
         agent
           .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
           .evalTap(_ => box.update(_ + 1))
           .interruptWhen(box.map(_ > 20))
           .compile
-          .drain >> box.get.flatMap(broker.passThrough(_))
+          .drain
       }.compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[PassThrough].value.as[Int].exists(_ == 21))
     assert(c.isInstanceOf[ServiceStop])
   }
 

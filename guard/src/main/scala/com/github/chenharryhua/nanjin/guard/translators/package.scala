@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, InstantEvent}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, InstantAlert}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
@@ -58,7 +58,7 @@ package object translators {
   final private[translators] def actionTitle(ae: ActionEvent): String =
     s"""${ae.title} ${ae.actionParams.metricID.metricName.show}"""
 
-  final private[translators] def instantEventTitle(ie: InstantEvent): String =
+  final private[translators] def instantEventTitle(ie: InstantAlert): String =
     s"${ie.title} ${ie.metricName.show}"
 
 }

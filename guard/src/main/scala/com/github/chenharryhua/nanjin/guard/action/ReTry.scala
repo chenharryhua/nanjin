@@ -65,15 +65,18 @@ final private class ReTry[F[_], IN, OUT](
         }
     }
 
+  private[this] def sendCompleteEvent(out: OUT, ts: ZonedDateTime): F[Unit] =
+    F.whenA(actionInfo.actionParams.importance.isPublishActionComplete)(
+      transOutput(input, out).attempt.flatMap(json =>
+        channel.send(ActionComplete(actionInfo, ts, buildJson(json)))))
+
   private[this] val loop: F[OUT] =
     F.tailRecM(RetryStatus.NoRetriesYet) { status =>
       arrow(input).attempt.flatMap {
         case Right(out) =>
           for {
             ts <- actionInfo.actionParams.serviceParams.zonedNow
-            _ <- F.whenA(actionInfo.actionParams.importance.isPublishActionComplete)(
-              transOutput(input, out).attempt.flatMap(json =>
-                channel.send(ActionComplete(actionInfo, ts, buildJson(json)))))
+            _ <- sendCompleteEvent(out, ts)
           } yield {
             measures.measureSuccess(actionInfo.launchTime, ts)
             Right(out)

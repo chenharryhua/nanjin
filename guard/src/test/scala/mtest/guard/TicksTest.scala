@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionComplete,
   ActionStart,
-  PassThrough,
   ServiceStart,
   ServiceStop
 }
@@ -86,15 +85,15 @@ class TicksTest extends AnyFunSuite {
     val lst = service
       .eventStream(ag =>
         ag.ticks(cron_1minute, RetryPolicies.capDelay[IO](1.second, _))
-          .evalMap(x => ag.broker("pt").passThrough(x.asJson))
+          .evalMap(x => ag.action("pt", _.aware).retry(IO(x.asJson)).logOutput(identity).run)
           .take(3)
           .compile
           .drain)
       .compile
       .toList
-      .map(_.filter(_.isInstanceOf[PassThrough]))
+      .map(_.filter(_.isInstanceOf[ActionComplete]))
       .unsafeRunSync()
-    assert(List(0, 1, 2) == lst.flatMap(_.asInstanceOf[PassThrough].value.asNumber.flatMap(_.toLong)))
+    assert(List(0, 1, 2) == lst.flatMap(_.asInstanceOf[ActionComplete].output.asNumber.flatMap(_.toLong)))
   }
 
   test("5. fib awakeEvery") {

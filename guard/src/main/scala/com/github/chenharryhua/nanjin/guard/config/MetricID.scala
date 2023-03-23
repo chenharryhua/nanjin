@@ -42,8 +42,6 @@ object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
 
   object HistoCounter extends CounterKind("histogram_count")
   object MeterCounter extends CounterKind("meter_count")
-
-  object PassThrough extends CounterKind("pass_through")
 }
 
 @JsonCodec

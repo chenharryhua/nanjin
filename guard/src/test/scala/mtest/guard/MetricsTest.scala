@@ -12,7 +12,6 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.Cron
 import eu.timepit.refined.auto.*
-import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -152,7 +151,6 @@ class MetricsTest extends AnyFunSuite {
               ag.meter(name, StandardUnit.GIGABITS).withCounting.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.histogram(name, StandardUnit.SECONDS).withCounting.update(64) >>
-              ag.broker(name).withCounting.passThrough(Json.fromString("pass-through")) >>
               ag.metrics.report)
       }
       .evalTap(console.simple[IO])
