@@ -353,6 +353,7 @@ lazy val pipes = (project in file("pipes"))
       "io.netty"                       % "netty-all"           % nettyV, // snyk
       "commons-net"                    % "commons-net"         % "3.9.0", // snyk
       "com.fasterxml.woodstox"         % "woodstox-core"       % "6.5.0", // snyk
+      "net.minidev"                    % "json-smart"          % "2.4.10", // snyk
       "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
     ) ++ kantanLib ++ serdeLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk

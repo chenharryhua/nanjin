@@ -1,18 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.{Functor, Show}
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.guard.{HomePage, ServiceName}
-import cron4s.{Cron, CronExpr}
 import cron4s.lib.javatime.javaTemporalInstance
+import cron4s.{Cron, CronExpr}
 import eu.timepit.refined.cats.*
-import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
-import io.circe.{Decoder, Encoder, Json}
+import higherkindness.droste.{scheme, Algebra}
+import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
-import io.scalaland.enumz.Enum
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.{duration, zoneddatetime}
 
@@ -40,11 +39,6 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 }
 
 object MetricParams {
-  private[this] val enumTimeUnit: Enum[TimeUnit]        = Enum[TimeUnit]
-  implicit final val encoderTimeUnit: Encoder[TimeUnit] = Encoder.encodeString.contramap(enumTimeUnit.getName)
-  implicit final val decoderTimeUnit: Decoder[TimeUnit] = Decoder.decodeString.map(enumTimeUnit.withName)
-  implicit final val showTimeUnit: Show[TimeUnit]       = enumTimeUnit.getName
-
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
@@ -60,6 +54,9 @@ object MetricParams {
   brief: Json
 ) {
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
+  def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
+    toZonedDateTime(Instant.EPOCH.plusNanos(fd.toNanos))
+
   def toLocalDateTime(ts: Instant): LocalDateTime = toZonedDateTime(ts).toLocalDateTime
   def toLocalDate(ts: Instant): LocalDate         = toZonedDateTime(ts).toLocalDate
   def toLocalTime(ts: Instant): LocalTime         = toZonedDateTime(ts).toLocalTime

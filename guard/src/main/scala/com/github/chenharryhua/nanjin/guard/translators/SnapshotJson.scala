@@ -63,12 +63,12 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
     val rateUnit = mp.rateUnitName
     val convert  = mp.rateConversion _
     grouping2 {
-      case Snapshot.Counter(_, count) => Json.fromLong(count)
+      case Snapshot.Counter(_, count) =>  Json.fromString(numFmt.format(count))
       case Snapshot.Gauge(_, value)   => value
       case Snapshot.Meter(_, data) =>
         val unit = data.unitShow
         Json.obj(
-          "count" -> Json.fromLong(data.count),
+          "count" -> Json.fromString(numFmt.format(data.count)),
           "mean_rate" -> Json.fromString(f"${convert(data.mean_rate.toHertz)}%2.2f $unit/$rateUnit"),
           "m1_rate" -> Json.fromString(f"${convert(data.m1_rate.toHertz)}%2.2f $unit/$rateUnit"),
           "m5_rate" -> Json.fromString(f"${convert(data.m5_rate.toHertz)}%2.2f $unit/$rateUnit"),
@@ -76,7 +76,7 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
         )
       case Snapshot.Timer(_, data) =>
         Json.obj(
-          "count" -> Json.fromLong(data.count),
+          "count" -> Json.fromString(numFmt.format(data.count)),
           "mean_rate" -> Json.fromString(f"${convert(data.mean_rate.toHertz)}%2.2f calls/$rateUnit"),
           "m1_rate" -> Json.fromString(f"${convert(data.m1_rate.toHertz)}%2.2f calls/$rateUnit"),
           "m5_rate" -> Json.fromString(f"${convert(data.m5_rate.toHertz)}%2.2f calls/$rateUnit"),
@@ -96,7 +96,7 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
       case Snapshot.Histogram(_, data) =>
         val unit = data.unitShow
         Json.obj(
-          "count" -> Json.fromLong(data.count),
+          "count" -> Json.fromString(numFmt.format(data.count)),
           "min" -> Json.fromString(f"${data.min}%d $unit"),
           "max" -> Json.fromString(f"${data.max}%d $unit"),
           "mean" -> Json.fromString(f"${data.mean}%2.2f $unit"),

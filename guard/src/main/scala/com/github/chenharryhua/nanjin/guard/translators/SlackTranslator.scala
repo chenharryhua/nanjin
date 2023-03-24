@@ -26,7 +26,7 @@ private object SlackTranslator extends all {
     val counters: List[Snapshot.Counter] = snapshot.counters.filter(_.count > 0)
     if (counters.isEmpty) KeyValueSection("Metrics", "`No updates`")
     else {
-      val body: List[String] = counters.map(f => s"${f.metricId.show} = ${f.count}") :::
+      val body: List[String] = counters.map(f => s"${f.metricId.show} = ${numFmt.format(f.count)}") :::
         snapshot.gauges.map(f => s"${f.metricId.show} = ${f.value.spaces2}")
       KeyValueSection("Metrics", s"""```${abbreviate(body.mkString("\n"))}```""")
     }
@@ -186,8 +186,9 @@ private object SlackTranslator extends all {
     )
 
   private def actionRetrying(evt: ActionRetry): SlackApp = {
-    val next    = fmt.format(Duration.between(evt.timestamp, evt.resumeTime))
-    val localTs = evt.resumeTime.toLocalTime
+    val resumeTime = evt.timestamp.plusNanos(evt.delay.toNanos)
+    val next       = fmt.format(Duration.between(evt.timestamp, resumeTime))
+    val localTs    = resumeTime.toLocalTime
 
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,

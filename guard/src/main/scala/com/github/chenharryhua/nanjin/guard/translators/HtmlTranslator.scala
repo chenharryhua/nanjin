@@ -129,7 +129,8 @@ private object HtmlTranslator extends all {
         td(evt.actionId),
         td(evt.traceId),
         td(evt.retriesSoFar + 1),
-        td(evt.resumeTime.toLocalTime.show))
+        td(evt.timestamp.plusNanos(evt.delay.toNanos).toLocalTime.show)
+      )
     )
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
