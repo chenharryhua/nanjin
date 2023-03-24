@@ -47,27 +47,27 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  private lazy val measures: Measures = Measures(actionParams, metricRegistry)
+  private[this] lazy val actionRunner = new ReTry[F, IN, OUT](
+    channel = channel,
+    retryPolicy = retryPolicy,
+    arrow = arrow,
+    transError = transError,
+    transOutput = transOutput,
+    isWorthRetry = isWorthRetry,
+    measures = Measures(actionParams, metricRegistry)
+  )
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     for {
-      ts <- actionParams.serviceParams.zonedNow
+      launchTime <- F.realTime
       ai <- traceInfo match {
-        case Some(ti) => F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, ts))
-        case None     => F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, ts))
+        case None =>
+          F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, launchTime))
+        case Some(ti) =>
+          F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, launchTime))
       }
       _ <- F.whenA(actionParams.importance.isPublishActionStart)(channel.send(ActionStart(ai)))
-      out <- new ReTry[F, IN, OUT](
-        channel = channel,
-        retryPolicy = retryPolicy,
-        arrow = arrow,
-        transError = transError,
-        transOutput = transOutput,
-        isWorthRetry = isWorthRetry,
-        actionInfo = ai,
-        input = input,
-        measures = measures
-      ).execute
+      out <- actionRunner.execute(ai, input)
     } yield out
 
   def run(input: IN): F[OUT] = internal(input, None)

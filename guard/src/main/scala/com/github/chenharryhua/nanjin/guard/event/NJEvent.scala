@@ -16,6 +16,7 @@ import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Duration, ZonedDateTime}
 import java.util.UUID
+import scala.concurrent.duration.FiniteDuration
 
 @JsonCodec
 sealed trait NJEvent extends Product with Serializable {
@@ -89,60 +90,6 @@ object NJEvent extends zoneddatetime {
     override val isPivotal: Boolean = true
   }
 
-  sealed trait ActionEvent extends ServiceEvent {
-    def actionInfo: ActionInfo // action runtime information
-    final def traceId: String = actionInfo.traceInfo.map(_.traceId).getOrElse("none")
-
-    final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
-
-    final def metricID: MetricID         = actionInfo.actionParams.metricID
-    final def actionParams: ActionParams = actionInfo.actionParams
-    final def actionId: String           = actionInfo.actionId
-  }
-
-  final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
-    override val timestamp: ZonedDateTime = actionInfo.launchTime
-    override val title: String            = titles.actionStart
-    override val isPivotal: Boolean       = false
-  }
-
-  final case class ActionRetry(
-    actionInfo: ActionInfo,
-    timestamp: ZonedDateTime,
-    retriesSoFar: Int,
-    resumeTime: ZonedDateTime,
-    error: NJError)
-      extends ActionEvent {
-    override val title: String      = titles.actionRetry
-    override val isPivotal: Boolean = true
-    val tookSoFar: Duration         = Duration.between(actionInfo.launchTime, timestamp)
-  }
-
-  sealed trait ActionResultEvent extends ActionEvent {
-    final def took: Duration = Duration.between(actionInfo.launchTime, timestamp)
-    def isDone: Boolean
-    def output: Json
-  }
-
-  @Lenses
-  final case class ActionFail(actionInfo: ActionInfo, timestamp: ZonedDateTime, error: NJError, output: Json)
-      extends ActionResultEvent {
-    override val title: String      = titles.actionFail
-    override val isDone: Boolean    = false
-    override val isPivotal: Boolean = true
-  }
-
-  @Lenses
-  final case class ActionComplete(
-    actionInfo: ActionInfo,
-    timestamp: ZonedDateTime,
-    output: Json // output of the action
-  ) extends ActionResultEvent {
-    override val title: String      = titles.actionComplete
-    override val isDone: Boolean    = true
-    override val isPivotal: Boolean = false
-  }
-
   final case class InstantAlert(
     metricName: MetricName,
     timestamp: ZonedDateTime,
@@ -152,6 +99,63 @@ object NJEvent extends zoneddatetime {
       extends ServiceEvent {
     override val title: String      = titles.instantAlert
     override val isPivotal: Boolean = true
+  }
+
+  sealed trait ActionEvent extends ServiceEvent {
+    def actionInfo: ActionInfo // action runtime information
+
+    final def traceId: String                       = actionInfo.traceInfo.map(_.traceId).getOrElse("none")
+    final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
+
+    final def metricID: MetricID         = actionInfo.actionParams.metricID
+    final def actionParams: ActionParams = actionInfo.actionParams
+    final def actionId: String           = actionInfo.actionId
+  }
+
+  final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
+    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(actionInfo.launchTime)
+    override val title: String            = titles.actionStart
+    override val isPivotal: Boolean       = false
+  }
+
+  final case class ActionRetry(
+    actionInfo: ActionInfo,
+    landTime: FiniteDuration,
+    retriesSoFar: Int,
+    delay: FiniteDuration,
+    error: NJError)
+      extends ActionEvent {
+    override val timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
+    override val title: String            = titles.actionRetry
+    override val isPivotal: Boolean       = true
+    val tookSoFar: Duration               = Duration.ofNanos((landTime - actionInfo.launchTime).toNanos)
+  }
+
+  sealed trait ActionResultEvent extends ActionEvent {
+    def landTime: FiniteDuration
+    final override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
+    final def took: Duration                    = Duration.ofNanos((landTime - actionInfo.launchTime).toNanos)
+    def isDone: Boolean
+    def output: Json
+  }
+
+  @Lenses
+  final case class ActionFail(actionInfo: ActionInfo, landTime: FiniteDuration, error: NJError, output: Json)
+      extends ActionResultEvent {
+    override val title: String      = titles.actionFail
+    override val isDone: Boolean    = false
+    override val isPivotal: Boolean = true
+  }
+
+  @Lenses
+  final case class ActionComplete(
+    actionInfo: ActionInfo,
+    landTime: FiniteDuration,
+    output: Json // output of the action
+  ) extends ActionResultEvent {
+    override val title: String      = titles.actionComplete
+    override val isDone: Boolean    = true
+    override val isPivotal: Boolean = false
   }
 }
 

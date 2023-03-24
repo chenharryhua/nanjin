@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
+import java.text.NumberFormat
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 
@@ -40,7 +41,9 @@ package object translators {
     s"$n$w"
   }
 
+  // NumberFormat and DurationFormatter are thread safe
   final private[translators] val fmt: DurationFormatter = DurationFormatter.defaultFormatter
+  final private[translators] val numFmt: NumberFormat   = NumberFormat.getInstance()
 
   final private[translators] def localTimeAndDurationStr(
     start: ZonedDateTime,

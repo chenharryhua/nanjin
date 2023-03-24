@@ -139,11 +139,11 @@ class CancellationTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionComplete].actionParams.metricID.metricName.digest.value == "9448dd5d")
+    assert(!b.asInstanceOf[ActionComplete].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
     assert(d.asInstanceOf[ActionRetry].actionParams.metricID.metricName.digest.value == "70f709c8")
     assert(e.asInstanceOf[ActionFail].actionParams.metricID.metricName.digest.value == "70f709c8")
     assert(f.isInstanceOf[ServiceStop])
-
   }
 
   test("7.cancellation - parallel") {
@@ -217,6 +217,7 @@ class CancellationTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionFail])
+    assert(!d.asInstanceOf[ActionFail].took.isNegative)
     assert(e.isInstanceOf[ServiceStop])
   }
 

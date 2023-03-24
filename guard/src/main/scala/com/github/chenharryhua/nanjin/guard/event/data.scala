@@ -7,9 +7,8 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import io.circe.generic.*
 import natchez.Span
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.typelevel.cats.time.instances.zoneddatetime
 
-import java.time.ZonedDateTime
+import scala.concurrent.duration.FiniteDuration
 
 @JsonCodec
 final case class NJError private (message: String, stackTrace: String)
@@ -33,9 +32,9 @@ final case class ActionInfo(
   actionParams: ActionParams,
   actionId: String, // spanId if exist
   traceInfo: Option[TraceInfo],
-  launchTime: ZonedDateTime)
+  launchTime: FiniteDuration)
 
-object ActionInfo extends zoneddatetime {
+object ActionInfo {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 }
 
