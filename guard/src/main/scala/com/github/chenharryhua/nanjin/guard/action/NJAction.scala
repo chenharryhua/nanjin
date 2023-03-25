@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.Temporal
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -21,7 +20,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   arrow: IN => F[OUT],
   transError: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
-  isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
+  isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
   private def copy(
     transError: IN => F[Json] = self.transError,
     transOutput: (IN, OUT) => F[Json] = self.transOutput,
@@ -54,17 +53,18 @@ final class NJAction[F[_], IN, OUT] private[action] (
     transError = transError,
     transOutput = transOutput,
     isWorthRetry = isWorthRetry,
-    measures = Measures(actionParams, metricRegistry)
+    measures = Measures[F](actionParams, metricRegistry)
   )
 
   private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     for {
-      launchTime <- F.realTime
-      ai <- traceInfo match {
-        case None =>
-          F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, launchTime))
-        case Some(ti) =>
-          F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, launchTime))
+      ai <- (F.realTime, F.monotonic).flatMapN { (launchTime, nano) =>
+        traceInfo match {
+          case None =>
+            F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, launchTime, nano))
+          case Some(ti) =>
+            F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, launchTime, nano))
+        }
       }
       _ <- F.whenA(actionParams.importance.isPublishActionStart)(channel.send(ActionStart(ai)))
       out <- actionRunner.execute(ai, input)

@@ -1,16 +1,11 @@
 package mtest.guard
 
 import cats.effect.IO
-import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.ActionConfig
-import com.github.chenharryhua.nanjin.guard.observers.console
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
-import fs2.concurrent.SignallingRef
 import io.circe.Json
-import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -19,36 +14,23 @@ import scala.concurrent.duration.*
 
 /** last time: (run more than once, pick up the best)
   *
-  * 525k/s trace
+  * 659k/s trace
   *
-  * 585k/s silent with Timing and Counting
+  * 731k/s silent with Timing and Counting
   *
-  * 313k/s aware with Timing and Counting
+  * 364k/s aware with Timing and Counting
   *
-  * 241k/s notice with Timing and Counting
+  * 294k/s notice with Timing and Counting
   *
-  * 609k/s silent
+  * 781k/s silent
   *
-  * 324k/s aware
+  * 416k/s aware
   *
-  * 266k/s notice
+  * 294k/s notice
   *
-  * 253k/s critical with notes
-  *
-  * atomicBox vs cats.atomicCell
-  *
-  * 585k/s cats.atomicCell
-  *
-  * 529k/s atomicBox
-  *
-  * signalBox vs fs2.SignallingRef
-  *
-  * 2611k/s fs2.SignallingRef
-  *
-  * 1508k/s signalBox
+  * 280k/s critical with notes
   */
 
-@Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withMetricReport(cron_1second))
@@ -141,71 +123,4 @@ class PerformanceTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
     println(s"${speed(i)} critical with notes")
   }
-
-  test("atomicBox vs cats.atomicCell") {
-    service.eventStream { agent =>
-      val box = agent.atomicBox(IO(0))
-      val cats = AtomicCell[IO]
-        .of[Int](0)
-        .flatMap(r =>
-          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
-            IO.println(s"${speed(c)} cats.atomicCell")))
-
-      val nj =
-        box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c =>
-          IO.println(s"${speed(c)} atomicBox"))
-
-      IO.println("atomicBox vs cats.atomicCell") >> (nj &> cats)
-    }.compile.drain.unsafeRunSync()
-  }
-
-  test("signalBox vs fs2.SignallingRef") {
-    service.eventStream { agent =>
-      val box = agent.signalBox(0)
-      val cats = SignallingRef[IO]
-        .of[Int](0)
-        .flatMap(r =>
-          r.update(_ + 1).foreverM.timeout(take).attempt >> r.get.flatMap(c =>
-            IO.println(s"${speed(c)} fs2.SignallingRef")))
-
-      val nj =
-        box.update(_ + 1).foreverM.timeout(take).attempt >> box.get.flatMap(c =>
-          IO.println(s"${speed(c)} signalBox"))
-
-      IO.println("signalBox vs fs2.SignallingRef") >> (nj &> cats)
-    }.compile.drain.unsafeRunSync()
-  }
-
-  test("all") {
-    val expire = 5.minutes
-
-    def config(agent: Agent[IO], name: String, f: ActionConfig => ActionConfig) =
-      agent.gauge("current measure").register(name).use { _ =>
-        agent.action(name, f).retry(IO(())).run.foreverM.timeout(expire).attempt >> agent.metrics.report
-      }
-
-    TaskGuard[IO]("nanjin")
-      .service("performance")
-      .withJmx(_.inDomain("nanjin"))
-      .eventStream { agent =>
-        val s1 = config(agent, "silent.time.count", _.silent.withTiming.withCounting)
-        val s2 = config(agent, "silent.time", _.silent.withTiming)
-        val s3 = config(agent, "silent.count", _.silent.withCounting)
-        val a1 = config(agent, "aware.time.count", _.aware.withTiming.withCounting)
-        val a2 = config(agent, "aware.time", _.aware.withTiming)
-        val a3 = config(agent, "aware.count", _.aware.withCounting)
-        val n1 = config(agent, "notice.time.count", _.notice.withTiming.withCounting)
-        val n2 = config(agent, "notice.time", _.notice.withTiming)
-        val n3 = config(agent, "notice.count", _.notice.withCounting)
-
-        s1 >> s2 >> s3 >> a1 >> a2 >> a3 >> n1 >> n2 >> n3
-
-      }
-      .filter(_.isPivotal)
-      .evalTap(console.simple[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
 }
