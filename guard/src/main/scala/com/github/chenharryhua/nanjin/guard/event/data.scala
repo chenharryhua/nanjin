@@ -32,7 +32,8 @@ final case class ActionInfo(
   actionParams: ActionParams,
   actionId: String, // spanId if exist
   traceInfo: Option[TraceInfo],
-  launchTime: FiniteDuration)
+  launchTime: FiniteDuration,
+  nano: FiniteDuration)
 
 object ActionInfo {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
