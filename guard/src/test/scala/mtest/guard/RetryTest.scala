@@ -380,6 +380,6 @@ class RetryTest extends AnyFunSuite {
       agent.action("delay", _.notice).withRetryPolicy(constant_1second).delay(tt).run
     }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
     assert(k == 2)
-   IO.monotonic
+    IO.monotonic
   }
 }

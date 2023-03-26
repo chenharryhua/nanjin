@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import io.circe.Json
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -14,23 +15,24 @@ import scala.concurrent.duration.*
 
 /** last time: (run more than once, pick up the best)
   *
-  * 659k/s trace
+  * 875k/s trace
   *
-  * 731k/s silent with Timing and Counting
+  * 760k/s silent with Timing and Counting
   *
-  * 364k/s aware with Timing and Counting
+  * 379k/s aware with Timing and Counting
   *
-  * 294k/s notice with Timing and Counting
+  * 298k/s notice with Timing and Counting
   *
-  * 781k/s silent
+  * 1151k/s silent
   *
-  * 416k/s aware
+  * 507k/s aware
   *
-  * 294k/s notice
+  * 382k/s notice
   *
-  * 280k/s critical with notes
+  * 351k/s critical with notes
   */
 
+@Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withMetricReport(cron_1second))

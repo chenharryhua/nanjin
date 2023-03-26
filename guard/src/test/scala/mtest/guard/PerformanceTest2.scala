@@ -21,7 +21,6 @@ class PerformanceTest2 extends AnyFunSuite {
 
     TaskGuard[IO]("nanjin")
       .service("performance")
-      .withJmx(_.inDomain("nanjin"))
       .eventStream { agent =>
         val s1 = config(agent, "silent.time.count", _.silent.withTiming.withCounting)
         val s2 = config(agent, "silent.time", _.silent.withTiming)
@@ -33,7 +32,7 @@ class PerformanceTest2 extends AnyFunSuite {
 //        val n2 = config(agent, "notice.time", _.notice.withTiming)
 //        val n3 = config(agent, "notice.count", _.notice.withCounting)
 
-        s1 >> s2 >> s3 //>> a1 >> a2 >> a3 >> n1 >> n2 >> n3
+        s1 >> s2 >> s3 // >> a1 >> a2 >> a3 >> n1 >> n2 >> n3
 
       }
       .filter(_.isPivotal)

@@ -5,7 +5,6 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ActionStart
 import fs2.concurrent.Channel
 import io.circe.Json
 import natchez.{Span, TraceValue}
@@ -46,31 +45,19 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
 
-  private[this] lazy val actionRunner = new ReTry[F, IN, OUT](
-    channel = channel,
-    retryPolicy = retryPolicy,
-    arrow = arrow,
-    transError = transError,
-    transOutput = transOutput,
-    isWorthRetry = isWorthRetry,
-    measures = Measures[F](actionParams, metricRegistry)
-  )
+  private[this] lazy val actionRunner: ReTry[F, IN, OUT] =
+    new ReTry[F, IN, OUT](
+      metricRegistry = metricRegistry,
+      actionParams = actionParams,
+      channel = channel,
+      retryPolicy = retryPolicy,
+      arrow = arrow,
+      transError = transError,
+      transOutput = transOutput,
+      isWorthRetry = isWorthRetry
+    )
 
-  private def internal(input: IN, traceInfo: Option[TraceInfo]): F[OUT] =
-    for {
-      ai <- (F.realTime, F.monotonic).flatMapN { (launchTime, nano) =>
-        traceInfo match {
-          case None =>
-            F.unique.map(token => ActionInfo(actionParams, token.hash.toString, traceInfo, launchTime, nano))
-          case Some(ti) =>
-            F.pure(ActionInfo(actionParams, ti.spanId, traceInfo, launchTime, nano))
-        }
-      }
-      _ <- F.whenA(actionParams.importance.isPublishActionStart)(channel.send(ActionStart(ai)))
-      out <- actionRunner.execute(ai, input)
-    } yield out
-
-  def run(input: IN): F[OUT] = internal(input, None)
+  def run(input: IN): F[OUT] = actionRunner.run(input)
 
   private lazy val traceTags: List[(String, TraceValue)] = List(
     "service_id" -> TraceValue.StringValue(actionParams.serviceParams.serviceId.show),
@@ -83,7 +70,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       for {
         _ <- sub.put(traceTags*)
         ti <- TraceInfo(sub)
-        out <- internal(input, ti)
+        out <- actionRunner.run(input, ti)
       } yield out
     }
 }
