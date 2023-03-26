@@ -63,7 +63,7 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
     val rateUnit = mp.rateUnitName
     val convert  = mp.rateConversion _
     grouping2 {
-      case Snapshot.Counter(_, count) =>  Json.fromString(numFmt.format(count))
+      case Snapshot.Counter(_, count) => Json.fromString(numFmt.format(count))
       case Snapshot.Gauge(_, value)   => value
       case Snapshot.Meter(_, data) =>
         val unit = data.unitShow

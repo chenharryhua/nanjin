@@ -1,11 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.{Sync, Temporal}
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
-import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Category, CounterKind, MetricID}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionComplete, ActionFail, ActionRetry}
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
+import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Category, CounterKind, Importance, MetricID}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionComplete,
+  ActionFail,
+  ActionRetry,
+  ActionStart
+}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, TraceInfo}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -17,14 +22,16 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
 final private class ReTry[F[_], IN, OUT](
+  metricRegistry: MetricRegistry,
+  actionParams: ActionParams,
   channel: Channel[F, NJEvent],
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
   transError: IN => F[Json],
   transOutput: (IN, OUT) => F[Json],
-  isWorthRetry: Throwable => F[Boolean],
-  measures: Measures[F]
-)(implicit F: Temporal[F]) {
+  isWorthRetry: Throwable => F[Boolean]
+)(implicit F: Async[F]) {
+  private[this] val measures: MeasureAction[F] = MeasureAction[F](actionParams, metricRegistry)
 
   @inline private[this] def buildJson(json: Either[Throwable, Json]): Json =
     json match {
@@ -34,11 +41,10 @@ final private class ReTry[F[_], IN, OUT](
 
   private[this] def sendFailureEvent(ai: ActionInfo, input: IN, ex: Throwable): F[Unit] =
     for {
-      landTime <- F.monotonic
       json <- transError(input).attempt.map(buildJson)
-      fd = landTime.minus(ai.nano)
-      _ <- channel.send(ActionFail(ai, ai.launchTime.plus(fd), NJError(ex), json))
-      _ <- measures.measureFailure(fd)
+      landTime <- F.realTime
+      _ <- channel.send(ActionFail(ai, landTime, NJError(ex), json))
+      _ <- measures.measureFailure(landTime.minus(ai.launchTime))
     } yield ()
 
   private[this] def fail(ai: ActionInfo, input: IN, ex: Throwable): F[Either[RetryStatus, OUT]] =
@@ -67,89 +73,187 @@ final private class ReTry[F[_], IN, OUT](
         } yield Left(status.addRetry(delay))
     }
 
+  private[this] def go(ai: ActionInfo, input: IN, continue: OUT => F[Unit]): F[OUT] =
+    F.onCancel(
+      F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+        arrow(input).attempt.flatMap {
+          case Right(out)                => continue(out).as(Right(out))
+          case Left(ex) if !NonFatal(ex) => fail(ai, input, ex)
+          case Left(ex) =>
+            isWorthRetry(ex).attempt
+              .map(_.exists(identity))
+              .ifM(retrying(ai, input, ex, status), fail(ai, input, ex))
+        }
+      },
+      sendFailureEvent(ai, input, ActionCancelException)
+    )
+
   private[this] def go(ai: ActionInfo, input: IN): F[OUT] =
-    F.tailRecM(RetryStatus.NoRetriesYet) { status =>
-      arrow(input).attempt.flatMap {
-        case Right(out) =>
-          for {
-            landTime <- F.monotonic
-            fd = landTime.minus(ai.nano)
-            _ <- F.whenA(ai.actionParams.importance.isPublishActionComplete)(
-              F.flatMap(F.attempt(transOutput(input, out)))(json =>
-                channel.send(ActionComplete(ai, ai.launchTime.plus(fd), buildJson(json)))))
-            _ <- measures.measureSuccess(fd)
-          } yield Right(out)
-        case Left(ex) if !NonFatal(ex) => fail(ai, input, ex)
-        case Left(ex) =>
-          isWorthRetry(ex).attempt
-            .map(_.exists(identity))
-            .ifM(retrying(ai, input, ex, status), fail(ai, input, ex))
-      }
+    F.onCancel(
+      F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+        arrow(input).attempt.flatMap {
+          case Right(out)                => F.pure(Right(out))
+          case Left(ex) if !NonFatal(ex) => fail(ai, input, ex)
+          case Left(ex) =>
+            isWorthRetry(ex).attempt
+              .map(_.exists(identity))
+              .ifM(retrying(ai, input, ex, status), fail(ai, input, ex))
+        }
+      },
+      sendFailureEvent(ai, input, ActionCancelException)
+    )
+
+  sealed private trait Runner { def run(ai: ActionInfo, input: IN): F[OUT] }
+
+  private[this] val runner: Runner =
+    actionParams.importance match {
+      case Importance.Critical | Importance.Notice if actionParams.isTiming || actionParams.isCounting =>
+        new Runner {
+          override def run(ai: ActionInfo, input: IN): F[OUT] = {
+            val k = (out: OUT) =>
+              F.realTime
+                .flatTap(landTime => measures.measureSuccess(landTime.minus(ai.launchTime)))
+                .flatMap(landTime =>
+                  transOutput(input, out).attempt.flatMap(json =>
+                    channel.send(ActionComplete(ai, landTime, buildJson(json)))))
+                .void
+            channel.send(ActionStart(ai)) >> go(ai, input, k)
+          }
+        }
+      case Importance.Critical | Importance.Notice =>
+        new Runner {
+          override def run(ai: ActionInfo, input: IN): F[OUT] = {
+            val k = (out: OUT) =>
+              F.realTime
+                .flatMap(landTime =>
+                  transOutput(input, out).attempt.flatMap(json =>
+                    channel.send(ActionComplete(ai, landTime, buildJson(json)))))
+                .void
+            channel.send(ActionStart(ai)) >> go(ai, input, k)
+          }
+        }
+      case Importance.Aware if actionParams.isTiming || actionParams.isCounting =>
+        new Runner {
+          override def run(ai: ActionInfo, input: IN): F[OUT] = {
+            val k = (out: OUT) =>
+              F.realTime
+                .flatTap(landTime => measures.measureSuccess(landTime.minus(ai.launchTime)))
+                .flatMap(landTime =>
+                  transOutput(input, out).attempt.flatMap(json =>
+                    channel.send(ActionComplete(ai, landTime, buildJson(json)))))
+                .void
+            go(ai, input, k)
+          }
+        }
+
+      case Importance.Aware =>
+        new Runner {
+          override def run(ai: ActionInfo, input: IN): F[OUT] = {
+            val k = (out: OUT) =>
+              F.realTime
+                .flatMap(landTime =>
+                  transOutput(input, out).attempt.flatMap(json =>
+                    channel.send(ActionComplete(ai, landTime, buildJson(json)))))
+                .void
+            go(ai, input, k)
+          }
+        }
+
+      case Importance.Silent if actionParams.isTiming || actionParams.isCounting =>
+        new Runner {
+          override def run(ai: ActionInfo, input: IN): F[OUT] = {
+            val k = (_: OUT) =>
+              F.realTime.flatMap(landTime => measures.measureSuccess(landTime.minus(ai.launchTime)))
+            go(ai, input, k)
+          }
+        }
+
+      case Importance.Silent =>
+        new Runner {
+          override def run(ai: ActionInfo, input: IN): F[OUT] = go(ai, input)
+        }
     }
 
-  def execute(actionInfo: ActionInfo, input: IN): F[OUT] =
-    F.onCancel(go(actionInfo, input), sendFailureEvent(actionInfo, input, ActionCancelException))
+  def run(input: IN, traceInfo: Option[TraceInfo]): F[OUT] = traceInfo match {
+    case ti @ Some(value) =>
+      F.realTime.flatMap { launchTime =>
+        val ai = ActionInfo(actionParams, value.spanId, ti, launchTime)
+        runner.run(ai, input)
+      }
+    case None =>
+      (F.realTime, F.unique).flatMapN { (launchTime, token) =>
+        val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
+        runner.run(ai, input)
+      }
+  }
+
+  def run(input: IN): F[OUT] =
+    (F.realTime, F.unique).flatMapN { (launchTime, token) =>
+      val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
+      runner.run(ai, input)
+    }
 }
 
 private object ActionCancelException extends Exception("action was canceled")
 
-final private class Measures[F[_]](
-  val measureSuccess: FiniteDuration => F[Unit],
-  val measureFailure: FiniteDuration => F[Unit],
-  val countRetry: F[Unit])
-
-private object Measures {
+sealed private trait MeasureAction[F[_]] {
+  def measureSuccess(fd: => FiniteDuration): F[Unit]
+  def measureFailure(fd: => FiniteDuration): F[Unit]
+  def countRetry: F[Unit]
+}
+private object MeasureAction {
   def apply[F[_]](actionParams: ActionParams, metricRegistry: MetricRegistry)(implicit
-    F: Sync[F]): Measures[F] = {
-    val (failCounter: Option[Counter], succCounter: Option[Counter], retryCounter: Option[Counter]) =
-      if (actionParams.isCounting) {
-        val metricName = actionParams.metricID.metricName
-        val fail = Some(
-          metricRegistry.counter(
-            MetricID(metricName, Category.Counter(Some(CounterKind.ActionFail))).asJson.noSpaces))
-        val succ = Some(
-          metricRegistry.counter(
-            MetricID(metricName, Category.Counter(Some(CounterKind.ActionComplete))).asJson.noSpaces))
-        val retries = Some(
-          metricRegistry.counter(
-            MetricID(metricName, Category.Counter(Some(CounterKind.ActionRetry))).asJson.noSpaces))
-        (fail, succ, retries)
-      } else (None, None, None)
+    F: Sync[F]): MeasureAction[F] = {
+    val metricName                 = actionParams.metricID.metricName
+    val succCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionComplete))
+    val failCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionFail))
+    val retryCat: Category.Counter = Category.Counter(Some(CounterKind.ActionRetry))
 
-    val timer =
-      if (actionParams.isTiming) Some(metricRegistry.timer(actionParams.metricID.asJson.noSpaces)) else None
+    (actionParams.isCounting, actionParams.isTiming) match {
+      case (true, true) =>
+        new MeasureAction[F] {
+          private val fail    = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
+          private val succ    = metricRegistry.counter(MetricID(metricName, succCat).asJson.noSpaces)
+          private val retries = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
+          private val timer   = metricRegistry.timer(actionParams.metricID.asJson.noSpaces)
 
-    val mSucc: FiniteDuration => F[Unit] =
-      (succCounter, timer) match {
-        case (Some(c), Some(t)) =>
-          fd =>
-            F.delay {
-              c.inc(1)
-              t.update(fd.toNanos, TimeUnit.NANOSECONDS)
-            }
-        case (Some(c), None) => _ => F.delay(c.inc(1))
-        case (None, Some(t)) => fd => F.delay(t.update(fd.toNanos, TimeUnit.NANOSECONDS))
-        case (None, None)    => _ => F.unit
-      }
+          override def measureSuccess(fd: => FiniteDuration): F[Unit] = F.delay {
+            succ.inc(1)
+            timer.update(fd.toNanos, TimeUnit.NANOSECONDS)
+          }
+          override def measureFailure(fd: => FiniteDuration): F[Unit] = F.delay {
+            fail.inc(1)
+            timer.update(fd.toNanos, TimeUnit.NANOSECONDS)
+          }
+          override def countRetry: F[Unit] = F.delay(retries.inc(1))
+        }
+      case (true, false) =>
+        new MeasureAction[F] {
+          private val fail    = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
+          private val succ    = metricRegistry.counter(MetricID(metricName, succCat).asJson.noSpaces)
+          private val retries = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
 
-    val mFail: FiniteDuration => F[Unit] =
-      (failCounter, timer) match {
-        case (Some(c), Some(t)) =>
-          fd =>
-            F.delay {
-              c.inc(1)
-              t.update(fd.toNanos, TimeUnit.NANOSECONDS)
-            }
-        case (Some(c), None) => _ => F.delay(c.inc(1))
-        case (None, Some(t)) => fd => F.delay(t.update(fd.toNanos, TimeUnit.NANOSECONDS))
-        case (None, None)    => _ => F.unit
-      }
+          override def measureSuccess(fd: => FiniteDuration): F[Unit] = F.delay(succ.inc(1))
+          override def measureFailure(fd: => FiniteDuration): F[Unit] = F.delay(fail.inc(1))
+          override def countRetry: F[Unit]                            = F.delay(retries.inc(1))
+        }
+      case (false, true) =>
+        new MeasureAction[F] {
+          private val timer = metricRegistry.timer(actionParams.metricID.asJson.noSpaces)
 
-    val mRetry: F[Unit] = retryCounter match {
-      case Some(c) => F.delay(c.inc(1))
-      case None    => F.unit
+          override def measureSuccess(fd: => FiniteDuration): F[Unit] =
+            F.delay(timer.update(fd.toNanos, TimeUnit.NANOSECONDS))
+          override def measureFailure(fd: => FiniteDuration): F[Unit] =
+            F.delay(timer.update(fd.toNanos, TimeUnit.NANOSECONDS))
+          override def countRetry: F[Unit] = F.unit
+        }
+
+      case (false, false) =>
+        new MeasureAction[F] {
+          override def measureSuccess(fd: => FiniteDuration): F[Unit] = F.unit
+          override def measureFailure(fd: => FiniteDuration): F[Unit] = F.unit
+          override def countRetry: F[Unit]                            = F.unit
+        }
     }
-
-    new Measures(mSucc, mFail, mRetry)
   }
 }
