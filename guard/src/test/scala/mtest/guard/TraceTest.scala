@@ -68,7 +68,7 @@ class TraceTest extends AnyFunSuite {
               a2.runWithSpan((1, 2))(ns) >>
               a3.runWithSpan(1)(ns).attempt)
         }
-        .evalTap(console.json[IO])
+        .evalTap(console.verboseJson[IO])
         .compile
         .drain
 

@@ -6,7 +6,7 @@ ThisBuild / version            := "0.16.9-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val fs2V        = "3.7.0-RC2"
+val fs2V        = "3.7.0-RC3"
 val awsV_1      = "1.12.430"
 val awsV_2      = "2.20.30"
 val catsEffectV = "3.5.0-RC3"
@@ -391,4 +391,3 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-

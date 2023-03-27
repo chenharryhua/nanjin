@@ -177,10 +177,9 @@ final private case class MetricKey(
           .value(serviceParams.launchTime.toLocalDate.show)
           .build(),
         Dimension.builder().name(METRICS_DIGEST).value(id.metricName.digest.value).build(),
-        Dimension.builder().name(METRICS_CATEGORY).value(category).build(),
         Dimension.builder().name(METRICS_MEASUREMENT).value(id.metricName.measurement.value).build()
       )
-      .metricName(id.metricName.value)
+      .metricName(s"${id.metricName.value}($category)")
       .unit(standardUnit)
       .timestamp(ts)
       .value(value)
