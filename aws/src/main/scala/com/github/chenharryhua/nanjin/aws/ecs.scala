@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Env
 import cats.syntax.all.*
+import fs2.io.net.Network
 import io.circe.Json
 import org.http4s.circe.*
 import org.http4s.ember.client.EmberClientBuilder
@@ -18,7 +19,7 @@ object ecs {
   }
 
   // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html
-  def container_metadata[F[_]: Async]: F[Json] =
+  def container_metadata[F[_]: Async: Network]: F[Json] =
     EmberClientBuilder.default[F].build.use { client =>
       for {
         uri <- meta_uri[F]
@@ -26,7 +27,7 @@ object ecs {
       } yield json.getOrElse(Json.Null)
     }
 
-  def container_metadata_task[F[_]: Async]: F[Json] =
+  def container_metadata_task[F[_]: Async: Network]: F[Json] =
     EmberClientBuilder.default[F].build.use { client =>
       for {
         uri <- meta_uri[F]
