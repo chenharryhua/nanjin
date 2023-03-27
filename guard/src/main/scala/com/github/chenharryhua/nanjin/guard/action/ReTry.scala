@@ -174,24 +174,20 @@ final private class ReTry[F[_], IN, OUT](
         }
     }
 
+  def run(input: IN): F[OUT] =
+    (F.realTime, F.unique).flatMapN { (launchTime, token) =>
+      val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
+      runner.run(ai, input)
+    }
+
   def run(input: IN, traceInfo: Option[TraceInfo]): F[OUT] = traceInfo match {
     case ti @ Some(value) =>
       F.realTime.flatMap { launchTime =>
         val ai = ActionInfo(actionParams, value.spanId, ti, launchTime)
         runner.run(ai, input)
       }
-    case None =>
-      (F.realTime, F.unique).flatMapN { (launchTime, token) =>
-        val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
-        runner.run(ai, input)
-      }
+    case None => run(input)
   }
-
-  def run(input: IN): F[OUT] =
-    (F.realTime, F.unique).flatMapN { (launchTime, token) =>
-      val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
-      runner.run(ai, input)
-    }
 }
 
 private object ActionCancelException extends Exception("action was canceled")
