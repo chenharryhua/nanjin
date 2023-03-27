@@ -84,6 +84,36 @@ class ObserversTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
+  test("3.1.console - pretty json") {
+    TaskGuard[IO]("console")
+      .service("json.pretty")
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(cron_1second))
+      .eventStream { ag =>
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
+        ok(ag) >> err.attempt
+      }
+      .evalTap(console.prettyJson[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("3.2.console - verbose json") {
+    TaskGuard[IO]("console")
+      .service("json.pretty")
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(cron_1second))
+      .eventStream { ag =>
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
+        ok(ag) >> err.attempt
+      }
+      .evalTap(console.verboseJson[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
   test("4.slack") {
     TaskGuard[IO]("observers")
       .service("slack")

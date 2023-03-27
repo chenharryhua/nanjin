@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Env
 import cats.syntax.all.*
+import fs2.io.net.Network
 import io.circe.Json
 import org.http4s.circe.*
 import org.http4s.ember.client.EmberClientBuilder

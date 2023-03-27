@@ -352,7 +352,7 @@ object Translator extends zoneddatetime {
       Kleisli(x => OptionT(F.pure(Some(x))))
     )
 
-  def verboseJson[F[_]: Applicative]: Translator[F, Json] =
+  def verboseJson[F[_]: Applicative]: Translator[F, Json] = // for debug
     empty[F, Json]
       .withServiceStart((_: NJEvent).asJson)
       .withServicePanic((_: NJEvent).asJson)
@@ -379,7 +379,8 @@ object Translator extends zoneddatetime {
       .withActionComplete((_: NJEvent).show)
 
   def simpleText[F[_]: Applicative]: Translator[F, String]    = SimpleTextTranslator[F]
-  def simpleJson[F[_]: Applicative]: Translator[F, Json]      = SimpleJsonTranslator[F]
+  def simpleJson[F[_]: Applicative]: Translator[F, Json]      = SimpleJsonTranslator[F] // for db
+  def prettyJson[F[_]: Applicative]: Translator[F, Json]      = PrettyJsonTranslator[F] // for logs
   def html[F[_]: Monad]: Translator[F, Text.TypedTag[String]] = HtmlTranslator[F]
   def slack[F[_]: Applicative]: Translator[F, SlackApp]       = SlackTranslator[F]
 }
