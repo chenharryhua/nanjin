@@ -4,10 +4,9 @@ import cats.effect.std.Env
 import cats.syntax.all.*
 import fs2.io.net.Network
 import io.circe.Json
+import org.http4s.Uri
 import org.http4s.circe.*
 import org.http4s.ember.client.EmberClientBuilder
-import org.http4s.Uri
-import fs2.io.net.Network
 
 object ecs {
 
