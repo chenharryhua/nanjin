@@ -29,7 +29,6 @@ package object middleware {
 
   def cookieJar[F[_]: Async](client: Client[F]): F[Client[F]] = CookieJar.impl[F](client)
 
-
   def gzip[F[_]: MonadCancelThrow: Compression](bufferSize: Information)(client: Client[F]): Client[F] =
     GZip[F](bufferSize.toBytes.toInt)(client)
   def gzip[F[_]: MonadCancelThrow: Compression](client: Client[F]): Client[F] =
