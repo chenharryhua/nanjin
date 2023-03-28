@@ -201,7 +201,7 @@ private object MeasureAction {
   def apply[F[_]](actionParams: ActionParams, metricRegistry: MetricRegistry)(implicit
     F: Sync[F]): MeasureAction[F] = {
     val metricName                 = actionParams.metricID.metricName
-    val succCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionComplete))
+    val succCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionDone))
     val failCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionFail))
     val retryCat: Category.Counter = Category.Counter(Some(CounterKind.ActionRetry))
 

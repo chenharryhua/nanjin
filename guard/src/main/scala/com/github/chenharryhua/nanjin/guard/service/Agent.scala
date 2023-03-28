@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
+import fs2.io.net.Network
 import natchez.{EntryPoint, Kernel, Span}
 import org.http4s.HttpRoutes
 import org.typelevel.vault.{Key, Locker, Vault}
@@ -43,9 +44,12 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   // ticks
   def ticks(policy: RetryPolicy[F]): Stream[F, Int]
   def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int]
+
+  // udp
+  def udpClient(name: String): NJUdpClient[F]
 }
 
-final class GeneralAgent[F[_]] private[service] (
+final class GeneralAgent[F[_]: Network] private[service] (
   val entryPoint: Resource[F, EntryPoint[F]],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
@@ -140,6 +144,13 @@ final class GeneralAgent[F[_]] private[service] (
 
   override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
     awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
+
+  override def udpClient(name: String): NJUdpClient[F] =
+    new NJUdpClient[F](
+      name = MetricName(serviceParams, measurement, name),
+      metricRegistry = metricRegistry,
+      isCounting = false,
+      isHistogram = false)
 
   // general agent section, not in Agent API
 

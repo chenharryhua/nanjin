@@ -29,20 +29,27 @@ final class CloudWatchObserver[F[_]: Sync](
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
   fields: List[HistogramField]) {
-  private def update(hf: HistogramField): CloudWatchObserver[F] =
+  private def add(hf: HistogramField): CloudWatchObserver[F] =
     new CloudWatchObserver[F](client, storageResolution, hf :: fields)
 
-  def withMin: CloudWatchObserver[F]    = update(HistogramField.Min)
-  def withMax: CloudWatchObserver[F]    = update(HistogramField.Max)
-  def withMean: CloudWatchObserver[F]   = update(HistogramField.Mean)
-  def withStdDev: CloudWatchObserver[F] = update(HistogramField.StdDev)
-  def withP50: CloudWatchObserver[F]    = update(HistogramField.P50)
-  def withP75: CloudWatchObserver[F]    = update(HistogramField.P75)
-  def withP95: CloudWatchObserver[F]    = update(HistogramField.P95)
-  def withP98: CloudWatchObserver[F]    = update(HistogramField.P98)
-  def withP99: CloudWatchObserver[F]    = update(HistogramField.P99)
-  def withP999: CloudWatchObserver[F]   = update(HistogramField.P999)
+  def withMin: CloudWatchObserver[F]    = add(HistogramField.Min)
+  def withMax: CloudWatchObserver[F]    = add(HistogramField.Max)
+  def withMean: CloudWatchObserver[F]   = add(HistogramField.Mean)
+  def withStdDev: CloudWatchObserver[F] = add(HistogramField.StdDev)
+  def withP50: CloudWatchObserver[F]    = add(HistogramField.P50)
+  def withP75: CloudWatchObserver[F]    = add(HistogramField.P75)
+  def withP95: CloudWatchObserver[F]    = add(HistogramField.P95)
+  def withP98: CloudWatchObserver[F]    = add(HistogramField.P98)
+  def withP99: CloudWatchObserver[F]    = add(HistogramField.P99)
+  def withP999: CloudWatchObserver[F]   = add(HistogramField.P999)
 
+  /** storageResolution Valid values are 1 and 60. Setting this to 1 specifies this metric as a
+    * high-resolution metric, so that CloudWatch stores the metric with sub-minute resolution down to one
+    * second. Setting this to 60 specifies this metric as a regular-resolution metric, which CloudWatch stores
+    * at 1-minute resolution.
+    *
+    * if you do not specify it the default of 60 is used.
+    */
   def withStorageResolution(storageResolution: Int): CloudWatchObserver[F] = {
     require(
       storageResolution > 0 && storageResolution <= 60,
@@ -72,8 +79,13 @@ final class CloudWatchObserver[F[_]: Sync](
     } yield {
       val (dur, category) = hf.pick(timer)
       val (item, unit)    = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
-      MetricKey(report.serviceParams, timer.metricId, s"${timer.metricId.category.name}.$category", unit)
-        .metricDatum(report.timestamp.toInstant, item.toDouble)
+      MetricKey(
+        serviceParams = report.serviceParams,
+        id = timer.metricId,
+        category = s"${timer.metricId.category.name}_$category",
+        standardUnit = unit,
+        storageResolution = storageResolution
+      ).metricDatum(report.timestamp.toInstant, item.toDouble)
     }
 
     val histograms: List[MetricDatum] = for {
@@ -82,34 +94,42 @@ final class CloudWatchObserver[F[_]: Sync](
     } yield {
       val (value, category) = hf.pick(histo)
       MetricKey(
-        report.serviceParams,
-        histo.metricId,
-        s"${histo.metricId.category.name}.$category",
-        histo.histogram.unit).metricDatum(report.timestamp.toInstant, value)
+        serviceParams = report.serviceParams,
+        id = histo.metricId,
+        category = s"${histo.metricId.category.name}_$category",
+        standardUnit = histo.histogram.unit,
+        storageResolution = storageResolution
+      ).metricDatum(report.timestamp.toInstant, value)
     }
 
     val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
       MetricKey(
-        report.serviceParams,
-        timer.metricId,
-        timer.metricId.category.name,
-        StandardUnit.COUNT) -> timer.timer.count
+        serviceParams = report.serviceParams,
+        id = timer.metricId,
+        category = s"${timer.metricId.category.name}_count",
+        standardUnit = StandardUnit.COUNT,
+        storageResolution = storageResolution
+      ) -> timer.timer.count
     }.toMap
 
     val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
       MetricKey(
-        report.serviceParams,
-        meter.metricId,
-        meter.metricId.category.name,
-        meter.meter.unit) -> meter.meter.count
+        serviceParams = report.serviceParams,
+        id = meter.metricId,
+        category = s"${meter.metricId.category.name}_count",
+        standardUnit = meter.meter.unit,
+        storageResolution = storageResolution
+      ) -> meter.meter.count
     }.toMap
 
     val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
       MetricKey(
-        report.serviceParams,
-        histo.metricId,
-        histo.metricId.category.name,
-        StandardUnit.COUNT) -> histo.histogram.count
+        serviceParams = report.serviceParams,
+        id = histo.metricId,
+        category = s"${histo.metricId.category.name}_count",
+        standardUnit = StandardUnit.COUNT,
+        storageResolution = storageResolution
+      ) -> histo.histogram.count
     }.toMap
 
     val counterKeyMap: Map[MetricKey, Long] = timer_count ++ meter_count ++ histogram_count
@@ -143,11 +163,7 @@ final class CloudWatchObserver[F[_]: Sync](
             mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
               .grouped(20)
               .toList
-              .traverse(ds =>
-                cwc
-                  .putMetricData(_.namespace(namespace.value).metricData(
-                    ds.map(_.toBuilder.storageResolution(storageResolution).build()).asJava))
-                  .attempt)
+              .traverse(ds => cwc.putMetricData(_.namespace(namespace.value).metricData(ds.asJava)).attempt)
 
           Pull.eval(publish) >> Pull.output(events) >> go(cwc, tail, next)
 
@@ -162,7 +178,8 @@ final private case class MetricKey(
   serviceParams: ServiceParams,
   id: MetricID,
   category: String,
-  standardUnit: StandardUnit) {
+  standardUnit: StandardUnit,
+  storageResolution: Int) {
   def metricDatum(ts: Instant, value: Double): MetricDatum =
     MetricDatum
       .builder()
@@ -183,5 +200,6 @@ final private case class MetricKey(
       .unit(standardUnit)
       .timestamp(ts)
       .value(value)
+      .storageResolution(storageResolution)
       .build()
 }
