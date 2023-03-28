@@ -5,7 +5,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.{Category, GaugeKind, MetricID, MetricName}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
@@ -17,15 +17,14 @@ final class NJGauge[F[_]] private[guard] (
   name: MetricName,
   metricRegistry: MetricRegistry,
   dispatcher: Dispatcher[F])(implicit F: Sync[F]) {
-  private val metricId: String = MetricID(name, Category.Gauge).asJson.noSpaces
-
   private def transErr(ex: Throwable): Json =
     Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
 
   private def elapse(start: Instant, end: Instant): Json =
     Json.fromString(DurationFormatter.defaultFormatter.format(start, end))
 
-  def register[A: Encoder](value: F[A]): Resource[F, Unit] =
+  def register[A: Encoder](value: F[A]): Resource[F, Unit] = {
+    val metricId: String = MetricID(name, Category.Gauge(None)).asJson.noSpaces
     Resource
       .make(F.delay {
         metricRegistry.gauge(
@@ -39,10 +38,12 @@ final class NJGauge[F[_]] private[guard] (
         metricId
       })(mId => F.delay(metricRegistry.remove(mId)).void)
       .void
+  }
 
   def register[A: Encoder](value: => A): Resource[F, Unit] = register(F.delay(value))
 
-  val timed: Resource[F, Unit] =
+  val timed: Resource[F, Unit] = {
+    val metricId: String = MetricID(name, Category.Gauge(Some(GaugeKind.TimedGauge))).asJson.noSpaces
     Resource
       .make(F.realTimeInstant.map { kickoff =>
         metricRegistry.gauge(
@@ -56,4 +57,5 @@ final class NJGauge[F[_]] private[guard] (
         metricId
       })(mid => F.delay(metricRegistry.remove(mid)).void)
       .void
+  }
 }
