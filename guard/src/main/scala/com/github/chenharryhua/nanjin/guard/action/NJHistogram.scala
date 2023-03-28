@@ -12,7 +12,7 @@ final class NJHistogram[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
   isCounting: Boolean)(implicit F: Sync[F]) {
   private lazy val histogram: Histogram =
-    metricRegistry.histogram(MetricID(name, Category.Histogram(unit)).asJson.noSpaces)
+    metricRegistry.histogram(MetricID(name, Category.Histogram(unit, None)).asJson.noSpaces)
 
   private lazy val counter: Counter =
     metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.HistoCounter))).asJson.noSpaces)

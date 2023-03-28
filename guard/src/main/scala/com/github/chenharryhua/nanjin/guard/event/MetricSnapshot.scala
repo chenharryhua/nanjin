@@ -166,7 +166,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
       decode[MetricID](name).toOption.flatMap { id =>
         id.category match {
-          case Category.Histogram(unit) =>
+          case Category.Histogram(unit, _) =>
             val ss = histo.getSnapshot
             Some(
               Snapshot.Histogram(

@@ -2,17 +2,21 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import eu.timepit.refined.auto.*
+import fs2.{Chunk, Stream}
 import io.jaegertracing.Configuration
 import natchez.jaeger.Jaeger
 import natchez.log.Log
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import retry.RetryPolicies
 
 import java.net.URI
+import scala.concurrent.duration.DurationInt
 
 class TraceTest extends AnyFunSuite {
 
@@ -73,5 +77,26 @@ class TraceTest extends AnyFunSuite {
         .drain
 
     run.unsafeRunSync()
+  }
+
+// nc -kluvw 0 127.0.0.1 1026
+  test("udp_test") {
+    TaskGuard[IO]("udp_test")
+      .service("udp_test")
+      .eventStream { agent =>
+        agent
+          .ticks(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(3)))
+          .flatMap { _ =>
+            Stream.resource(
+              agent.udpClient("udp_test").withHistogram.withCounting.socket(ip"127.0.0.1", port"1026"))
+          }
+          .evalTap(_.write(Chunk.indexedSeq("abcdefghijklmnopqrstuvwxyz\n".getBytes())))
+          .compile
+          .drain >> agent.metrics.report
+      }
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

@@ -25,7 +25,7 @@ object ActionParams {
     serviceParams: ServiceParams
   ): ActionParams =
     ActionParams(
-      metricID = MetricID(serviceParams, measurement, Category.ActionTimer, actionName),
+      metricID = MetricID(serviceParams, measurement, Category.Timer(TimerKind.ActionTimer), actionName),
       importance = Importance.Silent,
       isCounting = false,
       isTiming = false,

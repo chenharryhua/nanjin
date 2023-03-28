@@ -32,7 +32,7 @@ sealed abstract class CounterKind(override val entryName: String) extends EnumEn
 object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
   val values: IndexedSeq[CounterKind] = findValues
 
-  object ActionComplete extends CounterKind("action_done")
+  object ActionDone extends CounterKind("action_done")
   object ActionFail extends CounterKind("action_fail")
   object ActionRetry extends CounterKind("action_retries")
 
@@ -42,6 +42,22 @@ object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
 
   object HistoCounter extends CounterKind("histogram_count")
   object MeterCounter extends CounterKind("meter_count")
+
+  object UdpCounter extends CounterKind("udp_count")
+}
+
+sealed abstract class TimerKind(override val entryName: String) extends EnumEntry
+object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] {
+  val values: IndexedSeq[TimerKind] = findValues
+
+  object ActionTimer extends TimerKind("action_timer")
+}
+
+sealed abstract class HistogramKind(override val entryName: String) extends EnumEntry
+object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] {
+  val values: IndexedSeq[HistogramKind] = findValues
+
+  object UdpHistogram extends HistogramKind("udp_histogram")
 }
 
 @JsonCodec
@@ -51,14 +67,14 @@ object Category {
   final case object Gauge extends Category {
     override val name: String = "gauge"
   }
-  final case object ActionTimer extends Category {
-    override val name: String = "action_timer"
+  final case class Timer(sub: TimerKind) extends Category {
+    override val name: String = sub.entryName
   }
   final case class Meter(unit: StandardUnit) extends Category {
     override val name: String = "meter"
   }
-  final case class Histogram(unit: StandardUnit) extends Category {
-    override val name: String = "histogram"
+  final case class Histogram(unit: StandardUnit, sub: Option[HistogramKind]) extends Category {
+    override val name: String = sub.fold("histogram")(_.entryName)
   }
   final case class Counter(sub: Option[CounterKind]) extends Category {
     override val name: String = sub.fold("count")(_.entryName)
