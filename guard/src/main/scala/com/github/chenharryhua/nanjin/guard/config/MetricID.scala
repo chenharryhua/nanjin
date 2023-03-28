@@ -60,12 +60,19 @@ object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] {
   object UdpHistogram extends HistogramKind("udp_histogram")
 }
 
+sealed abstract class GaugeKind(override val entryName: String) extends EnumEntry
+object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] {
+  val values: IndexedSeq[GaugeKind] = findValues
+
+  object TimedGauge extends GaugeKind("timed_gauge")
+}
+
 @JsonCodec
 sealed trait Category { def name: String }
 
 object Category {
-  final case object Gauge extends Category {
-    override val name: String = "gauge"
+  final case class Gauge(sub: Option[GaugeKind]) extends Category {
+    override val name: String = sub.fold("gauge")(_.entryName)
   }
   final case class Timer(sub: TimerKind) extends Category {
     override val name: String = sub.entryName
