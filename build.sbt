@@ -6,7 +6,7 @@ ThisBuild / version            := "0.16.9-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val fs2V        = "3.7.0-RC3"
+val fs2V        = "3.7.0-RC4"
 val awsV_1      = "1.12.430"
 val awsV_2      = "2.20.30"
 val catsEffectV = "3.5.0-RC3"
@@ -14,6 +14,7 @@ val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.2"
 val kafkaV      = "7.3.2-ce"
+val fs2KafkaV   = "3.0.0-RC1"
 val avroV       = "1.11.1"
 val slf4jV      = "2.0.7"
 val metricsV    = "4.2.18"
@@ -125,7 +126,7 @@ val kafkaLib = List(
   "io.confluent"                              % "kafka-schema-serializer"      % confluentV,
   "org.apache.kafka"                          % "kafka-streams"                % kafkaV,
   "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
-  ("com.github.fd4s" %% "fs2-kafka"           % "3.0.0-M9").exclude("org.apache.kafka", "kafka-clients")
+  ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients")
 )
 
 val enumLib = List(
