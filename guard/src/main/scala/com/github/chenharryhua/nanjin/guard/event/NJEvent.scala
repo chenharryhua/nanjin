@@ -128,13 +128,13 @@ object NJEvent extends zoneddatetime {
     override val timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
     override val title: String            = titles.actionRetry
     override val isPivotal: Boolean       = true
-    val tookSoFar: Duration               = Duration.ofNanos((landTime - actionInfo.launchTime).toNanos)
+    val tookSoFar: Duration               = actionInfo.took(landTime)
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
     def landTime: FiniteDuration
     final override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
-    final def took: Duration                    = Duration.ofNanos((landTime - actionInfo.launchTime).toNanos)
+    final def took: Duration                    = actionInfo.took(landTime)
     def isDone: Boolean
     def output: Json
   }
