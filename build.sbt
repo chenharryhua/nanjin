@@ -244,7 +244,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb"                                   % "influxdb-client-java" % "6.7.0" % Provided, // snyk
+      "com.influxdb"                                   % "influxdb-client-java" % "6.8.0" % Provided, // snyk
       "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"                          % "metrics-jmx"          % metricsV,
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
@@ -333,7 +333,7 @@ val sparkLib = List(
 ).map(_ % sparkV) ++ List(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
-).map(_ % "0.13.0") ++ List(
+).map(_ % "0.14.0") ++ List(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
 ).map(_ % avroV)
@@ -392,3 +392,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file("."))
     .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
