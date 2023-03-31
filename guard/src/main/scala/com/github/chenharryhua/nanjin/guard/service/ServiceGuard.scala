@@ -150,14 +150,15 @@ final class ServiceGuard[F[_]: Network] private[guard] (
               })(r => F.blocking(r.stop())) >> Stream.never[F]
           }
 
-        val metricsServer: Stream[F, Nothing] = httpBuilder match {
-          case None => Stream.empty
-          case Some(build) =>
-            Stream.resource(
-              build(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026"))
-                .withHttpApp(new MetricsRouter[F](metricRegistry, serviceParams).router)
-                .build) >> Stream.never[F]
-        }
+        val metricsServer: Stream[F, Nothing] =
+          httpBuilder match {
+            case None => Stream.empty
+            case Some(build) =>
+              Stream.resource(
+                build(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026"))
+                  .withHttpApp(new MetricsRouter[F](metricRegistry, serviceParams).router)
+                  .build) >> Stream.never[F]
+          }
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](

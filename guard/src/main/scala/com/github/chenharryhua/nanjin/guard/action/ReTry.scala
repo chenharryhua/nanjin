@@ -82,19 +82,14 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   private def go(ai: ActionInfo, in: IN): F[OUT] =
-    F.onCancel(
-      F.tailRecM(RetryStatus.NoRetriesYet) { status =>
-        arrow(in).attempt.flatMap {
-          case Right(out)                => F.pure(Right(out))
-          case Left(ex) if !NonFatal(ex) => fail(ai, in, ex)
-          case Left(ex) =>
-            isWorthRetry(ex).attempt
-              .map(_.exists(identity))
-              .ifM(retrying(ai, in, ex, status), fail(ai, in, ex))
-        }
-      },
-      sendFailureEvent(ai, in, ActionCancelException)
-    )
+    F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+      arrow(in).attempt.flatMap {
+        case Right(out)                => F.pure(Right(out))
+        case Left(ex) if !NonFatal(ex) => fail(ai, in, ex)
+        case Left(ex) =>
+          isWorthRetry(ex).attempt.map(_.exists(identity)).ifM(retrying(ai, in, ex, status), fail(ai, in, ex))
+      }
+    }
 
   private def sendCompleteEvent(ai: ActionInfo, in: IN, out: OUT): F[FiniteDuration] =
     F.realTime.flatMap(landTime =>
@@ -177,14 +172,14 @@ final private class ReTry[F[_], IN, OUT](
   def run(in: IN): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
       val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
-      runner.run(ai, in)
+      F.onCancel(runner.run(ai, in), sendFailureEvent(ai, in, ActionCancelException))
     }
 
   def run(in: IN, traceInfo: Option[TraceInfo]): F[OUT] = traceInfo match {
     case ti @ Some(value) =>
       F.realTime.flatMap { launchTime =>
         val ai = ActionInfo(actionParams, value.spanId, ti, launchTime)
-        runner.run(ai, in)
+        F.onCancel(runner.run(ai, in), sendFailureEvent(ai, in, ActionCancelException))
       }
     case None => run(in)
   }
