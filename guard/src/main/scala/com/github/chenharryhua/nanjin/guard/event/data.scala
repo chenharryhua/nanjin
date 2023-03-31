@@ -61,7 +61,7 @@ object ServiceStopCause {
     case ExitCase.Canceled   => ServiceStopCause.ByCancelation
   }
 
-  implicit final val showServiceStopCause: Show[ServiceStopCause] = _.toString
+  implicit final val showServiceStopCause: Show[ServiceStopCause] = Show.fromToString
 
   case object Normally extends ServiceStopCause {
     override val exitCode: Int = 0

@@ -43,7 +43,6 @@ final class InfluxdbObserver[F[_]](
 
   private def defaultTransform(ar: NJEvent.ActionResultEvent): Option[Point] = {
     val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
-    val name = ar.actionParams.serviceParams.metricParams.durationUnitName
     Some(
       Point
         .measurement(ar.actionParams.metricID.metricName.measurement.value)
@@ -51,7 +50,8 @@ final class InfluxdbObserver[F[_]](
         .addTag(METRICS_SERVICE_ID, ar.serviceParams.serviceId.show)
         .addTag(METRICS_DIGEST, ar.actionParams.metricID.metricName.digest.value)
         .addTag("done", ar.isDone.show) // for query
-        .addField(name, unit.convert(ar.took)) // Long
+        .addTags(tags.asJava)
+        .addField(ar.actionParams.metricID.metricName.value, unit.convert(ar.took)) // Long
     )
   }
 
