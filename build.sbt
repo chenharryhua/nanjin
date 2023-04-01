@@ -7,13 +7,13 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0-RC4"
-val awsV_1      = "1.12.430"
+val awsV_1      = "1.12.440"
 val awsV_2      = "2.20.30"
 val catsEffectV = "3.5.0-RC3"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
-val confluentV  = "7.3.2"
-val kafkaV      = "7.3.2-ce"
+val confluentV  = "7.3.3"
+val kafkaV      = "7.3.3-ce"
 val fs2KafkaV   = "3.0.0-RC1"
 val avroV       = "1.11.1"
 val slf4jV      = "2.0.7"
@@ -347,7 +347,7 @@ lazy val pipes = (project in file("pipes"))
       "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.10", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.20", // snyk
       "org.eclipse.jetty"              % "jetty-server"        % "11.0.14", // snyk
       "org.eclipse.jetty"              % "jetty-client"        % "11.0.14", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
