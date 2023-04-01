@@ -35,20 +35,14 @@ final private class ReTry[F[_], IN, OUT](
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
   transError: IN => F[Json],
-  transOutput: (IN, OUT) => F[Json],
+  transOutput: (IN, OUT) => Json,
   isWorthRetry: Throwable => F[Boolean]
 )(implicit F: Async[F]) {
   private val measures: MeasureAction = MeasureAction(actionParams, metricRegistry)
 
-  @inline private def buildJson(json: Either[Throwable, Json]): Json =
-    json match {
-      case Right(value) => value
-      case Left(value)  => Json.fromString(ExceptionUtils.getMessage(value))
-    }
-
   private def sendFailureEvent(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
     for {
-      json <- transError(in).attempt.map(buildJson)
+      json <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
       fd <- F.realTime
       _ <- channel.send(ActionFail(ai, fd, NJError(ex), json))
     } yield measures.failure(ai.took(fd))
@@ -92,10 +86,7 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   private def sendCompleteEvent(ai: ActionInfo, in: IN, out: OUT): F[FiniteDuration] =
-    F.realTime.flatMap(landTime =>
-      transOutput(in, out).attempt
-        .flatMap(json => channel.send(ActionComplete(ai, landTime, buildJson(json))))
-        .as(landTime))
+    F.realTime.flatMap(fd => channel.send(ActionComplete(ai, fd, transOutput(in, out))).as(fd))
 
   sealed private trait Runner { def run(ai: ActionInfo, in: IN): F[OUT] }
 
@@ -161,7 +152,10 @@ final private class ReTry[F[_], IN, OUT](
       case Importance.Silent if actionParams.isCounting =>
         new Runner {
           override def run(ai: ActionInfo, in: IN): F[OUT] =
-            go(ai, in).flatMap(out => F.delay(measures.countSuccess()).as(out))
+            go(ai, in).map { out =>
+              measures.countSuccess()
+              out
+            }
         }
       case Importance.Silent =>
         new Runner {

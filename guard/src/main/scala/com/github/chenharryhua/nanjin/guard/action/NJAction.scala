@@ -18,11 +18,11 @@ final class NJAction[F[_], IN, OUT] private[action] (
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
   transError: IN => F[Json],
-  transOutput: (IN, OUT) => F[Json],
+  transOutput: (IN, OUT) => Json,
   isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
   private def copy(
     transError: IN => F[Json] = self.transError,
-    transOutput: (IN, OUT) => F[Json] = self.transOutput,
+    transOutput: (IN, OUT) => Json = self.transOutput,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
     new NJAction[F, IN, OUT](
       metricRegistry = metricRegistry,
@@ -42,8 +42,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logErrorM(f: IN => F[Json]): NJAction[F, IN, OUT] = copy(transError = f)
   def logError(f: IN => Json): NJAction[F, IN, OUT]     = logErrorM((a: IN) => F.pure(f(a)))
 
-  def logOutputM(f: (IN, OUT) => F[Json]): NJAction[F, IN, OUT] = copy(transOutput = f)
-  def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]     = logOutputM((a, b) => F.pure(f(a, b)))
+  def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT] = copy(transOutput = f)
 
   private[this] lazy val actionRunner: ReTry[F, IN, OUT] =
     new ReTry[F, IN, OUT](
@@ -82,11 +81,11 @@ final class NJAction0[F[_], OUT] private[guard] (
   retryPolicy: RetryPolicy[F],
   arrow: F[OUT],
   transError: F[Json],
-  transOutput: OUT => F[Json],
+  transOutput: OUT => Json,
   isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
   private def copy(
     transError: F[Json] = self.transError,
-    transOutput: OUT => F[Json] = self.transOutput,
+    transOutput: OUT => Json = self.transOutput,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction0[F, OUT] =
     new NJAction0[F, OUT](
       metricRegistry,
@@ -106,8 +105,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logErrorM(info: F[Json]): NJAction0[F, OUT] = copy(transError = info)
   def logError(info: => Json): NJAction0[F, OUT]  = logErrorM(F.delay(info))
 
-  def logOutputM(f: OUT => F[Json]): NJAction0[F, OUT] = copy(transOutput = f)
-  def logOutput(f: OUT => Json): NJAction0[F, OUT]     = logOutputM((b: OUT) => F.pure(f(b)))
+  def logOutput(f: OUT => Json): NJAction0[F, OUT] = copy(transOutput = f)
 
   private lazy val njAction = new NJAction[F, Unit, OUT](
     metricRegistry = metricRegistry,

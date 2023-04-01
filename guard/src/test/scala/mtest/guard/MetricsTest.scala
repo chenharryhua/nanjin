@@ -150,6 +150,7 @@ class MetricsTest extends AnyFunSuite {
               ag.alert(name).withCounting.info("info") >>
               ag.meter(name, StandardUnit.GIGABITS).withCounting.mark(100) >>
               ag.counter(name).inc(32) >>
+              ag.counter(name).asError.inc(10) >>
               ag.histogram(name, StandardUnit.SECONDS).withCounting.update(64) >>
               ag.metrics.report)
       }
