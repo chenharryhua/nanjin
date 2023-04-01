@@ -13,7 +13,7 @@ import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
+import retry.{RetryPolicies, RetryPolicy}
 
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
@@ -25,7 +25,7 @@ class RetryTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry test").withRestartPolicy(constant_1second)
 
-  val policy = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
+  val policy: RetryPolicy[IO] = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
 
   test("1.retry - completed trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
@@ -331,23 +331,6 @@ class RetryTest extends AnyFunSuite {
           .action("input error", _.notice)
           .retry((a: Int) => IO(a))
           .logErrorM(_ => IO.raiseError[Json](new Exception("oops")))
-          .run(1))
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionComplete])
-    assert(d.isInstanceOf[ServiceStop])
-  }
-
-  test("17. output json exception") {
-    val List(a, b, c, d) = serviceGuard
-      .eventStream(agent =>
-        agent
-          .action("output error", _.notice)
-          .retry((a: Int) => IO(a))
-          .logOutputM((_, _) => IO.raiseError[Json](new Exception("oops")))
           .run(1))
       .compile
       .toList

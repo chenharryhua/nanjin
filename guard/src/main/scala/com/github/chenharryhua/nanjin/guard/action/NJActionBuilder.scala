@@ -56,7 +56,7 @@ final class NJActionBuilder[F[_]](
       retryPolicy = retryPolicy,
       arrow = fb,
       transError = F.pure(Json.Null),
-      transOutput = _ => F.pure(Json.Null),
+      transOutput = _ => Json.Null,
       isWorthRetry = alwaysRetry
     )
 
@@ -70,7 +70,7 @@ final class NJActionBuilder[F[_]](
       retryPolicy = retryPolicy,
       arrow = f,
       transError = _ => F.pure(Json.Null),
-      transOutput = (_: A, _: Z) => F.pure(Json.Null),
+      transOutput = (_: A, _: Z) => Json.Null,
       isWorthRetry = alwaysRetry
     )
 
@@ -82,7 +82,7 @@ final class NJActionBuilder[F[_]](
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transError = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B), _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B), _: Z) => Json.Null,
       isWorthRetry = alwaysRetry
     )
 
@@ -94,7 +94,7 @@ final class NJActionBuilder[F[_]](
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transError = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B, C), _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B, C), _: Z) => Json.Null,
       isWorthRetry = alwaysRetry
     )
 
@@ -106,7 +106,7 @@ final class NJActionBuilder[F[_]](
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transError = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B, C, D), _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B, C, D), _: Z) => Json.Null,
       isWorthRetry = alwaysRetry
     )
 
@@ -118,7 +118,7 @@ final class NJActionBuilder[F[_]](
       retryPolicy = retryPolicy,
       arrow = f.tupled,
       transError = _ => F.pure(Json.Null),
-      transOutput = (_: (A, B, C, D, E), _: Z) => F.pure(Json.Null),
+      transOutput = (_: (A, B, C, D, E), _: Z) => Json.Null,
       isWorthRetry = alwaysRetry
     )
 
