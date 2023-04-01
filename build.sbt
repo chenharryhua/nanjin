@@ -269,6 +269,7 @@ lazy val messages = (project in file("messages"))
   .settings(name := "nj-messages")
   .settings(
     libraryDependencies ++= List(
+      "org.yaml"                       % "snakeyaml" % "2.0", // snyk
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "io.circe" %% "circe-optics"     % "0.14.1",
       "org.gnieh" %% "diffson-circe"   % "4.4.0"
@@ -339,7 +340,7 @@ val sparkLib = List(
 ).map(_ % avroV)
 
 lazy val pipes = (project in file("pipes"))
-  .dependsOn(common)
+  .dependsOn(messages)
   .settings(commonSettings*)
   .settings(name := "nj-pipes")
   .settings {
@@ -356,7 +357,7 @@ lazy val pipes = (project in file("pipes"))
       "com.fasterxml.woodstox"         % "woodstox-core"       % "6.5.0", // snyk
       "net.minidev"                    % "json-smart"          % "2.4.10", // snyk
       "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
-    ) ++ kantanLib ++ serdeLib ++ logLib ++ testLib ++ hadoopLib
+    ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }
 
