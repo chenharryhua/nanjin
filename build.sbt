@@ -83,7 +83,7 @@ val pbLib = List(
 )
 
 val serdeLib = List(
-  "com.sksamuel.avro4s" %% "avro4s-core" % "4.0.13",
+  "com.sksamuel.avro4s" %% "avro4s-core" % "4.1.1",
   "org.apache.parquet"                   % "parquet-common"           % "1.12.3",
   "org.apache.parquet"                   % "parquet-hadoop"           % "1.12.3",
   "org.apache.parquet"                   % "parquet-avro"             % "1.12.3",
