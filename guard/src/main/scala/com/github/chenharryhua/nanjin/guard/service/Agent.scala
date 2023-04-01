@@ -111,7 +111,10 @@ final class GeneralAgent[F[_]: Network] private[service] (
     )
 
   override def counter(counterName: String): NJCounter[F] =
-    new NJCounter(name = MetricName(serviceParams, measurement, counterName), metricRegistry = metricRegistry)
+    new NJCounter(
+      name = MetricName(serviceParams, measurement, counterName),
+      metricRegistry = metricRegistry,
+      isError = false)
 
   override def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F] =
     new NJMeter[F](
