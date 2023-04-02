@@ -28,7 +28,7 @@ private object SlackTranslator extends all {
     else {
       val body: List[String] = counters.map(f => s"${f.metricId.show} = ${numFmt.format(f.count)}") :::
         snapshot.gauges.map(f => s"${f.metricId.show} = ${f.value.spaces2}")
-      KeyValueSection("Metrics", s"""```${abbreviate(body.mkString("\n"))}```""")
+      KeyValueSection("Metrics", s"""```${abbreviate(body.sorted.mkString("\n"))}```""")
     }
   }
 

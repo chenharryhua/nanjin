@@ -28,18 +28,18 @@ final class NJUdpClient[F[_]: Network](
   def withHistogram: NJUdpClient[F] = new NJUdpClient[F](name, metricRegistry, isCounting, isHistogram = true)
   def withCounting: NJUdpClient[F]  = new NJUdpClient[F](name, metricRegistry, isCounting = true, isHistogram)
 
-  private val histogramId: MetricID =
-    MetricID(name, Category.Histogram(StandardUnit.BYTES, Some(HistogramKind.UdpHistogram)))
-  private val counterId: MetricID =
-    MetricID(name, Category.Counter(Some(CounterKind.UdpCounter)))
-
   private class Writer(socket: DatagramSocket[F], remote: SocketAddress[IpAddress]) {
+    private val histogramId: MetricID =
+      MetricID(name, Category.Histogram(StandardUnit.BYTES, Some(HistogramKind.UdpHistogram)))
+    private val counterId: MetricID =
+      MetricID(name, Category.Counter(Some(CounterKind.UdpCounter)))
+
     val writer: UdpSocketWriter[F] =
       (isHistogram, isCounting) match {
         case (true, true) =>
           new UdpSocketWriter[F] {
-            private val histogram: Histogram = metricRegistry.histogram(histogramId.asJson.noSpaces)
-            private val counter: Counter     = metricRegistry.counter(counterId.asJson.noSpaces)
+            private lazy val histogram: Histogram = metricRegistry.histogram(histogramId.asJson.noSpaces)
+            private lazy val counter: Counter     = metricRegistry.counter(counterId.asJson.noSpaces)
 
             override def write(chunk: Chunk[Byte]): F[Unit] = socket.write(Datagram(remote, chunk)).map { _ =>
               histogram.update(chunk.size)
@@ -48,7 +48,7 @@ final class NJUdpClient[F[_]: Network](
           }
         case (true, false) =>
           new UdpSocketWriter[F] {
-            private val histogram: Histogram = metricRegistry.histogram(histogramId.asJson.noSpaces)
+            private lazy val histogram: Histogram = metricRegistry.histogram(histogramId.asJson.noSpaces)
 
             override def write(chunk: Chunk[Byte]): F[Unit] = socket.write(Datagram(remote, chunk)).map { _ =>
               histogram.update(chunk.size)
@@ -56,7 +56,7 @@ final class NJUdpClient[F[_]: Network](
           }
         case (false, true) =>
           new UdpSocketWriter[F] {
-            private val counter: Counter = metricRegistry.counter(counterId.asJson.noSpaces)
+            private lazy val counter: Counter = metricRegistry.counter(counterId.asJson.noSpaces)
 
             override def write(chunk: Chunk[Byte]): F[Unit] = socket.write(Datagram(remote, chunk)).map { _ =>
               counter.inc(1)
