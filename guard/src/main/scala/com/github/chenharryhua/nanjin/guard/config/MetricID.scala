@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Show
+import cats.{Order, Show}
 import cats.implicits.toShow
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
@@ -18,6 +18,9 @@ final case class MetricName(value: String, digest: Digest, measurement: Measurem
 }
 object MetricName {
   implicit val showMetricName: Show[MetricName] = Show.fromToString
+  implicit val orderingMetricName: Ordering[MetricName] =
+    (x: MetricName, y: MetricName) => x.value.compare(y.value)
+  implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
 
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
     val withPrefix = serviceParams.metricParams.namePrefix + name

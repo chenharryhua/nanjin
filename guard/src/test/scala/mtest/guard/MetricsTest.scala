@@ -122,7 +122,8 @@ class MetricsTest extends AnyFunSuite {
       val box = agent.signalBox(IO(100000))
       val gauge =
         agent.gauge("random").register(Random.nextInt(100))
-          >> (agent.gauge("locker").register(box.get))
+          >> (agent.gauge("locker").register(box.get)) >>
+          agent.gauge("time").timed
 
       gauge.surround(
         agent

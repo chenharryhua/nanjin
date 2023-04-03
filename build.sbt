@@ -16,6 +16,8 @@ val confluentV  = "7.3.3"
 val kafkaV      = "7.3.3-ce"
 val fs2KafkaV   = "3.0.0-RC1"
 val avroV       = "1.11.1"
+val parquetV    = "1.12.3"
+val circeV      = "0.14.5"
 val slf4jV      = "2.0.7"
 val metricsV    = "4.2.18"
 val log4catsV   = "2.5.0"
@@ -28,8 +30,9 @@ val protobufV   = "3.22.2"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.90.Final"
-val circeV      = "0.14.5"
 val chimneyV    = "0.7.2"
+val enumeratumV = "1.7.2"
+val drosteV     = "0.9.0"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -84,9 +87,9 @@ val pbLib = List(
 
 val serdeLib = List(
   "com.sksamuel.avro4s" %% "avro4s-core" % "4.0.13",
-  "org.apache.parquet"                   % "parquet-common"           % "1.12.3",
-  "org.apache.parquet"                   % "parquet-hadoop"           % "1.12.3",
-  "org.apache.parquet"                   % "parquet-avro"             % "1.12.3",
+  "org.apache.parquet"                   % "parquet-common"           % parquetV,
+  "org.apache.parquet"                   % "parquet-hadoop"           % parquetV,
+  "org.apache.parquet"                   % "parquet-avro"             % parquetV,
   "org.apache.avro"                      % "avro"                     % avroV,
   "io.confluent"                         % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
@@ -133,13 +136,13 @@ val enumLib = List(
   "com.beachape" %% "enumeratum-cats",
   "com.beachape" %% "enumeratum",
   "com.beachape" %% "enumeratum-circe"
-).map(_ % "1.7.2")
+).map(_ % enumeratumV)
 
 val drosteLib = List(
   "io.higherkindness" %% "droste-core",
   "io.higherkindness" %% "droste-macros",
   "io.higherkindness" %% "droste-meta"
-).map(_ % "0.9.0")
+).map(_ % drosteV)
 
 val catsLib = List(
   "org.typelevel" %% "cats-kernel",
