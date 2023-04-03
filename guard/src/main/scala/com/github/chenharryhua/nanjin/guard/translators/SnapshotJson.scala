@@ -52,11 +52,16 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
           .map { case (name, js) =>
             val inner =
               js.map { case (mId, j) => Json.obj(mId.category.name -> j) }.reduce((a, b) => b.deepMerge(a))
-            Json.obj(name.show -> inner)
+            name -> inner
           }
           .toList
-        Json.obj(measurement -> Json.arr(arr*))
+          .sortBy(_._1)
+          .map { case (n, j) => Json.obj(n.show -> j) }
+        measurement -> Json.arr(arr*)
       }
+      .toList
+      .sortBy(_._1)
+      .map { case (m, j) => Json.obj(m -> j) }
       .asJson
 
   def toPrettyJson(mp: MetricParams): Json = {

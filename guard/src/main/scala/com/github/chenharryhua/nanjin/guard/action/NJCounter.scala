@@ -23,4 +23,5 @@ final class NJCounter[F[_]] private[guard] (
 
   def inc(num: Long): F[Unit] = F.delay(unsafeInc(num))
   def dec(num: Long): F[Unit] = F.delay(unsafeDec(num))
+  def getCount: F[Long]       = F.delay(counter.getCount)
 }
