@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{
@@ -37,7 +37,7 @@ final private class ReTry[F[_], IN, OUT](
   transError: IN => F[Json],
   transOutput: (IN, OUT) => Json,
   isWorthRetry: Throwable => F[Boolean]
-)(implicit F: Async[F]) {
+)(implicit F: Temporal[F]) {
   private val measures: MeasureAction = MeasureAction(actionParams, metricRegistry)
 
   private def sendFailureEvent(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =

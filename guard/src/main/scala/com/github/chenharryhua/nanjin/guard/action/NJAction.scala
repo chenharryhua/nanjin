@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
@@ -19,7 +19,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   arrow: IN => F[OUT],
   transError: IN => F[Json],
   transOutput: (IN, OUT) => Json,
-  isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
+  isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
     transError: IN => F[Json] = self.transError,
     transOutput: (IN, OUT) => Json = self.transOutput,
@@ -82,7 +82,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   arrow: F[OUT],
   transError: F[Json],
   transOutput: OUT => Json,
-  isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
+  isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
     transError: F[Json] = self.transError,
     transOutput: OUT => Json = self.transOutput,
@@ -103,7 +103,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
   def logErrorM(info: F[Json]): NJAction0[F, OUT] = copy(transError = info)
-  def logError(info: => Json): NJAction0[F, OUT]  = logErrorM(F.delay(info))
+  def logError(info: Json): NJAction0[F, OUT]     = logErrorM(F.pure(info))
 
   def logOutput(f: OUT => Json): NJAction0[F, OUT] = copy(transOutput = f)
 
