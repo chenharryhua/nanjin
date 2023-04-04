@@ -10,35 +10,23 @@ private object PrettyJsonTranslator {
 
   import NJEvent.*
 
-  private def uptime(evt: NJEvent): (String, Json) = "upTime" -> Json.fromString(fmt.format(evt.upTime))
-
+  private def uptime(evt: NJEvent): (String, Json)    = "upTime" -> Json.fromString(fmt.format(evt.upTime))
   private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
-
-  private def serviceName(evt: NJEvent): (String, Json) =
-    ("serviceName", Json.fromString(evt.serviceName.value))
-
   private def name(metricName: MetricName): (String, Json) = "name" -> Json.fromString(metricName.show)
-
-  private def measurement(id: MetricName): (String, Json) =
-    "measurement" -> Json.fromString(id.measurement.value)
-
-  private def actionId(evt: ActionEvent): (String, Json) = "id" -> Json.fromString(evt.actionId)
-
-  private def traceInfo(evt: ActionEvent): (String, Json) = "traceInfo" -> evt.actionInfo.traceInfo.asJson
-
-  private def importance(imp: Importance): (String, Json) = "importance" -> imp.asJson
-
-  private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
-
-  private def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
+  private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
+  private def traceInfo(evt: ActionEvent): (String, Json)  = "traceInfo" -> evt.actionInfo.traceInfo.asJson
+  private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
+  private def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
+  private def stackTrace(err: NJError): (String, Json)     = "stackTrace" -> Json.fromString(err.stackTrace)
+  private def policy(evt: ServiceEvent): (String, Json)   = "policy" -> evt.serviceParams.restartPolicy.asJson
+  private def policy(ap: ActionParams): (String, Json)    = "policy" -> ap.retryPolicy.asJson
+  private def serviceName(evt: NJEvent): (String, Json)   = "serviceName" -> evt.serviceName.value.asJson
+  private def measurement(id: MetricName): (String, Json) = "measurement" -> id.measurement.value.asJson
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
     case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
   }
-
-  private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
-  private def policy(actionParams: ActionParams): (String, Json) = "policy" -> actionParams.retryPolicy.asJson
 
   private def prettyMetrics(ss: MetricSnapshot, mp: MetricParams): (String, Json) =
     "metrics" -> new SnapshotJson(ss).toPrettyJson(mp)
