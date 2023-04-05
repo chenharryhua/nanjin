@@ -33,7 +33,7 @@ private object SimpleTextTranslator {
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  brief:${evt.serviceParams.brief.noSpaces}
+       |  Brief:${evt.serviceParams.brief.noSpaces}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {
@@ -69,7 +69,7 @@ private object SimpleTextTranslator {
   private def instantAlert(evt: InstantAlert): String =
     s"""${coloring(instantEventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
-       |  Alert:${evt.message}
+       |  ${evt.alertLevel.show}:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =

@@ -11,20 +11,20 @@ private object SimpleJsonTranslator {
   import NJEvent.*
 
   private def timestamp(evt: NJEvent): (String, Json) = "timestamp" -> evt.timestamp.asJson
-  private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
+  private def serviceId(evt: NJEvent): (String, Json) = "service_id" -> evt.serviceId.asJson
   private def serviceName(evt: NJEvent): (String, Json) =
-    ("serviceName", Json.fromString(evt.serviceName.value))
+    ("service_name", Json.fromString(evt.serviceName.value))
 
   private def name(id: MetricName): (String, Json)   = "name" -> Json.fromString(id.value)
   private def digest(id: MetricName): (String, Json) = "digest" -> Json.fromString(id.digest.value)
   private def measurement(id: MetricName): (String, Json) =
     "measurement" -> Json.fromString(id.measurement.value)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceInfo(evt: ActionEvent): (String, Json)  = "traceInfo" -> evt.actionInfo.traceInfo.asJson
+  private def traceInfo(evt: ActionEvent): (String, Json)  = "trace_info" -> evt.actionInfo.traceInfo.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
 
-  private def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
+  private def stackTrace(err: NJError): (String, Json) = "stack_trace" -> Json.fromString(err.stackTrace)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
@@ -57,7 +57,7 @@ private object SimpleJsonTranslator {
       "ServiceStop" ->
         Json.obj(
           serviceName(evt),
-          ("exitCode", Json.fromInt(evt.cause.exitCode)),
+          ("exit_code", Json.fromInt(evt.cause.exitCode)),
           ("cause", Json.fromString(evt.cause.show)),
           policy(evt),
           serviceId(evt),

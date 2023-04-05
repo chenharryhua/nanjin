@@ -22,11 +22,10 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
       .mapFilter(_.metricId.category match {
         case Category.Counter(sub) =>
           sub.map {
-            case CounterKind.ActionFail   => ErrorColor
-            case CounterKind.ActionRetry  => WarnColor
-            case CounterKind.AlertError   => ErrorColor
+            case CounterKind.ActionFail   => WarnColor
+            case CounterKind.AlertError   => WarnColor
             case CounterKind.AlertWarn    => WarnColor
-            case CounterKind.ErrorCounter => ErrorColor
+            case CounterKind.ErrorCounter => WarnColor
             case _                        => InfoColor
           }
         case _ => Some(InfoColor)

@@ -48,13 +48,13 @@ final class NJActionBuilder[F[_]](
   private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 
   // retries
-  def retry[Z](fb: F[Z]): NJAction0[F, Z] = // 0 arity
+  def retry[Z](fz: F[Z]): NJAction0[F, Z] = // 0 arity
     new NJAction0[F, Z](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = actionConfig.evalConfig(actionName, measurement, retryPolicy.show),
       retryPolicy = retryPolicy,
-      arrow = fb,
+      arrow = fz,
       transError = F.pure(Json.Null),
       transOutput = _ => Json.Null,
       isWorthRetry = alwaysRetry
@@ -169,9 +169,9 @@ final class NJActionBuilder[F[_]](
     val size = gfz.size
     retry(gfz.traverse(_.attempt).map(_.partitionEither(identity)).map { case (fail, done) =>
       (fail.size, done.size) match {
-        case (0, _) => Ior.Right(done)
-        case (_, 0) => Ior.left(fail)
-        case _      => Ior.Both(fail, done)
+        case (0, _) => Ior.Right(done) // success if no error
+        case (_, 0) => Ior.left(fail) // failure if no success
+        case _      => Ior.Both(fail, done) // quasi
       }
     }).logOutput(outputJson(_, size, None)).logError(inputJson(size, None))
   }
