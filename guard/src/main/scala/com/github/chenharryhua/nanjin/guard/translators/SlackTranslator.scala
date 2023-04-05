@@ -47,10 +47,9 @@ private object SlackTranslator extends all {
             MarkdownSection(s":rocket: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField("Up Time", fmt.format(evt.upTime)),
-              second = TextField("Time Zone", evt.serviceParams.taskParams.zoneId.show)
-            ),
-            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}")
+              first = TextField("UpTime", fmt.format(evt.upTime)),
+              second = TextField("TimeZone", evt.serviceParams.taskParams.zoneId.show)),
+            MarkdownSection(s"*ServiceID:* ${evt.serviceId.show}")
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
@@ -68,9 +67,9 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(msg),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
                                 |*Policy:* ${evt.serviceParams.restartPolicy}
-                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
+                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
         ),
@@ -88,8 +87,8 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s":octagonal_sign: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Service ID:* ${evt.serviceId.show}
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
+                                |*ServiceID:* ${evt.serviceId.show}
                                 |*Cause:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
         ),
@@ -109,9 +108,9 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Next Report:* $nextReport
-                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
+                                |*Next:* $nextReport
+                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
         ),
@@ -132,13 +131,12 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*Up Time:* ${fmt.format(evt.upTime)}
-                                |*Next Reset:* $nextReset
-                                |*Service ID:* ${evt.serviceId.show}""".stripMargin),
+            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
+                                |*Next:* $nextReset
+                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
             metricsSection(evt.snapshot)
           )
-        )
-      )
+        ))
     )
   }
 
@@ -156,17 +154,16 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*$title:* ${evt.metricName.show}"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*Service ID:* ${evt.serviceId.show}"),
+            MarkdownSection(s"*ServiceID:* ${evt.serviceId.show}"),
             MarkdownSection(abbreviate(evt.message))
           )
-        )
-      )
+        ))
     )
   }
 
-  private def traceId(evt: ActionEvent): String    = s"*Trace ID:* ${evt.traceId}"
-  private def actionId(evt: ActionEvent): String   = s"*Action ID:* ${evt.actionId}"
-  private def serviceId(evt: ActionEvent): String  = s"*Service ID:* ${evt.serviceId.show}"
+  private def traceId(evt: ActionEvent): String    = s"*TraceID:* ${evt.traceId}"
+  private def actionId(evt: ActionEvent): String   = s"*ActionID:* ${evt.actionId}"
+  private def serviceId(evt: ActionEvent): String  = s"*ServiceID:* ${evt.serviceId.show}"
   private def took(evt: ActionResultEvent): String = s"*Took:* ${fmt.format(evt.took)}"
   private def policy(evt: ActionEvent): String     = s"*Policy:* ${evt.actionParams.retryPolicy}"
 
