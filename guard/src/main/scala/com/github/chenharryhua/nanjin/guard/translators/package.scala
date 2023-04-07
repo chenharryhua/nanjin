@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, InstantAlert}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
@@ -37,12 +36,6 @@ package object translators {
 
   final private[translators] def abbreviate(msg: String): String =
     StringUtils.abbreviate(msg, MessageSizeLimits)
-
-  final private[translators] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
-    val sn: String =
-      sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
-    JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.taskParams.hostName.value))
-  }
 
   final def toOrdinalWords(n: Int): String = {
     val w =
