@@ -21,19 +21,20 @@ private object SimpleTextTranslator {
     val sn: String        = se.serviceParams.serviceName.value
     val tn: String        = se.serviceParams.taskParams.taskName.value
     val serviceId: String = se.serviceParams.serviceId.show.takeRight(12)
-    s"Service:$sn, Task:$tn, Host:$host, SID:$serviceId, UpTime:${fmt.format(se.upTime)}"
+    val uptime: String    = fmt.format(se.upTime)
+    s"$CONSTANT_SERVICE:$sn, $CONSTANT_TASK:$tn, $CONSTANT_HOST:$host, SID:$serviceId, $CONSTANT_UPTIME:$uptime"
   }
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
   private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
-       |  Importance:${ae.actionParams.importance.show}, ActionID:${ae.actionId}, TraceID:${ae.traceId}""".stripMargin
+       |  $CONSTANT_IMPORTANCE:${ae.actionParams.importance.show}, $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  Brief:${evt.serviceParams.brief.noSpaces}
+       |  $CONSTANT_BRIEF:${evt.serviceParams.brief.noSpaces}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {
@@ -42,7 +43,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
        |  $msg
-       |  Policy:${evt.serviceParams.restartPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
   }
@@ -50,8 +51,8 @@ private object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt.title)(evt)}
        |  ${serviceEvent(evt)}
-       |  Policy:${evt.serviceParams.restartPolicy}
-       |  Cause:${evt.cause.show}
+       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
+       |  $CONSTANT_CAUSE:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
@@ -80,25 +81,25 @@ private object SimpleTextTranslator {
   private def actionRetry(evt: ActionRetry): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.tookSoFar)}
-       |  Policy:${evt.actionParams.retryPolicy}
+       |  $CONSTANT_TOOK:${fmt.format(evt.tookSoFar)}
+       |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionFail(evt: ActionFail): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
-       |  Policy:${evt.actionParams.retryPolicy}
-       |  Notes:${evt.output.noSpaces}
+       |  $CONSTANT_TOOK:${fmt.format(evt.took)}
+       |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
+       |  $CONSTANT_NOTES:${evt.output.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def actionComplete(evt: ActionComplete): String =
     s"""${coloring(actionTitle(evt))(evt)}
        |${actionEvent(evt)}
-       |  Took:${fmt.format(evt.took)}
-       |  Result:${evt.output.noSpaces}
+       |  $CONSTANT_TOOK:${fmt.format(evt.took)}
+       |  $CONSTANT_RESULT:${evt.output.noSpaces}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

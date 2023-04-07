@@ -17,37 +17,33 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 package object observers {
 
   // counters
-  final val METRICS_COUNT: String = MetricAttribute.COUNT.getCode
+  @inline final val METRICS_COUNT: String = MetricAttribute.COUNT.getCode
 
   // meters
-  final val METRICS_MEAN_RATE: String      = MetricAttribute.MEAN_RATE.getCode
-  final val METRICS_1_MINUTE_RATE: String  = MetricAttribute.M1_RATE.getCode
-  final val METRICS_5_MINUTE_RATE: String  = MetricAttribute.M5_RATE.getCode
-  final val METRICS_15_MINUTE_RATE: String = MetricAttribute.M15_RATE.getCode
+  @inline final val METRICS_MEAN_RATE: String      = MetricAttribute.MEAN_RATE.getCode
+  @inline final val METRICS_1_MINUTE_RATE: String  = MetricAttribute.M1_RATE.getCode
+  @inline final val METRICS_5_MINUTE_RATE: String  = MetricAttribute.M5_RATE.getCode
+  @inline final val METRICS_15_MINUTE_RATE: String = MetricAttribute.M15_RATE.getCode
 
   // histograms
-  final val METRICS_MIN: String     = MetricAttribute.MIN.getCode
-  final val METRICS_MAX: String     = MetricAttribute.MAX.getCode
-  final val METRICS_MEAN: String    = MetricAttribute.MEAN.getCode
-  final val METRICS_STD_DEV: String = MetricAttribute.STDDEV.getCode
+  @inline final val METRICS_MIN: String     = MetricAttribute.MIN.getCode
+  @inline final val METRICS_MAX: String     = MetricAttribute.MAX.getCode
+  @inline final val METRICS_MEAN: String    = MetricAttribute.MEAN.getCode
+  @inline final val METRICS_STD_DEV: String = MetricAttribute.STDDEV.getCode
 
-  final val METRICS_P50: String  = MetricAttribute.P50.getCode
-  final val METRICS_P75: String  = MetricAttribute.P75.getCode
-  final val METRICS_P95: String  = MetricAttribute.P95.getCode
-  final val METRICS_P98: String  = MetricAttribute.P98.getCode
-  final val METRICS_P99: String  = MetricAttribute.P99.getCode
-  final val METRICS_P999: String = MetricAttribute.P999.getCode
+  @inline final val METRICS_P50: String  = MetricAttribute.P50.getCode
+  @inline final val METRICS_P75: String  = MetricAttribute.P75.getCode
+  @inline final val METRICS_P95: String  = MetricAttribute.P95.getCode
+  @inline final val METRICS_P98: String  = MetricAttribute.P98.getCode
+  @inline final val METRICS_P99: String  = MetricAttribute.P99.getCode
+  @inline final val METRICS_P999: String = MetricAttribute.P999.getCode
 
   // dimensions
-  final val METRICS_TASK: String        = "Task"
-  final val METRICS_SERVICE: String     = "Service"
-  final val METRICS_SERVICE_ID: String  = "ServiceID"
-  final val METRICS_HOST: String        = "Host"
-  final val METRICS_LAUNCH_TIME: String = "LaunchTime"
-  final val METRICS_CATEGORY: String    = "Category"
-  final val METRICS_DIGEST: String      = "Digest"
-  final val METRICS_MEASUREMENT: String = "Measurement"
-  final val METRICS_NAME: String        = "MetricName"
+  @inline final val METRICS_LAUNCH_TIME: String = "LaunchTime"
+  @inline final val METRICS_CATEGORY: String    = "Category"
+  @inline final val METRICS_DIGEST: String      = "Digest"
+  @inline final val METRICS_MEASUREMENT: String = "Measurement"
+  @inline final val METRICS_NAME: String        = "MetricName"
 
   /** interval based sampling
     *

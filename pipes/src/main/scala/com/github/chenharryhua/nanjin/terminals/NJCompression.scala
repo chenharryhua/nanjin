@@ -38,9 +38,11 @@ sealed trait ParquetCompression extends NJCompression {
     case NJCompression.Snappy       => CompressionCodecName.SNAPPY
     case NJCompression.Gzip         => CompressionCodecName.GZIP
     case NJCompression.Lz4          => CompressionCodecName.LZ4
+    case NJCompression.Lz4_Raw      => CompressionCodecName.LZ4_RAW
     case NJCompression.Brotli       => CompressionCodecName.BROTLI
     case NJCompression.Lzo          => CompressionCodecName.LZO
     case NJCompression.Zstandard(_) => CompressionCodecName.ZSTD
+
   }
 }
 
@@ -64,6 +66,7 @@ object NJCompression {
       case Bzip2                => Json.fromString(Bzip2.shortName)
       case Gzip                 => Json.fromString(Gzip.shortName)
       case Lz4                  => Json.fromString(Lz4.shortName)
+      case Lz4_Raw              => Json.fromString(Lz4_Raw.shortName)
       case Brotli               => Json.fromString(Brotli.shortName)
       case Lzo                  => Json.fromString(Lzo.shortName)
       case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.show}") // hadoop convention
@@ -78,6 +81,7 @@ object NJCompression {
       case Bzip2.shortName        => Right(Bzip2)
       case Gzip.shortName         => Right(Gzip)
       case Lz4.shortName          => Right(Lz4)
+      case Lz4_Raw.shortName      => Right(Lz4_Raw)
       case Brotli.shortName       => Right(Brotli)
       case Lzo.shortName          => Right(Lzo)
       case s"deflate-${level}"    => Try(level.toInt).map(Deflate).toEither.leftMap(_.getMessage)
@@ -175,6 +179,13 @@ object NJCompression {
       with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "lz4"
     override val fileExtension: String = ".lz4"
+  }
+
+  case object Lz4_Raw
+      extends NJCompression with ParquetCompression with BinaryAvroCompression with CirceCompression
+      with JacksonCompression with KantanCompression with TextCompression {
+    override val shortName: String     = "lz4raw"
+    override val fileExtension: String = ".lz4raw"
   }
 
   case object Brotli extends NJCompression with ParquetCompression {

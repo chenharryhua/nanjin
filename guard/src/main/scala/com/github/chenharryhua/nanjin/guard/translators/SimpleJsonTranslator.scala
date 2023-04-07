@@ -37,127 +37,117 @@ private object SimpleJsonTranslator {
     "metrics" -> new SnapshotJson(ss).toVanillaJson
 
   private def serviceStarted(evt: ServiceStart): Json =
-    Json.obj(
-      "ServiceStart" ->
-        Json.obj("params" -> evt.serviceParams.asJson, timestamp(evt)))
+    Json.obj("event" -> "service_start".asJson, "params" -> evt.serviceParams.asJson, timestamp(evt))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
-      "ServicePanic" ->
-        Json.obj(
-          serviceName(evt),
-          policy(evt),
-          stackTrace(evt.error),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "service_panic".asJson,
+      serviceName(evt),
+      policy(evt),
+      stackTrace(evt.error),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def serviceStopped(evt: ServiceStop): Json =
     Json.obj(
-      "ServiceStop" ->
-        Json.obj(
-          serviceName(evt),
-          ("exit_code", Json.fromInt(evt.cause.exitCode)),
-          ("cause", Json.fromString(evt.cause.show)),
-          policy(evt),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "service_stop".asJson,
+      serviceName(evt),
+      ("exit_code", Json.fromInt(evt.cause.exitCode)),
+      ("cause", Json.fromString(evt.cause.show)),
+      policy(evt),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
-      "MetricReport" ->
-        Json.obj(
-          metricIndex(evt.index),
-          serviceName(evt),
-          metrics(evt.snapshot),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "metric_report".asJson,
+      metricIndex(evt.index),
+      serviceName(evt),
+      metrics(evt.snapshot),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def metricReset(evt: MetricReset): Json =
     Json.obj(
-      "MetricReset" ->
-        Json.obj(
-          metricIndex(evt.index),
-          serviceName(evt),
-          metrics(evt.snapshot),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "metric_reset".asJson,
+      metricIndex(evt.index),
+      serviceName(evt),
+      metrics(evt.snapshot),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def instantAlert(evt: InstantAlert): Json =
     Json.obj(
-      "Alert" ->
-        Json.obj(
-          "level" -> evt.alertLevel.asJson,
-          name(evt.metricName),
-          ("message", Json.fromString(evt.message)),
-          digest(evt.metricName),
-          serviceId(evt),
-          timestamp(evt)))
+      "event" -> "alert".asJson,
+      "level" -> evt.alertLevel.asJson,
+      name(evt.metricName),
+      ("message", Json.fromString(evt.message)),
+      digest(evt.metricName),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
-      "ActionStart" ->
-        Json.obj(
-          importance(evt.actionInfo.actionParams.importance),
-          name(evt.metricID.metricName),
-          measurement(evt.actionParams.metricID.metricName),
-          traceInfo(evt),
-          digest(evt.metricID.metricName),
-          actionId(evt),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "action_start".asJson,
+      importance(evt.actionInfo.actionParams.importance),
+      name(evt.metricID.metricName),
+      measurement(evt.actionParams.metricID.metricName),
+      traceInfo(evt),
+      digest(evt.metricID.metricName),
+      actionId(evt),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
-      "ActionRetry" ->
-        Json.obj(
-          importance(evt.actionInfo.actionParams.importance),
-          name(evt.metricID.metricName),
-          measurement(evt.actionParams.metricID.metricName),
-          traceInfo(evt),
-          ("cause", Json.fromString(evt.error.message)),
-          digest(evt.metricID.metricName),
-          actionId(evt),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "action_retry".asJson,
+      importance(evt.actionInfo.actionParams.importance),
+      name(evt.metricID.metricName),
+      measurement(evt.actionParams.metricID.metricName),
+      traceInfo(evt),
+      ("cause", Json.fromString(evt.error.message)),
+      digest(evt.metricID.metricName),
+      actionId(evt),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
-      "ActionFail" ->
-        Json.obj(
-          importance(evt.actionInfo.actionParams.importance),
-          name(evt.metricID.metricName),
-          measurement(evt.actionParams.metricID.metricName),
-          took(evt),
-          traceInfo(evt),
-          "notes" -> evt.output, // align with slack
-          stackTrace(evt.error),
-          digest(evt.metricID.metricName),
-          actionId(evt),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "action_fail".asJson,
+      importance(evt.actionInfo.actionParams.importance),
+      name(evt.metricID.metricName),
+      measurement(evt.actionParams.metricID.metricName),
+      took(evt),
+      traceInfo(evt),
+      "notes" -> evt.output, // align with slack
+      stackTrace(evt.error),
+      digest(evt.metricID.metricName),
+      actionId(evt),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
-      "ActionComplete" ->
-        Json.obj(
-          importance(evt.actionInfo.actionParams.importance),
-          name(evt.metricID.metricName),
-          measurement(evt.actionParams.metricID.metricName),
-          took(evt),
-          traceInfo(evt),
-          "result" -> evt.output, // align with slack
-          digest(evt.metricID.metricName),
-          actionId(evt),
-          serviceId(evt),
-          timestamp(evt)
-        ))
+      "event" -> "action_complete".asJson,
+      importance(evt.actionInfo.actionParams.importance),
+      name(evt.metricID.metricName),
+      measurement(evt.actionParams.metricID.metricName),
+      took(evt),
+      traceInfo(evt),
+      "result" -> evt.output, // align with slack
+      digest(evt.metricID.metricName),
+      actionId(evt),
+      serviceId(evt),
+      timestamp(evt)
+    )
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

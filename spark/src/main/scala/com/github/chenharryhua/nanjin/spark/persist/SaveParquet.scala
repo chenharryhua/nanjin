@@ -22,6 +22,7 @@ final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
 //  def lzo: SaveParquet[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lzo))
   def gzip: SaveParquet[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveParquet[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
+  def lz4raw: SaveParquet[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Lz4_Raw))
   def snappy: SaveParquet[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def uncompress: SaveParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
   def zstd(level: Int): SaveParquet[F, A] =
@@ -37,6 +38,7 @@ final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
       case CompressionCodecName.BROTLI       => NJCompression.Brotli
       case CompressionCodecName.LZ4          => NJCompression.Lz4
       case CompressionCodecName.ZSTD         => NJCompression.Zstandard(5)
+      case CompressionCodecName.LZ4_RAW      => NJCompression.Lz4_Raw
     }
     withCompression(pc)
   }
