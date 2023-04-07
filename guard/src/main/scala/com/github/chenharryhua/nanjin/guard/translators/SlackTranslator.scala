@@ -12,6 +12,8 @@ import java.time.Duration
 private object SlackTranslator extends all {
   import NJEvent.*
 
+
+
   private def coloring(evt: NJEvent): String = ColorScheme
     .decorate(evt)
     .run {
@@ -24,17 +26,17 @@ private object SlackTranslator extends all {
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
     val counters: List[Snapshot.Counter] = snapshot.counters.filter(_.count > 0)
-    if (counters.isEmpty) KeyValueSection("Metrics", "`No updates`")
+    if (counters.isEmpty) KeyValueSection(CONSTANT_METRICS, "`No updates`")
     else {
       val measures = counters.map(c => c.metricId -> numFmt.format(c.count)) :::
         snapshot.gauges.map(g => g.metricId -> g.value.spaces2)
       val body = measures.sortBy(_._1.metricName).map { case (id, v) => s"${id.show} = $v" }
-      KeyValueSection("Metrics", s"""```${abbreviate(body.mkString("\n"))}```""")
+      KeyValueSection(CONSTANT_METRICS, s"""```${abbreviate(body.mkString("\n"))}```""")
     }
   }
 
   private def brief(json: Json): KeyValueSection =
-    KeyValueSection("Brief", s"```${abbreviate(json.spaces2)}```")
+    KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
 
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp =
@@ -47,9 +49,9 @@ private object SlackTranslator extends all {
             MarkdownSection(s":rocket: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField("UpTime", fmt.format(evt.upTime)),
-              second = TextField("TimeZone", evt.serviceParams.taskParams.zoneId.show)),
-            MarkdownSection(s"*ServiceID:* ${evt.serviceId.show}")
+              first = TextField(CONSTANT_UPTIME, fmt.format(evt.upTime)),
+              second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}")
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
@@ -67,9 +69,9 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(msg),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
-                                |*Policy:* ${evt.serviceParams.restartPolicy}
-                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
+            MarkdownSection(s"""|*$CONSTANT_UPTIME:* ${fmt.format(evt.upTime)}
+                                |*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
+                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}""".stripMargin),
             KeyValueSection("Cause", s"```${abbreviate(evt.error.stackTrace)}```")
           )
         ),
@@ -87,19 +89,16 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s":octagonal_sign: *${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
-                                |*ServiceID:* ${evt.serviceId.show}
-                                |*Cause:* ${abbreviate(evt.cause.show)}""".stripMargin)
+            MarkdownSection(s"""|*$CONSTANT_UPTIME:* ${fmt.format(evt.upTime)}
+                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}
+                                |*$CONSTANT_CAUSE:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
       )
     )
 
-  private def metricReport(evt: MetricReport): SlackApp = {
-    val nextReport =
-      evt.serviceParams.metricParams.nextReport(evt.timestamp).map(_.toLocalTime.show).getOrElse("none")
-
+  private def metricReport(evt: MetricReport): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -108,21 +107,18 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
-                                |*Next:* $nextReport
-                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
+            JuxtaposeSection(
+              first = TextField(CONSTANT_UPTIME, fmt.format(evt.upTime)),
+              second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
             metricsSection(evt.snapshot)
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
       )
     )
-  }
 
-  private def metricReset(evt: MetricReset): SlackApp = {
-    val nextReset =
-      evt.serviceParams.metricParams.nextReset(evt.timestamp).map(_.toLocalDateTime.show).getOrElse("none")
-
+  private def metricReset(evt: MetricReset): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
       attachments = List(
@@ -131,14 +127,14 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*${evt.title}*"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"""|*UpTime:* ${fmt.format(evt.upTime)}
-                                |*Next:* $nextReset
-                                |*ServiceID:* ${evt.serviceId.show}""".stripMargin),
+            JuxtaposeSection(
+              first = TextField(CONSTANT_UPTIME, fmt.format(evt.upTime)),
+              second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
             metricsSection(evt.snapshot)
           )
         ))
     )
-  }
 
   private def instantAlert(evt: InstantAlert): SlackApp = {
     val title = evt.alertLevel match {
@@ -154,18 +150,18 @@ private object SlackTranslator extends all {
           blocks = List(
             MarkdownSection(s"*$title:* ${evt.metricName.show}"),
             hostServiceSection(evt.serviceParams),
-            MarkdownSection(s"*ServiceID:* ${evt.serviceId.show}"),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
             MarkdownSection(abbreviate(evt.message))
           )
         ))
     )
   }
 
-  private def traceId(evt: ActionEvent): String    = s"*TraceID:* ${evt.traceId}"
-  private def actionId(evt: ActionEvent): String   = s"*ActionID:* ${evt.actionId}"
-  private def serviceId(evt: ActionEvent): String  = s"*ServiceID:* ${evt.serviceId.show}"
-  private def took(evt: ActionResultEvent): String = s"*Took:* ${fmt.format(evt.took)}"
-  private def policy(evt: ActionEvent): String     = s"*Policy:* ${evt.actionParams.retryPolicy}"
+  private def traceId(evt: ActionEvent): String    = s"*$CONSTANT_TRACE_ID:* ${evt.traceId}"
+  private def actionId(evt: ActionEvent): String   = s"*$CONSTANT_ACTION_ID:* ${evt.actionId}"
+  private def serviceId(evt: ActionEvent): String  = s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"
+  private def took(evt: ActionResultEvent): String = s"*$CONSTANT_TOOK:* ${fmt.format(evt.took)}"
+  private def policy(evt: ActionEvent): String     = s"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(

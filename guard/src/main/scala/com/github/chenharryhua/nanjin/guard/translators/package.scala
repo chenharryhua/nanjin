@@ -13,6 +13,23 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 
 package object translators {
+  @inline final val CONSTANT_ACTION_ID: String  = "ActionID"
+  @inline final val CONSTANT_TRACE_ID: String   = "TraceID"
+  @inline final val CONSTANT_TIMESTAMP: String  = "Timestamp"
+  @inline final val CONSTANT_POLICY: String     = "Policy"
+  @inline final val CONSTANT_CAUSE: String      = "Cause"
+  @inline final val CONSTANT_TOOK: String       = "Took"
+  @inline final val CONSTANT_NOTES: String      = "Notes"
+  @inline final val CONSTANT_RESULT: String     = "Result"
+  @inline final val CONSTANT_IMPORTANCE: String = "Importance"
+  @inline final val CONSTANT_UPTIME: String     = "UpTime"
+  @inline final val CONSTANT_BRIEF: String      = "Brief"
+  @inline final val CONSTANT_METRICS: String    = "Metrics"
+  @inline final val CONSTANT_TIMEZONE: String   = "TimeZone"
+  @inline final val CONSTANT_SERVICE: String    = "Service"
+  @inline final val CONSTANT_SERVICE_ID: String = "ServiceID"
+  @inline final val CONSTANT_HOST: String       = "Host"
+  @inline final val CONSTANT_TASK: String       = "Task"
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
@@ -24,7 +41,7 @@ package object translators {
   final private[translators] def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
       sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
-    JuxtaposeSection(TextField("Service", sn), TextField("Host", sp.taskParams.hostName.value))
+    JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.taskParams.hostName.value))
   }
 
   final def toOrdinalWords(n: Int): String = {

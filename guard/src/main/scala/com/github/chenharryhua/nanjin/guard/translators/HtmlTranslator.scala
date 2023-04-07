@@ -34,12 +34,12 @@ private object HtmlTranslator extends all {
 
     frag(
       tr(
-        th("Timestamp"),
-        th("Service"),
-        th("Task"),
-        th("Host"),
-        th("ServiceID"),
-        th("UpTime")
+        th(CONSTANT_TIMESTAMP),
+        th(CONSTANT_SERVICE),
+        th(CONSTANT_TASK),
+        th(CONSTANT_HOST),
+        th(CONSTANT_SERVICE_ID),
+        th(CONSTANT_UPTIME)
       ),
       tr(
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
@@ -52,7 +52,8 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def causeText(c: NJError): Text.TypedTag[String] = p(b("cause: "), pre(small(c.stackTrace)))
+  private def causeText(c: NJError): Text.TypedTag[String] =
+    p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stackTrace)))
   private def snapshotText(sp: ServiceParams, ss: MetricSnapshot): Text.TypedTag[String] =
     pre(small(new SnapshotJson(ss).toPrettyJson(sp.metricParams).spaces2))
   private def jsonText(js: Json): Text.TypedTag[String]     = pre(small(js.spaces2))
@@ -74,7 +75,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
       p(b(msg)),
-      p(b("Policy: "), evt.serviceParams.restartPolicy),
+      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
       causeText(evt.error)
     )
   }
@@ -83,7 +84,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(evt.title),
       table(hostServiceTable(evt)),
-      p(b("Cause: "), evt.cause.show),
+      p(b(s"$CONSTANT_CAUSE: "), evt.cause.show),
       briefText(evt.serviceParams.brief)
     )
 
@@ -111,7 +112,7 @@ private object HtmlTranslator extends all {
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID"))),
+      tr(td(b(CONSTANT_IMPORTANCE)), td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID))),
       tr(td(evt.actionParams.importance.show), td(evt.actionId), td(evt.traceId))
     )
     div(
@@ -123,7 +124,12 @@ private object HtmlTranslator extends all {
   private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] = {
 
     val retry = frag(
-      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID")), td(b("Index")), td(b("Resume"))),
+      tr(
+        td(b(CONSTANT_IMPORTANCE)),
+        td(b(CONSTANT_ACTION_ID)),
+        td(b(CONSTANT_TRACE_ID)),
+        td(b("Index")),
+        td(b("Resume"))),
       tr(
         td(evt.actionParams.importance.show),
         td(evt.actionId),
@@ -135,14 +141,18 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), retry),
-      p(b("Policy: "), evt.actionParams.retryPolicy),
+      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
     )
   }
 
   private def actionResultTable(evt: ActionResultEvent): generic.Frag[Builder, String] =
     frag(
-      tr(td(b("Importance")), td(b("ActionID")), td(b("TraceID")), td(b("Took"))),
+      tr(
+        td(b(CONSTANT_IMPORTANCE)),
+        td(b(CONSTANT_ACTION_ID)),
+        td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_TOOK))),
       tr(td(evt.actionParams.importance.show), td(evt.actionId), td(evt.traceId), td(fmt.format(evt.took)))
     )
 
@@ -150,8 +160,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b("Policy: "), evt.actionInfo.actionParams.retryPolicy),
-      p(b("Notes: "), jsonText(evt.output)), // align with slack
+      p(b(s"$CONSTANT_POLICY: "), evt.actionInfo.actionParams.retryPolicy),
+      p(b(s"$CONSTANT_NOTES: "), jsonText(evt.output)), // align with slack
       causeText(evt.error)
     )
 
@@ -159,7 +169,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b("Result: "), jsonText(evt.output)) // align with slack
+      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.output)) // align with slack
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =

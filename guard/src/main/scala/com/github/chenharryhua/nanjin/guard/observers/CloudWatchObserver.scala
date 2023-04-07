@@ -7,6 +7,12 @@ import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
+import com.github.chenharryhua.nanjin.guard.translators.{
+  CONSTANT_HOST,
+  CONSTANT_SERVICE,
+  CONSTANT_SERVICE_ID,
+  CONSTANT_TASK
+}
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
 import software.amazon.awssdk.services.cloudwatch.model.{
@@ -184,10 +190,10 @@ final private case class MetricKey(
     MetricDatum
       .builder()
       .dimensions(
-        Dimension.builder().name(METRICS_TASK).value(serviceParams.taskParams.taskName.value).build(),
-        Dimension.builder().name(METRICS_SERVICE).value(serviceParams.serviceName.value).build(),
-        Dimension.builder().name(METRICS_SERVICE_ID).value(serviceParams.serviceId.show).build(),
-        Dimension.builder().name(METRICS_HOST).value(serviceParams.taskParams.hostName.value).build(),
+        Dimension.builder().name(CONSTANT_TASK).value(serviceParams.taskParams.taskName.value).build(),
+        Dimension.builder().name(CONSTANT_SERVICE).value(serviceParams.serviceName.value).build(),
+        Dimension.builder().name(CONSTANT_SERVICE_ID).value(serviceParams.serviceId.show).build(),
+        Dimension.builder().name(CONSTANT_HOST).value(serviceParams.taskParams.hostName.value).build(),
         Dimension
           .builder()
           .name(METRICS_LAUNCH_TIME)

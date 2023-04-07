@@ -5,6 +5,12 @@ import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
+import com.github.chenharryhua.nanjin.guard.translators.{
+  CONSTANT_HOST,
+  CONSTANT_SERVICE,
+  CONSTANT_SERVICE_ID,
+  CONSTANT_TASK
+}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}
@@ -47,7 +53,7 @@ final class InfluxdbObserver[F[_]](
       Point
         .measurement(ar.actionParams.metricID.metricName.measurement.value)
         .time(ar.timestamp.toInstant, writePrecision)
-        .addTag(METRICS_SERVICE_ID, ar.serviceParams.serviceId.show)
+        .addTag(CONSTANT_SERVICE_ID, ar.serviceParams.serviceId.show)
         .addTag(METRICS_DIGEST, ar.actionParams.metricID.metricName.digest.value)
         .addTag("done", ar.isDone.show) // for query
         .addTags(tags.asJava)
@@ -94,10 +100,10 @@ final class InfluxdbObserver[F[_]](
 
   private def dimension(sp: ServiceParams): Map[String, String] =
     Map(
-      METRICS_TASK -> sp.taskParams.taskName.value,
-      METRICS_SERVICE -> sp.serviceName.value,
-      METRICS_SERVICE_ID -> sp.serviceId.show,
-      METRICS_HOST -> sp.taskParams.hostName.value,
+      CONSTANT_TASK -> sp.taskParams.taskName.value,
+      CONSTANT_SERVICE -> sp.serviceName.value,
+      CONSTANT_SERVICE_ID -> sp.serviceId.show,
+      CONSTANT_HOST -> sp.taskParams.hostName.value,
       METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
     )
 
