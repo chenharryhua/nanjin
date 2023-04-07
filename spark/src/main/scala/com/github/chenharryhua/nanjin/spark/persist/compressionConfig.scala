@@ -44,6 +44,7 @@ private[persist] object compressionConfig {
       case NJCompression.Snappy       => CompressionCodecName.SNAPPY
       case NJCompression.Gzip         => CompressionCodecName.GZIP
       case NJCompression.Lz4          => CompressionCodecName.LZ4
+      case NJCompression.Lz4_Raw      => CompressionCodecName.LZ4_RAW
       case NJCompression.Brotli       => CompressionCodecName.BROTLI
       case NJCompression.Zstandard(level) =>
         conf.set(ZstandardCodec.PARQUET_COMPRESS_ZSTD_LEVEL, level.toString)

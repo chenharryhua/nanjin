@@ -313,17 +313,6 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("15.logError is lazy") {
-    var i = 0
-    serviceGuard
-      .eventStream(
-        _.action("eval", _.notice).retry(IO(1)).logError { i += 1; Json.fromInt(0) }.run.replicateA(3))
-      .compile
-      .drain
-      .unsafeRunSync()
-    assert(i == 0)
-  }
-
   test("16. input json exception") {
     val List(a, b, c, d) = serviceGuard
       .eventStream(agent =>

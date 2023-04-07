@@ -41,6 +41,10 @@ class NJParquetTest extends AnyFunSuite {
     fs2(fs2Root / "panda.LZ4.parquet", CompressionCodecName.LZ4, pandaSet)
   }
 
+  test("LZ4_RAW parquet") {
+    fs2(fs2Root / "panda.LZ4raw.parquet", CompressionCodecName.LZ4_RAW, pandaSet)
+  }
+
   test("ZSTD parquet") {
     fs2(fs2Root / "panda.ZSTD.parquet", CompressionCodecName.ZSTD, pandaSet)
   }
