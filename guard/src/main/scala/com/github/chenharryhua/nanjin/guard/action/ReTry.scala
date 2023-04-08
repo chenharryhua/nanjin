@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.Temporal
+import cats.effect.implicits.*
+import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{
@@ -40,23 +41,12 @@ final private class ReTry[F[_], IN, OUT](
 )(implicit F: Temporal[F]) {
   private val measures: MeasureAction = MeasureAction(actionParams, metricRegistry)
 
-  private def sendFailureEvent(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
-    for {
-      json <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
-      fd <- F.realTime
-      _ <- channel.send(ActionFail(ai, fd, NJError(ex), json))
-    } yield measures.failure(ai.took(fd))
+  private def fail(ex: Throwable): F[Either[RetryStatus, OUT]] =
+    F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
 
-  private[this] def fail(ai: ActionInfo, in: IN, ex: Throwable): F[Either[RetryStatus, OUT]] =
-    sendFailureEvent(ai, in, ex) >> F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
-
-  private def retrying(
-    ai: ActionInfo,
-    in: IN,
-    ex: Throwable,
-    status: RetryStatus): F[Either[RetryStatus, OUT]] =
+  private def retrying(ai: ActionInfo, ex: Throwable, status: RetryStatus): F[Either[RetryStatus, OUT]] =
     retryPolicy.decideNextRetry(status).flatMap {
-      case PolicyDecision.GiveUp => fail(ai, in, ex)
+      case PolicyDecision.GiveUp => fail(ex)
       case PolicyDecision.DelayAndRetry(delay) =>
         for {
           landTime <- F.realTime
@@ -79,101 +69,93 @@ final private class ReTry[F[_], IN, OUT](
     F.tailRecM(RetryStatus.NoRetriesYet) { status =>
       arrow(in).attempt.flatMap {
         case Right(out)                => F.pure(Right(out))
-        case Left(ex) if !NonFatal(ex) => fail(ai, in, ex)
+        case Left(ex) if !NonFatal(ex) => fail(ex)
         case Left(ex) =>
-          isWorthRetry(ex).attempt.map(_.exists(identity)).ifM(retrying(ai, in, ex, status), fail(ai, in, ex))
+          isWorthRetry(ex).attempt.map(_.exists(identity)).ifM(retrying(ai, ex, status), fail(ex))
       }
     }
 
-  private def sendCompleteEvent(ai: ActionInfo, in: IN, out: OUT): F[FiniteDuration] =
-    F.realTime.flatMap(fd => channel.send(ActionComplete(ai, fd, transOutput(in, out))).as(fd))
-
-  sealed private trait Runner { def run(ai: ActionInfo, in: IN): F[OUT] }
-
-  private val runner: Runner =
+  sealed private trait KickOff { def run(ai: ActionInfo, in: IN): F[OUT] }
+  private val kickoff: KickOff =
     actionParams.importance match {
-
-      // critical and notice
-      case Importance.Critical | Importance.Notice if actionParams.isTiming || actionParams.isCounting =>
-        new Runner {
-          override def run(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              _ <- channel.send(ActionStart(ai))
-              out <- go(ai, in)
-              fd <- sendCompleteEvent(ai, in, out)
-            } yield {
-              measures.success(ai.took(fd))
-              out
-            }
-        }
       case Importance.Critical | Importance.Notice =>
-        new Runner {
+        new KickOff {
           override def run(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              _ <- channel.send(ActionStart(ai))
-              out <- go(ai, in)
-              _ <- sendCompleteEvent(ai, in, out)
-            } yield out
+            channel.send(ActionStart(ai)) >> go(ai, in)
         }
-
-      // aware
-      case Importance.Aware if actionParams.isTiming || actionParams.isCounting =>
-        new Runner {
-          override def run(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              out <- go(ai, in)
-              fd <- sendCompleteEvent(ai, in, out)
-            } yield {
-              measures.success(ai.took(fd))
-              out
-            }
-        }
-      case Importance.Aware =>
-        new Runner {
-          override def run(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              out <- go(ai, in)
-              _ <- sendCompleteEvent(ai, in, out)
-            } yield out
-        }
-
-      // silent
-      case Importance.Silent if actionParams.isTiming =>
-        new Runner {
-          override def run(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              out <- go(ai, in)
-              fd <- F.realTime
-            } yield {
-              measures.success(ai.took(fd))
-              out
-            }
-        }
-      case Importance.Silent if actionParams.isCounting =>
-        new Runner {
-          override def run(ai: ActionInfo, in: IN): F[OUT] =
-            go(ai, in).map { out =>
-              measures.countSuccess()
-              out
-            }
-        }
-      case Importance.Silent =>
-        new Runner {
+      case Importance.Aware | Importance.Silent =>
+        new KickOff {
           override def run(ai: ActionInfo, in: IN): F[OUT] = go(ai, in)
         }
     }
 
+  sealed private trait Postmortem {
+    final protected def sendCompleteEvent(ai: ActionInfo, in: IN, out: OUT): F[FiniteDuration] =
+      F.realTime.flatMap(fd => channel.send(ActionComplete(ai, fd, transOutput(in, out))).as(fd))
+
+    def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit]
+  }
+  private val postmortem: Postmortem =
+    actionParams.importance match {
+      case Importance.Critical | Importance.Notice | Importance.Aware
+          if actionParams.isTiming || actionParams.isCounting =>
+        new Postmortem {
+          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            for {
+              out <- fout
+              fd <- sendCompleteEvent(ai, in, out)
+            } yield measures.success(ai.took(fd))
+        }
+      case Importance.Critical | Importance.Notice | Importance.Aware =>
+        new Postmortem {
+          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            fout.flatMap(sendCompleteEvent(ai, in, _)).void
+        }
+
+      // silent
+      case Importance.Silent if actionParams.isTiming =>
+        new Postmortem {
+          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            F.realTime.map(fd => measures.success(ai.took(fd)))
+        }
+      case Importance.Silent if actionParams.isCounting =>
+        new Postmortem {
+          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            fout.map(_ => measures.countSuccess())
+        }
+      case Importance.Silent =>
+        new Postmortem {
+          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            F.unit
+        }
+    }
+
+  private def sendFailureEvent(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
+    for {
+      json <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
+      fd <- F.realTime
+      _ <- channel.send(ActionFail(ai, fd, NJError(ex), json))
+    } yield measures.failure(ai.took(fd))
+
   def run(in: IN): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
       val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
-      F.onCancel(runner.run(ai, in), sendFailureEvent(ai, in, ActionCancelException))
+      kickoff.run(ai, in).guaranteeCase {
+        case Outcome.Succeeded(fout) => postmortem.run(ai, in, fout)
+        case Outcome.Errored(ex)     => sendFailureEvent(ai, in, ex)
+        case Outcome.Canceled()      => sendFailureEvent(ai, in, ActionCancelException)
+      }
     }
 
   def run(in: IN, traceInfo: Option[TraceInfo]): F[OUT] = traceInfo match {
     case ti @ Some(value) =>
       F.realTime.flatMap { launchTime =>
         val ai = ActionInfo(actionParams, value.spanId, ti, launchTime)
-        F.onCancel(runner.run(ai, in), sendFailureEvent(ai, in, ActionCancelException))
+        kickoff.run(ai, in).guaranteeCase {
+          case Outcome.Succeeded(fout) => postmortem.run(ai, in, fout)
+          case Outcome.Errored(ex)     => sendFailureEvent(ai, in, ex)
+          case Outcome.Canceled()      => sendFailureEvent(ai, in, ActionCancelException)
+        }
       }
     case None => run(in)
   }
