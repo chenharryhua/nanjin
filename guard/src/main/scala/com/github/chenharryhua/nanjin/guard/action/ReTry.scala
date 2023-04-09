@@ -26,7 +26,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import java.time.Duration
-import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 
 final private class ReTry[F[_], IN, OUT](
@@ -90,60 +89,47 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   sealed private trait Postmortem {
-    final protected def sendCompleteEvent(ai: ActionInfo, in: IN, out: OUT): F[FiniteDuration] =
-      F.realTime.flatMap(fd => channel.send(ActionComplete(ai, fd, transOutput(in, out))).as(fd))
+    final def fail(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
+      for {
+        json <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
+        fd <- F.realTime
+        _ <- channel.send(ActionFail(ai, fd, NJError(ex), json))
+      } yield measures.fail(ai.took(fd))
 
-    def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit]
+    def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit]
   }
   private val postmortem: Postmortem =
     actionParams.importance match {
-      case Importance.Critical | Importance.Notice | Importance.Aware
-          if actionParams.isTiming || actionParams.isCounting =>
-        new Postmortem {
-          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
-            for {
-              out <- fout
-              fd <- sendCompleteEvent(ai, in, out)
-            } yield measures.success(ai.took(fd))
-        }
       case Importance.Critical | Importance.Notice | Importance.Aware =>
         new Postmortem {
-          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
-            fout.flatMap(sendCompleteEvent(ai, in, _)).void
+          override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            for {
+              out <- fout
+              fd <- F.realTime
+              _ <- channel.send(ActionComplete(ai, fd, transOutput(in, out)))
+            } yield measures.done(ai.took(fd))
         }
 
       // silent
-      case Importance.Silent if actionParams.isTiming =>
+      case Importance.Silent if actionParams.isTiming || actionParams.isCounting =>
         new Postmortem {
-          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
-            F.realTime.map(fd => measures.success(ai.took(fd)))
-        }
-      case Importance.Silent if actionParams.isCounting =>
-        new Postmortem {
-          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
-            fout.map(_ => measures.countSuccess())
+          override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            F.realTime.map(fd => measures.done(ai.took(fd)))
         }
       case Importance.Silent =>
         new Postmortem {
-          override def run(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+          override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.unit
         }
     }
-
-  private def sendFailureEvent(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
-    for {
-      json <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
-      fd <- F.realTime
-      _ <- channel.send(ActionFail(ai, fd, NJError(ex), json))
-    } yield measures.failure(ai.took(fd))
 
   def run(in: IN): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
       val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
       kickoff.run(ai, in).guaranteeCase {
-        case Outcome.Succeeded(fout) => postmortem.run(ai, in, fout)
-        case Outcome.Errored(ex)     => sendFailureEvent(ai, in, ex)
-        case Outcome.Canceled()      => sendFailureEvent(ai, in, ActionCancelException)
+        case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
+        case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
+        case Outcome.Canceled()      => postmortem.fail(ai, in, ActionCancelException)
       }
     }
 
@@ -152,9 +138,9 @@ final private class ReTry[F[_], IN, OUT](
       F.realTime.flatMap { launchTime =>
         val ai = ActionInfo(actionParams, value.spanId, ti, launchTime)
         kickoff.run(ai, in).guaranteeCase {
-          case Outcome.Succeeded(fout) => postmortem.run(ai, in, fout)
-          case Outcome.Errored(ex)     => sendFailureEvent(ai, in, ex)
-          case Outcome.Canceled()      => sendFailureEvent(ai, in, ActionCancelException)
+          case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
+          case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
+          case Outcome.Canceled()      => postmortem.fail(ai, in, ActionCancelException)
         }
       }
     case None => run(in)
@@ -164,64 +150,59 @@ final private class ReTry[F[_], IN, OUT](
 private object ActionCancelException extends Exception("action was canceled")
 
 sealed private trait MeasureAction {
-  def success(fd: => Duration): Unit
-  def failure(fd: => Duration): Unit
+  def done(fd: => Duration): Unit
+  def fail(fd: => Duration): Unit
   def countRetry(): Unit
-  def countSuccess(): Unit
 }
 private object MeasureAction {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): MeasureAction = {
     val metricName: MetricName     = actionParams.metricID.metricName
-    val succCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionDone))
+    val doneCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionDone))
     val failCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionFail))
     val retryCat: Category.Counter = Category.Counter(Some(CounterKind.ActionRetry))
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>
         new MeasureAction {
-          private lazy val fail    = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
-          private lazy val succ    = metricRegistry.counter(MetricID(metricName, succCat).asJson.noSpaces)
-          private lazy val retries = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
-          private lazy val timer   = metricRegistry.timer(actionParams.metricID.asJson.noSpaces)
+          private lazy val failC  = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
+          private lazy val doneC  = metricRegistry.counter(MetricID(metricName, doneCat).asJson.noSpaces)
+          private lazy val retryC = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
+          private lazy val timer  = metricRegistry.timer(actionParams.metricID.asJson.noSpaces)
 
-          override def success(fd: => Duration): Unit = {
-            succ.inc(1)
+          override def done(fd: => Duration): Unit = {
+            doneC.inc(1)
             timer.update(fd)
           }
-          override def failure(fd: => Duration): Unit = {
-            fail.inc(1)
+          override def fail(fd: => Duration): Unit = {
+            failC.inc(1)
             timer.update(fd)
           }
-          override def countRetry(): Unit   = retries.inc(1)
-          override def countSuccess(): Unit = succ.inc(1)
+          override def countRetry(): Unit = retryC.inc(1)
         }
       case (true, false) =>
         new MeasureAction {
-          private lazy val fail    = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
-          private lazy val succ    = metricRegistry.counter(MetricID(metricName, succCat).asJson.noSpaces)
-          private lazy val retries = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
+          private lazy val failC  = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
+          private lazy val doneC  = metricRegistry.counter(MetricID(metricName, doneCat).asJson.noSpaces)
+          private lazy val retryC = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
 
-          override def success(fd: => Duration): Unit = succ.inc(1)
-          override def failure(fd: => Duration): Unit = fail.inc(1)
-          override def countRetry(): Unit             = retries.inc(1)
-          override def countSuccess(): Unit           = succ.inc(1)
+          override def done(fd: => Duration): Unit = doneC.inc(1)
+          override def fail(fd: => Duration): Unit = failC.inc(1)
+          override def countRetry(): Unit          = retryC.inc(1)
         }
       case (false, true) =>
         new MeasureAction {
           private lazy val timer = metricRegistry.timer(actionParams.metricID.asJson.noSpaces)
 
-          override def success(fd: => Duration): Unit = timer.update(fd)
-          override def failure(fd: => Duration): Unit = timer.update(fd)
-          override def countRetry(): Unit             = ()
-          override def countSuccess(): Unit           = ()
+          override def done(fd: => Duration): Unit = timer.update(fd)
+          override def fail(fd: => Duration): Unit = timer.update(fd)
+          override def countRetry(): Unit          = ()
         }
 
       case (false, false) =>
         new MeasureAction {
-          override def success(fd: => Duration): Unit = ()
-          override def failure(fd: => Duration): Unit = ()
-          override def countRetry(): Unit             = ()
-          override def countSuccess(): Unit           = ()
+          override def done(fd: => Duration): Unit = ()
+          override def fail(fd: => Duration): Unit = ()
+          override def countRetry(): Unit          = ()
         }
     }
   }
