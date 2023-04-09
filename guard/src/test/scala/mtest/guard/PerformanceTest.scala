@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
-import io.circe.Json
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -15,114 +14,188 @@ import scala.concurrent.duration.*
 
 /** last time: (run more than once, pick up the best)
   *
-  * 875k/s trace
+  * time.count.silent: 775K/s
   *
-  * 760k/s silent with Timing and Counting
+  * time.count.aware: 392K/s
   *
-  * 379k/s aware with Timing and Counting
+  * time.count.notice: 337K/s
   *
-  * 298k/s notice with Timing and Counting
+  * time.silent: 655K/s
   *
-  * 1151k/s silent
+  * time.aware: 423K/s
   *
-  * 507k/s aware
+  * time.notice: 332K/s
   *
-  * 382k/s notice
+  * count.silent: 745K/s
   *
-  * 351k/s critical with notes
+  * count.aware: 467K/s
+  *
+  * count.notice: 376K/s
+  *
+  * silent: 964K/s
+  *
+  * aware: 486K/s
+  *
+  * notice: 380K/s
   */
 
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").updateConfig(_.withMetricReport(cron_1second))
-  val take: FiniteDuration = 100.seconds
+  val take: FiniteDuration = 15.seconds
 
-  def speed(i: Int): String = f"${i / (take.toSeconds * 1000)}%4dk/s"
+  def speed(i: Int): String = f"${i / (take.toSeconds * 1000)}%4dK/s"
 
   ignore("alert") {
+    print("alert:")
     var i = 0
     service.eventStream { ag =>
       val ts = ag.alert("alert").info("alert").map(_ => i += 1)
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} alert")
+    println(speed(i))
   }
 
   test("with trace") {
+    print("trace:")
     var i = 0
     service.eventStream { ag =>
       val ts = ag.action("trace").retry(IO(i += 1))
       ag.root("root").use(s => ts.runWithSpan(s).foreverM.timeout(take)).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} trace")
+    println(speed(i))
   }
 
-  test("Silent with Timing and Counting") {
+  test("silent.time.count") {
+    print("time.count.silent:")
     var i = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.silent.withTiming.withCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} silent with Timing and Counting")
+    println(speed(i))
   }
 
-  test("aware with Timing and Counting") {
+  test("aware.time.count") {
+    print("time.count.aware: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.aware.withCounting.withTiming).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} aware with Timing and Counting")
+    println(speed(i))
   }
 
-  test("notice with Timing and Counting") {
+  test("notice.time.count") {
+    print("time.count.notice:")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.notice.withCounting.withTiming).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} notice with Timing and Counting")
+    println(speed(i))
+  }
+
+  test("silent.time") {
+    print("time.silent:")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.silent.withTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("aware.time") {
+    print("time.aware: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.aware.withTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
+  test("notice.time") {
+    print("time.notice:")
+    var i = 0
+    service.eventStream { ag =>
+      val ts =
+        ag.action("t", _.notice.withTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
+  test("silent.counting") {
+    print("count.silent:")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.silent.withoutTiming.withCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
+  test("aware.counting") {
+    print("count.aware: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag.action("t", _.aware.withoutTiming.withCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
+  test("notice.counting") {
+    print("count.notice:")
+    var i = 0
+    service.eventStream { ag =>
+      val ts =
+        ag.action("t", _.notice.withoutTiming.withCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
   }
 
   test("silent") {
+    print("silent:")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.silent.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} silent")
+    println(speed(i))
+
   }
 
   test("aware") {
+    print("aware: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.aware.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} aware")
+    println(speed(i))
+
   }
 
   test("notice") {
     var i = 0
+    print("notice:")
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} notice")
+    println(speed(i))
+
   }
 
-  test("critical with notes") {
-    var i = 0
-    service.eventStream { ag =>
-      val ts = ag
-        .action("t", _.critical.withoutTiming.withoutCounting)
-        .retry((_: Int) => IO(i += 1))
-        .logOutput((i, _) => Json.fromInt(i))
-
-      ts.run(1).foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(s"${speed(i)} critical with notes")
-  }
 }
