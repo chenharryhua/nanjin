@@ -3,8 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import cats.{Monad, Show}
-import com.github.chenharryhua.nanjin.guard.config.*
-import io.circe.generic.*
+import io.circe.generic.JsonCodec
 import natchez.Span
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -31,7 +30,6 @@ object MetricIndex {
 
 @JsonCodec
 final case class ActionInfo(
-  actionParams: ActionParams,
   actionId: String, // spanId if exist
   traceInfo: Option[TraceInfo],
   launchTime: FiniteDuration) {

@@ -103,22 +103,23 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionEvent extends ServiceEvent {
     def actionInfo: ActionInfo // action runtime information
+    def actionParams: ActionParams
 
     final def traceId: String                       = actionInfo.traceInfo.map(_.traceId).getOrElse("none")
-    final override def serviceParams: ServiceParams = actionInfo.actionParams.serviceParams
+    final override def serviceParams: ServiceParams = actionParams.serviceParams
 
-    final def metricID: MetricID         = actionInfo.actionParams.metricID
-    final def actionParams: ActionParams = actionInfo.actionParams
-    final def actionId: String           = actionInfo.actionId
+    final def metricID: MetricID = actionParams.metricID
+    final def actionId: String   = actionInfo.actionId
   }
 
-  final case class ActionStart(actionInfo: ActionInfo) extends ActionEvent {
+  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo) extends ActionEvent {
     override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(actionInfo.launchTime)
     override val title: String            = titles.actionStart
     override val isPivotal: Boolean       = false
   }
 
   final case class ActionRetry(
+    actionParams: ActionParams,
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
     retriesSoFar: Int,
@@ -140,7 +141,12 @@ object NJEvent extends zoneddatetime {
   }
 
   @Lenses
-  final case class ActionFail(actionInfo: ActionInfo, landTime: FiniteDuration, error: NJError, output: Json)
+  final case class ActionFail(
+    actionParams: ActionParams,
+    actionInfo: ActionInfo,
+    landTime: FiniteDuration,
+    error: NJError,
+    output: Json)
       extends ActionResultEvent {
     override val title: String      = titles.actionFail
     override val isDone: Boolean    = false
@@ -149,6 +155,7 @@ object NJEvent extends zoneddatetime {
 
   @Lenses
   final case class ActionComplete(
+    actionParams: ActionParams,
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
     output: Json // output of the action
