@@ -160,7 +160,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(actionTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b(s"$CONSTANT_POLICY: "), evt.actionInfo.actionParams.retryPolicy),
+      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
       p(b(s"$CONSTANT_NOTES: "), jsonText(evt.output)), // align with slack
       causeText(evt.error)
     )

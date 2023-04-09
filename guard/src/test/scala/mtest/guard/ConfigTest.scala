@@ -22,27 +22,27 @@ class ConfigTest extends AnyFunSuite {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withCounting).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.actionParams.isCounting)
+    assert(as.actionParams.isCounting)
   }
   test("2.without counting") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withoutCounting).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(!as.actionInfo.actionParams.isCounting)
+    assert(!as.actionParams.isCounting)
   }
 
   test("3.timing") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withTiming).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(as.actionInfo.actionParams.isTiming)
+    assert(as.actionParams.isTiming)
   }
 
   test("4.without timing") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.notice.withoutTiming).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
-    assert(!as.actionInfo.actionParams.isTiming)
+    assert(!as.actionParams.isTiming)
   }
 
   test("8.silent") {

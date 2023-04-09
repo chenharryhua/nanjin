@@ -94,7 +94,7 @@ private object SimpleJsonTranslator {
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
       "event" -> "action_start".asJson,
-      importance(evt.actionInfo.actionParams.importance),
+      importance(evt.actionParams.importance),
       name(evt.metricID.metricName),
       measurement(evt.actionParams.metricID.metricName),
       traceInfo(evt),
@@ -107,7 +107,7 @@ private object SimpleJsonTranslator {
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
       "event" -> "action_retry".asJson,
-      importance(evt.actionInfo.actionParams.importance),
+      importance(evt.actionParams.importance),
       name(evt.metricID.metricName),
       measurement(evt.actionParams.metricID.metricName),
       traceInfo(evt),
@@ -121,7 +121,7 @@ private object SimpleJsonTranslator {
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
       "event" -> "action_fail".asJson,
-      importance(evt.actionInfo.actionParams.importance),
+      importance(evt.actionParams.importance),
       name(evt.metricID.metricName),
       measurement(evt.actionParams.metricID.metricName),
       took(evt),
@@ -137,7 +137,7 @@ private object SimpleJsonTranslator {
   private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
       "event" -> "action_complete".asJson,
-      importance(evt.actionInfo.actionParams.importance),
+      importance(evt.actionParams.importance),
       name(evt.metricID.metricName),
       measurement(evt.actionParams.metricID.metricName),
       took(evt),

@@ -51,6 +51,7 @@ final private class ReTry[F[_], IN, OUT](
           landTime <- F.realTime
           _ <- channel.send(
             ActionRetry(
+              actionParams = actionParams,
               actionInfo = ai,
               landTime = landTime,
               retriesSoFar = status.retriesSoFar,
@@ -80,7 +81,7 @@ final private class ReTry[F[_], IN, OUT](
       case Importance.Critical | Importance.Notice =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            channel.send(ActionStart(ai)) >> go(ai, in)
+            channel.send(ActionStart(actionParams, ai)) >> go(ai, in)
         }
       case Importance.Aware | Importance.Silent =>
         new KickOff {
@@ -93,7 +94,7 @@ final private class ReTry[F[_], IN, OUT](
       for {
         json <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
         fd <- F.realTime
-        _ <- channel.send(ActionFail(ai, fd, NJError(ex), json))
+        _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), json))
       } yield measures.fail(ai.took(fd))
 
     def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit]
@@ -106,7 +107,7 @@ final private class ReTry[F[_], IN, OUT](
             for {
               js <- fout.map(transOutput(in, _))
               fd <- F.realTime
-              _ <- channel.send(ActionComplete(ai, fd, js))
+              _ <- channel.send(ActionComplete(actionParams, ai, fd, js))
             } yield measures.done(ai.took(fd))
         }
 
@@ -130,7 +131,7 @@ final private class ReTry[F[_], IN, OUT](
 
   def run(in: IN): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
-      val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
+      val ai = ActionInfo(token.hash.toString, None, launchTime)
       kickoff(ai, in).guaranteeCase {
         case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
         case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
@@ -141,7 +142,7 @@ final private class ReTry[F[_], IN, OUT](
   def run(in: IN, traceInfo: Option[TraceInfo]): F[OUT] = traceInfo match {
     case ti @ Some(value) =>
       F.realTime.flatMap { launchTime =>
-        val ai = ActionInfo(actionParams, value.spanId, ti, launchTime)
+        val ai = ActionInfo(value.spanId, ti, launchTime)
         kickoff(ai, in).guaranteeCase {
           case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
           case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
