@@ -74,17 +74,17 @@ final private class ReTry[F[_], IN, OUT](
       }
     }
 
-  sealed private trait KickOff { def run(ai: ActionInfo, in: IN): F[OUT] }
+  sealed private trait KickOff { def apply(ai: ActionInfo, in: IN): F[OUT] }
   private val kickoff: KickOff =
     actionParams.importance match {
       case Importance.Critical | Importance.Notice =>
         new KickOff {
-          override def run(ai: ActionInfo, in: IN): F[OUT] =
+          override def apply(ai: ActionInfo, in: IN): F[OUT] =
             channel.send(ActionStart(ai)) >> go(ai, in)
         }
       case Importance.Aware | Importance.Silent =>
         new KickOff {
-          override def run(ai: ActionInfo, in: IN): F[OUT] = go(ai, in)
+          override def apply(ai: ActionInfo, in: IN): F[OUT] = go(ai, in)
         }
     }
 
@@ -104,17 +104,22 @@ final private class ReTry[F[_], IN, OUT](
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             for {
-              out <- fout
+              js <- fout.map(transOutput(in, _))
               fd <- F.realTime
-              _ <- channel.send(ActionComplete(ai, fd, transOutput(in, out)))
+              _ <- channel.send(ActionComplete(ai, fd, js))
             } yield measures.done(ai.took(fd))
         }
 
       // silent
-      case Importance.Silent if actionParams.isTiming || actionParams.isCounting =>
+      case Importance.Silent if actionParams.isTiming =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.realTime.map(fd => measures.done(ai.took(fd)))
+        }
+      case Importance.Silent if actionParams.isCounting =>
+        new Postmortem {
+          override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+            fout.map(_ => measures.done(Duration.ZERO))
         }
       case Importance.Silent =>
         new Postmortem {
@@ -126,7 +131,7 @@ final private class ReTry[F[_], IN, OUT](
   def run(in: IN): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
       val ai = ActionInfo(actionParams, token.hash.toString, None, launchTime)
-      kickoff.run(ai, in).guaranteeCase {
+      kickoff(ai, in).guaranteeCase {
         case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
         case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
         case Outcome.Canceled()      => postmortem.fail(ai, in, ActionCancelException)
@@ -137,7 +142,7 @@ final private class ReTry[F[_], IN, OUT](
     case ti @ Some(value) =>
       F.realTime.flatMap { launchTime =>
         val ai = ActionInfo(actionParams, value.spanId, ti, launchTime)
-        kickoff.run(ai, in).guaranteeCase {
+        kickoff(ai, in).guaranteeCase {
           case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
           case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
           case Outcome.Canceled()      => postmortem.fail(ai, in, ActionCancelException)
