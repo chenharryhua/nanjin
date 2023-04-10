@@ -8,7 +8,7 @@ import monocle.macros.Lenses
 
 @JsonCodec @Lenses
 final case class ActionParams(
-  metricID: MetricID,
+  metricId: MetricID,
   importance: Importance,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -25,7 +25,7 @@ object ActionParams {
     serviceParams: ServiceParams
   ): ActionParams =
     ActionParams(
-      metricID = MetricID(serviceParams, measurement, Category.Timer(TimerKind.ActionTimer), actionName),
+      metricId = MetricID(serviceParams, measurement, Category.Timer(TimerKind.ActionTimer), actionName),
       importance = Importance.Silent,
       isCounting = false,
       isTiming = false,

@@ -3,6 +3,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ActionConfig
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import eu.timepit.refined.auto.*
@@ -34,7 +35,7 @@ class PerformanceTest2 extends AnyFunSuite {
 
         s1 >> s2 >> s3 >> a1 >> a2 >> a3 >> n1 >> n2 >> n3
       }
-      .filter(_.isPivotal)
+      .filter(NJEvent.isPivotalEvent)
       .evalTap(console.simple[IO])
       .compile
       .drain

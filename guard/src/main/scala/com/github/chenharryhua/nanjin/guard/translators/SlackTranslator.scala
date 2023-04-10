@@ -28,7 +28,7 @@ private object SlackTranslator extends all {
       sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
     JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.taskParams.hostName.value))
   }
-  private def upTimeSection(evt: ServiceEvent): JuxtaposeSection =
+  private def upTimeSection(evt: NJEvent): JuxtaposeSection =
     JuxtaposeSection(
       first = TextField(CONSTANT_UPTIME, fmt.format(evt.upTime)),
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show))
@@ -55,7 +55,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s":rocket: *${evt.title}*"),
+            MarkdownSection(s":rocket: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}")
@@ -97,7 +97,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s":octagonal_sign: *${evt.title}*"),
+            MarkdownSection(s":octagonal_sign: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}
@@ -115,7 +115,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.title}*"),
+            MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
@@ -133,7 +133,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${evt.title}*"),
+            MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
@@ -175,7 +175,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${actionTitle(evt)}*"),
+            MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
@@ -197,7 +197,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${actionTitle(evt)}*"),
+            MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
@@ -219,7 +219,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(s"*${actionTitle(evt)}*"),
+            MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
@@ -248,7 +248,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${actionTitle(evt)}*"),
+            MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),

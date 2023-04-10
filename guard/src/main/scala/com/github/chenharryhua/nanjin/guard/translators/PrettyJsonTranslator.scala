@@ -14,11 +14,11 @@ private object PrettyJsonTranslator {
   private def serviceId(evt: NJEvent): (String, Json) = "service_id" -> evt.serviceId.asJson
   private def name(metricName: MetricName): (String, Json) = "name" -> Json.fromString(metricName.show)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceInfo(evt: ActionEvent): (String, Json)  = "trace_info" -> evt.actionInfo.traceInfo.asJson
+  private def traceId(evt: ActionEvent): (String, Json)    = "trace_id" -> evt.traceId.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
   private def stackTrace(err: NJError): (String, Json)     = "stack_trace" -> Json.fromString(err.stackTrace)
-  private def policy(evt: ServiceEvent): (String, Json)   = "policy" -> evt.serviceParams.restartPolicy.asJson
+  private def policy(evt: NJEvent): (String, Json)        = "policy" -> evt.serviceParams.restartPolicy.asJson
   private def policy(ap: ActionParams): (String, Json)    = "policy" -> ap.retryPolicy.asJson
   private def serviceName(evt: NJEvent): (String, Json)   = "service_name" -> evt.serviceName.value.asJson
   private def measurement(id: MetricName): (String, Json) = "measurement" -> id.measurement.value.asJson
@@ -86,27 +86,27 @@ private object PrettyJsonTranslator {
     Json.obj(
       "action_start" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
-          traceInfo(evt)
+          traceId(evt)
         ))
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
       "action_retry" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
+          traceId(evt),
           policy(evt.actionParams),
-          traceInfo(evt),
           ("cause", Json.fromString(evt.error.message))
         ))
 
@@ -114,15 +114,15 @@ private object PrettyJsonTranslator {
     Json.obj(
       "action_fail" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           took(evt),
+          traceId(evt),
           policy(evt.actionParams),
-          traceInfo(evt),
           "notes" -> evt.output, // align with slack
           stackTrace(evt.error)
         ))
@@ -131,14 +131,14 @@ private object PrettyJsonTranslator {
     Json.obj(
       "action_complete" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
+          traceId(evt),
           took(evt),
-          traceInfo(evt),
           "result" -> evt.output // align with slack
         ))
 

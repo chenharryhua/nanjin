@@ -20,7 +20,7 @@ private object SimpleJsonTranslator {
   private def measurement(id: MetricName): (String, Json) =
     "measurement" -> Json.fromString(id.measurement.value)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceInfo(evt: ActionEvent): (String, Json)  = "trace_info" -> evt.actionInfo.traceInfo.asJson
+  private def traceId(evt: ActionEvent): (String, Json)    = "trace_id" -> evt.traceId.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
 
@@ -31,7 +31,7 @@ private object SimpleJsonTranslator {
     case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
   }
 
-  private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
+  private def policy(evt: NJEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
 
   private def metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotJson(ss).toVanillaJson
@@ -95,10 +95,10 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> "action_start".asJson,
       importance(evt.actionParams.importance),
-      name(evt.metricID.metricName),
-      measurement(evt.actionParams.metricID.metricName),
-      traceInfo(evt),
-      digest(evt.metricID.metricName),
+      name(evt.metricId.metricName),
+      measurement(evt.actionParams.metricId.metricName),
+      traceId(evt),
+      digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
       timestamp(evt)
@@ -108,11 +108,11 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> "action_retry".asJson,
       importance(evt.actionParams.importance),
-      name(evt.metricID.metricName),
-      measurement(evt.actionParams.metricID.metricName),
-      traceInfo(evt),
+      name(evt.metricId.metricName),
+      measurement(evt.actionParams.metricId.metricName),
+      traceId(evt),
       ("cause", Json.fromString(evt.error.message)),
-      digest(evt.metricID.metricName),
+      digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
       timestamp(evt)
@@ -122,13 +122,13 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> "action_fail".asJson,
       importance(evt.actionParams.importance),
-      name(evt.metricID.metricName),
-      measurement(evt.actionParams.metricID.metricName),
+      name(evt.metricId.metricName),
+      measurement(evt.actionParams.metricId.metricName),
       took(evt),
-      traceInfo(evt),
+      traceId(evt),
       "notes" -> evt.output, // align with slack
       stackTrace(evt.error),
-      digest(evt.metricID.metricName),
+      digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
       timestamp(evt)
@@ -138,12 +138,12 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> "action_complete".asJson,
       importance(evt.actionParams.importance),
-      name(evt.metricID.metricName),
-      measurement(evt.actionParams.metricID.metricName),
+      name(evt.metricId.metricName),
+      measurement(evt.actionParams.metricId.metricName),
       took(evt),
-      traceInfo(evt),
+      traceId(evt),
       "result" -> evt.output, // align with slack
-      digest(evt.metricID.metricName),
+      digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
       timestamp(evt)
