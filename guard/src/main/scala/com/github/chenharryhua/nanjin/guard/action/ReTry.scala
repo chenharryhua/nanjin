@@ -131,7 +131,7 @@ final private class ReTry[F[_], IN, OUT](
 
   def run(in: IN): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
-      val ai = ActionInfo(token.hash.toString, None, launchTime)
+      val ai = ActionInfo(Left(token.hash), launchTime)
       kickoff(ai, in).guaranteeCase {
         case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
         case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
@@ -140,9 +140,9 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   def run(in: IN, traceInfo: Option[TraceInfo]): F[OUT] = traceInfo match {
-    case ti @ Some(value) =>
+    case Some(ti) =>
       F.realTime.flatMap { launchTime =>
-        val ai = ActionInfo(value.spanId, ti, launchTime)
+        val ai = ActionInfo(Right(ti), launchTime)
         kickoff(ai, in).guaranteeCase {
           case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
           case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)

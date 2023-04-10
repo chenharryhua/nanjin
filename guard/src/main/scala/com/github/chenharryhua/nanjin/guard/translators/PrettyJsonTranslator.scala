@@ -14,7 +14,7 @@ private object PrettyJsonTranslator {
   private def serviceId(evt: NJEvent): (String, Json) = "service_id" -> evt.serviceId.asJson
   private def name(metricName: MetricName): (String, Json) = "name" -> Json.fromString(metricName.show)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceInfo(evt: ActionEvent): (String, Json)  = "trace_info" -> evt.actionInfo.traceInfo.asJson
+  private def traceId(evt: ActionEvent): (String, Json)    = "trace_id" -> evt.traceId.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
   private def stackTrace(err: NJError): (String, Json)     = "stack_trace" -> Json.fromString(err.stackTrace)
@@ -92,7 +92,7 @@ private object PrettyJsonTranslator {
           importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
-          traceInfo(evt)
+          traceId(evt)
         ))
 
   private def actionRetrying(evt: ActionRetry): Json =
@@ -105,8 +105,8 @@ private object PrettyJsonTranslator {
           importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
+          traceId(evt),
           policy(evt.actionParams),
-          traceInfo(evt),
           ("cause", Json.fromString(evt.error.message))
         ))
 
@@ -121,8 +121,8 @@ private object PrettyJsonTranslator {
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           took(evt),
+          traceId(evt),
           policy(evt.actionParams),
-          traceInfo(evt),
           "notes" -> evt.output, // align with slack
           stackTrace(evt.error)
         ))
@@ -137,8 +137,8 @@ private object PrettyJsonTranslator {
           importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
+          traceId(evt),
           took(evt),
-          traceInfo(evt),
           "result" -> evt.output // align with slack
         ))
 

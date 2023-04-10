@@ -79,9 +79,9 @@ object NJEvent extends zoneddatetime {
 
     final override def serviceParams: ServiceParams = actionParams.serviceParams
 
-    final def traceId: String    = actionInfo.traceInfo.map(_.traceId).getOrElse("none")
-    final def metricId: MetricID = actionParams.metricId
+    final def traceId: String    = actionInfo.traceId
     final def actionId: String   = actionInfo.actionId
+    final def metricId: MetricID = actionParams.metricId
   }
 
   final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo) extends ActionEvent {

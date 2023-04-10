@@ -20,7 +20,7 @@ private object SimpleJsonTranslator {
   private def measurement(id: MetricName): (String, Json) =
     "measurement" -> Json.fromString(id.measurement.value)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceInfo(evt: ActionEvent): (String, Json)  = "trace_info" -> evt.actionInfo.traceInfo.asJson
+  private def traceId(evt: ActionEvent): (String, Json)    = "trace_id" -> evt.traceId.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
 
@@ -97,7 +97,7 @@ private object SimpleJsonTranslator {
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
-      traceInfo(evt),
+      traceId(evt),
       digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
@@ -110,7 +110,7 @@ private object SimpleJsonTranslator {
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
-      traceInfo(evt),
+      traceId(evt),
       ("cause", Json.fromString(evt.error.message)),
       digest(evt.metricId.metricName),
       actionId(evt),
@@ -125,7 +125,7 @@ private object SimpleJsonTranslator {
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
-      traceInfo(evt),
+      traceId(evt),
       "notes" -> evt.output, // align with slack
       stackTrace(evt.error),
       digest(evt.metricId.metricName),
@@ -141,7 +141,7 @@ private object SimpleJsonTranslator {
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
-      traceInfo(evt),
+      traceId(evt),
       "result" -> evt.output, // align with slack
       digest(evt.metricId.metricName),
       actionId(evt),

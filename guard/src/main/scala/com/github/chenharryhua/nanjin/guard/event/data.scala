@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import cats.{Monad, Show}
+import io.circe.Codec
 import io.circe.generic.JsonCodec
 import natchez.Span
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -29,15 +30,18 @@ object MetricIndex {
 }
 
 @JsonCodec
-final case class ActionInfo(
-  actionId: String, // spanId if exist
-  traceInfo: Option[TraceInfo],
-  launchTime: FiniteDuration) {
+final case class ActionInfo(token: Either[Int, TraceInfo], launchTime: FiniteDuration) {
   def took(landTime: FiniteDuration): Duration = landTime.minus(launchTime).toJava
+
+  def actionId: String = token.fold(_.toString, _.spanId)
+  def traceId: String  = token.map(_.traceId).getOrElse("none")
 }
 
 object ActionInfo {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
+
+  implicit final val tokenCodec: Codec.AsObject[Either[Int, TraceInfo]] =
+    Codec.codecForEither[Int, TraceInfo]("action_id", "trace")
 }
 
 @JsonCodec
@@ -79,13 +83,12 @@ object ServiceStopCause {
 }
 
 @JsonCodec
-final case class TraceInfo(kernel: Map[String, String], traceId: String, spanId: String)
+final case class TraceInfo(traceId: String, spanId: String)
 object TraceInfo {
   implicit final val showTraceInfo: Show[TraceInfo] = cats.derived.semiauto.show
 
   def apply[F[_]: Monad](span: Span[F]): F[Option[TraceInfo]] = for {
-    knl <- span.kernel.map(_.toHeaders)
     tid <- span.traceId
     sid <- span.spanId
-  } yield (tid, sid).mapN(TraceInfo(knl.map { case (ci, v) => ci.toString -> v }, _, _))
+  } yield (tid, sid).mapN(TraceInfo(_, _))
 }
