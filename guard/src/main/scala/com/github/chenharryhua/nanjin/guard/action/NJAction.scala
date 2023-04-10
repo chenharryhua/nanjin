@@ -18,11 +18,11 @@ final class NJAction[F[_], IN, OUT] private[action] (
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
   transError: IN => F[Json],
-  transOutput: (IN, OUT) => Json,
+  transOutput: Option[(IN, OUT) => Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
     transError: IN => F[Json] = self.transError,
-    transOutput: (IN, OUT) => Json = self.transOutput,
+    transOutput: Option[(IN, OUT) => Json] = self.transOutput,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
     new NJAction[F, IN, OUT](
       metricRegistry = metricRegistry,
@@ -42,7 +42,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def logErrorM(f: IN => F[Json]): NJAction[F, IN, OUT] = copy(transError = f)
   def logError(f: IN => Json): NJAction[F, IN, OUT]     = logErrorM((a: IN) => F.pure(f(a)))
 
-  def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT] = copy(transOutput = f)
+  def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT] = copy(transOutput = Some(f))
 
   private[this] lazy val actionRunner: ReTry[F, IN, OUT] =
     new ReTry[F, IN, OUT](
@@ -81,11 +81,11 @@ final class NJAction0[F[_], OUT] private[guard] (
   retryPolicy: RetryPolicy[F],
   arrow: F[OUT],
   transError: F[Json],
-  transOutput: OUT => Json,
+  transOutput: Option[OUT => Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
     transError: F[Json] = self.transError,
-    transOutput: OUT => Json = self.transOutput,
+    transOutput: Option[OUT => Json] = self.transOutput,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction0[F, OUT] =
     new NJAction0[F, OUT](
       metricRegistry,
@@ -105,7 +105,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logErrorM(info: F[Json]): NJAction0[F, OUT] = copy(transError = info)
   def logError(info: Json): NJAction0[F, OUT]     = logErrorM(F.pure(info))
 
-  def logOutput(f: OUT => Json): NJAction0[F, OUT] = copy(transOutput = f)
+  def logOutput(f: OUT => Json): NJAction0[F, OUT] = copy(transOutput = Some(f))
 
   private lazy val njAction = new NJAction[F, Unit, OUT](
     metricRegistry = metricRegistry,
@@ -114,7 +114,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     retryPolicy = retryPolicy,
     arrow = _ => arrow,
     transError = _ => transError,
-    transOutput = (_, b: OUT) => transOutput(b),
+    transOutput = transOutput.map(f => (_, b: OUT) => f(b)),
     isWorthRetry = isWorthRetry
   )
 

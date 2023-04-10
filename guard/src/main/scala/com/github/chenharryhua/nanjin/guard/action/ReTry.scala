@@ -35,17 +35,18 @@ final private class ReTry[F[_], IN, OUT](
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
   transError: IN => F[Json],
-  transOutput: (IN, OUT) => Json,
+  transOutput: Option[(IN, OUT) => Json],
   isWorthRetry: Throwable => F[Boolean]
 )(implicit F: Temporal[F]) {
+
   private val measures: MeasureAction = MeasureAction(actionParams, metricRegistry)
 
-  private def fail(ex: Throwable): F[Either[RetryStatus, OUT]] =
+  private def retypeFailure(ex: Throwable): F[Either[RetryStatus, OUT]] =
     F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
 
   private def retrying(ai: ActionInfo, ex: Throwable, status: RetryStatus): F[Either[RetryStatus, OUT]] =
     retryPolicy.decideNextRetry(status).flatMap {
-      case PolicyDecision.GiveUp => fail(ex)
+      case PolicyDecision.GiveUp => retypeFailure(ex)
       case PolicyDecision.DelayAndRetry(delay) =>
         for {
           landTime <- F.realTime
@@ -65,13 +66,13 @@ final private class ReTry[F[_], IN, OUT](
         }
     }
 
-  private def go(ai: ActionInfo, in: IN): F[OUT] =
+  private def compute(ai: ActionInfo, in: IN): F[OUT] =
     F.tailRecM(RetryStatus.NoRetriesYet) { status =>
       arrow(in).attempt.flatMap {
         case Right(out)                => F.pure(Right(out))
-        case Left(ex) if !NonFatal(ex) => fail(ex)
+        case Left(ex) if !NonFatal(ex) => retypeFailure(ex)
         case Left(ex) =>
-          isWorthRetry(ex).attempt.map(_.exists(identity)).ifM(retrying(ai, ex, status), fail(ex))
+          isWorthRetry(ex).attempt.map(_.exists(identity)).ifM(retrying(ai, ex, status), retypeFailure(ex))
       }
     }
 
@@ -81,20 +82,20 @@ final private class ReTry[F[_], IN, OUT](
       case Importance.Critical | Importance.Notice =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            channel.send(ActionStart(actionParams, ai)) >> go(ai, in)
+            channel.send(ActionStart(actionParams, ai)) >> compute(ai, in)
         }
       case Importance.Aware | Importance.Silent =>
         new KickOff {
-          override def apply(ai: ActionInfo, in: IN): F[OUT] = go(ai, in)
+          override def apply(ai: ActionInfo, in: IN): F[OUT] = compute(ai, in)
         }
     }
 
   sealed private trait Postmortem {
     final def fail(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
       for {
-        json <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
+        js <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
         fd <- F.realTime
-        _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), json))
+        _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), js))
       } yield measures.fail(ai.took(fd))
 
     def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit]
@@ -102,13 +103,24 @@ final private class ReTry[F[_], IN, OUT](
   private val postmortem: Postmortem =
     actionParams.importance match {
       case Importance.Critical | Importance.Notice | Importance.Aware =>
-        new Postmortem {
-          override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
-            for {
-              js <- fout.map(transOutput(in, _))
-              fd <- F.realTime
-              _ <- channel.send(ActionComplete(actionParams, ai, fd, js))
-            } yield measures.done(ai.took(fd))
+        transOutput match {
+          case Some(transform) =>
+            new Postmortem {
+              override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+                for {
+                  js <- fout.map(transform(in, _))
+                  fd <- F.realTime
+                  _ <- channel.send(ActionComplete(actionParams, ai, fd, js))
+                } yield measures.done(ai.took(fd))
+            }
+          case None =>
+            new Postmortem {
+              override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
+                for {
+                  fd <- F.realTime
+                  _ <- channel.send(ActionComplete(actionParams, ai, fd, Json.Null))
+                } yield measures.done(ai.took(fd))
+            }
         }
 
       // silent

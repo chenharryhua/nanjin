@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
+import io.circe.syntax.EncoderOps
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -38,7 +39,6 @@ import scala.concurrent.duration.*
   *
   * notice: 380K/s
   */
-
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
@@ -87,11 +87,39 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
+  test("aware.time.count.notes") {
+    print("time.count.aware.notes: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag
+        .action("t", _.aware.withCounting.withTiming)
+        .retry(IO(i += 1))
+        .logOutput(_ => "aware..time.count.notes".asJson)
+        .run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
   test("notice.time.count") {
     print("time.count.notice:")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.notice.withCounting.withTiming).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("notice.time.count.notes") {
+    print("time.count.notice.notes:")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag
+        .action("t", _.notice.withCounting.withTiming)
+        .retry(IO(i += 1))
+        .logOutput(_ => "notice.time.count.notes".asJson)
+        .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -117,13 +145,41 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
 
   }
+  test("aware.time.notes") {
+    print("time.aware.notes: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag
+        .action("t", _.aware.withTiming.withoutCounting)
+        .retry(IO(i += 1))
+        .logOutput(_ => "aware.time.notes".asJson)
+        .run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
 
+  }
   test("notice.time") {
     print("time.notice:")
     var i = 0
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.notice.withTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
+  test("notice.time.notes") {
+    print("time.notice.notes:")
+    var i = 0
+    service.eventStream { ag =>
+      val ts =
+        ag.action("t", _.notice.withTiming.withoutCounting)
+          .retry(IO(i += 1))
+          .logOutput(_ => "notice.time.notes".asJson)
+          .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -152,12 +208,42 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
+  test("aware.counting.notes") {
+    print("count.aware.notes: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag
+        .action("t", _.aware.withoutTiming.withCounting)
+        .retry(IO(i += 1))
+        .logOutput(_ => "aware.counting.notes".asJson)
+        .run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
   test("notice.counting") {
     print("count.notice:")
     var i = 0
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.notice.withoutTiming.withCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
+  test("notice.counting.notes") {
+    print("count.notice.notes:")
+    var i = 0
+    service.eventStream { ag =>
+      val ts =
+        ag.action("t", _.notice.withoutTiming.withCounting)
+          .retry(IO(i += 1))
+          .logOutput(_ => "notice.counting.notes".asJson)
+          .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -185,13 +271,43 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
 
   }
+  test("aware.notes") {
+    print("aware.notes: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val ts = ag
+        .action("t", _.aware.withoutTiming.withoutCounting)
+        .retry(IO(i += 1))
+        .logOutput(_ => "aware.notes".asJson)
+        .run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
 
+  }
   test("notice") {
     var i = 0
     print("notice:")
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      ts.foreverM.timeout(take).attempt
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+
+  }
+
+
+
+  test("notice.notes") {
+    var i = 0
+    print("notice.notes:")
+    service.eventStream { ag =>
+      val ts =
+        ag.action("t", _.notice.withoutTiming.withoutCounting)
+          .retry(IO(i += 1))
+          .logOutput(_ => "notice.notes".asJson)
+          .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))

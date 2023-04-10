@@ -13,7 +13,7 @@ final case class Measurement(value: String) extends AnyVal
 final case class Digest(value: String) extends AnyVal
 
 @JsonCodec
-final case class MetricName(value: String, digest: Digest, measurement: Measurement) {
+final case class MetricName private (value: String, digest: Digest, measurement: Measurement) {
   override val toString: String = s"[${digest.value}][$value]"
 }
 object MetricName {
