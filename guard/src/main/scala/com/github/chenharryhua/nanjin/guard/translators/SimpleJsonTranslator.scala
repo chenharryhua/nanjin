@@ -31,7 +31,7 @@ private object SimpleJsonTranslator {
     case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
   }
 
-  private def policy(evt: ServiceEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
+  private def policy(evt: NJEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
 
   private def metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotJson(ss).toVanillaJson

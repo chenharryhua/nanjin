@@ -18,7 +18,7 @@ private object PrettyJsonTranslator {
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
   private def stackTrace(err: NJError): (String, Json)     = "stack_trace" -> Json.fromString(err.stackTrace)
-  private def policy(evt: ServiceEvent): (String, Json)   = "policy" -> evt.serviceParams.restartPolicy.asJson
+  private def policy(evt: NJEvent): (String, Json)        = "policy" -> evt.serviceParams.restartPolicy.asJson
   private def policy(ap: ActionParams): (String, Json)    = "policy" -> ap.retryPolicy.asJson
   private def serviceName(evt: NJEvent): (String, Json)   = "service_name" -> evt.serviceName.value.asJson
   private def measurement(id: MetricName): (String, Json) = "measurement" -> id.measurement.value.asJson

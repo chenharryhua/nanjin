@@ -19,7 +19,7 @@ private object SimpleTextTranslator {
       .value
   }
 
-  private def serviceEvent(se: ServiceEvent): String = {
+  private def serviceEvent(se: NJEvent): String = {
     val host: String      = se.serviceParams.taskParams.hostName.value
     val sn: String        = se.serviceParams.serviceName.value
     val tn: String        = se.serviceParams.taskParams.taskName.value

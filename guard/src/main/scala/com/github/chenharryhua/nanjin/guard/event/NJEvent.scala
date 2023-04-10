@@ -31,24 +31,22 @@ sealed trait NJEvent extends Product with Serializable {
 object NJEvent extends zoneddatetime {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
 
-  sealed trait ServiceEvent extends NJEvent
-
-  final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends ServiceEvent
+  final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends NJEvent
 
   final case class ServicePanic(
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     restartTime: ZonedDateTime,
     error: NJError)
-      extends ServiceEvent
+      extends NJEvent
 
   final case class ServiceStop(
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     cause: ServiceStopCause)
-      extends ServiceEvent
+      extends NJEvent
 
-  sealed trait MetricEvent extends ServiceEvent {
+  sealed trait MetricEvent extends NJEvent {
     def index: MetricIndex
     def snapshot: MetricSnapshot
   }
@@ -73,9 +71,9 @@ object NJEvent extends zoneddatetime {
     serviceParams: ServiceParams,
     alertLevel: AlertLevel,
     message: String)
-      extends ServiceEvent
+      extends NJEvent
 
-  sealed trait ActionEvent extends ServiceEvent {
+  sealed trait ActionEvent extends NJEvent {
     def actionInfo: ActionInfo // action runtime information
     def actionParams: ActionParams
 
@@ -98,15 +96,16 @@ object NJEvent extends zoneddatetime {
     delay: FiniteDuration,
     error: NJError)
       extends ActionEvent {
-    override val timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
-    val tookSoFar: Duration               = actionInfo.took(landTime)
+    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
+    def tookSoFar: Duration               = actionInfo.took(landTime)
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
     def landTime: FiniteDuration
+    def output: Json
+
     final override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
     final def took: Duration                    = actionInfo.took(landTime)
-    def output: Json
   }
 
   @Lenses
@@ -123,8 +122,8 @@ object NJEvent extends zoneddatetime {
     actionParams: ActionParams,
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
-    output: Json // output of the action
-  ) extends ActionResultEvent
+    output: Json)
+      extends ActionResultEvent
 
   final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
     case _: ActionComplete => false

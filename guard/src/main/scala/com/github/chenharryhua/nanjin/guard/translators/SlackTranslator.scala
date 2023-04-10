@@ -28,7 +28,7 @@ private object SlackTranslator extends all {
       sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
     JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.taskParams.hostName.value))
   }
-  private def upTimeSection(evt: ServiceEvent): JuxtaposeSection =
+  private def upTimeSection(evt: NJEvent): JuxtaposeSection =
     JuxtaposeSection(
       first = TextField(CONSTANT_UPTIME, fmt.format(evt.upTime)),
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show))
