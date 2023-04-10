@@ -86,11 +86,11 @@ private object PrettyJsonTranslator {
     Json.obj(
       "action_start" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceInfo(evt)
         ))
@@ -99,11 +99,11 @@ private object PrettyJsonTranslator {
     Json.obj(
       "action_retry" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           policy(evt.actionParams),
           traceInfo(evt),
@@ -114,11 +114,11 @@ private object PrettyJsonTranslator {
     Json.obj(
       "action_fail" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           took(evt),
           policy(evt.actionParams),
@@ -131,11 +131,11 @@ private object PrettyJsonTranslator {
     Json.obj(
       "action_complete" ->
         Json.obj(
-          name(evt.metricID.metricName),
+          name(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricID.metricName),
+          measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           took(evt),
           traceInfo(evt),

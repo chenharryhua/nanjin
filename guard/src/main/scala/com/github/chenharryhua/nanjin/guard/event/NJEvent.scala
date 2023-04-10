@@ -79,10 +79,10 @@ object NJEvent extends zoneddatetime {
     def actionInfo: ActionInfo // action runtime information
     def actionParams: ActionParams
 
-    final def traceId: String                       = actionInfo.traceInfo.map(_.traceId).getOrElse("none")
     final override def serviceParams: ServiceParams = actionParams.serviceParams
 
-    final def metricID: MetricID = actionParams.metricID
+    final def traceId: String    = actionInfo.traceInfo.map(_.traceId).getOrElse("none")
+    final def metricId: MetricID = actionParams.metricId
     final def actionId: String   = actionInfo.actionId
   }
 
@@ -125,7 +125,6 @@ object NJEvent extends zoneddatetime {
     landTime: FiniteDuration,
     output: Json // output of the action
   ) extends ActionResultEvent
-
 
   final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
     case _: ActionComplete => false
