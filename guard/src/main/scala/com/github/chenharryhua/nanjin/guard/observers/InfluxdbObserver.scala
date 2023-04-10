@@ -55,7 +55,7 @@ final class InfluxdbObserver[F[_]](
         .time(ar.timestamp.toInstant, writePrecision)
         .addTag(CONSTANT_SERVICE_ID, ar.serviceParams.serviceId.show)
         .addTag(METRICS_DIGEST, ar.actionParams.metricID.metricName.digest.value)
-        .addTag("done", ar.isDone.show) // for query
+        .addTag("done", NJEvent.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
         .addField(ar.actionParams.metricID.metricName.value, unit.convert(ar.took)) // Long
     )

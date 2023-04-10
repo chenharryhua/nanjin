@@ -32,7 +32,7 @@ private object SimpleTextTranslator {
        |  $CONSTANT_IMPORTANCE:${ae.actionParams.importance.show}, $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |  $CONSTANT_BRIEF:${evt.serviceParams.brief.noSpaces}
        |""".stripMargin
@@ -40,7 +40,7 @@ private object SimpleTextTranslator {
   private def servicePanic(evt: ServicePanic): String = {
     val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
     val msg         = s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |  $msg
        |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
@@ -49,37 +49,37 @@ private object SimpleTextTranslator {
   }
 
   private def serviceStopped(evt: ServiceStop): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
        |  $CONSTANT_CAUSE:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
-    s"""${coloring(evt.title)(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
        |""".stripMargin
 
   private def instantAlert(evt: InstantAlert): String =
-    s"""${coloring(instantEventTitle(evt))(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |  ${serviceEvent(evt)}
        |  ${evt.alertLevel.show}:${evt.message}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
-    s"""${coloring(actionTitle(evt))(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |${actionEvent(evt)}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
-    s"""${coloring(actionTitle(evt))(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.tookSoFar)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
@@ -87,7 +87,7 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def actionFail(evt: ActionFail): String =
-    s"""${coloring(actionTitle(evt))(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
@@ -96,7 +96,7 @@ private object SimpleTextTranslator {
        |""".stripMargin
 
   private def actionComplete(evt: ActionComplete): String =
-    s"""${coloring(actionTitle(evt))(evt)}
+    s"""${coloring(eventTitle(evt))(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_RESULT:${evt.output.noSpaces}

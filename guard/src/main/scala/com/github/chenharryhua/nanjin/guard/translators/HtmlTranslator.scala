@@ -63,7 +63,7 @@ private object HtmlTranslator extends all {
 
   private def serviceStarted(evt: ServiceStart): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       briefText(evt.serviceParams.brief)
     )
@@ -72,7 +72,7 @@ private object HtmlTranslator extends all {
     val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
     val msg         = s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
     div(
-      h3(style := coloring(evt))(evt.title),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(msg)),
       p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
@@ -82,7 +82,7 @@ private object HtmlTranslator extends all {
 
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(s"$CONSTANT_CAUSE: "), evt.cause.show),
       briefText(evt.serviceParams.brief)
@@ -90,14 +90,14 @@ private object HtmlTranslator extends all {
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       snapshotText(evt.serviceParams, evt.snapshot)
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(evt.title),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       briefText(evt.serviceParams.brief),
       snapshotText(evt.serviceParams, evt.snapshot)
@@ -105,7 +105,7 @@ private object HtmlTranslator extends all {
 
   private def instantAlert(evt: InstantAlert): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(instantEventTitle(evt)),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       pre(evt.message)
     )
@@ -116,7 +116,7 @@ private object HtmlTranslator extends all {
       tr(td(evt.actionParams.importance.show), td(evt.actionId), td(evt.traceId))
     )
     div(
-      h3(style := coloring(evt))(actionTitle(evt)),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), start)
     )
   }
@@ -139,7 +139,7 @@ private object HtmlTranslator extends all {
       )
     )
     div(
-      h3(style := coloring(evt))(actionTitle(evt)),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), retry),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
@@ -158,7 +158,7 @@ private object HtmlTranslator extends all {
 
   private def actionFailed(evt: ActionFail): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(actionTitle(evt)),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
       p(b(s"$CONSTANT_NOTES: "), jsonText(evt.output)), // align with slack
@@ -167,7 +167,7 @@ private object HtmlTranslator extends all {
 
   private def actionCompleted(evt: ActionComplete): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(actionTitle(evt)),
+      h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_RESULT: "), jsonText(evt.output)) // align with slack
     )
