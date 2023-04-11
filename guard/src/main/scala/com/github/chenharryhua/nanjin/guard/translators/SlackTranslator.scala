@@ -201,7 +201,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
-              second = TextField(CONSTANT_TOOK, fmt.format(evt.tookSoFar))),
+              second = TextField(CONSTANT_DELAYED, fmt.format(evt.tookSoFar))),
             MarkdownSection(s"""|*${toOrdinalWords(evt.retriesSoFar + 1)}* retry at $localTs, in $next
                                 |${policy(evt)}
                                 |${serviceId(evt)}""".stripMargin),

@@ -132,7 +132,7 @@ final private class ReTry[F[_], IN, OUT](
       case Importance.Silent if actionParams.isCounting =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
-            fout.map(_ => measures.done(Duration.ZERO))
+            F.pure(measures.done(Duration.ZERO))
         }
       case Importance.Silent =>
         new Postmortem {

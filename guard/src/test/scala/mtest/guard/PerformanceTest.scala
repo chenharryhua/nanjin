@@ -297,8 +297,6 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-
-
   test("notice.notes") {
     var i = 0
     print("notice.notes:")

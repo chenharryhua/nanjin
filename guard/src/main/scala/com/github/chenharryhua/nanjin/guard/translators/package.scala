@@ -18,6 +18,7 @@ package object translators {
   @inline final val CONSTANT_POLICY: String     = "Policy"
   @inline final val CONSTANT_CAUSE: String      = "Cause"
   @inline final val CONSTANT_TOOK: String       = "Took"
+  @inline final val CONSTANT_DELAYED: String    = "Delayed"
   @inline final val CONSTANT_NOTES: String      = "Notes"
   @inline final val CONSTANT_RESULT: String     = "Result"
   @inline final val CONSTANT_IMPORTANCE: String = "Importance"
