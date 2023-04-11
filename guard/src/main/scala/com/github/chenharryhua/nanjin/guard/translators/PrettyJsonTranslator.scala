@@ -120,8 +120,8 @@ private object PrettyJsonTranslator {
           importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
-          took(evt),
           traceId(evt),
+          took(evt),
           policy(evt.actionParams),
           "notes" -> evt.output, // align with slack
           stackTrace(evt.error)

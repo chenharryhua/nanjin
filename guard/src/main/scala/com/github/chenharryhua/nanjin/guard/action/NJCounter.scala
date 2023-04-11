@@ -8,15 +8,15 @@ import io.circe.syntax.EncoderOps
 final class NJCounter[F[_]] private[guard] (
   name: MetricName,
   metricRegistry: MetricRegistry,
-  isError: Boolean)(implicit F: Sync[F]) {
+  isRisk: Boolean)(implicit F: Sync[F]) {
 
   private lazy val counter: Counter =
-    if (isError)
-      metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.ErrorCounter))).asJson.noSpaces)
+    if (isRisk)
+      metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.RiskCounter))).asJson.noSpaces)
     else
       metricRegistry.counter(MetricID(name, Category.Counter(None)).asJson.noSpaces)
 
-  def asError: NJCounter[F] = new NJCounter[F](name, metricRegistry, isError = true)
+  def asRisk: NJCounter[F] = new NJCounter[F](name, metricRegistry, isRisk = true)
 
   def unsafeInc(num: Long): Unit = counter.inc(num)
   def unsafeDec(num: Long): Unit = counter.dec(num)

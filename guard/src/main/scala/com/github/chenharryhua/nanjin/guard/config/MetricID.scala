@@ -48,7 +48,7 @@ object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
 
   object UdpCounter extends CounterKind("udp_count")
 
-  object ErrorCounter extends CounterKind("error_count")
+  object RiskCounter extends CounterKind("risk_count")
 }
 
 sealed abstract class TimerKind(override val entryName: String) extends EnumEntry

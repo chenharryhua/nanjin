@@ -25,11 +25,11 @@ final class NJAction[F[_], IN, OUT] private[action] (
     transOutput: Option[(IN, OUT) => Json] = self.transOutput,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
     new NJAction[F, IN, OUT](
-      metricRegistry = metricRegistry,
-      channel = channel,
-      actionParams = actionParams,
-      retryPolicy = retryPolicy,
-      arrow = arrow,
+      metricRegistry = self.metricRegistry,
+      channel = self.channel,
+      actionParams = self.actionParams,
+      retryPolicy = self.retryPolicy,
+      arrow = self.arrow,
       transError = transError,
       transOutput = transOutput,
       isWorthRetry = isWorthRetry
@@ -88,11 +88,11 @@ final class NJAction0[F[_], OUT] private[guard] (
     transOutput: Option[OUT => Json] = self.transOutput,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction0[F, OUT] =
     new NJAction0[F, OUT](
-      metricRegistry,
-      channel = channel,
-      actionParams = actionParams,
-      retryPolicy = retryPolicy,
-      arrow = arrow,
+      metricRegistry = self.metricRegistry,
+      channel = self.channel,
+      actionParams = self.actionParams,
+      retryPolicy = self.retryPolicy,
+      arrow = self.arrow,
       transError = transError,
       transOutput = transOutput,
       isWorthRetry = isWorthRetry
