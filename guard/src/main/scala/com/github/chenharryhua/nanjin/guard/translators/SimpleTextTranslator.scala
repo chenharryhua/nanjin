@@ -70,7 +70,7 @@ private object SimpleTextTranslator {
        |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
        |""".stripMargin
 
-  private def instantAlert(evt: InstantAlert): String =
+  private def serviceAlert(evt: ServiceAlert): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
        |  ${evt.alertLevel.show}:${evt.message}
@@ -113,7 +113,7 @@ private object SimpleTextTranslator {
       .withServicePanic(servicePanic)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
-      .withInstantAlert(instantAlert)
+      .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetry)
       .withActionFail(actionFail)

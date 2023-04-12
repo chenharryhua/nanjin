@@ -76,7 +76,7 @@ package object translators {
       case NJEvent.ActionFail(ap, _, _, _, _)     => s"Action Failed ${ap.metricId.metricName.display}"
       case NJEvent.ActionComplete(ap, _, _, _)    => s"Action Completed ${ap.metricId.metricName.display}"
 
-      case NJEvent.InstantAlert(metricName, _, _, _, _) => s"Alert ${metricName.display}"
+      case NJEvent.ServiceAlert(metricName, _, _, _, _) => s"Alert ${metricName.display}"
 
       case _: NJEvent.ServiceStart => "(Re)Start Service"
       case _: NJEvent.ServiceStop  => "Service Stopped"

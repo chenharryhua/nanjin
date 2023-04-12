@@ -78,7 +78,22 @@ class ObserversTest extends AnyFunSuite {
         val err = ag.action("error", _.critical).retry(err_fun(1)).run
         ok(ag) >> err.attempt
       }
-      .evalTap(console(Translator.simpleJson[IO].map(_.noSpaces)))
+      .evalTap(console.json[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("3.1.console - simple json") {
+    TaskGuard[IO]("console")
+      .service("json")
+      .withRestartPolicy(constant_1hour)
+      .updateConfig(_.withMetricReport(cron_1second))
+      .eventStream { ag =>
+        val err = ag.action("error", _.critical).retry(err_fun(1)).run
+        ok(ag) >> err.attempt
+      }
+      .evalTap(console.simpleJson[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -172,7 +187,7 @@ class ObserversTest extends AnyFunSuite {
 
   test("8.syntax") {
     EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10).updateTranslator {
-      _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionComplete.skipInstantAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
+      _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionComplete.skipServiceAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
 
     logging.simple[IO]

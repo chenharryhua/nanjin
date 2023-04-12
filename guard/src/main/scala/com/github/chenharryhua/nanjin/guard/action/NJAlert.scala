@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceParams
 }
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.InstantAlert
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceAlert
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
 
@@ -37,7 +37,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
     for {
       ts <- serviceParams.zonedNow
       _ <- channel.send(
-        InstantAlert(
+        ServiceAlert(
           metricName = name,
           timestamp = ts,
           serviceParams = serviceParams,

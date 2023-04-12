@@ -15,11 +15,11 @@ object console {
     new TextConsole[F](translator)
 
   def verbose[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseText[F])
-
-  def simple[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.simpleText[F])
+  def simple[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleText[F])
 
   def json[F[_]: Console: Monad]: TextConsole[F]        = apply[F](Translator.prettyJson.map(_.noSpaces))
   def verboseJson[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseJson.map(_.spaces2))
+  def simpleJson[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleJson.map(_.spaces2))
 
   final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
       extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {

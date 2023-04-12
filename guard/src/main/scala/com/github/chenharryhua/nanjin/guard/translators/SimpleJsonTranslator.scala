@@ -13,7 +13,7 @@ private object SimpleJsonTranslator {
   private def timestamp(evt: NJEvent): (String, Json) = "timestamp" -> evt.timestamp.asJson
   private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
   private def serviceName(evt: NJEvent): (String, Json) =
-    ("service_name", Json.fromString(evt.serviceName.value))
+    ("serviceName", Json.fromString(evt.serviceName.value))
 
   private def name(id: MetricName): (String, Json)   = "name" -> Json.fromString(id.value)
   private def digest(id: MetricName): (String, Json) = "digest" -> Json.fromString(id.digest.value)
@@ -37,11 +37,14 @@ private object SimpleJsonTranslator {
     "metrics" -> new SnapshotJson(ss).toVanillaJson
 
   private def serviceStarted(evt: ServiceStart): Json =
-    Json.obj("event" -> "serviceStart".asJson, "params" -> evt.serviceParams.asJson, timestamp(evt))
+    Json.obj(
+      "event" -> EventName.ServiceStart.camelJson,
+      "params" -> evt.serviceParams.asJson,
+      timestamp(evt))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
-      "event" -> "servicePanic".asJson,
+      "event" -> EventName.ServicePanic.camelJson,
       serviceName(evt),
       policy(evt),
       stackTrace(evt.error),
@@ -51,7 +54,7 @@ private object SimpleJsonTranslator {
 
   private def serviceStopped(evt: ServiceStop): Json =
     Json.obj(
-      "event" -> "serviceStop".asJson,
+      "event" -> EventName.ServiceStop.camelJson,
       serviceName(evt),
       ("exitCode", Json.fromInt(evt.cause.exitCode)),
       ("cause", Json.fromString(evt.cause.show)),
@@ -62,7 +65,7 @@ private object SimpleJsonTranslator {
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
-      "event" -> "metricReport".asJson,
+      "event" -> EventName.MetricReport.camelJson,
       metricIndex(evt.index),
       serviceName(evt),
       metrics(evt.snapshot),
@@ -72,7 +75,7 @@ private object SimpleJsonTranslator {
 
   private def metricReset(evt: MetricReset): Json =
     Json.obj(
-      "event" -> "metricReset".asJson,
+      "event" -> EventName.MetricReset.camelJson,
       metricIndex(evt.index),
       serviceName(evt),
       metrics(evt.snapshot),
@@ -80,9 +83,9 @@ private object SimpleJsonTranslator {
       timestamp(evt)
     )
 
-  private def instantAlert(evt: InstantAlert): Json =
+  private def serviceAlert(evt: ServiceAlert): Json =
     Json.obj(
-      "event" -> "alert".asJson,
+      "event" -> EventName.ServiceAlert.camelJson,
       "level" -> evt.alertLevel.asJson,
       name(evt.metricName),
       ("message", Json.fromString(evt.message)),
@@ -93,7 +96,7 @@ private object SimpleJsonTranslator {
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
-      "event" -> "actionStart".asJson,
+      "event" -> EventName.ActionStart.camelJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
@@ -106,7 +109,7 @@ private object SimpleJsonTranslator {
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
-      "event" -> "actionRetry".asJson,
+      "event" -> EventName.ActionRetry.camelJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
@@ -120,7 +123,7 @@ private object SimpleJsonTranslator {
 
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
-      "event" -> "actionFail".asJson,
+      "event" -> EventName.ActionFail.camelJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
@@ -136,7 +139,7 @@ private object SimpleJsonTranslator {
 
   private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
-      "event" -> "actionComplete".asJson,
+      "event" -> EventName.ActionComplete.camelJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
@@ -157,7 +160,7 @@ private object SimpleJsonTranslator {
       .withServicePanic(servicePanic)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
-      .withInstantAlert(instantAlert)
+      .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFail)

@@ -142,7 +142,7 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def instantAlert(evt: InstantAlert): SlackApp = {
+  private def serviceAlert(evt: ServiceAlert): SlackApp = {
     val title = evt.alertLevel match {
       case AlertLevel.Error => ":warning: Error"
       case AlertLevel.Warn  => ":warning: Warning"
@@ -269,7 +269,7 @@ private object SlackTranslator extends all {
       .withServiceStop(serviceStopped)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
-      .withInstantAlert(instantAlert)
+      .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed)

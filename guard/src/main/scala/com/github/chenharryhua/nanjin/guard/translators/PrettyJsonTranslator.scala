@@ -34,17 +34,17 @@ private object PrettyJsonTranslator {
   // events handlers
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(
-      "serviceStart" ->
+      EventName.ServiceStart.camel ->
         Json.obj("params" -> evt.serviceParams.asJson, uptime(evt)))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
-      "servicePanic" ->
+      EventName.ServicePanic.camel ->
         Json.obj(serviceName(evt), serviceId(evt), uptime(evt), policy(evt), stackTrace(evt.error)))
 
   private def serviceStopped(evt: ServiceStop): Json =
     Json.obj(
-      "serviceStop" ->
+      EventName.ServiceStop.camel ->
         Json.obj(
           serviceName(evt),
           serviceId(evt),
@@ -55,7 +55,7 @@ private object PrettyJsonTranslator {
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
-      "metricReport" ->
+      EventName.MetricReport.camel ->
         Json.obj(
           metricIndex(evt.index),
           serviceName(evt),
@@ -65,7 +65,7 @@ private object PrettyJsonTranslator {
 
   private def metricReset(evt: MetricReset): Json =
     Json.obj(
-      "metricReset" ->
+      EventName.MetricReset.camel ->
         Json.obj(
           metricIndex(evt.index),
           serviceName(evt),
@@ -73,9 +73,9 @@ private object PrettyJsonTranslator {
           uptime(evt),
           prettyMetrics(evt.snapshot, evt.serviceParams.metricParams)))
 
-  private def instantAlert(evt: InstantAlert): Json =
+  private def serviceAlert(evt: ServiceAlert): Json =
     Json.obj(
-      "alert" ->
+      EventName.ServiceAlert.camel ->
         Json.obj(
           actionName(evt.metricName),
           serviceName(evt),
@@ -84,7 +84,7 @@ private object PrettyJsonTranslator {
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
-      "actionStart" ->
+      EventName.ActionStart.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
           serviceName(evt),
@@ -97,7 +97,7 @@ private object PrettyJsonTranslator {
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
-      "actionRetry" ->
+      EventName.ActionRetry.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
           serviceName(evt),
@@ -112,7 +112,7 @@ private object PrettyJsonTranslator {
 
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
-      "actionFail" ->
+      EventName.ActionFail.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
           serviceName(evt),
@@ -129,7 +129,7 @@ private object PrettyJsonTranslator {
 
   private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
-      "actionComplete" ->
+      EventName.ActionComplete.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
           serviceName(evt),
@@ -150,7 +150,7 @@ private object PrettyJsonTranslator {
       .withServicePanic(servicePanic)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
-      .withInstantAlert(instantAlert)
+      .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFail)
