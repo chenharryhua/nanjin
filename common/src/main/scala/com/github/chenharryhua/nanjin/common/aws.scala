@@ -30,8 +30,8 @@ object aws {
 
   @JsonCodec @Lenses
   final case class S3Path(bucket: String, key: String) {
-    val s3: String  = s"${S3Protocols.S3.value}://$bucket/$key"
-    val s3a: String = s"${S3Protocols.S3A.value}://$bucket/$key"
+    val s3: String  = s"${S3Protocols.S3.entryName}://$bucket/$key"
+    val s3a: String = s"${S3Protocols.S3A.entryName}://$bucket/$key"
   }
 
   object S3Path {

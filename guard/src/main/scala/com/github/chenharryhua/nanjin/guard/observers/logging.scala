@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionFail,
   ActionRetry,
-  InstantAlert,
+  ServiceAlert,
   ServicePanic
 }
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
@@ -34,8 +34,8 @@ object logging {
 
     override def apply(event: NJEvent): F[Unit] =
       event match {
-        case sa @ InstantAlert(_, _, _, al, _) =>
-          translator.instantAlert
+        case sa @ ServiceAlert(_, _, _, al, _) =>
+          translator.serviceAlert
             .run(sa)
             .value
             .flatMap(_.traverse { m =>

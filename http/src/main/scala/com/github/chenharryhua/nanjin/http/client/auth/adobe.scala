@@ -129,7 +129,7 @@ object adobe {
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
       val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
-        auth_endpoint.withPath(path"s" / Segment(ms.name)).renderString -> (TRUE: AnyRef)
+        auth_endpoint.withPath(path"s" / Segment(ms.entryName)).renderString -> (TRUE: AnyRef)
       }.toList.toMap.asJava
 
       def getToken(expiresIn: FiniteDuration): F[Token] =

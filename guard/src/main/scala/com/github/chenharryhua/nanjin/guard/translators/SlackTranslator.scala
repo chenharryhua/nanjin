@@ -39,7 +39,7 @@ private object SlackTranslator extends all {
     else {
       val measures = counters.map(c => c.metricId -> numFmt.format(c.count)) :::
         snapshot.gauges.map(g => g.metricId -> g.value.spaces2)
-      val body = measures.sortBy(_._1.metricName).map { case (id, v) => s"${id.show} = $v" }
+      val body = measures.sortBy(_._1.metricName).map { case (id, v) => s"${id.display} = $v" }
       KeyValueSection(CONSTANT_METRICS, s"""```${abbreviate(body.mkString("\n"))}```""")
     }
   }
@@ -142,7 +142,7 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def instantAlert(evt: InstantAlert): SlackApp = {
+  private def serviceAlert(evt: ServiceAlert): SlackApp = {
     val title = evt.alertLevel match {
       case AlertLevel.Error => ":warning: Error"
       case AlertLevel.Warn  => ":warning: Warning"
@@ -154,7 +154,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*$title:* ${evt.metricName.show}"),
+            MarkdownSection(s"*$title:* ${evt.metricName.display}"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
@@ -269,7 +269,7 @@ private object SlackTranslator extends all {
       .withServiceStop(serviceStopped)
       .withMetricReport(metricReport)
       .withMetricReset(metricReset)
-      .withInstantAlert(instantAlert)
+      .withServiceAlert(serviceAlert)
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed)

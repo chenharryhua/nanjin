@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Order, Show}
-import cats.implicits.toShow
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import org.apache.commons.codec.digest.DigestUtils
@@ -14,10 +13,10 @@ final case class Digest(value: String) extends AnyVal
 
 @JsonCodec
 final case class MetricName private (value: String, digest: Digest, measurement: Measurement) {
-  override val toString: String = s"[${digest.value}][$value]"
+  val display: String = s"[${digest.value}][$value]"
 }
 object MetricName {
-  implicit val showMetricName: Show[MetricName] = Show.fromToString
+  implicit val showMetricName: Show[MetricName] = cats.derived.semiauto.show
   implicit val orderingMetricName: Ordering[MetricName] =
     (x: MetricName, y: MetricName) => x.value.compare(y.value)
   implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
@@ -95,11 +94,11 @@ object Category {
 
 @JsonCodec
 final case class MetricID(metricName: MetricName, category: Category) {
-  override val toString: String = s"${metricName.show}.${category.name}"
+  val display: String = s"${metricName.display}.${category.name}"
 }
 object MetricID {
 
-  implicit val showMetricID: Show[MetricID] = Show.fromToString
+  implicit val showMetricID: Show[MetricID] = cats.derived.semiauto.show
 
   def apply(
     serviceParams: ServiceParams,

@@ -11,6 +11,8 @@ sealed abstract class NJFileFormat(val value: Int, val format: String, val alias
   final def suffix: String = s"$alias.$format"
 
   final override def toString: String = suffix
+
+  final override def entryName: String = suffix
 }
 
 object NJFileFormat extends Enum[NJFileFormat] with CatsEnum[NJFileFormat] with CirceEnum[NJFileFormat] {

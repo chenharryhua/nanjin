@@ -41,7 +41,7 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
       case _: ActionRetry           => WarnColor
       case _: ActionFail            => ErrorColor
       case _: ActionComplete        => GoodColor
-      case InstantAlert(_, _, _, alertLevel, _) =>
+      case ServiceAlert(_, _, _, alertLevel, _) =>
         alertLevel match {
           case AlertLevel.Error => ErrorColor
           case AlertLevel.Warn  => WarnColor

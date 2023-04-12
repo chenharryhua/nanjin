@@ -46,6 +46,14 @@ object NJEvent extends zoneddatetime {
     cause: ServiceStopCause)
       extends NJEvent
 
+  final case class ServiceAlert(
+    metricName: MetricName,
+    timestamp: ZonedDateTime,
+    serviceParams: ServiceParams,
+    alertLevel: AlertLevel,
+    message: String)
+      extends NJEvent
+
   sealed trait MetricEvent extends NJEvent {
     def index: MetricIndex
     def snapshot: MetricSnapshot
@@ -65,21 +73,13 @@ object NJEvent extends zoneddatetime {
     snapshot: MetricSnapshot)
       extends MetricEvent
 
-  final case class InstantAlert(
-    metricName: MetricName,
-    timestamp: ZonedDateTime,
-    serviceParams: ServiceParams,
-    alertLevel: AlertLevel,
-    message: String)
-      extends NJEvent
-
   sealed trait ActionEvent extends NJEvent {
     def actionInfo: ActionInfo // action runtime information
     def actionParams: ActionParams
 
     final override def serviceParams: ServiceParams = actionParams.serviceParams
 
-    final def traceId: String    = actionInfo.traceId
+    final def traceId: String    = actionInfo.traceId.getOrElse("none")
     final def actionId: String   = actionInfo.actionId
     final def metricId: MetricID = actionParams.metricId
   }

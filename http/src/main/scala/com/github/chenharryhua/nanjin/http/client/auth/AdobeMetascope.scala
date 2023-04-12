@@ -4,7 +4,7 @@ import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract class AdobeMetascope(val name: String) extends EnumEntry with Product
+sealed abstract class AdobeMetascope(override val entryName: String) extends EnumEntry with Product
 
 // https://developer.adobe.com/developer-console/docs/guides/authentication/JWT/Scopes/
 object AdobeMetascope

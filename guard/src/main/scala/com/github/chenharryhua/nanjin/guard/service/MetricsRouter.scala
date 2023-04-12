@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Monad
 import cats.data.Kleisli
-import cats.implicits.toShow
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
@@ -15,11 +14,11 @@ import org.http4s.server.Router
 import org.http4s.{HttpRoutes, Request, Response}
 
 private class MetricsRouter[F[_]: Monad](mr: MetricRegistry, sp: ServiceParams) extends Http4sDsl[F] {
-  private def gauges(g: Snapshot.Gauge): Json         = Json.obj(g.metricId.show -> g.value)
-  private def counters(c: Snapshot.Counter): Json     = Json.obj(c.metricId.show -> Json.fromLong(c.count))
-  private def meters(m: Snapshot.Meter): Json         = Json.obj(m.metricId.show -> m.meter.asJson)
-  private def histograms(h: Snapshot.Histogram): Json = Json.obj(h.metricId.show -> h.histogram.asJson)
-  private def timers(t: Snapshot.Timer): Json         = Json.obj(t.metricId.show -> t.timer.asJson)
+  private def gauges(g: Snapshot.Gauge): Json         = Json.obj(g.metricId.display -> g.value)
+  private def counters(c: Snapshot.Counter): Json     = Json.obj(c.metricId.display -> Json.fromLong(c.count))
+  private def meters(m: Snapshot.Meter): Json         = Json.obj(m.metricId.display -> m.meter.asJson)
+  private def histograms(h: Snapshot.Histogram): Json = Json.obj(h.metricId.display -> h.histogram.asJson)
+  private def timers(t: Snapshot.Timer): Json         = Json.obj(t.metricId.display -> t.timer.asJson)
 
   private val metrics = HttpRoutes.of[F] {
     // all

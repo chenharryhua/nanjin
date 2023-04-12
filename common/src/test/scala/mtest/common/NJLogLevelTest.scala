@@ -27,14 +27,14 @@ class NJLogLevelTest extends AnyFunSuite {
     val l7: NJLogLevel = NJLogLevel.FATAL
     val l8: NJLogLevel = NJLogLevel.OFF
 
-    assert(l1.asJson.noSpaces === """ "ALL" """.trim)
-    assert(l2.asJson.noSpaces === """ "TRACE" """.trim)
-    assert(l3.asJson.noSpaces === """ "DEBUG" """.trim)
-    assert(l4.asJson.noSpaces === """ "INFO" """.trim)
-    assert(l5.asJson.noSpaces === """ "WARN" """.trim)
-    assert(l6.asJson.noSpaces === """ "ERROR" """.trim)
-    assert(l7.asJson.noSpaces === """ "FATAL" """.trim)
-    assert(l8.asJson.noSpaces === """ "OFF" """.trim)
+    assert(l1.asJson.noSpaces === """ "all" """.trim)
+    assert(l2.asJson.noSpaces === """ "trace" """.trim)
+    assert(l3.asJson.noSpaces === """ "debug" """.trim)
+    assert(l4.asJson.noSpaces === """ "info" """.trim)
+    assert(l5.asJson.noSpaces === """ "warn" """.trim)
+    assert(l6.asJson.noSpaces === """ "error" """.trim)
+    assert(l7.asJson.noSpaces === """ "fatal" """.trim)
+    assert(l8.asJson.noSpaces === """ "off" """.trim)
     assert(l1.productPrefix === "ALL")
   }
 }
