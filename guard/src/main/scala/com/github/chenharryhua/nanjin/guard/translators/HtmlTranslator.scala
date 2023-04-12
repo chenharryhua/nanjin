@@ -99,7 +99,6 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      briefText(evt.serviceParams.brief),
       snapshotText(evt.serviceParams, evt.snapshot)
     )
 

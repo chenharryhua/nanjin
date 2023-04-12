@@ -11,7 +11,7 @@ private object SimpleJsonTranslator {
   import NJEvent.*
 
   private def timestamp(evt: NJEvent): (String, Json) = "timestamp" -> evt.timestamp.asJson
-  private def serviceId(evt: NJEvent): (String, Json) = "service_id" -> evt.serviceId.asJson
+  private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
   private def serviceName(evt: NJEvent): (String, Json) =
     ("service_name", Json.fromString(evt.serviceName.value))
 
@@ -20,11 +20,11 @@ private object SimpleJsonTranslator {
   private def measurement(id: MetricName): (String, Json) =
     "measurement" -> Json.fromString(id.measurement.value)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceId(evt: ActionEvent): (String, Json)    = "trace_id" -> evt.traceId.asJson
+  private def traceId(evt: ActionEvent): (String, Json)    = "traceId" -> evt.actionInfo.traceId.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
 
-  private def stackTrace(err: NJError): (String, Json) = "stack_trace" -> Json.fromString(err.stackTrace)
+  private def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
@@ -37,11 +37,11 @@ private object SimpleJsonTranslator {
     "metrics" -> new SnapshotJson(ss).toVanillaJson
 
   private def serviceStarted(evt: ServiceStart): Json =
-    Json.obj("event" -> "service_start".asJson, "params" -> evt.serviceParams.asJson, timestamp(evt))
+    Json.obj("event" -> "serviceStart".asJson, "params" -> evt.serviceParams.asJson, timestamp(evt))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
-      "event" -> "service_panic".asJson,
+      "event" -> "servicePanic".asJson,
       serviceName(evt),
       policy(evt),
       stackTrace(evt.error),
@@ -51,9 +51,9 @@ private object SimpleJsonTranslator {
 
   private def serviceStopped(evt: ServiceStop): Json =
     Json.obj(
-      "event" -> "service_stop".asJson,
+      "event" -> "serviceStop".asJson,
       serviceName(evt),
-      ("exit_code", Json.fromInt(evt.cause.exitCode)),
+      ("exitCode", Json.fromInt(evt.cause.exitCode)),
       ("cause", Json.fromString(evt.cause.show)),
       policy(evt),
       serviceId(evt),
@@ -62,7 +62,7 @@ private object SimpleJsonTranslator {
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
-      "event" -> "metric_report".asJson,
+      "event" -> "metricReport".asJson,
       metricIndex(evt.index),
       serviceName(evt),
       metrics(evt.snapshot),
@@ -72,7 +72,7 @@ private object SimpleJsonTranslator {
 
   private def metricReset(evt: MetricReset): Json =
     Json.obj(
-      "event" -> "metric_reset".asJson,
+      "event" -> "metricReset".asJson,
       metricIndex(evt.index),
       serviceName(evt),
       metrics(evt.snapshot),
@@ -93,7 +93,7 @@ private object SimpleJsonTranslator {
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
-      "event" -> "action_start".asJson,
+      "event" -> "actionStart".asJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
@@ -106,7 +106,7 @@ private object SimpleJsonTranslator {
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
-      "event" -> "action_retry".asJson,
+      "event" -> "actionRetry".asJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
@@ -120,7 +120,7 @@ private object SimpleJsonTranslator {
 
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
-      "event" -> "action_fail".asJson,
+      "event" -> "actionFail".asJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
@@ -136,7 +136,7 @@ private object SimpleJsonTranslator {
 
   private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
-      "event" -> "action_complete".asJson,
+      "event" -> "actionComplete".asJson,
       importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),

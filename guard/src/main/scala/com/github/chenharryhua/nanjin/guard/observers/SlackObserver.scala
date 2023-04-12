@@ -5,6 +5,7 @@ import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionComplete, ActionStart, ServiceStart}
 import com.github.chenharryhua.nanjin.guard.translators.*
@@ -61,8 +62,8 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case ai: ActionStart    => ai.actionParams.importance.value
-            case ai: ActionComplete => ai.actionParams.importance.value
+            case ai: ActionStart    => ai.actionParams.importance === Importance.Critical
+            case ai: ActionComplete => ai.actionParams.importance === Importance.Critical
             case _                  => true
           }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalizeCase(

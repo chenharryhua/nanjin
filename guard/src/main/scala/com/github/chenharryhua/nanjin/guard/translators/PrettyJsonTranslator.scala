@@ -10,17 +10,17 @@ private object PrettyJsonTranslator {
 
   import NJEvent.*
 
-  private def uptime(evt: NJEvent): (String, Json)    = "up_time" -> Json.fromString(fmt.format(evt.upTime))
-  private def serviceId(evt: NJEvent): (String, Json) = "service_id" -> evt.serviceId.asJson
-  private def name(metricName: MetricName): (String, Json) = "name" -> Json.fromString(metricName.show)
-  private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceId(evt: ActionEvent): (String, Json)    = "trace_id" -> evt.traceId.asJson
-  private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
+  private def uptime(evt: NJEvent): (String, Json)    = "upTime" -> Json.fromString(fmt.format(evt.upTime))
+  private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
+  private def actionName(metricName: MetricName): (String, Json) = "name" -> metricName.display.asJson
+  private def actionId(evt: ActionEvent): (String, Json)         = "id" -> Json.fromString(evt.actionId)
+  private def traceId(evt: ActionEvent): (String, Json)          = "traceId" -> evt.actionInfo.traceId.asJson
+  private def importance(imp: Importance): (String, Json)        = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
-  private def stackTrace(err: NJError): (String, Json)     = "stack_trace" -> Json.fromString(err.stackTrace)
+  private def stackTrace(err: NJError): (String, Json)     = "stackTrace" -> Json.fromString(err.stackTrace)
   private def policy(evt: NJEvent): (String, Json)        = "policy" -> evt.serviceParams.restartPolicy.asJson
   private def policy(ap: ActionParams): (String, Json)    = "policy" -> ap.retryPolicy.asJson
-  private def serviceName(evt: NJEvent): (String, Json)   = "service_name" -> evt.serviceName.value.asJson
+  private def serviceName(evt: NJEvent): (String, Json)   = "serviceName" -> evt.serviceName.value.asJson
   private def measurement(id: MetricName): (String, Json) = "measurement" -> id.measurement.value.asJson
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
@@ -34,28 +34,28 @@ private object PrettyJsonTranslator {
   // events handlers
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(
-      "service_start" ->
+      "serviceStart" ->
         Json.obj("params" -> evt.serviceParams.asJson, uptime(evt)))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
-      "service_panic" ->
+      "servicePanic" ->
         Json.obj(serviceName(evt), serviceId(evt), uptime(evt), policy(evt), stackTrace(evt.error)))
 
   private def serviceStopped(evt: ServiceStop): Json =
     Json.obj(
-      "service_stop" ->
+      "serviceStop" ->
         Json.obj(
           serviceName(evt),
           serviceId(evt),
           uptime(evt),
           policy(evt),
-          ("exit_code", Json.fromInt(evt.cause.exitCode)),
+          ("exitCode", Json.fromInt(evt.cause.exitCode)),
           ("cause", Json.fromString(evt.cause.show))))
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
-      "metric_report" ->
+      "metricReport" ->
         Json.obj(
           metricIndex(evt.index),
           serviceName(evt),
@@ -65,7 +65,7 @@ private object PrettyJsonTranslator {
 
   private def metricReset(evt: MetricReset): Json =
     Json.obj(
-      "metric_reset" ->
+      "metricReset" ->
         Json.obj(
           metricIndex(evt.index),
           serviceName(evt),
@@ -77,16 +77,16 @@ private object PrettyJsonTranslator {
     Json.obj(
       "alert" ->
         Json.obj(
-          name(evt.metricName),
+          actionName(evt.metricName),
           serviceName(evt),
           serviceId(evt),
           evt.alertLevel.show -> Json.fromString(evt.message)))
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
-      "action_start" ->
+      "actionStart" ->
         Json.obj(
-          name(evt.metricId.metricName),
+          actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
@@ -97,9 +97,9 @@ private object PrettyJsonTranslator {
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
-      "action_retry" ->
+      "actionRetry" ->
         Json.obj(
-          name(evt.metricId.metricName),
+          actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
@@ -112,9 +112,9 @@ private object PrettyJsonTranslator {
 
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
-      "action_fail" ->
+      "actionFail" ->
         Json.obj(
-          name(evt.metricId.metricName),
+          actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),
@@ -129,9 +129,9 @@ private object PrettyJsonTranslator {
 
   private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
-      "action_complete" ->
+      "actionComplete" ->
         Json.obj(
-          name(evt.metricId.metricName),
+          actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
           importance(evt.actionParams.importance),

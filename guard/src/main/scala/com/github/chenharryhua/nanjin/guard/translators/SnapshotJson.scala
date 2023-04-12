@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
 import io.circe.Json
@@ -56,7 +55,7 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
           }
           .toList
           .sortBy(_._1)
-          .map { case (n, j) => Json.obj(n.show -> j) }
+          .map { case (n, j) => Json.obj(n.display -> j) }
         measurement -> Json.arr(arr*)
       }
       .toList

@@ -33,15 +33,15 @@ object MetricIndex {
 final case class ActionInfo(token: Either[Int, TraceInfo], launchTime: FiniteDuration) {
   def took(landTime: FiniteDuration): Duration = landTime.minus(launchTime).toJava
 
-  def actionId: String = token.fold(_.toString, _.spanId)
-  def traceId: String  = token.map(_.traceId).getOrElse("none")
+  def actionId: String        = token.fold(_.toString, _.spanId)
+  def traceId: Option[String] = token.map(_.traceId).toOption
 }
 
 object ActionInfo {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 
   implicit final val tokenCodec: Codec.AsObject[Either[Int, TraceInfo]] =
-    Codec.codecForEither[Int, TraceInfo]("action_id", "trace")
+    Codec.codecForEither[Int, TraceInfo]("hash", "trace")
 }
 
 @JsonCodec
