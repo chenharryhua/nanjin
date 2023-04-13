@@ -26,7 +26,7 @@ val natchezV    = "0.3.1"
 val http4sV     = "0.23.18"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.2"
-val protobufV   = "3.22.2"
+val protobufV   = "3.22.3"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.91.Final"
@@ -169,7 +169,7 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk18on" % "1.72",
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.73",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"
