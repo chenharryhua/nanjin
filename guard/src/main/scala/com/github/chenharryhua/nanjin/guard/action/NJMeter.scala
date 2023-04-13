@@ -14,7 +14,7 @@ final class NJMeter[F[_]] private[guard] (
   isCounting: Boolean)(implicit F: Sync[F]) {
 
   private lazy val meter: Meter =
-    metricRegistry.meter(MetricID(name, Category.Meter(unit)).asJson.noSpaces)
+    metricRegistry.meter(MetricID(name, Category.Meter(unit, None)).asJson.noSpaces)
 
   private lazy val counter: Counter =
     metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.MeterCounter))).asJson.noSpaces)

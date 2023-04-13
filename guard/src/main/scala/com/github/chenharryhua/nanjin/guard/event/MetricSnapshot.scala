@@ -116,7 +116,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricID](name).toOption.mapFilter(id =>
         id.category match {
-          case Category.Meter(unit) =>
+          case Category.Meter(unit, _) =>
             Some(
               Snapshot.Meter(
                 metricId = id,
