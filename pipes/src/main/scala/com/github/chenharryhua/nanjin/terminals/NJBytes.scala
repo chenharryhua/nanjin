@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.Sync
-import fs2.{Pipe, Stream}
 import fs2.io.{readInputStream, writeOutputStream}
+import fs2.{Pipe, Stream}
 import io.scalaland.enumz.Enum
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -22,22 +22,18 @@ final class NJBytes[F[_]] private (
     Enum[CompressionLevel].withIndex(level))
 
   def source(path: NJPath): Stream[F, Byte] =
-    for {
-      is <- Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
-      byte <- readInputStream[F](
-        F.blocking(is),
-        bufferSize.toBytes.toInt,
-        closeAfterUse = false
-      ) // avoid double close
-    } yield byte
+    readInputStream[F](
+      F.blocking(fileInputStream(path, configuration)),
+      bufferSize.toBytes.toInt,
+      closeAfterUse = true
+    )
 
   def sink(path: NJPath): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
-    Stream
-      .bracket(F.blocking(fileOutputStream(path, configuration, compressLevel, blockSizeHint)))(r =>
-        F.blocking(r.close()))
-      .flatMap(os => ss.through(writeOutputStream(F.pure(os), closeAfterUse = false))) // avoid double close
+    ss.through(
+      writeOutputStream(
+        F.blocking(fileOutputStream(path, configuration, compressLevel, blockSizeHint)),
+        closeAfterUse = true))
   }
-
 }
 
 object NJBytes {

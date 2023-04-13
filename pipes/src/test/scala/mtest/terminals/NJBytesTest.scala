@@ -13,14 +13,18 @@ import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Assertion
+import squants.information.Bytes
 
 class NJBytesTest extends AnyFunSuite {
 
   def fs2(path: NJPath, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val ts   = Stream.emits(data.toList).covary[IO]
-    val sink = hdp.bytes.withCompressionLevel(ZlibCompressor.CompressionLevel.BEST_SPEED).sink(path)
-    val src  = hdp.bytes.source(path)
+    val ts = Stream.emits(data.toList).covary[IO]
+    val sink = hdp.bytes
+      .withCompressionLevel(ZlibCompressor.CompressionLevel.BEST_SPEED)
+      .withBufferSize(Bytes(8192))
+      .sink(path)
+    val src = hdp.bytes.source(path)
     val action = ts.through(CirceSerde.toBytes(true)).through(sink).compile.drain >>
       src.through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     assert(action.unsafeRunSync().toSet == data)

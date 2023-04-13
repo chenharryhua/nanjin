@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Order, Show}
-import enumeratum.{CirceEnum, Enum, EnumEntry}
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import org.apache.commons.codec.digest.DigestUtils
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
@@ -51,24 +51,31 @@ object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
 }
 
 sealed abstract class TimerKind(override val entryName: String) extends EnumEntry
-object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] {
+object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] with CatsEnum[TimerKind] {
   val values: IndexedSeq[TimerKind] = findValues
 
   object ActionTimer extends TimerKind("action_timer")
 }
 
 sealed abstract class HistogramKind(override val entryName: String) extends EnumEntry
-object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] {
+object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] with CatsEnum[HistogramKind] {
   val values: IndexedSeq[HistogramKind] = findValues
 
   object UdpHistogram extends HistogramKind("udp_histogram")
 }
 
 sealed abstract class GaugeKind(override val entryName: String) extends EnumEntry
-object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] {
+object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] with CatsEnum[GaugeKind] {
   val values: IndexedSeq[GaugeKind] = findValues
 
   object TimedGauge extends GaugeKind("timed_gauge")
+}
+
+sealed abstract class MeterKind(override val entryName: String) extends EnumEntry
+object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] with CatsEnum[MeterKind] {
+  val values: IndexedSeq[MeterKind] = findValues
+
+  object PlaceHolder extends MeterKind("place_holder")
 }
 
 @JsonCodec
@@ -78,11 +85,11 @@ object Category {
   final case class Gauge(sub: Option[GaugeKind]) extends Category {
     override val name: String = sub.fold("gauge")(_.entryName)
   }
-  final case class Timer(sub: TimerKind) extends Category {
-    override val name: String = sub.entryName
+  final case class Timer(sub: Option[TimerKind]) extends Category {
+    override val name: String = sub.fold("timer")(_.entryName)
   }
-  final case class Meter(unit: StandardUnit) extends Category {
-    override val name: String = "meter"
+  final case class Meter(unit: StandardUnit, sub: Option[MeterKind]) extends Category {
+    override val name: String = sub.fold("meter")(_.entryName)
   }
   final case class Histogram(unit: StandardUnit, sub: Option[HistogramKind]) extends Category {
     override val name: String = sub.fold("histogram")(_.entryName)
