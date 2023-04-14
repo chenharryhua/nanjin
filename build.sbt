@@ -176,16 +176,15 @@ val jwtLib = List(
 )
 
 val baseLib = List(
-  "org.typelevel" %% "cats-effect"                 % catsEffectV,
-  "org.typelevel" %% "cats-time"                   % "0.5.1",
-  "org.typelevel" %% "squants"                     % "1.8.3",
-  "org.typelevel" %% "case-insensitive"            % "1.3.0",
-  "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
-  "io.scalaland" %% "chimney"                      % chimneyV,
-  "io.scalaland" %% "enumz"                        % "1.0.0",
-  "com.twitter" %% "algebird-core"                 % "0.13.9",
-  "com.chuusai" %% "shapeless"                     % "2.3.10",
-  "com.github.cb372" %% "cats-retry"               % "3.1.0"
+  "org.typelevel" %% "cats-effect"      % catsEffectV,
+  "org.typelevel" %% "cats-time"        % "0.5.1",
+  "org.typelevel" %% "squants"          % "1.8.3",
+  "org.typelevel" %% "case-insensitive" % "1.3.0",
+  "io.scalaland" %% "chimney"           % chimneyV,
+  "io.scalaland" %% "enumz"             % "1.0.0",
+  "com.twitter" %% "algebird-core"      % "0.13.9",
+  "com.chuusai" %% "shapeless"          % "2.3.10",
+  "com.github.cb372" %% "cats-retry"    % "3.1.0"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
@@ -352,8 +351,8 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
       "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.20", // snyk
-      "org.eclipse.jetty"              % "jetty-server"        % "11.0.14", // snyk
-      "org.eclipse.jetty"              % "jetty-client"        % "11.0.14", // snyk
+      "org.eclipse.jetty"              % "jetty-server"        % "11.0.15", // snyk
+      "org.eclipse.jetty"              % "jetty-client"        % "11.0.15", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
       "io.netty"                       % "netty-all"           % nettyV, // snyk
       "commons-net"                    % "commons-net"         % "3.9.0", // snyk

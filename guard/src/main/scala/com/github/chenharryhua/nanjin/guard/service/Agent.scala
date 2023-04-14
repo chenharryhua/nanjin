@@ -43,7 +43,8 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 
   // ticks
   def ticks(policy: RetryPolicy[F]): Stream[F, Int]
-  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int]
+  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Int]
+  def ticks(cronExpr: CronExpr): Stream[F, Int]
 
   // udp
   def udpClient(name: String): NJUdpClient[F]
@@ -144,9 +145,9 @@ final class GeneralAgent[F[_]: Network] private[service] (
 
   // ticks
   override def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
-
-  override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): Stream[F, Int] =
+  override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Int] =
     awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
+  override def ticks(cronExpr: CronExpr): Stream[F, Int] = ticks(cronExpr, identity)
 
   override def udpClient(name: String): NJUdpClient[F] =
     new NJUdpClient[F](

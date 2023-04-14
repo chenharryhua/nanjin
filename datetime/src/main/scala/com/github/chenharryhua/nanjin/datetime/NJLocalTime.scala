@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.datetime
 
 import java.time.{Instant, LocalTime, ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
-import scala.compat.java8.DurationConverters.*
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 final case class NJLocalTime(value: LocalTime) {
 

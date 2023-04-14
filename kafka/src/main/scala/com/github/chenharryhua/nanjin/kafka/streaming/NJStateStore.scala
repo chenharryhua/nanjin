@@ -10,8 +10,8 @@ import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
 
 import java.time.Duration
-import scala.compat.java8.DurationConverters.FiniteDurationops
 import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,

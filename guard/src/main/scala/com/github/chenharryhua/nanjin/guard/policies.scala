@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.{Applicative, Functor}
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
+import cats.{Applicative, Functor}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import cron4s.expr.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -13,12 +13,11 @@ import retry.RetryPolicy
 import java.time.{Duration, ZoneId, ZonedDateTime}
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.JavaDurationOps
 
 object policies extends zoneid {
 
   def jitterBackoff[F[_]: Applicative](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] = {
-    require(min < max, s"${min} should be strictly smaller than ${max}")
+    require(min < max, s"$min should be strictly smaller than $max")
     RetryPolicy.liftWithShow(
       _ =>
         DelayAndRetry(
@@ -36,8 +35,10 @@ object policies extends zoneid {
         Clock[F].realTimeInstant.map { ts =>
           val now: ZonedDateTime = ts.atZone(zoneId)
           cronExpr.next(now) match {
-            case Some(next) => DelayAndRetry(Duration.between(now, next).toScala)
-            case None       => GiveUp
+            case Some(next) =>
+              val nano: Long = Duration.between(now, next).toNanos
+              DelayAndRetry(FiniteDuration(nano, TimeUnit.NANOSECONDS))
+            case None => GiveUp
           }
         },
       pretty = show"cronBackoff(cron=${cronExpr.show}, zoneId=${zoneId.show})"

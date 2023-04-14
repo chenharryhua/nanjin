@@ -8,7 +8,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.header.{Header, Headers}
 
 import java.util.Optional
-import scala.compat.java8.OptionConverters.*
+import scala.jdk.OptionConverters.RichOptional
 
 private[kafka] trait EqMessage {
 
@@ -24,7 +24,7 @@ private[kafka] trait EqMessage {
 
   implicit val eqOptionalInteger: Eq[Optional[java.lang.Integer]] =
     (x: Optional[Integer], y: Optional[Integer]) =>
-      x.asScala.flatMap(Option(_).map(_.toInt)) === y.asScala.flatMap(Option(_).map(_.toInt))
+      x.toScala.flatMap(Option(_).map(_.toInt)) === y.toScala.flatMap(Option(_).map(_.toInt))
 
   implicit val eqTopicPartition: Eq[TopicPartition] =
     (x: TopicPartition, y: TopicPartition) => x.equals(y)
