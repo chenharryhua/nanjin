@@ -3,12 +3,7 @@ package mtest.msg.kafka
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
-import fs2.kafka.{
-  CommittableProducerRecords as Fs2CommittableProducerRecords,
-  ConsumerRecord as Fs2ConsumerRecord,
-  ProducerRecord as Fs2ProducerRecord,
-  TransactionalProducerRecords as Fs2TransactionalProducerRecords
-}
+import fs2.kafka.{CommittableProducerRecords as Fs2CommittableProducerRecords, ConsumerRecord as Fs2ConsumerRecord, ProducerRecord as Fs2ProducerRecord, TransactionalProducerRecords as Fs2TransactionalProducerRecords}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
@@ -19,7 +14,7 @@ import org.scalacheck.Arbitrary.{arbitrary, *}
 import org.scalacheck.Gen
 
 import java.util.Optional
-import scala.compat.java8.OptionConverters.*
+import scala.jdk.OptionConverters.RichOption
 object genMessage {
 
   trait GenKafkaMessage { self =>
@@ -35,7 +30,7 @@ object genMessage {
     } yield new RecordHeaders(rcs)
 
     val genOptionalInteger: Gen[Optional[Integer]] =
-      Gen.option(arbitrary[Int].map(x => Integer.valueOf(x))).map(_.asJava)
+      Gen.option(arbitrary[Int].map(x => Integer.valueOf(x))).map(_.toJava)
 
     val genConsumerRecord: Gen[ConsumerRecord[Int, Int]] = for {
       topic <- Gen.asciiPrintableStr
