@@ -352,8 +352,8 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
       "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.20", // snyk
-      "org.eclipse.jetty"              % "jetty-server"        % "11.0.14", // snyk
-      "org.eclipse.jetty"              % "jetty-client"        % "11.0.14", // snyk
+      "org.eclipse.jetty"              % "jetty-server"        % "11.0.15", // snyk
+      "org.eclipse.jetty"              % "jetty-client"        % "11.0.15", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
       "io.netty"                       % "netty-all"           % nettyV, // snyk
       "commons-net"                    % "commons-net"         % "3.9.0", // snyk
