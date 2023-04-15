@@ -1,6 +1,7 @@
 package mtest.guard
 
 import cats.effect.IO
+import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.*
@@ -15,8 +16,9 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
+import java.time.temporal.ChronoField
 import java.time.{Duration, Instant, ZoneId}
-import scala.concurrent.duration.{DurationDouble, DurationInt, FiniteDuration}
+import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
 
 class TicksTest extends AnyFunSuite {
@@ -159,7 +161,7 @@ class TicksTest extends AnyFunSuite {
     fds.sliding(2).foreach {
       case List(a, b) =>
         val diff = b - a
-        assert(diff > 1.9.seconds && diff < 2.2.seconds)
+        assert(diff > 1.9.seconds && diff < 2.1.seconds)
       case _ => throw new Exception("not happen")
     }
   }
@@ -176,5 +178,23 @@ class TicksTest extends AnyFunSuite {
         assert(diff > 0.9.seconds && diff < 1.1.seconds)
       case _ => throw new Exception("not happen")
     }
+  }
+
+  test("ticks - cron") {
+    val policy = policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault())
+    val ticks  = awakeEvery(policy)
+    val rnd =
+      Random.scalaUtilRandom[IO].flatMap(_.betweenLong(0, 2000)).flatMap(d => IO.sleep(d.millisecond).as(d))
+    val lst = ticks
+      .evalMap(idx =>
+        IO.realTimeInstant.flatMap(ts =>
+          rnd.timed.map(t => (idx, ts, t._1.toMillis, t._1.toMillis - t._2, ts.plusNanos(t._1.toNanos)))))
+      .take(10)
+      .debug()
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 9))
   }
 }
