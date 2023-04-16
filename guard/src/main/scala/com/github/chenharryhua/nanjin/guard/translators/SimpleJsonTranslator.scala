@@ -101,6 +101,7 @@ private object SimpleJsonTranslator {
       traceId(evt),
       digest(evt.metricId.metricName),
       actionId(evt),
+      "input" -> evt.json,
       serviceId(evt),
       timestamp(evt)
     )
@@ -125,7 +126,7 @@ private object SimpleJsonTranslator {
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "notes" -> evt.output, // align with slack
+      "input" -> evt.json, // align with slack
       stackTrace(evt.error),
       digest(evt.metricId.metricName),
       actionId(evt),
@@ -140,7 +141,7 @@ private object SimpleJsonTranslator {
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "result" -> evt.output, // align with slack
+      "result" -> evt.json, // align with slack
       digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),

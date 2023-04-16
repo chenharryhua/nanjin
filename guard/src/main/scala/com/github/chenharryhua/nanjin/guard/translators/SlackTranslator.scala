@@ -181,7 +181,8 @@ private object SlackTranslator extends all {
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
             MarkdownSection(s"""|${traceId(evt)}
-                                |${serviceId(evt)}""".stripMargin)
+                                |${serviceId(evt)}""".stripMargin),
+            KeyValueSection(CONSTANT_INPUT, s"""```${abbreviate(evt.json.spaces2)}```""".stripMargin)
           )
         ))
     )
@@ -231,8 +232,8 @@ private object SlackTranslator extends all {
         ),
         Attachment(
           color = color,
-          blocks = List(
-            KeyValueSection(CONSTANT_NOTES, s"""```${abbreviate(evt.output.spaces2)}```""".stripMargin))),
+          blocks =
+            List(KeyValueSection(CONSTANT_INPUT, s"""```${abbreviate(evt.json.spaces2)}```""".stripMargin))),
         Attachment(
           color = color,
           blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${abbreviate(evt.error.stackTrace)}```"))),
@@ -255,7 +256,7 @@ private object SlackTranslator extends all {
               second = TextField(CONSTANT_TOOK, fmt.format(evt.took))),
             MarkdownSection(s"""|${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin),
-            KeyValueSection("Result", s"""```${abbreviate(evt.output.spaces2)}```""")
+            KeyValueSection("Result", s"""```${abbreviate(evt.json.spaces2)}```""")
           )
         )
       )

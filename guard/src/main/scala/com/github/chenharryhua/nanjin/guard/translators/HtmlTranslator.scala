@@ -56,8 +56,7 @@ private object HtmlTranslator extends all {
     p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stackTrace)))
   private def snapshotText(sp: ServiceParams, ss: MetricSnapshot): Text.TypedTag[String] =
     pre(small(new SnapshotJson(ss).toPrettyJson(sp.metricParams).spaces2))
-  private def jsonText(js: Json): Text.TypedTag[String]     = pre(small(js.spaces2))
-  private def briefText(brief: Json): Text.TypedTag[String] = pre(small(brief.spaces2))
+  private def jsonText(js: Json): Text.TypedTag[String] = pre(small(js.spaces2))
 
   // events
 
@@ -65,7 +64,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      briefText(evt.serviceParams.brief)
+      jsonText(evt.serviceParams.brief)
     )
 
   private def servicePanic(evt: ServicePanic): Text.TypedTag[String] = {
@@ -85,7 +84,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(s"$CONSTANT_CAUSE: "), evt.cause.show),
-      briefText(evt.serviceParams.brief)
+      jsonText(evt.serviceParams.brief)
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
@@ -116,7 +115,8 @@ private object HtmlTranslator extends all {
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
-      table(hostServiceTable(evt), start)
+      table(hostServiceTable(evt), start),
+      jsonText(evt.json)
     )
   }
 
@@ -150,7 +150,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
-      p(b(s"$CONSTANT_NOTES: "), jsonText(evt.output)), // align with slack
+      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json)), // align with slack
       causeText(evt.error)
     )
 
@@ -158,7 +158,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.output)) // align with slack
+      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.json)) // align with slack
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
