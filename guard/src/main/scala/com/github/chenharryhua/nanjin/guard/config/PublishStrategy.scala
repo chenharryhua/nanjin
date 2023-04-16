@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Order
-import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
-sealed trait PublishStrategy extends EnumEntry with Lowercase with Product
+sealed trait PublishStrategy extends EnumEntry with Product
 
 object PublishStrategy
     extends Enum[PublishStrategy] with CirceEnum[PublishStrategy] with CatsEnum[PublishStrategy] {

@@ -30,52 +30,52 @@ object MetricName {
   }
 }
 
-sealed abstract class CounterKind(override val entryName: String) extends EnumEntry
+sealed abstract class CounterKind(override val entryName: String) extends EnumEntry with Product
 object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
   val values: IndexedSeq[CounterKind] = findValues
 
-  object ActionDone extends CounterKind("action_done")
-  object ActionFail extends CounterKind("action_fail")
-  object ActionRetry extends CounterKind("action_retries")
+  case object ActionDone extends CounterKind("action_done")
+  case object ActionFail extends CounterKind("action_fail")
+  case object ActionRetry extends CounterKind("action_retries")
 
-  object AlertError extends CounterKind("alert_error")
-  object AlertWarn extends CounterKind("alert_warn")
-  object AlertInfo extends CounterKind("alert_info")
+  case object AlertError extends CounterKind("alert_error")
+  case object AlertWarn extends CounterKind("alert_warn")
+  case object AlertInfo extends CounterKind("alert_info")
 
-  object HistoCounter extends CounterKind("histogram_count")
-  object MeterCounter extends CounterKind("meter_count")
+  case object HistoCounter extends CounterKind("histogram_count")
+  case object MeterCounter extends CounterKind("meter_count")
 
-  object UdpCounter extends CounterKind("udp_count")
+  case object UdpCounter extends CounterKind("udp_count")
 
-  object RiskCounter extends CounterKind("risk_count")
+  case object RiskCounter extends CounterKind("risk_count")
 }
 
-sealed abstract class TimerKind(override val entryName: String) extends EnumEntry
+sealed abstract class TimerKind(override val entryName: String) extends EnumEntry with Product
 object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] with CatsEnum[TimerKind] {
   val values: IndexedSeq[TimerKind] = findValues
 
-  object ActionTimer extends TimerKind("action_timer")
+  case object ActionTimer extends TimerKind("action_timer")
 }
 
-sealed abstract class HistogramKind(override val entryName: String) extends EnumEntry
+sealed abstract class HistogramKind(override val entryName: String) extends EnumEntry with Product
 object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] with CatsEnum[HistogramKind] {
   val values: IndexedSeq[HistogramKind] = findValues
 
-  object UdpHistogram extends HistogramKind("udp_histogram")
+  case object UdpHistogram extends HistogramKind("udp_histogram")
 }
 
-sealed abstract class GaugeKind(override val entryName: String) extends EnumEntry
+sealed abstract class GaugeKind(override val entryName: String) extends EnumEntry with Product
 object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] with CatsEnum[GaugeKind] {
   val values: IndexedSeq[GaugeKind] = findValues
 
-  object TimedGauge extends GaugeKind("timed_gauge")
+  case object TimedGauge extends GaugeKind("timed_gauge")
 }
 
-sealed abstract class MeterKind(override val entryName: String) extends EnumEntry
+sealed abstract class MeterKind(override val entryName: String) extends EnumEntry with Product
 object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] with CatsEnum[MeterKind] {
   val values: IndexedSeq[MeterKind] = findValues
 
-  object PlaceHolder extends MeterKind("place_holder")
+  case object PlaceHolder extends MeterKind("place_holder")
 }
 
 @JsonCodec
