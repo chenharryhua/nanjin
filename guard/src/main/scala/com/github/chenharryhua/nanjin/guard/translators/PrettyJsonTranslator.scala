@@ -80,7 +80,7 @@ private object PrettyJsonTranslator {
           actionName(evt.metricName),
           serviceName(evt),
           serviceId(evt),
-          evt.alertLevel.show -> Json.fromString(evt.message)))
+          evt.alertLevel.show -> evt.message))
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(

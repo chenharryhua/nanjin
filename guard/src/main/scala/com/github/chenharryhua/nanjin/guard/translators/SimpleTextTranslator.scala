@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import org.apache.commons.lang3.StringUtils
 
 private object SimpleTextTranslator {
   import NJEvent.*
@@ -73,7 +74,7 @@ private object SimpleTextTranslator {
   private def serviceAlert(evt: ServiceAlert): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  ${evt.alertLevel.show}:${evt.message}
+       |  ${StringUtils.capitalize(evt.alertLevel.show)}:${evt.message.noSpaces}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =

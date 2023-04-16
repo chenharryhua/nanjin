@@ -51,7 +51,7 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     alertLevel: AlertLevel,
-    message: String)
+    message: Json)
       extends NJEvent
 
   sealed trait MetricEvent extends NJEvent {

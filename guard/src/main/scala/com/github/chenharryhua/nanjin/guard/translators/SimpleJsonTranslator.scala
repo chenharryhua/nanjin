@@ -15,10 +15,10 @@ private object SimpleJsonTranslator {
   private def serviceName(evt: NJEvent): (String, Json) =
     ("serviceName", Json.fromString(evt.serviceName.value))
 
-  private def name(id: MetricName): (String, Json)   = "name" -> Json.fromString(id.value)
-  private def digest(id: MetricName): (String, Json) = "digest" -> Json.fromString(id.digest.value)
-  private def measurement(id: MetricName): (String, Json) =
-    "measurement" -> Json.fromString(id.measurement.value)
+  private def name(mn: MetricName): (String, Json)   = "name" -> Json.fromString(mn.value)
+  private def digest(mn: MetricName): (String, Json) = "digest" -> Json.fromString(mn.digest.value)
+  private def measurement(mn: MetricName): (String, Json) =
+    "measurement" -> Json.fromString(mn.measurement.value)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
   private def traceId(evt: ActionEvent): (String, Json)    = "traceId" -> evt.actionInfo.traceId.asJson
   private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
@@ -88,7 +88,7 @@ private object SimpleJsonTranslator {
       "event" -> EventName.ServiceAlert.camelJson,
       "level" -> evt.alertLevel.asJson,
       name(evt.metricName),
-      ("message", Json.fromString(evt.message)),
+      "message" -> evt.message,
       digest(evt.metricName),
       serviceId(evt),
       timestamp(evt)

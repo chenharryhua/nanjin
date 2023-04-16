@@ -158,7 +158,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
-            MarkdownSection(s"```${abbreviate(evt.message)}```")
+            MarkdownSection(s"```${abbreviate(evt.message.spaces2)}```")
           )
         ))
     )

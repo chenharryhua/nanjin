@@ -106,7 +106,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(evt.message)
+      pre(evt.message.spaces2)
     )
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
