@@ -95,7 +95,7 @@ class TicksTest extends AnyFunSuite {
       .toList
       .map(_.filter(_.isInstanceOf[ActionComplete]))
       .unsafeRunSync()
-    assert(List(0, 1, 2) == lst.flatMap(_.asInstanceOf[ActionComplete].output.asNumber.flatMap(_.toLong)))
+    assert(List(0, 1, 2) == lst.flatMap(_.asInstanceOf[ActionComplete].json.asNumber.flatMap(_.toLong)))
   }
 
   test("5. fib awakeEvery") {

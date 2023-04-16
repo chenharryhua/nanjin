@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import org.apache.commons.lang3.StringUtils
 
 private object SimpleTextTranslator {
   import NJEvent.*
@@ -32,7 +33,7 @@ private object SimpleTextTranslator {
 
   private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
-       |  $CONSTANT_IMPORTANCE:${ae.actionParams.importance.show}, $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}""".stripMargin
+       |  $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
@@ -73,12 +74,13 @@ private object SimpleTextTranslator {
   private def serviceAlert(evt: ServiceAlert): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  ${evt.alertLevel.show}:${evt.message}
+       |  ${StringUtils.capitalize(evt.alertLevel.show)}:${evt.message.noSpaces}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
+       |  $CONSTANT_INPUT:${evt.json.noSpaces}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
@@ -94,7 +96,7 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
-       |  $CONSTANT_NOTES:${evt.output.noSpaces}
+       |  $CONSTANT_INPUT:${evt.json.noSpaces}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
@@ -102,7 +104,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
-       |  $CONSTANT_RESULT:${evt.output.noSpaces}
+       |  $CONSTANT_RESULT:${evt.json.noSpaces}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

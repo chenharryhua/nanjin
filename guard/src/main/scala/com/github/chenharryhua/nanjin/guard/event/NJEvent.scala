@@ -51,7 +51,7 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     alertLevel: AlertLevel,
-    message: String)
+    message: Json)
       extends NJEvent
 
   sealed trait MetricEvent extends NJEvent {
@@ -84,7 +84,8 @@ object NJEvent extends zoneddatetime {
     final def metricId: MetricID = actionParams.metricId
   }
 
-  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo) extends ActionEvent {
+  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, json: Json)
+      extends ActionEvent {
     override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(actionInfo.launchTime)
   }
 
@@ -102,7 +103,7 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionResultEvent extends ActionEvent {
     def landTime: FiniteDuration
-    def output: Json
+    def json: Json
 
     final override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
     final def took: Duration                    = actionInfo.took(landTime)
@@ -114,7 +115,7 @@ object NJEvent extends zoneddatetime {
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
     error: NJError,
-    output: Json)
+    json: Json)
       extends ActionResultEvent
 
   @Lenses
@@ -122,7 +123,7 @@ object NJEvent extends zoneddatetime {
     actionParams: ActionParams,
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
-    output: Json)
+    json: Json)
       extends ActionResultEvent
 
   final def isPivotalEvent(evt: NJEvent): Boolean = evt match {

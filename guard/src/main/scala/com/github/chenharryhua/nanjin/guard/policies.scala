@@ -13,6 +13,7 @@ import retry.RetryPolicy
 import java.time.{Duration, ZoneId, ZonedDateTime}
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.JavaDurationOps
 
 object policies extends zoneid {
 
@@ -35,10 +36,8 @@ object policies extends zoneid {
         Clock[F].realTimeInstant.map { ts =>
           val now: ZonedDateTime = ts.atZone(zoneId)
           cronExpr.next(now) match {
-            case Some(next) =>
-              val nano: Long = Duration.between(now, next).toNanos
-              DelayAndRetry(FiniteDuration(nano, TimeUnit.NANOSECONDS))
-            case None => GiveUp
+            case Some(next) => DelayAndRetry(Duration.between(now, next).toScala)
+            case None       => GiveUp
           }
         },
       pretty = show"cronBackoff(cron=${cronExpr.show}, zoneId=${zoneId.show})"

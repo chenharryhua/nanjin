@@ -19,9 +19,8 @@ package object translators {
   @inline final val CONSTANT_CAUSE: String      = "Cause"
   @inline final val CONSTANT_TOOK: String       = "Took"
   @inline final val CONSTANT_DELAYED: String    = "Delayed"
-  @inline final val CONSTANT_NOTES: String      = "Notes"
+  @inline final val CONSTANT_INPUT: String      = "Input"
   @inline final val CONSTANT_RESULT: String     = "Result"
-  @inline final val CONSTANT_IMPORTANCE: String = "Importance"
   @inline final val CONSTANT_UPTIME: String     = "UpTime"
   @inline final val CONSTANT_BRIEF: String      = "Brief"
   @inline final val CONSTANT_METRICS: String    = "Metrics"
@@ -71,7 +70,7 @@ package object translators {
 
   final private[translators] def eventTitle(evt: NJEvent): String =
     evt match {
-      case NJEvent.ActionStart(ap, _)             => s"Start Action ${ap.metricId.metricName.display}"
+      case NJEvent.ActionStart(ap, _, _)          => s"Start Action ${ap.metricId.metricName.display}"
       case NJEvent.ActionRetry(ap, _, _, _, _, _) => s"Action Retrying ${ap.metricId.metricName.display}"
       case NJEvent.ActionFail(ap, _, _, _, _)     => s"Action Failed ${ap.metricId.metricName.display}"
       case NJEvent.ActionComplete(ap, _, _, _)    => s"Action Completed ${ap.metricId.metricName.display}"

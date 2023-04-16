@@ -3,7 +3,12 @@ package mtest.msg.codec
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
-import fs2.kafka.{CommittableProducerRecords as Fs2CommittableProducerRecords, ConsumerRecord as Fs2ConsumerRecord, ProducerRecord as Fs2ProducerRecord, TransactionalProducerRecords as Fs2TransactionalProducerRecords}
+import fs2.kafka.{
+  CommittableProducerRecords as Fs2CommittableProducerRecords,
+  ConsumerRecord as Fs2ConsumerRecord,
+  ProducerRecord as Fs2ProducerRecord,
+  TransactionalProducerRecords as Fs2TransactionalProducerRecords
+}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition

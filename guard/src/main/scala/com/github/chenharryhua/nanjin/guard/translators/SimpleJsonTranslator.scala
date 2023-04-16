@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.config.{Importance, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.MetricName
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
@@ -15,13 +15,12 @@ private object SimpleJsonTranslator {
   private def serviceName(evt: NJEvent): (String, Json) =
     ("serviceName", Json.fromString(evt.serviceName.value))
 
-  private def name(id: MetricName): (String, Json)   = "name" -> Json.fromString(id.value)
-  private def digest(id: MetricName): (String, Json) = "digest" -> Json.fromString(id.digest.value)
-  private def measurement(id: MetricName): (String, Json) =
-    "measurement" -> Json.fromString(id.measurement.value)
+  private def name(mn: MetricName): (String, Json)   = "name" -> Json.fromString(mn.value)
+  private def digest(mn: MetricName): (String, Json) = "digest" -> Json.fromString(mn.digest.value)
+  private def measurement(mn: MetricName): (String, Json) =
+    "measurement" -> Json.fromString(mn.measurement.value)
   private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
   private def traceId(evt: ActionEvent): (String, Json)    = "traceId" -> evt.actionInfo.traceId.asJson
-  private def importance(imp: Importance): (String, Json)  = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
 
   private def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
@@ -88,7 +87,7 @@ private object SimpleJsonTranslator {
       "event" -> EventName.ServiceAlert.camelJson,
       "level" -> evt.alertLevel.asJson,
       name(evt.metricName),
-      ("message", Json.fromString(evt.message)),
+      "message" -> evt.message,
       digest(evt.metricName),
       serviceId(evt),
       timestamp(evt)
@@ -97,12 +96,12 @@ private object SimpleJsonTranslator {
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
       "event" -> EventName.ActionStart.camelJson,
-      importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
       traceId(evt),
       digest(evt.metricId.metricName),
       actionId(evt),
+      "input" -> evt.json,
       serviceId(evt),
       timestamp(evt)
     )
@@ -110,7 +109,6 @@ private object SimpleJsonTranslator {
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
       "event" -> EventName.ActionRetry.camelJson,
-      importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
       traceId(evt),
@@ -124,12 +122,11 @@ private object SimpleJsonTranslator {
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
       "event" -> EventName.ActionFail.camelJson,
-      importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "notes" -> evt.output, // align with slack
+      "input" -> evt.json, // align with slack
       stackTrace(evt.error),
       digest(evt.metricId.metricName),
       actionId(evt),
@@ -140,12 +137,11 @@ private object SimpleJsonTranslator {
   private def actionComplete(evt: ActionComplete): Json =
     Json.obj(
       "event" -> EventName.ActionComplete.camelJson,
-      importance(evt.actionParams.importance),
       name(evt.metricId.metricName),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "result" -> evt.output, // align with slack
+      "result" -> evt.json, // align with slack
       digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
