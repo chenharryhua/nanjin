@@ -34,7 +34,7 @@ final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
-  transError: IN => F[Json],
+  transInput: IN => F[Json],
   transOutput: Option[(IN, OUT) => Json],
   isWorthRetry: Throwable => F[Boolean]
 )(implicit F: Temporal[F]) {
@@ -82,7 +82,11 @@ final private class ReTry[F[_], IN, OUT](
       case PublishStrategy.StartAndComplete =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            channel.send(ActionStart(actionParams, ai)) >> compute(ai, in)
+            for {
+              js <- transInput(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
+              _ <- channel.send(ActionStart(actionParams, ai, js))
+              out <- compute(ai, in)
+            } yield out
         }
       case PublishStrategy.CompleteOnly | PublishStrategy.Silent =>
         new KickOff {
@@ -93,7 +97,7 @@ final private class ReTry[F[_], IN, OUT](
   sealed private trait Postmortem {
     final def fail(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
       for {
-        js <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
+        js <- transInput(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
         fd <- F.realTime
         _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), js))
       } yield measures.fail(ai.took(fd))

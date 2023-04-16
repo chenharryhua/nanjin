@@ -61,7 +61,7 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case ActionStart(ap, _)          => ap.isCritical
+            case ActionStart(ap, _, _)       => ap.isCritical
             case ActionComplete(ap, _, _, _) => ap.isCritical
             case _                           => true
           }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))

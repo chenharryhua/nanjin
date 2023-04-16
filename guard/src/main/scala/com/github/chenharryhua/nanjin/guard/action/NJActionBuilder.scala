@@ -55,7 +55,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, measurement, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = fz,
-      transError = F.pure(Json.Null),
+      transInput = F.pure(Json.Null),
       transOutput = None,
       isWorthRetry = alwaysRetry
     )
@@ -69,7 +69,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, measurement, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f,
-      transError = _ => F.pure(Json.Null),
+      transInput = _ => F.pure(Json.Null),
       transOutput = None,
       isWorthRetry = alwaysRetry
     )
@@ -81,7 +81,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, measurement, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transError = _ => F.pure(Json.Null),
+      transInput = _ => F.pure(Json.Null),
       transOutput = None,
       isWorthRetry = alwaysRetry
     )
@@ -93,7 +93,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, measurement, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transError = _ => F.pure(Json.Null),
+      transInput = _ => F.pure(Json.Null),
       transOutput = None,
       isWorthRetry = alwaysRetry
     )
@@ -105,7 +105,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, measurement, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transError = _ => F.pure(Json.Null),
+      transInput = _ => F.pure(Json.Null),
       transOutput = None,
       isWorthRetry = alwaysRetry
     )
@@ -117,7 +117,7 @@ final class NJActionBuilder[F[_]](
       actionParams = actionConfig.evalConfig(actionName, measurement, retryPolicy.show),
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transError = _ => F.pure(Json.Null),
+      transInput = _ => F.pure(Json.Null),
       transOutput = None,
       isWorthRetry = alwaysRetry
     )
@@ -173,7 +173,7 @@ final class NJActionBuilder[F[_]](
         case (_, 0) => Ior.left(fail) // failure if no success
         case _      => Ior.Both(fail, done) // quasi
       }
-    }).logOutput(outputJson(_, size, None)).logError(inputJson(size, None))
+    }).logOutput(outputJson(_, size, None)).logInput(inputJson(size, None))
   }
 
   def quasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = quasi[List, Z](fzs.toList)
@@ -190,7 +190,7 @@ final class NJActionBuilder[F[_]](
           case (_, 0) => Ior.left(fail)
           case _      => Ior.Both(fail, done)
         }
-      }).logOutput(outputJson(_, size, Some(parallelism))).logError(inputJson(size, Some(parallelism)))
+      }).logOutput(outputJson(_, size, Some(parallelism))).logInput(inputJson(size, Some(parallelism)))
   }
 
   def parQuasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =

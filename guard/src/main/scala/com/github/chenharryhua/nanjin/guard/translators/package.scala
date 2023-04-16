@@ -70,7 +70,7 @@ package object translators {
 
   final private[translators] def eventTitle(evt: NJEvent): String =
     evt match {
-      case NJEvent.ActionStart(ap, _)             => s"Start Action ${ap.metricId.metricName.display}"
+      case NJEvent.ActionStart(ap, _, _)          => s"Start Action ${ap.metricId.metricName.display}"
       case NJEvent.ActionRetry(ap, _, _, _, _, _) => s"Action Retrying ${ap.metricId.metricName.display}"
       case NJEvent.ActionFail(ap, _, _, _, _)     => s"Action Failed ${ap.metricId.metricName.display}"
       case NJEvent.ActionComplete(ap, _, _, _)    => s"Action Completed ${ap.metricId.metricName.display}"

@@ -39,7 +39,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - completed notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag =
-        gd.action("t", _.notice).retry(fun5 _).logError(_._3.asJson).withWorthRetry(_ => true)
+        gd.action("t", _.notice).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -114,7 +114,7 @@ class RetryTest extends AnyFunSuite {
             i += 1
             throw new Exception
           } else i))
-        .logError(_.asJson)
+        .logInput(_.asJson)
         .run(1)
     }.compile.toVector.unsafeRunSync()
 
@@ -133,7 +133,7 @@ class RetryTest extends AnyFunSuite {
         gd.action("t")
           .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3)))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
-          .logError(_.asJson)
+          .logInput(_.asJson)
           .run(1)
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -319,7 +319,7 @@ class RetryTest extends AnyFunSuite {
         agent
           .action("input error", _.notice)
           .retry((a: Int) => IO(a))
-          .logErrorM(_ => IO.raiseError[Json](new Exception("oops")))
+          .logInputM(_ => IO.raiseError[Json](new Exception("oops")))
           .run(1))
       .compile
       .toList
@@ -333,7 +333,7 @@ class RetryTest extends AnyFunSuite {
   test("18.retry - aware") {
     val Vector(s, a, b, c, d) = serviceGuard.eventStream { gd =>
       val ag =
-        gd.action("t", _.aware).retry(fun5 _).logError(_._3.asJson).withWorthRetry(_ => true)
+        gd.action("t", _.aware).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
