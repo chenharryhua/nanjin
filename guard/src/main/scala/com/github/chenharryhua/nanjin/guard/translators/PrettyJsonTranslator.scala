@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName, MetricParams}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, MetricName, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
@@ -15,7 +15,6 @@ private object PrettyJsonTranslator {
   private def actionName(metricName: MetricName): (String, Json) = "name" -> metricName.display.asJson
   private def actionId(evt: ActionEvent): (String, Json)         = "id" -> Json.fromString(evt.actionId)
   private def traceId(evt: ActionEvent): (String, Json)          = "traceId" -> evt.actionInfo.traceId.asJson
-  private def importance(imp: Importance): (String, Json)        = "importance" -> imp.asJson
   private def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
   private def stackTrace(err: NJError): (String, Json)     = "stackTrace" -> Json.fromString(err.stackTrace)
   private def policy(evt: NJEvent): (String, Json)        = "policy" -> evt.serviceParams.restartPolicy.asJson
@@ -89,7 +88,6 @@ private object PrettyJsonTranslator {
           actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceId(evt)
@@ -102,7 +100,6 @@ private object PrettyJsonTranslator {
           actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceId(evt),
@@ -117,7 +114,6 @@ private object PrettyJsonTranslator {
           actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceId(evt),
@@ -134,7 +130,6 @@ private object PrettyJsonTranslator {
           actionName(evt.metricId.metricName),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceId(evt),

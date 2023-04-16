@@ -8,9 +8,9 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
   Category,
   CounterKind,
-  Importance,
   MetricID,
-  MetricName
+  MetricName,
+  PublishStrategy
 }
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionComplete,
@@ -78,13 +78,13 @@ final private class ReTry[F[_], IN, OUT](
 
   sealed private trait KickOff { def apply(ai: ActionInfo, in: IN): F[OUT] }
   private val kickoff: KickOff =
-    actionParams.importance match {
-      case Importance.Critical | Importance.Notice =>
+    actionParams.publishStrategy match {
+      case PublishStrategy.StartAndComplete =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
             channel.send(ActionStart(actionParams, ai)) >> compute(ai, in)
         }
-      case Importance.Aware | Importance.Silent =>
+      case PublishStrategy.CompleteOnly | PublishStrategy.Silent =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] = compute(ai, in)
         }
@@ -101,8 +101,8 @@ final private class ReTry[F[_], IN, OUT](
     def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit]
   }
   private val postmortem: Postmortem =
-    actionParams.importance match {
-      case Importance.Critical | Importance.Notice | Importance.Aware =>
+    actionParams.publishStrategy match {
+      case PublishStrategy.StartAndComplete | PublishStrategy.CompleteOnly =>
         transOutput match {
           case Some(transform) =>
             new Postmortem {
@@ -124,17 +124,17 @@ final private class ReTry[F[_], IN, OUT](
         }
 
       // silent
-      case Importance.Silent if actionParams.isTiming =>
+      case PublishStrategy.Silent if actionParams.isTiming =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.realTime.map(fd => measures.done(ai.took(fd)))
         }
-      case Importance.Silent if actionParams.isCounting =>
+      case PublishStrategy.Silent if actionParams.isCounting =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.pure(measures.done(Duration.ZERO))
         }
-      case Importance.Silent =>
+      case PublishStrategy.Silent =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.unit

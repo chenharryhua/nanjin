@@ -4,15 +4,15 @@ import cats.Order
 import enumeratum.EnumEntry.Lowercase
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 
-sealed trait Importance extends EnumEntry with Lowercase with Product
+sealed trait PublishStrategy extends EnumEntry with Lowercase with Product
 
-object Importance extends Enum[Importance] with CirceEnum[Importance] with CatsEnum[Importance] {
-  override val values: IndexedSeq[Importance] = findValues
+object PublishStrategy
+    extends Enum[PublishStrategy] with CirceEnum[PublishStrategy] with CatsEnum[PublishStrategy] {
+  override val values: IndexedSeq[PublishStrategy] = findValues
 
-  case object Critical extends Importance
-  case object Notice extends Importance
-  case object Aware extends Importance
-  case object Silent extends Importance
+  case object StartAndComplete extends PublishStrategy
+  case object CompleteOnly extends PublishStrategy
+  case object Silent extends PublishStrategy
 }
 
 sealed abstract class AlertLevel(override val entryName: String, val value: Int)

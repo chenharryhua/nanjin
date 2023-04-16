@@ -107,7 +107,7 @@ class RetryTest extends AnyFunSuite {
   test("5.retry - should retry 2 times when operation fail - low") {
     var i = 0
     val Vector(s, b, c, d, e, f) = serviceGuard.eventStream { gd =>
-      gd.action("t", _.critical)
+      gd.action("t", _.critical.notice)
         .withRetryPolicy(policy)
         .retry((_: Int) =>
           IO(if (i < 2) {
@@ -299,7 +299,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c, d) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(
-        _.action("fatal", _.critical)
+        _.action("fatal", _.uncritical.notice)
           .withRetryPolicy(constant_1second)
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run)

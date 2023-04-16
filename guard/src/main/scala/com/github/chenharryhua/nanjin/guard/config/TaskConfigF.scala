@@ -36,13 +36,13 @@ private object TaskConfigF {
     }
 }
 
-final case class TaskConfig private (value: Fix[TaskConfigF]) {
+final case class TaskConfig private (private val cont: Fix[TaskConfigF]) {
   import TaskConfigF.*
 
-  def withZoneId(zoneId: ZoneId): TaskConfig       = TaskConfig(Fix(WithZoneId(zoneId, value)))
-  def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, value)))
+  def withZoneId(zoneId: ZoneId): TaskConfig       = TaskConfig(Fix(WithZoneId(zoneId, cont)))
+  def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, cont)))
 
-  def evalConfig: TaskParams = scheme.cata(algebra).apply(value)
+  def evalConfig: TaskParams = scheme.cata(algebra).apply(cont)
 }
 
 private[guard] object TaskConfig {

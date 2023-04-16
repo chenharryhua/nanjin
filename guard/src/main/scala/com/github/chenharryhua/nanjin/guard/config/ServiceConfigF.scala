@@ -139,39 +139,39 @@ private object ServiceConfigF {
     }
 }
 
-final case class ServiceConfig private (value: Fix[ServiceConfigF], taskParams: TaskParams) {
+final case class ServiceConfig private (private val cont: Fix[ServiceConfigF], taskParams: TaskParams) {
   import ServiceConfigF.*
 
   // metrics
   def withMetricReport(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithReportSchedule(Some(crontab), value)), taskParams)
+    ServiceConfig(Fix(WithReportSchedule(Some(crontab), cont)), taskParams)
 
   def withMetricReport(crontab: String): ServiceConfig =
     withMetricReport(Cron.unsafeParse(crontab))
 
   def withMetricReset(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithResetSchedule(Some(crontab), value)), taskParams)
+    ServiceConfig(Fix(WithResetSchedule(Some(crontab), cont)), taskParams)
   def withMetricReset(crontab: String): ServiceConfig = withMetricReset(Cron.unsafeParse(crontab))
   def withMetricDailyReset: ServiceConfig             = withMetricReset(dailyCron)
   def withMetricWeeklyReset: ServiceConfig            = withMetricReset(weeklyCron)
   def withMetricMonthlyReset: ServiceConfig           = withMetricReset(monthlyCron)
 
-  def withoutMetricReport: ServiceConfig = ServiceConfig(Fix(WithReportSchedule(None, value)), taskParams)
-  def withoutMetricReset: ServiceConfig  = ServiceConfig(Fix(WithResetSchedule(None, value)), taskParams)
+  def withoutMetricReport: ServiceConfig = ServiceConfig(Fix(WithReportSchedule(None, cont)), taskParams)
+  def withoutMetricReset: ServiceConfig  = ServiceConfig(Fix(WithResetSchedule(None, cont)), taskParams)
 
   def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig =
-    ServiceConfig(Fix(WithRateTimeUnit(tu, value)), taskParams)
+    ServiceConfig(Fix(WithRateTimeUnit(tu, cont)), taskParams)
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig =
-    ServiceConfig(Fix(WithDurationTimeUnit(tu, value)), taskParams)
+    ServiceConfig(Fix(WithDurationTimeUnit(tu, cont)), taskParams)
 
   def withMetricNamePrefix(prefix: String): ServiceConfig =
-    ServiceConfig(Fix(WithMetricNamePrefix(prefix, value)), taskParams)
+    ServiceConfig(Fix(WithMetricNamePrefix(prefix, cont)), taskParams)
 
   def withPolicyThreshold(fd: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), value)), taskParams)
+    ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), cont)), taskParams)
 
   def withHomePage(hp: HomePage): ServiceConfig =
-    ServiceConfig(Fix(WithHomePage(Some(hp), value)), taskParams)
+    ServiceConfig(Fix(WithHomePage(Some(hp), cont)), taskParams)
 
   def evalConfig(
     serviceName: ServiceName,
@@ -179,7 +179,7 @@ final case class ServiceConfig private (value: Fix[ServiceConfigF], taskParams: 
     launchTime: Instant,
     retryPolicy: String,
     brief: Json): ServiceParams =
-    scheme.cata(algebra(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)).apply(value)
+    scheme.cata(algebra(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)).apply(cont)
 }
 
 private[guard] object ServiceConfig {
