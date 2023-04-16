@@ -21,7 +21,7 @@ import squants.time.{Frequency, Hertz}
 import java.time.Duration
 import scala.jdk.CollectionConverters.*
 
-sealed trait Snapshot { def metricId: MetricID }
+sealed trait Snapshot extends Product { def metricId: MetricID }
 
 object Snapshot {
 
