@@ -116,9 +116,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeEvery[F](policies.cronBackoff(cron, serviceParams.taskParams.zoneId))
-                .evalMap(idx =>
-                  publisher.metricReport(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
+              awakeEvery(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+                .evalMap(tick =>
+                  publisher.metricReport(
+                    channel = channel,
+                    serviceParams = serviceParams,
+                    metricRegistry = metricRegistry,
+                    index = MetricIndex.Periodic(tick.index)))
                 .drain
           }
 
@@ -126,9 +130,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeEvery[F](policies.cronBackoff(cron, serviceParams.taskParams.zoneId))
-                .evalMap(idx =>
-                  publisher.metricReset(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
+              awakeEvery(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+                .evalMap(tick =>
+                  publisher.metricReset(
+                    channel = channel,
+                    serviceParams = serviceParams,
+                    metricRegistry = metricRegistry,
+                    index = MetricIndex.Periodic(tick.index)))
                 .drain
           }
 

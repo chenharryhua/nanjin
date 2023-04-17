@@ -30,7 +30,7 @@ val protobufV   = "3.22.3"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.91.Final"
-val chimneyV    = "0.7.2"
+val chimneyV    = "0.7.3"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
 

@@ -8,7 +8,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
+import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies, Tick}
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
@@ -42,9 +42,9 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def gauge(gaugeName: String): NJGauge[F]
 
   // ticks
-  def ticks(policy: RetryPolicy[F]): Stream[F, Int]
-  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Int]
-  def ticks(cronExpr: CronExpr): Stream[F, Int]
+  def ticks(policy: RetryPolicy[F]): Stream[F, Tick]
+  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Tick]
+  def ticks(cronExpr: CronExpr): Stream[F, Tick]
 
   // udp
   def udpClient(name: String): NJUdpClient[F]
@@ -144,10 +144,10 @@ final class GeneralAgent[F[_]: Network] private[service] (
     new NJMetrics[F](channel = channel, metricRegistry = metricRegistry, serviceParams = serviceParams)
 
   // ticks
-  override def ticks(policy: RetryPolicy[F]): Stream[F, Int] = awakeEvery[F](policy)
-  override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Int] =
-    awakeEvery[F](f(policies.cronBackoff[F](cronExpr, zoneId)))
-  override def ticks(cronExpr: CronExpr): Stream[F, Int] = ticks(cronExpr, identity)
+  override def ticks(policy: RetryPolicy[F]): Stream[F, Tick] = awakeEvery(policy)
+  override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Tick] =
+    awakeEvery(f(policies.cronBackoff[F](cronExpr, zoneId)))
+  override def ticks(cronExpr: CronExpr): Stream[F, Tick] = ticks(cronExpr, identity)
 
   override def udpClient(name: String): NJUdpClient[F] =
     new NJUdpClient[F](
