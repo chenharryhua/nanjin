@@ -143,10 +143,10 @@ private object SlackTranslator extends all {
     )
 
   private def serviceAlert(evt: ServiceAlert): SlackApp = {
-    val title = evt.alertLevel match {
-      case AlertLevel.Error => ":warning: Error"
-      case AlertLevel.Warn  => ":warning: Warning"
-      case AlertLevel.Info  => ":information_source: Info"
+    val symbol: String = evt.alertLevel match {
+      case AlertLevel.Error => ":warning:"
+      case AlertLevel.Warn  => ":warning:"
+      case AlertLevel.Info  => ":information_source:"
     }
     SlackApp(
       username = evt.serviceParams.taskParams.taskName.value,
@@ -154,7 +154,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*$title:* ${evt.metricName.display}"),
+            MarkdownSection(symbol + s" *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
