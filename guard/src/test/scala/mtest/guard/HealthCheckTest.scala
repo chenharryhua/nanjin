@@ -19,6 +19,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("1.should receive 3 MetricsReport event") {
     val s :: a :: b :: c :: _ = guard
       .service("normal")
+      .withJmx(_.inDomain("abc"))
       .updateConfig(_.withMetricReport(cron_2second))
       .eventStream(gd => gd.action("cron", _.notice).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)

@@ -87,7 +87,7 @@ class TicksTest extends AnyFunSuite {
     val lst = service
       .eventStream(ag =>
         ag.ticks(cron_1minute, RetryPolicies.capDelay[IO](1.second, _))
-          .evalMap(x => ag.action("pt", _.aware).retry(IO(x.asJson)).logOutput(identity).run)
+          .evalMap(x => ag.action("pt", _.aware).retry(IO(x.index.asJson)).logOutput(identity).run)
           .take(3)
           .compile
           .drain)
@@ -95,7 +95,7 @@ class TicksTest extends AnyFunSuite {
       .toList
       .map(_.filter(_.isInstanceOf[ActionComplete]))
       .unsafeRunSync()
-    assert(List(0, 1, 2) == lst.flatMap(_.asInstanceOf[ActionComplete].json.asNumber.flatMap(_.toLong)))
+    assert(List(1, 2, 3) == lst.flatMap(_.asInstanceOf[ActionComplete].json.asNumber.flatMap(_.toLong)))
   }
 
   test("5. fib awakeEvery") {
@@ -129,7 +129,7 @@ class TicksTest extends AnyFunSuite {
       .evalMap(idx => IO.realTimeInstant.map((_, idx)))
       .take(20)
       .fold(Map.empty[Int, List[Instant]]) { case (sum, (fd, idx)) =>
-        sum.updatedWith(idx)(ls => Some(fd :: ls.sequence.flatten))
+        sum.updatedWith(idx.index)(ls => Some(fd :: ls.sequence.flatten))
       }
       .map { m =>
         assert(m.forall(_._2.size == 5)) // 5 streams
@@ -186,9 +186,7 @@ class TicksTest extends AnyFunSuite {
     val rnd =
       Random.scalaUtilRandom[IO].flatMap(_.betweenLong(0, 2000)).flatMap(d => IO.sleep(d.millisecond).as(d))
     val lst = ticks
-      .evalMap(idx =>
-        IO.realTimeInstant.flatMap(ts =>
-          rnd.timed.map(t => (idx, ts, t._1.toMillis, t._1.toMillis - t._2, ts.plusNanos(t._1.toNanos)))))
+      .evalMap(tick => IO.realTimeInstant.flatMap(ts => rnd.map(fd => (tick, ts, fd))))
       .take(10)
       .debug()
       .compile
