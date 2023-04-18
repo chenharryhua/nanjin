@@ -34,7 +34,8 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   // metrics
   def withMeasurement(measurement: String): Agent[F]
   def metrics: NJMetrics[F]
-  def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F]
+  def action(name: String, f: Endo[ActionConfig]): NJActionBuilder[F]
+  def action(name: String): NJActionBuilder[F]
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
   def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F]
@@ -91,7 +92,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
       measurement = Measurement(measurement)
     )
 
-  override def action(name: String, f: Endo[ActionConfig] = identity): NJActionBuilder[F] =
+  override def action(name: String, f: Endo[ActionConfig]): NJActionBuilder[F] =
     new NJActionBuilder[F](
       actionName = name,
       measurement = measurement,
@@ -100,6 +101,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
       actionConfig = f(ActionConfig(serviceParams)),
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
+  override def action(name: String): NJActionBuilder[F] = action(name, identity)
 
   override def alert(alertName: String): NJAlert[F] =
     new NJAlert(
