@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toTraverseOps
+import cats.implicits.{catsSyntaxPartialOrder, toTraverseOps}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionComplete,
@@ -186,6 +186,7 @@ class TicksTest extends AnyFunSuite {
     val rnd =
       Random.scalaUtilRandom[IO].flatMap(_.betweenLong(0, 2000)).flatMap(d => IO.sleep(d.millisecond).as(d))
     val lst = ticks
+      .evalTap(t => IO(assert(t > Tick.Zero)))
       .evalMap(tick => IO.realTimeInstant.flatMap(ts => rnd.map(fd => (tick, ts, fd))))
       .take(10)
       .debug()
@@ -194,5 +195,9 @@ class TicksTest extends AnyFunSuite {
       .unsafeRunSync()
 
     lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 9))
+  }
+  test("duration exception") {
+    assertThrows[IllegalArgumentException](Duration.between(Instant.MIN, Instant.now()).toScala)
+    assert(Duration.between(Tick.Zero.pullTime, Instant.now()).toScala > 19000.days)
   }
 }
