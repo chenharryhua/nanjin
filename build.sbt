@@ -9,7 +9,7 @@ val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0-RC4"
 val awsV_1      = "1.12.450"
 val awsV_2      = "2.20.40"
-val catsEffectV = "3.5.0-RC3"
+val catsEffectV = "3.5.0-RC4"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
 val confluentV  = "7.3.3"
@@ -33,6 +33,7 @@ val nettyV      = "4.1.91.Final"
 val chimneyV    = "0.7.3"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
+val logbackV    = "1.4.7"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -298,7 +299,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(commonSettings*)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % "1.4.6" % Test
+    "ch.qos.logback" % "logback-classic" % logbackV % Test
   ) ++ kafkaLib ++ logLib ++ testLib)
 
 /** hadoop based
@@ -372,7 +373,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "com.julianpeeters" %% "avrohugger-core" % "1.3.1"           % Test,
-      "ch.qos.logback"                         % "logback-classic" % "1.4.6" % Test
+      "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
@@ -393,6 +394,14 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)
