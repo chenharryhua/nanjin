@@ -181,7 +181,11 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           )
 
         val surveillance: Stream[F, Nothing] =
-          new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream
+          new ReStart[F, A](
+            channel = channel,
+            serviceParams = serviceParams,
+            policy = restartPolicy,
+            theService = runAgent(agent)).stream
 
         // put together
         channel.stream
