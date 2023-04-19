@@ -30,9 +30,9 @@ final class NJUdpClient[F[_]: Network](
 
   private class Writer(socket: DatagramSocket[F], remote: SocketAddress[IpAddress]) {
     private val histogramId: MetricID =
-      MetricID(name, Category.Histogram(StandardUnit.BYTES, Some(HistogramKind.UdpHistogram)))
+      MetricID(name, Category.Histogram(HistogramKind.UdpHistogram, StandardUnit.BYTES))
     private val counterId: MetricID =
-      MetricID(name, Category.Counter(Some(CounterKind.UdpCounter)))
+      MetricID(name, Category.Counter(CounterKind.UdpCounter))
 
     val writer: UdpSocketWriter[F] =
       (isHistogram, isCounting) match {

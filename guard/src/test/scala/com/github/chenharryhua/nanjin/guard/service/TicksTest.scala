@@ -1,4 +1,4 @@
-package mtest.guard
+package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.IO
 import cats.effect.std.Random
@@ -11,8 +11,10 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ServiceStart,
   ServiceStop
 }
+import com.github.chenharryhua.nanjin.guard.event.Tick
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
+import mtest.guard.{cron_1minute, cron_1second}
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
@@ -22,7 +24,7 @@ import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
 
 class TicksTest extends AnyFunSuite {
-  val service = TaskGuard[IO]("awake").service("every")
+  val service: ServiceGuard[IO] = TaskGuard[IO]("awake").service("every")
   test("1. should not lock - even") {
     val List(a, b, c, d) = service
       .eventStream(agent =>
@@ -142,7 +144,7 @@ class TicksTest extends AnyFunSuite {
         }
 
         m.flatMap(_._2.headOption).toList.sorted.sliding(2).map { ls =>
-          val diff = Duration.between(ls(1), ls(0)).abs.toScala
+          val diff = Duration.between(ls(1), ls.head).abs.toScala
           assert(diff > 0.9.second && diff < 1.1.seconds)
         }
       }

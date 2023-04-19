@@ -28,11 +28,11 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   isCounting: Boolean
 ) {
   private lazy val errorCounter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.AlertError))).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.AlertError)).asJson.noSpaces)
   private lazy val warnCounter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.AlertWarn))).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.AlertWarn)).asJson.noSpaces)
   private lazy val infoCounter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.AlertInfo))).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.AlertInfo)).asJson.noSpaces)
 
   private def alert(msg: Json, alertLevel: AlertLevel): F[Unit] =
     for {

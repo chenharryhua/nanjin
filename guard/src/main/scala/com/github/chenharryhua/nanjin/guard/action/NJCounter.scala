@@ -12,9 +12,9 @@ final class NJCounter[F[_]] private[guard] (
 
   private lazy val counter: Counter =
     if (isRisk)
-      metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.RiskCounter))).asJson.noSpaces)
+      metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.RiskCounter)).asJson.noSpaces)
     else
-      metricRegistry.counter(MetricID(name, Category.Counter(None)).asJson.noSpaces)
+      metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.Dropwizard)).asJson.noSpaces)
 
   def asRisk: NJCounter[F] = new NJCounter[F](name, metricRegistry, isRisk = true)
 
