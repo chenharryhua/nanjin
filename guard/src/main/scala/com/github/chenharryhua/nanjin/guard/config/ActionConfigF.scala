@@ -26,8 +26,7 @@ object ActionParams {
     serviceParams: ServiceParams
   ): ActionParams =
     ActionParams(
-      metricId =
-        MetricID(serviceParams, measurement, Category.Timer(Some(TimerKind.ActionTimer)), actionName),
+      metricId = MetricID(serviceParams, measurement, Category.Timer(TimerKind.ActionTimer), actionName),
       isCritical = false,
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,

@@ -8,7 +8,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies, Tick}
+import com.github.chenharryhua.nanjin.guard.policies
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}

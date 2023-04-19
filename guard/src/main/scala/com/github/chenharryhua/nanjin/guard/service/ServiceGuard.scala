@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{Measurement, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
-import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
+import com.github.chenharryhua.nanjin.guard.policies
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}

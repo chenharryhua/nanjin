@@ -21,13 +21,11 @@ import squants.time.{Frequency, Hertz}
 import java.time.Duration
 import scala.jdk.CollectionConverters.*
 
-sealed trait Snapshot extends Product { def metricId: MetricID }
+sealed trait Snapshot extends Product with Serializable { def metricId: MetricID }
 
 object Snapshot {
-
   @JsonCodec
   final case class Counter(metricId: MetricID, count: Long) extends Snapshot
-
   @JsonCodec
   final case class Gauge(metricId: MetricID, value: Json) extends Snapshot
 
@@ -83,7 +81,6 @@ object Snapshot {
   ) {
     val unitShow: String = unit.show
   }
-
   @JsonCodec
   final case class Histogram(metricId: MetricID, histogram: HistogramData) extends Snapshot
 }
@@ -116,7 +113,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricID](name).toOption.mapFilter(id =>
         id.category match {
-          case Category.Meter(unit, _) =>
+          case Category.Meter(_, unit) =>
             Some(
               Snapshot.Meter(
                 metricId = id,
@@ -166,7 +163,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
       decode[MetricID](name).toOption.flatMap { id =>
         id.category match {
-          case Category.Histogram(unit, _) =>
+          case Category.Histogram(_, unit) =>
             val ss = histo.getSnapshot
             Some(
               Snapshot.Histogram(

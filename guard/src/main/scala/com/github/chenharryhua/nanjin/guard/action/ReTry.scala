@@ -179,9 +179,9 @@ sealed private trait MeasureAction {
 private object MeasureAction {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): MeasureAction = {
     val metricName: MetricName     = actionParams.metricId.metricName
-    val doneCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionDone))
-    val failCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionFail))
-    val retryCat: Category.Counter = Category.Counter(Some(CounterKind.ActionRetry))
+    val doneCat: Category.Counter  = Category.Counter(CounterKind.ActionDone)
+    val failCat: Category.Counter  = Category.Counter(CounterKind.ActionFail)
+    val retryCat: Category.Counter = Category.Counter(CounterKind.ActionRetry)
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>

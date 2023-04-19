@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{Category, CounterKind, MetricID, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.{Category, CounterKind, MeterKind, MetricID, MetricName}
 import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
@@ -14,10 +14,10 @@ final class NJMeter[F[_]] private[guard] (
   isCounting: Boolean)(implicit F: Sync[F]) {
 
   private lazy val meter: Meter =
-    metricRegistry.meter(MetricID(name, Category.Meter(unit, None)).asJson.noSpaces)
+    metricRegistry.meter(MetricID(name, Category.Meter(MeterKind.Dropwizard, unit)).asJson.noSpaces)
 
   private lazy val counter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(Some(CounterKind.MeterCounter))).asJson.noSpaces)
+    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.MeterCounter)).asJson.noSpaces)
 
   def withCounting: NJMeter[F] = new NJMeter[F](name, metricRegistry, unit, true)
 
