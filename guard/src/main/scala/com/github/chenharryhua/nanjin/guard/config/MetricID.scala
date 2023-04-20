@@ -72,10 +72,8 @@ object Category {
   final case class Histogram(kind: HistogramKind, unit: StandardUnit) extends Category(kind.entryName)
 }
 
-@JsonCodec
-final case class Measurement(value: String) extends AnyVal
-@JsonCodec
-final case class Digest(value: String) extends AnyVal
+@JsonCodec final case class Measurement(value: String) extends AnyVal
+@JsonCodec final case class Digest(value: String) extends AnyVal
 
 @JsonCodec
 final case class MetricName private (value: String, digest: Digest, measurement: Measurement) {
@@ -88,7 +86,7 @@ object MetricName {
   implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
 
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
-    val withPrefix = serviceParams.metricParams.namePrefix + name
+    val withPrefix = serviceParams.metricParams.namePrefix.value + name
     val fullName: List[String] =
       serviceParams.taskParams.taskName.value :: serviceParams.serviceName.value :: measurement.value :: withPrefix :: Nil
     val digest = Digest(DigestUtils.sha1Hex(fullName.mkString("/")).take(8))

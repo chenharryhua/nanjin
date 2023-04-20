@@ -23,7 +23,7 @@ private object SimpleTextTranslator {
     val host: String      = se.serviceParams.taskParams.hostName.value
     val sn: String        = se.serviceParams.serviceName.value
     val tn: String        = se.serviceParams.taskParams.taskName.value
-    val serviceId: String = se.serviceParams.serviceId.value.show.takeRight(12)
+    val serviceId: String = se.serviceParams.serviceId.show.takeRight(12)
     val uptime: String    = fmt.format(se.upTime)
     s"$CONSTANT_SERVICE:$sn, $CONSTANT_TASK:$tn, $CONSTANT_HOST:$host, SID:$serviceId, $CONSTANT_UPTIME:$uptime"
   }
@@ -46,7 +46,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
        |  $msg
-       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy.value}
        |  ${errorStr(evt.error)}
        |""".stripMargin
   }
@@ -54,7 +54,7 @@ private object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy.value}
        |  $CONSTANT_CAUSE:${evt.cause.show}
        |""".stripMargin
 

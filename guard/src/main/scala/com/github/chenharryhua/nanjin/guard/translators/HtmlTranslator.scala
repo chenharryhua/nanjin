@@ -46,7 +46,7 @@ private object HtmlTranslator extends all {
         serviceName,
         td(evt.serviceParams.taskParams.taskName.value),
         td(evt.serviceParams.taskParams.hostName.value),
-        td(evt.serviceParams.serviceId.value.show),
+        td(evt.serviceParams.serviceId.show),
         td(fmt.format(evt.upTime))
       )
     )
@@ -74,7 +74,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(msg)),
-      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
+      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy.value),
       causeText(evt.error)
     )
   }

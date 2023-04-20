@@ -10,28 +10,35 @@ import io.circe.syntax.*
 private object SimpleJsonTranslator {
   import NJEvent.*
 
-  private def timestamp(evt: NJEvent): (String, Json) = "timestamp" -> evt.timestamp.asJson
+  private def timestamp(evt: NJEvent): (String, Json) =
+    "timestamp" -> evt.timestamp.asJson
   private def serviceId(evt: NJEvent): (String, Json) =
-    "serviceId" -> evt.serviceParams.serviceId.value.asJson
+    "serviceId" -> evt.serviceParams.serviceId.asJson
   private def serviceName(evt: NJEvent): (String, Json) =
-    "serviceName" -> evt.serviceParams.serviceName.value.asJson
+    "serviceName" -> Json.fromString(evt.serviceParams.serviceName.value)
 
-  private def name(mn: MetricName): (String, Json)   = "name" -> Json.fromString(mn.value)
-  private def digest(mn: MetricName): (String, Json) = "digest" -> Json.fromString(mn.digest.value)
+  private def name(mn: MetricName): (String, Json) =
+    "name" -> Json.fromString(mn.value)
+  private def digest(mn: MetricName): (String, Json) =
+    "digest" -> Json.fromString(mn.digest.value)
   private def measurement(mn: MetricName): (String, Json) =
     "measurement" -> Json.fromString(mn.measurement.value)
-  private def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  private def traceId(evt: ActionEvent): (String, Json)    = "traceId" -> evt.actionInfo.traceId.asJson
-  private def took(evt: ActionResultEvent): (String, Json) = "took" -> evt.took.asJson
-
-  private def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
+  private def actionId(evt: ActionEvent): (String, Json) =
+    "id" -> Json.fromString(evt.actionId)
+  private def traceId(evt: ActionEvent): (String, Json) =
+    "traceId" -> evt.actionInfo.traceId.asJson
+  private def took(evt: ActionResultEvent): (String, Json) =
+    "took" -> evt.took.asJson
+  private def stackTrace(err: NJError): (String, Json) =
+    "stackTrace" -> Json.fromString(err.stackTrace)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
     case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
   }
 
-  private def policy(evt: NJEvent): (String, Json) = "policy" -> evt.serviceParams.restartPolicy.asJson
+  private def policy(evt: NJEvent): (String, Json) =
+    "policy" -> Json.fromString(evt.serviceParams.restartPolicy.value)
 
   private def metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotJson(ss).toVanillaJson
