@@ -53,7 +53,7 @@ final class InfluxdbObserver[F[_]](
       Point
         .measurement(ar.actionParams.metricId.metricName.measurement.value)
         .time(ar.timestamp.toInstant, writePrecision)
-        .addTag(CONSTANT_SERVICE_ID, ar.serviceParams.serviceId.show)
+        .addTag(CONSTANT_SERVICE_ID, ar.serviceParams.serviceId.value.show)
         .addTag(METRICS_DIGEST, ar.actionParams.metricId.metricName.digest.value)
         .addTag("done", NJEvent.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
@@ -102,7 +102,7 @@ final class InfluxdbObserver[F[_]](
     Map(
       CONSTANT_TASK -> sp.taskParams.taskName.value,
       CONSTANT_SERVICE -> sp.serviceName.value,
-      CONSTANT_SERVICE_ID -> sp.serviceId.show,
+      CONSTANT_SERVICE_ID -> sp.serviceId.value.show,
       CONSTANT_HOST -> sp.taskParams.hostName.value,
       METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
     )

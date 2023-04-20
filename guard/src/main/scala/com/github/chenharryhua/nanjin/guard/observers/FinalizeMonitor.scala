@@ -14,8 +14,8 @@ final private class FinalizeMonitor[F[_]: Clock: Monad, A](
   translate: NJEvent => F[Option[A]],
   ref: Ref[F, Map[UUID, ServiceStart]]) {
   def monitoring(event: NJEvent): F[Unit] = event match {
-    case ss: ServiceStart => ref.update(_.updated(ss.serviceId, ss))
-    case ss: ServiceStop  => ref.update(_.removed(ss.serviceId))
+    case ss: ServiceStart => ref.update(_.updated(ss.serviceParams.serviceId.value, ss))
+    case ss: ServiceStop  => ref.update(_.removed(ss.serviceParams.serviceId.value))
     case _                => Monad[F].unit
   }
 

@@ -58,7 +58,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s":rocket: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}")
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.value.show}")
           )
         ),
         Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
@@ -78,8 +78,9 @@ private object SlackTranslator extends all {
             MarkdownSection(msg),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
-                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}""".stripMargin)
+            MarkdownSection(
+              s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
+                  |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.value.show}""".stripMargin)
           )
         ),
         Attachment(
@@ -100,7 +101,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s":octagonal_sign: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}
+            MarkdownSection(s"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.value.show}
                                 |*$CONSTANT_CAUSE:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
         ),
@@ -118,7 +119,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.value.show}"),
             metricsSection(evt.snapshot)
           )
         ),
@@ -136,7 +137,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.value.show}"),
             metricsSection(evt.snapshot)
           )
         ))
@@ -157,16 +158,17 @@ private object SlackTranslator extends all {
             MarkdownSection(symbol + s" *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.value.show}"),
             MarkdownSection(s"```${abbreviate(evt.message.spaces2)}```")
           )
         ))
     )
   }
 
-  private def traceId(evt: ActionEvent): String   = s"*$CONSTANT_TRACE_ID:* ${evt.traceId}"
-  private def serviceId(evt: ActionEvent): String = s"*$CONSTANT_SERVICE_ID:* ${evt.serviceId.show}"
-  private def policy(evt: ActionEvent): String    = s"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
+  private def traceId(evt: ActionEvent): String = s"*$CONSTANT_TRACE_ID:* ${evt.traceId}"
+  private def serviceId(evt: ActionEvent): String =
+    s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.value.show}"
+  private def policy(evt: ActionEvent): String = s"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(

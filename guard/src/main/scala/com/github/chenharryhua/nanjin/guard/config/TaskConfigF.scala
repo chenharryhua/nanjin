@@ -2,17 +2,15 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.guard.TaskName
-import eu.timepit.refined.cats.*
-import higherkindness.droste.{scheme, Algebra}
 import higherkindness.droste.data.Fix
+import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
-import io.circe.refined.*
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.zoneid
 
 import java.time.ZoneId
 
+@JsonCodec final case class TaskName(value: String) extends AnyVal
 @Lenses @JsonCodec final case class TaskParams(taskName: TaskName, zoneId: ZoneId, hostName: HostName)
 
 object TaskParams extends zoneid {
@@ -47,6 +45,6 @@ final case class TaskConfig private (private val cont: Fix[TaskConfigF]) {
 
 private[guard] object TaskConfig {
 
-  def apply(taskName: TaskName): TaskConfig =
-    new TaskConfig(Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](taskName)))
+  def apply(taskName: String): TaskConfig =
+    new TaskConfig(Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](TaskName(taskName))))
 }

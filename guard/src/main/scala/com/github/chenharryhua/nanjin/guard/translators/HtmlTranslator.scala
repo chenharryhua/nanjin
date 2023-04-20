@@ -29,8 +29,8 @@ private object HtmlTranslator extends all {
 
   private def hostServiceTable(evt: NJEvent): generic.Frag[Builder, String] = {
     val serviceName =
-      evt.serviceParams.homePage.fold(td(evt.serviceName.value))(hp =>
-        td(a(href := hp.value)(evt.serviceName.value)))
+      evt.serviceParams.homePage.fold(td(evt.serviceParams.serviceName.value))(hp =>
+        td(a(href := hp.value)(evt.serviceParams.serviceName.value)))
 
     frag(
       tr(
@@ -46,7 +46,7 @@ private object HtmlTranslator extends all {
         serviceName,
         td(evt.serviceParams.taskParams.taskName.value),
         td(evt.serviceParams.taskParams.hostName.value),
-        td(evt.serviceId.show),
+        td(evt.serviceParams.serviceId.value.show),
         td(fmt.format(evt.upTime))
       )
     )

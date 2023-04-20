@@ -192,7 +192,7 @@ final private case class MetricKey(
       .dimensions(
         Dimension.builder().name(CONSTANT_TASK).value(serviceParams.taskParams.taskName.value).build(),
         Dimension.builder().name(CONSTANT_SERVICE).value(serviceParams.serviceName.value).build(),
-        Dimension.builder().name(CONSTANT_SERVICE_ID).value(serviceParams.serviceId.show).build(),
+        Dimension.builder().name(CONSTANT_SERVICE_ID).value(serviceParams.serviceId.value.show).build(),
         Dimension.builder().name(CONSTANT_HOST).value(serviceParams.taskParams.hostName.value).build(),
         Dimension
           .builder()

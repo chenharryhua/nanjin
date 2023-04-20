@@ -11,9 +11,10 @@ private object SimpleJsonTranslator {
   import NJEvent.*
 
   private def timestamp(evt: NJEvent): (String, Json) = "timestamp" -> evt.timestamp.asJson
-  private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
+  private def serviceId(evt: NJEvent): (String, Json) =
+    "serviceId" -> evt.serviceParams.serviceId.value.asJson
   private def serviceName(evt: NJEvent): (String, Json) =
-    ("serviceName", Json.fromString(evt.serviceName.value))
+    "serviceName" -> evt.serviceParams.serviceName.value.asJson
 
   private def name(mn: MetricName): (String, Json)   = "name" -> Json.fromString(mn.value)
   private def digest(mn: MetricName): (String, Json) = "digest" -> Json.fromString(mn.digest.value)
