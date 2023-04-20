@@ -18,10 +18,15 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
+@JsonCodec final case class MetricNamePrefix(value: String) extends AnyVal
+@JsonCodec final case class ServiceName(value: String) extends AnyVal
+@JsonCodec final case class RestartPolicy(value: String) extends AnyVal
+@JsonCodec final case class HomePage(value: String) extends AnyVal
+
 @Lenses @JsonCodec final case class MetricParams(
   reportSchedule: Option[CronExpr],
   resetSchedule: Option[CronExpr],
-  namePrefix: String,
+  namePrefix: MetricNamePrefix,
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit) {
   def nextReport(now: ZonedDateTime): Option[ZonedDateTime] = reportSchedule.flatMap(_.next(now))
@@ -37,15 +42,11 @@ object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
-@JsonCodec final case class HomePage(value: String) extends AnyVal
-@JsonCodec final case class ServiceName(value: String) extends AnyVal
-@JsonCodec final case class ServiceID(value: UUID) extends AnyVal
-
 @Lenses @JsonCodec final case class ServiceParams(
   serviceName: ServiceName,
-  serviceId: ServiceID,
+  serviceId: UUID,
   launchTime: ZonedDateTime,
-  restartPolicy: String, // service restart policy
+  restartPolicy: RestartPolicy, // for display
   policyThreshold: Option[Duration], // policy start over interval
   taskParams: TaskParams,
   metricParams: MetricParams,
@@ -79,15 +80,15 @@ object ServiceParams extends zoneddatetime with duration {
   ): ServiceParams =
     ServiceParams(
       serviceName = ServiceName(serviceName),
-      serviceId = ServiceID(serviceId),
+      serviceId = serviceId,
       launchTime = launchTime.atZone(taskParams.zoneId),
       taskParams = taskParams,
-      restartPolicy = retryPolicy,
+      restartPolicy = RestartPolicy(retryPolicy),
       policyThreshold = None,
       metricParams = MetricParams(
         reportSchedule = None,
         resetSchedule = None,
-        namePrefix = "",
+        namePrefix = MetricNamePrefix(""),
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
@@ -107,7 +108,7 @@ private object ServiceConfigF {
   final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
-  final case class WithMetricNamePrefix[K](value: String, cont: K) extends ServiceConfigF[K]
+  final case class WithMetricNamePrefix[K](value: MetricNamePrefix, cont: K) extends ServiceConfigF[K]
 
   final case class WithPolicyThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
 
@@ -166,7 +167,7 @@ final case class ServiceConfig private (private val cont: Fix[ServiceConfigF], t
     ServiceConfig(Fix(WithDurationTimeUnit(tu, cont)), taskParams)
 
   def withMetricNamePrefix(prefix: String): ServiceConfig =
-    ServiceConfig(Fix(WithMetricNamePrefix(prefix, cont)), taskParams)
+    ServiceConfig(Fix(WithMetricNamePrefix(MetricNamePrefix(prefix), cont)), taskParams)
 
   def withPolicyThreshold(fd: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), cont)), taskParams)

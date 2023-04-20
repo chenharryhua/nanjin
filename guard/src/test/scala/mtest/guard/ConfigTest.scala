@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.{monthlyCron, weeklyCron, MetricParams}
+import com.github.chenharryhua.nanjin.guard.config.{monthlyCron, weeklyCron, MetricNamePrefix, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
@@ -81,7 +81,7 @@ class ConfigTest extends AnyFunSuite {
   test("11.MonthlyReset - 00:00:01 of 1st day of the month") {
     val zoneId = ZoneId.of("Australia/Sydney")
     val metricParams =
-      MetricParams(None, Some(monthlyCron), "", TimeUnit.MINUTES, TimeUnit.MINUTES)
+      MetricParams(None, Some(monthlyCron), MetricNamePrefix(""), TimeUnit.MINUTES, TimeUnit.MINUTES)
     val now      = ZonedDateTime.of(2022, 10, 26, 0, 0, 0, 0, zoneId)
     val ns       = metricParams.nextReset(now).get
     val expected = ZonedDateTime.of(2022, 11, 1, 0, 0, 1, 0, zoneId)
@@ -91,7 +91,7 @@ class ConfigTest extends AnyFunSuite {
   test("12.WeeklyReset - 00:00:01 on Monday") {
     val zoneId = ZoneId.of("Australia/Sydney")
     val metricParams =
-      MetricParams(None, Some(weeklyCron), "", TimeUnit.MINUTES, TimeUnit.MINUTES)
+      MetricParams(None, Some(weeklyCron), MetricNamePrefix(""), TimeUnit.MINUTES, TimeUnit.MINUTES)
     val now      = ZonedDateTime.of(2022, 10, 26, 0, 0, 0, 0, zoneId)
     val ns       = metricParams.nextReset(now).get
     val expected = ZonedDateTime.of(2022, 10, 31, 0, 0, 1, 0, zoneId)
