@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import org.apache.commons.lang3.StringUtils
 
 private object SimpleTextTranslator {
   import NJEvent.*
@@ -24,7 +23,7 @@ private object SimpleTextTranslator {
     val host: String      = se.serviceParams.taskParams.hostName.value
     val sn: String        = se.serviceParams.serviceName.value
     val tn: String        = se.serviceParams.taskParams.taskName.value
-    val serviceId: String = se.serviceParams.serviceId.show.takeRight(12)
+    val serviceId: String = se.serviceParams.serviceId.value.show.takeRight(12)
     val uptime: String    = fmt.format(se.upTime)
     s"$CONSTANT_SERVICE:$sn, $CONSTANT_TASK:$tn, $CONSTANT_HOST:$host, SID:$serviceId, $CONSTANT_UPTIME:$uptime"
   }
@@ -74,13 +73,13 @@ private object SimpleTextTranslator {
   private def serviceAlert(evt: ServiceAlert): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  ${StringUtils.capitalize(evt.alertLevel.show)}:${evt.message.noSpaces}
+       |  ${evt.message.spaces2}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_INPUT:${evt.json.noSpaces}
+       |  $CONSTANT_INPUT:${evt.json.spaces2}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
@@ -96,7 +95,7 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
-       |  $CONSTANT_INPUT:${evt.json.noSpaces}
+       |  $CONSTANT_INPUT:${evt.json.spaces2}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
@@ -104,7 +103,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
-       |  $CONSTANT_RESULT:${evt.json.noSpaces}
+       |  $CONSTANT_RESULT:${evt.json.spaces2}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

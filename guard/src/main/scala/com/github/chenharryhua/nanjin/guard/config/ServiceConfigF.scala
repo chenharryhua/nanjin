@@ -3,15 +3,12 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.guard.{HomePage, ServiceName}
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}
-import eu.timepit.refined.cats.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import io.circe.refined.*
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.{duration, zoneddatetime}
 
@@ -40,9 +37,13 @@ object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
+@JsonCodec final case class HomePage(value: String) extends AnyVal
+@JsonCodec final case class ServiceName(value: String) extends AnyVal
+@JsonCodec final case class ServiceID(value: UUID) extends AnyVal
+
 @Lenses @JsonCodec final case class ServiceParams(
   serviceName: ServiceName,
-  serviceId: UUID,
+  serviceId: ServiceID,
   launchTime: ZonedDateTime,
   restartPolicy: String, // service restart policy
   policyThreshold: Option[Duration], // policy start over interval
@@ -69,7 +70,7 @@ object ServiceParams extends zoneddatetime with duration {
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
   def apply(
-    serviceName: ServiceName,
+    serviceName: String,
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
@@ -77,8 +78,8 @@ object ServiceParams extends zoneddatetime with duration {
     brief: Json
   ): ServiceParams =
     ServiceParams(
-      serviceName = serviceName,
-      serviceId = serviceId,
+      serviceName = ServiceName(serviceName),
+      serviceId = ServiceID(serviceId),
       launchTime = launchTime.atZone(taskParams.zoneId),
       taskParams = taskParams,
       restartPolicy = retryPolicy,
@@ -113,7 +114,7 @@ private object ServiceConfigF {
   final case class WithHomePage[K](value: Option[HomePage], cont: K) extends ServiceConfigF[K]
 
   def algebra(
-    serviceName: ServiceName,
+    serviceName: String,
     taskParams: TaskParams,
     serviceId: UUID,
     launchTime: Instant,
@@ -170,11 +171,11 @@ final case class ServiceConfig private (private val cont: Fix[ServiceConfigF], t
   def withPolicyThreshold(fd: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), cont)), taskParams)
 
-  def withHomePage(hp: HomePage): ServiceConfig =
-    ServiceConfig(Fix(WithHomePage(Some(hp), cont)), taskParams)
+  def withHomePage(hp: String): ServiceConfig =
+    ServiceConfig(Fix(WithHomePage(Some(HomePage(hp)), cont)), taskParams)
 
   def evalConfig(
-    serviceName: ServiceName,
+    serviceName: String,
     serviceId: UUID,
     launchTime: Instant,
     retryPolicy: String,

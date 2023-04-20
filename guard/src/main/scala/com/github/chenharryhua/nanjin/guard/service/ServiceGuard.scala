@@ -9,7 +9,6 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{Measurement, ServiceConfig, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -37,7 +36,7 @@ import retry.RetryPolicy
 // format: on
 
 final class ServiceGuard[F[_]: Network] private[guard] (
-  serviceName: ServiceName,
+  serviceName: String,
   serviceConfig: ServiceConfig,
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F],
@@ -47,7 +46,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] { self =>
 
   private def copy(
-    serviceName: ServiceName = self.serviceName,
+    serviceName: String = self.serviceName,
     serviceConfig: ServiceConfig = self.serviceConfig,
     restartPolicy: RetryPolicy[F] = self.restartPolicy,
     jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
@@ -57,7 +56,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, jmxBuilder, httpBuilder, brief)
 
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
-  def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
+  def apply(serviceName: String): ServiceGuard[F]                    = copy(serviceName = serviceName)
 
   /** https://cb372.github.io/cats-retry/docs/policies.html
     */

@@ -40,10 +40,14 @@ final class NJActionBuilder[F[_]](
 
   def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] = copy(actionConfig = f(actionConfig))
   def apply(name: String): NJActionBuilder[F]                 = copy(actionName = name)
+
   def withRetryPolicy(rp: RetryPolicy[F]): NJActionBuilder[F] = copy(retryPolicy = rp)
 
-  def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]] = identity): NJActionBuilder[F] =
+  def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): NJActionBuilder[F] =
     withRetryPolicy(f(policies.cronBackoff[F](cronExpr, actionConfig.serviceParams.taskParams.zoneId)))
+
+  def withRetryPolicy(cronExpr: CronExpr): NJActionBuilder[F] =
+    withRetryPolicy(policies.cronBackoff[F](cronExpr, actionConfig.serviceParams.taskParams.zoneId))
 
   private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 
