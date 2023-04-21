@@ -116,7 +116,8 @@ private object ServiceConfigF {
     retryPolicy: Policy,
     brief: Json): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
-      case InitParams(taskParams) => ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
+      case InitParams(taskParams) =>
+        ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
 
       case WithReportSchedule(v, c) =>
         ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(v)(c)
@@ -181,5 +182,5 @@ final case class ServiceConfig private (private val cont: Fix[ServiceConfigF]) {
 private[guard] object ServiceConfig {
 
   def apply(taskParams: TaskParams): ServiceConfig =
-    new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskParams)) )
+    new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskParams)))
 }

@@ -32,6 +32,9 @@ private object SimpleJsonTranslator {
   private def stackTrace(err: NJError): (String, Json) =
     "stackTrace" -> Json.fromString(err.stackTrace)
 
+  private def isCritical(evt: ActionEvent): (String, Json) =
+    "isCritical" -> Json.fromBoolean(evt.actionParams.isCritical)
+
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
     case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
@@ -105,6 +108,7 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionStart.camelJson,
       name(evt.metricId.metricName),
+      isCritical(evt),
       measurement(evt.actionParams.metricId.metricName),
       traceId(evt),
       digest(evt.metricId.metricName),
@@ -118,6 +122,7 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionRetry.camelJson,
       name(evt.metricId.metricName),
+      isCritical(evt),
       measurement(evt.actionParams.metricId.metricName),
       traceId(evt),
       ("cause", Json.fromString(evt.error.message)),
@@ -131,6 +136,7 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionFail.camelJson,
       name(evt.metricId.metricName),
+      isCritical(evt),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
@@ -146,6 +152,7 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionComplete.camelJson,
       name(evt.metricId.metricName),
+      isCritical(evt),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),

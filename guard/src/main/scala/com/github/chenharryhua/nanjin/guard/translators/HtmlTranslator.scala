@@ -110,8 +110,8 @@ private object HtmlTranslator extends all {
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID))),
-      tr(td(evt.actionId), td(evt.traceId))
+      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b(CONSTANT_IS_CRITICAL))),
+      tr(td(evt.actionId), td(evt.traceId), td(evt.actionParams.isCritical.toString))
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
@@ -123,10 +123,16 @@ private object HtmlTranslator extends all {
   private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] = {
 
     val retry = frag(
-      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b("Index")), td(b("Resume"))),
+      tr(
+        td(b(CONSTANT_ACTION_ID)),
+        td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_IS_CRITICAL)),
+        td(b("Index")),
+        td(b("Resume"))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
+        td(evt.actionParams.isCritical.toString),
         td(evt.retriesSoFar + 1),
         td(evt.timestamp.plusNanos(evt.delay.toNanos).toLocalTime.show)
       )
@@ -141,8 +147,16 @@ private object HtmlTranslator extends all {
 
   private def actionResultTable(evt: ActionResultEvent): generic.Frag[Builder, String] =
     frag(
-      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b(CONSTANT_TOOK))),
-      tr(td(evt.actionId), td(evt.traceId), td(fmt.format(evt.took)))
+      tr(
+        td(b(CONSTANT_ACTION_ID)),
+        td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_IS_CRITICAL)),
+        td(b(CONSTANT_TOOK))),
+      tr(
+        td(evt.actionId),
+        td(evt.traceId),
+        td(evt.actionParams.isCritical.toString),
+        td(fmt.format(evt.took)))
     )
 
   private def actionFailed(evt: ActionFail): Text.TypedTag[String] =

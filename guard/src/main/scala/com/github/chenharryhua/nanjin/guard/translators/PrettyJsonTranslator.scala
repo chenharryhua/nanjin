@@ -32,6 +32,8 @@ private object PrettyJsonTranslator {
     "serviceName" -> Json.fromString(evt.serviceParams.serviceName)
   private def measurement(id: MetricName): (String, Json) =
     "measurement" -> Json.fromString(id.measurement)
+  private def isCritical(evt: ActionEvent): (String, Json) =
+    "isCritical" -> Json.fromBoolean(evt.actionParams.isCritical)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
@@ -97,6 +99,7 @@ private object PrettyJsonTranslator {
       EventName.ActionStart.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
+          isCritical(evt),
           serviceName(evt),
           serviceId(evt),
           measurement(evt.actionParams.metricId.metricName),
@@ -110,6 +113,7 @@ private object PrettyJsonTranslator {
       EventName.ActionRetry.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
+          isCritical(evt),
           serviceName(evt),
           serviceId(evt),
           measurement(evt.actionParams.metricId.metricName),
@@ -124,6 +128,7 @@ private object PrettyJsonTranslator {
       EventName.ActionFail.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
+          isCritical(evt),
           serviceName(evt),
           serviceId(evt),
           measurement(evt.actionParams.metricId.metricName),
@@ -140,6 +145,7 @@ private object PrettyJsonTranslator {
       EventName.ActionComplete.camel ->
         Json.obj(
           actionName(evt.metricId.metricName),
+          isCritical(evt),
           serviceName(evt),
           serviceId(evt),
           measurement(evt.actionParams.metricId.metricName),
