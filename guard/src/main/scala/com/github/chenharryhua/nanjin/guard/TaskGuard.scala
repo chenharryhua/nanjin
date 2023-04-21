@@ -3,7 +3,7 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceName, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
 import fs2.io.net.Network
 import io.circe.Json
@@ -26,8 +26,9 @@ final class TaskGuard[F[_]: Async: Network] private (
 
   def service(serviceName: String): ServiceGuard[F] =
     new ServiceGuard[F](
-      serviceName = serviceName,
-      serviceConfig = ServiceConfig(taskConfig.evalConfig),
+      serviceName = ServiceName(serviceName),
+      taskParams = taskConfig.evalConfig,
+      config = identity,
       entryPoint = entryPoint,
       restartPolicy = RetryPolicies.alwaysGiveUp[F],
       jmxBuilder = None,

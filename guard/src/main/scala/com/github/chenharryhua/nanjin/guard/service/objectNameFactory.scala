@@ -15,8 +15,8 @@ private object objectNameFactory extends ObjectNameFactory {
         val properties = new util.Hashtable[String, String]()
         properties.put("name", mId.metricName.value)
         properties.put("type", mId.category.name)
-        properties.put("digest", mId.metricName.digest.value)
-        val dm = s"$domain.${mId.metricName.measurement.value}"
+        properties.put("digest", mId.metricName.digest)
+        val dm = s"$domain.${mId.metricName.measurement}"
         new ObjectName(dm, properties)
     }
 }

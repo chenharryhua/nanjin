@@ -21,8 +21,8 @@ private object SimpleTextTranslator {
 
   private def serviceEvent(se: NJEvent): String = {
     val host: String      = se.serviceParams.taskParams.hostName.value
-    val sn: String        = se.serviceParams.serviceName.value
-    val tn: String        = se.serviceParams.taskParams.taskName.value
+    val sn: String        = se.serviceParams.serviceName
+    val tn: String        = se.serviceParams.taskParams.taskName
     val serviceId: String = se.serviceParams.serviceId.show.takeRight(12)
     val uptime: String    = fmt.format(se.upTime)
     s"$CONSTANT_SERVICE:$sn, $CONSTANT_TASK:$tn, $CONSTANT_HOST:$host, SID:$serviceId, $CONSTANT_UPTIME:$uptime"
@@ -32,7 +32,7 @@ private object SimpleTextTranslator {
 
   private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
-       |  $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}""".stripMargin
+       |  $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}, $CONSTANT_IS_CRITICAL:${ae.actionParams.isCritical}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
@@ -46,7 +46,7 @@ private object SimpleTextTranslator {
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
        |  $msg
-       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy.value}
+       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
   }
@@ -54,7 +54,7 @@ private object SimpleTextTranslator {
   private def serviceStopped(evt: ServiceStop): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy.value}
+       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
        |  $CONSTANT_CAUSE:${evt.cause.show}
        |""".stripMargin
 

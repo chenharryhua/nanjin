@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Order
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import retry.RetryPolicy
 
 sealed trait PublishStrategy extends EnumEntry with Product
 
@@ -26,4 +27,12 @@ object AlertLevel extends Enum[AlertLevel] with CirceEnum[AlertLevel] with CatsE
 
   implicit final val orderingAlertLevel: Ordering[AlertLevel] = Ordering.by[AlertLevel, Int](_.value)
   implicit final val orderAlertLevel: Order[AlertLevel]       = Order.fromOrdering[AlertLevel]
+}
+
+final private[guard] case class ServiceName(value: String) extends AnyVal
+final private[guard] case class ActionName(value: String) extends AnyVal
+final private[guard] case class Measurement(value: String) extends AnyVal
+final private[guard] case class Policy private (value: String) extends AnyVal
+private[guard] object Policy {
+  def apply[F[_]](rp: RetryPolicy[F]): Policy = Policy(rp.show)
 }
