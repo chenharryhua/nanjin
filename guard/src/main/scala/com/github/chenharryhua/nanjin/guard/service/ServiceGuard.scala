@@ -9,10 +9,17 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{Measurement, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{
+  Measurement,
+  Policy,
+  ServiceConfig,
+  ServiceName,
+  ServiceParams,
+  TaskParams
+}
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.translators.Translator
 import com.github.chenharryhua.nanjin.guard.policies
+import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
@@ -36,8 +43,9 @@ import retry.RetryPolicy
 // format: on
 
 final class ServiceGuard[F[_]: Network] private[guard] (
-  serviceName: String,
-  serviceConfig: ServiceConfig,
+  serviceName: ServiceName,
+  taskParams: TaskParams,
+  config: Endo[ServiceConfig],
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F],
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
@@ -46,24 +54,33 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] { self =>
 
   private def copy(
-    serviceName: String = self.serviceName,
-    serviceConfig: ServiceConfig = self.serviceConfig,
+    serviceName: ServiceName = self.serviceName,
+    config: Endo[ServiceConfig] = self.config,
     restartPolicy: RetryPolicy[F] = self.restartPolicy,
     jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
     httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
     brief: F[Json] = self.brief
   ): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, jmxBuilder, httpBuilder, brief)
+    new ServiceGuard[F](
+      serviceName = serviceName,
+      taskParams = self.taskParams,
+      config = config,
+      entryPoint = self.entryPoint,
+      restartPolicy = restartPolicy,
+      jmxBuilder = jmxBuilder,
+      httpBuilder = httpBuilder,
+      brief = brief
+    )
 
-  override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
-  def apply(serviceName: String): ServiceGuard[F]                    = copy(serviceName = serviceName)
+  override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(config = f.compose(self.config))
+  def apply(serviceName: String): ServiceGuard[F] = copy(serviceName = ServiceName(serviceName))
 
   /** https://cb372.github.io/cats-retry/docs/policies.html
     */
   def withRestartPolicy(rp: RetryPolicy[F]): ServiceGuard[F] = copy(restartPolicy = rp)
 
   def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
-    withRestartPolicy(policies.cronBackoff[F](cronExpr, serviceConfig.taskParams.zoneId))
+    withRestartPolicy(policies.cronBackoff[F](cronExpr, taskParams.zoneId))
 
   def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] =
     copy(jmxBuilder = Some(f))
@@ -78,7 +95,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
     json <- brief
-  } yield serviceConfig.evalConfig(serviceName, uuid, ts, restartPolicy.show, json)
+  } yield config(ServiceConfig(taskParams)).evalConfig(serviceName, uuid, ts, Policy(restartPolicy), json)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     sp <- Resource.eval(initStatus)
@@ -92,14 +109,14 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       .drain
       .background
   } yield new GeneralAgent[F](
+    entryPoint = entryPoint,
     serviceParams = sp,
     metricRegistry = new MetricRegistry,
     channel = chn,
-    entryPoint = entryPoint,
     signallingMapRef = signallingMapRef,
     atomicCell = atomicCell,
     dispatcher = dispatcher,
-    measurement = Measurement(sp.serviceName.value)
+    measurement = Measurement(sp.serviceName)
   )
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
@@ -169,14 +186,14 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
+            entryPoint = entryPoint,
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
-            entryPoint = entryPoint,
             signallingMapRef = signallingMapRef,
             atomicCell = atomicCell,
             dispatcher = dispatcher,
-            measurement = Measurement(serviceParams.serviceName.value)
+            measurement = Measurement(serviceParams.serviceName)
           )
 
         val surveillance: Stream[F, Nothing] =

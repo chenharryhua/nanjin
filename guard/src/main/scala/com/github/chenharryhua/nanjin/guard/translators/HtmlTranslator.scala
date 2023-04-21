@@ -29,8 +29,8 @@ private object HtmlTranslator extends all {
 
   private def hostServiceTable(evt: NJEvent): generic.Frag[Builder, String] = {
     val serviceName =
-      evt.serviceParams.homePage.fold(td(evt.serviceParams.serviceName.value))(hp =>
-        td(a(href := hp.value)(evt.serviceParams.serviceName.value)))
+      evt.serviceParams.homePage.fold(td(evt.serviceParams.serviceName))(hp =>
+        td(a(href := hp)(evt.serviceParams.serviceName)))
 
     frag(
       tr(
@@ -44,7 +44,7 @@ private object HtmlTranslator extends all {
       tr(
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
         serviceName,
-        td(evt.serviceParams.taskParams.taskName.value),
+        td(evt.serviceParams.taskParams.taskName),
         td(evt.serviceParams.taskParams.hostName.value),
         td(evt.serviceParams.serviceId.show),
         td(fmt.format(evt.upTime))
@@ -74,7 +74,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(msg)),
-      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy.value),
+      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
       causeText(evt.error)
     )
   }

@@ -25,7 +25,7 @@ private object SlackTranslator extends all {
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
-      sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
+      sp.homePage.fold(sp.serviceName)(hp => s"<$hp|${sp.serviceName}>")
     JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.taskParams.hostName.value))
   }
   private def upTimeSection(evt: NJEvent): JuxtaposeSection =
@@ -50,7 +50,7 @@ private object SlackTranslator extends all {
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp =
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),
@@ -70,7 +70,7 @@ private object SlackTranslator extends all {
     val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
     val msg = s":alarm: The service experienced a panic. Restart was scheduled at *$time*, roughly in $dur."
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = color,
@@ -78,9 +78,8 @@ private object SlackTranslator extends all {
             MarkdownSection(msg),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(
-              s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy.value}
-                  |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin)
+            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
+                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin)
           )
         ),
         Attachment(
@@ -93,7 +92,7 @@ private object SlackTranslator extends all {
 
   private def serviceStopped(evt: ServiceStop): SlackApp =
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),
@@ -111,7 +110,7 @@ private object SlackTranslator extends all {
 
   private def metricReport(evt: MetricReport): SlackApp =
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),
@@ -129,7 +128,7 @@ private object SlackTranslator extends all {
 
   private def metricReset(evt: MetricReset): SlackApp =
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),
@@ -150,7 +149,7 @@ private object SlackTranslator extends all {
       case AlertLevel.Info  => ":information_source:"
     }
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),
@@ -172,7 +171,7 @@ private object SlackTranslator extends all {
 
   private def actionStart(evt: ActionStart): SlackApp =
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),
@@ -195,7 +194,7 @@ private object SlackTranslator extends all {
     val localTs    = resumeTime.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
 
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),
@@ -217,7 +216,7 @@ private object SlackTranslator extends all {
   private def actionFailed(evt: ActionFail): SlackApp = {
     val color: String = coloring(evt)
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = color,
@@ -246,7 +245,7 @@ private object SlackTranslator extends all {
 
   private def actionCompleted(evt: ActionComplete): SlackApp =
     SlackApp(
-      username = evt.serviceParams.taskParams.taskName.value,
+      username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = coloring(evt),

@@ -60,7 +60,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
 
   private lazy val traceTags: List[(String, TraceValue)] = List(
     "service_id" -> TraceValue.StringValue(actionParams.serviceParams.serviceId.show),
-    "digest" -> TraceValue.StringValue(actionParams.metricId.metricName.digest.value)
+    "digest" -> TraceValue.StringValue(actionParams.metricId.metricName.digest)
   )
 
   def runWithSpan(input: IN)(span: Span[F]): F[OUT] =

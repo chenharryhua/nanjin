@@ -25,13 +25,13 @@ private object PrettyJsonTranslator {
   private def stackTrace(err: NJError): (String, Json) =
     "stackTrace" -> Json.fromString(err.stackTrace)
   private def policy(evt: NJEvent): (String, Json) =
-    "policy" -> Json.fromString(evt.serviceParams.restartPolicy.value)
+    "policy" -> Json.fromString(evt.serviceParams.restartPolicy)
   private def policy(ap: ActionParams): (String, Json) =
     "policy" -> Json.fromString(ap.retryPolicy)
   private def serviceName(evt: NJEvent): (String, Json) =
-    "serviceName" -> Json.fromString(evt.serviceParams.serviceName.value)
+    "serviceName" -> Json.fromString(evt.serviceParams.serviceName)
   private def measurement(id: MetricName): (String, Json) =
-    "measurement" -> Json.fromString(id.measurement.value)
+    "measurement" -> Json.fromString(id.measurement)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null

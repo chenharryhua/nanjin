@@ -15,14 +15,14 @@ private object SimpleJsonTranslator {
   private def serviceId(evt: NJEvent): (String, Json) =
     "serviceId" -> evt.serviceParams.serviceId.asJson
   private def serviceName(evt: NJEvent): (String, Json) =
-    "serviceName" -> Json.fromString(evt.serviceParams.serviceName.value)
+    "serviceName" -> Json.fromString(evt.serviceParams.serviceName)
 
   private def name(mn: MetricName): (String, Json) =
     "name" -> Json.fromString(mn.value)
   private def digest(mn: MetricName): (String, Json) =
-    "digest" -> Json.fromString(mn.digest.value)
+    "digest" -> Json.fromString(mn.digest)
   private def measurement(mn: MetricName): (String, Json) =
-    "measurement" -> Json.fromString(mn.measurement.value)
+    "measurement" -> Json.fromString(mn.measurement)
   private def actionId(evt: ActionEvent): (String, Json) =
     "id" -> Json.fromString(evt.actionId)
   private def traceId(evt: ActionEvent): (String, Json) =
@@ -38,7 +38,7 @@ private object SimpleJsonTranslator {
   }
 
   private def policy(evt: NJEvent): (String, Json) =
-    "policy" -> Json.fromString(evt.serviceParams.restartPolicy.value)
+    "policy" -> Json.fromString(evt.serviceParams.restartPolicy)
 
   private def metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotJson(ss).toVanillaJson

@@ -52,7 +52,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 }
 
 final class GeneralAgent[F[_]: Network] private[service] (
-  val entryPoint: Resource[F, EntryPoint[F]],
+  override val entryPoint: Resource[F, EntryPoint[F]],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -75,9 +75,9 @@ final class GeneralAgent[F[_]: Network] private[service] (
     HttpTrace.server[F](routes, self.entryPoint)
 
   // data time
-  override val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
   override val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
+  override val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
 
   // metrics
   override def withMeasurement(measurement: String): Agent[F] =
@@ -94,11 +94,12 @@ final class GeneralAgent[F[_]: Network] private[service] (
 
   override def action(name: String, f: Endo[ActionConfig]): NJActionBuilder[F] =
     new NJActionBuilder[F](
-      actionName = name,
+      actionName = ActionName(name),
+      serviceParams = self.serviceParams,
       measurement = self.measurement,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
-      actionConfig = f(ActionConfig(self.serviceParams)),
+      config = f,
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
   override def action(name: String): NJActionBuilder[F] = action(name, identity)

@@ -13,14 +13,14 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
       snapshot.timers.map(f) :::
       snapshot.meters.map(f) :::
       snapshot.histograms.map(f))
-      .groupBy(_._1.metricName.measurement.value) // measurement group
+      .groupBy(_._1.metricName.measurement) // measurement group
       .map { case (measurement, lst) =>
         val arr = lst
           .groupBy(_._1.metricName) // metric-name group
           .map { case (name, js) =>
             val inner =
               js.map { case (mId, j) => Json.obj(mId.category.name -> j) }
-                .foldLeft(Json.obj("digest" -> Json.fromString(name.digest.value)))((a, b) => b.deepMerge(a))
+                .foldLeft(Json.obj("digest" -> Json.fromString(name.digest)))((a, b) => b.deepMerge(a))
             Json.obj(name.value -> inner)
           }
           .toList
@@ -44,7 +44,7 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
       snapshot.timers.map(f) :::
       snapshot.meters.map(f) :::
       snapshot.histograms.map(f))
-      .groupBy(_._1.metricName.measurement.value) // measurement group
+      .groupBy(_._1.metricName.measurement) // measurement group
       .map { case (measurement, lst) =>
         val arr = lst
           .groupBy(_._1.metricName) // metric-name group
