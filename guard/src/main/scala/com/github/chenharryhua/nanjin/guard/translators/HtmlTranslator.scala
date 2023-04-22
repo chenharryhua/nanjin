@@ -2,8 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
@@ -54,8 +53,7 @@ private object HtmlTranslator extends all {
 
   private def causeText(c: NJError): Text.TypedTag[String] =
     p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stackTrace)))
-  private def snapshotText(sp: ServiceParams, ss: MetricSnapshot): Text.TypedTag[String] =
-    pre(small(new SnapshotJson(ss).toPrettyJson(sp.metricParams).spaces2))
+
   private def jsonText(js: Json): Text.TypedTag[String] = pre(small(js.spaces2))
 
   // events
@@ -91,21 +89,21 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      snapshotText(evt.serviceParams, evt.snapshot)
+      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      snapshotText(evt.serviceParams, evt.snapshot)
+      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
     )
 
   private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(evt.message.spaces2)
+      jsonText(evt.message)
     )
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
@@ -116,7 +114,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), start),
-      jsonText(evt.json)
+      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json))
     )
   }
 
@@ -164,7 +162,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
-      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json)), // align with slack
+      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json)),
       causeText(evt.error)
     )
 
@@ -172,7 +170,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.json)) // align with slack
+      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.json))
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =

@@ -37,7 +37,7 @@ private object SimpleTextTranslator {
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_BRIEF:${evt.serviceParams.brief.noSpaces}
+       |${evt.serviceParams.brief.spaces2}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {
@@ -61,19 +61,19 @@ private object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
+       |${yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
+       |${yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 
   private def serviceAlert(evt: ServiceAlert): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  ${evt.message.spaces2}
+       |${evt.message.spaces2}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
@@ -95,8 +95,8 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
-       |  $CONSTANT_INPUT:${evt.json.spaces2}
        |  ${errorStr(evt.error)}
+       |  $CONSTANT_INPUT:${evt.json.spaces2}
        |""".stripMargin
 
   private def actionComplete(evt: ActionComplete): String =
