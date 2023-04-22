@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import io.circe.Json
+
 private object SimpleTextTranslator {
   import NJEvent.*
   private def coloring(evt: NJEvent): String = {
@@ -37,7 +37,7 @@ private object SimpleTextTranslator {
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${toYaml(Json.obj("brief" -> evt.serviceParams.brief))}
+       |${evt.serviceParams.brief.spaces2}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {
@@ -73,13 +73,13 @@ private object SimpleTextTranslator {
   private def serviceAlert(evt: ServiceAlert): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${toYaml(Json.obj(evt.alertLevel.entryName -> evt.message))}
+       |${evt.message.spaces2}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
-       |${toYaml(Json.obj("input" -> evt.json))}
+       |  $CONSTANT_INPUT:${evt.json.spaces2}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
@@ -96,14 +96,14 @@ private object SimpleTextTranslator {
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
-       |${toYaml(Json.obj("input" -> evt.json))}
+       |  $CONSTANT_INPUT:${evt.json.spaces2}
        |""".stripMargin
 
   private def actionComplete(evt: ActionComplete): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
-       |${toYaml(Json.obj("result" -> evt.json))}
+       |  $CONSTANT_RESULT:${evt.json.spaces2}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

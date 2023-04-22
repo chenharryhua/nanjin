@@ -257,7 +257,7 @@ private object SlackTranslator extends all {
               second = TextField(CONSTANT_TOOK, fmt.format(evt.took))),
             MarkdownSection(s"""|${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin),
-            KeyValueSection("Result", s"""```${abbreviate(evt.json.spaces2)}```""")
+            KeyValueSection(CONSTANT_RESULT, s"""```${abbreviate(evt.json.spaces2)}```""")
           )
         )
       )

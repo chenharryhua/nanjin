@@ -7,7 +7,7 @@ import io.circe.Json
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
-import scalatags.{Text, generic}
+import scalatags.{generic, Text}
 
 import java.time.temporal.ChronoUnit
 
@@ -54,7 +54,7 @@ private object HtmlTranslator extends all {
   private def causeText(c: NJError): Text.TypedTag[String] =
     p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stackTrace)))
 
-  private def jsonText(js: Json): Text.TypedTag[String] = pre(small(toYaml(js)))
+  private def jsonText(js: Json): Text.TypedTag[String] = pre(small(js.spaces2))
 
   // events
 
@@ -114,7 +114,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), start),
-      jsonText(evt.json)
+      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json))
     )
   }
 
@@ -162,7 +162,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
-      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json)), // align with slack
+      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json)),
       causeText(evt.error)
     )
 
@@ -170,7 +170,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      jsonText(evt.json)
+      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.json))
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =

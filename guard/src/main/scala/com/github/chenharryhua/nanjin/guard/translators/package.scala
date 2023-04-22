@@ -25,6 +25,7 @@ package object translators {
   @inline final val CONSTANT_TOOK: String        = "Took"
   @inline final val CONSTANT_DELAYED: String     = "Delayed"
   @inline final val CONSTANT_INPUT: String       = "Input"
+  @inline final val CONSTANT_RESULT: String      = "Result"
   @inline final val CONSTANT_UPTIME: String      = "UpTime"
   @inline final val CONSTANT_BRIEF: String       = "Brief"
   @inline final val CONSTANT_METRICS: String     = "Metrics"
