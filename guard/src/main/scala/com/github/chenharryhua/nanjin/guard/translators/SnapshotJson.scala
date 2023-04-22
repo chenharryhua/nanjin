@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricParams}
+import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricName, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -14,17 +14,19 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
       snapshot.meters.map(f) :::
       snapshot.histograms.map(f))
       .groupBy(_._1.metricName.measurement) // measurement group
-      .map { case (measurement, lst) =>
-        val arr = lst
+      .toList
+      .flatMap { case (_, lst: List[(MetricID, Json)]) =>
+        lst
           .groupBy(_._1.metricName) // metric-name group
-          .map { case (name, js) =>
-            val inner =
-              js.map { case (mId, j) => Json.obj(mId.category.name -> j) }
-                .foldLeft(Json.obj("digest" -> Json.fromString(name.digest)))((a, b) => b.deepMerge(a))
-            Json.obj(name.value -> inner)
+          .map { case (name: MetricName, js: List[(MetricID, Json)]) =>
+            js.map { case (mId, j) => Json.obj(mId.category.name -> j) }.foldLeft(
+              Json.obj(
+                "name" -> Json.fromString(name.value),
+                "digest" -> Json.fromString(name.digest),
+                "measurement" -> Json.fromString(name.measurement)
+              ))((a, b) => b.deepMerge(a))
           }
           .toList
-        Json.obj(measurement -> Json.arr(arr*))
       }
       .asJson
 

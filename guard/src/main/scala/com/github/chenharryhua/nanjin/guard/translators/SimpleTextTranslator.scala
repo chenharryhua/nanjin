@@ -37,7 +37,7 @@ private object SimpleTextTranslator {
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_BRIEF:${evt.serviceParams.brief.noSpaces}
+       |  $CONSTANT_BRIEF:${evt.serviceParams.brief.spaces2}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {

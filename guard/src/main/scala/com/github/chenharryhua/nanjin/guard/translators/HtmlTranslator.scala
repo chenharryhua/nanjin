@@ -105,7 +105,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(evt.message.spaces2)
+      jsonText(evt.message)
     )
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
@@ -172,7 +172,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.json)) // align with slack
+      jsonText(evt.json)
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
