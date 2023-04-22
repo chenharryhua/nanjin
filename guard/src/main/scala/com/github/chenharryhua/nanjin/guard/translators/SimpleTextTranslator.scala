@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-
+import io.circe.Json
 private object SimpleTextTranslator {
   import NJEvent.*
   private def coloring(evt: NJEvent): String = {
@@ -37,7 +37,7 @@ private object SimpleTextTranslator {
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_BRIEF:${evt.serviceParams.brief.spaces2}
+       |${toYaml(Json.obj("brief" -> evt.serviceParams.brief))}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {
@@ -61,25 +61,25 @@ private object SimpleTextTranslator {
   private def metricReport(evt: MetricReport): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
+       |${yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${new SnapshotJson(evt.snapshot).toPrettyJson(evt.serviceParams.metricParams).spaces2}
+       |${yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 
   private def serviceAlert(evt: ServiceAlert): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |  ${evt.message.spaces2}
+       |${toYaml(Json.obj(evt.alertLevel.entryName -> evt.message))}
        |""".stripMargin
 
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_INPUT:${evt.json.spaces2}
+       |${toYaml(Json.obj("input" -> evt.json))}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
@@ -95,15 +95,15 @@ private object SimpleTextTranslator {
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
-       |  $CONSTANT_INPUT:${evt.json.spaces2}
        |  ${errorStr(evt.error)}
+       |${toYaml(Json.obj("input" -> evt.json))}
        |""".stripMargin
 
   private def actionComplete(evt: ActionComplete): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
-       |  $CONSTANT_RESULT:${evt.json.spaces2}
+       |${toYaml(Json.obj("result" -> evt.json))}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

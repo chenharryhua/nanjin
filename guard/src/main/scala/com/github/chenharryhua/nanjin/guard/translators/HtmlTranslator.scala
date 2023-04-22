@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
-import scalatags.{generic, Text}
+import scalatags.{Text, generic}
 
 import java.time.temporal.ChronoUnit
 
@@ -54,9 +53,8 @@ private object HtmlTranslator extends all {
 
   private def causeText(c: NJError): Text.TypedTag[String] =
     p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stackTrace)))
-  private def snapshotText(sp: ServiceParams, ss: MetricSnapshot): Text.TypedTag[String] =
-    pre(small(new SnapshotJson(ss).toPrettyJson(sp.metricParams).spaces2))
-  private def jsonText(js: Json): Text.TypedTag[String] = pre(small(js.spaces2))
+
+  private def jsonText(js: Json): Text.TypedTag[String] = pre(small(toYaml(js)))
 
   // events
 
@@ -91,14 +89,14 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      snapshotText(evt.serviceParams, evt.snapshot)
+      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      snapshotText(evt.serviceParams, evt.snapshot)
+      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
     )
 
   private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =

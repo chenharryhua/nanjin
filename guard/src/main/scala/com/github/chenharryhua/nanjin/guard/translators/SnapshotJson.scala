@@ -52,12 +52,17 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
           .groupBy(_._1.metricName) // metric-name group
           .map { case (name, js) =>
             val inner =
-              js.map { case (mId, j) => Json.obj(mId.category.name -> j) }.reduce((a, b) => b.deepMerge(a))
+              js.map { case (mId, j) =>
+                Json.obj(
+                  "digest" -> Json.fromString(mId.metricName.digest),
+                  mId.category.name -> j
+                )
+              }.reduce((a, b) => b.deepMerge(a))
             name -> inner
           }
           .toList
           .sortBy(_._1)
-          .map { case (n, j) => Json.obj(n.display -> j) }
+          .map { case (n, j) => Json.obj(n.value -> j) }
         measurement -> Json.arr(arr*)
       }
       .toList
