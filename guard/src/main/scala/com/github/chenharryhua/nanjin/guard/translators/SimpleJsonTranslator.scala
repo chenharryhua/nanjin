@@ -33,7 +33,7 @@ private object SimpleJsonTranslator {
     "stackTrace" -> Json.fromString(err.stackTrace)
 
   private def isCritical(evt: ActionEvent): (String, Json) =
-    "isCritical" -> Json.fromBoolean(evt.actionParams.isCritical)
+    "importance" -> Json.fromString(evt.actionParams.importance.entryName)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
@@ -96,7 +96,7 @@ private object SimpleJsonTranslator {
   private def serviceAlert(evt: ServiceAlert): Json =
     Json.obj(
       "event" -> EventName.ServiceAlert.camelJson,
-      "level" -> evt.alertLevel.asJson,
+      "level" -> Json.fromString(evt.alertLevel.entryName),
       name(evt.metricName),
       "message" -> evt.message,
       digest(evt.metricName),
@@ -113,7 +113,7 @@ private object SimpleJsonTranslator {
       traceId(evt),
       digest(evt.metricId.metricName),
       actionId(evt),
-      "input" -> evt.json,
+      "notes" -> evt.notes.asJson,
       serviceId(evt),
       timestamp(evt)
     )
@@ -140,7 +140,7 @@ private object SimpleJsonTranslator {
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "input" -> evt.json, // align with slack
+      "notes" -> evt.notes.asJson,
       stackTrace(evt.error),
       digest(evt.metricId.metricName),
       actionId(evt),
@@ -156,7 +156,7 @@ private object SimpleJsonTranslator {
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "result" -> evt.json, // align with slack
+      "notes" -> evt.notes.asJson, // align with slack
       digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),

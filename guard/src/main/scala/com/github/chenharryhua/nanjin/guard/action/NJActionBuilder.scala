@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Ior
+import cats.data.{Ior, Kleisli, OptionT}
 import cats.effect.kernel.Async
 import cats.implicits.{
   catsSyntaxApplicativeError,
@@ -25,6 +25,7 @@ import com.github.chenharryhua.nanjin.guard.policies
 import cron4s.CronExpr
 import fs2.concurrent.Channel
 import io.circe.Json
+import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.RetryPolicy
 
 import scala.concurrent.Future
@@ -77,8 +78,9 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = fz,
-      transInput = F.pure(Json.Null),
+      transInput = None,
       transOutput = None,
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -91,8 +93,9 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f,
-      transInput = _ => F.pure(Json.Null),
+      transInput = Kleisli(_ => None),
       transOutput = None,
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -103,8 +106,9 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transInput = Kleisli(_ => None),
       transOutput = None,
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -115,8 +119,9 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transInput = Kleisli(_ => None),
       transOutput = None,
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -127,8 +132,9 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transInput = Kleisli(_ => None),
       transOutput = None,
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -139,8 +145,9 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => F.pure(Json.Null),
+      transInput = Kleisli(_ => None),
       transOutput = None,
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -195,7 +202,10 @@ final class NJActionBuilder[F[_]](
         case (_, 0) => Ior.left(fail) // failure if no success
         case _      => Ior.Both(fail, done) // quasi
       }
-    }).logOutput(outputJson(_, size, None)).logInput(inputJson(size, None))
+    }).logOutput(outputJson(_, size, None))
+      .logInput(inputJson(size, None))
+      .logError(ex =>
+        Json.obj("cause" -> Json.fromString(ExceptionUtils.getMessage(ex)).deepMerge(inputJson(size, None))))
   }
 
   def quasi[Z](fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] = quasi[List, Z](fzs.toList)
@@ -212,7 +222,14 @@ final class NJActionBuilder[F[_]](
           case (_, 0) => Ior.left(fail)
           case _      => Ior.Both(fail, done)
         }
-      }).logOutput(outputJson(_, size, Some(parallelism))).logInput(inputJson(size, Some(parallelism)))
+      })
+      .logOutput(outputJson(_, size, Some(parallelism)))
+      .logInput(inputJson(size, Some(parallelism)))
+      .logError(ex =>
+        Json.obj(
+          "cause" -> Json
+            .fromString(ExceptionUtils.getMessage(ex))
+            .deepMerge(inputJson(size, Some(parallelism)))))
   }
 
   def parQuasi[Z](parallelism: Int)(fzs: F[Z]*): NJAction0[F, Ior[List[Throwable], List[Z]]] =

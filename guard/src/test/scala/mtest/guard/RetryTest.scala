@@ -93,14 +93,18 @@ class RetryTest extends AnyFunSuite {
             i += 1; throw new Exception
           } else i))
         .logOutput((a, _) => a.asJson)
+        .logInput(_.asJson)
+        .logError((a, _) => a.asJson)
         .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
+    assert(a.asInstanceOf[ActionStart].notes.nonEmpty)
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionComplete])
+    assert(d.asInstanceOf[ActionComplete].notes.nonEmpty)
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -120,9 +124,11 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionStart].notes.nonEmpty)
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionComplete])
+    assert(e.asInstanceOf[ActionComplete].notes.isEmpty)
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -172,6 +178,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
+    assert(e.asInstanceOf[ActionFail].notes.isEmpty)
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -299,7 +306,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c, d) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(
-        _.action("fatal", _.uncritical.notice)
+        _.action("fatal", _.critical.trivial.normal.notice)
           .withRetryPolicy(constant_1second)
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run)
@@ -313,20 +320,22 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("16. input json exception") {
+  test("16. logError json exception") {
     val List(a, b, c, d) = serviceGuard
       .eventStream(agent =>
         agent
           .action("input error", _.notice)
-          .retry((a: Int) => IO(a))
-          .logInputM(_ => IO.raiseError[Json](new Exception("oops")))
-          .run(1))
+          .retry((_: Int) => IO.raiseError[Int](new Exception))
+          .logErrorM((_, _) => IO.raiseError[Json](new Exception))
+          .run(1)
+          .attempt)
       .compile
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionComplete])
+    assert(c.isInstanceOf[ActionFail])
+    assert(c.asInstanceOf[ActionFail].notes.nonEmpty)
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -339,6 +348,7 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionComplete])
+    assert(a.asInstanceOf[ActionComplete].notes.isEmpty)
     assert(b.isInstanceOf[ActionComplete])
     assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ServiceStop])
@@ -349,7 +359,7 @@ class RetryTest extends AnyFunSuite {
     def tt = if (k == 0) { k += 1; throw new Exception() }
     else { k += 1; 0 }
     serviceGuard.eventStream { agent =>
-      agent.action("delay", _.notice).withRetryPolicy(constant_1second).delay(tt).run
+      agent.action("delay", _.notice.insignificant).withRetryPolicy(constant_1second).delay(tt).run
     }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
     assert(k == 2)
   }

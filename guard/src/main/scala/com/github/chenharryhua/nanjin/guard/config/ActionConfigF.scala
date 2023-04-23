@@ -9,7 +9,7 @@ import monocle.macros.Lenses
 @JsonCodec @Lenses
 final case class ActionParams(
   metricId: MetricID,
-  isCritical: Boolean,
+  importance: Importance,
   publishStrategy: PublishStrategy,
   isCounting: Boolean,
   isTiming: Boolean,
@@ -28,7 +28,7 @@ object ActionParams {
     ActionParams(
       metricId =
         MetricID(serviceParams, measurement, Category.Timer(TimerKind.ActionTimer), actionName.value),
-      isCritical = false,
+      importance = Importance.Normal,
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,
       isTiming = false,
@@ -47,7 +47,7 @@ private object ActionConfigF {
   final case class WithPublishStrategy[K](value: PublishStrategy, cont: K) extends ActionConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
-  final case class WithCritical[K](value: Boolean, cont: K) extends ActionConfigF[K]
+  final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
 
   def algebra(
     actionName: ActionName,
@@ -58,7 +58,7 @@ private object ActionConfigF {
       case WithPublishStrategy(v, c) => ActionParams.publishStrategy.set(v)(c)
       case WithTiming(v, c)          => ActionParams.isTiming.set(v)(c)
       case WithCounting(v, c)        => ActionParams.isCounting.set(v)(c)
-      case WithCritical(v, c)        => ActionParams.isCritical.set(v)(c)
+      case WithImportance(v, c)      => ActionParams.importance.set(v)(c)
     }
 }
 
@@ -72,8 +72,10 @@ final case class ActionConfig private (private val cont: Fix[ActionConfigF]) {
   def notice: ActionConfig =
     ActionConfig(Fix(WithPublishStrategy(PublishStrategy.StartAndComplete, cont)))
 
-  def critical: ActionConfig   = ActionConfig(Fix(WithCritical(value = true, cont)))
-  def uncritical: ActionConfig = ActionConfig(Fix(WithCritical(value = false, cont)))
+  def critical: ActionConfig      = ActionConfig(Fix(WithImportance(value = Importance.Critical, cont)))
+  def normal: ActionConfig        = ActionConfig(Fix(WithImportance(value = Importance.Normal, cont)))
+  def insignificant: ActionConfig = ActionConfig(Fix(WithImportance(value = Importance.Insignificant, cont)))
+  def trivial: ActionConfig       = ActionConfig(Fix(WithImportance(value = Importance.Trivial, cont)))
 
   def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, cont)))
   def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, cont)))

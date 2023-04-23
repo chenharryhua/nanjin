@@ -12,7 +12,6 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ServiceStop
 }
 import com.github.chenharryhua.nanjin.guard.event.Tick
-import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
 import mtest.guard.{cron_1minute, cron_1second}
 import org.scalatest.funsuite.AnyFunSuite
@@ -97,7 +96,7 @@ class TicksTest extends AnyFunSuite {
       .toList
       .map(_.filter(_.isInstanceOf[ActionComplete]))
       .unsafeRunSync()
-    assert(List(1, 2, 3) == lst.flatMap(_.asInstanceOf[ActionComplete].json.asNumber.flatMap(_.toLong)))
+    assert(List(1, 2, 3) == lst.flatMap(_.asInstanceOf[ActionComplete].notes.get.asNumber.flatMap(_.toLong)))
   }
 
   test("5. fib awakeEvery") {

@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
@@ -34,18 +35,18 @@ private object HtmlTranslator extends all {
     frag(
       tr(
         th(CONSTANT_TIMESTAMP),
+        th(CONSTANT_SERVICE_ID),
         th(CONSTANT_SERVICE),
         th(CONSTANT_TASK),
         th(CONSTANT_HOST),
-        th(CONSTANT_SERVICE_ID),
         th(CONSTANT_UPTIME)
       ),
       tr(
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+        td(evt.serviceParams.serviceId.show),
         serviceName,
         td(evt.serviceParams.taskParams.taskName),
         td(evt.serviceParams.taskParams.hostName.value),
-        td(evt.serviceParams.serviceId.show),
         td(fmt.format(evt.upTime))
       )
     )
@@ -62,7 +63,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      jsonText(evt.serviceParams.brief)
+      jsonText(evt.serviceParams.asJson)
     )
 
   private def servicePanic(evt: ServicePanic): Text.TypedTag[String] = {
@@ -82,21 +83,21 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(s"$CONSTANT_CAUSE: "), evt.cause.show),
-      jsonText(evt.serviceParams.brief)
+      evt.serviceParams.brief.fold(div())(jsonText)
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
+      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
+      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =
@@ -108,13 +109,13 @@ private object HtmlTranslator extends all {
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b(CONSTANT_IS_CRITICAL))),
-      tr(td(evt.actionId), td(evt.traceId), td(evt.actionParams.isCritical.toString))
+      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b(CONSTANT_IMPORTANCE))),
+      tr(td(evt.actionId), td(evt.traceId), td(evt.actionParams.importance.entryName))
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), start),
-      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json))
+      evt.notes.fold(div())(js => jsonText(js))
     )
   }
 
@@ -124,13 +125,13 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
-        td(b(CONSTANT_IS_CRITICAL)),
+        td(b(CONSTANT_IMPORTANCE)),
         td(b("Index")),
         td(b("Resume"))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
-        td(evt.actionParams.isCritical.toString),
+        td(evt.actionParams.importance.toString),
         td(evt.retriesSoFar + 1),
         td(evt.timestamp.plusNanos(evt.delay.toNanos).toLocalTime.show)
       )
@@ -148,12 +149,12 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
-        td(b(CONSTANT_IS_CRITICAL)),
+        td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_TOOK))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
-        td(evt.actionParams.isCritical.toString),
+        td(evt.actionParams.importance.entryName),
         td(fmt.format(evt.took)))
     )
 
@@ -162,15 +163,15 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
-      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json)),
-      causeText(evt.error)
+      causeText(evt.error),
+      evt.notes.fold(div())(js => jsonText(js))
     )
 
   private def actionCompleted(evt: ActionComplete): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.json))
+      evt.notes.fold(div())(js => jsonText(js))
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =

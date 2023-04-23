@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits.*
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
@@ -34,8 +35,9 @@ final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
-  transInput: IN => F[Json],
+  transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
+  transError: Kleisli[OptionT[F, *], (IN, Throwable), Json],
   isWorthRetry: Throwable => F[Boolean]
 )(implicit F: Temporal[F]) {
 
@@ -82,11 +84,7 @@ final private class ReTry[F[_], IN, OUT](
       case PublishStrategy.StartAndComplete =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              js <- transInput(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
-              _ <- channel.send(ActionStart(actionParams, ai, js))
-              out <- compute(ai, in)
-            } yield out
+            channel.send(ActionStart(actionParams, ai, transInput(in))) >> compute(ai, in)
         }
       case PublishStrategy.CompleteOnly | PublishStrategy.Silent =>
         new KickOff {
@@ -97,7 +95,10 @@ final private class ReTry[F[_], IN, OUT](
   sealed private trait Postmortem {
     final def fail(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
       for {
-        js <- transInput(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
+        js <- transError((in, ex)).value.attempt.map {
+          case Left(ex)     => Some(Json.fromString(ExceptionUtils.getMessage(ex)))
+          case Right(value) => value
+        }
         fd <- F.realTime
         _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), js))
       } yield measures.fail(ai.took(fd))
@@ -108,11 +109,11 @@ final private class ReTry[F[_], IN, OUT](
     actionParams.publishStrategy match {
       case PublishStrategy.StartAndComplete | PublishStrategy.CompleteOnly =>
         transOutput match {
-          case Some(transform) =>
+          case Some(to_json) =>
             new Postmortem {
               override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
                 for {
-                  js <- fout.map(transform(in, _))
+                  js <- fout.map(to_json(in, _).some)
                   fd <- F.realTime
                   _ <- channel.send(ActionComplete(actionParams, ai, fd, js))
                 } yield measures.done(ai.took(fd))
@@ -122,7 +123,7 @@ final private class ReTry[F[_], IN, OUT](
               override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
                 for {
                   fd <- F.realTime
-                  _ <- channel.send(ActionComplete(actionParams, ai, fd, Json.Null))
+                  _ <- channel.send(ActionComplete(actionParams, ai, fd, None))
                 } yield measures.done(ai.took(fd))
             }
         }

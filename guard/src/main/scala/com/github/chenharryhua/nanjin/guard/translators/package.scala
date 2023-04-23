@@ -17,24 +17,22 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 
 package object translators {
-  @inline final val CONSTANT_ACTION_ID: String   = "ActionID"
-  @inline final val CONSTANT_TRACE_ID: String    = "TraceID"
-  @inline final val CONSTANT_TIMESTAMP: String   = "Timestamp"
-  @inline final val CONSTANT_POLICY: String      = "Policy"
-  @inline final val CONSTANT_CAUSE: String       = "Cause"
-  @inline final val CONSTANT_TOOK: String        = "Took"
-  @inline final val CONSTANT_DELAYED: String     = "Delayed"
-  @inline final val CONSTANT_INPUT: String       = "Input"
-  @inline final val CONSTANT_RESULT: String      = "Result"
-  @inline final val CONSTANT_UPTIME: String      = "UpTime"
-  @inline final val CONSTANT_BRIEF: String       = "Brief"
-  @inline final val CONSTANT_METRICS: String     = "Metrics"
-  @inline final val CONSTANT_TIMEZONE: String    = "TimeZone"
-  @inline final val CONSTANT_SERVICE: String     = "Service"
-  @inline final val CONSTANT_SERVICE_ID: String  = "ServiceID"
-  @inline final val CONSTANT_HOST: String        = "Host"
-  @inline final val CONSTANT_TASK: String        = "Task"
-  @inline final val CONSTANT_IS_CRITICAL: String = "IsCritical"
+  @inline final val CONSTANT_ACTION_ID: String  = "ActionID"
+  @inline final val CONSTANT_TRACE_ID: String   = "TraceID"
+  @inline final val CONSTANT_TIMESTAMP: String  = "Timestamp"
+  @inline final val CONSTANT_POLICY: String     = "Policy"
+  @inline final val CONSTANT_CAUSE: String      = "Cause"
+  @inline final val CONSTANT_TOOK: String       = "Took"
+  @inline final val CONSTANT_DELAYED: String    = "Delayed"
+  @inline final val CONSTANT_UPTIME: String     = "UpTime"
+  @inline final val CONSTANT_BRIEF: String      = "Brief"
+  @inline final val CONSTANT_METRICS: String    = "Metrics"
+  @inline final val CONSTANT_TIMEZONE: String   = "TimeZone"
+  @inline final val CONSTANT_SERVICE: String    = "Service"
+  @inline final val CONSTANT_SERVICE_ID: String = "ServiceID"
+  @inline final val CONSTANT_HOST: String       = "Host"
+  @inline final val CONSTANT_TASK: String       = "Task"
+  @inline final val CONSTANT_IMPORTANCE: String = "Importance"
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
@@ -82,7 +80,7 @@ package object translators {
       case NJEvent.ActionComplete(ap, _, _, _)    => s"Action Completed ${ap.metricId.metricName.display}"
 
       case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
-        s"Alert ${StringUtils.capitalize(al.show)} ${metricName.display}"
+        s"Alert ${StringUtils.capitalize(al.entryName)} ${metricName.display}"
 
       case _: NJEvent.ServiceStart => "(Re)Start Service"
       case _: NJEvent.ServiceStop  => "Service Stopped"

@@ -40,18 +40,19 @@ class ObserversTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
         val ok = ag
-          .action("nj_ok", _.notice.withTiming.withCounting)
+          .action("nj_ok", _.trivial.notice.withTiming.withCounting)
           .retry(IO(1))
           .logInput(Json.fromString("ok input"))
           .logOutput(_ => Json.fromString("ok output"))
           .run
         val meter = ag.meter("meter", StandardUnit.SECONDS).withCounting
         val err = ag
-          .action("nj_error", _.critical.withTiming.withCounting)
+          .action("nj_error", _.critical.notice.withTiming.withCounting)
           .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
           .retry(random_error)
           .logInput(Json.fromString("error input data"))
           .logOutput(_ => Json.fromString("error output data"))
+          .logErrorM(ex => IO(Json.fromString(ex.getMessage)))
           .run
         val counter   = ag.counter("nj counter").asRisk
         val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).withCounting

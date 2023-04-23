@@ -50,7 +50,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   restartPolicy: RetryPolicy[F],
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   httpBuilder: Option[Endo[EmberServerBuilder[F]]],
-  brief: F[Json])(implicit F: Async[F])
+  brief: F[Option[Json]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] { self =>
 
   private def copy(
@@ -59,7 +59,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     restartPolicy: RetryPolicy[F] = self.restartPolicy,
     jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
     httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
-    brief: F[Json] = self.brief
+    brief: F[Option[Json]] = self.brief
   ): ServiceGuard[F] =
     new ServiceGuard[F](
       serviceName = serviceName,
@@ -88,8 +88,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def withMetricServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] =
     copy(httpBuilder = Some(f))
 
-  def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
-  def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
+  def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
+  def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
 
   private lazy val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID

@@ -31,9 +31,7 @@ package object guard {
   def add_fun(a: Int, b: Int): IO[Int] = IO(a + b)
 
   val random_error: IO[Unit] =
-    Random
-      .scalaUtilRandom[IO]
-      .flatMap(_.nextBoolean.ifM(IO(()), IO.raiseError[Unit](new Exception(s"oops"))))
+    Random.scalaUtilRandom[IO].flatMap(_.nextBoolean.ifM(IO(()), IO.raiseError[Unit](new Exception(s"oops"))))
 
   def never_fun: IO[Int] = IO.never[Int]
 

@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.Order
+import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import retry.RetryPolicy
 
@@ -15,18 +15,29 @@ object PublishStrategy
   case object Silent extends PublishStrategy
 }
 
-sealed abstract class AlertLevel(override val entryName: String, val value: Int)
-    extends EnumEntry with Product
+sealed abstract class Importance(override val value: Int, val entryName: String)
+    extends IntEnumEntry with Product
 
-object AlertLevel extends Enum[AlertLevel] with CirceEnum[AlertLevel] with CatsEnum[AlertLevel] {
+object Importance
+    extends CatsOrderValueEnum[Int, Importance] with IntEnum[Importance] with IntCirceEnum[Importance] {
+  override val values: IndexedSeq[Importance] = findValues
+
+  case object Critical extends Importance(4, "critical")
+  case object Normal extends Importance(3, "normal")
+  case object Insignificant extends Importance(2, "insignificant")
+  case object Trivial extends Importance(1, "trivial")
+}
+
+sealed abstract class AlertLevel(override val value: Int, val entryName: String)
+    extends IntEnumEntry with Product
+
+object AlertLevel
+    extends CatsOrderValueEnum[Int, AlertLevel] with IntEnum[AlertLevel] with IntCirceEnum[AlertLevel] {
   override val values: IndexedSeq[AlertLevel] = findValues
 
-  case object Error extends AlertLevel("error", 30)
-  case object Warn extends AlertLevel("warn", 20)
-  case object Info extends AlertLevel("info", 10)
-
-  implicit final val orderingAlertLevel: Ordering[AlertLevel] = Ordering.by[AlertLevel, Int](_.value)
-  implicit final val orderAlertLevel: Order[AlertLevel]       = Order.fromOrdering[AlertLevel]
+  case object Error extends AlertLevel(3, "error")
+  case object Warn extends AlertLevel(2, "warn")
+  case object Info extends AlertLevel(1, "info")
 }
 
 final private[guard] case class ServiceName(value: String) extends AnyVal

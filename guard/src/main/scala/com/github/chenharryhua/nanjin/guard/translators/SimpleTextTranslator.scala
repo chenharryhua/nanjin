@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import io.circe.syntax.EncoderOps
 
 private object SimpleTextTranslator {
   import NJEvent.*
@@ -32,12 +33,12 @@ private object SimpleTextTranslator {
 
   private def actionEvent(ae: ActionEvent): String =
     s"""  ${serviceEvent(ae)}
-       |  $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}, $CONSTANT_IS_CRITICAL:${ae.actionParams.isCritical}""".stripMargin
+       |  $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}, $CONSTANT_IMPORTANCE:${ae.actionParams.importance.entryName}""".stripMargin
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${evt.serviceParams.brief.spaces2}
+       |${evt.serviceParams.asJson.spaces2}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {
@@ -79,7 +80,7 @@ private object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_INPUT:${evt.json.spaces2}
+       |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
@@ -96,14 +97,14 @@ private object SimpleTextTranslator {
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
-       |  $CONSTANT_INPUT:${evt.json.spaces2}
+       |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 
   private def actionComplete(evt: ActionComplete): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
-       |  $CONSTANT_RESULT:${evt.json.spaces2}
+       |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
