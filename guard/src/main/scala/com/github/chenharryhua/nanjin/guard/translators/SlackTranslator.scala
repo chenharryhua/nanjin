@@ -5,7 +5,6 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Snapshot}
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
 
 import java.time.Duration
@@ -183,9 +182,8 @@ private object SlackTranslator extends all {
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
             MarkdownSection(s"""|${traceId(evt)}
-                                |${serviceId(evt)}""".stripMargin),
-            KeyValueSection(CONSTANT_INPUT, s"""```${abbreviate(evt.json.asJson.spaces2)}```""".stripMargin)
-          )
+                                |${serviceId(evt)}""".stripMargin)
+          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js.spaces2)}```"""))
         ))
     )
 
@@ -234,8 +232,7 @@ private object SlackTranslator extends all {
         ),
         Attachment(
           color = color,
-          blocks =
-            List(KeyValueSection(CONSTANT_INPUT, s"""```${abbreviate(evt.json.spaces2)}```""".stripMargin))),
+          blocks = List(MarkdownSection(s"""```${abbreviate(evt.notes.spaces2)}```""".stripMargin))),
         Attachment(
           color = color,
           blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${abbreviate(evt.error.stackTrace)}```"))),
@@ -257,9 +254,8 @@ private object SlackTranslator extends all {
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TOOK, fmt.format(evt.took))),
             MarkdownSection(s"""|${traceId(evt)}
-                                |${serviceId(evt)}""".stripMargin),
-            KeyValueSection(CONSTANT_RESULT, s"""```${abbreviate(evt.json.spaces2)}```""")
-          )
+                                |${serviceId(evt)}""".stripMargin)
+          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js.spaces2)}```"""))
         )
       )
     )

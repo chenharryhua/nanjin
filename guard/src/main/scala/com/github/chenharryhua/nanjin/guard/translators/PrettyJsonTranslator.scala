@@ -105,7 +105,7 @@ private object PrettyJsonTranslator {
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceId(evt),
-          "input" -> evt.json.asJson
+          "notes" -> evt.notes.asJson
         ))
 
   private def actionRetrying(evt: ActionRetry): Json =
@@ -136,7 +136,7 @@ private object PrettyJsonTranslator {
           traceId(evt),
           took(evt),
           policy(evt.actionParams),
-          "input" -> evt.json, // align with slack
+          "notes" -> evt.notes, // align with slack
           stackTrace(evt.error)
         ))
 
@@ -152,7 +152,7 @@ private object PrettyJsonTranslator {
           actionId(evt),
           traceId(evt),
           took(evt),
-          "result" -> evt.json // align with slack
+          "notes" -> evt.notes.asJson // align with slack
         ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =

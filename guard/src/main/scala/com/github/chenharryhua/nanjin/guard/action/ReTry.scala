@@ -112,7 +112,7 @@ final private class ReTry[F[_], IN, OUT](
                 for {
                   js <- fout.map(transform(in, _))
                   fd <- F.realTime
-                  _ <- channel.send(ActionComplete(actionParams, ai, fd, js))
+                  _ <- channel.send(ActionComplete(actionParams, ai, fd, Some(js)))
                 } yield measures.done(ai.took(fd))
             }
           case None =>
@@ -120,7 +120,7 @@ final private class ReTry[F[_], IN, OUT](
               override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
                 for {
                   fd <- F.realTime
-                  _ <- channel.send(ActionComplete(actionParams, ai, fd, Json.Null))
+                  _ <- channel.send(ActionComplete(actionParams, ai, fd, None))
                 } yield measures.done(ai.took(fd))
             }
         }

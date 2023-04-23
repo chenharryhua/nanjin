@@ -114,7 +114,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), start),
-      evt.json.fold(div())(js => p(b(s"$CONSTANT_INPUT: "), jsonText(js)))
+      evt.notes.fold(div())(js => jsonText(js))
     )
   }
 
@@ -162,7 +162,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
-      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json)),
+      jsonText(evt.notes),
       causeText(evt.error)
     )
 
@@ -170,7 +170,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b(s"$CONSTANT_RESULT: "), jsonText(evt.json))
+      evt.notes.fold(div())(js => jsonText(js))
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
