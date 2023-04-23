@@ -15,7 +15,6 @@ import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.observers.sampling
 import cron4s.Cron
 import cron4s.expr.CronExpr
-import io.circe.Json
 import mtest.guard.{beijingTime, cron_1minute, cron_1second, cron_2second}
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
@@ -32,7 +31,7 @@ class MetricSamplingTest extends AnyFunSuite {
     UUID.randomUUID(),
     ZonedDateTime.of(zzffEpoch, beijingTime).toInstant,
     Policy(RetryPolicies.alwaysGiveUp[IO]),
-    Json.Null
+    None
   )
 
   def metricReport(cron: CronExpr, now: ZonedDateTime): MetricReport = MetricReport(

@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
@@ -34,18 +35,18 @@ private object HtmlTranslator extends all {
     frag(
       tr(
         th(CONSTANT_TIMESTAMP),
+        th(CONSTANT_SERVICE_ID),
         th(CONSTANT_SERVICE),
         th(CONSTANT_TASK),
         th(CONSTANT_HOST),
-        th(CONSTANT_SERVICE_ID),
         th(CONSTANT_UPTIME)
       ),
       tr(
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+        td(evt.serviceParams.serviceId.show),
         serviceName,
         td(evt.serviceParams.taskParams.taskName),
         td(evt.serviceParams.taskParams.hostName.value),
-        td(evt.serviceParams.serviceId.show),
         td(fmt.format(evt.upTime))
       )
     )
@@ -62,7 +63,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      jsonText(evt.serviceParams.brief)
+      jsonText(evt.serviceParams.asJson)
     )
 
   private def servicePanic(evt: ServicePanic): Text.TypedTag[String] = {
@@ -82,7 +83,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(s"$CONSTANT_CAUSE: "), evt.cause.show),
-      jsonText(evt.serviceParams.brief)
+      evt.serviceParams.brief.fold(div())(jsonText)
     )
 
   private def metricReport(evt: MetricReport): Text.TypedTag[String] =

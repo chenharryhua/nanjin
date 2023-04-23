@@ -48,22 +48,22 @@ private object SlackTranslator extends all {
     KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
 
 // events
-  private def serviceStarted(evt: ServiceStart): SlackApp =
+  private def serviceStarted(evt: ServiceStart): SlackApp = {
+    val color = coloring(evt)
     SlackApp(
       username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
-          color = coloring(evt),
+          color = color,
           blocks = List(
             MarkdownSection(s":rocket: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}")
           )
-        ),
-        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
-      )
+        )) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
     )
+  }
 
   private def servicePanic(evt: ServicePanic): SlackApp = {
     val color       = coloring(evt)
@@ -84,18 +84,18 @@ private object SlackTranslator extends all {
         ),
         Attachment(
           color = color,
-          blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${abbreviate(evt.error.stackTrace)}```"))),
-        Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
-      )
+          blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${abbreviate(evt.error.stackTrace)}```")))
+      ) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
     )
   }
 
-  private def serviceStopped(evt: ServiceStop): SlackApp =
+  private def serviceStopped(evt: ServiceStop): SlackApp = {
+    val color = coloring(evt)
     SlackApp(
       username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
-          color = coloring(evt),
+          color = color,
           blocks = List(
             MarkdownSection(s":octagonal_sign: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
@@ -103,17 +103,18 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}
                                 |*$CONSTANT_CAUSE:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
-        ),
-        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
-      )
+        )
+      ) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
     )
+  }
 
-  private def metricReport(evt: MetricReport): SlackApp =
+  private def metricReport(evt: MetricReport): SlackApp = {
+    val color = coloring(evt)
     SlackApp(
       username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
-          color = coloring(evt),
+          color = color,
           blocks = List(
             MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
@@ -121,10 +122,10 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
             metricsSection(evt.snapshot)
           )
-        ),
-        Attachment(color = coloring(evt), blocks = List(brief(evt.serviceParams.brief)))
-      )
+        )
+      ) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
     )
+  }
 
   private def metricReset(evt: MetricReset): SlackApp =
     SlackApp(
@@ -232,9 +233,8 @@ private object SlackTranslator extends all {
         ),
         Attachment(
           color = color,
-          blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${abbreviate(evt.error.stackTrace)}```"))),
-        Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
-      )
+          blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${abbreviate(evt.error.stackTrace)}```")))
+      ) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
     )
   }
 

@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{ServiceName, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
 import fs2.io.net.Network
-import io.circe.Json
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
 import retry.RetryPolicies
@@ -33,7 +32,7 @@ final class TaskGuard[F[_]: Async: Network] private (
       restartPolicy = RetryPolicies.alwaysGiveUp[F],
       jmxBuilder = None,
       httpBuilder = None,
-      brief = Async[F].pure(Json.Null)
+      brief = Async[F].pure(None)
     )
 }
 

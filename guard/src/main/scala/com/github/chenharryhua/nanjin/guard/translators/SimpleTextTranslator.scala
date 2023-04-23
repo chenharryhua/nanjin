@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import io.circe.syntax.EncoderOps
 
 private object SimpleTextTranslator {
   import NJEvent.*
@@ -37,7 +38,7 @@ private object SimpleTextTranslator {
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}
        |  ${serviceEvent(evt)}
-       |${evt.serviceParams.brief.spaces2}
+       |${evt.serviceParams.asJson.spaces2}
        |""".stripMargin
 
   private def servicePanic(evt: ServicePanic): String = {

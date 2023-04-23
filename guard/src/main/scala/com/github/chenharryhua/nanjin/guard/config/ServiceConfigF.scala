@@ -46,7 +46,7 @@ object MetricParams {
   taskParams: TaskParams,
   metricParams: MetricParams,
   homePage: Option[String],
-  brief: Json
+  brief: Option[Json]
 ) {
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
@@ -71,7 +71,7 @@ object ServiceParams extends zoneddatetime with duration {
     serviceId: UUID,
     launchTime: Instant,
     policy: Policy, // for display
-    brief: Json
+    brief: Option[Json]
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
@@ -114,7 +114,7 @@ private object ServiceConfigF {
     serviceId: UUID,
     launchTime: Instant,
     retryPolicy: Policy,
-    brief: Json): Algebra[ServiceConfigF, ServiceParams] =
+    brief: Option[Json]): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskParams) =>
         ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
@@ -175,7 +175,7 @@ final case class ServiceConfig private (private val cont: Fix[ServiceConfigF]) {
     serviceId: UUID,
     launchTime: Instant,
     policy: Policy,
-    brief: Json): ServiceParams =
+    brief: Option[Json]): ServiceParams =
     scheme.cata(algebra(serviceName, serviceId, launchTime, policy, brief)).apply(cont)
 }
 
