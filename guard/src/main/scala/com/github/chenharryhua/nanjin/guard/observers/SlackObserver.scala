@@ -70,7 +70,7 @@ final class SlackObserver[F[_]: Clock](
           translator.filter {
             case ActionStart(ap, _, _)          => ap.importance === Importance.Critical
             case ActionComplete(ap, _, _, _)    => ap.importance === Importance.Critical
-            case ActionRetry(ap, _, _, _, _, _) => ap.importance > Importance.Trivial
+            case ActionRetry(ap, _, _, _, _, _) => ap.importance > Importance.Insignificant
             case ActionFail(ap, _, _, _, _)     => ap.importance > Importance.Trivial
             case _                              => true
           }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))

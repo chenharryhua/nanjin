@@ -89,14 +89,14 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
+      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)
+      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =

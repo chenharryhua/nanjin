@@ -22,8 +22,9 @@ object Importance
     extends CatsOrderValueEnum[Int, Importance] with IntEnum[Importance] with IntCirceEnum[Importance] {
   override val values: IndexedSeq[Importance] = findValues
 
-  case object Critical extends Importance(3, "critical")
-  case object Normal extends Importance(2, "normal")
+  case object Critical extends Importance(4, "critical")
+  case object Normal extends Importance(3, "normal")
+  case object Insignificant extends Importance(2, "insignificant")
   case object Trivial extends Importance(1, "trivial")
 }
 

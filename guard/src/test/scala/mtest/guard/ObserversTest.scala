@@ -52,6 +52,7 @@ class ObserversTest extends AnyFunSuite {
           .retry(random_error)
           .logInput(Json.fromString("error input data"))
           .logOutput(_ => Json.fromString("error output data"))
+          .logErrorM(ex => IO(Json.fromString(ex.getMessage)))
           .run
         val counter   = ag.counter("nj counter").asRisk
         val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).withCounting

@@ -72,9 +72,10 @@ final case class ActionConfig private (private val cont: Fix[ActionConfigF]) {
   def notice: ActionConfig =
     ActionConfig(Fix(WithPublishStrategy(PublishStrategy.StartAndComplete, cont)))
 
-  def critical: ActionConfig = ActionConfig(Fix(WithImportance(value = Importance.Critical, cont)))
-  def normal: ActionConfig   = ActionConfig(Fix(WithImportance(value = Importance.Normal, cont)))
-  def trivial: ActionConfig  = ActionConfig(Fix(WithImportance(value = Importance.Trivial, cont)))
+  def critical: ActionConfig      = ActionConfig(Fix(WithImportance(value = Importance.Critical, cont)))
+  def normal: ActionConfig        = ActionConfig(Fix(WithImportance(value = Importance.Normal, cont)))
+  def insignificant: ActionConfig = ActionConfig(Fix(WithImportance(value = Importance.Insignificant, cont)))
+  def trivial: ActionConfig       = ActionConfig(Fix(WithImportance(value = Importance.Trivial, cont)))
 
   def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, cont)))
   def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, cont)))
