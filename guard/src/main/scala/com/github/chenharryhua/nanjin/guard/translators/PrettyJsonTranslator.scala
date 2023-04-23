@@ -105,7 +105,7 @@ private object PrettyJsonTranslator {
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceId(evt),
-          "input" -> evt.json
+          "input" -> evt.json.asJson
         ))
 
   private def actionRetrying(evt: ActionRetry): Json =

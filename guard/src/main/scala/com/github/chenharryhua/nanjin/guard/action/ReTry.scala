@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.data.Kleisli
 import cats.effect.implicits.*
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
@@ -34,7 +35,7 @@ final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
-  transInput: IN => Json,
+  transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
   transError: (IN, Throwable) => F[Json],
   isWorthRetry: Throwable => F[Boolean]

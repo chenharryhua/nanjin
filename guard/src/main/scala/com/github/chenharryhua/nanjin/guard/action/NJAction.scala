@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.data.Kleisli
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -17,12 +18,12 @@ final class NJAction[F[_], IN, OUT] private[action] (
   actionParams: ActionParams,
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
-  transInput: IN => Json,
+  transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
   transError: (IN, Throwable) => F[Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
-    transInput: IN => Json = self.transInput,
+    transInput: Kleisli[Option, IN, Json] = self.transInput,
     transOutput: Option[(IN, OUT) => Json] = self.transOutput,
     transError: (IN, Throwable) => F[Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
@@ -42,7 +43,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInput(f: IN => Json): NJAction[F, IN, OUT]                  = copy(transInput = f)
+  def logInput(f: IN => Json): NJAction[F, IN, OUT] = copy(transInput = Kleisli((a: IN) => Some(f(a))))
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT]          = copy(transOutput = Some(f))
   def logErrorM(f: (IN, Throwable) => F[Json]): NJAction[F, IN, OUT] = copy(transError = f)
   def logError(f: (IN, Throwable) => Json): NJAction[F, IN, OUT] =
@@ -84,12 +85,12 @@ final class NJAction0[F[_], OUT] private[guard] (
   actionParams: ActionParams,
   retryPolicy: RetryPolicy[F],
   arrow: F[OUT],
-  transInput: Json,
+  transInput: Option[Json],
   transOutput: Option[OUT => Json],
   transError: Throwable => F[Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
-    transInput: Json = self.transInput,
+    transInput: Option[Json] = self.transInput,
     transOutput: Option[OUT => Json] = self.transOutput,
     transError: Throwable => F[Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction0[F, OUT] =
@@ -109,7 +110,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   def withWorthRetry(f: Throwable => Boolean): NJAction0[F, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInput(info: Json): NJAction0[F, OUT]               = copy(transInput = info)
+  def logInput(info: Json): NJAction0[F, OUT]               = copy(transInput = Some(info))
   def logOutput(f: OUT => Json): NJAction0[F, OUT]          = copy(transOutput = Some(f))
   def logErrorM(f: Throwable => F[Json]): NJAction0[F, OUT] = copy(transError = f)
   def logError(f: Throwable => Json): NJAction0[F, OUT]     = logErrorM((a: Throwable) => F.pure(f(a)))
@@ -120,7 +121,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     actionParams = actionParams,
     retryPolicy = retryPolicy,
     arrow = _ => arrow,
-    transInput = _ => transInput,
+    transInput = Kleisli(_ => transInput),
     transOutput = transOutput.map(f => (_, b: OUT) => f(b)),
     transError = (_, b: Throwable) => transError(b),
     isWorthRetry = isWorthRetry

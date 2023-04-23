@@ -79,7 +79,7 @@ private object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_INPUT:${evt.json.spaces2}
+       |  ${evt.json.fold("")(js => s"$CONSTANT_INPUT:${js.spaces2}")}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =

@@ -80,7 +80,7 @@ object NJEvent extends zoneddatetime {
     final def metricId: MetricID = actionParams.metricId
   }
 
-  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, json: Json)
+  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, json: Option[Json])
       extends ActionEvent {
     override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(actionInfo.launchTime)
   }

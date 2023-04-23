@@ -5,6 +5,7 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Snapshot}
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
 
 import java.time.Duration
@@ -183,7 +184,7 @@ private object SlackTranslator extends all {
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
             MarkdownSection(s"""|${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin),
-            KeyValueSection(CONSTANT_INPUT, s"""```${abbreviate(evt.json.spaces2)}```""".stripMargin)
+            KeyValueSection(CONSTANT_INPUT, s"""```${abbreviate(evt.json.asJson.spaces2)}```""".stripMargin)
           )
         ))
     )

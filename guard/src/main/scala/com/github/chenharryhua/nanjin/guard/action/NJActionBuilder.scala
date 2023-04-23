@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Ior
+import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.Async
 import cats.implicits.{
   catsSyntaxApplicativeError,
@@ -78,7 +78,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = fz,
-      transInput = Json.Null,
+      transInput = None,
       transOutput = None,
       transError = _ => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
@@ -93,7 +93,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f,
-      transInput = _ => Json.Null,
+      transInput = Kleisli(_ => None),
       transOutput = None,
       transError = (_, _) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
@@ -106,7 +106,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => Json.Null,
+      transInput = Kleisli(_ => None),
       transOutput = None,
       transError = (_, _) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
@@ -119,7 +119,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => Json.Null,
+      transInput = Kleisli(_ => None),
       transOutput = None,
       transError = (_, _) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
@@ -132,7 +132,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => Json.Null,
+      transInput = Kleisli(_ => None),
       transOutput = None,
       transError = (_, _) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry
@@ -145,7 +145,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       retryPolicy = retryPolicy,
       arrow = f.tupled,
-      transInput = _ => Json.Null,
+      transInput = Kleisli(_ => None),
       transOutput = None,
       transError = (_, _) => F.pure(Json.Null),
       isWorthRetry = alwaysRetry

@@ -114,7 +114,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), start),
-      p(b(s"$CONSTANT_INPUT: "), jsonText(evt.json))
+      evt.json.fold(div())(js => p(b(s"$CONSTANT_INPUT: "), jsonText(js)))
     )
   }
 

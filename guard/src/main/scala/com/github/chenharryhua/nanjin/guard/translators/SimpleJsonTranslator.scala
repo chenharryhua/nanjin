@@ -113,7 +113,7 @@ private object SimpleJsonTranslator {
       traceId(evt),
       digest(evt.metricId.metricName),
       actionId(evt),
-      "input" -> evt.json,
+      "input" -> evt.json.asJson,
       serviceId(evt),
       timestamp(evt)
     )
