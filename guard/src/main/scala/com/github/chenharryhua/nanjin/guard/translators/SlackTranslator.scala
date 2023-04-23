@@ -228,11 +228,8 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|${policy(evt)}
                                 |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
-          )
+          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js.spaces2)}```"""))
         ),
-        Attachment(
-          color = color,
-          blocks = List(MarkdownSection(s"""```${abbreviate(evt.notes.spaces2)}```""".stripMargin))),
         Attachment(
           color = color,
           blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${abbreviate(evt.error.stackTrace)}```"))),

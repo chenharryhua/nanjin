@@ -153,7 +153,7 @@ private object HtmlTranslator extends all {
       tr(
         td(evt.actionId),
         td(evt.traceId),
-        td(evt.actionParams.importance.toString),
+        td(evt.actionParams.importance.entryName),
         td(fmt.format(evt.took)))
     )
 
@@ -162,8 +162,8 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
-      jsonText(evt.notes),
-      causeText(evt.error)
+      causeText(evt.error),
+      evt.notes.fold(div())(js => jsonText(js))
     )
 
   private def actionCompleted(evt: ActionComplete): Text.TypedTag[String] =

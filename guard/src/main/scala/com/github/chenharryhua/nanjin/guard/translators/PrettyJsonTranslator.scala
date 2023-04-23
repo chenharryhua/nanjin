@@ -136,7 +136,7 @@ private object PrettyJsonTranslator {
           traceId(evt),
           took(evt),
           policy(evt.actionParams),
-          "notes" -> evt.notes, // align with slack
+          "notes" -> evt.notes.asJson, // align with slack
           stackTrace(evt.error)
         ))
 

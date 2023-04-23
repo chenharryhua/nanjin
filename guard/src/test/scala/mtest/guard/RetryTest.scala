@@ -93,14 +93,18 @@ class RetryTest extends AnyFunSuite {
             i += 1; throw new Exception
           } else i))
         .logOutput((a, _) => a.asJson)
+        .logInput(_.asJson)
+        .logError((a, _) => a.asJson)
         .run(1)
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
+    assert(a.asInstanceOf[ActionStart].notes.nonEmpty)
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionComplete])
+    assert(d.asInstanceOf[ActionComplete].notes.nonEmpty)
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -120,9 +124,11 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
+    assert(b.asInstanceOf[ActionStart].notes.nonEmpty)
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionComplete])
+    assert(e.asInstanceOf[ActionComplete].notes.isEmpty)
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -172,6 +178,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
+    assert(e.asInstanceOf[ActionFail].notes.isEmpty)
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -328,6 +335,7 @@ class RetryTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionFail])
+    assert(c.asInstanceOf[ActionFail].notes.nonEmpty)
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -340,6 +348,7 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionComplete])
+    assert(a.asInstanceOf[ActionComplete].notes.isEmpty)
     assert(b.isInstanceOf[ActionComplete])
     assert(c.isInstanceOf[ActionComplete])
     assert(d.isInstanceOf[ServiceStop])

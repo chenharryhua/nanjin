@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.{Ior, Kleisli}
+import cats.data.{Ior, Kleisli, OptionT}
 import cats.effect.kernel.Async
 import cats.implicits.{
   catsSyntaxApplicativeError,
@@ -80,7 +80,7 @@ final class NJActionBuilder[F[_]](
       arrow = fz,
       transInput = None,
       transOutput = None,
-      transError = _ => F.pure(Json.Null),
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -95,7 +95,7 @@ final class NJActionBuilder[F[_]](
       arrow = f,
       transInput = Kleisli(_ => None),
       transOutput = None,
-      transError = (_, _) => F.pure(Json.Null),
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -108,7 +108,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
-      transError = (_, _) => F.pure(Json.Null),
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -121,7 +121,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
-      transError = (_, _) => F.pure(Json.Null),
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -134,7 +134,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
-      transError = (_, _) => F.pure(Json.Null),
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 
@@ -147,7 +147,7 @@ final class NJActionBuilder[F[_]](
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
-      transError = (_, _) => F.pure(Json.Null),
+      transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
     )
 

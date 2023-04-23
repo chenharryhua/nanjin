@@ -140,7 +140,7 @@ private object SimpleJsonTranslator {
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "notes" -> evt.notes,
+      "notes" -> evt.notes.asJson,
       stackTrace(evt.error),
       digest(evt.metricId.metricName),
       actionId(evt),

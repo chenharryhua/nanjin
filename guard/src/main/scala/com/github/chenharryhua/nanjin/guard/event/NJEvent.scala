@@ -99,6 +99,7 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionResultEvent extends ActionEvent {
     def landTime: FiniteDuration
+    def notes: Option[Json]
 
     final override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
     final def took: Duration                    = actionInfo.took(landTime)
@@ -110,7 +111,7 @@ object NJEvent extends zoneddatetime {
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
     error: NJError,
-    notes: Json)
+    notes: Option[Json])
       extends ActionResultEvent
 
   @Lenses

@@ -79,7 +79,7 @@ private object SimpleTextTranslator {
   private def actionStart(evt: ActionStart): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
-       |  ${evt.notes.fold("")(_.spaces2)}
+       |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 
   private def actionRetry(evt: ActionRetry): String =
@@ -96,14 +96,14 @@ private object SimpleTextTranslator {
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
-       |  ${evt.notes.spaces2}
+       |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 
   private def actionComplete(evt: ActionComplete): String =
     s"""${coloring(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${fmt.format(evt.took)}
-       |  ${evt.notes.fold("")(_.spaces2)}
+       |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
