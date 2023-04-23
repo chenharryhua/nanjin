@@ -33,7 +33,7 @@ private object SimpleJsonTranslator {
     "stackTrace" -> Json.fromString(err.stackTrace)
 
   private def isCritical(evt: ActionEvent): (String, Json) =
-    "isCritical" -> Json.fromBoolean(evt.actionParams.isCritical)
+    "importance" -> Json.fromString(evt.actionParams.importance.entryName)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
@@ -96,7 +96,7 @@ private object SimpleJsonTranslator {
   private def serviceAlert(evt: ServiceAlert): Json =
     Json.obj(
       "event" -> EventName.ServiceAlert.camelJson,
-      "level" -> evt.alertLevel.asJson,
+      "level" -> Json.fromString(evt.alertLevel.entryName),
       name(evt.metricName),
       "message" -> evt.message,
       digest(evt.metricName),

@@ -108,8 +108,8 @@ private object HtmlTranslator extends all {
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b(CONSTANT_IS_CRITICAL))),
-      tr(td(evt.actionId), td(evt.traceId), td(evt.actionParams.isCritical.toString))
+      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b(CONSTANT_IMPORTANCE))),
+      tr(td(evt.actionId), td(evt.traceId), td(evt.actionParams.importance.entryName))
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
@@ -124,13 +124,13 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
-        td(b(CONSTANT_IS_CRITICAL)),
+        td(b(CONSTANT_IMPORTANCE)),
         td(b("Index")),
         td(b("Resume"))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
-        td(evt.actionParams.isCritical.toString),
+        td(evt.actionParams.importance.toString),
         td(evt.retriesSoFar + 1),
         td(evt.timestamp.plusNanos(evt.delay.toNanos).toLocalTime.show)
       )
@@ -148,12 +148,12 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
-        td(b(CONSTANT_IS_CRITICAL)),
+        td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_TOOK))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
-        td(evt.actionParams.isCritical.toString),
+        td(evt.actionParams.importance.toString),
         td(fmt.format(evt.took)))
     )
 

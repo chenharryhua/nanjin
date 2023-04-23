@@ -33,7 +33,7 @@ private object PrettyJsonTranslator {
   private def measurement(id: MetricName): (String, Json) =
     "measurement" -> Json.fromString(id.measurement)
   private def isCritical(evt: ActionEvent): (String, Json) =
-    "isCritical" -> Json.fromBoolean(evt.actionParams.isCritical)
+    "importance" -> Json.fromString(evt.actionParams.importance.entryName)
 
   private def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc           => "index" -> Json.Null
@@ -92,7 +92,7 @@ private object PrettyJsonTranslator {
           actionName(evt.metricName),
           serviceName(evt),
           serviceId(evt),
-          evt.alertLevel.show -> evt.message))
+          evt.alertLevel.entryName -> evt.message))
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
