@@ -1,13 +1,9 @@
 package com.github.chenharryhua.nanjin.guard
 
 import cats.implicits.toShow
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.MetricParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
-import io.circe.Json
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
@@ -59,6 +55,7 @@ package object translators {
   final private[translators] val fmt: DurationFormatter = DurationFormatter.defaultFormatter
   final private[translators] val numFmt: NumberFormat   = NumberFormat.getInstance()
 
+
   final private[translators] def localTimeAndDurationStr(
     start: ZonedDateTime,
     end: ZonedDateTime): (String, String) = {
@@ -98,13 +95,6 @@ package object translators {
         }
     }
 
-  private[translators] def toYaml(json: Json): String = {
-    val ym: YAMLMapper =
-      YAMLMapper.builder().disable(Feature.WRITE_DOC_START_MARKER).enable(Feature.MINIMIZE_QUOTES).build()
-    val om: ObjectMapper = new ObjectMapper()
-    ym.writeValueAsString(om.readTree(json.noSpaces))
-  }
-
   private[translators] def yamlSnapshot(mss: MetricSnapshot, mp: MetricParams): String =
-    toYaml(new SnapshotJson(mss).toPrettyJson(mp))
+    new SnapshotJson(mss).toYaml(mp)
 }

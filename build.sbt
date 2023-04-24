@@ -20,7 +20,7 @@ val parquetV    = "1.13.0"
 val circeV      = "0.14.5"
 val slf4jV      = "2.0.7"
 val metricsV    = "4.2.18"
-val log4catsV   = "2.5.0"
+val log4catsV   = "2.6.0"
 val skunkV      = "0.5.1"
 val natchezV    = "0.3.1"
 val http4sV     = "0.23.18"
@@ -247,10 +247,9 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb"                     % "influxdb-client-java"    % "6.8.0" % Provided, // snyk
-      "io.dropwizard.metrics"            % "metrics-core"            % metricsV,
-      "io.dropwizard.metrics"            % "metrics-jmx"             % metricsV,
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonV,
+      "com.influxdb"                                   % "influxdb-client-java" % "6.8.0" % Provided, // snyk
+      "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
+      "io.dropwizard.metrics"                          % "metrics-jmx"          % metricsV,
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "vault"                       % "3.5.0",
       "com.lihaoyi" %% "scalatags"                     % "0.12.0",
@@ -261,9 +260,9 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-core"                    % http4sV,
       "org.http4s" %% "http4s-dsl"                     % http4sV,
       "org.http4s" %% "http4s-ember-server"            % http4sV,
-      "org.tpolecat" %% "natchez-jaeger"               % natchezV         % Test,
-      "org.tpolecat" %% "natchez-log"                  % natchezV         % Test,
-      "org.slf4j"                                      % "slf4j-reload4j" % slf4jV % Test
+      "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
+      "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
+      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV  % Test
     ) ++ logLib ++ testLib
   )
 
