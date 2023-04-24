@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.{monthlyCron, weeklyCron, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{NameConstraint, ServiceGuard}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -126,6 +126,9 @@ class ConfigTest extends AnyFunSuite {
 
     assert(as.actionParams.isCounting)
     assert(as.actionParams.isTiming)
-
+  }
+  test("should not contain {}") {
+    assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("{a b c}"))
+    NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ").value
   }
 }

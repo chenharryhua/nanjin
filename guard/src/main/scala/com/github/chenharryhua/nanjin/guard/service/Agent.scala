@@ -34,8 +34,8 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   // metrics
   def withMeasurement(measurement: String): Agent[F]
   def metrics: NJMetrics[F]
-  def action(name: String, f: Endo[ActionConfig]): NJActionBuilder[F]
-  def action(name: String): NJActionBuilder[F]
+  def action(actionName: String, f: Endo[ActionConfig]): NJActionBuilder[F]
+  def action(actionName: String): NJActionBuilder[F]
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
   def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F]
@@ -48,7 +48,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def ticks(cronExpr: CronExpr): Stream[F, Tick]
 
   // udp
-  def udpClient(name: String): NJUdpClient[F]
+  def udpClient(udpName: String): NJUdpClient[F]
 }
 
 final class GeneralAgent[F[_]: Network] private[service] (
@@ -80,7 +80,8 @@ final class GeneralAgent[F[_]: Network] private[service] (
   override val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
 
   // metrics
-  override def withMeasurement(measurement: String): Agent[F] =
+  override def withMeasurement(measurement: String): Agent[F] = {
+    val name = NameConstraint.unsafeFrom(measurement).value
     new GeneralAgent[F](
       entryPoint = self.entryPoint,
       serviceParams = self.serviceParams,
@@ -89,10 +90,12 @@ final class GeneralAgent[F[_]: Network] private[service] (
       signallingMapRef = self.signallingMapRef,
       atomicCell = self.atomicCell,
       dispatcher = self.dispatcher,
-      measurement = Measurement(measurement)
+      measurement = Measurement(name)
     )
+  }
 
-  override def action(name: String, f: Endo[ActionConfig]): NJActionBuilder[F] =
+  override def action(actionName: String, f: Endo[ActionConfig]): NJActionBuilder[F] = {
+    val name = NameConstraint.unsafeFrom(actionName).value
     new NJActionBuilder[F](
       actionName = ActionName(name),
       serviceParams = self.serviceParams,
@@ -102,46 +105,58 @@ final class GeneralAgent[F[_]: Network] private[service] (
       config = f,
       retryPolicy = RetryPolicies.alwaysGiveUp[F]
     )
-  override def action(name: String): NJActionBuilder[F] = action(name, identity)
+  }
 
-  override def alert(alertName: String): NJAlert[F] =
+  override def action(actionName: String): NJActionBuilder[F] = action(actionName, identity)
+
+  override def alert(alertName: String): NJAlert[F] = {
+    val name = NameConstraint.unsafeFrom(alertName).value
     new NJAlert(
-      name = MetricName(self.serviceParams, self.measurement, alertName),
+      name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       serviceParams = self.serviceParams,
       dispatcher = self.dispatcher,
       isCounting = false
     )
+  }
 
-  override def counter(counterName: String): NJCounter[F] =
+  override def counter(counterName: String): NJCounter[F] = {
+    val name = NameConstraint.unsafeFrom(counterName).value
     new NJCounter(
-      name = MetricName(self.serviceParams, self.measurement, counterName),
+      name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
       isRisk = false)
+  }
 
-  override def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F] =
+  override def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F] = {
+    val name = NameConstraint.unsafeFrom(meterName).value
     new NJMeter[F](
-      name = MetricName(self.serviceParams, self.measurement, meterName),
+      name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
       unit = unitOfMeasure,
       isCounting = false
     )
+  }
 
-  override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] =
+  override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] = {
+    val name = NameConstraint.unsafeFrom(histoName).value
     new NJHistogram[F](
-      name = MetricName(self.serviceParams, self.measurement, histoName),
+      name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
       unit = unitOfMeasure,
       isCounting = false
     )
+  }
 
-  override def gauge(gaugeName: String): NJGauge[F] =
+  override def gauge(gaugeName: String): NJGauge[F] = {
+    val name = NameConstraint.unsafeFrom(gaugeName).value
     new NJGauge[F](
-      name = MetricName(self.serviceParams, self.measurement, gaugeName),
+      name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
       dispatcher = self.dispatcher
     )
+  }
 
   override lazy val metrics: NJMetrics[F] =
     new NJMetrics[F](
@@ -155,12 +170,14 @@ final class GeneralAgent[F[_]: Network] private[service] (
     awakeEvery(f(policies.cronBackoff[F](cronExpr, zoneId)))
   override def ticks(cronExpr: CronExpr): Stream[F, Tick] = ticks(cronExpr, identity)
 
-  override def udpClient(name: String): NJUdpClient[F] =
+  override def udpClient(udpName: String): NJUdpClient[F] = {
+    val name = NameConstraint.unsafeFrom(udpName).value
     new NJUdpClient[F](
       name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
       isCounting = false,
       isHistogram = false)
+  }
 
   // general agent section, not in Agent API
 

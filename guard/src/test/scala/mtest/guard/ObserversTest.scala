@@ -57,14 +57,19 @@ class ObserversTest extends AnyFunSuite {
         val counter   = ag.counter("nj counter").asRisk
         val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).withCounting
         val alert     = ag.alert("nj alert")
+        val gauge     = ag.gauge("nj gauge")
 
-        ok >>
-          meter.mark(1000000000) >>
-          counter.inc(10000000) >>
-          histogram.update(1000000000) >>
-          alert.error("alarm") >>
-          err >>
-          ag.metrics.report
+        gauge
+          .register(1000000)
+          .surround(
+            gauge.timed.surround(
+              ok >>
+                meter.mark(1000000000) >>
+                counter.inc(10000000) >>
+                histogram.update(1000000000) >>
+                alert.error("alarm") >>
+                err >>
+                ag.metrics.report))
       }
       .take(10)
 
