@@ -16,6 +16,7 @@ import java.time.temporal.ChronoUnit
   */
 private object HtmlTranslator extends all {
   import NJEvent.*
+  import textConstant.*
 
   private def coloring(evt: NJEvent): String = ColorScheme
     .decorate(evt)
@@ -109,8 +110,16 @@ private object HtmlTranslator extends all {
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_TRACE_ID)), td(b(CONSTANT_IMPORTANCE))),
-      tr(td(evt.actionId), td(evt.traceId), td(evt.actionParams.importance.entryName))
+      tr(
+        td(b(CONSTANT_ACTION_ID)),
+        td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_IMPORTANCE)),
+        td(b(CONSTANT_STRATEGY))),
+      tr(
+        td(evt.actionId),
+        td(evt.traceId),
+        td(evt.actionParams.importance.entryName),
+        td(evt.actionParams.publishStrategy.entryName))
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
@@ -126,12 +135,14 @@ private object HtmlTranslator extends all {
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
         td(b(CONSTANT_IMPORTANCE)),
+        td(b(CONSTANT_STRATEGY)),
         td(b("Index")),
         td(b("Resume"))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
         td(evt.actionParams.importance.toString),
+        td(evt.actionParams.publishStrategy.entryName),
         td(evt.retriesSoFar + 1),
         td(evt.timestamp.plusNanos(evt.delay.toNanos).toLocalTime.show)
       )
@@ -150,11 +161,13 @@ private object HtmlTranslator extends all {
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
         td(b(CONSTANT_IMPORTANCE)),
+        td(b(CONSTANT_STRATEGY)),
         td(b(CONSTANT_TOOK))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
         td(evt.actionParams.importance.entryName),
+        td(evt.actionParams.publishStrategy.entryName),
         td(fmt.format(evt.took)))
     )
 

@@ -4,15 +4,15 @@ import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntr
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import retry.RetryPolicy
 
-sealed trait PublishStrategy extends EnumEntry with Product
+sealed abstract class PublishStrategy(override val entryName: String) extends EnumEntry with Product
 
 object PublishStrategy
     extends Enum[PublishStrategy] with CirceEnum[PublishStrategy] with CatsEnum[PublishStrategy] {
   override val values: IndexedSeq[PublishStrategy] = findValues
 
-  case object StartAndComplete extends PublishStrategy
-  case object CompleteOnly extends PublishStrategy
-  case object Silent extends PublishStrategy
+  case object Notice extends PublishStrategy("notice") // publish start and complete event
+  case object Aware extends PublishStrategy("aware") // publish complete event
+  case object Silent extends PublishStrategy("silent") // publish nothing
 }
 
 sealed abstract class Importance(override val value: Int, val entryName: String)

@@ -29,7 +29,7 @@ val jacksonV    = "2.14.2"
 val protobufV   = "3.22.3"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
-val nettyV      = "4.1.91.Final"
+val nettyV      = "4.1.92.Final"
 val chimneyV    = "0.7.4"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
@@ -260,6 +260,7 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-core"                    % http4sV,
       "org.http4s" %% "http4s-dsl"                     % http4sV,
       "org.http4s" %% "http4s-ember-server"            % http4sV,
+      "org.http4s" %% "http4s-scalatags"               % "0.25.2",
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
       "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV  % Test
@@ -351,7 +352,7 @@ lazy val pipes = (project in file("pipes"))
       "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.20", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.21", // snyk
       "org.eclipse.jetty"              % "jetty-server"        % "11.0.15", // snyk
       "org.eclipse.jetty"              % "jetty-client"        % "11.0.15", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
