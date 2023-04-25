@@ -1,11 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
-import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.guard.config.{MetricName, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
-import io.circe.syntax.*
 
 private object PrettyJsonTranslator {
 
@@ -21,7 +19,7 @@ private object PrettyJsonTranslator {
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(
       EventName.ServiceStart.camel ->
-        Json.obj("params" -> evt.serviceParams.asJson, uptime(evt)))
+        Json.obj(serviceParams(evt.serviceParams), uptime(evt)))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
@@ -36,8 +34,9 @@ private object PrettyJsonTranslator {
           serviceId(evt),
           uptime(evt),
           policy(evt),
-          ("exitCode", Json.fromInt(evt.cause.exitCode)),
-          ("cause", Json.fromString(evt.cause.show))))
+          exitCade(evt.cause),
+          exitCause(evt.cause)
+        ))
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
@@ -66,7 +65,8 @@ private object PrettyJsonTranslator {
           actionName(evt.metricName),
           serviceName(evt),
           serviceId(evt),
-          evt.alertLevel.entryName -> evt.message))
+          alertMessage(evt)
+        ))
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
@@ -80,7 +80,7 @@ private object PrettyJsonTranslator {
           measurement(evt.actionParams.metricId.metricName),
           actionId(evt),
           traceId(evt),
-          "notes" -> evt.notes.asJson
+          notes(evt.notes)
         ))
 
   private def actionRetrying(evt: ActionRetry): Json =
@@ -96,7 +96,7 @@ private object PrettyJsonTranslator {
           actionId(evt),
           traceId(evt),
           policy(evt.actionParams),
-          ("cause", Json.fromString(evt.error.message))
+          errCause(evt.error)
         ))
 
   private def actionFail(evt: ActionFail): Json =
@@ -113,7 +113,7 @@ private object PrettyJsonTranslator {
           traceId(evt),
           took(evt),
           policy(evt.actionParams),
-          "notes" -> evt.notes.asJson, // align with slack
+          notes(evt.notes),
           stackTrace(evt.error)
         ))
 
@@ -130,7 +130,7 @@ private object PrettyJsonTranslator {
           actionId(evt),
           traceId(evt),
           took(evt),
-          "notes" -> evt.notes.asJson // align with slack
+          notes(evt.notes)
         ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
