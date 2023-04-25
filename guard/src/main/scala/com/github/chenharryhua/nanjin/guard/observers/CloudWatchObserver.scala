@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.translators.{
+import com.github.chenharryhua.nanjin.guard.translators.textConstant.{
   CONSTANT_HOST,
   CONSTANT_SERVICE,
   CONSTANT_SERVICE_ID,

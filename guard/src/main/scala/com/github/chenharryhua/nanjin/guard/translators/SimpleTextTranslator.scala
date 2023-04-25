@@ -7,6 +7,8 @@ import io.circe.syntax.EncoderOps
 
 private object SimpleTextTranslator {
   import NJEvent.*
+  import textConstant.*
+
   private def coloring(evt: NJEvent): String = {
     val msg: String = eventTitle(evt)
     ColorScheme
@@ -21,19 +23,24 @@ private object SimpleTextTranslator {
   }
 
   private def serviceEvent(se: NJEvent): String = {
-    val host: String      = se.serviceParams.taskParams.hostName.value
-    val sn: String        = se.serviceParams.serviceName
-    val tn: String        = se.serviceParams.taskParams.taskName
-    val serviceId: String = se.serviceParams.serviceId.show.takeRight(12)
-    val uptime: String    = fmt.format(se.upTime)
-    s"$CONSTANT_SERVICE:$sn, $CONSTANT_TASK:$tn, $CONSTANT_HOST:$host, SID:$serviceId, $CONSTANT_UPTIME:$uptime"
+    val host: String      = s"$CONSTANT_HOST:${se.serviceParams.taskParams.hostName.value}"
+    val sn: String        = s"$CONSTANT_SERVICE:${se.serviceParams.serviceName}"
+    val tn: String        = s"$CONSTANT_TASK:${se.serviceParams.taskParams.taskName}"
+    val serviceId: String = s"SID:${se.serviceParams.serviceId.show.takeRight(12)}"
+    val uptime: String    = s"$CONSTANT_UPTIME:${fmt.format(se.upTime)}"
+    s"$sn, $tn, $host, $serviceId, $uptime"
   }
 
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
-  private def actionEvent(ae: ActionEvent): String =
+  private def actionEvent(ae: ActionEvent): String = {
+    val id         = s"$CONSTANT_ACTION_ID:${ae.actionId}"
+    val trace      = s"$CONSTANT_TRACE_ID:${ae.traceId}"
+    val importance = s"$CONSTANT_IMPORTANCE:${ae.actionParams.importance.entryName}"
+    val strategy   = s"$CONSTANT_STRATEGY:${ae.actionParams.publishStrategy.entryName}"
     s"""  ${serviceEvent(ae)}
-       |  $CONSTANT_ACTION_ID:${ae.actionId}, $CONSTANT_TRACE_ID:${ae.traceId}, $CONSTANT_IMPORTANCE:${ae.actionParams.importance.entryName}""".stripMargin
+       |  $id, $trace, $importance, $strategy""".stripMargin
+  }
 
   private def serviceStarted(evt: ServiceStart): String =
     s"""${coloring(evt)}

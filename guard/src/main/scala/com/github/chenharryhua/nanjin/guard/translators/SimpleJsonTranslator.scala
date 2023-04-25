@@ -3,48 +3,19 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.guard.config.MetricName
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
 import io.circe.syntax.*
 
 private object SimpleJsonTranslator {
   import NJEvent.*
-
-  private def timestamp(evt: NJEvent): (String, Json) =
-    "timestamp" -> evt.timestamp.asJson
-  private def serviceId(evt: NJEvent): (String, Json) =
-    "serviceId" -> evt.serviceParams.serviceId.asJson
-  private def serviceName(evt: NJEvent): (String, Json) =
-    "serviceName" -> Json.fromString(evt.serviceParams.serviceName)
-
-  private def name(mn: MetricName): (String, Json) =
-    "name" -> Json.fromString(mn.value)
-  private def digest(mn: MetricName): (String, Json) =
-    "digest" -> Json.fromString(mn.digest)
-  private def measurement(mn: MetricName): (String, Json) =
-    "measurement" -> Json.fromString(mn.measurement)
-  private def actionId(evt: ActionEvent): (String, Json) =
-    "id" -> Json.fromString(evt.actionId)
-  private def traceId(evt: ActionEvent): (String, Json) =
-    "traceId" -> evt.actionInfo.traceId.asJson
-  private def took(evt: ActionResultEvent): (String, Json) =
-    "took" -> evt.took.asJson
-  private def stackTrace(err: NJError): (String, Json) =
-    "stackTrace" -> Json.fromString(err.stackTrace)
-
-  private def isCritical(evt: ActionEvent): (String, Json) =
-    "importance" -> Json.fromString(evt.actionParams.importance.entryName)
-
-  private def metricIndex(index: MetricIndex): (String, Json) = index match {
-    case MetricIndex.Adhoc           => "index" -> Json.Null
-    case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
-  }
-
-  private def policy(evt: NJEvent): (String, Json) =
-    "policy" -> Json.fromString(evt.serviceParams.restartPolicy)
+  import jsonInterpreter.*
 
   private def metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotJson(ss).toVanillaJson
+
+  def name(mn: MetricName): (String, Json)   = "name" -> Json.fromString(mn.value)
+  def digest(mn: MetricName): (String, Json) = "digest" -> Json.fromString(mn.digest)
 
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(
@@ -108,7 +79,8 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionStart.camelJson,
       name(evt.metricId.metricName),
-      isCritical(evt),
+      importance(evt),
+      publishStrategy(evt),
       measurement(evt.actionParams.metricId.metricName),
       traceId(evt),
       digest(evt.metricId.metricName),
@@ -122,7 +94,8 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionRetry.camelJson,
       name(evt.metricId.metricName),
-      isCritical(evt),
+      importance(evt),
+      publishStrategy(evt),
       measurement(evt.actionParams.metricId.metricName),
       traceId(evt),
       ("cause", Json.fromString(evt.error.message)),
@@ -136,7 +109,8 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionFail.camelJson,
       name(evt.metricId.metricName),
-      isCritical(evt),
+      importance(evt),
+      publishStrategy(evt),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
@@ -152,7 +126,8 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ActionComplete.camelJson,
       name(evt.metricId.metricName),
-      isCritical(evt),
+      importance(evt),
+      publishStrategy(evt),
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),

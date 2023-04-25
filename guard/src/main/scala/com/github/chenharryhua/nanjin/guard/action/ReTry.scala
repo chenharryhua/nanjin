@@ -81,12 +81,12 @@ final private class ReTry[F[_], IN, OUT](
   sealed private trait KickOff { def apply(ai: ActionInfo, in: IN): F[OUT] }
   private val kickoff: KickOff =
     actionParams.publishStrategy match {
-      case PublishStrategy.StartAndComplete =>
+      case PublishStrategy.Notice =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
             channel.send(ActionStart(actionParams, ai, transInput(in))) >> compute(ai, in)
         }
-      case PublishStrategy.CompleteOnly | PublishStrategy.Silent =>
+      case PublishStrategy.Aware | PublishStrategy.Silent =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] = compute(ai, in)
         }
@@ -107,7 +107,7 @@ final private class ReTry[F[_], IN, OUT](
   }
   private val postmortem: Postmortem =
     actionParams.publishStrategy match {
-      case PublishStrategy.StartAndComplete | PublishStrategy.CompleteOnly =>
+      case PublishStrategy.Notice | PublishStrategy.Aware =>
         transOutput match {
           case Some(to_json) =>
             new Postmortem {

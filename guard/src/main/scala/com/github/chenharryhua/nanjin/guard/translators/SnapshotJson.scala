@@ -2,13 +2,21 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricName, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, Snapshot}
+import io.circe.optics.JsonOptics.*
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, Printer}
 import monocle.function.Plated
-import io.circe.optics.JsonOptics.*
+
 import java.text.DecimalFormat
 
 final class SnapshotJson(snapshot: MetricSnapshot) {
+  private val decFmt: DecimalFormat = new DecimalFormat("#,###.##")
+  private val prettyNumber: Json => Json = Plated.transform[Json] { js =>
+    js.asNumber match {
+      case Some(value) => Json.fromString(decFmt.format(value.toDouble))
+      case None        => js
+    }
+  }
   // for db
   private def grouping1(f: Snapshot => (MetricID, Json)): Json =
     (snapshot.gauges.map(f) :::
@@ -71,27 +79,27 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
       .asJson
 
   def toPrettyJson(mp: MetricParams): Json = {
-    val rateUnit = mp.rateUnitName
-    val convert  = mp.rateConversion _
-    grouping2 {
+    val rateUnit                   = mp.rateUnitName
+    def convert(d: Double): String = decFmt.format(mp.rateConversion(d))
+    val json = grouping2 {
       case Snapshot.Counter(id, count) => id -> Json.fromLong(count)
       case Snapshot.Gauge(id, value)   => id -> value
       case Snapshot.Meter(id, data) =>
         val unit = data.unitShow
         id -> Json.obj(
           "count" -> Json.fromLong(data.count),
-          "mean_rate" -> Json.fromString(f"${convert(data.mean_rate.toHertz)}%2.2f $unit/$rateUnit"),
-          "m1_rate" -> Json.fromString(f"${convert(data.m1_rate.toHertz)}%2.2f $unit/$rateUnit"),
-          "m5_rate" -> Json.fromString(f"${convert(data.m5_rate.toHertz)}%2.2f $unit/$rateUnit"),
-          "m15_rate" -> Json.fromString(f"${convert(data.m15_rate.toHertz)}%2.2f $unit/$rateUnit")
+          "mean_rate" -> Json.fromString(s"${convert(data.mean_rate.toHertz)} $unit/$rateUnit"),
+          "m1_rate" -> Json.fromString(s"${convert(data.m1_rate.toHertz)} $unit/$rateUnit"),
+          "m5_rate" -> Json.fromString(s"${convert(data.m5_rate.toHertz)} $unit/$rateUnit"),
+          "m15_rate" -> Json.fromString(s"${convert(data.m15_rate.toHertz)} $unit/$rateUnit")
         )
       case Snapshot.Timer(id, data) =>
         id -> Json.obj(
           "count" -> Json.fromLong(data.count),
-          "mean_rate" -> Json.fromString(f"${convert(data.mean_rate.toHertz)}%2.2f calls/$rateUnit"),
-          "m1_rate" -> Json.fromString(f"${convert(data.m1_rate.toHertz)}%2.2f calls/$rateUnit"),
-          "m5_rate" -> Json.fromString(f"${convert(data.m5_rate.toHertz)}%2.2f calls/$rateUnit"),
-          "m15_rate" -> Json.fromString(f"${convert(data.m15_rate.toHertz)}%2.2f calls/$rateUnit"),
+          "mean_rate" -> Json.fromString(s"${convert(data.mean_rate.toHertz)} calls/$rateUnit"),
+          "m1_rate" -> Json.fromString(s"${convert(data.m1_rate.toHertz)} calls/$rateUnit"),
+          "m5_rate" -> Json.fromString(s"${convert(data.m5_rate.toHertz)} calls/$rateUnit"),
+          "m15_rate" -> Json.fromString(s"${convert(data.m15_rate.toHertz)} calls/$rateUnit"),
           "min" -> Json.fromString(fmt.format(data.min)),
           "max" -> Json.fromString(fmt.format(data.max)),
           "mean" -> Json.fromString(fmt.format(data.mean)),
@@ -108,18 +116,19 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
         val unit = data.unitShow
         id -> Json.obj(
           "count" -> Json.fromLong(data.count),
-          "min" -> Json.fromString(f"${data.min}%d $unit"),
-          "max" -> Json.fromString(f"${data.max}%d $unit"),
-          "mean" -> Json.fromString(f"${data.mean}%2.2f $unit"),
-          "stddev" -> Json.fromString(f"${data.stddev}%2.2f $unit"),
-          "p50" -> Json.fromString(f"${data.p50}%2.2f $unit"),
-          "p75" -> Json.fromString(f"${data.p75}%2.2f $unit"),
-          "p95" -> Json.fromString(f"${data.p95}%2.2f $unit"),
-          "p98" -> Json.fromString(f"${data.p98}%2.2f $unit"),
-          "p99" -> Json.fromString(f"${data.p99}%2.2f $unit"),
-          "p999" -> Json.fromString(f"${data.p999}%2.2f $unit")
+          "min" -> Json.fromString(s"${decFmt.format(data.min)} $unit"),
+          "max" -> Json.fromString(s"${decFmt.format(data.max)} $unit"),
+          "mean" -> Json.fromString(s"${decFmt.format(data.mean)} $unit"),
+          "stddev" -> Json.fromString(s"${decFmt.format(data.stddev)} $unit"),
+          "p50" -> Json.fromString(s"${decFmt.format(data.p50)} $unit"),
+          "p75" -> Json.fromString(s"${decFmt.format(data.p75)} $unit"),
+          "p95" -> Json.fromString(s"${decFmt.format(data.p95)} $unit"),
+          "p98" -> Json.fromString(s"${decFmt.format(data.p98)} $unit"),
+          "p99" -> Json.fromString(s"${decFmt.format(data.p99)} $unit"),
+          "p999" -> Json.fromString(s"${decFmt.format(data.p999)} $unit")
         )
     }
+    prettyNumber(json)
   }
 
   /** Homemade Yaml
@@ -166,7 +175,6 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
     colonRight = " ")
 
   def toYaml(mp: MetricParams): String = {
-    val decFmt: DecimalFormat      = new DecimalFormat("#,###.##")
     val rateUnit: String           = mp.rateUnitName
     def convert(d: Double): String = decFmt.format(mp.rateConversion(d))
     val json = grouping3 {
@@ -215,12 +223,6 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
           "p99   " -> Json.fromString(s"${decFmt.format(data.p99)} $unit"),
           "p999  " -> Json.fromString(s"${decFmt.format(data.p999)} $unit")
         )
-    }
-    val prettyNumber = Plated.transform[Json] { js =>
-      js.asNumber match {
-        case Some(value) => Json.fromString(decFmt.format(value.toDouble))
-        case None        => js
-      }
     }
 
     printer

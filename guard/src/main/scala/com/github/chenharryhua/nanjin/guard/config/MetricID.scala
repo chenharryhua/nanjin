@@ -52,6 +52,7 @@ object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] with CatsEnum
 
   case object Dropwizard extends GaugeKind("gauge")
   case object TimedGauge extends GaugeKind("timed_gauge")
+  case object RefGauge extends GaugeKind("ref_gauge")
 }
 
 sealed abstract class MeterKind(override val entryName: String)

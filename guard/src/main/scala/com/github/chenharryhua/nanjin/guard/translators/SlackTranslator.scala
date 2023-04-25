@@ -5,13 +5,16 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Snapshot}
 import io.circe.Json
+import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 
+import java.text.NumberFormat
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
 private object SlackTranslator extends all {
   import NJEvent.*
+  import textConstant.*
 
   private def coloring(evt: NJEvent): String = ColorScheme
     .decorate(evt)
@@ -22,6 +25,13 @@ private object SlackTranslator extends all {
       case ColorScheme.ErrorColor => Eval.now("#935252")
     }
     .value
+
+  // slack not allow message larger than 3000 chars
+  // https://api.slack.com/reference/surfaces/formatting
+  private val MessageSizeLimits: Int = 2500
+
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+  private def abbreviate(msg: Json): String   = abbreviate(msg.spaces2)
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
@@ -34,6 +44,7 @@ private object SlackTranslator extends all {
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show))
 
   private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
+    val numFmt: NumberFormat             = NumberFormat.getInstance()
     val counters: List[Snapshot.Counter] = snapshot.counters.filter(_.count > 0)
     if (counters.isEmpty) KeyValueSection(CONSTANT_METRICS, "`No updates`")
     else {
@@ -45,7 +56,7 @@ private object SlackTranslator extends all {
   }
 
   private def brief(json: Json): KeyValueSection =
-    KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
+    KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json)}```")
 
 // events
   private def serviceStarted(evt: ServiceStart): SlackApp = {
@@ -159,7 +170,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
-            MarkdownSection(s"```${abbreviate(evt.message.spaces2)}```")
+            MarkdownSection(s"```${abbreviate(evt.message)}```")
           )
         ))
     )
@@ -184,7 +195,7 @@ private object SlackTranslator extends all {
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
             MarkdownSection(s"""|${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
-          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js.spaces2)}```"""))
+          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ))
     )
 
@@ -229,7 +240,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|${policy(evt)}
                                 |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
-          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js.spaces2)}```"""))
+          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ),
         Attachment(
           color = color,
@@ -252,7 +263,7 @@ private object SlackTranslator extends all {
               second = TextField(CONSTANT_TOOK, fmt.format(evt.took))),
             MarkdownSection(s"""|${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
-          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js.spaces2)}```"""))
+          ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         )
       )
     )
