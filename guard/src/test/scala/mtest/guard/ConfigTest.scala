@@ -6,7 +6,9 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.{monthlyCron, weeklyCron, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.{NameConstraint, ServiceGuard}
+import com.github.chenharryhua.nanjin.guard.translators.EventName
 import eu.timepit.refined.auto.*
+import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -127,8 +129,21 @@ class ConfigTest extends AnyFunSuite {
     assert(as.actionParams.isCounting)
     assert(as.actionParams.isTiming)
   }
-  test("should not contain {}") {
+
+  test("should not contain {},[],()") {
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("{a b c}"))
+    assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("(a b c)"))
+    assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("[a b c]"))
     NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ").value
+  }
+
+  test("case") {
+    val en = EventName.ServiceStart
+    assert(en.entryName == "Service Start")
+    assert(en.snake == "service_start")
+    assert(en.compact == "ServiceStart")
+    assert(en.camel == "serviceStart")
+    assert(en.camelJson == Json.fromString("serviceStart"))
+    assert(en.snakeJson == Json.fromString("service_start"))
   }
 }

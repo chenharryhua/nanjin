@@ -1,11 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
-import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.guard.config.MetricName
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
-import io.circe.syntax.*
 
 private object SimpleJsonTranslator {
   import NJEvent.*
@@ -18,10 +16,7 @@ private object SimpleJsonTranslator {
   def digest(mn: MetricName): (String, Json) = "digest" -> Json.fromString(mn.digest)
 
   private def serviceStarted(evt: ServiceStart): Json =
-    Json.obj(
-      "event" -> EventName.ServiceStart.camelJson,
-      "params" -> evt.serviceParams.asJson,
-      timestamp(evt))
+    Json.obj("event" -> EventName.ServiceStart.camelJson, serviceParams(evt.serviceParams), timestamp(evt))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
@@ -37,8 +32,8 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ServiceStop.camelJson,
       serviceName(evt),
-      ("exitCode", Json.fromInt(evt.cause.exitCode)),
-      ("cause", Json.fromString(evt.cause.show)),
+      exitCade(evt.cause),
+      exitCause(evt.cause),
       policy(evt),
       serviceId(evt),
       timestamp(evt)
@@ -67,9 +62,8 @@ private object SimpleJsonTranslator {
   private def serviceAlert(evt: ServiceAlert): Json =
     Json.obj(
       "event" -> EventName.ServiceAlert.camelJson,
-      "level" -> Json.fromString(evt.alertLevel.entryName),
+      alertMessage(evt),
       name(evt.metricName),
-      "message" -> evt.message,
       digest(evt.metricName),
       serviceId(evt),
       timestamp(evt)
@@ -85,7 +79,7 @@ private object SimpleJsonTranslator {
       traceId(evt),
       digest(evt.metricId.metricName),
       actionId(evt),
-      "notes" -> evt.notes.asJson,
+      notes(evt.notes),
       serviceId(evt),
       timestamp(evt)
     )
@@ -98,7 +92,7 @@ private object SimpleJsonTranslator {
       publishStrategy(evt),
       measurement(evt.actionParams.metricId.metricName),
       traceId(evt),
-      ("cause", Json.fromString(evt.error.message)),
+      errCause(evt.error),
       digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
@@ -114,7 +108,7 @@ private object SimpleJsonTranslator {
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "notes" -> evt.notes.asJson,
+      notes(evt.notes),
       stackTrace(evt.error),
       digest(evt.metricId.metricName),
       actionId(evt),
@@ -131,7 +125,7 @@ private object SimpleJsonTranslator {
       measurement(evt.actionParams.metricId.metricName),
       took(evt),
       traceId(evt),
-      "notes" -> evt.notes.asJson, // align with slack
+      notes(evt.notes),
       digest(evt.metricId.metricName),
       actionId(evt),
       serviceId(evt),
