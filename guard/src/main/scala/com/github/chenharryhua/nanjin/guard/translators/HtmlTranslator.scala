@@ -91,14 +91,14 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
+      pre(small(new SnapshotJson(evt.snapshot).toYaml(evt.serviceParams.metricParams)))
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
+      pre(small(new SnapshotJson(evt.snapshot).toYaml(evt.serviceParams.metricParams)))
     )
 
   private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =
@@ -113,13 +113,16 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
+        td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
-        td(evt.actionParams.publishStrategy.entryName))
+        td(evt.actionParams.publishStrategy.entryName)
+      )
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
@@ -134,22 +137,21 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
-        td(b(CONSTANT_STRATEGY)),
-        td(b("Index")),
-        td(b("Resume"))),
+        td(b(CONSTANT_STRATEGY))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
-        td(evt.actionParams.importance.toString),
-        td(evt.actionParams.publishStrategy.entryName),
-        td(evt.retriesSoFar + 1),
-        td(evt.timestamp.plusNanos(evt.delay.toNanos).toLocalTime.show)
+        td(evt.actionParams.metricId.metricName.measurement),
+        td(evt.actionParams.importance.entryName),
+        td(evt.actionParams.publishStrategy.entryName)
       )
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), retry),
+      p(b(retryText(evt).replace("*", ""))),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
     )
@@ -160,15 +162,19 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY)),
-        td(b(CONSTANT_TOOK))),
+        td(b(CONSTANT_TOOK))
+      ),
       tr(
         td(evt.actionId),
         td(evt.traceId),
+        td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName),
-        td(fmt.format(evt.took)))
+        td(fmt.format(evt.took))
+      )
     )
 
   private def actionFailed(evt: ActionFail): Text.TypedTag[String] =

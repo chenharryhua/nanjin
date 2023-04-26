@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.config.{MetricName, MetricParams}
+import com.github.chenharryhua.nanjin.guard.config.MetricParams
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
@@ -11,9 +11,6 @@ private object PrettyJsonTranslator {
 
   private def prettyMetrics(ss: MetricSnapshot, mp: MetricParams): (String, Json) =
     "metrics" -> new SnapshotJson(ss).toPrettyJson(mp)
-
-  private def actionName(metricName: MetricName): (String, Json) =
-    "name" -> Json.fromString(metricName.display)
 
   // events handlers
   private def serviceStarted(evt: ServiceStart): Json =
@@ -62,7 +59,9 @@ private object PrettyJsonTranslator {
     Json.obj(
       EventName.ServiceAlert.camel ->
         Json.obj(
-          actionName(evt.metricName),
+          metricName(evt.metricName),
+          metricDigest(evt.metricName),
+          metricMeasurement(evt.metricName),
           serviceName(evt),
           serviceId(evt),
           alertMessage(evt)
@@ -72,13 +71,14 @@ private object PrettyJsonTranslator {
     Json.obj(
       EventName.ActionStart.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
           traceId(evt),
           notes(evt.notes)
         ))
@@ -87,13 +87,14 @@ private object PrettyJsonTranslator {
     Json.obj(
       EventName.ActionRetry.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
           traceId(evt),
           policy(evt.actionParams),
           errCause(evt.error)
@@ -103,13 +104,14 @@ private object PrettyJsonTranslator {
     Json.obj(
       EventName.ActionFail.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
           traceId(evt),
           took(evt),
           policy(evt.actionParams),
@@ -121,13 +123,14 @@ private object PrettyJsonTranslator {
     Json.obj(
       EventName.ActionComplete.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
           traceId(evt),
           took(evt),
           notes(evt.notes)
