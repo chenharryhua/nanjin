@@ -65,12 +65,14 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
           .groupBy(_._1.metricName) // metric-name group
           .map { case (name, js) =>
             val inner =
-              js.map { case (mId, j) => Json.obj(mId.category.name -> j) }.reduce((a, b) => b.deepMerge(a))
+              js.map { case (mId, j) =>
+                Json.obj("digest" -> Json.fromString(mId.metricName.digest), mId.category.name -> j)
+              }.reduce((a, b) => b.deepMerge(a))
             name -> inner
           }
           .toList
           .sortBy(_._1)
-          .map { case (n, j) => Json.obj(n.display -> j) }
+          .map { case (n, j) => Json.obj(n.value -> j) }
         measurement -> Json.arr(arr*)
       }
       .toList
@@ -134,8 +136,8 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
   /** Homemade Yaml
     */
 
-  @inline private val leftParentheses  = "(" * 7
-  @inline private val rightParentheses = ")" * 7
+  @inline private val leftParen  = "(" * 7
+  @inline private val rightParen = ")" * 7
 
   private def grouping3(f: Snapshot => (MetricID, Json)): Json =
     (snapshot.gauges.map(f) :::
@@ -155,8 +157,7 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
           .toList
           .sortBy(_._1)
           .map { case (n, j) =>
-            val key =
-              s"$leftParentheses${n.digest}$rightParentheses$leftParentheses${n.value}$rightParentheses"
+            val key = s"$leftParen${n.digest}$rightParen$leftParen${n.value}$rightParen"
             Json.obj(key -> j)
           }
         s"- $measurement" -> Json.arr(arr*)
@@ -228,8 +229,44 @@ final class SnapshotJson(snapshot: MetricSnapshot) {
     printer
       .print(prettyNumber(json))
       .replaceAll("""[{}\[\]"]""", "")
-      .replace(leftParentheses, "[")
-      .replace(rightParentheses, "]")
+      .replace(leftParen, "[")
+      .replace(rightParen, "]")
+      .linesIterator
+      .drop(1) // drop empty line
+      .map(line => if (line.endsWith(",")) line.dropRight(1) else line)
+      .mkString("\n")
+  }
+
+  def shrank: String = {
+    val json = snapshot.counters
+      .map(c => c.metricId -> Json.fromString(decFmt.format(c.count)))
+      .groupBy(_._1.metricName.measurement) // measurement group
+      .map { case (measurement, lst) =>
+        val arr = lst
+          .groupBy(_._1.metricName) // metric-name group
+          .map { case (name, js) =>
+            val inner =
+              js.map { case (mId, j) => Json.obj(mId.category.name -> j) }.reduce((a, b) => b.deepMerge(a))
+            name -> inner
+          }
+          .toList
+          .sortBy(_._1)
+          .map { case (n, j) =>
+            val key = s"$leftParen${n.digest}$rightParen$leftParen${n.value}$rightParen"
+            Json.obj(key -> j)
+          }
+        s"- $measurement" -> Json.arr(arr*)
+      }
+      .toList
+      .sortBy(_._1)
+      .map { case (m, j) => Json.obj(m -> j) }
+      .asJson
+
+    printer
+      .print(json)
+      .replaceAll("""[{}\[\]"]""", "")
+      .replace(leftParen, "[")
+      .replace(rightParen, "]")
       .linesIterator
       .drop(1) // drop empty line
       .map(line => if (line.endsWith(",")) line.dropRight(1) else line)
