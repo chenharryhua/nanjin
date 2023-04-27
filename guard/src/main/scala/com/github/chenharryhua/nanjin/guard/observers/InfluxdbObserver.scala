@@ -5,7 +5,7 @@ import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
-import com.github.chenharryhua.nanjin.guard.translators.textConstant.{
+import com.github.chenharryhua.nanjin.guard.translators.textConstants.{
   CONSTANT_HOST,
   CONSTANT_SERVICE,
   CONSTANT_SERVICE_ID,
