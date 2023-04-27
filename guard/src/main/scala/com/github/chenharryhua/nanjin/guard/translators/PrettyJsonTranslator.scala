@@ -31,7 +31,7 @@ private object PrettyJsonTranslator {
           serviceId(evt),
           uptime(evt),
           policy(evt),
-          exitCade(evt.cause),
+          exitCode(evt.cause),
           exitCause(evt.cause)
         ))
 

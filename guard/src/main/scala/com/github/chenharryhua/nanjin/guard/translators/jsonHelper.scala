@@ -13,7 +13,7 @@ private object jsonHelper {
   def uptime(evt: NJEvent): (String, Json)             = "upTime" -> Json.fromString(fmt.format(evt.upTime))
   def serviceId(evt: NJEvent): (String, Json)          = "serviceId" -> evt.serviceParams.serviceId.asJson
   def serviceParams(sp: ServiceParams): (String, Json) = "params" -> sp.asJson
-  def exitCade(sc: ServiceStopCause): (String, Json)   = "exitCode" -> Json.fromInt(sc.exitCode)
+  def exitCode(sc: ServiceStopCause): (String, Json)   = "exitCode" -> Json.fromInt(sc.exitCode)
   def exitCause(sc: ServiceStopCause): (String, Json)  = "exitCause" -> Json.fromString(sc.show)
 
   def policy(evt: NJEvent): (String, Json)     = "policy" -> Json.fromString(evt.serviceParams.restartPolicy)
