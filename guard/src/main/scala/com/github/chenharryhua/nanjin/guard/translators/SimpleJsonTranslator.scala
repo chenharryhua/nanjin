@@ -1,15 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.Applicative
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
 
 private object SimpleJsonTranslator {
   import NJEvent.*
-  import jsonInterpreter.*
+  import jsonHelper.*
 
-  private def metrics(ss: MetricSnapshot): (String, Json) =
-    "metrics" -> new SnapshotJson(ss).toVanillaJson
+  private def metrics(ss: MetricSnapshot, sp: ServiceParams): (String, Json) =
+    "metrics" -> new SnapshotPolyglot(ss, sp.metricParams).toVanillaJson
 
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj("event" -> EventName.ServiceStart.camelJson, serviceParams(evt.serviceParams), timestamp(evt))
@@ -40,7 +41,7 @@ private object SimpleJsonTranslator {
       "event" -> EventName.MetricReport.camelJson,
       metricIndex(evt.index),
       serviceName(evt),
-      metrics(evt.snapshot),
+      metrics(evt.snapshot, evt.serviceParams),
       serviceId(evt),
       timestamp(evt)
     )
@@ -50,7 +51,7 @@ private object SimpleJsonTranslator {
       "event" -> EventName.MetricReset.camelJson,
       metricIndex(evt.index),
       serviceName(evt),
-      metrics(evt.snapshot),
+      metrics(evt.snapshot, evt.serviceParams),
       serviceId(evt),
       timestamp(evt)
     )

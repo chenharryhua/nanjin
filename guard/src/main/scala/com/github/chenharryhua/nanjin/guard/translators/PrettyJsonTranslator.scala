@@ -7,10 +7,10 @@ import io.circe.Json
 
 private object PrettyJsonTranslator {
 
-  import jsonInterpreter.*
+  import jsonHelper.*
 
   private def prettyMetrics(ss: MetricSnapshot, mp: MetricParams): (String, Json) =
-    "metrics" -> new SnapshotJson(ss).toPrettyJson(mp)
+    "metrics" -> new SnapshotPolyglot(ss, mp).toPrettyJson
 
   // events handlers
   private def serviceStarted(evt: ServiceStart): Json =

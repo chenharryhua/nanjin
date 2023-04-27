@@ -49,11 +49,12 @@ class ObserversTest extends AnyFunSuite {
         val err = ag
           .action("nj_error", _.critical.notice.withTiming.withCounting)
           .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
-          .retry(random_error)
+          .retry(IO.raiseError[Int](new Exception("oops")))
           .logInput(Json.fromString("error input data"))
           .logOutput(_ => Json.fromString("error output data"))
           .logErrorM(ex => IO(Json.fromString(ex.getMessage)))
           .run
+          .attempt
         val counter   = ag.counter("nj counter").asRisk
         val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).withCounting
         val alert     = ag.alert("nj alert")
@@ -71,10 +72,17 @@ class ObserversTest extends AnyFunSuite {
                 err >>
                 ag.metrics.report))
       }
-      .take(10)
+      .take(16)
 
   test("1.logging verbose") {
     service.evalTap(logging.verbose[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("1.2.logging json") {
+    service.evalTap(logging.json[IO].withLoggerName("json")).compile.drain.unsafeRunSync()
+  }
+  test("1.3 logging simple") {
+    service.evalTap(logging.simple[IO]).compile.drain.unsafeRunSync()
   }
 
   test("2.console - simple text") {
@@ -159,15 +167,7 @@ class ObserversTest extends AnyFunSuite {
               timestamp timestamptz default current_timestamp)""".command
 
     val run = session.use(_.execute(cmd)) >>
-      TaskGuard[IO]("observers")
-        .service("postgres")
-        .updateConfig(_.withMetricReport(cron_1second))
-        .eventStream(
-          _.action("sql", _.notice.withTiming.withCounting).retry(IO(0)).run >> IO.sleep(3.seconds))
-        .evalTap(console.verbose[IO])
-        .through(PostgresObserver(session).observe("log"))
-        .compile
-        .drain
+      service.evalTap(console.verbose[IO]).through(PostgresObserver(session).observe("log")).compile.drain
 
     run.unsafeRunSync()
   }

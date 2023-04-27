@@ -16,7 +16,8 @@ import java.time.temporal.ChronoUnit
   */
 private object HtmlTranslator extends all {
   import NJEvent.*
-  import textConstant.*
+  import textHelper.*
+  import textConstants.*
 
   private def coloring(evt: NJEvent): String = ColorScheme
     .decorate(evt)
@@ -48,7 +49,7 @@ private object HtmlTranslator extends all {
         serviceName,
         td(evt.serviceParams.taskParams.taskName),
         td(evt.serviceParams.taskParams.hostName.value),
-        td(fmt.format(evt.upTime))
+        td(upTimeText(evt))
       )
     )
   }
@@ -67,17 +68,14 @@ private object HtmlTranslator extends all {
       jsonText(evt.serviceParams.asJson)
     )
 
-  private def servicePanic(evt: ServicePanic): Text.TypedTag[String] = {
-    val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
-    val msg         = s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
+  private def servicePanic(evt: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      p(b(msg)),
+      p(b(panicText(evt).replace("*", ""))),
       p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
       causeText(evt.error)
     )
-  }
 
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
@@ -91,14 +89,14 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(small(new SnapshotJson(evt.snapshot).toYaml(evt.serviceParams.metricParams)))
+      pre(small(yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(small(new SnapshotJson(evt.snapshot).toYaml(evt.serviceParams.metricParams)))
+      pre(small(yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =
@@ -173,7 +171,7 @@ private object HtmlTranslator extends all {
         td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName),
-        td(fmt.format(evt.took))
+        td(tookText(evt.took))
       )
     )
 
