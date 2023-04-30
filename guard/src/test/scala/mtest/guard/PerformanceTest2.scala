@@ -36,6 +36,7 @@ class PerformanceTest2 extends AnyFunSuite {
         s1 >> s2 >> s3 >> a1 >> a2 >> a3 >> n1 >> n2 >> n3
       }
       .filter(NJEvent.isPivotalEvent)
+      .filter(NJEvent.isServiceEvent)
       .evalTap(console.simple[IO])
       .compile
       .drain
