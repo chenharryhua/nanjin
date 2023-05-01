@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.guard.config.ActionConfig
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -15,9 +14,9 @@ class PerformanceTest2 extends AnyFunSuite {
   test("all") {
     val expire = 3.seconds
 
-    def config(agent: Agent[IO], name: String, f: ActionConfig => ActionConfig) =
+    def config(agent: Agent[IO], name: String, f: ActionConfig => ActionConfig): IO[Unit] =
       agent.gauge(name).timed.surround {
-        agent.action(name, f).retry(IO(())).run.foreverM.timeout(expire).attempt >> agent.metrics.report
+        agent.action(name, f).retry(IO(())).run.foreverM.timeout(expire).attempt.void
       }
 
     TaskGuard[IO]("nanjin")
@@ -33,7 +32,7 @@ class PerformanceTest2 extends AnyFunSuite {
         val n2 = config(agent, "notice.time", _.notice.withTiming)
         val n3 = config(agent, "notice.count", _.notice.withCounting)
 
-        s1 >> s2 >> s3 >> a1 >> a2 >> a3 >> n1 >> n2 >> n3
+        s1 >> s2 >> s3 >> a1 >> a2 >> a3 >> n1 >> n2 >> n3 >> agent.metrics.reset
       }
       .filter(NJEvent.isPivotalEvent)
       .filter(NJEvent.isServiceEvent)
