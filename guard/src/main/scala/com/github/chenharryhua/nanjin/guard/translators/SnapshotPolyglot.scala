@@ -3,21 +3,11 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.data.NonEmptyList
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
-import io.circe.optics.JsonOptics.*
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, Printer}
-import monocle.function.Plated
-
-import java.text.DecimalFormat
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot, mp: MetricParams) {
-  private val decFmt: DecimalFormat = new DecimalFormat("#,###.##")
-  private val prettyNumber: Json => Json = Plated.transform[Json] { js =>
-    js.asNumber match {
-      case Some(value) => Json.fromString(decFmt.format(value.toDouble))
-      case None        => js
-    }
-  }
+
   private val rateUnit: String           = mp.rateUnitName
   private def convert(d: Double): String = decFmt.format(mp.rateConversion(d))
 
@@ -27,22 +17,23 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot, mp: MetricParams) {
     snapshot.gauges.map(g => g.metricId -> g.value)
 
   private def meters: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.meters.map { m =>
-    val unit = m.meter.unitShow
+    val unit = m.meter.unitShow + "/" + rateUnit
     m.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(m.meter.count),
-      "mean_rate" -> Json.fromString(s"${convert(m.meter.mean_rate.toHertz)} $unit/$rateUnit"),
-      "m1_rate  " -> Json.fromString(s"${convert(m.meter.m1_rate.toHertz)} $unit/$rateUnit"),
-      "m5_rate  " -> Json.fromString(s"${convert(m.meter.m5_rate.toHertz)} $unit/$rateUnit"),
-      "m15_rate " -> Json.fromString(s"${convert(m.meter.m15_rate.toHertz)} $unit/$rateUnit")
+      "mean_rate" -> Json.fromString(s"${convert(m.meter.mean_rate.toHertz)} $unit"),
+      "m1_rate  " -> Json.fromString(s"${convert(m.meter.m1_rate.toHertz)} $unit"),
+      "m5_rate  " -> Json.fromString(s"${convert(m.meter.m5_rate.toHertz)} $unit"),
+      "m15_rate " -> Json.fromString(s"${convert(m.meter.m15_rate.toHertz)} $unit")
     )
   }
   private def timers: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.timers.map { t =>
+    val unit = "calls/" + rateUnit
     t.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(t.timer.count),
-      "mean_rate" -> Json.fromString(s"${convert(t.timer.mean_rate.toHertz)} calls/$rateUnit"),
-      "m1_rate  " -> Json.fromString(s"${convert(t.timer.m1_rate.toHertz)} calls/$rateUnit"),
-      "m5_rate  " -> Json.fromString(s"${convert(t.timer.m5_rate.toHertz)} calls/$rateUnit"),
-      "m15_rate " -> Json.fromString(s"${convert(t.timer.m15_rate.toHertz)} calls/$rateUnit"),
+      "mean_rate" -> Json.fromString(s"${convert(t.timer.mean_rate.toHertz)} $unit"),
+      "m1_rate  " -> Json.fromString(s"${convert(t.timer.m1_rate.toHertz)} $unit"),
+      "m5_rate  " -> Json.fromString(s"${convert(t.timer.m5_rate.toHertz)} $unit"),
+      "m15_rate " -> Json.fromString(s"${convert(t.timer.m15_rate.toHertz)} $unit"),
       "min   " -> Json.fromString(fmt.format(t.timer.min)),
       "max   " -> Json.fromString(fmt.format(t.timer.max)),
       "mean  " -> Json.fromString(fmt.format(t.timer.mean)),

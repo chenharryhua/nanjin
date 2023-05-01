@@ -29,7 +29,7 @@ private object SimpleJsonTranslator {
     Json.obj(
       "event" -> EventName.ServiceStop.camelJson,
       serviceName(evt),
-      exitCade(evt.cause),
+      exitCode(evt.cause),
       exitCause(evt.cause),
       policy(evt),
       serviceId(evt),

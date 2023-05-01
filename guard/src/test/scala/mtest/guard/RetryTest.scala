@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
@@ -339,6 +338,23 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
+  test("17. logError null") {
+    val List(a, b, c) = TaskGuard[IO]("logError")
+      .service("no exception")
+      .eventStream(
+        _.action("exception", _.aware)
+          .retry(IO.raiseError(new Exception))
+          .logError(_ => null.asInstanceOf[String].asJson)
+          .run)
+      .debug()
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ActionFail].notes.nonEmpty)
+    assert(c.isInstanceOf[ServiceStop])
+  }
+
   test("18.retry - aware") {
     val Vector(s, a, b, c, d) = serviceGuard.eventStream { gd =>
       val ag =
@@ -363,4 +379,5 @@ class RetryTest extends AnyFunSuite {
     }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
     assert(k == 2)
   }
+
 }
