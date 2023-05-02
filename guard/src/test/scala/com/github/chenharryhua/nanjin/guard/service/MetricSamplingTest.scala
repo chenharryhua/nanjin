@@ -6,6 +6,9 @@ import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.guard.config.{
   MetricParams,
   Policy,
+  ServiceBrief,
+  ServiceID,
+  ServiceLaunchTime,
   ServiceName,
   ServiceParams,
   TaskParams
@@ -28,10 +31,10 @@ class MetricSamplingTest extends AnyFunSuite {
   val serviceParams: ServiceParams = ServiceParams(
     ServiceName("sampling"),
     TaskParams("name", beijingTime, local_host),
-    UUID.randomUUID(),
-    ZonedDateTime.of(zzffEpoch, beijingTime).toInstant,
+    ServiceID(UUID.randomUUID()),
+    ServiceLaunchTime(ZonedDateTime.of(zzffEpoch, beijingTime).toInstant),
     Policy(RetryPolicies.alwaysGiveUp[IO]),
-    None
+    ServiceBrief(None)
   )
 
   def metricReport(cron: CronExpr, now: ZonedDateTime): MetricReport = MetricReport(

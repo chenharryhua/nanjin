@@ -68,15 +68,15 @@ object ServiceParams extends zoneddatetime with duration {
   def apply(
     serviceName: ServiceName,
     taskParams: TaskParams,
-    serviceId: UUID,
-    launchTime: Instant,
+    serviceId: ServiceID,
+    launchTime: ServiceLaunchTime,
     policy: Policy, // for display
-    brief: Option[Json]
+    brief: ServiceBrief
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
-      serviceId = serviceId,
-      launchTime = launchTime.atZone(taskParams.zoneId),
+      serviceId = serviceId.value,
+      launchTime = launchTime.value.atZone(taskParams.zoneId),
       taskParams = taskParams,
       restartPolicy = policy.value,
       policyThreshold = None,
@@ -88,7 +88,7 @@ object ServiceParams extends zoneddatetime with duration {
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
       homePage = None,
-      brief = brief
+      brief = brief.value
     )
 }
 
@@ -111,10 +111,10 @@ private object ServiceConfigF {
 
   def algebra(
     serviceName: ServiceName,
-    serviceId: UUID,
-    launchTime: Instant,
+    serviceId: ServiceID,
+    launchTime: ServiceLaunchTime,
     retryPolicy: Policy,
-    brief: Option[Json]): Algebra[ServiceConfigF, ServiceParams] =
+    brief: ServiceBrief): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskParams) =>
         ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
@@ -172,10 +172,10 @@ final case class ServiceConfig private (private val cont: Fix[ServiceConfigF]) {
 
   def evalConfig(
     serviceName: ServiceName,
-    serviceId: UUID,
-    launchTime: Instant,
+    serviceId: ServiceID,
+    launchTime: ServiceLaunchTime,
     policy: Policy,
-    brief: Option[Json]): ServiceParams =
+    brief: ServiceBrief): ServiceParams =
     scheme.cata(algebra(serviceName, serviceId, launchTime, policy, brief)).apply(cont)
 }
 

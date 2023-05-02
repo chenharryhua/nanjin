@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.Clock
+import cats.Functor
+import cats.effect.kernel.{Clock, Sync}
+import cats.effect.std.Random
 import cats.syntax.all.*
-import cats.{Applicative, Functor}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import cron4s.expr.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -11,20 +12,20 @@ import retry.PolicyDecision.{DelayAndRetry, GiveUp}
 import retry.RetryPolicy
 
 import java.time.{Duration, ZoneId, ZonedDateTime}
-import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object policies extends zoneid {
 
-  def jitterBackoff[F[_]: Applicative](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] = {
+  def jitterBackoff[F[_]: Sync](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] = {
     require(min < max, s"$min should be strictly smaller than $max")
-    RetryPolicy.liftWithShow(
+    RetryPolicy.withShow(
       _ =>
-        DelayAndRetry(
-          FiniteDuration(
-            ThreadLocalRandom.current().nextLong(min.toNanos, max.toNanos),
-            TimeUnit.NANOSECONDS)),
+        Random
+          .scalaUtilRandom[F]
+          .flatMap(_.betweenLong(min.toNanos, max.toNanos).map(d =>
+            DelayAndRetry(FiniteDuration(d, TimeUnit.NANOSECONDS)))),
       pretty =
         show"jitterBackoff(minDelay=${defaultFormatter.format(min)}, maxDelay=${defaultFormatter.format(max)})"
     )

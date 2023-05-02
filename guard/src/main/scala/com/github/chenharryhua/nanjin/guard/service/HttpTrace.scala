@@ -73,7 +73,7 @@ private object HttpTrace {
       OptionT(response)
     }
 
-  def client[F[_]](span: Span[F])(client: Client[F])(implicit ev: MonadCancel[F, Throwable]): Client[F] =
+  def client[F[_]](span: Span[F], client: Client[F])(implicit ev: MonadCancel[F, Throwable]): Client[F] =
     Client { req =>
       val cc: F[(Response[F], F[Unit])] = for {
         knl <- span.kernel

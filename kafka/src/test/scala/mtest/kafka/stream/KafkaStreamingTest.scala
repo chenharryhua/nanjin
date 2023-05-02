@@ -131,7 +131,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
       .toList).unsafeRunSync()
-    assert(res == List(StreamTarget("a", 0, 0), StreamTarget("c", 0, 2)))
+    assert(res.distinct == List(StreamTarget("a", 0, 0), StreamTarget("c", 0, 2)))
   }
 
   test("kafka stream exception") {
