@@ -1,14 +1,15 @@
 package com.github.chenharryhua.nanjin.http.client
 
-import cats.effect.kernel.{MonadCancelThrow, Resource, Sync, Temporal}
+import cats.effect.kernel.*
 import cats.effect.{Async, Concurrent}
-import cats.syntax.eq.*
+import cats.syntax.all.*
 import fs2.compression.Compression
-import org.http4s.RequestCookie
+import natchez.Span
 import org.http4s.client.Client
 import org.http4s.client.middleware.*
 import org.http4s.client.middleware.RetryPolicy.{exponentialBackoff, isErrorOrRetriableStatus}
 import org.http4s.headers.`Set-Cookie`
+import org.http4s.{Header, Headers, RequestCookie, Response}
 import squants.information.{Information, Kilobytes}
 
 import java.net.{CookieManager, CookieStore, HttpCookie, URI}
@@ -21,7 +22,7 @@ package object middleware {
     Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(
       client)
 
-  def logUnsecurely[F[_]: Async](client: Client[F]): Client[F] =
+  def logInsecurely[F[_]: Async](client: Client[F]): Client[F] =
     Logger(logHeaders = true, logBody = true, _ => false)(client)
   def logBoth[F[_]: Async](client: Client[F]): Client[F] = Logger(logHeaders = true, logBody = true)(client)
   def logHead[F[_]: Async](client: Client[F]): Client[F] = Logger(logHeaders = true, logBody = false)(client)
@@ -58,4 +59,23 @@ package object middleware {
       }
     }
   }
+
+  // steal from https://github.com/typelevel/natchez-http4s/blob/main/modules/http4s/src/main/scala/natchez/http4s/NatchezMiddleware.scala
+  def traceClient[F[_]](parent: Span[F])(client: Client[F])(implicit ev: MonadCancel[F, Throwable]): Client[F] =
+    Client { req =>
+      parent.span("http4s-client-request").flatMap { span =>
+        val cc: F[(Response[F], F[Unit])] = for {
+          knl <- span.kernel
+          _ <- span.put(
+            "client_http_uri" -> req.uri.toString(),
+            "client_http_method" -> req.method.toString
+          )
+          hs   = Headers(knl.toHeaders.map { case (k, v) => Header.Raw(k, v) }.toList)
+          nReq = req.withHeaders(hs ++ req.headers)
+          rsrc <- client.run(nReq).allocated
+          _ <- span.put("client_http_status_code" -> rsrc._1.status.code.toString())
+        } yield rsrc
+        Resource(cc)
+      }
+    }
 }
