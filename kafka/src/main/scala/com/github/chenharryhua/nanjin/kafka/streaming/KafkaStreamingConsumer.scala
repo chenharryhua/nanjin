@@ -16,7 +16,7 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
   processorName: Option[String],
   timestampExtractor: Option[TimestampExtractor]) {
 
-  val topicName: TopicName = topic.topicName
+  def topicName: TopicName = topic.topicName
 
   private def copy(
     resetPolicy: Option[Topology.AutoOffsetReset] = resetPolicy,
@@ -33,7 +33,7 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
   def withTimestampExtractor(timestampExtractor: TimestampExtractor): KafkaStreamingConsumer[F, K, V] =
     copy(timestampExtractor = Some(timestampExtractor))
 
-  val stateSerdes: StateSerdes[K, V] =
+  def stateSerdes: StateSerdes[K, V] =
     new StateSerdes[K, V](topic.topicName.value, topic.codec.keySerde, topic.codec.valSerde)
 
   private lazy val consumed: Consumed[K, V] =

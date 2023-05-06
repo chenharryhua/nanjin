@@ -15,7 +15,6 @@ import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
 import natchez.{EntryPoint, Kernel, Span}
 import org.http4s.HttpRoutes
-import org.http4s.client.Client
 import org.typelevel.vault.{Key, Locker, Vault}
 import retry.{RetryPolicies, RetryPolicy}
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
@@ -26,7 +25,6 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   // trace
   def entryPoint: Resource[F, EntryPoint[F]]
   def traceServer(routes: Span[F] => HttpRoutes[F]): HttpRoutes[F]
-  def traceClient(span: Span[F], client: Client[F]): Client[F]
 
   // date-time
   def zoneId: ZoneId
@@ -75,9 +73,6 @@ final class GeneralAgent[F[_]: Network] private[service] (
 
   override def traceServer(routes: Span[F] => HttpRoutes[F]): HttpRoutes[F] =
     HttpTrace.server[F](routes, self.entryPoint)
-
-  override def traceClient(span: Span[F], client: Client[F]): Client[F] =
-    HttpTrace.client(span, client)
 
   // data time
   override val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
