@@ -6,27 +6,27 @@ ThisBuild / version            := "0.16.9-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val fs2V        = "3.7.0-RC4"
-val awsV_1      = "1.12.450"
-val awsV_2      = "2.20.50"
-val catsEffectV = "3.5.0-RC4"
+val fs2V        = "3.7.0-RC5"
+val awsV_1      = "1.12.460"
+val awsV_2      = "2.20.60"
+val catsEffectV = "3.5.0-RC5"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
-val confluentV  = "7.3.3"
-val kafkaV      = "7.3.3-ce"
-val fs2KafkaV   = "3.0.0"
+val confluentV  = "7.4.0"
+val kafkaV      = "7.4.0-ce"
+val fs2KafkaV   = "3.0.1"
 val avroV       = "1.11.1"
 val parquetV    = "1.13.0"
 val circeV      = "0.14.5"
 val slf4jV      = "2.0.7"
 val metricsV    = "4.2.18"
 val log4catsV   = "2.6.0"
-val skunkV      = "0.5.1"
+val skunkV      = "0.6.0-RC2"
 val natchezV    = "0.3.1"
 val http4sV     = "0.23.18"
 val cron4sV     = "0.6.1"
-val jacksonV    = "2.14.2"
-val protobufV   = "3.22.3"
+val jacksonV    = "2.14.3"
+val protobufV   = "3.22.4"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.92.Final"
@@ -153,7 +153,7 @@ val catsLib = List(
   "org.typelevel" %% "algebra"
 ).map(_ % catsCoreV) ++
   List(
-    "org.typelevel" %% "cats-mtl"              % "1.3.0",
+    "org.typelevel" %% "cats-mtl"              % "1.3.1",
     "org.typelevel" %% "kittens"               % "3.0.0",
     "org.typelevel" %% "cats-tagless-macros"   % "0.14.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.6"
@@ -207,6 +207,7 @@ lazy val http = (project in file("http"))
     "org.http4s" %% "http4s-circe"        % http4sV,
     "org.http4s" %% "http4s-client"       % http4sV,
     "org.http4s" %% "http4s-dsl"          % http4sV,
+    "org.tpolecat" %% "natchez-core"      % natchezV,
     "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
     "org.http4s" %% "http4s-ember-server" % http4sV            % Test,
     "org.http4s" %% "http4s-ember-client" % http4sV            % Test,
@@ -373,7 +374,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "com.julianpeeters" %% "avrohugger-core" % "1.3.1"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.4.0"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
 import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
@@ -62,7 +61,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts = ag.action("trace").retry(IO(i += 1))
-      ag.root("root").use(s => ts.runWithSpan(s).foreverM.timeout(take)).attempt
+      ag.root("root").use(s => ts.run(s).foreverM.timeout(take)).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
