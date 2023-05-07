@@ -5,7 +5,7 @@ import cats.data.Kleisli
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
-import com.github.chenharryhua.nanjin.guard.translators.SnapshotJson
+import com.github.chenharryhua.nanjin.guard.translators.SnapshotPolyglot
 import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
@@ -16,10 +16,12 @@ import scalatags.Text.all.*
 
 private class MetricsRouter[F[_]: Monad](mr: MetricRegistry, sp: ServiceParams) extends Http4sDsl[F] {
   private val metrics = HttpRoutes.of[F] {
-    case GET -> Root / "metrics" => Ok(new SnapshotJson(MetricSnapshot(mr)).toPrettyJson(sp.metricParams))
-    case GET -> Root / "metrics" / "vanilla" => Ok(new SnapshotJson(MetricSnapshot(mr)).toVanillaJson)
+    case GET -> Root / "metrics" =>
+      Ok(new SnapshotPolyglot(MetricSnapshot(mr), sp.metricParams).toPrettyJson)
+    case GET -> Root / "metrics" / "vanilla" =>
+      Ok(new SnapshotPolyglot(MetricSnapshot(mr), sp.metricParams).toVanillaJson)
     case GET -> Root / "metrics" / "yaml" =>
-      val text = new SnapshotJson(MetricSnapshot(mr)).toYaml(sp.metricParams)
+      val text = new SnapshotPolyglot(MetricSnapshot(mr), sp.metricParams).toYaml
       Ok(html(body(pre(text))))
     case GET -> Root / "service" => Ok(sp.asJson)
   }

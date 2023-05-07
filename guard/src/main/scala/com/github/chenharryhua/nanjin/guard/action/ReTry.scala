@@ -23,11 +23,14 @@ import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent,
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import java.time.Duration
 import scala.util.control.NonFatal
+import io.circe.parser.parse
+import org.apache.commons.lang3.exception.ExceptionUtils
+
+import scala.util.{Failure, Success, Try}
 
 final private class ReTry[F[_], IN, OUT](
   metricRegistry: MetricRegistry,
@@ -93,12 +96,29 @@ final private class ReTry[F[_], IN, OUT](
     }
 
   sealed private trait Postmortem {
+    private def jsonError(throwable: Throwable): Option[Json] =
+      Some(
+        Json.obj(
+          "description" -> Json.fromString("logError is unable to produce Json"),
+          "message" -> Json.fromString(ExceptionUtils.getMessage(throwable))))
+
+    private def handleJson(foj: F[Option[Json]]): F[Option[Json]] = foj.attempt.map {
+      case Left(ex) => jsonError(ex)
+      case Right(value) =>
+        value.flatMap(js =>
+          Try(js.noSpaces).map(parse) match {
+            case Failure(ex) => jsonError(ex)
+            case Success(value) =>
+              value match {
+                case Left(ex)     => jsonError(ex)
+                case Right(value) => Some(value)
+              }
+          })
+    }
+
     final def fail(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
       for {
-        js <- transError((in, ex)).value.attempt.map {
-          case Left(ex)     => Some(Json.fromString(ExceptionUtils.getMessage(ex)))
-          case Right(value) => value
-        }
+        js <- handleJson(transError((in, ex)).value)
         fd <- F.realTime
         _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), js))
       } yield measures.fail(ai.took(fd))

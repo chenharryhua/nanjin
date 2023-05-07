@@ -70,8 +70,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
     "digest" -> TraceValue.StringValue(actionParams.metricId.metricName.digest)
   )
 
-  def runWithSpan(input: IN)(span: Span[F]): F[OUT] =
-    span.span(actionParams.metricId.metricName.value).use { sub =>
+  def run(parent: Span[F])(input: IN): F[OUT] =
+    parent.span(actionParams.metricId.metricName.value).use { sub =>
       for {
         _ <- sub.put(traceTags*)
         ti <- TraceInfo(sub)
@@ -129,6 +129,6 @@ final class NJAction0[F[_], OUT] private[guard] (
     isWorthRetry = isWorthRetry
   )
 
-  def run: F[OUT]                        = njAction.run(())
-  def runWithSpan(span: Span[F]): F[OUT] = njAction.runWithSpan(())(span)
+  def run: F[OUT]                  = njAction.run(())
+  def run(parent: Span[F]): F[OUT] = njAction.run(parent)(())
 }

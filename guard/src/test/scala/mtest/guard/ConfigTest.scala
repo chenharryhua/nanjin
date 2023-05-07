@@ -2,12 +2,13 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.{monthlyCron, weeklyCron, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.{NameConstraint, ServiceGuard}
-import com.github.chenharryhua.nanjin.guard.translators.EventName
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.guard.translators.{Attachment, EventName, SlackApp, Translator}
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -145,5 +146,26 @@ class ConfigTest extends AnyFunSuite {
     assert(en.camel == "serviceStart")
     assert(en.camelJson == Json.fromString("serviceStart"))
     assert(en.snakeJson == Json.fromString("service_start"))
+  }
+
+  test("lense") {
+    val len =
+      Translator
+        .serviceStart[IO, SlackApp]
+        .modify(_.map(s =>
+          s.copy(attachments = Attachment("modified by lense", List.empty) :: s.attachments)))
+        .apply(Translator.slack[IO])
+
+    TaskGuard[IO]("lense")
+      .service("lense")
+      .eventStream { ag =>
+        val err =
+          ag.action("error", _.critical).retry(IO.raiseError[Int](new Exception("oops"))).run
+        err.attempt
+      }
+      .evalTap(console(len.map(_.show)))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

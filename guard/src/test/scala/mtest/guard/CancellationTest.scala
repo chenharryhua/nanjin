@@ -230,7 +230,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
@@ -240,7 +239,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
-    assert(f.isInstanceOf[ServicePanic])
+    assert(f.isInstanceOf[ServiceStop])
   }
   test("10.cancellation - never can be canceled") {
     var i = 0
