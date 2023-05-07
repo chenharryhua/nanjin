@@ -128,6 +128,11 @@ object NJEvent extends zoneddatetime {
     case _                 => true
   }
 
+  final def isServiceEvent(evt: NJEvent): Boolean = evt match {
+    case event: ActionEvent => false
+    case _                  => true
+  }
+
   final def isActionDone(evt: ActionResultEvent): Boolean = evt match {
     case _: ActionFail     => false
     case _: ActionComplete => true

@@ -2,7 +2,11 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import io.circe.Json
 import retry.RetryPolicy
+
+import java.time.Instant
+import java.util.UUID
 
 sealed abstract class PublishStrategy(override val entryName: String) extends EnumEntry with Product
 
@@ -41,9 +45,13 @@ object AlertLevel
 }
 
 final private[guard] case class ServiceName(value: String) extends AnyVal
-final private[guard] case class ActionName(value: String) extends AnyVal
-final private[guard] case class Measurement(value: String) extends AnyVal
+final private[guard] case class ServiceID(value: UUID) extends AnyVal
+final private[guard] case class ServiceLaunchTime(value: Instant) extends AnyVal
+final private[guard] case class ServiceBrief(value: Option[Json]) extends AnyVal
 final private[guard] case class Policy private (value: String) extends AnyVal
 private[guard] object Policy {
   def apply[F[_]](rp: RetryPolicy[F]): Policy = Policy(rp.show)
 }
+
+final private[guard] case class ActionName(value: String) extends AnyVal
+final private[guard] case class Measurement(value: String) extends AnyVal

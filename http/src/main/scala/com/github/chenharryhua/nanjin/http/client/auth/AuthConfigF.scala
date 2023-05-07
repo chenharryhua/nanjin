@@ -34,13 +34,13 @@ private object AuthConfigF {
   final case class InitParams[K]() extends AuthConfigF[K]
   final case class WithAuthMaxRetries[K](value: Int, cont: K) extends AuthConfigF[K]
   final case class WithAuthMaxWait[K](value: FiniteDuration, cont: K) extends AuthConfigF[K]
-  final case class WithAuthUnsecureLog[K](value: Boolean, cont: K) extends AuthConfigF[K]
+  final case class WithAuthInsecureLog[K](value: Boolean, cont: K) extends AuthConfigF[K]
 
   val algebra: Algebra[AuthConfigF, AuthParams] = Algebra[AuthConfigF, AuthParams] {
     case InitParams()                     => AuthParams()
     case WithAuthMaxRetries(value, cont)  => AuthParams.maxRetries.set(value)(cont)
     case WithAuthMaxWait(value, cont)     => AuthParams.maxWait.set(value)(cont)
-    case WithAuthUnsecureLog(value, cont) => AuthParams.unsecureLog.set(value)(cont)
+    case WithAuthInsecureLog(value, cont) => AuthParams.unsecureLog.set(value)(cont)
   }
 }
 
@@ -49,7 +49,7 @@ final private[auth] case class AuthConfig private (value: Fix[AuthConfigF]) {
   def withAuthMaxRetries(times: Int): AuthConfig = AuthConfig(Fix(WithAuthMaxRetries(value = times, value)))
   def withAuthMaxWait(dur: FiniteDuration): AuthConfig = AuthConfig(Fix(WithAuthMaxWait(value = dur, value)))
 
-  def withAuthUnsecureLogging: AuthConfig = AuthConfig(Fix(WithAuthUnsecureLog(value = true, value)))
+  def withAuthInsecureLogging: AuthConfig = AuthConfig(Fix(WithAuthInsecureLog(value = true, value)))
 
   def evalConfig: AuthParams = scheme.cata(algebra).apply(value)
 }
