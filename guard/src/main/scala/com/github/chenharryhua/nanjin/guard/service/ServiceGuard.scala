@@ -9,11 +9,20 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.guard.ServiceName
-import com.github.chenharryhua.nanjin.guard.config.{Measurement, ServiceConfig, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{
+  Measurement,
+  Policy,
+  ServiceBrief,
+  ServiceConfig,
+  ServiceID,
+  ServiceLaunchTime,
+  ServiceName,
+  ServiceParams,
+  TaskParams
+}
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.policies
 import com.github.chenharryhua.nanjin.guard.translators.Translator
-import com.github.chenharryhua.nanjin.guard.{awakeEvery, policies}
 import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
@@ -38,33 +47,43 @@ import retry.RetryPolicy
 
 final class ServiceGuard[F[_]: Network] private[guard] (
   serviceName: ServiceName,
-  serviceConfig: ServiceConfig,
+  taskParams: TaskParams,
+  config: Endo[ServiceConfig],
   entryPoint: Resource[F, EntryPoint[F]],
   restartPolicy: RetryPolicy[F],
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   httpBuilder: Option[Endo[EmberServerBuilder[F]]],
-  brief: F[Json])(implicit F: Async[F])
+  brief: F[Option[Json]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] { self =>
 
   private def copy(
     serviceName: ServiceName = self.serviceName,
-    serviceConfig: ServiceConfig = self.serviceConfig,
+    config: Endo[ServiceConfig] = self.config,
     restartPolicy: RetryPolicy[F] = self.restartPolicy,
     jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
     httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
-    brief: F[Json] = self.brief
+    brief: F[Option[Json]] = self.brief
   ): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, serviceConfig, entryPoint, restartPolicy, jmxBuilder, httpBuilder, brief)
+    new ServiceGuard[F](
+      serviceName = serviceName,
+      taskParams = self.taskParams,
+      config = config,
+      entryPoint = self.entryPoint,
+      restartPolicy = restartPolicy,
+      jmxBuilder = jmxBuilder,
+      httpBuilder = httpBuilder,
+      brief = brief
+    )
 
-  override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(serviceConfig = f(serviceConfig))
-  def apply(serviceName: ServiceName): ServiceGuard[F]               = copy(serviceName = serviceName)
+  override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(config = f.compose(self.config))
+  def apply(serviceName: String): ServiceGuard[F] = copy(serviceName = ServiceName(serviceName))
 
   /** https://cb372.github.io/cats-retry/docs/policies.html
     */
   def withRestartPolicy(rp: RetryPolicy[F]): ServiceGuard[F] = copy(restartPolicy = rp)
 
   def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
-    withRestartPolicy(policies.cronBackoff[F](cronExpr, serviceConfig.taskParams.zoneId))
+    withRestartPolicy(policies.cronBackoff[F](cronExpr, taskParams.zoneId))
 
   def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] =
     copy(jmxBuilder = Some(f))
@@ -72,14 +91,19 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def withMetricServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] =
     copy(httpBuilder = Some(f))
 
-  def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json)
-  def withBrief(json: Json): ServiceGuard[F]    = copy(brief = F.pure(json))
+  def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
+  def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
 
   private lazy val initStatus: F[ServiceParams] = for {
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
     json <- brief
-  } yield serviceConfig.evalConfig(serviceName, uuid, ts, restartPolicy.show, json)
+  } yield config(ServiceConfig(taskParams)).evalConfig(
+    serviceName,
+    ServiceID(uuid),
+    ServiceLaunchTime(ts),
+    Policy(restartPolicy),
+    ServiceBrief(json))
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     sp <- Resource.eval(initStatus)
@@ -93,14 +117,14 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       .drain
       .background
   } yield new GeneralAgent[F](
+    entryPoint = entryPoint,
     serviceParams = sp,
     metricRegistry = new MetricRegistry,
     channel = chn,
-    entryPoint = entryPoint,
     signallingMapRef = signallingMapRef,
     atomicCell = atomicCell,
     dispatcher = dispatcher,
-    measurement = Measurement(sp.serviceName.value)
+    measurement = Measurement(sp.serviceName)
   )
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
@@ -116,9 +140,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeEvery[F](policies.cronBackoff(cron, serviceParams.taskParams.zoneId))
-                .evalMap(idx =>
-                  publisher.metricReport(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
+              awakeEvery(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+                .evalMap(tick =>
+                  publisher.metricReport(
+                    channel = channel,
+                    serviceParams = serviceParams,
+                    metricRegistry = metricRegistry,
+                    index = MetricIndex.Periodic(tick.index)))
                 .drain
           }
 
@@ -126,9 +154,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeEvery[F](policies.cronBackoff(cron, serviceParams.taskParams.zoneId))
-                .evalMap(idx =>
-                  publisher.metricReset(channel, serviceParams, metricRegistry, MetricIndex.Periodic(idx)))
+              awakeEvery(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+                .evalMap(tick =>
+                  publisher.metricReset(
+                    channel = channel,
+                    serviceParams = serviceParams,
+                    metricRegistry = metricRegistry,
+                    index = MetricIndex.Periodic(tick.index)))
                 .drain
           }
 
@@ -162,18 +194,22 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
+            entryPoint = entryPoint,
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
-            entryPoint = entryPoint,
             signallingMapRef = signallingMapRef,
             atomicCell = atomicCell,
             dispatcher = dispatcher,
-            measurement = Measurement(serviceParams.serviceName.value)
+            measurement = Measurement(serviceParams.serviceName)
           )
 
         val surveillance: Stream[F, Nothing] =
-          new ReStart[F, A](channel, serviceParams, restartPolicy, runAgent(agent)).stream
+          new ReStart[F, A](
+            channel = channel,
+            serviceParams = serviceParams,
+            policy = restartPolicy,
+            theService = runAgent(agent)).stream
 
         // put together
         channel.stream

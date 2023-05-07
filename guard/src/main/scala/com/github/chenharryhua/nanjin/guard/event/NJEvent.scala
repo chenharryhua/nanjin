@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import com.github.chenharryhua.nanjin.common.guard.ServiceName
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
   AlertLevel,
@@ -15,7 +14,6 @@ import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Duration, ZonedDateTime}
-import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 @JsonCodec
@@ -23,9 +21,7 @@ sealed trait NJEvent extends Product with Serializable {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 
-  final def serviceId: UUID          = serviceParams.serviceId
-  final def serviceName: ServiceName = serviceParams.serviceName
-  final def upTime: Duration         = serviceParams.upTime(timestamp)
+  final def upTime: Duration = serviceParams.upTime(timestamp)
 }
 
 object NJEvent extends zoneddatetime {
@@ -51,7 +47,7 @@ object NJEvent extends zoneddatetime {
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
     alertLevel: AlertLevel,
-    message: String)
+    message: Json)
       extends NJEvent
 
   sealed trait MetricEvent extends NJEvent {
@@ -84,7 +80,8 @@ object NJEvent extends zoneddatetime {
     final def metricId: MetricID = actionParams.metricId
   }
 
-  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo) extends ActionEvent {
+  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, notes: Option[Json])
+      extends ActionEvent {
     override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(actionInfo.launchTime)
   }
 
@@ -102,7 +99,7 @@ object NJEvent extends zoneddatetime {
 
   sealed trait ActionResultEvent extends ActionEvent {
     def landTime: FiniteDuration
-    def output: Json
+    def notes: Option[Json]
 
     final override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
     final def took: Duration                    = actionInfo.took(landTime)
@@ -114,7 +111,7 @@ object NJEvent extends zoneddatetime {
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
     error: NJError,
-    output: Json)
+    notes: Option[Json])
       extends ActionResultEvent
 
   @Lenses
@@ -122,13 +119,18 @@ object NJEvent extends zoneddatetime {
     actionParams: ActionParams,
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
-    output: Json)
+    notes: Option[Json])
       extends ActionResultEvent
 
   final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
     case _: ActionComplete => false
     case _: ActionStart    => false
     case _                 => true
+  }
+
+  final def isServiceEvent(evt: NJEvent): Boolean = evt match {
+    case event: ActionEvent => false
+    case _                  => true
   }
 
   final def isActionDone(evt: ActionResultEvent): Boolean = evt match {

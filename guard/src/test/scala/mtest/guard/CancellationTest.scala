@@ -91,8 +91,8 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest.value == "af447b89")
-    assert(c.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest.value == "3c80a309")
+    assert(b.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "af447b89")
+    assert(c.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "3c80a309")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -113,9 +113,9 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest.value == "9448dd5d")
+    assert(b.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest == "9448dd5d")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest.value == "70f709c8")
+    assert(d.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest == "70f709c8")
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -138,11 +138,11 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest.value == "9448dd5d")
+    assert(b.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest == "9448dd5d")
     assert(!b.asInstanceOf[ActionComplete].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionParams.metricId.metricName.digest.value == "70f709c8")
-    assert(e.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest.value == "70f709c8")
+    assert(d.asInstanceOf[ActionRetry].actionParams.metricId.metricName.digest == "70f709c8")
+    assert(e.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "70f709c8")
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -230,7 +230,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .interruptAfter(5.seconds)
       .compile
       .toVector
       .unsafeRunSync()
@@ -240,7 +239,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
-    assert(f.isInstanceOf[ServicePanic])
+    assert(f.isInstanceOf[ServiceStop])
   }
   test("10.cancellation - never can be canceled") {
     var i = 0

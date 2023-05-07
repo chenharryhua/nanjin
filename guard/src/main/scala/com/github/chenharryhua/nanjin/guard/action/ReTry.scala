@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits.*
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
@@ -8,9 +9,9 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
   Category,
   CounterKind,
-  Importance,
   MetricID,
-  MetricName
+  MetricName,
+  PublishStrategy
 }
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionComplete,
@@ -22,11 +23,14 @@ import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent,
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.apache.commons.lang3.exception.ExceptionUtils
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import java.time.Duration
 import scala.util.control.NonFatal
+import io.circe.parser.parse
+import org.apache.commons.lang3.exception.ExceptionUtils
+
+import scala.util.{Failure, Success, Try}
 
 final private class ReTry[F[_], IN, OUT](
   metricRegistry: MetricRegistry,
@@ -34,8 +38,9 @@ final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
   retryPolicy: RetryPolicy[F],
   arrow: IN => F[OUT],
-  transError: IN => F[Json],
+  transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
+  transError: Kleisli[OptionT[F, *], (IN, Throwable), Json],
   isWorthRetry: Throwable => F[Boolean]
 )(implicit F: Temporal[F]) {
 
@@ -78,22 +83,42 @@ final private class ReTry[F[_], IN, OUT](
 
   sealed private trait KickOff { def apply(ai: ActionInfo, in: IN): F[OUT] }
   private val kickoff: KickOff =
-    actionParams.importance match {
-      case Importance.Critical | Importance.Notice =>
+    actionParams.publishStrategy match {
+      case PublishStrategy.Notice =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            channel.send(ActionStart(actionParams, ai)) >> compute(ai, in)
+            channel.send(ActionStart(actionParams, ai, transInput(in))) >> compute(ai, in)
         }
-      case Importance.Aware | Importance.Silent =>
+      case PublishStrategy.Aware | PublishStrategy.Silent =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] = compute(ai, in)
         }
     }
 
   sealed private trait Postmortem {
+    private def jsonError(throwable: Throwable): Option[Json] =
+      Some(
+        Json.obj(
+          "description" -> Json.fromString("logError is unable to produce Json"),
+          "message" -> Json.fromString(ExceptionUtils.getMessage(throwable))))
+
+    private def handleJson(foj: F[Option[Json]]): F[Option[Json]] = foj.attempt.map {
+      case Left(ex) => jsonError(ex)
+      case Right(value) =>
+        value.flatMap(js =>
+          Try(js.noSpaces).map(parse) match {
+            case Failure(ex) => jsonError(ex)
+            case Success(value) =>
+              value match {
+                case Left(ex)     => jsonError(ex)
+                case Right(value) => Some(value)
+              }
+          })
+    }
+
     final def fail(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
       for {
-        js <- transError(in).attempt.map(_.fold(ExceptionUtils.getMessage(_).asJson, identity))
+        js <- handleJson(transError((in, ex)).value)
         fd <- F.realTime
         _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), js))
       } yield measures.fail(ai.took(fd))
@@ -101,14 +126,14 @@ final private class ReTry[F[_], IN, OUT](
     def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit]
   }
   private val postmortem: Postmortem =
-    actionParams.importance match {
-      case Importance.Critical | Importance.Notice | Importance.Aware =>
+    actionParams.publishStrategy match {
+      case PublishStrategy.Notice | PublishStrategy.Aware =>
         transOutput match {
-          case Some(transform) =>
+          case Some(to_json) =>
             new Postmortem {
               override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
                 for {
-                  js <- fout.map(transform(in, _))
+                  js <- fout.map(to_json(in, _).some)
                   fd <- F.realTime
                   _ <- channel.send(ActionComplete(actionParams, ai, fd, js))
                 } yield measures.done(ai.took(fd))
@@ -118,23 +143,23 @@ final private class ReTry[F[_], IN, OUT](
               override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
                 for {
                   fd <- F.realTime
-                  _ <- channel.send(ActionComplete(actionParams, ai, fd, Json.Null))
+                  _ <- channel.send(ActionComplete(actionParams, ai, fd, None))
                 } yield measures.done(ai.took(fd))
             }
         }
 
       // silent
-      case Importance.Silent if actionParams.isTiming =>
+      case PublishStrategy.Silent if actionParams.isTiming =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.realTime.map(fd => measures.done(ai.took(fd)))
         }
-      case Importance.Silent if actionParams.isCounting =>
+      case PublishStrategy.Silent if actionParams.isCounting =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.pure(measures.done(Duration.ZERO))
         }
-      case Importance.Silent =>
+      case PublishStrategy.Silent =>
         new Postmortem {
           override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
             F.unit
@@ -175,9 +200,9 @@ sealed private trait MeasureAction {
 private object MeasureAction {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): MeasureAction = {
     val metricName: MetricName     = actionParams.metricId.metricName
-    val doneCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionDone))
-    val failCat: Category.Counter  = Category.Counter(Some(CounterKind.ActionFail))
-    val retryCat: Category.Counter = Category.Counter(Some(CounterKind.ActionRetry))
+    val doneCat: Category.Counter  = Category.Counter(CounterKind.ActionDone)
+    val failCat: Category.Counter  = Category.Counter(CounterKind.ActionFail)
+    val retryCat: Category.Counter = Category.Counter(CounterKind.ActionRetry)
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>

@@ -6,15 +6,75 @@ import io.circe.generic.JsonCodec
 import org.apache.commons.codec.digest.DigestUtils
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
-@JsonCodec
-final case class Measurement(value: String) extends AnyVal
-@JsonCodec
-final case class Digest(value: String) extends AnyVal
+sealed abstract class CounterKind(override val entryName: String)
+    extends EnumEntry with Product with Serializable
+object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] with CatsEnum[CounterKind] {
+  val values: IndexedSeq[CounterKind] = findValues
+
+  case object Dropwizard extends CounterKind("count")
+
+  case object ActionDone extends CounterKind("action_done")
+  case object ActionFail extends CounterKind("action_fail")
+  case object ActionRetry extends CounterKind("action_retries")
+
+  case object AlertError extends CounterKind("alert_error")
+  case object AlertWarn extends CounterKind("alert_warn")
+  case object AlertInfo extends CounterKind("alert_info")
+
+  case object HistoCounter extends CounterKind("histogram_count")
+  case object MeterCounter extends CounterKind("meter_count")
+  case object UdpCounter extends CounterKind("udp_count")
+  case object RiskCounter extends CounterKind("risk_count")
+}
+
+sealed abstract class TimerKind(override val entryName: String)
+    extends EnumEntry with Product with Serializable
+object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] with CatsEnum[TimerKind] {
+  val values: IndexedSeq[TimerKind] = findValues
+
+  case object Dropwizard extends TimerKind("timer")
+  case object ActionTimer extends TimerKind("action_timer")
+}
+
+sealed abstract class HistogramKind(override val entryName: String)
+    extends EnumEntry with Product with Serializable
+object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] with CatsEnum[HistogramKind] {
+  val values: IndexedSeq[HistogramKind] = findValues
+
+  case object Dropwizard extends HistogramKind("histogram")
+  case object UdpHistogram extends HistogramKind("udp_histogram")
+}
+
+sealed abstract class GaugeKind(override val entryName: String)
+    extends EnumEntry with Product with Serializable
+object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] with CatsEnum[GaugeKind] {
+  val values: IndexedSeq[GaugeKind] = findValues
+
+  case object Dropwizard extends GaugeKind("gauge")
+  case object TimedGauge extends GaugeKind("timed_gauge")
+  case object RefGauge extends GaugeKind("ref_gauge")
+}
+
+sealed abstract class MeterKind(override val entryName: String)
+    extends EnumEntry with Product with Serializable
+object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] with CatsEnum[MeterKind] {
+  val values: IndexedSeq[MeterKind] = findValues
+
+  case object Dropwizard extends MeterKind("meter")
+}
 
 @JsonCodec
-final case class MetricName private (value: String, digest: Digest, measurement: Measurement) {
-  val display: String = s"[${digest.value}][$value]"
+sealed abstract class Category(val name: String) extends Product with Serializable
+object Category {
+  final case class Gauge(kind: GaugeKind) extends Category(kind.entryName)
+  final case class Timer(kind: TimerKind) extends Category(kind.entryName)
+  final case class Counter(kind: CounterKind) extends Category(kind.entryName)
+  final case class Meter(kind: MeterKind, unit: StandardUnit) extends Category(kind.entryName)
+  final case class Histogram(kind: HistogramKind, unit: StandardUnit) extends Category(kind.entryName)
 }
+
+@JsonCodec
+final case class MetricName private (value: String, digest: String, measurement: String)
 object MetricName {
   implicit val showMetricName: Show[MetricName] = cats.derived.semiauto.show
   implicit val orderingMetricName: Ordering[MetricName] =
@@ -24,87 +84,20 @@ object MetricName {
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
     val withPrefix = serviceParams.metricParams.namePrefix + name
     val fullName: List[String] =
-      serviceParams.taskParams.taskName.value :: serviceParams.serviceName.value :: measurement.value :: withPrefix :: Nil
-    val digest = Digest(DigestUtils.sha1Hex(fullName.mkString("/")).take(8))
-    MetricName(withPrefix, digest, measurement)
-  }
-}
+      serviceParams.taskParams.taskName :: serviceParams.serviceName :: measurement.value :: withPrefix :: Nil
+    val digest = DigestUtils.sha1Hex(fullName.mkString("/")).take(8)
 
-sealed abstract class CounterKind(override val entryName: String) extends EnumEntry
-object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
-  val values: IndexedSeq[CounterKind] = findValues
-
-  object ActionDone extends CounterKind("action_done")
-  object ActionFail extends CounterKind("action_fail")
-  object ActionRetry extends CounterKind("action_retries")
-
-  object AlertError extends CounterKind("alert_error")
-  object AlertWarn extends CounterKind("alert_warn")
-  object AlertInfo extends CounterKind("alert_info")
-
-  object HistoCounter extends CounterKind("histogram_count")
-  object MeterCounter extends CounterKind("meter_count")
-
-  object UdpCounter extends CounterKind("udp_count")
-
-  object RiskCounter extends CounterKind("risk_count")
-}
-
-sealed abstract class TimerKind(override val entryName: String) extends EnumEntry
-object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] with CatsEnum[TimerKind] {
-  val values: IndexedSeq[TimerKind] = findValues
-
-  object ActionTimer extends TimerKind("action_timer")
-}
-
-sealed abstract class HistogramKind(override val entryName: String) extends EnumEntry
-object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] with CatsEnum[HistogramKind] {
-  val values: IndexedSeq[HistogramKind] = findValues
-
-  object UdpHistogram extends HistogramKind("udp_histogram")
-}
-
-sealed abstract class GaugeKind(override val entryName: String) extends EnumEntry
-object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] with CatsEnum[GaugeKind] {
-  val values: IndexedSeq[GaugeKind] = findValues
-
-  object TimedGauge extends GaugeKind("timed_gauge")
-}
-
-sealed abstract class MeterKind(override val entryName: String) extends EnumEntry
-object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] with CatsEnum[MeterKind] {
-  val values: IndexedSeq[MeterKind] = findValues
-
-  object PlaceHolder extends MeterKind("place_holder")
-}
-
-@JsonCodec
-sealed trait Category { def name: String }
-
-object Category {
-  final case class Gauge(sub: Option[GaugeKind]) extends Category {
-    override val name: String = sub.fold("gauge")(_.entryName)
-  }
-  final case class Timer(sub: Option[TimerKind]) extends Category {
-    override val name: String = sub.fold("timer")(_.entryName)
-  }
-  final case class Meter(unit: StandardUnit, sub: Option[MeterKind]) extends Category {
-    override val name: String = sub.fold("meter")(_.entryName)
-  }
-  final case class Histogram(unit: StandardUnit, sub: Option[HistogramKind]) extends Category {
-    override val name: String = sub.fold("histogram")(_.entryName)
-  }
-  final case class Counter(sub: Option[CounterKind]) extends Category {
-    override val name: String = sub.fold("count")(_.entryName)
+    MetricName(
+      value = withPrefix,
+      digest = digest,
+      measurement = measurement.value
+    )
   }
 }
 
 @JsonCodec
-final case class MetricID(metricName: MetricName, category: Category) {
-  val display: String = s"${metricName.display}.${category.name}"
-}
+final case class MetricID(metricName: MetricName, category: Category)
 object MetricID {
-
   implicit val showMetricID: Show[MetricID] = cats.derived.semiauto.show
 
   def apply(
@@ -112,5 +105,11 @@ object MetricID {
     measurement: Measurement,
     category: Category,
     name: String): MetricID =
-    MetricID(MetricName(serviceParams, measurement, name), category)
+    MetricID(
+      metricName = MetricName(
+        serviceParams = serviceParams,
+        measurement = measurement,
+        name = name
+      ),
+      category = category)
 }

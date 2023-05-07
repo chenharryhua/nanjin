@@ -17,7 +17,7 @@ final private class ReStart[F[_], A](
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
   policy: RetryPolicy[F],
-  fa: F[A])(implicit F: Temporal[F]) {
+  theService: F[A])(implicit F: Temporal[F]) {
 
   private case class ReStartState(retryStatus: RetryStatus, lastTime: Option[ZonedDateTime])
 
@@ -40,7 +40,7 @@ final private class ReStart[F[_], A](
     }
 
   private val loop: F[Unit] = F.tailRecM(ReStartState(RetryStatus.NoRetriesYet, None)) { state =>
-    (publisher.serviceReStart(channel, serviceParams) >> fa).attempt.flatMap {
+    (publisher.serviceReStart(channel, serviceParams) >> theService).attempt.flatMap {
       case Right(_) => stop(ServiceStopCause.Normally)
       case Left(err) if !NonFatal(err) =>
         stop(ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(err)))

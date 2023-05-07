@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.{Ref, Resource, Sync}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
@@ -24,7 +24,7 @@ final class NJGauge[F[_]] private[guard] (
     Json.fromString(DurationFormatter.defaultFormatter.format(start, end))
 
   def register[A: Encoder](value: F[A]): Resource[F, Unit] = {
-    val metricId: String = MetricID(name, Category.Gauge(None)).asJson.noSpaces
+    val metricId: String = MetricID(name, Category.Gauge(GaugeKind.Dropwizard)).asJson.noSpaces
     Resource
       .make(F.delay {
         metricRegistry.gauge(
@@ -35,15 +35,14 @@ final class NJGauge[F[_]] private[guard] (
                 dispatcher.unsafeRunSync(value.attempt).fold(transErr(_).noSpaces, _.asJson.noSpaces)
             }
         )
-        metricId
-      })(mId => F.delay(metricRegistry.remove(mId)).void)
+      })(_ => F.delay(metricRegistry.remove(metricId)).void)
       .void
   }
 
   def register[A: Encoder](value: => A): Resource[F, Unit] = register(F.delay(value))
 
   val timed: Resource[F, Unit] = {
-    val metricId: String = MetricID(name, Category.Gauge(Some(GaugeKind.TimedGauge))).asJson.noSpaces
+    val metricId: String = MetricID(name, Category.Gauge(GaugeKind.TimedGauge)).asJson.noSpaces
     Resource
       .make(F.realTimeInstant.map { kickoff =>
         metricRegistry.gauge(
@@ -54,8 +53,21 @@ final class NJGauge[F[_]] private[guard] (
                 dispatcher.unsafeRunSync(F.realTimeInstant.map(elapse(kickoff, _).noSpaces))
             }
         )
-        metricId
-      })(mid => F.delay(metricRegistry.remove(mid)).void)
+      })(_ => F.delay(metricRegistry.remove(metricId)).void)
       .void
+  }
+
+  def ref[A: Encoder](value: F[Ref[F, A]]): Resource[F, Ref[F, A]] = {
+    val metricId: String = MetricID(name, Category.Gauge(GaugeKind.RefGauge)).asJson.noSpaces
+    Resource.make(value.map { ref =>
+      metricRegistry.gauge(
+        metricId,
+        () =>
+          new Gauge[String] {
+            override def getValue: String = dispatcher.unsafeRunSync(ref.get).asJson.noSpaces
+          }
+      )
+      ref
+    })(_ => F.delay(metricRegistry.remove(metricId)).void)
   }
 }

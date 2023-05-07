@@ -23,8 +23,8 @@ import scala.concurrent.duration.*
 @DoNotDiscover
 class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
 
-  before(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.ERROR.entryName))
-  after(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.WARN.entryName))
+  before(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.ERROR.productPrefix))
+  after(sparKafka.sparkSession.sparkContext.setLogLevel(NJLogLevel.WARN.productPrefix))
 
   val root: NJPath = NJPath("./data/test/spark/dstream/")
 

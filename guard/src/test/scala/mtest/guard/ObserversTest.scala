@@ -4,8 +4,6 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
-import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.aws.{
   CloudWatch,
   SimpleEmailService,
@@ -14,13 +12,13 @@ import com.github.chenharryhua.nanjin.aws.{
 }
 import com.github.chenharryhua.nanjin.common.aws.SqsConfig
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*
-import com.github.chenharryhua.nanjin.guard.service.Agent
-import com.github.chenharryhua.nanjin.guard.translators.{Attachment, SlackApp, Translator}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.{InfluxDBClientFactory, InfluxDBClientOptions}
 import eu.timepit.refined.auto.*
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 import skunk.Session
@@ -31,105 +29,75 @@ import scala.concurrent.duration.*
 // sbt "guard/testOnly mtest.guard.ObserversTest"
 class ObserversTest extends AnyFunSuite {
 
-  def ok(agent: Agent[IO]) = agent.action("nj_ok", _.notice).retry(IO(1)).run
+  val service: fs2.Stream[IO, NJEvent] =
+    TaskGuard[IO]("nanjin")
+      .service("observing")
+      .withBrief(Json.fromString("brief"))
+      .withRestartPolicy(constant_1second)
+      .eventStream { ag =>
+        val box = ag.atomicBox(1)
+        val job = // fail twice, then success
+          box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
+        val meter = ag.meter("meter", StandardUnit.SECONDS).withCounting
+        val action = ag
+          .action("nj_error", _.critical.notice.withTiming.withCounting)
+          .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
+          .retry(job)
+          .logInput(Json.fromString("input data"))
+          .logOutput(_ => Json.fromString("output data"))
+          .logErrorM(ex =>
+            IO.delay(
+              Json.obj("developer's advice" -> "no worries".asJson, "message" -> ex.getMessage.asJson)))
+          .run
+
+        val counter   = ag.counter("nj counter").asRisk
+        val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).withCounting
+        val alert     = ag.alert("nj alert")
+        val gauge     = ag.gauge("nj gauge")
+
+        gauge
+          .register(100)
+          .surround(
+            gauge.timed.surround(
+              action >>
+                meter.mark(1000) >>
+                counter.inc(10000) >>
+                histogram.update(10000000000000L) >>
+                alert.error("alarm") >>
+                ag.metrics.report))
+      }
 
   test("1.logging verbose") {
-    TaskGuard[IO]("logging")
-      .service("text")
-      .withMetricServer(_.withPort(port"12345"))
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1hour))
-      .eventStream { ag =>
-        val err = ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
-      }
-      .evalTap(logging.verbose[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.evalTap(logging.verbose[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("1.2.logging json") {
+    service.evalTap(logging.json[IO].withLoggerName("json")).compile.drain.unsafeRunSync()
+  }
+
+  test("1.3 logging simple") {
+    service.evalTap(logging.simple[IO]).compile.drain.unsafeRunSync()
   }
 
   test("2.console - simple text") {
-    TaskGuard[IO]("console")
-      .service("text")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second))
-      .eventStream { ag =>
-        val err = ag
-          .action("error", _.critical.withTiming)
-          .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
-          .retry(err_fun(1))
-          .run
-        ok(ag) >> ag.alert("alarm").error("alarm") >> err
-      }
-      .evalTap(console.simple[IO])
-      .take(10)
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("3.console - json") {
-    TaskGuard[IO]("console")
-      .service("json")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second))
-      .eventStream { ag =>
-        val err = ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
-      }
-      .evalTap(console.json[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
+  test("3.console - pretty json") {
+    service.evalTap(console.json[IO]).compile.drain.unsafeRunSync()
   }
 
   test("3.1.console - simple json") {
-    TaskGuard[IO]("console")
-      .service("json")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second))
-      .eventStream { ag =>
-        val err = ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
-      }
-      .evalTap(console.simpleJson[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.evalTap(console.simpleJson[IO]).compile.drain.unsafeRunSync()
   }
 
   test("3.2.console - verbose json") {
-    TaskGuard[IO]("console")
-      .service("json.pretty")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second))
-      .eventStream { ag =>
-        val err = ag.action("error", _.critical).retry(err_fun(1)).run
-        ok(ag) >> err.attempt
-      }
-      .evalTap(console.verboseJson[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.evalTap(console.verboseJson[IO]).compile.drain.unsafeRunSync()
   }
 
   test("4.slack") {
-    TaskGuard[IO]("observers")
-      .service("slack")
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
-      .updateConfig(_.withMetricReport(cron_1second))
-      .updateConfig(_.withHomePage("https://abc.com/efg"))
-      .eventStream { ag =>
-        val err = ag
-          .action("error", _.critical)
-          .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
-          .retry(err_fun(1))
-          .run
-        ok(ag) >> err
-      }
+    service
       .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
-      .take(10)
       .compile
       .drain
       .unsafeRunSync()
@@ -139,47 +107,8 @@ class ObserversTest extends AnyFunSuite {
     val mail =
       EmailObserver(SimpleEmailService.fake[IO]).withInterval(5.seconds).withChunkSize(100).withOldestFirst
 
-    TaskGuard[IO]("observers")
-      .service("sesService")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second))
-      .updateConfig(_.withHomePage("https://google.com"))
-      .withBrief(Json.fromString("good morning"))
-      .eventStream { ag =>
-        val err =
-          ag.action("error", _.critical.withTiming.withCounting)
-            .withRetryPolicy(RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1)))
-            .retry(err_fun(1))
-            .run
-        ok(ag) >> ag.alert("alert").withCounting.warn("alarm") >>
-          ag.meter("meter", StandardUnit.SECONDS).withCounting.mark(1) >>
-          ag.counter("counter").inc(1) >>
-          ag.histogram("histo", StandardUnit.BITS).withCounting.update(1) >>
-          ag.metrics.reset >> err
-      }
-      .take(12)
+    service
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
-  test("7.lense") {
-    val len =
-      Translator
-        .serviceStart[IO, SlackApp]
-        .modify(_.map(s =>
-          s.copy(attachments = Attachment("modified by lense", List.empty) :: s.attachments)))
-        .apply(Translator.slack[IO])
-
-    TaskGuard[IO]("lense")
-      .service("lense")
-      .eventStream { ag =>
-        val err =
-          ag.action("error", _.critical).retry(IO.raiseError[Int](new Exception("oops"))).run
-        ok(ag) >> err.attempt
-      }
-      .evalTap(console(len.map(_.show)))
       .compile
       .drain
       .unsafeRunSync()
@@ -189,9 +118,6 @@ class ObserversTest extends AnyFunSuite {
     EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10).updateTranslator {
       _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionComplete.skipServiceAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
-
-    logging.simple[IO]
-    console.verbose[IO]
   }
 
   test("9.postgres") {
@@ -214,31 +140,13 @@ class ObserversTest extends AnyFunSuite {
               timestamp timestamptz default current_timestamp)""".command
 
     val run = session.use(_.execute(cmd)) >>
-      TaskGuard[IO]("observers")
-        .service("postgres")
-        .updateConfig(_.withMetricReport(cron_1second))
-        .eventStream(
-          _.action("sql", _.notice.withTiming.withCounting).retry(IO(0)).run >> IO.sleep(3.seconds))
-        .evalTap(console.verbose[IO])
-        .through(PostgresObserver(session).observe("log"))
-        .compile
-        .drain
+      service.evalTap(console.verbose[IO]).through(PostgresObserver(session).observe("log")).compile.drain
 
     run.unsafeRunSync()
   }
   test("10.sqs") {
     val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionComplete)
-    TaskGuard[IO]("sqs")
-      .service("sqs")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second).withMetricDailyReset)
-      .eventStream(
-        _.action("sqs", _.critical).retry(IO.raiseError(new Exception)).run.delayBy(3.seconds).foreverM)
-      .interruptAfter(7.seconds)
-      .through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo")))
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo"))).compile.drain.unsafeRunSync()
   }
 
   test("11.influx db") {
@@ -255,25 +163,7 @@ class ObserversTest extends AnyFunSuite {
       .withWritePrecision(WritePrecision.NS)
       .addTag("tag", "customer")
       .addTags(Map("a" -> "b"))
-    TaskGuard[IO]("observers")
-      .service("influxDB")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second).withMetricNamePrefix("nj_"))
-      .eventStream { ag =>
-        val err  = ag.action("error_action", _.withTiming.withCounting).retry(err_fun(1)).run
-        val good = ag.action("good_action", _.withCounting.withTiming).retry(IO(())).run
-        good >> ag.alert("alert").withCounting.warn("alarm") >>
-          ag.meter("meter", StandardUnit.GIGABITS).mark(100) >>
-          ag.counter("counter").inc(1) >>
-          ag.histogram("histo", StandardUnit.SECONDS).update(1) >>
-          err
-      }
-      .take(15)
-      .evalTap(console.simple[IO])
-      .through(influx.observe)
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.evalTap(console.simple[IO]).through(influx.observe).compile.drain.unsafeRunSync()
   }
   test("12.cloudwatch") {
     val cloudwatch = CloudWatchObserver(CloudWatch.fake[IO])
@@ -288,20 +178,6 @@ class ObserversTest extends AnyFunSuite {
       .withP98
       .withP99
       .withP999
-    TaskGuard[IO]("cloudwatch")
-      .service("cloudwatch")
-      .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second).withMetricDailyReset)
-      .eventStream(
-        _.action("cloudwatch", _.critical.withTiming.withCounting)
-          .retry(IO(()))
-          .run
-          .delayBy(2.seconds)
-          .foreverM)
-      .interruptAfter(5.seconds)
-      .through(cloudwatch.observe("cloudwatch"))
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }
 }

@@ -1,9 +1,9 @@
-package mtest.guard
+package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.IO
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toTraverseOps
+import cats.implicits.{catsSyntaxPartialOrder, toTraverseOps}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionComplete,
@@ -11,8 +11,9 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ServiceStart,
   ServiceStop
 }
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.guard.event.Tick
 import io.circe.syntax.EncoderOps
+import mtest.guard.{cron_1minute, cron_1second}
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
@@ -22,7 +23,7 @@ import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
 
 class TicksTest extends AnyFunSuite {
-  val service = TaskGuard[IO]("awake").service("every")
+  val service: ServiceGuard[IO] = TaskGuard[IO]("awake").service("every")
   test("1. should not lock - even") {
     val List(a, b, c, d) = service
       .eventStream(agent =>
@@ -87,7 +88,7 @@ class TicksTest extends AnyFunSuite {
     val lst = service
       .eventStream(ag =>
         ag.ticks(cron_1minute, RetryPolicies.capDelay[IO](1.second, _))
-          .evalMap(x => ag.action("pt", _.aware).retry(IO(x.asJson)).logOutput(identity).run)
+          .evalMap(x => ag.action("pt", _.aware).retry(IO(x.index.asJson)).logOutput(identity).run)
           .take(3)
           .compile
           .drain)
@@ -95,7 +96,7 @@ class TicksTest extends AnyFunSuite {
       .toList
       .map(_.filter(_.isInstanceOf[ActionComplete]))
       .unsafeRunSync()
-    assert(List(0, 1, 2) == lst.flatMap(_.asInstanceOf[ActionComplete].output.asNumber.flatMap(_.toLong)))
+    assert(List(1, 2, 3) == lst.flatMap(_.asInstanceOf[ActionComplete].notes.get.asNumber.flatMap(_.toLong)))
   }
 
   test("5. fib awakeEvery") {
@@ -129,7 +130,7 @@ class TicksTest extends AnyFunSuite {
       .evalMap(idx => IO.realTimeInstant.map((_, idx)))
       .take(20)
       .fold(Map.empty[Int, List[Instant]]) { case (sum, (fd, idx)) =>
-        sum.updatedWith(idx)(ls => Some(fd :: ls.sequence.flatten))
+        sum.updatedWith(idx.index)(ls => Some(fd :: ls.sequence.flatten))
       }
       .map { m =>
         assert(m.forall(_._2.size == 5)) // 5 streams
@@ -142,7 +143,7 @@ class TicksTest extends AnyFunSuite {
         }
 
         m.flatMap(_._2.headOption).toList.sorted.sliding(2).map { ls =>
-          val diff = Duration.between(ls(1), ls(0)).abs.toScala
+          val diff = Duration.between(ls(1), ls.head).abs.toScala
           assert(diff > 0.9.second && diff < 1.1.seconds)
         }
       }
@@ -186,9 +187,8 @@ class TicksTest extends AnyFunSuite {
     val rnd =
       Random.scalaUtilRandom[IO].flatMap(_.betweenLong(0, 2000)).flatMap(d => IO.sleep(d.millisecond).as(d))
     val lst = ticks
-      .evalMap(idx =>
-        IO.realTimeInstant.flatMap(ts =>
-          rnd.timed.map(t => (idx, ts, t._1.toMillis, t._1.toMillis - t._2, ts.plusNanos(t._1.toNanos)))))
+      .evalTap(t => IO(assert(t > Tick.Zero)))
+      .evalMap(tick => IO.realTimeInstant.flatMap(ts => rnd.map(fd => (tick, ts, fd))))
       .take(10)
       .debug()
       .compile
@@ -196,5 +196,9 @@ class TicksTest extends AnyFunSuite {
       .unsafeRunSync()
 
     lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 9))
+  }
+  test("duration exception") {
+    assertThrows[IllegalArgumentException](Duration.between(Instant.MIN, Instant.now()).toScala)
+    assert(Duration.between(Tick.Zero.pullTime, Instant.now()).toScala > 19000.days)
   }
 }

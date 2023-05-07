@@ -1,6 +1,7 @@
 package mtest
 
 import cats.effect.IO
+import cats.effect.std.Random
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import cron4s.Cron
 import cron4s.expr.CronExpr
@@ -29,9 +30,12 @@ package object guard {
 
   def add_fun(a: Int, b: Int): IO[Int] = IO(a + b)
 
-  def err_fun(i: Int): IO[Int] = IO.raiseError[Int](new Exception(s"oops: $i"))
+  val random_error: IO[Unit] =
+    Random.scalaUtilRandom[IO].flatMap(_.nextBoolean.ifM(IO(()), IO.raiseError[Unit](new Exception(s"oops"))))
 
   def never_fun: IO[Int] = IO.never[Int]
+
+  def err_fun(i: Int): IO[Int] = IO.raiseError[Int](new Exception(s"oops: $i"))
 
   def fun1(i: Int)                                 = IO(i + 1)
   def fun2(a: Int, b: Int)                         = IO(a + b)

@@ -7,12 +7,7 @@ import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.translators.{
-  CONSTANT_HOST,
-  CONSTANT_SERVICE,
-  CONSTANT_SERVICE_ID,
-  CONSTANT_TASK
-}
+import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
 import software.amazon.awssdk.services.cloudwatch.model.{
@@ -190,8 +185,8 @@ final private case class MetricKey(
     MetricDatum
       .builder()
       .dimensions(
-        Dimension.builder().name(CONSTANT_TASK).value(serviceParams.taskParams.taskName.value).build(),
-        Dimension.builder().name(CONSTANT_SERVICE).value(serviceParams.serviceName.value).build(),
+        Dimension.builder().name(CONSTANT_TASK).value(serviceParams.taskParams.taskName).build(),
+        Dimension.builder().name(CONSTANT_SERVICE).value(serviceParams.serviceName).build(),
         Dimension.builder().name(CONSTANT_SERVICE_ID).value(serviceParams.serviceId.show).build(),
         Dimension.builder().name(CONSTANT_HOST).value(serviceParams.taskParams.hostName.value).build(),
         Dimension
@@ -199,8 +194,8 @@ final private case class MetricKey(
           .name(METRICS_LAUNCH_TIME)
           .value(serviceParams.launchTime.toLocalDate.show)
           .build(),
-        Dimension.builder().name(METRICS_DIGEST).value(id.metricName.digest.value).build(),
-        Dimension.builder().name(METRICS_MEASUREMENT).value(id.metricName.measurement.value).build()
+        Dimension.builder().name(METRICS_DIGEST).value(id.metricName.digest).build(),
+        Dimension.builder().name(CONSTANT_MEASUREMENT).value(id.metricName.measurement).build()
       )
       .metricName(s"${id.metricName.value}($category)")
       .unit(standardUnit)

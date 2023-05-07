@@ -3,11 +3,9 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.guard.{ServiceName, TaskName}
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, TaskConfig}
+import com.github.chenharryhua.nanjin.guard.config.{ServiceName, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
 import fs2.io.net.Network
-import io.circe.Json
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
 import retry.RetryPolicies
@@ -25,24 +23,25 @@ final class TaskGuard[F[_]: Async: Network] private (
   def withEntryPoint(ep: Resource[F, EntryPoint[F]]): TaskGuard[F] = new TaskGuard[F](taskConfig, ep)
   def withEntryPoint(ep: EntryPoint[F]): TaskGuard[F] = withEntryPoint(Resource.pure[F, EntryPoint[F]](ep))
 
-  def service(serviceName: ServiceName): ServiceGuard[F] =
+  def service(serviceName: String): ServiceGuard[F] =
     new ServiceGuard[F](
-      serviceName = serviceName,
-      serviceConfig = ServiceConfig(taskConfig.evalConfig),
+      serviceName = ServiceName(serviceName),
+      taskParams = taskConfig.evalConfig,
+      config = identity,
       entryPoint = entryPoint,
       restartPolicy = RetryPolicies.alwaysGiveUp[F],
       jmxBuilder = None,
       httpBuilder = None,
-      brief = Async[F].pure(Json.Null)
+      brief = Async[F].pure(None)
     )
 }
 
 object TaskGuard {
 
-  def apply[F[_]: Async: Network](taskName: TaskName): TaskGuard[F] =
+  def apply[F[_]: Async: Network](taskName: String): TaskGuard[F] =
     new TaskGuard[F](TaskConfig(taskName), Resource.pure(NoopEntrypoint[F]()))
 
   // for repl
   def dummyAgent[F[_]: Async: Network: Console]: Resource[F, GeneralAgent[F]] =
-    apply(TaskName("dummy")).service(ServiceName("dummy")).dummyAgent
+    apply("dummy").service("dummy").dummyAgent
 }

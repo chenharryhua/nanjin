@@ -1,41 +1,22 @@
 package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
-import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Importance, MetricName, MetricParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.config.MetricParams
+import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
-import io.circe.syntax.*
 
 private object PrettyJsonTranslator {
 
-  import NJEvent.*
-
-  private def uptime(evt: NJEvent): (String, Json)    = "upTime" -> Json.fromString(fmt.format(evt.upTime))
-  private def serviceId(evt: NJEvent): (String, Json) = "serviceId" -> evt.serviceId.asJson
-  private def actionName(metricName: MetricName): (String, Json) = "name" -> metricName.display.asJson
-  private def actionId(evt: ActionEvent): (String, Json)         = "id" -> Json.fromString(evt.actionId)
-  private def traceId(evt: ActionEvent): (String, Json)          = "traceId" -> evt.actionInfo.traceId.asJson
-  private def importance(imp: Importance): (String, Json)        = "importance" -> imp.asJson
-  private def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
-  private def stackTrace(err: NJError): (String, Json)     = "stackTrace" -> Json.fromString(err.stackTrace)
-  private def policy(evt: NJEvent): (String, Json)        = "policy" -> evt.serviceParams.restartPolicy.asJson
-  private def policy(ap: ActionParams): (String, Json)    = "policy" -> ap.retryPolicy.asJson
-  private def serviceName(evt: NJEvent): (String, Json)   = "serviceName" -> evt.serviceName.value.asJson
-  private def measurement(id: MetricName): (String, Json) = "measurement" -> id.measurement.value.asJson
-
-  private def metricIndex(index: MetricIndex): (String, Json) = index match {
-    case MetricIndex.Adhoc           => "index" -> Json.Null
-    case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
-  }
+  import jsonHelper.*
 
   private def prettyMetrics(ss: MetricSnapshot, mp: MetricParams): (String, Json) =
-    "metrics" -> new SnapshotJson(ss).toPrettyJson(mp)
+    "metrics" -> new SnapshotPolyglot(ss, mp).toPrettyJson
 
   // events handlers
   private def serviceStarted(evt: ServiceStart): Json =
     Json.obj(
       EventName.ServiceStart.camel ->
-        Json.obj("params" -> evt.serviceParams.asJson, uptime(evt)))
+        Json.obj(serviceParams(evt.serviceParams), uptime(evt)))
 
   private def servicePanic(evt: ServicePanic): Json =
     Json.obj(
@@ -50,8 +31,9 @@ private object PrettyJsonTranslator {
           serviceId(evt),
           uptime(evt),
           policy(evt),
-          ("exitCode", Json.fromInt(evt.cause.exitCode)),
-          ("cause", Json.fromString(evt.cause.show))))
+          exitCode(evt.cause),
+          exitCause(evt.cause)
+        ))
 
   private def metricReport(evt: MetricReport): Json =
     Json.obj(
@@ -77,53 +59,63 @@ private object PrettyJsonTranslator {
     Json.obj(
       EventName.ServiceAlert.camel ->
         Json.obj(
-          actionName(evt.metricName),
+          metricName(evt.metricName),
+          metricDigest(evt.metricName),
+          metricMeasurement(evt.metricName),
           serviceName(evt),
           serviceId(evt),
-          evt.alertLevel.show -> Json.fromString(evt.message)))
+          alertMessage(evt)
+        ))
 
   private def actionStart(evt: ActionStart): Json =
     Json.obj(
       EventName.ActionStart.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
+          importance(evt),
+          publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
-          traceId(evt)
+          traceId(evt),
+          notes(evt.notes)
         ))
 
   private def actionRetrying(evt: ActionRetry): Json =
     Json.obj(
       EventName.ActionRetry.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
+          importance(evt),
+          publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
           traceId(evt),
           policy(evt.actionParams),
-          ("cause", Json.fromString(evt.error.message))
+          errCause(evt.error)
         ))
 
   private def actionFail(evt: ActionFail): Json =
     Json.obj(
       EventName.ActionFail.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
+          importance(evt),
+          publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
           traceId(evt),
           took(evt),
           policy(evt.actionParams),
-          "notes" -> evt.output, // align with slack
+          notes(evt.notes),
           stackTrace(evt.error)
         ))
 
@@ -131,15 +123,17 @@ private object PrettyJsonTranslator {
     Json.obj(
       EventName.ActionComplete.camel ->
         Json.obj(
-          actionName(evt.metricId.metricName),
+          actionId(evt),
+          metricName(evt.actionParams.metricId.metricName),
+          metricDigest(evt.actionParams.metricId.metricName),
+          metricMeasurement(evt.actionParams.metricId.metricName),
+          importance(evt),
+          publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          importance(evt.actionParams.importance),
-          measurement(evt.actionParams.metricId.metricName),
-          actionId(evt),
           traceId(evt),
           took(evt),
-          "result" -> evt.output // align with slack
+          notes(evt.notes)
         ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =

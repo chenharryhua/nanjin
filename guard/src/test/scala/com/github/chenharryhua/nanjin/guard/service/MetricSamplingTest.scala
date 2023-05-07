@@ -1,16 +1,26 @@
-package mtest.guard
+package com.github.chenharryhua.nanjin.guard.service
 
+import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.HostName.local_host
 import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
-import com.github.chenharryhua.nanjin.guard.config.{MetricParams, ServiceParams, TaskParams}
+import com.github.chenharryhua.nanjin.guard.config.{
+  MetricParams,
+  Policy,
+  ServiceBrief,
+  ServiceID,
+  ServiceLaunchTime,
+  ServiceName,
+  ServiceParams,
+  TaskParams
+}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.observers.sampling
 import cron4s.Cron
 import cron4s.expr.CronExpr
-import eu.timepit.refined.auto.*
-import io.circe.Json
+import mtest.guard.{beijingTime, cron_1minute, cron_1second, cron_2second}
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -19,12 +29,12 @@ import scala.concurrent.duration.*
 class MetricSamplingTest extends AnyFunSuite {
 
   val serviceParams: ServiceParams = ServiceParams(
-    "sampling",
+    ServiceName("sampling"),
     TaskParams("name", beijingTime, local_host),
-    UUID.randomUUID(),
-    ZonedDateTime.of(zzffEpoch, beijingTime).toInstant,
-    "policy",
-    Json.Null
+    ServiceID(UUID.randomUUID()),
+    ServiceLaunchTime(ZonedDateTime.of(zzffEpoch, beijingTime).toInstant),
+    Policy(RetryPolicies.alwaysGiveUp[IO]),
+    ServiceBrief(None)
   )
 
   def metricReport(cron: CronExpr, now: ZonedDateTime): MetricReport = MetricReport(

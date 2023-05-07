@@ -3,6 +3,7 @@ package mtest.common
 import com.github.chenharryhua.nanjin.common.NJLogLevel
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
+import org.typelevel.log4cats.extras.LogLevel
 
 class NJLogLevelTest extends AnyFunSuite {
 
@@ -27,14 +28,14 @@ class NJLogLevelTest extends AnyFunSuite {
     val l7: NJLogLevel = NJLogLevel.FATAL
     val l8: NJLogLevel = NJLogLevel.OFF
 
-    assert(l1.asJson.noSpaces === """ "all" """.trim)
-    assert(l2.asJson.noSpaces === """ "trace" """.trim)
-    assert(l3.asJson.noSpaces === """ "debug" """.trim)
-    assert(l4.asJson.noSpaces === """ "info" """.trim)
-    assert(l5.asJson.noSpaces === """ "warn" """.trim)
-    assert(l6.asJson.noSpaces === """ "error" """.trim)
-    assert(l7.asJson.noSpaces === """ "fatal" """.trim)
-    assert(l8.asJson.noSpaces === """ "off" """.trim)
+    assert(l1.logLevel === LogLevel.Trace)
+    assert(l2.logLevel === LogLevel.Trace)
+    assert(l3.asJson.noSpaces === """ 3 """.trim)
+    assert(l4.asJson.noSpaces === """ 4 """.trim)
+    assert(l5.asJson.noSpaces === """ 5 """.trim)
+    assert(l6.asJson.noSpaces === """ 6 """.trim)
+    assert(l7.asJson.noSpaces === """ 7 """.trim)
+    assert(l8.asJson.noSpaces === """ 8 """.trim)
     assert(l1.productPrefix === "ALL")
   }
 }

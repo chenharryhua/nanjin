@@ -14,18 +14,18 @@ final private class FinalizeMonitor[F[_]: Clock: Monad, A](
   translate: NJEvent => F[Option[A]],
   ref: Ref[F, Map[UUID, ServiceStart]]) {
   def monitoring(event: NJEvent): F[Unit] = event match {
-    case ss: ServiceStart => ref.update(_.updated(ss.serviceId, ss))
-    case ss: ServiceStop  => ref.update(_.removed(ss.serviceId))
+    case ss: ServiceStart => ref.update(_.updated(ss.serviceParams.serviceId, ss))
+    case ss: ServiceStop  => ref.update(_.removed(ss.serviceParams.serviceId))
     case _                => Monad[F].unit
   }
 
   def terminated(ec: ExitCase): F[Chunk[A]] = for {
     ts <- Clock[F].realTimeInstant
-    msgs <- ref.get.flatMap(m =>
+    messages <- ref.get.flatMap(m =>
       Chunk
         .iterable(m.values)
         .traverseFilter(ss =>
           translate(
             ServiceStop(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ServiceStopCause(ec)))))
-  } yield msgs
+  } yield messages
 }

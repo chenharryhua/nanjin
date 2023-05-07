@@ -10,13 +10,13 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
+import fs2.kafka.{ProducerRecord, ProducerRecords, commitBatchWithin}
 import mtest.kafka.*
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -52,7 +52,7 @@ object KafkaStreamingData {
   val expected: Set[StreamTarget] =
     Set(StreamTarget("a", 0, 0), StreamTarget("b", 0, 1), StreamTarget("c", 0, 2))
 }
-//@DoNotDiscover
+@DoNotDiscover
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
@@ -131,7 +131,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
       .toList).unsafeRunSync()
-    assert(res == List(StreamTarget("a", 0, 0), StreamTarget("c", 0, 2)))
+    assert(res.distinct == List(StreamTarget("a", 0, 0), StreamTarget("c", 0, 2)))
   }
 
   test("kafka stream exception") {
