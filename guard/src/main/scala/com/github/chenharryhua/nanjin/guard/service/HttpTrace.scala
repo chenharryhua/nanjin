@@ -6,8 +6,7 @@ import cats.effect.kernel.{MonadCancel, Outcome, Resource}
 import cats.syntax.all.*
 import natchez.*
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.http4s.client.Client
-import org.http4s.{Header, Headers, HttpRoutes, Response}
+import org.http4s.{HttpRoutes, Response}
 import org.typelevel.ci.*
 
 private object HttpTrace {
@@ -71,21 +70,5 @@ private object HttpTrace {
         }
       }
       OptionT(response)
-    }
-
-  def client[F[_]](span: Span[F])(client: Client[F])(implicit ev: MonadCancel[F, Throwable]): Client[F] =
-    Client { req =>
-      val cc: F[(Response[F], F[Unit])] = for {
-        knl <- span.kernel
-        _ <- span.put(
-          "client_http_uri" -> req.uri.toString(),
-          "client_http_method" -> req.method.toString
-        )
-        hs   = Headers(knl.toHeaders.map { case (k, v) => Header.Raw(k, v) }.toList)
-        nReq = req.withHeaders(hs ++ req.headers)
-        rsrc <- client.run(nReq).allocated
-        _ <- span.put("client_http_status_code" -> rsrc._1.status.code.toString())
-      } yield rsrc
-      Resource(cc)
     }
 }

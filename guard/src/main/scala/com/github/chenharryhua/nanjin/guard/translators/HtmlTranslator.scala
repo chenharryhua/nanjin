@@ -16,7 +16,8 @@ import java.time.temporal.ChronoUnit
   */
 private object HtmlTranslator extends all {
   import NJEvent.*
-  import textConstant.*
+  import textHelper.*
+  import textConstants.*
 
   private def coloring(evt: NJEvent): String = ColorScheme
     .decorate(evt)
@@ -48,7 +49,7 @@ private object HtmlTranslator extends all {
         serviceName,
         td(evt.serviceParams.taskParams.taskName),
         td(evt.serviceParams.taskParams.hostName.value),
-        td(fmt.format(evt.upTime))
+        td(upTimeText(evt))
       )
     )
   }
@@ -67,17 +68,14 @@ private object HtmlTranslator extends all {
       jsonText(evt.serviceParams.asJson)
     )
 
-  private def servicePanic(evt: ServicePanic): Text.TypedTag[String] = {
-    val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
-    val msg         = s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
+  private def servicePanic(evt: ServicePanic): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      p(b(msg)),
+      p(b(panicText(evt).replace("*", ""))),
       p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
       causeText(evt.error)
     )
-  }
 
   private def serviceStopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
@@ -91,14 +89,14 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
+      pre(small(yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def metricReset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      pre(small(yamlSnapshot(evt.snapshot, evt.serviceParams.metricParams)))
+      pre(small(yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)))
     )
 
   private def serviceAlert(evt: ServiceAlert): Text.TypedTag[String] =
@@ -113,13 +111,16 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
+        td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
-        td(evt.actionParams.publishStrategy.entryName))
+        td(evt.actionParams.publishStrategy.entryName)
+      )
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
@@ -134,22 +135,21 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
-        td(b(CONSTANT_STRATEGY)),
-        td(b("Index")),
-        td(b("Resume"))),
+        td(b(CONSTANT_STRATEGY))),
       tr(
         td(evt.actionId),
         td(evt.traceId),
-        td(evt.actionParams.importance.toString),
-        td(evt.actionParams.publishStrategy.entryName),
-        td(evt.retriesSoFar + 1),
-        td(evt.timestamp.plusNanos(evt.delay.toNanos).toLocalTime.show)
+        td(evt.actionParams.metricId.metricName.measurement),
+        td(evt.actionParams.importance.entryName),
+        td(evt.actionParams.publishStrategy.entryName)
       )
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), retry),
+      p(b(retryText(evt).replace("*", ""))),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
     )
@@ -160,15 +160,19 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TRACE_ID)),
+        td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY)),
-        td(b(CONSTANT_TOOK))),
+        td(b(CONSTANT_TOOK))
+      ),
       tr(
         td(evt.actionId),
         td(evt.traceId),
+        td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName),
-        td(fmt.format(evt.took)))
+        td(tookText(evt.took))
+      )
     )
 
   private def actionFailed(evt: ActionFail): Text.TypedTag[String] =

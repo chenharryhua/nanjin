@@ -12,7 +12,10 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   Policy,
+  ServiceBrief,
   ServiceConfig,
+  ServiceID,
+  ServiceLaunchTime,
   ServiceName,
   ServiceParams,
   TaskParams
@@ -95,7 +98,12 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     uuid <- UUIDGen.randomUUID
     ts <- F.realTimeInstant
     json <- brief
-  } yield config(ServiceConfig(taskParams)).evalConfig(serviceName, uuid, ts, Policy(restartPolicy), json)
+  } yield config(ServiceConfig(taskParams)).evalConfig(
+    serviceName,
+    ServiceID(uuid),
+    ServiceLaunchTime(ts),
+    Policy(restartPolicy),
+    ServiceBrief(json))
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     sp <- Resource.eval(initStatus)

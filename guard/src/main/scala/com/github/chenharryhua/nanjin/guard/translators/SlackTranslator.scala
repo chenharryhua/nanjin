@@ -2,19 +2,16 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, Snapshot}
+import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, MetricName, MetricParams, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 
-import java.text.NumberFormat
-import java.time.Duration
-import java.time.temporal.ChronoUnit
-
 private object SlackTranslator extends all {
   import NJEvent.*
-  import textConstant.*
+  import textHelper.*
+  import textConstants.*
 
   private def coloring(evt: NJEvent): String = ColorScheme
     .decorate(evt)
@@ -40,19 +37,15 @@ private object SlackTranslator extends all {
   }
   private def upTimeSection(evt: NJEvent): JuxtaposeSection =
     JuxtaposeSection(
-      first = TextField(CONSTANT_UPTIME, fmt.format(evt.upTime)),
+      first = TextField(CONSTANT_UPTIME, upTimeText(evt)),
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show))
 
-  private def metricsSection(snapshot: MetricSnapshot): KeyValueSection = {
-    val numFmt: NumberFormat             = NumberFormat.getInstance()
-    val counters: List[Snapshot.Counter] = snapshot.counters.filter(_.count > 0)
-    if (counters.isEmpty) KeyValueSection(CONSTANT_METRICS, "`No updates`")
-    else {
-      val measures = counters.map(c => c.metricId -> numFmt.format(c.count)) :::
-        snapshot.gauges.map(g => g.metricId -> g.value.spaces2)
-      val body = measures.sortBy(_._1.metricName).map { case (id, v) => s"${id.display} = $v" }
-      KeyValueSection(CONSTANT_METRICS, s"""```${abbreviate(body.mkString("\n"))}```""")
+  private def metricsSection(snapshot: MetricSnapshot, mp: MetricParams): KeyValueSection = {
+    val yaml = new SnapshotPolyglot(snapshot, mp).counterYaml match {
+      case Some(value) => s"""```${abbreviate(value)}```"""
+      case None        => "`No updates`"
     }
+    KeyValueSection(CONSTANT_METRICS, yaml)
   }
 
   private def brief(json: Json): KeyValueSection =
@@ -77,16 +70,14 @@ private object SlackTranslator extends all {
   }
 
   private def servicePanic(evt: ServicePanic): SlackApp = {
-    val color       = coloring(evt)
-    val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
-    val msg = s":alarm: The service experienced a panic. Restart was scheduled at *$time*, roughly in $dur."
+    val color = coloring(evt)
     SlackApp(
       username = evt.serviceParams.taskParams.taskName,
       attachments = List(
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(msg),
+            MarkdownSection(":alarm:" + panicText(evt)),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
@@ -131,7 +122,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
-            metricsSection(evt.snapshot)
+            metricsSection(evt.snapshot, evt.serviceParams.metricParams)
           )
         )
       ) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
@@ -149,10 +140,12 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
-            metricsSection(evt.snapshot)
+            metricsSection(evt.snapshot, evt.serviceParams.metricParams)
           )
         ))
     )
+
+  private def measurement(mn: MetricName): String = s"*$CONSTANT_MEASUREMENT:* ${mn.measurement}"
 
   private def serviceAlert(evt: ServiceAlert): SlackApp = {
     val symbol: String = evt.alertLevel match {
@@ -169,7 +162,8 @@ private object SlackTranslator extends all {
             MarkdownSection(symbol + s" *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
+            MarkdownSection(s"""|${measurement(evt.metricName)}
+                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin),
             MarkdownSection(s"```${abbreviate(evt.message)}```")
           )
         ))
@@ -193,17 +187,14 @@ private object SlackTranslator extends all {
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
-            MarkdownSection(s"""|${traceId(evt)}
+            MarkdownSection(s"""|${measurement(evt.actionParams.metricId.metricName)}
+                                |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ))
     )
 
-  private def actionRetrying(evt: ActionRetry): SlackApp = {
-    val resumeTime = evt.timestamp.plusNanos(evt.delay.toNanos)
-    val next       = fmt.format(Duration.between(evt.timestamp, resumeTime))
-    val localTs    = resumeTime.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
-
+  private def actionRetrying(evt: ActionRetry): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskParams.taskName,
       attachments = List(
@@ -214,15 +205,15 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
-              second = TextField(CONSTANT_DELAYED, fmt.format(evt.tookSoFar))),
-            MarkdownSection(s"""|*${toOrdinalWords(evt.retriesSoFar + 1)}* retry at $localTs, in $next
+              second = TextField(CONSTANT_DELAYED, tookText(evt.tookSoFar))),
+            MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
+                                |${measurement(evt.actionParams.metricId.metricName)}
                                 |${serviceId(evt)}""".stripMargin),
             KeyValueSection(CONSTANT_CAUSE, s"""```${abbreviate(evt.error.message)}```""")
           )
         ))
     )
-  }
 
   private def actionFailed(evt: ActionFail): SlackApp = {
     val color: String = coloring(evt)
@@ -236,8 +227,9 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
-              second = TextField(CONSTANT_TOOK, fmt.format(evt.took))),
+              second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(s"""|${policy(evt)}
+                                |${measurement(evt.actionParams.metricId.metricName)}
                                 |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
@@ -260,8 +252,9 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
-              second = TextField(CONSTANT_TOOK, fmt.format(evt.took))),
-            MarkdownSection(s"""|${traceId(evt)}
+              second = TextField(CONSTANT_TOOK, tookText(evt.took))),
+            MarkdownSection(s"""|${measurement(evt.actionParams.metricId.metricName)}
+                                |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         )
