@@ -79,7 +79,7 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceId(evt),
+          traceInfo(evt),
           notes(evt.notes)
         ))
 
@@ -95,7 +95,7 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceId(evt),
+          traceInfo(evt),
           policy(evt.actionParams),
           errCause(evt.error)
         ))
@@ -112,16 +112,16 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceId(evt),
+          traceInfo(evt),
           took(evt),
           policy(evt.actionParams),
           notes(evt.notes),
           stackTrace(evt.error)
         ))
 
-  private def actionComplete(evt: ActionComplete): Json =
+  private def actionDone(evt: ActionDone): Json =
     Json.obj(
-      EventName.ActionComplete.camel ->
+      EventName.ActionDone.camel ->
         Json.obj(
           actionId(evt),
           metricName(evt.actionParams.metricId.metricName),
@@ -131,7 +131,7 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceId(evt),
+          traceInfo(evt),
           took(evt),
           notes(evt.notes)
         ))
@@ -148,6 +148,6 @@ private object PrettyJsonTranslator {
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFail)
-      .withActionComplete(actionComplete)
+      .withActionDone(actionDone)
 
 }

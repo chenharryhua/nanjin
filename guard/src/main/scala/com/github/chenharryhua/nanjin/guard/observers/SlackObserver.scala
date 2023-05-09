@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionComplete,
+  ActionDone,
   ActionFail,
   ActionRetry,
   ActionStart,
@@ -69,7 +69,7 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(e =>
           translator.filter {
             case ActionStart(ap, _, _)          => ap.importance === Importance.Critical
-            case ActionComplete(ap, _, _, _)    => ap.importance === Importance.Critical
+            case ActionDone(ap, _, _, _)        => ap.importance === Importance.Critical
             case ActionRetry(ap, _, _, _, _, _) => ap.importance > Importance.Insignificant
             case ActionFail(ap, _, _, _, _)     => ap.importance > Importance.Trivial
             case _                              => true

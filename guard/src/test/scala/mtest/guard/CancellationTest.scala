@@ -113,9 +113,9 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest == "9448dd5d")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "9448dd5d")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest == "70f709c8")
+    assert(d.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "70f709c8")
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -138,8 +138,8 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionComplete].actionParams.metricId.metricName.digest == "9448dd5d")
-    assert(!b.asInstanceOf[ActionComplete].took.isNegative)
+    assert(b.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "9448dd5d")
+    assert(!b.asInstanceOf[ActionDone].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
     assert(d.asInstanceOf[ActionRetry].actionParams.metricId.metricName.digest == "70f709c8")
     assert(e.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "70f709c8")
@@ -174,8 +174,8 @@ class CancellationTest extends AnyFunSuite {
     assert(v(4).isInstanceOf[ActionStart])
 
     assert(v(5).isInstanceOf[ActionRetry]) // a2
-    assert(v(6).isInstanceOf[ActionComplete] || v(6).isInstanceOf[ActionRetry]) // a1
-    assert(v(7).isInstanceOf[ActionRetry] || v(7).isInstanceOf[ActionComplete]) // a2
+    assert(v(6).isInstanceOf[ActionDone] || v(6).isInstanceOf[ActionRetry]) // a1
+    assert(v(7).isInstanceOf[ActionRetry] || v(7).isInstanceOf[ActionDone]) // a2
     assert(v(8).isInstanceOf[ActionRetry]) // a2
     assert(v(9).isInstanceOf[ActionFail]) // a2 failed
     assert(v(10).isInstanceOf[ActionFail]) // a3 cancelled
@@ -185,9 +185,9 @@ class CancellationTest extends AnyFunSuite {
     assert(v(13).isInstanceOf[ActionStart])
     assert(v(14).isInstanceOf[ActionStart])
 
-    assert(v(15).isInstanceOf[ActionRetry] || v(15).isInstanceOf[ActionComplete]) // a1 or a2
-    assert(v(16).isInstanceOf[ActionComplete] || v(16).isInstanceOf[ActionRetry]) // a1 or a2
-    assert(v(17).isInstanceOf[ActionRetry] || v(17).isInstanceOf[ActionComplete]) // a1 or a2
+    assert(v(15).isInstanceOf[ActionRetry] || v(15).isInstanceOf[ActionDone]) // a1 or a2
+    assert(v(16).isInstanceOf[ActionDone] || v(16).isInstanceOf[ActionRetry]) // a1 or a2
+    assert(v(17).isInstanceOf[ActionRetry] || v(17).isInstanceOf[ActionDone]) // a1 or a2
     assert(v(18).isInstanceOf[ActionRetry]) // a2
     assert(v(19).isInstanceOf[ActionFail]) // a2 failed
     assert(v(20).isInstanceOf[ActionFail]) // a3 cancelled

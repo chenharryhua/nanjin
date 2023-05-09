@@ -76,7 +76,7 @@ object NJEvent extends zoneddatetime {
     final override def serviceParams: ServiceParams = actionParams.serviceParams
 
     final def traceId: String    = actionInfo.traceId.getOrElse("null")
-    final def actionId: String   = actionInfo.actionId
+    final def actionId: String   = actionInfo.actionId.toString
     final def metricId: MetricID = actionParams.metricId
   }
 
@@ -115,7 +115,7 @@ object NJEvent extends zoneddatetime {
       extends ActionResultEvent
 
   @Lenses
-  final case class ActionComplete(
+  final case class ActionDone(
     actionParams: ActionParams,
     actionInfo: ActionInfo,
     landTime: FiniteDuration,
@@ -123,18 +123,18 @@ object NJEvent extends zoneddatetime {
       extends ActionResultEvent
 
   final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
-    case _: ActionComplete => false
-    case _: ActionStart    => false
-    case _                 => true
+    case _: ActionDone  => false
+    case _: ActionStart => false
+    case _              => true
   }
 
   final def isServiceEvent(evt: NJEvent): Boolean = evt match {
-    case event: ActionEvent => false
-    case _                  => true
+    case _: ActionEvent => false
+    case _              => true
   }
 
   final def isActionDone(evt: ActionResultEvent): Boolean = evt match {
-    case _: ActionFail     => false
-    case _: ActionComplete => true
+    case _: ActionFail => false
+    case _: ActionDone => true
   }
 }

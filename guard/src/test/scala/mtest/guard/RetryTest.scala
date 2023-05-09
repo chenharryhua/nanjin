@@ -44,11 +44,11 @@ class RetryTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionComplete])
+    assert(b.isInstanceOf[ActionDone])
     assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[ActionComplete])
+    assert(d.isInstanceOf[ActionDone])
     assert(e.isInstanceOf[ActionStart])
-    assert(f.isInstanceOf[ActionComplete])
+    assert(f.isInstanceOf[ActionDone])
     assert(g.isInstanceOf[ServiceStop])
   }
 
@@ -102,8 +102,8 @@ class RetryTest extends AnyFunSuite {
     assert(a.asInstanceOf[ActionStart].notes.nonEmpty)
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionComplete])
-    assert(d.asInstanceOf[ActionComplete].notes.nonEmpty)
+    assert(d.isInstanceOf[ActionDone])
+    assert(d.asInstanceOf[ActionDone].notes.nonEmpty)
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -126,8 +126,8 @@ class RetryTest extends AnyFunSuite {
     assert(b.asInstanceOf[ActionStart].notes.nonEmpty)
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionComplete])
-    assert(e.asInstanceOf[ActionComplete].notes.isEmpty)
+    assert(e.isInstanceOf[ActionDone])
+    assert(e.asInstanceOf[ActionDone].notes.isEmpty)
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -281,8 +281,6 @@ class RetryTest extends AnyFunSuite {
 
   }
 
-
-
   test("14.should not retry fatal error") {
     val List(a, b, c, d) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
@@ -345,10 +343,10 @@ class RetryTest extends AnyFunSuite {
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionComplete])
-    assert(a.asInstanceOf[ActionComplete].notes.isEmpty)
-    assert(b.isInstanceOf[ActionComplete])
-    assert(c.isInstanceOf[ActionComplete])
+    assert(a.isInstanceOf[ActionDone])
+    assert(a.asInstanceOf[ActionDone].notes.isEmpty)
+    assert(b.isInstanceOf[ActionDone])
+    assert(c.isInstanceOf[ActionDone])
     assert(d.isInstanceOf[ServiceStop])
   }
 

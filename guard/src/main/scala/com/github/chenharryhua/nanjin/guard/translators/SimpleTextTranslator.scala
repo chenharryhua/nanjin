@@ -93,7 +93,7 @@ private object SimpleTextTranslator {
        |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 
-  private def actionComplete(evt: ActionComplete): String =
+  private def actionDone(evt: ActionDone): String =
     s"""${eventTitle(evt)}
        |${actionEvent(evt)}
        |  $CONSTANT_TOOK:${tookText(evt.took)}
@@ -112,6 +112,6 @@ private object SimpleTextTranslator {
       .withActionStart(actionStart)
       .withActionRetry(actionRetry)
       .withActionFail(actionFail)
-      .withActionComplete(actionComplete)
+      .withActionDone(actionDone)
 
 }

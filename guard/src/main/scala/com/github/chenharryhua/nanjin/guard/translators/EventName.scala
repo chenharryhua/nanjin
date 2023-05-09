@@ -24,5 +24,5 @@ object EventName extends CatsEnum[EventName] with Enum[EventName] {
   case object ActionStart extends EventName("Action Start")
   case object ActionRetry extends EventName("Action Retry")
   case object ActionFail extends EventName("Action Fail")
-  case object ActionComplete extends EventName("Action Complete")
+  case object ActionDone extends EventName("Action Done")
 }

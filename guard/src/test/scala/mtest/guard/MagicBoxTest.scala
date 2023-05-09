@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionComplete,
+  ActionDone,
   ServicePanic,
   ServiceStart,
   ServiceStop
@@ -81,10 +81,10 @@ class MagicBoxTest extends AnyFunSuite {
         } yield ()
       }.debug().take(7).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionComplete].notes.get.asNumber.flatMap(_.toInt).get == 11)
+    assert(b.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 11)
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[ActionComplete].notes.get.asNumber.flatMap(_.toInt).get == 12)
+    assert(e.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 12)
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
   }
@@ -100,10 +100,10 @@ class MagicBoxTest extends AnyFunSuite {
         } yield ()
       }.take(7).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionComplete].notes.get.asNumber.flatMap(_.toInt).get == 11)
+    assert(b.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 11)
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[ActionComplete].notes.get.asNumber.flatMap(_.toInt).get == 12)
+    assert(e.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 12)
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
   }

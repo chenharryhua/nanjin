@@ -5,12 +5,7 @@ import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{catsSyntaxPartialOrder, toTraverseOps}
 import com.github.chenharryhua.nanjin.guard.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionComplete,
-  ActionStart,
-  ServiceStart,
-  ServiceStop
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionStart, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.Tick
 import io.circe.syntax.EncoderOps
 import mtest.guard.{cron_1minute, cron_1second}
@@ -38,7 +33,7 @@ class TicksTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionComplete])
+    assert(c.isInstanceOf[ActionDone])
     assert(d.isInstanceOf[ActionStart])
   }
 
@@ -56,9 +51,9 @@ class TicksTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionComplete])
+    assert(c.isInstanceOf[ActionDone])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionComplete])
+    assert(e.isInstanceOf[ActionDone])
   }
 
   test("3. policy based awakeEvery") {
@@ -75,11 +70,11 @@ class TicksTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionComplete])
+    assert(c.isInstanceOf[ActionDone])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionComplete])
+    assert(e.isInstanceOf[ActionDone])
     assert(f.isInstanceOf[ActionStart])
-    assert(g.isInstanceOf[ActionComplete])
+    assert(g.isInstanceOf[ActionDone])
     assert(h.isInstanceOf[ServiceStop])
   }
 
@@ -94,9 +89,9 @@ class TicksTest extends AnyFunSuite {
           .drain)
       .compile
       .toList
-      .map(_.filter(_.isInstanceOf[ActionComplete]))
+      .map(_.filter(_.isInstanceOf[ActionDone]))
       .unsafeRunSync()
-    assert(List(1, 2, 3) == lst.flatMap(_.asInstanceOf[ActionComplete].notes.get.asNumber.flatMap(_.toLong)))
+    assert(List(1, 2, 3) == lst.flatMap(_.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toLong)))
   }
 
   test("5. fib awakeEvery") {
@@ -110,11 +105,11 @@ class TicksTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionComplete])
+    assert(c.isInstanceOf[ActionDone])
     assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionComplete])
+    assert(e.isInstanceOf[ActionDone])
     assert(f.isInstanceOf[ActionStart])
-    assert(g.isInstanceOf[ActionComplete])
+    assert(g.isInstanceOf[ActionDone])
     assert(h.isInstanceOf[ServiceStop])
   }
 
