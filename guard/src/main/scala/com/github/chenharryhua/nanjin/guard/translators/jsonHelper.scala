@@ -22,7 +22,7 @@ private object jsonHelper {
   def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
 
   def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
-  def traceId(evt: ActionEvent): (String, Json)    = "traceId" -> evt.actionInfo.traceId.asJson
+  def traceInfo(evt: ActionEvent): (String, Json)  = "traceId" -> evt.actionInfo.traceInfo.asJson
   def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
 
   def notes(oj: Option[Json]): (String, Json) = "notes" -> oj.asJson

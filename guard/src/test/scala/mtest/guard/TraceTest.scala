@@ -33,11 +33,11 @@ class TraceTest extends AnyFunSuite {
         val a3   = ag.action("a3").retry(err_fun _)
 
         span.use(s =>
-          (a1.run(s)) >> s
+          (a1.runInSpan(s)) >> s
             .span("s1")
             .use(s =>
-              a2.run(s)((1, 1)) >>
-                s.span("s2").use(s => a3.run(s)(1)).attempt))
+              a2.runInSpan((1, 1))(s) >>
+                s.span("s2").use(s => a3.runInSpan(1)(s)).attempt))
       }
       .evalMap(console.simple[IO])
       .compile
@@ -67,9 +67,9 @@ class TraceTest extends AnyFunSuite {
           val a3   = ag.action("a3", _.notice).retry(err_fun _)
 
           span.use(ns =>
-            a1.run(ns) >>
-              a2.run(ns)((1, 2)) >>
-              a3.run(ns)(1).attempt)
+            a1.runInSpan(ns) >>
+              a2.runInSpan((1, 2))(ns) >>
+              a3.runInSpan(1)(ns).attempt)
         }
         .evalTap(console.verboseJson[IO])
         .compile

@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.Json
-import natchez.{Span, TraceValue}
+import natchez.Span
 import retry.RetryPolicy
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
@@ -63,21 +63,13 @@ final class NJAction[F[_], IN, OUT] private[action] (
       isWorthRetry = isWorthRetry
     )
 
-  def run(input: IN): F[OUT] = actionRunner.run(input)
+  def run(input: IN): F[OUT] = actionRunner.run(input, None)
 
-  private lazy val traceTags: List[(String, TraceValue)] = List(
-    "service_id" -> TraceValue.StringValue(actionParams.serviceParams.serviceId.show),
-    "digest" -> TraceValue.StringValue(actionParams.metricId.metricName.digest)
-  )
-
-  def run(parent: Span[F])(input: IN): F[OUT] =
-    parent.span(actionParams.metricId.metricName.value).use { sub =>
-      for {
-        _ <- sub.put(traceTags*)
-        ti <- TraceInfo(sub)
-        out <- actionRunner.run(input, ti)
-      } yield out
-    }
+  def runInSpan(input: IN)(span: Span[F]): F[OUT] =
+    for {
+      ti <- TraceInfo(span)
+      out <- actionRunner.run(input, ti)
+    } yield out
 }
 
 final class NJAction0[F[_], OUT] private[guard] (
@@ -129,6 +121,6 @@ final class NJAction0[F[_], OUT] private[guard] (
     isWorthRetry = isWorthRetry
   )
 
-  def run: F[OUT]                  = njAction.run(())
-  def run(parent: Span[F]): F[OUT] = njAction.run(parent)(())
+  def run: F[OUT]                      = njAction.run(())
+  def runInSpan(span: Span[F]): F[OUT] = njAction.runInSpan(())(span)
 }

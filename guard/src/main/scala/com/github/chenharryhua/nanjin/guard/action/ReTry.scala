@@ -13,12 +13,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   MetricName,
   PublishStrategy
 }
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionComplete,
-  ActionFail,
-  ActionRetry,
-  ActionStart
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFail, ActionRetry, ActionStart}
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, TraceInfo}
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -135,7 +130,7 @@ final private class ReTry[F[_], IN, OUT](
                 for {
                   js <- fout.map(to_json(in, _).some)
                   fd <- F.realTime
-                  _ <- channel.send(ActionComplete(actionParams, ai, fd, js))
+                  _ <- channel.send(ActionDone(actionParams, ai, fd, js))
                 } yield measures.done(ai.took(fd))
             }
           case None =>
@@ -143,7 +138,7 @@ final private class ReTry[F[_], IN, OUT](
               override def done(ai: ActionInfo, in: IN, fout: F[OUT]): F[Unit] =
                 for {
                   fd <- F.realTime
-                  _ <- channel.send(ActionComplete(actionParams, ai, fd, None))
+                  _ <- channel.send(ActionDone(actionParams, ai, fd, None))
                 } yield measures.done(ai.took(fd))
             }
         }
@@ -166,28 +161,15 @@ final private class ReTry[F[_], IN, OUT](
         }
     }
 
-  def run(in: IN): F[OUT] =
+  def run(in: IN, traceInfo: Option[TraceInfo]): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
-      val ai = ActionInfo(Left(token.hash), launchTime)
+      val ai = ActionInfo(token.hash, launchTime, traceInfo)
       kickoff(ai, in).guaranteeCase {
         case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
         case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
         case Outcome.Canceled()      => postmortem.fail(ai, in, ActionCancelException)
       }
     }
-
-  def run(in: IN, traceInfo: Option[TraceInfo]): F[OUT] = traceInfo match {
-    case Some(ti) =>
-      F.realTime.flatMap { launchTime =>
-        val ai = ActionInfo(Right(ti), launchTime)
-        kickoff(ai, in).guaranteeCase {
-          case Outcome.Succeeded(fout) => postmortem.done(ai, in, fout)
-          case Outcome.Errored(ex)     => postmortem.fail(ai, in, ex)
-          case Outcome.Canceled()      => postmortem.fail(ai, in, ActionCancelException)
-        }
-      }
-    case None => run(in)
-  }
 }
 
 private object ActionCancelException extends Exception("action was canceled")

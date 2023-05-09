@@ -76,7 +76,7 @@ private object SimpleJsonTranslator {
       metricMeasurement(evt.actionParams.metricId.metricName),
       importance(evt),
       publishStrategy(evt),
-      traceId(evt),
+      traceInfo(evt),
       notes(evt.notes),
       serviceId(evt),
       timestamp(evt)
@@ -91,7 +91,7 @@ private object SimpleJsonTranslator {
       metricMeasurement(evt.actionParams.metricId.metricName),
       importance(evt),
       publishStrategy(evt),
-      traceId(evt),
+      traceInfo(evt),
       errCause(evt.error),
       serviceId(evt),
       timestamp(evt)
@@ -107,16 +107,16 @@ private object SimpleJsonTranslator {
       importance(evt),
       publishStrategy(evt),
       took(evt),
-      traceId(evt),
+      traceInfo(evt),
       notes(evt.notes),
       stackTrace(evt.error),
       serviceId(evt),
       timestamp(evt)
     )
 
-  private def actionComplete(evt: ActionComplete): Json =
+  private def actionDone(evt: ActionDone): Json =
     Json.obj(
-      "event" -> EventName.ActionComplete.camelJson,
+      "event" -> EventName.ActionDone.camelJson,
       actionId(evt),
       metricName(evt.metricId.metricName),
       metricDigest(evt.metricId.metricName),
@@ -124,7 +124,7 @@ private object SimpleJsonTranslator {
       importance(evt),
       publishStrategy(evt),
       took(evt),
-      traceId(evt),
+      traceInfo(evt),
       notes(evt.notes),
       serviceId(evt),
       timestamp(evt)
@@ -142,6 +142,6 @@ private object SimpleJsonTranslator {
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFail)
-      .withActionComplete(actionComplete)
+      .withActionDone(actionDone)
 
 }

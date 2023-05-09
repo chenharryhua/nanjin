@@ -184,7 +184,7 @@ private object HtmlTranslator extends all {
       evt.notes.fold(div())(js => jsonText(js))
     )
 
-  private def actionCompleted(evt: ActionComplete): Text.TypedTag[String] =
+  private def actionDone(evt: ActionDone): Text.TypedTag[String] =
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
@@ -203,5 +203,5 @@ private object HtmlTranslator extends all {
       .withActionStart(actionStart)
       .withActionRetry(actionRetrying)
       .withActionFail(actionFailed)
-      .withActionComplete(actionCompleted)
+      .withActionDone(actionDone)
 }
