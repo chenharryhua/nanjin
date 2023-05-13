@@ -176,7 +176,7 @@ class TicksTest extends AnyFunSuite {
     }
   }
 
-  test("ticks - cron") {
+  test("9. ticks - cron") {
     val policy = policies.cronBackoff[IO](cron_1second, ZoneId.systemDefault())
     val ticks  = awakeEvery(policy)
     val rnd =
@@ -192,7 +192,8 @@ class TicksTest extends AnyFunSuite {
 
     lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 9))
   }
-  test("duration exception") {
+
+  test("10. duration exception") {
     assertThrows[IllegalArgumentException](Duration.between(Instant.MIN, Instant.now()).toScala)
     assert(Duration.between(Tick.Zero.pullTime, Instant.now()).toScala > 19000.days)
   }

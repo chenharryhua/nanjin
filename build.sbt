@@ -6,10 +6,10 @@ ThisBuild / version            := "0.16.9-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val fs2V        = "3.7.0-RC5"
+val fs2V        = "3.7.0"
 val awsV_1      = "1.12.460"
 val awsV_2      = "2.20.60"
-val catsEffectV = "3.5.0-RC5"
+val catsEffectV = "3.5.0"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
 val confluentV  = "7.4.0"
@@ -23,10 +23,10 @@ val metricsV    = "4.2.18"
 val log4catsV   = "2.6.0"
 val skunkV      = "0.6.0-RC2"
 val natchezV    = "0.3.1"
-val http4sV     = "0.23.18"
+val http4sV     = "0.23.19"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.3"
-val protobufV   = "3.22.4"
+val protobufV   = "3.23.0"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.92.Final"
@@ -180,7 +180,7 @@ val baseLib = List(
   "org.typelevel" %% "cats-effect"      % catsEffectV,
   "org.typelevel" %% "cats-time"        % "0.5.1",
   "org.typelevel" %% "squants"          % "1.8.3",
-  "org.typelevel" %% "case-insensitive" % "1.3.0",
+  "org.typelevel" %% "case-insensitive" % "1.4.0",
   "io.scalaland" %% "chimney"           % chimneyV,
   "io.scalaland" %% "enumz"             % "1.0.0",
   "com.twitter" %% "algebird-core"      % "0.13.9",
