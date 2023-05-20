@@ -7,7 +7,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0"
-val awsV_1      = "1.12.460"
+val awsV_1      = "1.12.470"
 val awsV_2      = "2.20.60"
 val catsEffectV = "3.5.0"
 val hadoopV     = "3.3.5"
@@ -16,7 +16,7 @@ val confluentV  = "7.4.0"
 val kafkaV      = "7.4.0-ce"
 val fs2KafkaV   = "3.0.1"
 val avroV       = "1.11.1"
-val parquetV    = "1.13.0"
+val parquetV    = "1.13.1"
 val circeV      = "0.14.5"
 val slf4jV      = "2.0.7"
 val metricsV    = "4.2.18"
@@ -26,11 +26,11 @@ val natchezV    = "0.3.1"
 val http4sV     = "0.23.19"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.3"
-val protobufV   = "3.23.0"
+val protobufV   = "3.23.1"
 val sparkV      = "3.3.2"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.92.Final"
-val chimneyV    = "0.7.4"
+val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
 val logbackV    = "1.4.7"
@@ -116,7 +116,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-munit"                       % "1.0.9",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.15",
+  "org.scalatest" %% "scalatest"                              % "3.2.16",
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
@@ -360,7 +360,7 @@ lazy val pipes = (project in file("pipes"))
       "io.netty"                       % "netty-all"           % nettyV, // snyk
       "commons-net"                    % "commons-net"         % "3.9.0", // snyk
       "com.fasterxml.woodstox"         % "woodstox-core"       % "6.5.1", // snyk
-      "net.minidev"                    % "json-smart"          % "2.4.10", // snyk
+      "net.minidev"                    % "json-smart"          % "2.4.11", // snyk
       "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
