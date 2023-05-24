@@ -54,7 +54,7 @@ class HealthCheckTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionComplete])
+    assert(b.isInstanceOf[ActionDone])
     assert(c.isInstanceOf[ActionStart])
     assert(d.isInstanceOf[MetricReport])
   }

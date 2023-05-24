@@ -32,15 +32,10 @@ object MetricIndex {
   final case class Periodic(index: Int) extends MetricIndex
 }
 
-/** @param token
-  *   left: F.unique.hash
-  */
 @JsonCodec @Lenses
-final case class ActionInfo(token: Either[Int, TraceInfo], launchTime: FiniteDuration) {
+final case class ActionInfo(actionId: Int, launchTime: FiniteDuration, traceInfo: Option[TraceInfo]) {
   def took(landTime: FiniteDuration): Duration = landTime.minus(launchTime).toJava
-
-  def actionId: String        = token.fold(_.toString, _.spanId)
-  def traceId: Option[String] = token.map(_.traceId).toOption
+  def traceId: Option[String]                  = traceInfo.map(_.traceId)
 }
 
 object ActionInfo {

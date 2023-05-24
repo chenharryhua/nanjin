@@ -61,7 +61,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts = ag.action("trace").retry(IO(i += 1))
-      ag.root("root").use(s => ts.run(s).foreverM.timeout(take)).attempt
+      ag.root("root").use(s => ts.runInSpan(s).foreverM.timeout(take)).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }

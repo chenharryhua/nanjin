@@ -39,7 +39,7 @@ object gendata {
           .withServiceAlert(_ => 6)
           .withActionStart(_ => 8)
           .withActionFail(_ => 9)
-          .withActionComplete(_ => 10)
+          .withActionDone(_ => 10)
           .withActionRetry(_ => 11)))
 
   val add: Int => Int = _ + 1
@@ -57,7 +57,7 @@ object gendata {
           .withServiceAlert(_ => add)
           .withActionStart(_ => add)
           .withActionFail(_ => add)
-          .withActionComplete(_ => add)
+          .withActionDone(_ => add)
           .withActionRetry(_ => add)))
 
   implicit val eqAbc: Eq[Translator[Option, (Int, Int, Int)]] =
@@ -76,7 +76,7 @@ object gendata {
           .withServiceAlert(_ => Option(6))
           .withActionStart(_ => Option(8))
           .withActionFail(_ => Option(9))
-          .withActionComplete(_ => Option(10))
+          .withActionDone(_ => Option(10))
           .withActionRetry(_ => Option(11))))
 }
 
