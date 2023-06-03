@@ -3,20 +3,20 @@ package com.github.chenharryhua.nanjin.spark.persist
 import frameless.TypedDataset
 import mtest.spark.*
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{Dataset, SparkSession}
 import shapeless.Coproduct
 
 object CopData {
 
-  implicit private val ss = sparkSession
-  val emCops = List(
+  implicit private val ss: SparkSession = sparkSession
+  val emCops: List[EmCop] = List(
     EmCop(1, EnumCoproduct.Domestic),
     EmCop(2, EnumCoproduct.International)
   )
   val emRDD: RDD[EmCop]    = sparkSession.sparkContext.parallelize(emCops)
   val emDS: Dataset[EmCop] = TypedDataset.create(emRDD).dataset
 
-  val coCops = List(
+  val coCops: List[CoCop] = List(
     CoCop(1, CaseObjectCop.Domestic),
     CoCop(2, CaseObjectCop.International)
   )

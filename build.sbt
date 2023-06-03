@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion       := "2.13.10"
+ThisBuild / scalaVersion       := "2.13.11"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
@@ -7,8 +7,8 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0"
-val awsV_1      = "1.12.470"
-val awsV_2      = "2.20.72"
+val awsV_1      = "1.12.480"
+val awsV_2      = "2.20.77"
 val catsEffectV = "3.5.0"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
@@ -19,9 +19,9 @@ val avroV       = "1.11.1"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.5"
 val slf4jV      = "2.0.7"
-val metricsV    = "4.2.18"
+val metricsV    = "4.2.19"
 val log4catsV   = "2.6.0"
-val skunkV      = "0.6.0-RC2"
+val skunkV      = "0.6.0"
 val natchezV    = "0.3.2"
 val http4sV     = "0.23.19"
 val cron4sV     = "0.6.1"
@@ -248,7 +248,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb"                                   % "influxdb-client-java" % "6.8.0" % Provided, // snyk
+      "com.influxdb"                                   % "influxdb-client-java" % "6.9.0",
       "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"                          % "metrics-jmx"          % metricsV,
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,

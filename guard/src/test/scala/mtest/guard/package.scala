@@ -5,7 +5,7 @@ import cats.effect.std.Random
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import cron4s.Cron
 import cron4s.expr.CronExpr
-import retry.RetryPolicies
+import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -21,8 +21,8 @@ package object guard {
   final val cron_3second: CronExpr = Cron.unsafeParse("*/3 * * ? * *")
   final val cron_1minute: CronExpr = Cron.unsafeParse("0 0-59 * ? * *")
 
-  val constant_1second = RetryPolicies.constantDelay[IO](1.seconds)
-  val constant_1hour   = RetryPolicies.constantDelay[IO](1.hour)
+  val constant_1second: RetryPolicy[IO] = RetryPolicies.constantDelay[IO](1.seconds)
+  val constant_1hour: RetryPolicy[IO]   = RetryPolicies.constantDelay[IO](1.hour)
 
   final val beijingTime: ZoneId = ZoneId.of("Asia/Shanghai")
 
@@ -37,17 +37,17 @@ package object guard {
 
   def err_fun(i: Int): IO[Int] = IO.raiseError[Int](new Exception(s"oops: $i"))
 
-  def fun1(i: Int)                                 = IO(i + 1)
-  def fun2(a: Int, b: Int)                         = IO(a + b)
-  def fun3(a: Int, b: Int, c: Int)                 = IO(a + b + c)
-  def fun4(a: Int, b: Int, c: Int, d: Int)         = IO(a + b + c + d)
-  def fun5(a: Int, b: Int, c: Int, d: Int, e: Int) = IO(a + b + c + d + e)
+  def fun1(i: Int): IO[Int]                                 = IO(i + 1)
+  def fun2(a: Int, b: Int): IO[Int]                         = IO(a + b)
+  def fun3(a: Int, b: Int, c: Int): IO[Int]                 = IO(a + b + c)
+  def fun4(a: Int, b: Int, c: Int, d: Int): IO[Int]         = IO(a + b + c + d)
+  def fun5(a: Int, b: Int, c: Int, d: Int, e: Int): IO[Int] = IO(a + b + c + d + e)
 
-  def fun0fut: IO[Future[Int]]                        = IO(Future(1))
-  def fun1fut(i: Int)                                 = Future(i + 1)
-  def fun2fut(a: Int, b: Int)                         = Future(a + b)
-  def fun3fut(a: Int, b: Int, c: Int)                 = Future(a + b + c)
-  def fun4fut(a: Int, b: Int, c: Int, d: Int)         = Future(a + b + c + d)
-  def fun5fut(a: Int, b: Int, c: Int, d: Int, e: Int) = Future(a + b + c + d + e)
+  def fun0fut: IO[Future[Int]]                                     = IO(Future(1))
+  def fun1fut(i: Int): Future[Int]                                 = Future(i + 1)
+  def fun2fut(a: Int, b: Int): Future[Int]                         = Future(a + b)
+  def fun3fut(a: Int, b: Int, c: Int): Future[Int]                 = Future(a + b + c)
+  def fun4fut(a: Int, b: Int, c: Int, d: Int): Future[Int]         = Future(a + b + c + d)
+  def fun5fut(a: Int, b: Int, c: Int, d: Int, e: Int): Future[Int] = Future(a + b + c + d + e)
 
 }
