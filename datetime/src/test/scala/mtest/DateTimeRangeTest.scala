@@ -29,22 +29,24 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   implicit val cogen: Cogen[NJDateTimeRange] =
     Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
 
-  implicit val arbParser    = Arbitrary(Gen.const(DateTimeParser.instantParser))
-  implicit val cogenInstant = Cogen((i: Instant) => i.getEpochSecond)
+  implicit val arbParser: Arbitrary[DateTimeParser[Instant]] = Arbitrary(
+    Gen.const(DateTimeParser.instantParser))
+  implicit val cogenInstant: Cogen[Instant] = Cogen((i: Instant) => i.getEpochSecond)
 
-  implicit val eqInstant = new Eq[DateTimeParser[Instant]] {
+  implicit val eqInstant: Eq[DateTimeParser[Instant]] = new Eq[DateTimeParser[Instant]] {
     // TODO: how to compare two parsers?
     override def eqv(x: DateTimeParser[Instant], y: DateTimeParser[Instant]): Boolean = true
   }
 
-  implicit val eqInstant3 = new Eq[DateTimeParser[(Instant, Instant, Instant)]] {
+  implicit val eqInstant3: Eq[DateTimeParser[(Instant, Instant, Instant)]] =
+    new Eq[DateTimeParser[(Instant, Instant, Instant)]] {
 
-    override def eqv(
-      x: DateTimeParser[(Instant, Instant, Instant)],
-      y: DateTimeParser[(Instant, Instant, Instant)]): Boolean = true
-  }
+      override def eqv(
+        x: DateTimeParser[(Instant, Instant, Instant)],
+        y: DateTimeParser[(Instant, Instant, Instant)]): Boolean = true
+    }
 
-  implicit val arbFunction = Arbitrary(
+  implicit val arbFunction: Arbitrary[DateTimeParser[Instant => Instant]] = Arbitrary(
     Gen
       .function1[Instant, Instant](genZonedDateTime.map(_.toInstant))
       .map(f => DateTimeParser.alternativeDateTimeParser.pure(f)))

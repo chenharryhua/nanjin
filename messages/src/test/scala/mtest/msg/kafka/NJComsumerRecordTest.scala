@@ -10,9 +10,10 @@ import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 object NJComsumerRecordTestData {
-  implicit val ocogen = Cogen[NJConsumerRecord[Int, Int]]((o: NJConsumerRecord[Int, Int]) => o.offset)
+  implicit val ocogen: Cogen[NJConsumerRecord[Int, Int]] =
+    Cogen[NJConsumerRecord[Int, Int]]((o: NJConsumerRecord[Int, Int]) => o.offset)
 
-  implicit val prcogen =
+  implicit val prcogen: Cogen[NJProducerRecord[Int, Int]] =
     Cogen[NJProducerRecord[Int, Int]]((o: NJProducerRecord[Int, Int]) => o.timestamp.getOrElse(0L))
 
   val okv: Gen[NJConsumerRecord[Int, Int]] = for {
@@ -31,8 +32,8 @@ object NJComsumerRecordTestData {
     v <- Gen.option(Gen.posNum[Int])
   } yield NJProducerRecord("topic", partition, None, timestamp, k, v, Nil)
 
-  implicit val arbPR = Arbitrary(genPR)
-  implicit val arbO  = Arbitrary(okv)
+  implicit val arbPR: Arbitrary[NJProducerRecord[Int, Int]] = Arbitrary(genPR)
+  implicit val arbO: Arbitrary[NJConsumerRecord[Int, Int]]  = Arbitrary(okv)
 }
 
 class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
