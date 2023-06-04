@@ -44,6 +44,7 @@ final private class SparkDStreamListener[F[_]: Functor](
 }
 
 object SparkDStreamListener {
+  @annotation.nowarn
   def apply[F[_]](sc: StreamingContext)(implicit F: Async[F]): Stream[F, StreamingListenerEvent] =
     for {
       bus <- Stream.eval(Channel.unbounded[F, StreamingListenerEvent])

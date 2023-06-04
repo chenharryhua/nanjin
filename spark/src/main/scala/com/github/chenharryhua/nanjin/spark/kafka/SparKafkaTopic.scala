@@ -149,6 +149,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
 
   /** DStream
     */
+  @annotation.nowarn
   def dstream(implicit F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     Kleisli((sc: StreamingContext) =>
       sk.kafkaDStream(topic, sc)
