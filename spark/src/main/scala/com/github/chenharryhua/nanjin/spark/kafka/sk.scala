@@ -66,7 +66,7 @@ private[kafka] object sk {
         .unsafeRunSync()
     kafkaBatch(topic, ss, offsetRange)
   }
-
+  @annotation.nowarn
   def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext): F[DStream[NJConsumerRecord[K, V]]] =

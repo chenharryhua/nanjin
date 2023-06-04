@@ -27,7 +27,7 @@ val http4sV     = "0.23.19"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.14.3"
 val protobufV   = "3.23.2"
-val sparkV      = "3.3.2"
+val sparkV      = "3.4.0"
 val refinedV    = "0.10.3"
 val nettyV      = "4.1.93.Final"
 val chimneyV    = "0.7.5"
@@ -339,7 +339,7 @@ val sparkLib = List(
 ).map(_ % sparkV) ++ List(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
-).map(_ % "0.14.0") ++ List(
+).map(_ % "0.14.1") ++ List(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
 ).map(_ % avroV)

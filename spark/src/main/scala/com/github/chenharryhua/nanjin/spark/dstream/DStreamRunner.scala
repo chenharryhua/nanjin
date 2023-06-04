@@ -10,6 +10,7 @@ import org.apache.spark.streaming.{Duration, Seconds, StreamingContext}
 
 import scala.concurrent.duration.FiniteDuration
 
+@annotation.nowarn
 final class DStreamRunner[F[_]] private (
   sparkContext: SparkContext,
   checkpoint: NJPath,
