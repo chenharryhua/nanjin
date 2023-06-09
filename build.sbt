@@ -353,7 +353,7 @@ lazy val pipes = (project in file("pipes"))
       "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.21", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.22", // snyk
       "org.eclipse.jetty"              % "jetty-server"        % "11.0.15", // snyk
       "org.eclipse.jetty"              % "jetty-client"        % "11.0.15", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
@@ -407,3 +407,4 @@ lazy val nanjin =
     kafka,
     database,
     spark)
+
