@@ -8,7 +8,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0"
 val awsV_1      = "1.12.480"
-val awsV_2      = "2.20.77"
+val awsV_2      = "2.20.80"
 val catsEffectV = "3.5.0"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
@@ -25,7 +25,7 @@ val skunkV      = "0.6.0"
 val natchezV    = "0.3.2"
 val http4sV     = "0.23.19"
 val cron4sV     = "0.6.1"
-val jacksonV    = "2.14.3"
+val jacksonV    = "2.15.2"
 val protobufV   = "3.23.2"
 val sparkV      = "3.4.0"
 val refinedV    = "0.10.3"
@@ -264,7 +264,7 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-scalatags"               % "0.25.2",
       "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
       "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
-      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV  % Test
+      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
     ) ++ logLib ++ testLib
   )
 
@@ -353,7 +353,7 @@ lazy val pipes = (project in file("pipes"))
       "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.21", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.8.22", // snyk
       "org.eclipse.jetty"              % "jetty-server"        % "11.0.15", // snyk
       "org.eclipse.jetty"              % "jetty-client"        % "11.0.15", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
@@ -396,6 +396,15 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)
 
