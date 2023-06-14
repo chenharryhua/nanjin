@@ -33,7 +33,7 @@ val nettyV      = "4.1.93.Final"
 val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
-val logbackV    = "1.4.7"
+val logbackV    = "1.4.8"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
