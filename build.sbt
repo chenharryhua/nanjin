@@ -7,7 +7,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0"
-val awsV_1      = "1.12.480"
+val awsV_1      = "1.12.490"
 val awsV_2      = "2.20.80"
 val catsEffectV = "3.5.0"
 val hadoopV     = "3.3.5"
@@ -23,17 +23,17 @@ val metricsV    = "4.2.19"
 val log4catsV   = "2.6.0"
 val skunkV      = "0.6.0"
 val natchezV    = "0.3.2"
-val http4sV     = "0.23.19"
+val http4sV     = "0.23.21"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.2"
-val protobufV   = "3.23.2"
+val protobufV   = "3.23.3"
 val sparkV      = "3.4.0"
-val refinedV    = "0.10.3"
+val refinedV    = "0.11.0"
 val nettyV      = "4.1.93.Final"
 val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
-val logbackV    = "1.4.7"
+val logbackV    = "1.4.8"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -170,7 +170,7 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk18on" % "1.73",
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.74",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"
@@ -374,7 +374,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "com.julianpeeters" %% "avrohugger-core" % "1.4.0"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.5.0"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
