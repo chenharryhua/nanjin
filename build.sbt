@@ -34,6 +34,7 @@ val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
 val logbackV    = "1.4.8"
+val doobieV     = "1.0.0-RC3"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -119,7 +120,7 @@ val testLib = List(
   "org.scalatest" %% "scalatest"                              % "3.2.16",
   "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
-  "org.tpolecat" %% "doobie-postgres"                         % "1.0.0-RC2",
+  "org.tpolecat" %% "doobie-postgres"                         % doobieV,
   "org.postgresql"                                            % "postgresql" % "42.6.0", // snyk
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
@@ -272,13 +273,13 @@ lazy val messages = (project in file("messages"))
   .dependsOn(datetime)
   .settings(commonSettings*)
   .settings(name := "nj-messages")
-  .settings(
-    libraryDependencies ++= List(
-      "org.yaml"                       % "snakeyaml" % "2.0", // snyk
-      "io.circe" %% "circe-jackson212" % "0.14.0",
-      "io.circe" %% "circe-optics"     % "0.14.1",
-      "org.gnieh" %% "diffson-circe"   % "4.4.0"
-    ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "org.yaml"                       % "snakeyaml"   % "2.0", // snyk
+    "org.xerial.snappy"              % "snappy-java" % "1.1.10.1", // snyk
+    "io.circe" %% "circe-jackson212" % "0.14.0",
+    "io.circe" %% "circe-optics"     % "0.14.1",
+    "org.gnieh" %% "diffson-circe"   % "4.4.0"
+  ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -286,9 +287,9 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
-      "org.tpolecat" %% "doobie-core"   % "1.0.0-RC2",
-      "org.tpolecat" %% "doobie-hikari" % "1.0.0-RC2",
-      "org.tpolecat" %% "doobie-free"   % "1.0.0-RC2",
+      "org.tpolecat" %% "doobie-core"   %  doobieV,
+      "org.tpolecat" %% "doobie-hikari" %  doobieV,
+      "org.tpolecat" %% "doobie-free"   %  doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
       ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
     ) ++ testLib
@@ -396,15 +397,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    guard,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
 
