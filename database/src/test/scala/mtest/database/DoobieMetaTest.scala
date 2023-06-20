@@ -6,6 +6,7 @@ import cats.implicits.catsSyntaxApplicativeId
 import com.github.chenharryhua.nanjin.common.database.*
 import com.github.chenharryhua.nanjin.database.NJHikari
 import doobie.ConnectionIO
+import doobie.hikari.HikariTransactor
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
@@ -33,7 +34,7 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
     assert(nj.hikariConfig.getMaximumPoolSize == 10)
 
     val stream = for {
-      tnx <- nj.transactorStream[IO]
+      tnx <- Stream.resource(HikariTransactor.fromHikariConfig[IO](nj.hikariConfig))
       n <- Stream.eval(tnx.trans.apply(42.pure[ConnectionIO]))
     } yield n
 

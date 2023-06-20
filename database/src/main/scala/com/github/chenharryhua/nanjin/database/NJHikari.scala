@@ -1,11 +1,7 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.effect.kernel.{Async, Resource}
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
-import doobie.hikari.HikariTransactor
-import doobie.util.ExecutionContexts
-import fs2.Stream
 
 /** [[https://tpolecat.github.io/doobie/]]
   * @param database
@@ -28,15 +24,6 @@ sealed abstract class NJHikari[DB](
     cfg.validate()
     cfg
   }
-
-  final def transactorResource[F[_]: Async]: Resource[F, HikariTransactor[F]] =
-    for {
-      ec <- ExecutionContexts.fixedThreadPool[F](hikariConfig.getMaximumPoolSize)
-      transactor <- HikariTransactor.fromHikariConfig[F](hikariConfig, ec)
-    } yield transactor
-
-  final def transactorStream[F[_]: Async]: Stream[F, HikariTransactor[F]] =
-    Stream.resource(transactorResource)
 }
 
 object NJHikari {
