@@ -227,6 +227,7 @@ lazy val aws = (project in file("aws"))
     "software.amazon.awssdk"              % "ses"              % awsV_2,
     "software.amazon.awssdk"              % "sdk-core"         % awsV_2,
     "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
+    "io.netty"                            % "netty-handler"    % nettyV, // snyk
     "io.circe" %% "circe-optics"          % "0.14.1",
     "org.http4s" %% "http4s-ember-client" % http4sV,
     "org.http4s" %% "http4s-circe"        % http4sV
@@ -287,9 +288,9 @@ lazy val database = (project in file("database"))
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
-      "org.tpolecat" %% "doobie-core"   %  doobieV,
-      "org.tpolecat" %% "doobie-hikari" %  doobieV,
-      "org.tpolecat" %% "doobie-free"   %  doobieV,
+      "org.tpolecat" %% "doobie-core"   % doobieV,
+      "org.tpolecat" %% "doobie-hikari" % doobieV,
+      "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
       ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
     ) ++ testLib
