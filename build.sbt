@@ -8,7 +8,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0"
 val awsV_1      = "1.12.490"
-val awsV_2      = "2.20.80"
+val awsV_2      = "2.20.90"
 val catsEffectV = "3.5.0"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
@@ -29,12 +29,12 @@ val jacksonV    = "2.15.2"
 val protobufV   = "3.23.3"
 val sparkV      = "3.4.0"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.93.Final"
+val nettyV      = "4.1.94.Final"
 val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.2"
 val drosteV     = "0.9.0"
 val logbackV    = "1.4.8"
-val doobieV     = "1.0.0-RC3"
+val doobieV     = "1.0.0-RC4"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -171,7 +171,7 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk18on" % "1.74",
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.75",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"

@@ -4,20 +4,15 @@ import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 
 /** [[https://tpolecat.github.io/doobie/]]
-  * @param database
-  *   Postgres, Redshit or Sql Server
   * @param cfg
   *   initial HikariConfig
   * @param updateOps
   *   set operations apply to the initial config
   */
-sealed abstract class NJHikari[DB](
-  val database: DB,
-  cfg: HikariConfig,
-  updateOps: List[HikariConfig => Unit]) {
+sealed abstract class NJHikari(cfg: HikariConfig, updateOps: List[HikariConfig => Unit]) {
 
-  final def set(f: HikariConfig => Unit): NJHikari[DB] =
-    new NJHikari[DB](database, cfg, f :: updateOps) {}
+  final def set(f: HikariConfig => Unit): NJHikari =
+    new NJHikari(cfg, f :: updateOps) {}
 
   final lazy val hikariConfig: HikariConfig = {
     updateOps.reverse.foreach(_(cfg))
@@ -27,7 +22,7 @@ sealed abstract class NJHikari[DB](
 }
 
 object NJHikari {
-  def apply(db: Postgres): NJHikari[Postgres] = {
+  def apply(db: Postgres): NJHikari = {
     val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("org.postgresql.Driver")
@@ -36,10 +31,10 @@ object NJHikari {
       cfg.setPassword(db.password.value)
       cfg
     }
-    new NJHikari[Postgres](db, initConfig, Nil) {}
+    new NJHikari(initConfig, Nil) {}
   }
 
-  def apply(db: Redshift): NJHikari[Redshift] = {
+  def apply(db: Redshift): NJHikari = {
     val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.amazon.redshift.jdbc42.Driver")
@@ -50,10 +45,10 @@ object NJHikari {
       cfg.addDataSourceProperty("sslfactory", "com.amazon.redshift.ssl.NonValidatingFactory")
       cfg
     }
-    new NJHikari[Redshift](db, initConfig, Nil) {}
+    new NJHikari(initConfig, Nil) {}
   }
 
-  def apply(db: SqlServer): NJHikari[SqlServer] = {
+  def apply(db: SqlServer): NJHikari = {
     val initConfig: HikariConfig = {
       val cfg = new HikariConfig
       cfg.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
@@ -62,6 +57,6 @@ object NJHikari {
       cfg.setPassword(db.password.value)
       cfg
     }
-    new NJHikari[SqlServer](db, initConfig, Nil) {}
+    new NJHikari(initConfig, Nil) {}
   }
 }
