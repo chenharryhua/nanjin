@@ -9,7 +9,7 @@ val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0"
 val awsV_1      = "1.12.490"
 val awsV_2      = "2.20.90"
-val catsEffectV = "3.5.0"
+val catsEffectV = "3.5.1"
 val hadoopV     = "3.3.5"
 val monocleV    = "2.1.0"
 val confluentV  = "7.4.0"
@@ -376,7 +376,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      "com.julianpeeters" %% "avrohugger-core" % "1.5.0"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.5.1"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

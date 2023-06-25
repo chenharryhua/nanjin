@@ -91,8 +91,8 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "af447b89")
-    assert(c.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "3c80a309")
+    assert(b.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "08e76668")
+    assert(c.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "3d5f88dc")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -113,9 +113,9 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "9448dd5d")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "104c9af4")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "70f709c8")
+    assert(d.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "fec6047b")
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -138,11 +138,11 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "9448dd5d")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricId.metricName.digest == "104c9af4")
     assert(!b.asInstanceOf[ActionDone].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionParams.metricId.metricName.digest == "70f709c8")
-    assert(e.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "70f709c8")
+    assert(d.asInstanceOf[ActionRetry].actionParams.metricId.metricName.digest == "fec6047b")
+    assert(e.asInstanceOf[ActionFail].actionParams.metricId.metricName.digest == "fec6047b")
     assert(f.isInstanceOf[ServiceStop])
   }
 
