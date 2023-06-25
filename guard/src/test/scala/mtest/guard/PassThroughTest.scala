@@ -34,7 +34,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "c795c559")
+        .find(_.metricId.metricName.digest == "2ecb817d")
         .size == 1)
   }
 
@@ -56,7 +56,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "ec73b711")
+        .find(_.metricId.metricName.digest == "0836bd64")
         .size == 1)
   }
 

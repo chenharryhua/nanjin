@@ -85,7 +85,7 @@ object MetricName {
     val withPrefix = serviceParams.metricParams.namePrefix + name
     val fullName: List[String] =
       serviceParams.taskParams.taskName :: serviceParams.serviceName :: measurement.value :: withPrefix :: Nil
-    val digest = DigestUtils.sha1Hex(fullName.mkString("/")).take(8)
+    val digest = DigestUtils.sha256Hex(fullName.mkString("/")).take(8)
 
     MetricName(
       value = withPrefix,
