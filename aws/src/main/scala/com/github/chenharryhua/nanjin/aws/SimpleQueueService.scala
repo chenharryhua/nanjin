@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import io.circe.optics.JsonPath.*
 import io.circe.parser.*
 import io.circe.syntax.EncoderOps
 import monocle.macros.Lenses
@@ -210,13 +209,18 @@ object sqsS3Parser {
     Option(msg.response)
       .flatMap(m => parse(m.body()).toOption)
       .traverse { json =>
-        root.Records.each.s3.json.getAll(json).flatMap { js =>
-          val bucket = js.hcursor.downField("bucket").get[String]("name")
-          val key    = js.hcursor.downField("object").get[String]("key")
-          val size   = js.hcursor.downField("object").get[Long]("size")
-          (bucket, key, size)
-            .mapN((b, k, s) => SqsS3File(S3Path(b, URLDecoder.decode(k, "UTF-8")), s))
-            .toOption
+        json.hcursor.downField("Records").values match {
+          case Some(ls) =>
+            ls.toList.flatMap { js =>
+              val s3     = js.hcursor.downField("s3")
+              val bucket = s3.downField("bucket").get[String]("name")
+              val key    = s3.downField("object").get[String]("key")
+              val size   = s3.downField("object").get[Long]("size")
+              (bucket, key, size)
+                .mapN((b, k, s) => SqsS3File(S3Path(b, URLDecoder.decode(k, "UTF-8")), s))
+                .toOption
+            }
+          case None => Nil
         }
       }
       .flatten

@@ -10,7 +10,7 @@ val fs2V        = "3.7.0"
 val awsV_1      = "1.12.490"
 val awsV_2      = "2.20.90"
 val catsEffectV = "3.5.1"
-val hadoopV     = "3.3.5"
+val hadoopV     = "3.3.6"
 val monocleV    = "2.1.0"
 val confluentV  = "7.4.0"
 val kafkaV      = "7.4.0-ce"
@@ -228,7 +228,6 @@ lazy val aws = (project in file("aws"))
     "software.amazon.awssdk"              % "sdk-core"         % awsV_2,
     "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
     "io.netty"                            % "netty-handler"    % nettyV, // snyk
-    "io.circe" %% "circe-optics"          % "0.14.1",
     "org.http4s" %% "http4s-ember-client" % http4sV,
     "org.http4s" %% "http4s-circe"        % http4sV
   ) ++ logLib ++ testLib)
@@ -239,7 +238,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(
     libraryDependencies ++= List(
-      "org.typelevel" %% "cats-parse"                  % "0.3.9",
+      "org.typelevel" %% "cats-parse"                  % "0.3.10",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV) ++
       testLib
   )
