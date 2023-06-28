@@ -1,7 +1,6 @@
 package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import io.circe.optics.JsonPath.root
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil, Coproduct}
@@ -80,16 +79,6 @@ class SchemaChangeTest extends AnyFunSuite {
   }
   test("hyphen in namespace is not allowed") {
     assertThrows[Exception](codec.withNamespace("a.b.-.c"))
-  }
-
-  test("child schema") {
-    val schema =
-      NJAvroCodec.toSchema("""{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}""")
-    val child = codec.child[Nest2](root.fields.index(1).`type`.index(1))
-    assert(child.schema == schema)
-    val data = Nest2("abc")
-    assert(child.idConversion(data) == data)
-    assertThrows[Exception](codec.child[Nest2](root.fields.index(1).`type`.index(2)))
   }
 
   val schemaWithoutNamespace =

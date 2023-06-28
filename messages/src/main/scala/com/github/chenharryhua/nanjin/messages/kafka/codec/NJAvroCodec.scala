@@ -14,9 +14,7 @@ import com.sksamuel.avro4s.{
 }
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
-import io.circe.optics.JsonPath
-import io.circe.optics.JsonPath.*
-import io.circe.{parser, Json}
+import io.circe.{parser, ParsingFailure}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
@@ -49,10 +47,14 @@ final case class NJAvroCodec[A](
       ns <- refineV[Namespace](namespace)
       json <- parser
         .parse(schema.toString)
-        .map(x => root.namespace.string.set(ns.value)(x))
-        .map(_.noSpaces)
+        .flatMap(_.hcursor.downField("namespace").withFocus(_.mapString(_ => ns.value)).top match {
+          case Some(value) => Right(value)
+          case None =>
+            val ex = new Exception("no namespace in the schema")
+            Left(ParsingFailure(ex.getMessage, ex))
+        })
         .leftMap(_.getMessage())
-      ac <- NJAvroCodec.build[A](NJAvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder)
+      ac <- NJAvroCodec.build[A](NJAvroCodec.toSchemaFor[A](json.noSpaces), avroDecoder, avroEncoder)
     } yield ac
     res match {
       case Left(ex)  => sys.error(s"$ex, input namespace: $namespace")
@@ -69,27 +71,6 @@ final case class NJAvroCodec[A](
       ac <- NJAvroCodec.build[A](NJAvroCodec.toSchemaFor[A](json), avroDecoder, avroEncoder).toOption
     } yield ac
     res.getOrElse(this)
-  }
-
-  def at(jsonPath: JsonPath): Either[String, Json] = for {
-    json <- parser.parse(schema.toString()).leftMap(_.message)
-    jsonObject <- jsonPath.obj.getOption(json).toRight("unable to find child schema")
-  } yield Json.fromJsonObject(jsonObject)
-
-  /** @param jsonPath
-    *   path to the child schema
-    * @return
-    */
-  @throws[Exception]
-  def child[B](jsonPath: JsonPath)(implicit dec: AvroDecoder[B], enc: AvroEncoder[B]): NJAvroCodec[B] = {
-    val oa = for {
-      json <- at(jsonPath)
-      ac <- NJAvroCodec.build[B](NJAvroCodec.toSchemaFor[B](json.noSpaces), dec, enc)
-    } yield ac
-    oa match {
-      case Left(ex)  => sys.error(ex)
-      case Right(ac) => ac
-    }
   }
 }
 
