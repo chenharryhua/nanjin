@@ -28,11 +28,12 @@ final case class NJProducerRecord[K, V](
   value: Option[V],
   headers: List[NJHeader]) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V] = NJProducerRecord.topic.replace(name.value)(this)
-  def withPartition(pt: Int): NJProducerRecord[K, V]         = NJProducerRecord.partition.replace(Some(pt))(this)
-  def withTimestamp(ts: Long): NJProducerRecord[K, V]        = NJProducerRecord.timestamp.replace(Some(ts))(this)
-  def withKey(k: K): NJProducerRecord[K, V]                  = NJProducerRecord.key.replace(Some(k))(this)
-  def withValue(v: V): NJProducerRecord[K, V]                = NJProducerRecord.value.replace(Some(v))(this)
+  def withTopicName(name: TopicName): NJProducerRecord[K, V] =
+    NJProducerRecord.topic.replace(name.value)(this)
+  def withPartition(pt: Int): NJProducerRecord[K, V]  = NJProducerRecord.partition.replace(Some(pt))(this)
+  def withTimestamp(ts: Long): NJProducerRecord[K, V] = NJProducerRecord.timestamp.replace(Some(ts))(this)
+  def withKey(k: K): NJProducerRecord[K, V]           = NJProducerRecord.key.replace(Some(k))(this)
+  def withValue(v: V): NJProducerRecord[K, V]         = NJProducerRecord.value.replace(Some(v))(this)
 
   def noPartition: NJProducerRecord[K, V] = NJProducerRecord.partition.replace(None)(this)
   def noTimestamp: NJProducerRecord[K, V] = NJProducerRecord.timestamp.replace(None)(this)
