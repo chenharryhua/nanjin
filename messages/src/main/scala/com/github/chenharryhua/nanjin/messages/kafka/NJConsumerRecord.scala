@@ -65,9 +65,9 @@ final case class NJConsumerRecord[K, V](
 
 object NJConsumerRecord {
 
-  def optionalKey[K, V]: Optional[NJConsumerRecord[K, V], K] = NJConsumerRecord.key[K, V].composePrism(some)
+  def optionalKey[K, V]: Optional[NJConsumerRecord[K, V], K] = NJConsumerRecord.key[K, V].andThen(some[K])
   def optionalValue[K, V]: Optional[NJConsumerRecord[K, V], V] =
-    NJConsumerRecord.value[K, V].composePrism(some)
+    NJConsumerRecord.value[K, V].andThen(some[V])
 
   def apply[K, V](cr: KafkaConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(

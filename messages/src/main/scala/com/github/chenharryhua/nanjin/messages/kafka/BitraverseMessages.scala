@@ -16,7 +16,7 @@ sealed trait BitraverseMessages[F[_, _]] extends Bitraverse[F] with BitraverseKa
 
   final override def bitraverse[G[_], A, B, C, D](fab: F[A, B])(f: A => G[C], g: B => G[D])(implicit
     G: Applicative[G]): G[F[C, D]] =
-    traversal.modifyF((pr: ProducerRecord[A, B]) => pr.bitraverse(f, g))(fab)
+    traversal.modifyA((pr: ProducerRecord[A, B]) => pr.bitraverse(f, g))(fab)
 
   final override def bifoldLeft[A, B, C](fab: F[A, B], c: C)(f: (C, A) => C, g: (C, B) => C): C =
     traversal.getAll(fab).foldLeft(c) { case (cp, rec) => rec.bifoldLeft(cp)(f, g) }
@@ -44,7 +44,7 @@ object BitraverseMessages {
           Chunk[ProducerRecord[K1, V1]],
           Chunk[ProducerRecord[K2, V2]]](prs => prs.records.map(_.transformInto)) { cpr => s =>
           CommittableProducerRecords(cpr.map(_.transformInto), s.offset)
-        }.composeTraversal(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
+        }.andThen(PTraversal.fromTraverse[Chunk, ProducerRecord[K1, V1], ProducerRecord[K2, V2]])
     }
 
 }

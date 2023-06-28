@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, SchemaRegistrySettings, TopicDef}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
-import monocle.function.At.at
 import org.scalatest.funsuite.AnyFunSuite
 
 class SchemaRegistryTest extends AnyFunSuite {
@@ -29,18 +28,18 @@ class SchemaRegistryTest extends AnyFunSuite {
 
   test("schema register is not configured") {
     val tmpCtx = KafkaSettings.schemaRegistrySettings
-      .composeLens(SchemaRegistrySettings.config)
-      .composeLens(at(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG))
-      .set(None)(KafkaSettings.local)
+      .andThen(SchemaRegistrySettings.config)
+      .modify(_.updatedWith(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)(_ => None))(
+        KafkaSettings.local)
       .ioContext
     assertThrows[Exception](nyc.in(tmpCtx).schemaRegistry.testCompatibility.unsafeRunSync())
   }
 
   test("schema register is not reachable") {
     val tmpCtx = KafkaSettings.schemaRegistrySettings
-      .composeLens(SchemaRegistrySettings.config)
-      .composeLens(at(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG))
-      .set(Some("unknown-schema-register"))(KafkaSettings.local)
+      .andThen(SchemaRegistrySettings.config)
+      .modify(_.updatedWith(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)(_ =>
+        Some("unknown-schema-register")))(KafkaSettings.local)
       .ioContext
     val res = nyc.in(tmpCtx).schemaRegistry.testCompatibility.unsafeRunSync()
     assert(res.key.isLeft)

@@ -39,7 +39,7 @@ class MetricSamplingTest extends AnyFunSuite {
 
   def metricReport(cron: CronExpr, now: ZonedDateTime): MetricReport = MetricReport(
     MetricIndex.Periodic(1023),
-    ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(Some(cron))(serviceParams),
+    ServiceParams.metricParams.andThen(MetricParams.reportSchedule).replace(Some(cron))(serviceParams),
     now,
     MetricSnapshot(Nil, Nil, Nil, Nil, Nil)
   )

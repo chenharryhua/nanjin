@@ -120,19 +120,19 @@ private object ServiceConfigF {
         ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
 
       case WithReportSchedule(v, c) =>
-        ServiceParams.metricParams.composeLens(MetricParams.reportSchedule).set(v)(c)
+        ServiceParams.metricParams.andThen(MetricParams.reportSchedule).replace(v)(c)
       case WithResetSchedule(v, c) =>
-        ServiceParams.metricParams.composeLens(MetricParams.resetSchedule).set(v)(c)
+        ServiceParams.metricParams.andThen(MetricParams.resetSchedule).replace(v)(c)
       case WithRateTimeUnit(v, c) =>
-        ServiceParams.metricParams.composeLens(MetricParams.rateTimeUnit).set(v)(c)
+        ServiceParams.metricParams.andThen(MetricParams.rateTimeUnit).replace(v)(c)
       case WithDurationTimeUnit(v, c) =>
-        ServiceParams.metricParams.composeLens(MetricParams.durationTimeUnit).set(v)(c)
+        ServiceParams.metricParams.andThen(MetricParams.durationTimeUnit).replace(v)(c)
       case WithMetricNamePrefix(v, c) =>
-        ServiceParams.metricParams.composeLens(MetricParams.namePrefix).set(v)(c)
+        ServiceParams.metricParams.andThen(MetricParams.namePrefix).replace(v)(c)
 
-      case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.set(v)(c)
+      case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.replace(v)(c)
 
-      case WithHomePage(v, c) => ServiceParams.homePage.set(v)(c)
+      case WithHomePage(v, c) => ServiceParams.homePage.replace(v)(c)
     }
 }
 

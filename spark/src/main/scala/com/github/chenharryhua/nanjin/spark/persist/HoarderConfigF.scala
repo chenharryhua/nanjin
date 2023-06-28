@@ -34,10 +34,10 @@ private object HoarderConfigF {
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
       case InitParams(v)         => HoarderParams(v)
-      case WithSaveMode(v, c)    => HoarderParams.saveMode.set(v)(c)
-      case WithOutputPath(v, c)  => HoarderParams.outPath.set(v)(c)
-      case WithFileFormat(v, c)  => HoarderParams.format.set(v)(c)
-      case WithCompression(v, c) => HoarderParams.compression.set(v)(c)
+      case WithSaveMode(v, c)    => HoarderParams.saveMode.replace(v)(c)
+      case WithOutputPath(v, c)  => HoarderParams.outPath.replace(v)(c)
+      case WithFileFormat(v, c)  => HoarderParams.format.replace(v)(c)
+      case WithCompression(v, c) => HoarderParams.compression.replace(v)(c)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)

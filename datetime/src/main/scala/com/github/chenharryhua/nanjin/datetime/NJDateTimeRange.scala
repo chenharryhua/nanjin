@@ -66,10 +66,10 @@ import scala.concurrent.duration.FiniteDuration
     (zonedStartTime, zonedEndTime).mapN((s, e) => java.time.Duration.between(s, e))
 
   def withZoneId(zoneId: ZoneId): NJDateTimeRange =
-    NJDateTimeRange.zoneId.set(zoneId)(this)
+    NJDateTimeRange.zoneId.replace(zoneId)(this)
 
   def withZoneId(zoneId: String): NJDateTimeRange =
-    NJDateTimeRange.zoneId.set(ZoneId.of(zoneId))(this)
+    NJDateTimeRange.zoneId.replace(ZoneId.of(zoneId))(this)
 
   implicit private def coproductPrism[A](implicit
     evInject: Inject[NJDateTimeRange.TimeTypes, A],
@@ -77,10 +77,10 @@ import scala.concurrent.duration.FiniteDuration
     Prism[NJDateTimeRange.TimeTypes, A](evSelector.apply)(evInject.apply)
 
   private def setStart[A](a: A)(implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
-    NJDateTimeRange.start.set(Some(prism.reverseGet(a)))(this)
+    NJDateTimeRange.start.replace(Some(prism.reverseGet(a)))(this)
 
   private def setEnd[A](a: A)(implicit prism: Prism[NJDateTimeRange.TimeTypes, A]): NJDateTimeRange =
-    NJDateTimeRange.end.set(Some(prism.reverseGet(a)))(this)
+    NJDateTimeRange.end.replace(Some(prism.reverseGet(a)))(this)
 
   // start
   def withStartTime(ts: LocalTime): NJDateTimeRange      = setStart(toLocalDateTime(ts))

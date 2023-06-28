@@ -28,22 +28,22 @@ final case class NJProducerRecord[K, V](
   value: Option[V],
   headers: List[NJHeader]) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V] = NJProducerRecord.topic.set(name.value)(this)
-  def withPartition(pt: Int): NJProducerRecord[K, V]         = NJProducerRecord.partition.set(Some(pt))(this)
-  def withTimestamp(ts: Long): NJProducerRecord[K, V]        = NJProducerRecord.timestamp.set(Some(ts))(this)
-  def withKey(k: K): NJProducerRecord[K, V]                  = NJProducerRecord.key.set(Some(k))(this)
-  def withValue(v: V): NJProducerRecord[K, V]                = NJProducerRecord.value.set(Some(v))(this)
+  def withTopicName(name: TopicName): NJProducerRecord[K, V] = NJProducerRecord.topic.replace(name.value)(this)
+  def withPartition(pt: Int): NJProducerRecord[K, V]         = NJProducerRecord.partition.replace(Some(pt))(this)
+  def withTimestamp(ts: Long): NJProducerRecord[K, V]        = NJProducerRecord.timestamp.replace(Some(ts))(this)
+  def withKey(k: K): NJProducerRecord[K, V]                  = NJProducerRecord.key.replace(Some(k))(this)
+  def withValue(v: V): NJProducerRecord[K, V]                = NJProducerRecord.value.replace(Some(v))(this)
 
-  def noPartition: NJProducerRecord[K, V] = NJProducerRecord.partition.set(None)(this)
-  def noTimestamp: NJProducerRecord[K, V] = NJProducerRecord.timestamp.set(None)(this)
-  def noHeaders: NJProducerRecord[K, V]   = NJProducerRecord.headers.set(Nil)(this)
+  def noPartition: NJProducerRecord[K, V] = NJProducerRecord.partition.replace(None)(this)
+  def noTimestamp: NJProducerRecord[K, V] = NJProducerRecord.timestamp.replace(None)(this)
+  def noHeaders: NJProducerRecord[K, V]   = NJProducerRecord.headers.replace(Nil)(this)
 
   def noMeta: NJProducerRecord[K, V] =
     NJProducerRecord
       .timestamp[K, V]
-      .set(None)
-      .andThen(NJProducerRecord.partition[K, V].set(None))
-      .andThen(NJProducerRecord.headers.set(Nil))(this)
+      .replace(None)
+      .andThen(NJProducerRecord.partition[K, V].replace(None))
+      .andThen(NJProducerRecord.headers.replace(Nil))(this)
 
   def modifyKey(f: K => K): NJProducerRecord[K, V] =
     NJProducerRecord.key.modify((_: Option[K]).map(f))(this)
@@ -74,9 +74,9 @@ final case class NJProducerRecord[K, V](
 
 object NJProducerRecord {
   def optionalKey[K, V]: Optional[NJProducerRecord[K, V], K] =
-    NJProducerRecord.key[K, V].composePrism(some)
+    NJProducerRecord.key[K, V].andThen(some[K])
   def optionalValue[K, V]: Optional[NJProducerRecord[K, V], V] =
-    NJProducerRecord.value[K, V].composePrism(some)
+    NJProducerRecord.value[K, V].andThen(some[V])
 
   def apply[K, V](pr: KafkaProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
     NJProducerRecord(

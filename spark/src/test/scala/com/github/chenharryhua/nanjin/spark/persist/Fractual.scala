@@ -7,7 +7,6 @@ import io.circe.Codec
 import io.circe.shapes.*
 import monocle.Traversal
 import monocle.function.Plated
-import monocle.generic.all.coProductPrism
 import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import shapeless.{:+:, CNil, Coproduct}
@@ -24,20 +23,22 @@ object Fractual {
   implicit val platedFractual: Plated[Fractual] =
     Plated[Fractual](new Traversal[Fractual, Fractual] {
 
-      override def modifyF[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit
+      override def modifyA[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit
         ev: Applicative[F]): F[Fractual] =
         s.value match {
           case None => ev.pure(Fractual(None))
           case Some(pl) =>
-            val list = coProductPrism[FType, List[Fractual]]
-              .getOption(pl)
-              .map(_.traverse(f).map(x => Fractual(Some(Coproduct[FType](x)))))
+            val list: Option[F[Fractual]] =
+              pl.select[List[Fractual]].map(_.traverse(f).map(x => Fractual(Some(Coproduct[FType](x)))))
 
-            val map = coProductPrism[FType, Map[String, Fractual]].getOption(pl).map {
-              _.map { case (s, j) => ev.map(f(j))(a => s -> a) }.toList.sequence.map { p =>
+            val map: Option[F[Fractual]] = pl
+              .select[Map[String, Fractual]]
+              .map(_.map { case (s, j) =>
+                ev.map(f(j))(a => s -> a)
+              }.toList.sequence.map { p =>
                 Fractual(Some(Coproduct[FType](p.toMap)))
-              }
-            }
+              })
+
             list.orElse(map).getOrElse(ev.pure(Fractual(Some(pl))))
         }
     })

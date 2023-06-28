@@ -9,12 +9,11 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import io.scalaland.enumz.Enum
-import monocle.function.At.at
-import org.apache.kafka.streams.{KafkaStreams, Topology}
 import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
+import org.apache.kafka.streams.{KafkaStreams, Topology}
 
 import java.util.Properties
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -99,7 +98,7 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
-      settings = KafkaStreamSettings.config.composeLens(at(key)).set(Some(value))(settings),
+      settings = KafkaStreamSettings.config.modify(_.updatedWith(key)(_ => Some(value)))(settings),
       javaProperties = javaProperties,
       top = top,
       localStateStores = localStateStores,

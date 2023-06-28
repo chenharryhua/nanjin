@@ -38,9 +38,9 @@ private object AuthConfigF {
 
   val algebra: Algebra[AuthConfigF, AuthParams] = Algebra[AuthConfigF, AuthParams] {
     case InitParams()                     => AuthParams()
-    case WithAuthMaxRetries(value, cont)  => AuthParams.maxRetries.set(value)(cont)
-    case WithAuthMaxWait(value, cont)     => AuthParams.maxWait.set(value)(cont)
-    case WithAuthInsecureLog(value, cont) => AuthParams.unsecureLog.set(value)(cont)
+    case WithAuthMaxRetries(value, cont)  => AuthParams.maxRetries.replace(value)(cont)
+    case WithAuthMaxWait(value, cont)     => AuthParams.maxWait.replace(value)(cont)
+    case WithAuthInsecureLog(value, cont) => AuthParams.unsecureLog.replace(value)(cont)
   }
 }
 

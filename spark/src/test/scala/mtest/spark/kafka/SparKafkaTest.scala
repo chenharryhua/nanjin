@@ -105,7 +105,7 @@ class SparKafkaTest extends AnyFunSuite {
       sparKafka
         .topic(src)
         .crRdd(IO(ds.rdd))
-        .flatMap(m => m.value.map(x => NJConsumerRecord.value.set(Some(x - 1))(m)))(
+        .flatMap(m => m.value.map(x => NJConsumerRecord.value.replace(Some(x - 1))(m)))(
           NJAvroCodec[Int],
           NJAvroCodec[Int])
         .frdd
