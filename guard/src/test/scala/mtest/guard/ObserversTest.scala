@@ -21,7 +21,7 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
-import skunk.Session
+import skunk.{Command, Session, Void}
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.*
@@ -133,7 +133,7 @@ class ObserversTest extends AnyFunSuite {
         password = Some("postgres"),
         debug = true)
 
-    val cmd =
+    val cmd: Command[Void] =
       sql"""CREATE TABLE IF NOT EXISTS log (
               info json NULL,
               id SERIAL,

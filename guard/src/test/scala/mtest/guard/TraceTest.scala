@@ -19,7 +19,7 @@ import scala.concurrent.duration.DurationInt
 
 class TraceTest extends AnyFunSuite {
 
-  test("trace") {
+  test("1.trace") {
     implicit val log: Logger[IO] = Slf4jLogger.getLoggerFromName("test-logger")
     val logEntry                 = Log.entryPoint[IO]("logger")
 
@@ -46,7 +46,7 @@ class TraceTest extends AnyFunSuite {
     run.unsafeRunSync()
   }
 
-  test("jaeger") {
+  test("2.jaeger") {
 
     val entryPoint = Jaeger.entryPoint("nj.test", Some(new URI("http://localhost:16686")))(cfg =>
       IO(
@@ -79,7 +79,7 @@ class TraceTest extends AnyFunSuite {
   }
 
 // nc -kluvw 0 127.0.0.1 1026
-  test("udp_test") {
+  test("3.udp_test") {
     TaskGuard[IO]("udp_test")
       .service("udp_test")
       .eventStream { agent =>
