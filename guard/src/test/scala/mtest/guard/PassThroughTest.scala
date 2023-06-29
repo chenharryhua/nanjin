@@ -4,11 +4,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.NJAlert
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
@@ -16,9 +16,9 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
 class PassThroughTest extends AnyFunSuite {
-  val guard: ServiceGuard[IO] = TaskGuard[IO]("test").service("pass-throught")
+  val guard: ServiceGuard[IO] = TaskGuard[IO]("test").service("pass-through")
 
-  test("2.counter") {
+  test("1.counter") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { ag =>
@@ -34,15 +34,15 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "2ecb817d")
+        .find(_.metricId.metricName.digest == "59d2456f")
         .size == 1)
   }
 
-  test("3.alert") {
+  test("2.alert") {
     val Some(last) = guard
       .updateConfig(_.withMetricReport(cron_1hour))
       .eventStream { ag =>
-        val alert = ag.alert("oops").withCounting
+        val alert: NJAlert[IO] = ag.alert("oops").withCounting
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
           ag.metrics.report
       }
@@ -56,11 +56,11 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "0836bd64")
+        .find(_.metricId.metricName.digest == "d42eee33")
         .size == 1)
   }
 
-  test("4.meter") {
+  test("3.meter") {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
@@ -74,7 +74,7 @@ class PassThroughTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("5.histogram") {
+  test("4.histogram") {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>
@@ -87,7 +87,7 @@ class PassThroughTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("6.gauge") {
+  test("5.gauge") {
     guard
       .updateConfig(_.withMetricReport(cron_1second))
       .eventStream { agent =>

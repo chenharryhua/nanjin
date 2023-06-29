@@ -55,10 +55,10 @@ private object ActionConfigF {
     retryPolicy: Policy): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(serviceParams) => ActionParams(actionName, measurement, retryPolicy, serviceParams)
-      case WithPublishStrategy(v, c) => ActionParams.publishStrategy.set(v)(c)
-      case WithTiming(v, c)          => ActionParams.isTiming.set(v)(c)
-      case WithCounting(v, c)        => ActionParams.isCounting.set(v)(c)
-      case WithImportance(v, c)      => ActionParams.importance.set(v)(c)
+      case WithPublishStrategy(v, c) => ActionParams.publishStrategy.replace(v)(c)
+      case WithTiming(v, c)          => ActionParams.isTiming.replace(v)(c)
+      case WithCounting(v, c)        => ActionParams.isCounting.replace(v)(c)
+      case WithImportance(v, c)      => ActionParams.importance.replace(v)(c)
     }
 }
 

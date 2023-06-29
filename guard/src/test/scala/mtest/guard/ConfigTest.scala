@@ -101,7 +101,7 @@ class ConfigTest extends AnyFunSuite {
     assert(ns === expected)
   }
 
-  test("composable service config") {
+  test("13.composable service config") {
     val homepage = service
       .updateConfig(_.withHomePage("abc"))
       .updateConfig(_.withMetricDailyReset)
@@ -117,7 +117,7 @@ class ConfigTest extends AnyFunSuite {
     assert(homepage == "abc")
   }
 
-  test("composable action config") {
+  test("14.composable action config") {
     val as = service
       .eventStream(_.action("abc", _.notice.withCounting).updateConfig(_.withTiming).delay(1).run)
       .filter(_.isInstanceOf[ActionStart])
@@ -131,14 +131,14 @@ class ConfigTest extends AnyFunSuite {
     assert(as.actionParams.isTiming)
   }
 
-  test("should not contain {},[],()") {
+  test("15.should not contain {},[],()") {
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("{a b c}"))
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("(a b c)"))
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("[a b c]"))
     NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ").value
   }
 
-  test("case") {
+  test("16.case") {
     val en = EventName.ServiceStart
     assert(en.entryName == "Service Start")
     assert(en.snake == "service_start")
@@ -148,7 +148,7 @@ class ConfigTest extends AnyFunSuite {
     assert(en.snakeJson == Json.fromString("service_start"))
   }
 
-  test("lense") {
+  test("17.lenses") {
     val len =
       Translator
         .serviceStart[IO, SlackApp]
@@ -156,8 +156,8 @@ class ConfigTest extends AnyFunSuite {
           s.copy(attachments = Attachment("modified by lense", List.empty) :: s.attachments)))
         .apply(Translator.slack[IO])
 
-    TaskGuard[IO]("lense")
-      .service("lense")
+    TaskGuard[IO]("lenses")
+      .service("lenses")
       .eventStream { ag =>
         val err =
           ag.action("error", _.critical).retry(IO.raiseError[Int](new Exception("oops"))).run

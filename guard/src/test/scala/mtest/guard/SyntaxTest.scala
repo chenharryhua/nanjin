@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.guard.observers.console
 import org.scalatest.funsuite.AnyFunSuite
 
 class SyntaxTest extends AnyFunSuite {
-  test("12. builder syntax") {
+  test("builder syntax") {
     TaskGuard[IO]("task")
       .service("service")
       .eventStream { agent =>

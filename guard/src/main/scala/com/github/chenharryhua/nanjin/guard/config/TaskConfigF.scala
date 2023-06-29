@@ -28,8 +28,8 @@ private object TaskConfigF {
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(taskName) => TaskParams(taskName, ZoneId.systemDefault(), HostName.local_host)
-      case WithZoneId(v, c)     => TaskParams.zoneId.set(v)(c)
-      case WithHostName(v, c)   => TaskParams.hostName.set(v)(c)
+      case WithZoneId(v, c)     => TaskParams.zoneId.replace(v)(c)
+      case WithHostName(v, c)   => TaskParams.hostName.replace(v)(c)
     }
 }
 

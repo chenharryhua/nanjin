@@ -97,7 +97,7 @@ class MetricsTest extends AnyFunSuite {
     assert(last.get.asInstanceOf[MetricReport].snapshot.counters.forall(_.count == 0))
   }
 
-  test("6.show timestamp") {
+  test("5.show timestamp") {
     val s = service("timing").updateConfig(_.withMetricReport(Cron.unsafeParse("0-59 * * ? * *")))
 
     val s1 = s("s1").eventStream(_ => IO.never)
@@ -117,7 +117,7 @@ class MetricsTest extends AnyFunSuite {
         .drain).unsafeRunSync()
   }
 
-  test("8.gauge") {
+  test("6.gauge") {
     service("gauge").eventStream { agent =>
       val gauge =
         agent.gauge("random").register(Random.nextInt(100)) >>
@@ -134,7 +134,7 @@ class MetricsTest extends AnyFunSuite {
     }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
   }
 
-  test("9. namespace merge") {
+  test("7. namespace merge") {
     val name = "name.space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")

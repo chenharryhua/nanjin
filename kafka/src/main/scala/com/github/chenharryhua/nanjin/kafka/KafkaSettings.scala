@@ -5,7 +5,6 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.utils
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import monocle.Traversal
-import monocle.function.At.at
 import monocle.macros.Lenses
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -58,15 +57,14 @@ object KafkaStreamSettings {
   private def updateAll(key: String, value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
-        KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
-        KafkaSettings.producerSettings.composeLens(KafkaProducerSettings.config),
-        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config),
-        KafkaSettings.adminSettings.composeLens(KafkaAdminSettings.config)
+        KafkaSettings.consumerSettings.andThen(KafkaConsumerSettings.config),
+        KafkaSettings.producerSettings.andThen(KafkaProducerSettings.config),
+        KafkaSettings.streamSettings.andThen(KafkaStreamSettings.config),
+        KafkaSettings.adminSettings.andThen(KafkaAdminSettings.config)
       )
-      .composeLens(at(key))
-      .set(Some(value))(this)
+      .modify(_.updatedWith(key)(_ => Some(value)))(this)
 
-  def withZoneId(zoneId: ZoneId): KafkaSettings = KafkaSettings.zoneId.set(zoneId)(this)
+  def withZoneId(zoneId: ZoneId): KafkaSettings = KafkaSettings.zoneId.replace(zoneId)(this)
 
   def withBrokers(brokers: String): KafkaSettings =
     updateAll(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, brokers)
@@ -79,35 +77,30 @@ object KafkaStreamSettings {
 
   def withSchemaRegistryProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.schemaRegistrySettings
-      .composeLens(SchemaRegistrySettings.config)
-      .composeLens(at(key))
-      .set(Some(value))(this)
+      .andThen(SchemaRegistrySettings.config)
+      .modify(_.updatedWith(key)(_ => Some(value)))(this)
 
   def withProducerProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.producerSettings
-      .composeLens(KafkaProducerSettings.config)
-      .composeLens(at(key))
-      .set(Some(value))(this)
+      .andThen(KafkaProducerSettings.config)
+      .modify(_.updatedWith(key)(_ => Some(value)))(this)
 
   def withConsumerProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.consumerSettings
-      .composeLens(KafkaConsumerSettings.config)
-      .composeLens(at(key))
-      .set(Some(value))(this)
+      .andThen(KafkaConsumerSettings.config)
+      .modify(_.updatedWith(key)(_ => Some(value)))(this)
 
   def withStreamingProperty(key: String, value: String): KafkaSettings =
     KafkaSettings.streamSettings
-      .composeLens(KafkaStreamSettings.config)
-      .composeLens(at(key))
-      .set(Some(value))(this)
+      .andThen(KafkaStreamSettings.config)
+      .modify(_.updatedWith(key)(_ => Some(value)))(this)
 
   private def auto_offset_reset(value: String): KafkaSettings =
     Traversal
       .applyN[KafkaSettings, Map[String, String]](
-        KafkaSettings.consumerSettings.composeLens(KafkaConsumerSettings.config),
-        KafkaSettings.streamSettings.composeLens(KafkaStreamSettings.config))
-      .composeLens(at(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG))
-      .set(Some(value))(this)
+        KafkaSettings.consumerSettings.andThen(KafkaConsumerSettings.config),
+        KafkaSettings.streamSettings.andThen(KafkaStreamSettings.config))
+      .modify(_.updatedWith(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG)(_ => Some(value)))(this)
 
   def withLatestAutoOffset: KafkaSettings   = auto_offset_reset("latest")
   def withEarliestAutoOffset: KafkaSettings = auto_offset_reset("earliest")

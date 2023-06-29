@@ -64,13 +64,13 @@ private object SStreamConfigF {
   private val algebra: Algebra[SStreamConfigF, SStreamParams] =
     Algebra[SStreamConfigF, SStreamParams] {
       case InitParams(tr)              => SStreamParams(tr)
-      case WithCheckpointBuilder(v, c) => SStreamParams.checkpointBuilder.set(v)(c)
-      case WithFailOnDataLoss(v, c)    => SStreamParams.dataLoss.set(NJFailOnDataLoss(v))(c)
-      case WithOutputMode(v, c)        => SStreamParams.outputMode.set(v)(c)
-      case WithTrigger(v, c)           => SStreamParams.trigger.set(v)(c)
-      case WithFormat(v, c)            => SStreamParams.fileFormat.set(v)(c)
-      case WithProgressInterval(v, c)  => SStreamParams.progressInterval.set(v)(c)
-      case WithQueryName(v, c)         => SStreamParams.queryName.set(Some(v))(c)
+      case WithCheckpointBuilder(v, c) => SStreamParams.checkpointBuilder.replace(v)(c)
+      case WithFailOnDataLoss(v, c)    => SStreamParams.dataLoss.replace(NJFailOnDataLoss(v))(c)
+      case WithOutputMode(v, c)        => SStreamParams.outputMode.replace(v)(c)
+      case WithTrigger(v, c)           => SStreamParams.trigger.replace(v)(c)
+      case WithFormat(v, c)            => SStreamParams.fileFormat.replace(v)(c)
+      case WithProgressInterval(v, c)  => SStreamParams.progressInterval.replace(v)(c)
+      case WithQueryName(v, c)         => SStreamParams.queryName.replace(Some(v))(c)
     }
 
   def evalConfig(cfg: SStreamConfig): SStreamParams = scheme.cata(algebra).apply(cfg.value)

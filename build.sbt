@@ -2,16 +2,16 @@ ThisBuild / scalaVersion       := "2.13.11"
 ThisBuild / parallelExecution  := false
 Global / cancelable            := true
 ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.16.9-SNAPSHOT"
+ThisBuild / version            := "0.17.0-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.7.0"
-val awsV_1      = "1.12.490"
+val awsV_1      = "1.12.491"
 val awsV_2      = "2.20.90"
 val catsEffectV = "3.5.1"
-val hadoopV     = "3.3.5"
-val monocleV    = "2.1.0"
+val hadoopV     = "3.3.6"
+val monocleV    = "3.2.0"
 val confluentV  = "7.4.0"
 val kafkaV      = "7.4.0-ce"
 val fs2KafkaV   = "3.0.1"
@@ -23,7 +23,7 @@ val metricsV    = "4.2.19"
 val log4catsV   = "2.6.0"
 val skunkV      = "0.6.0"
 val natchezV    = "0.3.2"
-val http4sV     = "0.23.21"
+val http4sV     = "0.23.22"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.2"
 val protobufV   = "3.23.3"
@@ -103,11 +103,8 @@ val fs2Lib = List(
 ).map(_ % fs2V)
 
 val monocleLib = List(
-  "com.github.julien-truffaut" %% "monocle-core",
-  "com.github.julien-truffaut" %% "monocle-generic",
-  "com.github.julien-truffaut" %% "monocle-macro",
-  "com.github.julien-truffaut" %% "monocle-state",
-  "com.github.julien-truffaut" %% "monocle-unsafe"
+  "dev.optics" %% "monocle-core",
+  "dev.optics" %% "monocle-macro"
 ).map(_ % monocleV)
 
 val testLib = List(
@@ -118,7 +115,7 @@ val testLib = List(
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.16",
-  "com.github.julien-truffaut" %% "monocle-law"               % monocleV,
+  "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % doobieV,
   "org.postgresql"                                            % "postgresql" % "42.6.0", // snyk
@@ -228,7 +225,6 @@ lazy val aws = (project in file("aws"))
     "software.amazon.awssdk"              % "sdk-core"         % awsV_2,
     "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
     "io.netty"                            % "netty-handler"    % nettyV, // snyk
-    "io.circe" %% "circe-optics"          % "0.14.1",
     "org.http4s" %% "http4s-ember-client" % http4sV,
     "org.http4s" %% "http4s-circe"        % http4sV
   ) ++ logLib ++ testLib)
@@ -239,7 +235,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(name := "nj-datetime")
   .settings(
     libraryDependencies ++= List(
-      "org.typelevel" %% "cats-parse"                  % "0.3.9",
+      "org.typelevel" %% "cats-parse"                  % "0.3.10",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV) ++
       testLib
   )
@@ -278,7 +274,6 @@ lazy val messages = (project in file("messages"))
     "org.yaml"                       % "snakeyaml"   % "2.0", // snyk
     "org.xerial.snappy"              % "snappy-java" % "1.1.10.1", // snyk
     "io.circe" %% "circe-jackson212" % "0.14.0",
-    "io.circe" %% "circe-optics"     % "0.14.1",
     "org.gnieh" %% "diffson-circe"   % "4.4.0"
   ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
@@ -398,6 +393,14 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)

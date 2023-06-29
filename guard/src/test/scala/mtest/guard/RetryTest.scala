@@ -225,7 +225,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-  test("9.1.retry - isWorthRetry - throw exception") {
+  test("10.retry - isWorthRetry - throw exception") {
     val Vector(s, a, b, c) = serviceGuard
       .withRestartPolicy(constant_1hour)
       .eventStream { gd =>
@@ -246,7 +246,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServicePanic])
   }
 
-  test("10.quasi syntax") {
+  test("11.quasi syntax") {
     serviceGuard.eventStream { ag =>
       val builder = ag.action("quasi", _.notice)
       builder.parQuasi(IO("a"), IO("b")).run >>
@@ -258,7 +258,7 @@ class RetryTest extends AnyFunSuite {
     }
   }
 
-  test("11.cron policy") {
+  test("12.cron policy") {
     val List(a, b, c, d, e, f, g) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(
@@ -281,7 +281,7 @@ class RetryTest extends AnyFunSuite {
 
   }
 
-  test("14.should not retry fatal error") {
+  test("13.should not retry fatal error") {
     val List(a, b, c, d) = serviceGuard
       .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
       .eventStream(
@@ -299,7 +299,7 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("16. logError json exception") {
+  test("14. logError json exception") {
     val List(a, b, c, d) = serviceGuard
       .eventStream(agent =>
         agent
@@ -318,7 +318,7 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("17. logError null") {
+  test("15. logError null") {
     val List(a, b, c) = TaskGuard[IO]("logError")
       .service("no exception")
       .eventStream(
@@ -335,7 +335,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStop])
   }
 
-  test("18.retry - aware") {
+  test("16.retry - aware") {
     val Vector(s, a, b, c, d) = serviceGuard.eventStream { gd =>
       val ag =
         gd.action("t", _.aware).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
@@ -350,7 +350,7 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("19.retry - delay") {
+  test("17.retry - delay") {
     var k = 0
     def tt = if (k == 0) { k += 1; throw new Exception() }
     else { k += 1; 0 }
