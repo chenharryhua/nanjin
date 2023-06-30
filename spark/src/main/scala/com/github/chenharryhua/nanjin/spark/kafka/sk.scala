@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.kernel.Sync
 import cats.effect.SyncIO
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaSettings, KafkaTopic, KafkaTopicPartition}
@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsum
 import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import monocle.function.At.{atMap, remove}
+import monocle.syntax.all.*
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -20,7 +21,6 @@ import org.apache.spark.streaming.kafka010.*
 
 import java.util
 import scala.jdk.CollectionConverters.*
-
 private[kafka] object sk {
 
   // https://spark.apache.org/docs/3.0.1/streaming-kafka-0-10-integration.html
@@ -115,7 +115,9 @@ private[kafka] object sk {
           val njcr: NJConsumerRecord[K, V] =
             cr.bimap(topic.codec.keyCodec.tryDecode(_).toOption, topic.codec.valCodec.tryDecode(_).toOption)
               .flatten[K, V]
-          f(NJConsumerRecord.timestamp.modify(_ * SparkDatetimeConversionConstant)(njcr))
+              .focus(_.timestamp)
+              .modify(_ * SparkDatetimeConversionConstant)
+          f(njcr)
         }
       }(TypedExpressionEncoder(te))
   }

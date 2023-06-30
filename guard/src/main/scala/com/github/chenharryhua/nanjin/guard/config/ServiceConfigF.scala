@@ -9,7 +9,7 @@ import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import monocle.macros.Lenses
+import monocle.syntax.all.*
 import org.typelevel.cats.time.instances.{duration, zoneddatetime}
 
 import java.time.*
@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-@Lenses @JsonCodec final case class MetricParams(
+@JsonCodec final case class MetricParams(
   reportSchedule: Option[CronExpr],
   resetSchedule: Option[CronExpr],
   namePrefix: String,
@@ -37,7 +37,7 @@ object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
-@Lenses @JsonCodec final case class ServiceParams(
+@JsonCodec final case class ServiceParams(
   serviceName: String,
   serviceId: UUID,
   launchTime: ZonedDateTime,
@@ -119,20 +119,13 @@ private object ServiceConfigF {
       case InitParams(taskParams) =>
         ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
 
-      case WithReportSchedule(v, c) =>
-        ServiceParams.metricParams.andThen(MetricParams.reportSchedule).replace(v)(c)
-      case WithResetSchedule(v, c) =>
-        ServiceParams.metricParams.andThen(MetricParams.resetSchedule).replace(v)(c)
-      case WithRateTimeUnit(v, c) =>
-        ServiceParams.metricParams.andThen(MetricParams.rateTimeUnit).replace(v)(c)
-      case WithDurationTimeUnit(v, c) =>
-        ServiceParams.metricParams.andThen(MetricParams.durationTimeUnit).replace(v)(c)
-      case WithMetricNamePrefix(v, c) =>
-        ServiceParams.metricParams.andThen(MetricParams.namePrefix).replace(v)(c)
-
-      case WithPolicyThreshold(v, c) => ServiceParams.policyThreshold.replace(v)(c)
-
-      case WithHomePage(v, c) => ServiceParams.homePage.replace(v)(c)
+      case WithReportSchedule(v, c)   => c.focus(_.metricParams.reportSchedule).replace(v)
+      case WithResetSchedule(v, c)    => c.focus(_.metricParams.resetSchedule).replace(v)
+      case WithRateTimeUnit(v, c)     => c.focus(_.metricParams.rateTimeUnit).replace(v)
+      case WithDurationTimeUnit(v, c) => c.focus(_.metricParams.durationTimeUnit).replace(v)
+      case WithMetricNamePrefix(v, c) => c.focus(_.metricParams.namePrefix).replace(v)
+      case WithPolicyThreshold(v, c)  => c.focus(_.policyThreshold).replace(v)
+      case WithHomePage(v, c)         => c.focus(_.homePage).replace(v)
     }
 }
 

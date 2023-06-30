@@ -4,7 +4,6 @@ import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.HostName.local_host
 import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import com.github.chenharryhua.nanjin.guard.config.{
-  MetricParams,
   Policy,
   ServiceBrief,
   ServiceID,
@@ -18,6 +17,7 @@ import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.observers.sampling
 import cron4s.Cron
 import cron4s.expr.CronExpr
+import monocle.syntax.all.*
 import mtest.guard.{beijingTime, cron_1minute, cron_1second, cron_2second}
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
@@ -39,7 +39,7 @@ class MetricSamplingTest extends AnyFunSuite {
 
   def metricReport(cron: CronExpr, now: ZonedDateTime): MetricReport = MetricReport(
     MetricIndex.Periodic(1023),
-    ServiceParams.metricParams.andThen(MetricParams.reportSchedule).replace(Some(cron))(serviceParams),
+    serviceParams.focus(_.metricParams.reportSchedule).replace(Some(cron)),
     now,
     MetricSnapshot(Nil, Nil, Nil, Nil, Nil)
   )

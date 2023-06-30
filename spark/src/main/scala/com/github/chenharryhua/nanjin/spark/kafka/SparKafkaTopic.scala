@@ -46,13 +46,11 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   object pipes {
     object circe {
       def toBytes(isKeepNull: Boolean)(implicit
-        jk: JsonEncoder[K],
-        jv: JsonEncoder[V]): Pipe[F, NJConsumerRecord[K, V], Byte] =
+        ev: JsonEncoder[NJConsumerRecord[K, V]]): Pipe[F, NJConsumerRecord[K, V], Byte] =
         CirceSerde.toBytes[F, NJConsumerRecord[K, V]](isKeepNull)
       def fromBytes(implicit
         F: RaiseThrowable[F],
-        jk: JsonDecoder[K],
-        jv: JsonDecoder[V]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
+        ev: JsonDecoder[NJConsumerRecord[K, V]]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
         CirceSerde.fromBytes[F, NJConsumerRecord[K, V]]
     }
 

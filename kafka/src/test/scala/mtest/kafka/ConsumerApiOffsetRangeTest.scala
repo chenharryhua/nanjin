@@ -15,8 +15,8 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   /** * Notes:
     *
-    * ---------------100-------200-------300-------> Time
-    * ----------------| |------ before beginning after ending
+    * ---------------100-------200-------300-------> Time ----------------| |------ before beginning after
+    * ending
     *
     * ^ ^ \| | start end
     */

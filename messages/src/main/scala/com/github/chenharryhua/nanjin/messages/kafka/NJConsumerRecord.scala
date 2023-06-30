@@ -1,23 +1,19 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import cats.{Bifunctor, Eq, Show}
 import cats.kernel.PartialOrder
 import cats.syntax.all.*
+import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.{ConsumerRecord, Header}
 import io.circe.generic.JsonCodec
-import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.scalaland.chimney.dsl.*
-import monocle.Optional
-import monocle.macros.Lenses
-import monocle.std.option.some
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.annotation.nowarn
 
-@JsonCodec @Lenses
+@JsonCodec
 final case class NJHeader(key: String, value: Array[Byte])
 object NJHeader {
   // consistent with fs2.kafka
@@ -26,7 +22,6 @@ object NJHeader {
     Header(x.key, x.value) === Header(y.key, y.value)
 }
 
-@Lenses
 @AvroDoc("kafka record, optional Key and Value")
 @AvroNamespace("nj.spark.kafka")
 @AvroName("NJConsumerRecord")
@@ -40,9 +35,6 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka timestamp type") timestampType: Int,
   @AvroDoc("kafka headers") headers: List[NJHeader]) {
 
-  def newKey[K2](key: Option[K2]): NJConsumerRecord[K2, V]     = copy(key = key)
-  def newValue[V2](value: Option[V2]): NJConsumerRecord[K, V2] = copy(value = value)
-
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
     evV: V <:< Option[V2]
@@ -51,9 +43,6 @@ final case class NJConsumerRecord[K, V](
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](topic, Some(partition), Some(offset), Some(timestamp), key, value, headers)
-
-  def asJson(implicit k: JsonEncoder[K], v: JsonEncoder[V]): Json =
-    NJConsumerRecord.jsonEncoderNJConsumerRecord[K, V].apply(this)
 
   def metaInfo(zoneId: ZoneId): RecordMetaInfo =
     this
@@ -64,10 +53,6 @@ final case class NJConsumerRecord[K, V](
 }
 
 object NJConsumerRecord {
-
-  def optionalKey[K, V]: Optional[NJConsumerRecord[K, V], K] = NJConsumerRecord.key[K, V].andThen(some[K])
-  def optionalValue[K, V]: Optional[NJConsumerRecord[K, V], V] =
-    NJConsumerRecord.value[K, V].andThen(some[V])
 
   def apply[K, V](cr: KafkaConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(
@@ -98,16 +83,6 @@ object NJConsumerRecord {
     val e: Encoder[NJConsumerRecord[K, V]]          = implicitly
     NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
-
-  implicit def jsonEncoderNJConsumerRecord[K, V](implicit
-    @nowarn jk: JsonEncoder[K],
-    @nowarn jv: JsonEncoder[V]): JsonEncoder[NJConsumerRecord[K, V]] =
-    io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
-
-  implicit def jsonDecoderNJConsumerRecord[K, V](implicit
-    @nowarn jk: JsonDecoder[K],
-    @nowarn jv: JsonDecoder[V]): JsonDecoder[NJConsumerRecord[K, V]] =
-    io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {
