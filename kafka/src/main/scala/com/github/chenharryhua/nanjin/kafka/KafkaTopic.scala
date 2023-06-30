@@ -5,23 +5,25 @@ import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{
   NJConsumerMessage,
   NJConsumerRecord,
   NJConsumerRecordWithError,
   NJHeader
 }
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.sksamuel.avro4s.AvroInputStream
-import fs2.kafka.*
 import fs2.Chunk
+import fs2.kafka.*
 import io.circe.Decoder
+import io.circe.generic.auto.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
 import org.apache.kafka.streams.scala.kstream.Produced
 
 import java.io.ByteArrayInputStream
+import scala.annotation.nowarn
 import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
@@ -128,7 +130,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
     produceOne(producerRecord(k, v))
 
-  def produceCirce(circeStr: String)(implicit F: Async[F], k: Decoder[K], v: Decoder[V]): F[RecordMetadata] =
+  def produceCirce(
+    circeStr: String)(implicit F: Async[F], @nowarn k: Decoder[K], @nowarn v: Decoder[V]): F[RecordMetadata] =
     io.circe.parser
       .decode[NJConsumerRecord[K, V]](circeStr)
       .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord)

@@ -5,12 +5,12 @@ import com.github.chenharryhua.nanjin.common.HostName
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
-import monocle.macros.Lenses
+import monocle.syntax.all.*
 import org.typelevel.cats.time.instances.zoneid
 
 import java.time.ZoneId
 
-@Lenses @JsonCodec final case class TaskParams(taskName: String, zoneId: ZoneId, hostName: HostName)
+@JsonCodec final case class TaskParams(taskName: String, zoneId: ZoneId, hostName: HostName)
 
 object TaskParams extends zoneid {
   implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
@@ -28,8 +28,8 @@ private object TaskConfigF {
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
       case InitParams(taskName) => TaskParams(taskName, ZoneId.systemDefault(), HostName.local_host)
-      case WithZoneId(v, c)     => TaskParams.zoneId.replace(v)(c)
-      case WithHostName(v, c)   => TaskParams.hostName.replace(v)(c)
+      case WithZoneId(v, c)     => c.focus(_.zoneId).replace(v)
+      case WithHostName(v, c)   => c.focus(_.hostName).replace(v)
     }
 }
 

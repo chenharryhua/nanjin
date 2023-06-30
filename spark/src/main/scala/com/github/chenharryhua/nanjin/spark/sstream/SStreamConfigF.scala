@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
-import monocle.macros.Lenses
+import monocle.syntax.all.*
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
 import java.time.ZoneId
@@ -15,7 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 
 final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
-@Lenses final private[sstream] case class SStreamParams private (
+final private[sstream] case class SStreamParams(
   zoneId: ZoneId,
   fileFormat: NJFileFormat,
   checkpointBuilder: NJFileFormat => NJPath,
@@ -64,13 +64,13 @@ private object SStreamConfigF {
   private val algebra: Algebra[SStreamConfigF, SStreamParams] =
     Algebra[SStreamConfigF, SStreamParams] {
       case InitParams(tr)              => SStreamParams(tr)
-      case WithCheckpointBuilder(v, c) => SStreamParams.checkpointBuilder.replace(v)(c)
-      case WithFailOnDataLoss(v, c)    => SStreamParams.dataLoss.replace(NJFailOnDataLoss(v))(c)
-      case WithOutputMode(v, c)        => SStreamParams.outputMode.replace(v)(c)
-      case WithTrigger(v, c)           => SStreamParams.trigger.replace(v)(c)
-      case WithFormat(v, c)            => SStreamParams.fileFormat.replace(v)(c)
-      case WithProgressInterval(v, c)  => SStreamParams.progressInterval.replace(v)(c)
-      case WithQueryName(v, c)         => SStreamParams.queryName.replace(Some(v))(c)
+      case WithCheckpointBuilder(v, c) => c.focus(_.checkpointBuilder).replace(v)
+      case WithFailOnDataLoss(v, c)    => c.focus(_.dataLoss).replace(NJFailOnDataLoss(v))
+      case WithOutputMode(v, c)        => c.focus(_.outputMode).replace(v)
+      case WithTrigger(v, c)           => c.focus(_.trigger).replace(v)
+      case WithFormat(v, c)            => c.focus(_.fileFormat).replace(v)
+      case WithProgressInterval(v, c)  => c.focus(_.progressInterval).replace(v)
+      case WithQueryName(v, c)         => c.focus(_.queryName).replace(Some(v))
     }
 
   def evalConfig(cfg: SStreamConfig): SStreamParams = scheme.cata(algebra).apply(cfg.value)

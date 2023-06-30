@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KUnknown, Ser
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import io.circe.Json
+import io.circe.generic.auto.*
 import org.apache.spark.sql.SparkSession
 import org.typelevel.cats.time.instances.zoneid
 

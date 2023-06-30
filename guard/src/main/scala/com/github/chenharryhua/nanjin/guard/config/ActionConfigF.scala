@@ -4,9 +4,9 @@ import cats.{Functor, Show}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
-import monocle.macros.Lenses
+import monocle.syntax.all.*
 
-@JsonCodec @Lenses
+@JsonCodec
 final case class ActionParams(
   metricId: MetricID,
   importance: Importance,
@@ -55,10 +55,10 @@ private object ActionConfigF {
     retryPolicy: Policy): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(serviceParams) => ActionParams(actionName, measurement, retryPolicy, serviceParams)
-      case WithPublishStrategy(v, c) => ActionParams.publishStrategy.replace(v)(c)
-      case WithTiming(v, c)          => ActionParams.isTiming.replace(v)(c)
-      case WithCounting(v, c)        => ActionParams.isCounting.replace(v)(c)
-      case WithImportance(v, c)      => ActionParams.importance.replace(v)(c)
+      case WithPublishStrategy(v, c) => c.focus(_.publishStrategy).replace(v)
+      case WithTiming(v, c)          => c.focus(_.isTiming).replace(v)
+      case WithCounting(v, c)        => c.focus(_.isCounting).replace(v)
+      case WithImportance(v, c)      => c.focus(_.importance).replace(v)
     }
 }
 

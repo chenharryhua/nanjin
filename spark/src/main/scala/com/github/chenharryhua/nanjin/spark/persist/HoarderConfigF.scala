@@ -5,10 +5,10 @@ import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
-import monocle.macros.Lenses
+import monocle.syntax.all.*
 import org.apache.spark.sql.SaveMode
 
-@Lenses final private[persist] case class HoarderParams(
+final private[persist] case class HoarderParams(
   format: NJFileFormat,
   outPath: NJPath,
   saveMode: SaveMode,
@@ -27,17 +27,15 @@ private object HoarderConfigF {
 
   final case class InitParams[K](path: NJPath) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
-  final case class WithOutputPath[K](value: NJPath, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: NJCompression, cont: K) extends HoarderConfigF[K]
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
       case InitParams(v)         => HoarderParams(v)
-      case WithSaveMode(v, c)    => HoarderParams.saveMode.replace(v)(c)
-      case WithOutputPath(v, c)  => HoarderParams.outPath.replace(v)(c)
-      case WithFileFormat(v, c)  => HoarderParams.format.replace(v)(c)
-      case WithCompression(v, c) => HoarderParams.compression.replace(v)(c)
+      case WithSaveMode(v, c)    => c.focus(_.saveMode).replace(v)
+      case WithFileFormat(v, c)  => c.focus(_.format).replace(v)
+      case WithCompression(v, c) => c.focus(_.compression).replace(v)
     }
 
   def evalConfig(cfg: HoarderConfig): HoarderParams = scheme.cata(algebra).apply(cfg.value)
@@ -54,9 +52,6 @@ final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def ignoreMode: HoarderConfig    = saveMode(SaveMode.Ignore)
   def overwriteMode: HoarderConfig = saveMode(SaveMode.Overwrite)
   def appendMode: HoarderConfig    = saveMode(SaveMode.Append)
-
-  def outputPath(outPath: NJPath): HoarderConfig =
-    HoarderConfig(Fix(WithOutputPath(outPath, value)))
 
   def outputFormat(fmt: NJFileFormat): HoarderConfig =
     HoarderConfig(Fix(WithFileFormat(fmt, value)))

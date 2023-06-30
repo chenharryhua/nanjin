@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import cron4s.Cron
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -13,20 +14,21 @@ import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import retry.{PolicyDecision, RetryPolicies, RetryStatus}
+import retry.{PolicyDecision, RetryPolicies, RetryPolicy, RetryStatus}
 
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
 
 class ServiceTest extends AnyFunSuite {
 
-  val guard = TaskGuard[IO]("service-level-guard")
+  val guard: ServiceGuard[IO] = TaskGuard[IO]("service-level-guard")
     .service("service")
     .updateConfig(_.withHomePage("https://abc.com/efg"))
     .withRestartPolicy(constant_1second)
     .withBrief(Json.fromString("test"))
 
-  val policy = RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
+  val policy: RetryPolicy[IO] =
+    RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard

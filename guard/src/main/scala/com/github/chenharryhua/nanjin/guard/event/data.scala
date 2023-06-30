@@ -5,7 +5,6 @@ import cats.syntax.all.*
 import cats.{Monad, Order, Show}
 import io.circe.Codec
 import io.circe.generic.JsonCodec
-import monocle.macros.Lenses
 import natchez.Span
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.{duration, instant}
@@ -15,7 +14,7 @@ import java.time.{Duration, Instant}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-@JsonCodec @Lenses
+@JsonCodec
 final case class NJError private (message: String, stackTrace: String)
 
 private[guard] object NJError {
@@ -32,7 +31,7 @@ object MetricIndex {
   final case class Periodic(index: Int) extends MetricIndex
 }
 
-@JsonCodec @Lenses
+@JsonCodec
 final case class ActionInfo(actionId: Int, launchTime: FiniteDuration, traceInfo: Option[TraceInfo]) {
   def took(landTime: FiniteDuration): Duration = landTime.minus(launchTime).toJava
   def traceId: Option[String]                  = traceInfo.map(_.traceId)
@@ -71,7 +70,7 @@ object ServiceStopCause {
   final case class ByGiveup(msg: String) extends ServiceStopCause(3)
 }
 
-@JsonCodec @Lenses
+@JsonCodec
 final case class TraceInfo(traceId: String, spanId: String)
 object TraceInfo {
   implicit final val showTraceInfo: Show[TraceInfo] = cats.derived.semiauto.show
@@ -89,7 +88,7 @@ object TraceInfo {
   * @param delay
   *   nominal delay, actual delay is equal to wakeTime minus pullTime roughly
   */
-@JsonCodec @Lenses
+@JsonCodec
 final case class Tick(index: Int, pullTime: Instant, wakeTime: Instant, delay: Duration)
 
 object Tick extends duration with instant {

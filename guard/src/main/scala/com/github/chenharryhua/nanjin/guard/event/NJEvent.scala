@@ -10,7 +10,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
 }
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Duration, ZonedDateTime}
@@ -105,7 +104,6 @@ object NJEvent extends zoneddatetime {
     final def took: Duration                    = actionInfo.took(landTime)
   }
 
-  @Lenses
   final case class ActionFail(
     actionParams: ActionParams,
     actionInfo: ActionInfo,
@@ -114,7 +112,6 @@ object NJEvent extends zoneddatetime {
     notes: Option[Json])
       extends ActionResultEvent
 
-  @Lenses
   final case class ActionDone(
     actionParams: ActionParams,
     actionInfo: ActionInfo,

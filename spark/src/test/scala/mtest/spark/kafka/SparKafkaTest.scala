@@ -13,6 +13,9 @@ import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.generic.auto.*
+import monocle.syntax.all.*
+import io.circe.syntax.*
 
 import java.time.{Instant, LocalDate}
 object SparKafkaTestData {
@@ -105,7 +108,7 @@ class SparKafkaTest extends AnyFunSuite {
       sparKafka
         .topic(src)
         .crRdd(IO(ds.rdd))
-        .flatMap(m => m.value.map(x => NJConsumerRecord.value.replace(Some(x - 1))(m)))(
+        .flatMap(m => m.value.map(x => m.focus(_.value).replace(Some(x - 1))))(
           NJAvroCodec[Int],
           NJAvroCodec[Int])
         .frdd
@@ -124,12 +127,15 @@ class SparKafkaTest extends AnyFunSuite {
     println(cr1.asJson.spaces2)
     println(
       cr1.toNJProducerRecord
-        .modifyKey(_ + 1)
-        .modifyValue(_ + 1)
+        .focus(_.key)
+        .modify(_.map(_ + 1))
+        .focus(_.value)
+        .modify(_.map(_ + 1))
         .withKey(1)
         .withValue(2)
         .withTimestamp(3)
         .withPartition(4)
+        .noHeaders
         .asJson
         .spaces2)
 
