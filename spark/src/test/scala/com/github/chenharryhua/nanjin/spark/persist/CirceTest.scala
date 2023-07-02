@@ -160,4 +160,13 @@ class CirceTest extends AnyFunSuite {
     assert(data.size + t1 == t2)
   }
 
+  test("kjson"){
+    val path = NJPath("./data/test/spark/persist/circe/kjson.json")
+    val data = JacketData.expected.map(_.neck.value.j)
+    val rdd = sparkSession.sparkContext.parallelize(data).map(KJson(_))
+    val saver = new RddFileHoarder[IO, KJson[Json]](IO(rdd.repartition(1))).circe(path)
+    saver.run.unsafeRunSync()
+    val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet
+    assert(data.toSet == t)
+  }
 }
