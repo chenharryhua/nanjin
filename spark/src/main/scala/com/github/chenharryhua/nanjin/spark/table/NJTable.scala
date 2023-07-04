@@ -11,8 +11,6 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[A])(implicit F: Sync[F]) {
 
-  // lazy val typedDataset: TypedDataset[A] = TypedDataset.create(fdataset)(ate.typedEncoder)
-
   def map[B](bate: AvroTypedEncoder[B])(f: A => B): NJTable[F, B] =
     new NJTable[F, B](F.flatMap(fdataset)(ds => F.blocking(ds.map(f)(bate.sparkEncoder))), bate)
 
