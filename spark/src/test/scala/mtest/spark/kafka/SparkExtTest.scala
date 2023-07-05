@@ -32,7 +32,12 @@ class SparkExtTest extends AnyFunSuite {
   val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = AvroTypedEncoder(topic.topicDef)
 
   test("stream") {
-    sparKafka.topic(topic).fromKafka.output.stream(100).compile.drain.unsafeRunSync()
+    val data = sparKafka.topic(topic).fromKafka
+    val res = for {
+      a <- data.output.stream(100).compile.toList
+      b <- data.asTable.output.stream(100).compile.toList
+    } yield assert(a.toSet === b.toSet)
+    res.unsafeRunSync()
   }
 
   test("save syntax") {
