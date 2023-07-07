@@ -7,6 +7,7 @@ import example.sparKafka
 import example.topics.fooTopic
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import io.circe.generic.auto.*
 
 @DoNotDiscover
 class ExampleKafakDump extends AnyFunSuite {
