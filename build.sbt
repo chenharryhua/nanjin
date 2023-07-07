@@ -26,7 +26,7 @@ val natchezV    = "0.3.3"
 val http4sV     = "0.23.22"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.2"
-val protobufV   = "3.23.4"
+val protobufV   = "3.23.3"
 val sparkV      = "3.4.1"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.94.Final"
@@ -305,7 +305,6 @@ lazy val kafka = (project in file("kafka"))
   */
 
 val hadoopLib = List(
-  "com.google.guava"  % "guava"                        % "32.1.1-jre", // snyk
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
   "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
   "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
