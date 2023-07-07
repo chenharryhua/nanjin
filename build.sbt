@@ -305,6 +305,7 @@ lazy val kafka = (project in file("kafka"))
   */
 
 val hadoopLib = List(
+  "com.google.guava"  % "guava"                        % "32.1.1-jre", // snyk
   "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
   "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
   "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
