@@ -75,7 +75,7 @@ object KantanSerde {
       conf.header match {
         case Header.None             => ()
         case Header.Implicit         => enc.header.foreach(engine.write)
-        case Header.Explicit(header) => engine.write(header)
+        case Header.Explicit(header) => engine.write(header): Unit
       }
       sw.toString
     } finally engine.close()
