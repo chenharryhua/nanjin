@@ -352,13 +352,8 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "org.tukaani"                    % "xz"                  % "1.9",
       "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.0", // snyk
-      "org.eclipse.jetty"              % "jetty-server"        % "11.0.15", // snyk
-      "org.eclipse.jetty"              % "jetty-client"        % "11.0.15", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
-      "io.netty"                       % "netty-all"           % nettyV, // snyk
-      "commons-net"                    % "commons-net"         % "3.9.0", // snyk
-      "com.fasterxml.woodstox"         % "woodstox-core"       % "6.5.1", // snyk
-      "net.minidev"                    % "json-smart"          % "2.4.11", // snyk
+      "io.netty"                       % "netty-handler"       % nettyV, // snyk
       "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
