@@ -18,6 +18,7 @@ val fs2KafkaV   = "3.0.1"
 val avroV       = "1.11.2"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.5"
+val kantanV     = "0.7.0"
 val slf4jV      = "2.0.7"
 val metricsV    = "4.2.19"
 val log4catsV   = "2.6.0"
@@ -79,7 +80,7 @@ val kantanLib = List(
   "com.nrinaudo" %% "kantan.csv-java8",
   "com.nrinaudo" %% "kantan.csv-generic",
   "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % "0.7.0")
+).map(_ % kantanV)
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.13",
@@ -154,7 +155,6 @@ val catsLib = List(
   List(
     "org.typelevel" %% "cats-mtl"              % "1.3.1",
     "org.typelevel" %% "kittens"               % "3.0.0",
-    "org.typelevel" %% "cats-tagless-macros"   % "0.15.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.7"
   )
 
@@ -182,7 +182,6 @@ val baseLib = List(
   "org.typelevel" %% "case-insensitive" % "1.4.0",
   "io.scalaland" %% "chimney"           % chimneyV,
   "io.scalaland" %% "enumz"             % "1.0.0",
-  "com.twitter" %% "algebird-core"      % "0.13.9",
   "com.chuusai" %% "shapeless"          % "2.3.10",
   "com.github.cb372" %% "cats-retry"    % "3.1.0"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
