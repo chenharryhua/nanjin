@@ -84,7 +84,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
 
   private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
-    crRdd(F.interruptible(sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.toNJConsumerRecord)))
+    crRdd((sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.map(_.toNJConsumerRecord))))
 
   /** download topic according to datetime
     *

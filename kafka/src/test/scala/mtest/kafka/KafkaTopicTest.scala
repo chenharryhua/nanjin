@@ -27,8 +27,6 @@ class KafkaTopicTest extends AnyFunSuite {
 
   test("valid name") {
     ctx.topic[Int, Int]("topic.1")
-    ctx.jsonTopic("topic-1")
-    ctx.stringTopic("topic_1")
   }
 
 }

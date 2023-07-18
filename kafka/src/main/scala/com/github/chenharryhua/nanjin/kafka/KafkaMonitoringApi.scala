@@ -34,7 +34,8 @@ object KafkaMonitoringApi {
       extends KafkaMonitoringApi[F, K, V] with localtime {
 
     private def fetchData(aor: AutoOffsetReset): Stream[F, NJConsumerRecordWithError[K, V]] =
-      topic.consume
+      topic.context
+        .consume(topic.topicName)
         .updateConfig(_.withAutoOffsetReset(aor).withEnableAutoCommit(false))
         .stream
         .map(m => topic.decode(m))
@@ -72,7 +73,8 @@ object KafkaMonitoringApi {
           os <- kcs.offsetsForTimes(njt)
           e <- kcs.endOffsets
         } yield os.combineWith(e)(_.orElse(_)))
-        _ <- topic.consume
+        _ <- topic.context
+          .consume(topic.topicName)
           .updateConfig(_.withEnableAutoCommit(false))
           .assign(gtp.mapValues(_.getOrElse(KafkaOffset(0))))
           .map(m => topic.decode(m))
@@ -115,7 +117,8 @@ object KafkaMonitoringApi {
 
     override def carbonCopyTo(other: KafkaTopic[F, K, V]): F[Unit] = {
       val run = for {
-        _ <- topic.consume
+        _ <- topic.context
+          .consume(topic.topicName)
           .updateConfig(_.withEnableAutoCommit(false))
           .stream
           .map { m =>

@@ -33,7 +33,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
   }
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
-    fooTopic.consume.stream
+    ctx.consume(fooTopic.topicName).stream
       .map(x => fooTopic.decoder(x).decode)
       .debug()
       .interruptAfter(3.seconds)

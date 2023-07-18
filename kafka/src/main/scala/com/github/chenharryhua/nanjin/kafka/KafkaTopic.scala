@@ -100,14 +100,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     NJStateStore[K, V](storeName, RegisteredKeyValueSerdePair(codec.keySerde, codec.valSerde))
   }
 
-  def consume(implicit F: Sync[F]): Fs2Consume[F] =
-    new Fs2Consume[F](
-      topicName,
-      ConsumerSettings[F, Array[Byte], Array[Byte]](
-        Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(context.settings.consumerSettings.config)
-    )
-
   def produce(implicit F: Sync[F]): Fs2Produce[F, K, V] =
     new Fs2Produce[F, K, V](
       ProducerSettings[F, K, V](

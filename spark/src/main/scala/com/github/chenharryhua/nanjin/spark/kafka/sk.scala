@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.SyncIO
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -53,19 +52,11 @@ private[kafka] object sk {
     offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecordWithError[K, V]] =
     kafkaBatchRDD(topic.context.settings, ss, offsetRange).map(topic.decode(_))
 
-  def kafkaBatch[F[_], K, V](
+  def kafkaBatch[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
-    dateRange: NJDateTimeRange): RDD[NJConsumerRecordWithError[K, V]] = {
-    val offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      topic.context.settings
-        .context[SyncIO]
-        .byteTopic(topic.topicName)
-        .shortLiveConsumer
-        .use(_.offsetRangeFor(dateRange))
-        .unsafeRunSync()
-    kafkaBatch(topic, ss, offsetRange)
-  }
+    dateRange: NJDateTimeRange): F[RDD[NJConsumerRecordWithError[K, V]]] =
+    topic.shortLiveConsumer.use(_.offsetRangeFor(dateRange)).map(kafkaBatch(topic, ss, _))
   @annotation.nowarn
   def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
