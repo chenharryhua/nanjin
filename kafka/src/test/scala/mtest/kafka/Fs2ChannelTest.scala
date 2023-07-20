@@ -26,13 +26,22 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("unknown schema") {
     val topic = ctx.topic[Array[Byte], KUnknown](nyc_taxi_trip.topicName)
-    topic.consume.stream.map(m => topic.decode(m)).take(1).debug().compile.drain.unsafeRunSync()
+    ctx
+      .consume(topic.topicName)
+      .stream
+      .map(m => topic.decode(m))
+      .take(1)
+      .debug()
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)
     val consumer =
-      topic.consume
+      ctx
+        .consume(topic.topicName)
         .updateConfig(_.withGroupId("fs2"))
         .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
 
@@ -51,7 +60,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("should be able to consume avro topic") {
     val topic    = ctx.topic(nyc_taxi_trip)
-    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val consumer = ctx.consume(topic.topicName).updateConfig(_.withGroupId("g1"))
     val ret = consumer.stream
       .map(m => topic.decoder(m).decodeValue)
       .take(1)
@@ -66,7 +75,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("should be able to consume telecom_italia_data topic") {
     val topic    = sms.in(ctx)
-    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val consumer = ctx.consume(topic.topicName).updateConfig(_.withGroupId("g1"))
     val ret = consumer
       .assign(KafkaTopicPartition(Map(new TopicPartition(topic.topicName.value, 0) -> KafkaOffset(0))))
       .map(m => topic.decoder(m).tryDecode)
@@ -83,7 +92,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("should return empty when topic-partition is empty") {
     val topic    = sms.in(ctx)
-    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val consumer = ctx.consume(topic.topicName).updateConfig(_.withGroupId("g1"))
     val ret = consumer
       .assign(KafkaTopicPartition.emptyOffset)
       .map(m => topic.decoder(m).tryDecode)
@@ -106,7 +115,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .transactional("txn")
       .updateConfig(_.withTransactionTimeout(10.seconds))
     val run = for {
-      cr <- src.consume.stream.map(src.decoder(_).decode).take(10)
+      cr <- ctx.consume(src.topicName).stream.map(src.decoder(_).decode).take(10)
       producer <- txntopic.stream
       pr = TransactionalProducerRecords.one(
         CommittableProducerRecords.one[IO, Key, smsCallInternet](

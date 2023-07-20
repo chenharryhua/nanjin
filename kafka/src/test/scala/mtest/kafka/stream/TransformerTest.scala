@@ -75,7 +75,9 @@ class TransformerTest extends AnyFunSuite {
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
         .through(topic1.produce.pipe)
-    val havest = tgt.consume.stream
+    val havest = ctx
+      .consume(tgt.topicName)
+      .stream
       .map(tgt.decoder(_).decode)
       .debug()
       .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)

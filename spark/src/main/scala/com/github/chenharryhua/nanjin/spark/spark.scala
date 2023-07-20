@@ -18,8 +18,6 @@ package object spark {
 
   object injection extends InjectionInstances
 
-  private[spark] val SparkDatetimeConversionConstant: Int = 1000
-
   implicit final class RddExt[F[_], A](frdd: F[RDD[A]]) extends Serializable {
 
     def output: RddFileHoarder[F, A] = new RddFileHoarder[F, A](frdd)

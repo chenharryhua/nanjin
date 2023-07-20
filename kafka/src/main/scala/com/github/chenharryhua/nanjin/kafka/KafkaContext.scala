@@ -6,8 +6,8 @@ import cats.syntax.functor.*
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec, SerdeOf}
-import io.circe.Json
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import fs2.kafka.{ConsumerSettings, Deserializer}
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
@@ -33,14 +33,13 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
-  def jsonTopic(topicName: TopicName): KafkaTopic[F, KJson[Json], KJson[Json]] =
-    topic(TopicDef[KJson[Json], KJson[Json]](topicName))
-
-  def byteTopic(topicName: TopicName): KafkaTopic[F, Array[Byte], Array[Byte]] =
-    topic(TopicDef[Array[Byte], Array[Byte]](topicName))
-
-  def stringTopic(topicName: TopicName): KafkaTopic[F, String, String] =
-    topic(TopicDef[String, String](topicName))
+  def consume(topicName: TopicName)(implicit F: Sync[F]): Fs2Consume[F] =
+    new Fs2Consume[F](
+      topicName,
+      ConsumerSettings[F, Array[Byte], Array[Byte]](
+        Deserializer[F, Array[Byte]],
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)
+    )
 
   def store[K: SerdeOf, V: SerdeOf](storeName: StoreName): NJStateStore[K, V] =
     NJStateStore[K, V](

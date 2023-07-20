@@ -42,7 +42,9 @@ object KafkaStreamingData {
       ))).covary[IO].through(t2Topic.produce.pipe)
 
   val harvest: Stream[IO, StreamTarget] =
-    tgt.consume.stream
+    ctx
+      .consume(tgt.topicName)
+      .stream
       .map(x => tgt.decoder(x).decode)
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
       .map(_.record.value)

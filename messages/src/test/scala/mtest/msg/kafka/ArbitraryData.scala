@@ -1,15 +1,9 @@
 package mtest.msg.kafka
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import fs2.Chunk
-import fs2.kafka.{
-  CommittableConsumerRecord as Fs2ConsumerMessage,
-  CommittableProducerRecords as Fs2CommittableProducerRecords,
-  ConsumerRecord as Fs2ConsumerRecord,
-  ProducerRecord as Fs2ProducerRecord,
-  ProducerRecords as Fs2ProducerRecords,
-  TransactionalProducerRecords as Fs2TransactionalProducerRecords
-}
+import fs2.kafka.{CommittableConsumerRecord as Fs2ConsumerMessage, CommittableProducerRecords as Fs2CommittableProducerRecords, ConsumerRecord as Fs2ConsumerRecord, ProducerRecord as Fs2ProducerRecord, ProducerRecords as Fs2ProducerRecords, TransactionalProducerRecords as Fs2TransactionalProducerRecords}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.{Arbitrary, Cogen, Gen}
@@ -27,6 +21,9 @@ object ArbitraryData extends genMessage.GenFs2Message {
   // kafka
   implicit val abKafkaConsumerRecord: Arbitrary[ConsumerRecord[Int, Int]] =
     Arbitrary(genConsumerRecord)
+
+  implicit val abNJConsumerRecord: Arbitrary[NJConsumerRecord[Int, Int]] =
+    Arbitrary(genNJConsumerRecord)
 
   implicit val cogenConsumerRecord: Cogen[ConsumerRecord[Int, Int]] =
     Cogen(m => m.key.toLong + m.value.toLong)
