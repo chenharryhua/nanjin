@@ -8,6 +8,11 @@ import io.scalaland.chimney.dsl.*
 import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
+import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
+import org.apache.kafka.common.record.TimestampType
+
+import java.util.Optional
 
 sealed trait BitraverseMessage[F[_, _]] extends Bitraverse[F] {
   type H[_, _]
@@ -83,6 +88,49 @@ object NJConsumerMessage {
           KafkaConsumerRecord[K2, V2]](_.record.transformInto) { b => s =>
           CommittableConsumerRecord(b.transformInto, s.offset)
         }
+    }
+
+  implicit val icrbi6: Aux[NJConsumerRecord] =
+    new NJConsumerMessage[NJConsumerRecord] {
+
+      override def lens[K1, V1, K2, V2]: PLens[
+        NJConsumerRecord[K1, V1],
+        NJConsumerRecord[K2, V2],
+        KafkaConsumerRecord[K1, V1],
+        KafkaConsumerRecord[K2, V2]] =
+        PLens[
+          NJConsumerRecord[K1, V1],
+          NJConsumerRecord[K2, V2],
+          KafkaConsumerRecord[K1, V1],
+          KafkaConsumerRecord[K2, V2]](a =>
+          new KafkaConsumerRecord[K1, V1](
+            a.topic,
+            a.partition,
+            a.offset,
+            a.timestamp,
+            a.timestampType match {
+              case 0 => TimestampType.CREATE_TIME
+              case 1 => TimestampType.LOG_APPEND_TIME
+              case _ => TimestampType.NO_TIMESTAMP_TYPE
+            },
+            KafkaConsumerRecord.NULL_SIZE,
+            KafkaConsumerRecord.NULL_SIZE,
+            a.key.getOrElse(null.asInstanceOf[K1]),
+            a.value.getOrElse(null.asInstanceOf[V1]),
+            new RecordHeaders(a.headers.map(h => new RecordHeader(h.key, h.value): Header).toArray),
+            Optional.empty[Integer]()
+          ))(b =>
+          _ =>
+            NJConsumerRecord(
+              b.partition(),
+              b.offset(),
+              b.timestamp(),
+              Option(b.key()),
+              Option(b.value()),
+              b.topic(),
+              b.timestampType().id,
+              b.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
+            ))
     }
 }
 

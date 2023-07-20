@@ -23,11 +23,12 @@ final case class NJProducerRecord[K, V](
   value: Option[V],
   headers: List[NJHeader]) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.value)
-  def withPartition(pt: Int): NJProducerRecord[K, V]         = copy(partition = Some(pt))
-  def withTimestamp(ts: Long): NJProducerRecord[K, V]        = copy(timestamp = Some(ts))
-  def withKey(k: K): NJProducerRecord[K, V]                  = copy(key = Some(k))
-  def withValue(v: V): NJProducerRecord[K, V]                = copy(value = Some(v))
+  def withTopicName(name: TopicName): NJProducerRecord[K, V]       = copy(topic = name.value)
+  def withPartition(pt: Int): NJProducerRecord[K, V]               = copy(partition = Some(pt))
+  def withTimestamp(ts: Long): NJProducerRecord[K, V]              = copy(timestamp = Some(ts))
+  def withKey(k: K): NJProducerRecord[K, V]                        = copy(key = Some(k))
+  def withValue(v: V): NJProducerRecord[K, V]                      = copy(value = Some(v))
+  def withHeaders(headers: List[NJHeader]): NJProducerRecord[K, V] = copy(headers = headers)
 
   def noPartition: NJProducerRecord[K, V] = copy(partition = None)
   def noTimestamp: NJProducerRecord[K, V] = copy(timestamp = None)

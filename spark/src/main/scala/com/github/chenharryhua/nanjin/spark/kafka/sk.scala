@@ -2,13 +2,11 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaSettings, KafkaTopic, KafkaTopicPartition}
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJConsumerRecordWithError}
-import com.github.chenharryhua.nanjin.spark.SparkDatetimeConversionConstant
-import frameless.{TypedEncoder, TypedExpressionEncoder}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import monocle.function.At.{atMap, remove}
-import monocle.syntax.all.*
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
@@ -18,9 +16,11 @@ import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka010.*
 
+import java.sql.Timestamp
 import java.util
 import scala.jdk.CollectionConverters.*
-private[kafka] object sk {
+
+private[spark] object sk {
 
   // https://spark.apache.org/docs/3.0.1/streaming-kafka-0-10-integration.html
   private def props(config: Map[String, String]): util.Map[String, Object] =
@@ -49,14 +49,15 @@ private[kafka] object sk {
   def kafkaBatch[F[_], K, V](
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
-    offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecordWithError[K, V]] =
-    kafkaBatchRDD(topic.context.settings, ss, offsetRange).map(topic.decode(_))
+    offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecord[K, V]] =
+    kafkaBatchRDD(topic.context.settings, ss, offsetRange).map(topic.decode(_).toNJConsumerRecord)
 
   def kafkaBatch[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
-    dateRange: NJDateTimeRange): F[RDD[NJConsumerRecordWithError[K, V]]] =
+    dateRange: NJDateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     topic.shortLiveConsumer.use(_.offsetRangeFor(dateRange)).map(kafkaBatch(topic, ss, _))
+
   @annotation.nowarn
   def kafkaDStream[F[_]: Sync, K, V](
     topic: KafkaTopic[F, K, V],
@@ -92,24 +93,29 @@ private[kafka] object sk {
     }
   }
 
-  def kafkaSStream[F[_], K, V, A](topic: KafkaTopic[F, K, V], te: TypedEncoder[A], ss: SparkSession)(
-    f: NJConsumerRecord[K, V] => A): Dataset[A] = {
+  def kafkaSStream(
+    topicName: TopicName,
+    settings: KafkaSettings,
+    ss: SparkSession): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] = {
     import ss.implicits.*
     ss.readStream
       .format("kafka")
-      .options(consumerOptions(topic.context.settings.consumerSettings.config))
-      .option("subscribe", topic.topicName.value)
+      .options(consumerOptions(settings.consumerSettings.config))
+      .option("subscribe", topicName.value)
+      .option("includeHeaders", "true")
       .load()
-      .as[NJConsumerRecord[Array[Byte], Array[Byte]]]
-      .mapPartitions { ms =>
-        ms.map { cr =>
-          val njcr: NJConsumerRecord[K, V] =
-            cr.bimap(topic.codec.keyCodec.tryDecode(_).toOption, topic.codec.valCodec.tryDecode(_).toOption)
-              .flatten[K, V]
-              .focus(_.timestamp)
-              .modify(_ * SparkDatetimeConversionConstant)
-          f(njcr)
-        }
-      }(TypedExpressionEncoder(te))
+      .as[(Array[Byte], Array[Byte], String, Int, Long, Timestamp, Int, Array[NJHeader])]
+      .mapPartitions(_.map { case (key, value, topic, partition, offset, timestamp, timestampType, headers) =>
+        NJConsumerRecord(
+          partition,
+          offset,
+          timestamp.getTime,
+          Option(key),
+          Option(value),
+          topic,
+          timestampType,
+          Option(headers).traverse(_.toList).flatten
+        )
+      })
   }
 }

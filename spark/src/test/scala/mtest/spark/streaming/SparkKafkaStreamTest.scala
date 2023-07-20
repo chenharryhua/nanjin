@@ -1,5 +1,6 @@
 package mtest.spark.streaming
 
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
@@ -8,11 +9,12 @@ import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
-import org.apache.spark.rdd.RDD
+import mtest.spark.kafka.{ctx, sparKafka}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
+import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
 @DoNotDiscover
@@ -25,8 +27,8 @@ class SparkKafkaStreamTest extends AnyFunSuite {
 
   val ate = AvroTypedEncoder(roosterTopic)
 
-  val data: RDD[NJProducerRecord[Int, Rooster]] =
-    RoosterData.rdd.map(x =>
+  val data: List[NJProducerRecord[Int, Rooster]] =
+    RoosterData.data.map(x =>
       NJProducerRecord(roosterTopic.topicName, Random.nextInt(), x.copy(a = Instant.now())))
 
   implicit val te: TypedEncoder[NJConsumerRecord[Int, Int]] = shapeless.cachedImplicit
@@ -65,33 +67,28 @@ class SparkKafkaStreamTest extends AnyFunSuite {
 //    ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
 //  }
 //
-//  test("file sink avro - should be read back") {
-//    val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
-//
-//    val path = root / "fileSink"
-//    val ss = sparKafka
-//      .topic(rooster)
-//      .sstream
-//      .ignoreDataLoss
-//      .fileSink(path)
-//      .triggerEvery(500.millisecond)
-//      .parquet
-//      .avro
-//      .withOptions(identity)
-//      .stream
-//
-//    val upload = sparKafka
-//      .topic(rooster)
-//      .prRdd(data)
-//      .producerRecords(rooster.topicName, 1)
-//      .metered(0.1.second)
-//      .interruptAfter(2.minute)
-//      .take(10)
-//      .delayBy(3.second)
-//
-//    (ss.concurrently(upload).interruptAfter(6.seconds).compile.drain >>
-//      sparKafka.topic(rooster).load.avro(path).count.map(println)).unsafeRunSync()
-//  }
+  test("console") {
+    import sparKafka.sparkSession.implicits.*
+    val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
+
+    sparKafka
+      .sstream(rooster.topicName)
+      .flatMap(rooster.decoder(_).tryDecode.toOption)
+      .writeStream
+      .format("console")
+      .start()
+
+    val upload = sparKafka
+      .topic(rooster)
+      .prRdd(data)
+      .withTopicName(rooster.topicName)
+      .replicate(100)
+      .producerRecords(1)
+      .metered(1.seconds)
+      .through(rooster.produce.pipe)
+
+    upload.interruptAfter(10.seconds).compile.drain.unsafeRunSync()
+  }
 //
 //  test("memory sink - validate kafka timestamp") {
 //    val rooster = roosterTopic.withTopicName("sstream.memory.rooster").in(ctx)

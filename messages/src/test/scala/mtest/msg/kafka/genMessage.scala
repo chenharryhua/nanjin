@@ -1,6 +1,7 @@
 package mtest.msg.kafka
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
 import fs2.kafka.{
@@ -62,6 +63,16 @@ object genMessage {
       value,
       headers,
       lead)
+
+    val genNJConsumerRecord: Gen[NJConsumerRecord[Int, Int]] = for {
+      topic <- Gen.asciiPrintableStr
+      partition <- Gen.posNum[Int]
+      offset <- Gen.posNum[Long]
+      timestamp <- Gen.posNum[Long]
+      timestampType <- Gen.oneOf(-1, 0, 1)
+      key <- arbitrary[Int]
+      value <- arbitrary[Int]
+    } yield NJConsumerRecord(partition, offset, timestamp, Some(key), Some(value), topic, timestampType, Nil)
 
     val genProducerRecord: Gen[ProducerRecord[Int, Int]] = for {
       topic <- Gen.asciiPrintableStr

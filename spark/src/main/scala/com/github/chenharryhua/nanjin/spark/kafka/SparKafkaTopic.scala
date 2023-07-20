@@ -8,12 +8,11 @@ import com.github.chenharryhua.nanjin.common.PathSegment
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerde, CirceSerde, JacksonSerde, JavaObjectSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.AvroDStreamSink
-import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import fs2.{Pipe, RaiseThrowable}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
@@ -84,7 +83,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
 
   private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
-    crRdd((sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(_.map(_.toNJConsumerRecord))))
+    crRdd(sk.kafkaBatch(topic, sparkSession, dateTimeRange))
 
   /** download topic according to datetime
     *
@@ -120,7 +119,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
           KafkaTopicPartition(topicPartition)
         })
         .flatMap(offsetRange =>
-          F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange).map(_.toNJConsumerRecord))))
+          F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange))))
 
   /** load topic data from disk
     */
@@ -153,17 +152,4 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
       sk.kafkaDStream(topic, sc)
         .map(ds => new AvroDStreamSink(ds, crCodec.avroEncoder, root => ldt => root / ldt.toLocalDate)))
 
-//
-//  def sstream[A](f: NJConsumerRecord[K, V] => A, te: TypedEncoder[A]): SparkSStream[F, A] =
-//    new SparkSStream[F, A](
-//      sk.kafkaSStream[F, K, V, A](topic, te, sparkSession)(f),
-//      SStreamConfig(params.timeRange.zoneId).checkpointBuilder(fmt =>
-//        NJPath("./data/checkpoint") / "sstream" / "kafka" / segment / PathSegment.unsafeFrom(fmt.format)))
-//
-//  def sstream(implicit
-//    @nowarn tek: TypedEncoder[K],
-//    @nowarn tev: TypedEncoder[V]): SparkSStream[F, NJConsumerRecord[K, V]] = {
-//    val te: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
-//    sstream[NJConsumerRecord[K, V]](identity[NJConsumerRecord[K, V]], te)
-//  }
 }

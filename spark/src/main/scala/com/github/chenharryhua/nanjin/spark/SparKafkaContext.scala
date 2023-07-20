@@ -4,12 +4,13 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KUnknown, SerdeOf}
-import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
+import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, sk}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import io.circe.Json
 import io.circe.generic.auto.*
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
 
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
@@ -32,6 +33,9 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def jsonTopic(topicName: TopicName): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
     topic[KJson[Json], KJson[Json]](topicName)
+
+  def sstream(topicName: TopicName): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
+    sk.kafkaSStream(topicName, kafkaContext.settings, sparkSession)
 
   def dumpTopic(
     topicName: TopicName,
