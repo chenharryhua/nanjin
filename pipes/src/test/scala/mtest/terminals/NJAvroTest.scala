@@ -17,7 +17,7 @@ class NJAvroTest extends AnyFunSuite {
 
   def fs2(path: NJPath, codecFactory: CodecFactory, data: Set[GenericRecord]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val sink   = avro.withChunSize(100).withBlockSizeHint(1000).withCodecFactory(codecFactory).sink(path)
+    val sink   = avro.withChunkSize(100).withBlockSizeHint(1000).withCodecFactory(codecFactory).sink(path)
     val src    = avro.source(path)
     val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList

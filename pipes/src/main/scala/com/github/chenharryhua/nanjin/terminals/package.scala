@@ -9,7 +9,8 @@ import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
 import java.nio.charset.StandardCharsets
-
+import fs2.{Pull, Stream}
+import org.apache.avro.generic.GenericRecord
 package object terminals {
   final val NEWLINE_SEPERATOR: String            = "\r\n"
   final val NEWLINE_BYTES_SEPERATOR: Array[Byte] = NEWLINE_SEPERATOR.getBytes(StandardCharsets.UTF_8)
@@ -38,4 +39,12 @@ package object terminals {
       case None     => os
     }
   }
+
+  private[terminals] def persistGenericRecord[F[_]](
+    grs: Stream[F, GenericRecord],
+    writer: NJWriter[F, GenericRecord]): Pull[F, Nothing, Unit] =
+    grs.pull.uncons.flatMap {
+      case Some((hl, tl)) => Pull.eval(writer.write(hl)) >> persistGenericRecord(tl, writer)
+      case None           => Pull.done
+    }
 }

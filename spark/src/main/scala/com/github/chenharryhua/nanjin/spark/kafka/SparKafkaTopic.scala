@@ -118,8 +118,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
           }.toMap
           KafkaTopicPartition(topicPartition)
         })
-        .flatMap(offsetRange =>
-          F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange))))
+        .flatMap(offsetRange => F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange))))
 
   /** load topic data from disk
     */

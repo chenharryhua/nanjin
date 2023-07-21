@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
-import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
+import org.apache.avro.file.{CodecFactory, DataFileStream}
+import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 
 import scala.jdk.CollectionConverters.*
@@ -20,29 +20,16 @@ final class NJAvro[F[_]] private (
   def withCodecFactory(cf: CodecFactory): NJAvro[F] =
     new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
 
-  def withChunSize(cs: ChunkSize): NJAvro[F] =
+  def withChunkSize(cs: ChunkSize): NJAvro[F] =
     new NJAvro[F](configuration, schema, codecFactory, blockSizeHint, cs)
 
   def withBlockSizeHint(bsh: Long): NJAvro[F] =
     new NJAvro[F](configuration, schema, codecFactory, bsh, chunkSize)
 
-  def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = {
-    def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Nothing, Unit] =
-      grs.pull.uncons.flatMap {
-        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
-        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
-      }
-
-    val dataFileWriter: Stream[F, DataFileWriter[GenericRecord]] = for {
-      dfw <- Stream.bracket[F, DataFileWriter[GenericRecord]](
-        F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
-        F.blocking(r.close()))
-      os <- Stream.bracket(F.blocking(path.hadoopOutputFile(configuration).createOrOverwrite(blockSizeHint)))(
-        r => F.blocking(r.close()))
-      writer <- Stream.bracket(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
-    } yield writer
-
-    (ss: Stream[F, GenericRecord]) => dataFileWriter.flatMap(w => go(ss, w).stream)
+  def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = { (ss: Stream[F, GenericRecord]) =>
+    Stream
+      .resource(NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, path))
+      .flatMap(w => persistGenericRecord[F](ss, w).stream)
   }
 
   def source(path: NJPath): Stream[F, GenericRecord] =

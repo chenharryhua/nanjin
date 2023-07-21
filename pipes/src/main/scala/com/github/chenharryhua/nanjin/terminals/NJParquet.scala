@@ -1,16 +1,16 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.Sync
-import cats.Endo
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
-import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader, ParquetWriter}
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
+import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader}
 
 final class NJParquet[F[_]] private (
   readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]],
@@ -27,19 +27,11 @@ final class NJParquet[F[_]] private (
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
-  def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = {
-    def go(grs: Stream[F, GenericRecord], pw: ParquetWriter[GenericRecord]): Pull[F, Nothing, Unit] =
-      grs.pull.uncons.flatMap {
-        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(pw.write))) >> go(tl, pw)
-        case None           => Pull.done
-      }
-
-    (ss: Stream[F, GenericRecord]) =>
-      Stream
-        .bracket(F.blocking(writeBuilder.run(path).build()))(r => F.blocking(r.close()))
-        .flatMap(pw => go(ss, pw).stream)
+  def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = { (ss: Stream[F, GenericRecord]) =>
+    Stream
+      .resource(NJWriter.parquet[F](writeBuilder, path))
+      .flatMap(pw => persistGenericRecord[F](ss, pw).stream)
   }
-
 }
 
 object NJParquet {

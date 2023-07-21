@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KUnknown, SerdeOf}
-import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, sk}
+import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import io.circe.Json
 import io.circe.generic.auto.*

@@ -1,20 +1,18 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.Sync
-import cats.syntax.functor.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{Pipe, Stream}
 import io.scalaland.enumz.Enum
 import kantan.csv.*
-import kantan.csv.ops.{toCsvInputOps, toCsvOutputOps}
+import kantan.csv.ops.toCsvInputOps
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import shapeless.{HList, LabelledGeneric}
 import shapeless.ops.hlist.ToTraversable
 import shapeless.ops.record.Keys
+import shapeless.{HList, LabelledGeneric}
 
 import scala.annotation.nowarn
-
 sealed trait NJHeaderEncoder[A] extends HeaderEncoder[A]
 
 object NJHeaderEncoder {
@@ -57,12 +55,9 @@ final class NJCsv[F[_]] private (
 
   def sink[A](path: NJPath)(implicit enc: NJHeaderEncoder[A]): Pipe[F, A, Nothing] = { (ss: Stream[F, A]) =>
     Stream
-      .bracket(
-        F.blocking(fileOutputStream(path, configuration, compressLevel, blockSizeHint).asCsvWriter[A](
-          csvConfiguration)))(r => F.blocking(r.close()))
-      .flatMap(writer => ss.chunks.foreach(c => F.blocking(c.map(writer.write)).void))
+      .resource(NJWriter.csv[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path))
+      .flatMap(writer => ss.chunks.foreach(writer.write))
   }
-
 }
 
 object NJCsv {
