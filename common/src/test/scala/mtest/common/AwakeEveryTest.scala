@@ -13,7 +13,7 @@ import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
 
 class AwakeEveryTest extends AnyFunSuite {
-  test("1.tick ") {
+  test("1.tick") {
     val policy = policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault())
     val ticks  = awakeEvery(policy)
 
@@ -76,7 +76,7 @@ class AwakeEveryTest extends AnyFunSuite {
     }
   }
 
-  test("4. ticks - cron") {
+  test("4.ticks - cron") {
     val policy = policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault())
     val ticks  = awakeEvery(policy)
     val rnd =
@@ -85,16 +85,10 @@ class AwakeEveryTest extends AnyFunSuite {
       .evalTap(t => IO(assert(t > Tick.Zero)))
       .evalMap(tick => IO.realTimeInstant.flatMap(ts => rnd.map(fd => (tick, ts, fd))))
       .take(10)
-      .debug()
       .compile
       .toList
       .unsafeRunSync()
 
     lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 9))
-  }
-
-  test("5. duration exception") {
-    assertThrows[IllegalArgumentException](Duration.between(Instant.MIN, Instant.now()).toScala)
-    assert(Duration.between(Tick.Zero.pullTime, Instant.now()).toScala > 19000.days)
   }
 }

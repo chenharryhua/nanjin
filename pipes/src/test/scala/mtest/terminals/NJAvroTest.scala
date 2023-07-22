@@ -2,6 +2,8 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.PathSegment
+import com.github.chenharryhua.nanjin.common.time.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{NJAvro, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -9,6 +11,10 @@ import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
+
+import java.time.LocalDate
+import scala.concurrent.duration.DurationInt
 
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -53,5 +59,17 @@ class NJAvroTest extends AnyFunSuite {
   test("laziness") {
     avro.source(NJPath("./does/not/exist"))
     avro.sink(NJPath("./does/not/exist"))
+  }
+
+  test("rotation") {
+    Stream
+      .emits(pandaSet.toList)
+      .covary[IO]
+      .repeatN(1000000000L)
+      .through(avro.rotateSink(RetryPolicies.constantDelay[IO](5.second))(t =>
+        fs2Root / LocalDate.ofInstant(t.wakeTime, sydneyTime) / PathSegment.unsafeFrom(s"${t.index}.avro")))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

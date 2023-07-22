@@ -26,12 +26,15 @@ object Tick extends duration with instant {
   implicit val orderTick: Order[Tick]       = Order.fromOrdering[Tick]
   implicit val showTick: Show[Tick]         = cats.derived.semiauto.show[Tick]
 
-  final val Zero: Tick = Tick(
-    index = RetryStatus.NoRetriesYet.retriesSoFar,
-    pullTime = Instant.ofEpochMilli(0),
-    wakeTime = Instant.ofEpochMilli(0),
-    delay = Duration.ZERO
-  )
+  final def Zero: Tick = {
+    val now: Instant = Instant.now()
+    Tick(
+      index = RetryStatus.NoRetriesYet.retriesSoFar,
+      pullTime = now,
+      wakeTime = now,
+      delay = Duration.ZERO
+    )
+  }
 }
 object awakeEvery {
   final def apply[F[_]](policy: RetryPolicy[F])(implicit F: Temporal[F]): Stream[F, Tick] =

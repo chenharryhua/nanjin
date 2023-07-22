@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.Async
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
@@ -12,10 +12,10 @@ import scala.collection.mutable.ListBuffer
 
 object NJHadoop {
 
-  def apply[F[_]: Sync](config: Configuration): NJHadoop[F] = new NJHadoop[F](config)
+  def apply[F[_]: Async](config: Configuration): NJHadoop[F] = new NJHadoop[F](config)
 }
 
-final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Sync[F]) {
+final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Async[F]) {
 
   // disk operations
 
