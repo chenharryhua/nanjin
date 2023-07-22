@@ -272,7 +272,7 @@ lazy val messages = (project in file("messages"))
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= List(
     "org.yaml"                       % "snakeyaml"   % "2.0", // snyk
-    "org.xerial.snappy"              % "snappy-java" % "1.1.10.2", // snyk
+    "org.xerial.snappy"              % "snappy-java" % "1.1.10.3", // snyk
     "io.circe" %% "circe-jackson212" % "0.14.0",
     "org.gnieh" %% "diffson-circe"   % "4.4.0"
   ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
