@@ -12,6 +12,7 @@ import cats.implicits.{
 import cats.{Alternative, Endo, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.time.policies
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionConfig,
   ActionName,
@@ -21,7 +22,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceParams
 }
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.policies
 import cron4s.CronExpr
 import fs2.concurrent.Channel
 import io.circe.Json

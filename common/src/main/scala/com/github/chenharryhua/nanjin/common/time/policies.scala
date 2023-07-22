@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.common.time
 
 import cats.Functor
 import cats.effect.kernel.{Clock, Sync}

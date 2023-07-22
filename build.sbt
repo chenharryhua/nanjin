@@ -30,9 +30,9 @@ val jacksonV    = "2.15.2"
 val protobufV   = "3.23.4"
 val sparkV      = "3.4.1"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.94.Final"
+val nettyV      = "4.1.95.Final"
 val chimneyV    = "0.7.5"
-val enumeratumV = "1.7.2"
+val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val logbackV    = "1.4.8"
 val doobieV     = "1.0.0-RC4"
@@ -176,14 +176,15 @@ val jwtLib = List(
 )
 
 val baseLib = List(
-  "org.typelevel" %% "cats-effect"      % catsEffectV,
-  "org.typelevel" %% "cats-time"        % "0.5.1",
-  "org.typelevel" %% "squants"          % "1.8.3",
-  "org.typelevel" %% "case-insensitive" % "1.4.0",
-  "io.scalaland" %% "chimney"           % chimneyV,
-  "io.scalaland" %% "enumz"             % "1.0.0",
-  "com.chuusai" %% "shapeless"          % "2.3.10",
-  "com.github.cb372" %% "cats-retry"    % "3.1.0"
+  "org.typelevel" %% "cats-effect"                 % catsEffectV,
+  "org.typelevel" %% "cats-time"                   % "0.5.1",
+  "org.typelevel" %% "squants"                     % "1.8.3",
+  "org.typelevel" %% "case-insensitive"            % "1.4.0",
+  "io.scalaland" %% "chimney"                      % chimneyV,
+  "io.scalaland" %% "enumz"                        % "1.0.0",
+  "com.chuusai" %% "shapeless"                     % "2.3.10",
+  "com.github.cb372" %% "cats-retry"               % "3.1.0",
+  "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
@@ -234,9 +235,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings*)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= List(
-      "org.typelevel" %% "cats-parse"                  % "0.3.10",
-      "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV) ++
+    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "0.3.10") ++
       testLib
   )
 
@@ -246,23 +245,22 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb"                                   % "influxdb-client-java" % "6.9.0",
-      "io.dropwizard.metrics"                          % "metrics-core"         % metricsV,
-      "io.dropwizard.metrics"                          % "metrics-jmx"          % metricsV,
-      "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
-      "org.typelevel" %% "vault"                       % "3.5.0",
-      "com.lihaoyi" %% "scalatags"                     % "0.12.0",
-      "org.tpolecat" %% "skunk-core"                   % skunkV,
-      "org.tpolecat" %% "skunk-circe"                  % skunkV,
-      "org.tpolecat" %% "natchez-core"                 % natchezV,
-      "org.tpolecat" %% "natchez-noop"                 % natchezV,
-      "org.http4s" %% "http4s-core"                    % http4sV,
-      "org.http4s" %% "http4s-dsl"                     % http4sV,
-      "org.http4s" %% "http4s-ember-server"            % http4sV,
-      "org.http4s" %% "http4s-scalatags"               % "0.25.2",
-      "org.tpolecat" %% "natchez-jaeger"               % natchezV               % Test,
-      "org.tpolecat" %% "natchez-log"                  % natchezV               % Test,
-      "org.slf4j"                                      % "slf4j-reload4j"       % slf4jV % Test
+      "com.influxdb"                        % "influxdb-client-java" % "6.9.0",
+      "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
+      "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
+      "org.typelevel" %% "vault"            % "3.5.0",
+      "com.lihaoyi" %% "scalatags"          % "0.12.0",
+      "org.tpolecat" %% "skunk-core"        % skunkV,
+      "org.tpolecat" %% "skunk-circe"       % skunkV,
+      "org.tpolecat" %% "natchez-core"      % natchezV,
+      "org.tpolecat" %% "natchez-noop"      % natchezV,
+      "org.http4s" %% "http4s-core"         % http4sV,
+      "org.http4s" %% "http4s-dsl"          % http4sV,
+      "org.http4s" %% "http4s-ember-server" % http4sV,
+      "org.http4s" %% "http4s-scalatags"    % "0.25.2",
+      "org.tpolecat" %% "natchez-jaeger"    % natchezV               % Test,
+      "org.tpolecat" %% "natchez-log"       % natchezV               % Test,
+      "org.slf4j"                           % "slf4j-reload4j"       % slf4jV % Test
     ) ++ logLib ++ testLib
   )
 
@@ -272,7 +270,7 @@ lazy val messages = (project in file("messages"))
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= List(
     "org.yaml"                       % "snakeyaml"   % "2.0", // snyk
-    "org.xerial.snappy"              % "snappy-java" % "1.1.10.2", // snyk
+    "org.xerial.snappy"              % "snappy-java" % "1.1.10.3", // snyk
     "io.circe" %% "circe-jackson212" % "0.14.0",
     "org.gnieh" %% "diffson-circe"   % "4.4.0"
   ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
