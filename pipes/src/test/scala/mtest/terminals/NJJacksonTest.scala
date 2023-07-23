@@ -1,0 +1,78 @@
+package mtest.terminals
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.terminals.{NJJackson, NJPath}
+import eu.timepit.refined.auto.*
+import fs2.Stream
+import org.apache.avro.generic.GenericRecord
+import org.scalatest.Assertion
+import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
+
+import scala.concurrent.duration.DurationInt
+
+class NJJacksonTest extends AnyFunSuite {
+  import HadoopTestData.*
+
+  val jackson: NJJackson[IO] = hdp.jackson(pandaSchema)
+
+  def fs2(path: NJPath, data: Set[GenericRecord]): Assertion = {
+    hdp.delete(path).unsafeRunSync()
+    val sink   = jackson.sink(path)
+    val src    = jackson.source(path)
+    val ts     = Stream.emits(data.toList).covary[IO]
+    val action = ts.through(sink).compile.drain >> src.compile.toList
+    assert(action.unsafeRunSync().toSet == data)
+  }
+
+  val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/fs2")
+
+  test("uncompressed") {
+    fs2(fs2Root / "panda.jackson.json", pandaSet)
+  }
+
+  test("gzip") {
+    fs2(fs2Root / "panda.jackson.json.gz", pandaSet)
+  }
+
+  test("snappy") {
+    fs2(fs2Root / "panda.jackson.json.snappy", pandaSet)
+  }
+
+  test("bzip2") {
+    fs2(fs2Root / "panda.jackson.json.bz2", pandaSet)
+  }
+
+  test("lz4") {
+    fs2(fs2Root / "panda.jackson.json.lz4", pandaSet)
+  }
+
+  test("deflate") {
+    fs2(fs2Root / "panda.jackson.json.deflate", pandaSet)
+  }
+
+  ignore("zstandard") {
+    fs2(fs2Root / "panda.jackson.json.zst", pandaSet)
+  }
+
+  test("laziness") {
+    jackson.source(NJPath("./does/not/exist"))
+    jackson.sink(NJPath("./does/not/exist"))
+  }
+
+  test("rotation") {
+    val path   = fs2Root / "rotation"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(pandaSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
+      .compile
+      .drain
+      .unsafeRunSync()
+    val size = Stream.force(hdp.filesIn(path).map(jackson.source)).compile.toList.map(_.size).unsafeRunSync()
+    assert(size == number * 2)
+  }
+}

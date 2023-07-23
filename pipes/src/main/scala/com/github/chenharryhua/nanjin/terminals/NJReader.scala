@@ -34,6 +34,6 @@ private object NJReader {
     Resource.make(F.blocking(fileInputStream(path, configuration).asCsvReader[A](csvConfiguration)))(r =>
       F.blocking(r.close()))
 
-  def bytes[F[_]](configuration: Configuration, path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
+  def inputStream[F[_]](configuration: Configuration, path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
 }

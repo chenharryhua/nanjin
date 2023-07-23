@@ -89,10 +89,7 @@ final class NJKantan[F[_], A: NJHeaderEncoder: HeaderDecoder] private (
 
 object NJKantan {
   def apply[F[_], A: NJHeaderEncoder: HeaderDecoder](
-    csvCfg: CsvConfiguration,
-    hadoopCfg: Configuration): NJKantan[F, A] =
+    hadoopCfg: Configuration,
+    csvCfg: CsvConfiguration): NJKantan[F, A] =
     new NJKantan[F, A](hadoopCfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
-
-  def apply[F[_], A: NJHeaderEncoder: HeaderDecoder](hadoopCfg: Configuration): NJKantan[F, A] =
-    apply[F, A](CsvConfiguration.rfc, hadoopCfg)
 }
