@@ -9,6 +9,9 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
+
+import scala.concurrent.duration.DurationInt
 
 class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -62,4 +65,19 @@ class NJParquetTest extends AnyFunSuite {
     parquet.sink(NJPath("./does/not/exist"))
   }
 
+  test("rotation") {
+    val path = fs2Root / "rotation"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(pandaSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.parquet"))
+      .compile
+      .drain
+      .unsafeRunSync()
+    val size = Stream.force(hdp.filesIn(path).map(parquet.source)).compile.toList.map(_.size).unsafeRunSync()
+    assert(size == number * 2)
+  }
 }

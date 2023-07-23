@@ -13,7 +13,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.parquet.avro.AvroParquetWriter
 
-sealed trait NJWriter[F[_], A] {
+private sealed trait NJWriter[F[_], A] {
   def write(ck: Chunk[A]): F[Unit]
 }
 

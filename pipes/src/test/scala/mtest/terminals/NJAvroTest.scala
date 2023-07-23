@@ -2,7 +2,6 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.time.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{NJAvro, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -12,7 +11,6 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
-import java.time.LocalDate
 import scala.concurrent.duration.DurationInt
 
 class NJAvroTest extends AnyFunSuite {
@@ -61,14 +59,18 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("rotation") {
+    val path = fs2Root / "rotation"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
     Stream
       .emits(pandaSet.toList)
       .covary[IO]
-      .repeatN(10000L)
-      .through(avro.rotateSink(RetryPolicies.constantDelay[IO](1.second))(t =>
-        fs2Root / LocalDate.ofInstant(t.wakeTime, sydneyTime) / s"${t.index}.avro"))
+      .repeatN(number)
+      .through(avro.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
       .compile
       .drain
       .unsafeRunSync()
+    val size = Stream.force(hdp.filesIn(path).map(avro.source)).compile.toList.map(_.size).unsafeRunSync()
+    assert(size == number * 2)
   }
 }

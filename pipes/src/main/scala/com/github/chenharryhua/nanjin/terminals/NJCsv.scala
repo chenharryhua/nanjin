@@ -1,13 +1,16 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Async, Resource}
+import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.common.time.{awakeEvery, Tick}
 import fs2.{Pipe, Stream}
 import io.scalaland.enumz.Enum
 import kantan.csv.*
 import kantan.csv.ops.toCsvInputOps
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
+import retry.RetryPolicy
 import shapeless.ops.hlist.ToTraversable
 import shapeless.ops.record.Keys
 import shapeless.{HList, LabelledGeneric}
@@ -27,43 +30,71 @@ object NJHeaderEncoder {
     }
 }
 
-final class NJCsv[F[_]] private (
+final class NJCsv[F[_]: Async, A: NJHeaderEncoder: HeaderDecoder] private (
   configuration: Configuration,
   blockSizeHint: Long,
   chunkSize: ChunkSize,
   compressLevel: CompressionLevel,
   csvConfiguration: CsvConfiguration
-)(implicit F: Sync[F]) {
+) {
 
-  def withChunkSize(cs: ChunkSize): NJCsv[F] =
-    new NJCsv[F](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
+  def withChunkSize(cs: ChunkSize): NJCsv[F, A] =
+    new NJCsv[F, A](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
 
-  def withBlockSizeHint(bsh: Long): NJCsv[F] =
-    new NJCsv[F](configuration, bsh, chunkSize, compressLevel, csvConfiguration)
+  def withBlockSizeHint(bsh: Long): NJCsv[F, A] =
+    new NJCsv[F, A](configuration, bsh, chunkSize, compressLevel, csvConfiguration)
 
-  def withCompressionLevel(cl: CompressionLevel): NJCsv[F] =
-    new NJCsv[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
+  def withCompressionLevel(cl: CompressionLevel): NJCsv[F, A] =
+    new NJCsv[F, A](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
 
-  def withCompressionLevel(level: Int): NJCsv[F] =
+  def withCompressionLevel(level: Int): NJCsv[F, A] =
     withCompressionLevel(Enum[CompressionLevel].withIndex(level))
 
-  def source[A](path: NJPath)(implicit dec: HeaderDecoder[A]): Stream[F, A] =
+  def source(path: NJPath): Stream[F, A] =
     for {
-      is <- Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
+      is <- Stream.resource(NJReader.csv(configuration, path))
       a <- Stream.fromBlockingIterator(is.asCsvReader[A](csvConfiguration).iterator, chunkSize.value).rethrow
     } yield a
 
-  def sink[A](path: NJPath)(implicit enc: NJHeaderEncoder[A]): Pipe[F, A, Nothing] = { (ss: Stream[F, A]) =>
+  def source(paths: List[NJPath]): Stream[F, A] =
+    paths.foldLeft(Stream.empty.covaryAll[F, A]) { case (s, p) =>
+      s ++ source(p)
+    }
+
+  def sink(path: NJPath): Pipe[F, A, Nothing] = { (ss: Stream[F, A]) =>
     Stream
       .resource(NJWriter.csv[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path))
       .flatMap(w => persist[F, A](w, ss).stream)
   }
+
+  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath): Pipe[F, A, Nothing] = {
+    def getWriter(tick: Tick): Resource[F, NJWriter[F, A]] =
+      NJWriter.csv[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, pathBuilder(tick))
+
+    val init: Resource[F, (Hotswap[F, NJWriter[F, A]], NJWriter[F, A])] =
+      Hotswap(
+        NJWriter
+          .csv[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, pathBuilder(Tick.Zero)))
+
+    (ss: Stream[F, A]) =>
+      Stream.resource(init).flatMap { case (hotswap, writer) =>
+        rotatePersist[F, A](
+          getWriter,
+          hotswap,
+          writer,
+          ss.map(Left(_)).mergeHaltL(awakeEvery[F](policy).map(Right(_)))
+        ).stream
+      }
+  }
+
 }
 
 object NJCsv {
-  def apply[F[_]: Sync](csvCfg: CsvConfiguration, hadoopCfg: Configuration) =
-    new NJCsv[F](hadoopCfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
+  def apply[F[_]: Async, A: NJHeaderEncoder: HeaderDecoder](
+    csvCfg: CsvConfiguration,
+    hadoopCfg: Configuration): NJCsv[F, A] =
+    new NJCsv[F, A](hadoopCfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
 
-  def apply[F[_]: Sync](hadoopCfg: Configuration): NJCsv[F] =
-    apply[F](CsvConfiguration.rfc, hadoopCfg)
+  def apply[F[_]: Async, A: NJHeaderEncoder: HeaderDecoder](hadoopCfg: Configuration): NJCsv[F, A] =
+    apply[F, A](CsvConfiguration.rfc, hadoopCfg)
 }

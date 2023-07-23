@@ -6,19 +6,19 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.time.{awakeEvery, Tick}
 import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.file.{CodecFactory, DataFileStream}
-import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
+import org.apache.avro.file.CodecFactory
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import retry.RetryPolicy
 
 import scala.jdk.CollectionConverters.*
 
-final class NJAvro[F[_]] private (
+final class NJAvro[F[_]: Async] private (
   configuration: Configuration,
   schema: Schema,
   codecFactory: CodecFactory,
   blockSizeHint: Long,
-  chunkSize: ChunkSize)(implicit F: Async[F]) {
+  chunkSize: ChunkSize) {
 
   def withCodecFactory(cf: CodecFactory): NJAvro[F] =
     new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
@@ -31,12 +31,14 @@ final class NJAvro[F[_]] private (
 
   def source(path: NJPath): Stream[F, GenericRecord] =
     for {
-      is <- Stream.bracket(F.blocking(path.hadoopInputFile(configuration).newStream()))(r =>
-        F.blocking(r.close()))
-      dfs <- Stream.bracket[F, DataFileStream[GenericRecord]](
-        F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
+      dfs <- Stream.resource(NJReader.avro(configuration, schema, path))
       gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
     } yield gr
+
+  def source(paths: List[NJPath]): Stream[F, GenericRecord] =
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
+      s ++ source(p)
+    }
 
   def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = { (ss: Stream[F, GenericRecord]) =>
     Stream
@@ -44,7 +46,7 @@ final class NJAvro[F[_]] private (
       .flatMap(w => persist[F, GenericRecord](w, ss).stream)
   }
 
-  def rotateSink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath): Pipe[F, GenericRecord, Nothing] = {
+  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath): Pipe[F, GenericRecord, Nothing] = {
     def getWriter(tick: Tick): Resource[F, NJWriter[F, GenericRecord]] =
       NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, pathBuilder(tick))
 

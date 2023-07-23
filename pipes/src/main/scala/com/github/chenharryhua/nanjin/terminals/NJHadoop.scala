@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.Async
-import kantan.csv.CsvConfiguration
+import kantan.csv.{CsvConfiguration, HeaderDecoder}
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
@@ -67,8 +67,8 @@ final class NJHadoop[F[_]] private (config: Configuration)(implicit F: Async[F])
   }
 
   // sources and sinks
-  def bytes: NJBytes[F]                       = NJBytes[F](config)
-  def avro(schema: Schema): NJAvro[F]         = NJAvro[F](schema, config)
-  def parquet(schema: Schema): NJParquet[F]   = NJParquet[F](schema, config)
-  def kantan(cfg: CsvConfiguration): NJCsv[F] = NJCsv[F](cfg, config)
+  def bytes: NJBytes[F]                     = NJBytes[F](config)
+  def avro(schema: Schema): NJAvro[F]       = NJAvro[F](schema, config)
+  def parquet(schema: Schema): NJParquet[F] = NJParquet[F](schema, config)
+  def kantan[A: NJHeaderEncoder: HeaderDecoder](cfg: CsvConfiguration): NJCsv[F, A] = NJCsv[F, A](cfg, config)
 }

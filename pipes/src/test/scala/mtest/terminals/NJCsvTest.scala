@@ -12,6 +12,9 @@ import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
+
+import scala.concurrent.duration.DurationInt
 
 class NJCsvTest extends AnyFunSuite {
   implicit val tigerEncoder: NJHeaderEncoder[Tiger] = shapeless.cachedImplicit
@@ -19,8 +22,8 @@ class NJCsvTest extends AnyFunSuite {
   def fs2(path: NJPath, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO]
-    val sink   = hdp.kantan(csvConfiguration).withChunkSize(100).withCompressionLevel(3).sink[Tiger](path)
-    val src    = hdp.kantan(csvConfiguration).source[Tiger](path)
+    val sink   = hdp.kantan[Tiger](csvConfiguration).withChunkSize(100).withCompressionLevel(3).sink(path)
+    val src    = hdp.kantan[Tiger](csvConfiguration).source(path)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -79,7 +82,24 @@ class NJCsvTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.kantan(CsvConfiguration.rfc).source[Tiger](NJPath("./does/not/exist"))
-    hdp.kantan(CsvConfiguration.rfc).sink[Tiger](NJPath("./does/not/exist"))
+    hdp.kantan[Tiger](CsvConfiguration.rfc).source(NJPath("./does/not/exist"))
+    hdp.kantan[Tiger](CsvConfiguration.rfc).sink(NJPath("./does/not/exist"))
+  }
+
+  test("rotation") {
+    val csv    = hdp.kantan[Tiger](CsvConfiguration.rfc)
+    val path   = fs2Root / "rotation"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .through(csv.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
+      .compile
+      .drain
+      .unsafeRunSync()
+    val size = Stream.force(hdp.filesIn(path).map(csv.source)).compile.toList.map(_.size).unsafeRunSync()
+    assert(size == number * 2)
   }
 }
