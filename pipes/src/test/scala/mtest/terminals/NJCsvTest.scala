@@ -1,6 +1,8 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJHeaderEncoder, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -28,38 +30,39 @@ class NJCsvTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/csv/fs2")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
+  val fmt             = NJFileFormat.Kantan
 
   test("uncompressed") {
     val cfg = CsvConfiguration.rfc
-    fs2(fs2Root / "tiger.csv", cfg, TestData.tigerSet)
+    fs2(fs2Root / Uncompressed.fileName(fmt), cfg, TestData.tigerSet)
   }
 
   test("gzip") {
     val cfg = CsvConfiguration.rfc
-    fs2(fs2Root / "tiger.csv.gz", cfg, TestData.tigerSet)
+    fs2(fs2Root / Gzip.fileName(fmt), cfg, TestData.tigerSet)
   }
   test("snappy") {
     val cfg = CsvConfiguration.rfc.withHeader("a", "b", "c")
-    fs2(fs2Root / "tiger.csv.snappy", cfg, TestData.tigerSet)
+    fs2(fs2Root / Snappy.fileName(fmt), cfg, TestData.tigerSet)
   }
   test("bzip2") {
     val cfg = CsvConfiguration.rfc.withCellSeparator('?')
-    fs2(fs2Root / "tiger.csv.bz2", cfg, TestData.tigerSet)
+    fs2(fs2Root / Bzip2.fileName(fmt), cfg, TestData.tigerSet)
   }
   test("lz4") {
     val cfg = CsvConfiguration.rfc.withQuotePolicy(CsvConfiguration.QuotePolicy.WhenNeeded)
-    fs2(fs2Root / "tiger.csv.lz4", cfg, TestData.tigerSet)
+    fs2(fs2Root / Lz4.fileName(fmt), cfg, TestData.tigerSet)
   }
 
   test("deflate") {
     val cfg = CsvConfiguration.rfc.withQuote('*')
-    fs2(fs2Root / "tiger.csv.deflate", cfg, TestData.tigerSet)
+    fs2(fs2Root / Deflate(1).fileName(fmt), cfg, TestData.tigerSet)
   }
 
   ignore("ZSTANDARD") {
     val cfg = CsvConfiguration.rfc
-    fs2(fs2Root / "tiger.csv.zst", cfg, TestData.tigerSet)
+    fs2(fs2Root / Zstandard(1).fileName(fmt), cfg, TestData.tigerSet)
   }
 
   test("ftp") {

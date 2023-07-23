@@ -2,6 +2,8 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{NJCirce, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -28,27 +30,36 @@ class NJCirceTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/json/fs2")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/json/tiger")
+
+  val fmt = NJFileFormat.BinaryAvro
 
   test("uncompressed") {
-    fs2(fs2Root / "tiger.json", TestData.tigerSet)
+    fs2(fs2Root / Uncompressed.fileName(fmt), TestData.tigerSet)
   }
 
   test("gzip") {
-    fs2(fs2Root / "tiger.json.gz", TestData.tigerSet)
+    fs2(fs2Root / Gzip.fileName(fmt), TestData.tigerSet)
   }
+
   test("snappy") {
-    fs2(fs2Root / "tiger.json.snappy", TestData.tigerSet)
+    fs2(fs2Root / Snappy.fileName(fmt), TestData.tigerSet)
   }
+
   test("bzip2") {
-    fs2(fs2Root / "tiger.csv.bz2", TestData.tigerSet)
+    fs2(fs2Root / Bzip2.fileName(fmt), TestData.tigerSet)
   }
+
   test("lz4") {
-    fs2(fs2Root / "tiger.csv.lz4", TestData.tigerSet)
+    fs2(fs2Root / Lz4.fileName(fmt), TestData.tigerSet)
   }
 
   test("deflate") {
-    fs2(fs2Root / "tiger.csv.deflate", TestData.tigerSet)
+    fs2(fs2Root / Deflate(1).fileName(fmt), TestData.tigerSet)
+  }
+
+  ignore("zstandard") {
+    fs2(fs2Root / Zstandard(1).fileName(fmt), TestData.tigerSet)
   }
 
   test("ftp") {

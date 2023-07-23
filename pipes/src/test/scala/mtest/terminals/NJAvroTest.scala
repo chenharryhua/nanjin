@@ -2,6 +2,8 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{NJAvro, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -27,30 +29,31 @@ class NJAvroTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/avro/fs2")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/avro/panda")
 
+  val fmt = NJFileFormat.Avro
   test("snappy avro") {
-    fs2(fs2Root / "panda.snappy.avro", CodecFactory.snappyCodec, pandaSet)
+    fs2(fs2Root / Snappy.fileName(fmt), CodecFactory.snappyCodec, pandaSet)
   }
 
   test("deflate 6 avro") {
-    fs2(fs2Root / "panda.deflate.avro", CodecFactory.deflateCodec(6), pandaSet)
+    fs2(fs2Root / Deflate(6).fileName(fmt), CodecFactory.deflateCodec(6), pandaSet)
   }
 
   test("uncompressed avro") {
-    fs2(fs2Root / "panda.uncompressed.avro", CodecFactory.nullCodec(), pandaSet)
+    fs2(fs2Root / Uncompressed.fileName(fmt), CodecFactory.nullCodec(), pandaSet)
   }
 
   test("xz 1 avro") {
-    fs2(fs2Root / "panda.xz.avro", CodecFactory.xzCodec(1), pandaSet)
+    fs2(fs2Root / Xz(1).fileName(fmt), CodecFactory.xzCodec(1), pandaSet)
   }
 
   test("bzip2 avro") {
-    fs2(fs2Root / "panda.bz2.avro", CodecFactory.bzip2Codec(), pandaSet)
+    fs2(fs2Root / Bzip2.fileName(fmt), CodecFactory.bzip2Codec(), pandaSet)
   }
 
   test("zstandard avro") {
-    fs2(fs2Root / "panda.zstandard.avro", CodecFactory.zstandardCodec(1), pandaSet)
+    fs2(fs2Root / Zstandard(1).fileName(fmt), CodecFactory.zstandardCodec(1), pandaSet)
   }
 
   test("laziness") {

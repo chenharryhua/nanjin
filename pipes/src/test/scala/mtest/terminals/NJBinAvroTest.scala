@@ -1,9 +1,10 @@
 package mtest.terminals
+
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{NJJackson, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.GenericRecord
@@ -13,22 +14,24 @@ import retry.RetryPolicies
 
 import scala.concurrent.duration.DurationInt
 
-class NJJacksonTest extends AnyFunSuite {
+class NJBinAvroTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val jackson: NJJackson[IO] = hdp.jackson(pandaSchema)
+  val binAvro = hdp.binAvro(pandaSchema)
 
   def fs2(path: NJPath, data: Set[GenericRecord]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val sink   = jackson.sink(path)
-    val src    = jackson.source(path)
+    val sink   = binAvro.sink(path)
+    val src    = binAvro.source(path)
     val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/fs2")
-  val fmt             = NJFileFormat.Jackson
+  val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/panda")
+
+  val fmt = NJFileFormat.BinaryAvro
+
   test("uncompressed") {
     fs2(fs2Root / Uncompressed.fileName(fmt), pandaSet)
   }
@@ -58,8 +61,8 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    jackson.source(NJPath("./does/not/exist"))
-    jackson.sink(NJPath("./does/not/exist"))
+    binAvro.source(NJPath("./does/not/exist"))
+    binAvro.sink(NJPath("./does/not/exist"))
   }
 
   test("rotation") {
@@ -70,11 +73,11 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
+      .through(binAvro.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
       .compile
       .drain
       .unsafeRunSync()
-    val size = Stream.force(hdp.filesIn(path).map(jackson.source)).compile.toList.map(_.size).unsafeRunSync()
+    val size = Stream.force(hdp.filesIn(path).map(binAvro.source)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 2)
   }
 }

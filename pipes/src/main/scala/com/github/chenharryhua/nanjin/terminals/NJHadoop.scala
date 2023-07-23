@@ -71,6 +71,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
   def bytes: NJBytes[F]                     = NJBytes[F](config)
   def avro(schema: Schema): NJAvro[F]       = NJAvro[F](config, schema)
   def jackson(schema: Schema): NJJackson[F] = NJJackson[F](config, schema)
+  def binAvro(schema: Schema): NJBinAvro[F] = NJBinAvro[F](config, schema)
   def parquet(schema: Schema): NJParquet[F] = NJParquet[F](config, schema)
   def kantan[A: NJHeaderEncoder: HeaderDecoder](csvConfig: CsvConfiguration): NJKantan[F, A] =
     NJKantan[F, A](config, csvConfig)
