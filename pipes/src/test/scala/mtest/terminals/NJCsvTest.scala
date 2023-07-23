@@ -28,8 +28,7 @@ class NJCsvTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val akkaRoot: NJPath = NJPath("./data/test/pipes/csv/akka")
-  val fs2Root: NJPath  = NJPath("./data/test/pipes/csv/fs2")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/csv/fs2")
 
   test("uncompressed") {
     val cfg = CsvConfiguration.rfc
@@ -71,14 +70,8 @@ class NJCsvTest extends AnyFunSuite {
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val hdp = NJHadoop[IO](conf)
-    Stream
-      .emits(TestData.tigerSet.toList)
-      .covary[IO]
-      .through(hdp.kantan(CsvConfiguration.rfc).sink(path))
-      .compile
-      .drain
-      .unsafeRunSync()
+    val conn = NJHadoop[IO](conf).kantan[Tiger](CsvConfiguration.rfc)
+    Stream.emits(TestData.tigerSet.toList).covary[IO].through(conn.sink(path)).compile.drain.unsafeRunSync()
   }
 
   test("laziness") {
@@ -87,7 +80,7 @@ class NJCsvTest extends AnyFunSuite {
   }
 
   test("rotation") {
-    val csv    = hdp.kantan[Tiger](CsvConfiguration.rfc)
+    val csv    = hdp.kantan[Tiger](CsvConfiguration.rfc.withHeader)
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -95,11 +88,11 @@ class NJCsvTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(csv.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
+      .through(csv.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.csv"))
       .compile
       .drain
       .unsafeRunSync()
     val size = Stream.force(hdp.filesIn(path).map(csv.source)).compile.toList.map(_.size).unsafeRunSync()
-    assert(size == number * 2)
+    assert(size == number * 10)
   }
 }

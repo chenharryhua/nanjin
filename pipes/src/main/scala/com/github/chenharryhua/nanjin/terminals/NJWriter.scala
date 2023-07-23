@@ -13,7 +13,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.parquet.avro.AvroParquetWriter
 
-private sealed trait NJWriter[F[_], A] {
+sealed private trait NJWriter[F[_], A] {
   def write(ck: Chunk[A]): F[Unit]
 }
 
@@ -45,7 +45,7 @@ private object NJWriter {
           override def write(ck: Chunk[GenericRecord]): F[Unit] = F.blocking(ck.foreach(pw.write))
         })
 
-  def csv[F[_], A: NJHeaderEncoder](
+  def kantan[F[_], A: NJHeaderEncoder](
     configuration: Configuration,
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,
@@ -58,5 +58,18 @@ private object NJWriter {
       .map(cw =>
         new NJWriter[F, A] {
           override def write(ck: Chunk[A]): F[Unit] = F.blocking(cw.write(ck.iterator)).void
+        })
+
+  def bytes[F[_]](
+    configuration: Configuration,
+    compressionLevel: CompressionLevel,
+    blockSizeHint: Long,
+    path: NJPath)(implicit F: Sync[F]): Resource[F, NJWriter[F, Byte]] =
+    Resource
+      .make(F.blocking(fileOutputStream(path, configuration, compressionLevel, blockSizeHint)))(r =>
+        F.blocking(r.close()))
+      .map(os =>
+        new NJWriter[F, Byte] {
+          override def write(ck: Chunk[Byte]): F[Unit] = F.blocking(os.write(ck.toArray)).void
         })
 }

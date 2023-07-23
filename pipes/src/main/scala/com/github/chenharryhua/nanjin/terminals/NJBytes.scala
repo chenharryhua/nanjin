@@ -12,7 +12,7 @@ final class NJBytes[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
   bufferSize: Information,
-  compressLevel: CompressionLevel)(implicit F: Sync[F]) {
+  compressLevel: CompressionLevel) {
   def withBufferSize(bs: Information): NJBytes[F] =
     new NJBytes[F](configuration, blockSizeHint, bs, compressLevel)
   def withBlockSizeHint(bsh: Long): NJBytes[F] = new NJBytes[F](configuration, bsh, bufferSize, compressLevel)
@@ -21,14 +21,14 @@ final class NJBytes[F[_]] private (
   def withCompressionLevel(level: Int): NJBytes[F] = withCompressionLevel(
     Enum[CompressionLevel].withIndex(level))
 
-  def source(path: NJPath): Stream[F, Byte] =
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
     readInputStream[F](
       F.blocking(fileInputStream(path, configuration)),
       bufferSize.toBytes.toInt,
       closeAfterUse = true
     )
 
-  def sink(path: NJPath): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
     ss.through(
       writeOutputStream(
         F.blocking(fileOutputStream(path, configuration, compressLevel, blockSizeHint)),
@@ -37,6 +37,6 @@ final class NJBytes[F[_]] private (
 }
 
 object NJBytes {
-  def apply[F[_]: Sync](cfg: Configuration): NJBytes[F] =
+  def apply[F[_]](cfg: Configuration): NJBytes[F] =
     new NJBytes[F](cfg, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)
 }

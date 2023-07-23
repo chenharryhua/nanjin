@@ -62,5 +62,5 @@ object NJPath {
   implicit final val showNJPath: Show[NJPath] = _.pathStr
 
   implicit final val orderingNJPath: Ordering[NJPath] = Ordering.by(_.pathStr)
-  implicit final val orderNJPath: Order[NJPath]     = Order.by(_.pathStr)
+  implicit final val orderNJPath: Order[NJPath]       = Order.by(_.pathStr)
 }

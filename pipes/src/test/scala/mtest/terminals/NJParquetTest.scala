@@ -66,7 +66,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("rotation") {
-    val path = fs2Root / "rotation"
+    val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     Stream

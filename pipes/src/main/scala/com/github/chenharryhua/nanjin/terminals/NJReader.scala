@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
+import kantan.csv.ops.toCsvInputOps
+import kantan.csv.{CsvConfiguration, CsvReader, HeaderDecoder, ReadResult}
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
@@ -25,6 +27,13 @@ private object NJReader {
     F: Sync[F]): Resource[F, ParquetReader[GenericRecord]] =
     Resource.make(F.blocking(readBuilder.run(path).build()))(r => F.blocking(r.close()))
 
-  def csv[F[_]](configuration: Configuration, path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
+  def kantan[F[_], A: HeaderDecoder](
+    configuration: Configuration,
+    csvConfiguration: CsvConfiguration,
+    path: NJPath)(implicit F: Sync[F]): Resource[F, CsvReader[ReadResult[A]]] =
+    Resource.make(F.blocking(fileInputStream(path, configuration).asCsvReader[A](csvConfiguration)))(r =>
+      F.blocking(r.close()))
+
+  def bytes[F[_]](configuration: Configuration, path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
 }
