@@ -56,7 +56,7 @@ final class NJCsv[F[_]] private (
   def sink[A](path: NJPath)(implicit enc: NJHeaderEncoder[A]): Pipe[F, A, Nothing] = { (ss: Stream[F, A]) =>
     Stream
       .resource(NJWriter.csv[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path))
-      .flatMap(writer => ss.chunks.foreach(writer.write))
+      .flatMap(w => persist[F, A](w, ss).stream)
   }
 }
 

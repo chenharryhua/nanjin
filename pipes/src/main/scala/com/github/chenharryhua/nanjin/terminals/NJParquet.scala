@@ -30,7 +30,7 @@ final class NJParquet[F[_]] private (
   def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = { (ss: Stream[F, GenericRecord]) =>
     Stream
       .resource(NJWriter.parquet[F](writeBuilder, path))
-      .flatMap(pw => persistGenericRecord[F](ss, pw).stream)
+      .flatMap(pw => persist[F, GenericRecord](pw, ss).stream)
   }
 }
 

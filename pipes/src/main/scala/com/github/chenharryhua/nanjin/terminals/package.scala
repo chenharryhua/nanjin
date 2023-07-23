@@ -1,6 +1,11 @@
 package com.github.chenharryhua.nanjin
 
+import cats.effect.kernel.Resource
+import cats.effect.std.Hotswap
+import cats.implicits.toFoldableOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.common.time.Tick
+import fs2.{Pull, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -9,8 +14,6 @@ import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
 import java.nio.charset.StandardCharsets
-import fs2.{Pull, Stream}
-import org.apache.avro.generic.GenericRecord
 package object terminals {
   final val NEWLINE_SEPERATOR: String            = "\r\n"
   final val NEWLINE_BYTES_SEPERATOR: Array[Byte] = NEWLINE_SEPERATOR.getBytes(StandardCharsets.UTF_8)
@@ -40,11 +43,29 @@ package object terminals {
     }
   }
 
-  private[terminals] def persistGenericRecord[F[_]](
-    grs: Stream[F, GenericRecord],
-    writer: NJWriter[F, GenericRecord]): Pull[F, Nothing, Unit] =
+  private[terminals] def persist[F[_], A](writer: NJWriter[F, A], grs: Stream[F, A]): Pull[F, Nothing, Unit] =
     grs.pull.uncons.flatMap {
-      case Some((hl, tl)) => Pull.eval(writer.write(hl)) >> persistGenericRecord(tl, writer)
+      case Some((hl, tl)) => Pull.eval(writer.write(hl)) >> persist(writer, tl)
       case None           => Pull.done
+    }
+
+  private[terminals] def rotatePersist[F[_], A](
+    getWriter: Tick => Resource[F, NJWriter[F, A]],
+    hotswap: Hotswap[F, NJWriter[F, A]],
+    writer: NJWriter[F, A],
+    grs: Stream[F, Either[A, Tick]]
+  ): Pull[F, Nothing, Unit] =
+    grs.pull.uncons.flatMap {
+      case Some((head, tail)) =>
+        val (data, ticks) = head.partitionEither(identity)
+        ticks.last match {
+          case Some(tick) =>
+            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
+              Pull.eval(writer.write(data)) >> rotatePersist(getWriter, hotswap, writer, tail)
+            }
+          case None =>
+            Pull.eval(writer.write(data)) >> rotatePersist(getWriter, hotswap, writer, tail)
+        }
+      case None => Pull.done
     }
 }

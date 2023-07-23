@@ -2,10 +2,9 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.time.{awakeEvery, Tick}
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileStream}
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
@@ -42,37 +41,24 @@ final class NJAvro[F[_]] private (
   def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = { (ss: Stream[F, GenericRecord]) =>
     Stream
       .resource(NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, path))
-      .flatMap(w => persistGenericRecord[F](ss, w).stream)
+      .flatMap(w => persist[F, GenericRecord](w, ss).stream)
   }
 
   def rotateSink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath): Pipe[F, GenericRecord, Nothing] = {
-    def go(
-      hotswap: Hotswap[F, NJWriter[F, GenericRecord]],
-      grs: Stream[F, Either[GenericRecord, Tick]],
-      writer: NJWriter[F, GenericRecord]): Pull[F, Nothing, Unit] =
-      grs.pull.uncons.flatMap {
-        case Some((head, tail)) =>
-          val (data, ticks) = head.partitionEither(identity)
-          ticks.last match {
-            case Some(t) =>
-              val newWriter =
-                hotswap.swap(
-                  NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, pathBuilder(t)))
-              Pull.eval(newWriter).flatMap { writer =>
-                Pull.eval(writer.write(data)) >> go(hotswap, tail, writer)
-              }
-            case None =>
-              Pull.eval(writer.write(data)) >> go(hotswap, tail, writer)
-          }
-        case None => Pull.done
-      }
+    def getWriter(tick: Tick): Resource[F, NJWriter[F, GenericRecord]] =
+      NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, pathBuilder(tick))
 
     val init: Resource[F, (Hotswap[F, NJWriter[F, GenericRecord]], NJWriter[F, GenericRecord])] =
       Hotswap(NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, pathBuilder(Tick.Zero)))
 
     (ss: Stream[F, GenericRecord]) =>
-      Stream.resource(init).flatMap { case (hs, w) =>
-        go(hs, ss.either(awakeEvery[F](policy)), w).stream
+      Stream.resource(init).flatMap { case (hotswap, writer) =>
+        rotatePersist[F, GenericRecord](
+          getWriter,
+          hotswap,
+          writer,
+          ss.map(Left(_)).mergeHaltL(awakeEvery[F](policy).map(Right(_)))
+        ).stream
       }
   }
 }

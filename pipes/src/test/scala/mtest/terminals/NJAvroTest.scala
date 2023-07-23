@@ -2,7 +2,6 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.PathSegment
 import com.github.chenharryhua.nanjin.common.time.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{NJAvro, NJPath}
 import eu.timepit.refined.auto.*
@@ -65,9 +64,9 @@ class NJAvroTest extends AnyFunSuite {
     Stream
       .emits(pandaSet.toList)
       .covary[IO]
-      .repeatN(1000000000L)
-      .through(avro.rotateSink(RetryPolicies.constantDelay[IO](5.second))(t =>
-        fs2Root / LocalDate.ofInstant(t.wakeTime, sydneyTime) / PathSegment.unsafeFrom(s"${t.index}.avro")))
+      .repeatN(10000L)
+      .through(avro.rotateSink(RetryPolicies.constantDelay[IO](1.second))(t =>
+        fs2Root / LocalDate.ofInstant(t.wakeTime, sydneyTime) / s"${t.index}.avro"))
       .compile
       .drain
       .unsafeRunSync()

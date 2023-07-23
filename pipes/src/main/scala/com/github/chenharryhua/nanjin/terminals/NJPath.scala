@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Show
 import cats.kernel.Order
-import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import com.github.chenharryhua.nanjin.common.aws.S3Path
+import com.github.chenharryhua.nanjin.common.{PathRoot, PathSegment}
 import io.circe.{Decoder, Encoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{LocatedFileStatus, Path}
@@ -14,7 +14,7 @@ import java.time.{LocalDate, LocalDateTime}
 
 final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
-  def /(seg: PathSegment): NJPath      = NJPath(root, segments.appended(seg))
+  def /(seg: String): NJPath           = NJPath(root, segments.appended(PathSegment.unsafeFrom(seg)))
   def /(ss: List[PathSegment]): NJPath = NJPath(root, segments ::: ss)
 
   // Year=2020/Month=01/Day=05
@@ -61,6 +61,6 @@ object NJPath {
 
   implicit final val showNJPath: Show[NJPath] = _.pathStr
 
-  implicit final val ordingNJPath: Ordering[NJPath] = Ordering.by(_.pathStr)
+  implicit final val orderingNJPath: Ordering[NJPath] = Ordering.by(_.pathStr)
   implicit final val orderNJPath: Order[NJPath]     = Order.by(_.pathStr)
 }
