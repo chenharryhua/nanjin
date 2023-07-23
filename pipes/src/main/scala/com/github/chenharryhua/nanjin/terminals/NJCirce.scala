@@ -21,6 +21,8 @@ final class NJCirce[F[_], A: Encoder: Decoder](
   def withBlockSizeHint(bsh: Long): NJCirce[F, A] =
     new NJCirce[F, A](configuration, bsh, chunkSize, compressLevel, isKeepNull)
 
+  def withChunkSize(cs: ChunkSize): NJCirce[F, A] =
+    new NJCirce[F, A](configuration, blockSizeHint, cs, compressLevel, isKeepNull)
   def withCompressionLevel(cl: CompressionLevel): NJCirce[F, A] =
     new NJCirce[F, A](configuration, blockSizeHint, chunkSize, cl, isKeepNull)
 
@@ -29,7 +31,7 @@ final class NJCirce[F[_], A: Encoder: Decoder](
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      is <- Stream.resource(NJReader.bytes[F](configuration, path))
+      is <- Stream.resource(NJReader.inputStream[F](configuration, path))
       as <- readInputStream[F](F.pure(is), chunkSize.value).through(CirceSerde.fromBytes)
     } yield as
 

@@ -63,7 +63,7 @@ final class NJParquet[F[_]] private (
 }
 
 object NJParquet {
-  def apply[F[_]](schema: Schema, cfg: Configuration): NJParquet[F] =
+  def apply[F[_]](cfg: Configuration, schema: Schema): NJParquet[F] =
     new NJParquet[F](
       readBuilder = Reader((path: NJPath) =>
         AvroParquetReader

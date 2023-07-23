@@ -2,7 +2,9 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJParquet, NJPath}
+import com.github.chenharryhua.nanjin.common.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.NJCompression.*
+import com.github.chenharryhua.nanjin.terminals.{NJParquet, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.GenericRecord
@@ -28,36 +30,37 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/fs2")
+  val fmt             = NJFileFormat.Parquet
 
   test("parquet snappy") {
-    fs2(fs2Root / "panda.snappy.parquet", NJCompression.Snappy.codecName, pandaSet)
+    fs2(fs2Root / Snappy.fileName(fmt), Snappy.codecName, pandaSet)
   }
   test("parquet gzip") {
-    fs2(fs2Root / "panda.gzip.parquet", NJCompression.Gzip.codecName, pandaSet)
+    fs2(fs2Root / Gzip.fileName(fmt), Gzip.codecName, pandaSet)
   }
 
   test("uncompressed parquet") {
-    fs2(fs2Root / "panda.uncompressed.parquet", CompressionCodecName.UNCOMPRESSED, pandaSet)
+    fs2(fs2Root / Uncompressed.fileName(fmt), CompressionCodecName.UNCOMPRESSED, pandaSet)
   }
 
   test("LZ4 parquet") {
-    fs2(fs2Root / "panda.LZ4.parquet", CompressionCodecName.LZ4, pandaSet)
+    fs2(fs2Root / Lz4.fileName(fmt), CompressionCodecName.LZ4, pandaSet)
   }
 
   test("LZ4_RAW parquet") {
-    fs2(fs2Root / "panda.LZ4raw.parquet", CompressionCodecName.LZ4_RAW, pandaSet)
+    fs2(fs2Root / Lz4_Raw.fileName(fmt), CompressionCodecName.LZ4_RAW, pandaSet)
   }
 
-  test("ZSTD parquet") {
-    fs2(fs2Root / "panda.ZSTD.parquet", CompressionCodecName.ZSTD, pandaSet)
+  test("Zstandard parquet") {
+    fs2(fs2Root / Zstandard(1).fileName(fmt), CompressionCodecName.ZSTD, pandaSet)
   }
 
   ignore("LZO parquet") {
-    fs2(fs2Root / "panda.LZO.parquet", CompressionCodecName.LZO, pandaSet)
+    fs2(fs2Root / Lzo.fileName(fmt), CompressionCodecName.LZO, pandaSet)
   }
 
   ignore("BROTLI parquet") {
-    fs2(fs2Root / "panda.BROTLI.parquet", CompressionCodecName.BROTLI, pandaSet)
+    fs2(fs2Root / Brotli.fileName(fmt), CompressionCodecName.BROTLI, pandaSet)
   }
 
   test("laziness") {

@@ -68,6 +68,6 @@ final class NJAvro[F[_]] private (
 }
 
 object NJAvro {
-  def apply[F[_]](schema: Schema, cfg: Configuration): NJAvro[F] =
+  def apply[F[_]](cfg: Configuration, schema: Schema): NJAvro[F] =
     new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BLOCK_SIZE_HINT, CHUNK_SIZE)
 }
