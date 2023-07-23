@@ -2,6 +2,8 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.time.zones.sydneyTime
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.*
@@ -13,6 +15,8 @@ import io.circe.generic.auto.*
 import mtest.spark.sparkSession
 import org.apache.spark.sql.*
 import org.scalatest.funsuite.AnyFunSuite
+
+import java.time.Instant
 
 object SparkExtTestData {
   final case class Foo(a: Int, b: String)
@@ -32,7 +36,8 @@ class SparkExtTest extends AnyFunSuite {
   val ate: AvroTypedEncoder[NJConsumerRecord[String, trip_record]] = AvroTypedEncoder(topic.topicDef)
 
   test("stream") {
-    val data = sparKafka.topic(topic).fromKafka
+    val dr   = NJDateTimeRange(sydneyTime).withEndTime(Instant.now)
+    val data = sparKafka.topic(topic).fromKafka(dr)
     val res = for {
       a <- data.output.stream(100).compile.toList
       b <- data.asTable.output.stream(100).compile.toList
