@@ -8,7 +8,12 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerMessage.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerMessage.*
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
-import fs2.kafka.{CommittableConsumerRecord as Fs2CommittableConsumerRecord, CommittableProducerRecords as Fs2CommittableProducerRecords, ConsumerRecord as Fs2ConsumerRecord, ProducerRecord as Fs2ProducerRecord}
+import fs2.kafka.{
+  CommittableConsumerRecord as Fs2CommittableConsumerRecord,
+  CommittableProducerRecords as Fs2CommittableProducerRecords,
+  ConsumerRecord as Fs2ConsumerRecord,
+  ProducerRecord as Fs2ProducerRecord
+}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.scalacheck.{Arbitrary, Gen}

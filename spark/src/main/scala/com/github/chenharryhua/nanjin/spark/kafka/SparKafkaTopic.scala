@@ -4,7 +4,6 @@ import cats.Foldable
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.PathSegment
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
@@ -80,8 +79,6 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     }
   }
 
-  val segment: PathSegment = PathSegment.unsafeFrom(topicName.value)
-
   private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
     crRdd(sk.kafkaBatch(topic, sparkSession, dateTimeRange))
 
@@ -118,8 +115,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
           }.toMap
           KafkaTopicPartition(topicPartition)
         })
-        .flatMap(offsetRange =>
-          F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange))))
+        .flatMap(offsetRange => F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange))))
 
   /** load topic data from disk
     */

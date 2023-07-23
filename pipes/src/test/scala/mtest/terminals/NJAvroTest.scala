@@ -9,6 +9,9 @@ import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import retry.RetryPolicies
+
+import scala.concurrent.duration.DurationInt
 
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -17,7 +20,7 @@ class NJAvroTest extends AnyFunSuite {
 
   def fs2(path: NJPath, codecFactory: CodecFactory, data: Set[GenericRecord]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val sink   = avro.withChunSize(100).withBlockSizeHint(1000).withCodecFactory(codecFactory).sink(path)
+    val sink   = avro.withChunkSize(100).withBlockSizeHint(1000).withCodecFactory(codecFactory).sink(path)
     val src    = avro.source(path)
     val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
@@ -53,5 +56,21 @@ class NJAvroTest extends AnyFunSuite {
   test("laziness") {
     avro.source(NJPath("./does/not/exist"))
     avro.sink(NJPath("./does/not/exist"))
+  }
+
+  test("rotation") {
+    val path   = fs2Root / "rotation"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(pandaSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .through(avro.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
+      .compile
+      .drain
+      .unsafeRunSync()
+    val size = Stream.force(hdp.filesIn(path).map(avro.source)).compile.toList.map(_.size).unsafeRunSync()
+    assert(size == number * 2)
   }
 }

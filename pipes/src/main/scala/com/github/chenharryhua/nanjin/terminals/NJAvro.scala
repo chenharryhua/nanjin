@@ -1,12 +1,15 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{Pipe, Pull, Stream}
+import com.github.chenharryhua.nanjin.common.time.{awakeEvery, Tick}
+import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.file.{CodecFactory, DataFileStream, DataFileWriter}
-import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericRecord}
+import org.apache.avro.file.CodecFactory
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
+import retry.RetryPolicy
 
 import scala.jdk.CollectionConverters.*
 
@@ -15,48 +18,56 @@ final class NJAvro[F[_]] private (
   schema: Schema,
   codecFactory: CodecFactory,
   blockSizeHint: Long,
-  chunkSize: ChunkSize)(implicit F: Sync[F]) {
+  chunkSize: ChunkSize) {
 
   def withCodecFactory(cf: CodecFactory): NJAvro[F] =
     new NJAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
 
-  def withChunSize(cs: ChunkSize): NJAvro[F] =
+  def withChunkSize(cs: ChunkSize): NJAvro[F] =
     new NJAvro[F](configuration, schema, codecFactory, blockSizeHint, cs)
 
   def withBlockSizeHint(bsh: Long): NJAvro[F] =
     new NJAvro[F](configuration, schema, codecFactory, bsh, chunkSize)
 
-  def sink(path: NJPath): Pipe[F, GenericRecord, Nothing] = {
-    def go(grs: Stream[F, GenericRecord], writer: DataFileWriter[GenericRecord]): Pull[F, Nothing, Unit] =
-      grs.pull.uncons.flatMap {
-        case Some((hl, tl)) => Pull.eval(F.blocking(hl.foreach(writer.append))) >> go(tl, writer)
-        case None           => Pull.eval(F.blocking(writer.close())) >> Pull.done
-      }
-
-    val dataFileWriter: Stream[F, DataFileWriter[GenericRecord]] = for {
-      dfw <- Stream.bracket[F, DataFileWriter[GenericRecord]](
-        F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
-        F.blocking(r.close()))
-      os <- Stream.bracket(F.blocking(path.hadoopOutputFile(configuration).createOrOverwrite(blockSizeHint)))(
-        r => F.blocking(r.close()))
-      writer <- Stream.bracket(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
-    } yield writer
-
-    (ss: Stream[F, GenericRecord]) => dataFileWriter.flatMap(w => go(ss, w).stream)
-  }
-
-  def source(path: NJPath): Stream[F, GenericRecord] =
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericRecord] =
     for {
-      is <- Stream.bracket(F.blocking(path.hadoopInputFile(configuration).newStream()))(r =>
-        F.blocking(r.close()))
-      dfs <- Stream.bracket[F, DataFileStream[GenericRecord]](
-        F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
+      dfs <- Stream.resource(NJReader.avro(configuration, schema, path))
       gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
     } yield gr
 
+  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, GenericRecord] =
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
+      s ++ source(p)
+    }
+
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
+    (ss: Stream[F, GenericRecord]) =>
+      Stream
+        .resource(NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, path))
+        .flatMap(w => persist[F, GenericRecord](w, ss).stream)
+  }
+
+  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
+    F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
+    def getWriter(tick: Tick): Resource[F, NJWriter[F, GenericRecord]] =
+      NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, pathBuilder(tick))
+
+    val init: Resource[F, (Hotswap[F, NJWriter[F, GenericRecord]], NJWriter[F, GenericRecord])] =
+      Hotswap(NJWriter.avro[F](codecFactory, schema, configuration, blockSizeHint, pathBuilder(Tick.Zero)))
+
+    (ss: Stream[F, GenericRecord]) =>
+      Stream.resource(init).flatMap { case (hotswap, writer) =>
+        rotatePersist[F, GenericRecord](
+          getWriter,
+          hotswap,
+          writer,
+          ss.map(Left(_)).mergeHaltL(awakeEvery[F](policy).map(Right(_)))
+        ).stream
+      }
+  }
 }
 
 object NJAvro {
-  def apply[F[_]: Sync](schema: Schema, cfg: Configuration): NJAvro[F] =
+  def apply[F[_]](schema: Schema, cfg: Configuration): NJAvro[F] =
     new NJAvro[F](cfg, schema, CodecFactory.nullCodec(), BLOCK_SIZE_HINT, CHUNK_SIZE)
 }

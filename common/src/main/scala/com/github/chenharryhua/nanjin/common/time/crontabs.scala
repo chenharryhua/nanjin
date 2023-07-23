@@ -1,7 +1,6 @@
-package com.github.chenharryhua.nanjin.datetime
+package com.github.chenharryhua.nanjin.common.time
 
-import cron4s.Cron
-import cron4s.expr.CronExpr
+import cron4s.{Cron, CronExpr}
 
 object crontabs {
 

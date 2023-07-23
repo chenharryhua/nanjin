@@ -1,7 +1,8 @@
 package mtest
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
-import com.github.chenharryhua.nanjin.datetime.{newyorkTime, NJTimestamp}
+import com.github.chenharryhua.nanjin.common.time.zones.newyorkTime
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import java.sql.{Date, Timestamp}

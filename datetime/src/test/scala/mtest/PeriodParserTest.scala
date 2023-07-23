@@ -2,7 +2,7 @@ package mtest
 
 import cats.data.Validated.Valid
 import cats.data.{NonEmptyList, Validated}
-import com.github.chenharryhua.nanjin.datetime.{crontabs, period}
+import com.github.chenharryhua.nanjin.datetime.period
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{LocalDate, Period}
@@ -44,9 +44,5 @@ class PeriodParserTest extends AnyFunSuite {
     assert(today.minus(p2) == LocalDate.of(2010, 7, 26))
     val Validated.Valid(p3) = period("2 years 3 month 6 days")
     assert(today.minus(p3) == LocalDate.of(2010, 7, 20))
-  }
-
-  test("crontab") {
-    println(crontabs.hourly)
   }
 }

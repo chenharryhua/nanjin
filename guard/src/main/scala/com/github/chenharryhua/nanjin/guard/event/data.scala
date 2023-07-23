@@ -2,15 +2,13 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
-import cats.{Monad, Order, Show}
+import cats.{Monad, Show}
 import io.circe.Codec
 import io.circe.generic.JsonCodec
 import natchez.Span
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.typelevel.cats.time.instances.{duration, instant}
-import retry.RetryStatus
 
-import java.time.{Duration, Instant}
+import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -79,27 +77,4 @@ object TraceInfo {
     tid <- span.traceId
     sid <- span.spanId
   } yield (tid, sid).mapN(TraceInfo(_, _))
-}
-
-/** @param pullTime
-  *   when it is pulled
-  * @param wakeTime
-  *   when sleep is over
-  * @param delay
-  *   nominal delay, actual delay is equal to wakeTime minus pullTime roughly
-  */
-@JsonCodec
-final case class Tick(index: Int, pullTime: Instant, wakeTime: Instant, delay: Duration)
-
-object Tick extends duration with instant {
-  implicit val orderingTick: Ordering[Tick] = Ordering.by(_.index)
-  implicit val orderTick: Order[Tick]       = Order.fromOrdering[Tick]
-  implicit val showTick: Show[Tick]         = cats.derived.semiauto.show[Tick]
-
-  final val Zero: Tick = Tick(
-    index = RetryStatus.NoRetriesYet.retriesSoFar,
-    pullTime = Instant.ofEpochMilli(0),
-    wakeTime = Instant.ofEpochMilli(0),
-    delay = Duration.ZERO
-  )
 }

@@ -3,11 +3,11 @@ package mtest.terminals
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
+import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{LocalDate, LocalDateTime}
-import io.circe.parser.decode
 
 class NJPathTest extends AnyFunSuite {
   test("local") {
@@ -16,6 +16,7 @@ class NJPathTest extends AnyFunSuite {
     val r2: NJPath = NJPath("./data/abc/") / "efg"
     assert(r2.pathStr == "data/abc/efg")
     assert(Eq[NJPath].eqv(r1, r2))
+    assert(r1.uri == r2.uri)
   }
 
   test("local absolute") {
@@ -52,11 +53,11 @@ class NJPathTest extends AnyFunSuite {
     assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/Hour=00/32/abc.json")
   }
   test("illegal") {
-    assertDoesNotCompile(""" NJPath("s3a://bucket/") / " " """)
-    assertDoesNotCompile(""" NJPath("s3a://bucket/") / "" """)
-    assertDoesNotCompile(""" NJPath("s3a://bucket/") / " a" """)
-    assertDoesNotCompile(""" NJPath("s3a://bucket/") / "b " """)
-    assertDoesNotCompile(""" NJPath("s3a://bucket/") / "a/b" """)
+    assertThrows[Exception](NJPath("s3a://bucket/") / " ")
+    assertThrows[Exception](NJPath("s3a://bucket/") / "")
+    assertThrows[Exception](NJPath("s3a://bucket/") / " a")
+    assertThrows[Exception](NJPath("s3a://bucket/") / "b ")
+    assertThrows[Exception](NJPath("s3a://bucket/") / "a/b")
   }
 
   test("json") {
