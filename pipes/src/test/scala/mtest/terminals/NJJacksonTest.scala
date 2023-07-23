@@ -27,7 +27,7 @@ class NJJacksonTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/fs2")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/panda")
   val fmt             = NJFileFormat.Jackson
   test("uncompressed") {
     fs2(fs2Root / Uncompressed.fileName(fmt), pandaSet)
@@ -70,7 +70,8 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
+      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
+        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
       .compile
       .drain
       .unsafeRunSync()

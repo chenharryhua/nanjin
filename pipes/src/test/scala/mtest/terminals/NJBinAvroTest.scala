@@ -28,7 +28,7 @@ class NJBinAvroTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/panda")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/bin_avro/panda")
 
   val fmt = NJFileFormat.BinaryAvro
 
@@ -73,7 +73,8 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(binAvro.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.avro"))
+      .through(binAvro.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
+        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
       .compile
       .drain
       .unsafeRunSync()

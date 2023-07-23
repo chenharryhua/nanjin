@@ -91,7 +91,8 @@ class NJCsvTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(csv.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.csv"))
+      .through(csv.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
+        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
       .compile
       .drain
       .unsafeRunSync()

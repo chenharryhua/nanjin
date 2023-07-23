@@ -30,9 +30,9 @@ class NJCirceTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/json/tiger")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")
 
-  val fmt = NJFileFormat.BinaryAvro
+  val fmt = NJFileFormat.Circe
 
   test("uncompressed") {
     fs2(fs2Root / Uncompressed.fileName(fmt), TestData.tigerSet)
@@ -87,7 +87,7 @@ class NJCirceTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.json"))
+      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
       .compile
       .drain
       .unsafeRunSync()
