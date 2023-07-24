@@ -18,14 +18,14 @@ import retry.RetryPolicies
 
 import scala.concurrent.duration.DurationInt
 
-class NJCsvTest extends AnyFunSuite {
+class NJKantanTest extends AnyFunSuite {
   implicit val tigerEncoder: NJHeaderEncoder[Tiger] = shapeless.cachedImplicit
 
   def fs2(path: NJPath, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO]
-    val sink   = hdp.kantan[Tiger](csvConfiguration).withChunkSize(100).withCompressionLevel(3).sink(path)
-    val src    = hdp.kantan[Tiger](csvConfiguration).source(path)
+    val sink   = hdp.kantan(csvConfiguration).withChunkSize(100).withCompressionLevel(3).sink[Tiger](path)
+    val src    = hdp.kantan(csvConfiguration).source[Tiger](path)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -73,17 +73,23 @@ class NJCsvTest extends AnyFunSuite {
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).kantan[Tiger](CsvConfiguration.rfc)
-    Stream.emits(TestData.tigerSet.toList).covary[IO].through(conn.sink(path)).compile.drain.unsafeRunSync()
+    val conn = NJHadoop[IO](conf).kantan(CsvConfiguration.rfc)
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .through(conn.sink[Tiger](path))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("laziness") {
-    hdp.kantan[Tiger](CsvConfiguration.rfc).source(NJPath("./does/not/exist"))
-    hdp.kantan[Tiger](CsvConfiguration.rfc).sink(NJPath("./does/not/exist"))
+    hdp.kantan(CsvConfiguration.rfc).source[Tiger](NJPath("./does/not/exist"))
+    hdp.kantan(CsvConfiguration.rfc).sink[Tiger](NJPath("./does/not/exist"))
   }
 
   test("rotation") {
-    val csv    = hdp.kantan[Tiger](CsvConfiguration.rfc.withHeader)
+    val csv    = hdp.kantan(CsvConfiguration.rfc.withHeader)
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -91,12 +97,13 @@ class NJCsvTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(csv.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
+      .through(csv.sink[Tiger](RetryPolicies.constantDelay[IO](1.second))(t =>
         path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
       .compile
       .drain
       .unsafeRunSync()
-    val size = Stream.force(hdp.filesIn(path).map(csv.source)).compile.toList.map(_.size).unsafeRunSync()
+    val size =
+      Stream.force(hdp.filesIn(path).map(csv.source[Tiger])).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 10)
   }
 }

@@ -89,10 +89,14 @@ private[spark] object loaders {
     def circe[A: ClassTag: JsonDecoder](path: NJPath, ss: SparkSession): RDD[A] =
       ss.sparkContext
         .textFile(path.pathStr)
-        .mapPartitions(_.map(decode[A](_) match {
-          case Left(ex) => throw ex
-          case Right(r) => r
-        }))
+        .mapPartitions(_.flatMap { str =>
+          if (str.isEmpty) None
+          else
+            decode[A](str) match {
+              case Left(value)  => throw value
+              case Right(value) => Some(value)
+            }
+        })
 
     def avro[A: ClassTag](path: NJPath, ss: SparkSession, decoder: AvroDecoder[A]): RDD[A] = {
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
@@ -128,9 +132,12 @@ private[spark] object loaders {
       val schema: Schema = decoder.schema
       ss.sparkContext.textFile(path.pathStr).mapPartitions { strs =>
         val datumReader: GenericDatumReader[GenericRecord] = new GenericDatumReader[GenericRecord](schema)
-        strs.map { str =>
-          val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
-          decoder.decode(datumReader.read(null, jsonDecoder))
+        strs.flatMap { str =>
+          if (str.isEmpty) None
+          else {
+            val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
+            Some(decoder.decode(datumReader.read(null, jsonDecoder)))
+          }
         }
       }
     }

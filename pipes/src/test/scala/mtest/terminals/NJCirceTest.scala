@@ -2,12 +2,14 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{NJCirce, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
+import io.circe.syntax.EncoderOps
 import mtest.pipes.TestData
 import mtest.pipes.TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
@@ -19,13 +21,13 @@ import retry.RetryPolicies
 import scala.concurrent.duration.DurationInt
 class NJCirceTest extends AnyFunSuite {
 
-  val json: NJCirce[IO, Tiger] = hdp.circe[Tiger](isKeepNull = true)
+  val json: NJCirce[IO] = hdp.circe
 
   def fs2(path: NJPath, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO]
+    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson)
     val sink   = json.withCompressionLevel(3).sink(path)
-    val src    = json.source(path)
+    val src    = json.source(path).mapFilter(_.as[Tiger].toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -70,8 +72,15 @@ class NJCirceTest extends AnyFunSuite {
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).circe[Tiger](isKeepNull = true)
-    Stream.emits(TestData.tigerSet.toList).covary[IO].through(conn.sink(path)).compile.drain.unsafeRunSync()
+    val conn = NJHadoop[IO](conf).circe
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .map(_.asJson)
+      .through(conn.sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("laziness") {
@@ -87,7 +96,9 @@ class NJCirceTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
+      .map(_.asJson)
+      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
+        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
       .compile
       .drain
       .unsafeRunSync()
