@@ -29,7 +29,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/fs2")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/panda")
   val fmt             = NJFileFormat.Parquet
 
   test("parquet snappy") {
@@ -76,7 +76,8 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / s"${t.index}.parquet"))
+      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
+        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
       .compile
       .drain
       .unsafeRunSync()

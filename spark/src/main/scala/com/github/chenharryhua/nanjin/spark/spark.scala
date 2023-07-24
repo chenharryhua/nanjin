@@ -51,7 +51,8 @@ package object spark {
     }
 
     final class PartialApplyAvroTypedEncoder[F[_]] {
-      def apply[A](ate: AvroTypedEncoder[A])(implicit F: Sync[F]) = new LoadTable[F, A](ate, ss)
+      def apply[A](ate: AvroTypedEncoder[A])(implicit F: Sync[F]): LoadTable[F, A] =
+        new LoadTable[F, A](ate, ss)
     }
 
     def loadTable[F[_]]: PartialApplyAvroTypedEncoder[F] = new PartialApplyAvroTypedEncoder[F]

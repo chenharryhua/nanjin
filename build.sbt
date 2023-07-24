@@ -265,7 +265,7 @@ lazy val guard = (project in file("guard"))
   )
 
 lazy val messages = (project in file("messages"))
-  .dependsOn(datetime)
+  .dependsOn(common)
   .settings(commonSettings*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= List(

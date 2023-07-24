@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.Sync
-import io.circe.{Decoder, Encoder}
-import kantan.csv.{CsvConfiguration, HeaderDecoder}
+import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
@@ -68,13 +67,11 @@ final class NJHadoop[F[_]] private (config: Configuration) {
   }
 
   // sources and sinks
-  def bytes: NJBytes[F]                     = NJBytes[F](config)
-  def avro(schema: Schema): NJAvro[F]       = NJAvro[F](config, schema)
-  def jackson(schema: Schema): NJJackson[F] = NJJackson[F](config, schema)
-  def binAvro(schema: Schema): NJBinAvro[F] = NJBinAvro[F](config, schema)
-  def parquet(schema: Schema): NJParquet[F] = NJParquet[F](config, schema)
-  def kantan[A: NJHeaderEncoder: HeaderDecoder](csvConfig: CsvConfiguration): NJKantan[F, A] =
-    NJKantan[F, A](config, csvConfig)
-  def circe[A: Encoder: Decoder](isKeepNull: Boolean): NJCirce[F, A] =
-    NJCirce[F, A](config, isKeepNull)
+  def bytes: NJBytes[F]                              = NJBytes[F](config)
+  def avro(schema: Schema): NJAvro[F]                = NJAvro[F](config, schema)
+  def jackson(schema: Schema): NJJackson[F]          = NJJackson[F](config, schema)
+  def binAvro(schema: Schema): NJBinAvro[F]          = NJBinAvro[F](config, schema)
+  def parquet(schema: Schema): NJParquet[F]          = NJParquet[F](config, schema)
+  def kantan(csvConf: CsvConfiguration): NJKantan[F] = NJKantan[F](config, csvConf)
+  def circe: NJCirce[F]                              = NJCirce[F](config)
 }
