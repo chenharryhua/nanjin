@@ -3,6 +3,7 @@ package mtest.spark.pipe
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.{NJHeaderEncoder, NJPath}
 import eu.timepit.refined.auto.*
@@ -31,8 +32,9 @@ object ReadWriteTestData {
   implicit val hd: NJHeaderEncoder[TestData] = shapeless.cachedImplicit
   implicit val ri: RowDecoder[TestData]      = shapeless.cachedImplicit
 
-  val loader = sparkSession.loadTable[IO](AvroTypedEncoder[TestData])
-  val codec  = NJAvroCodec[TestData]
+  val codec: NJAvroCodec[TestData] = NJAvroCodec[TestData]
+
+  val loader: LoadTable[IO, TestData] = sparkSession.loadTable[IO](AvroTypedEncoder[TestData](codec))
 
 }
 
