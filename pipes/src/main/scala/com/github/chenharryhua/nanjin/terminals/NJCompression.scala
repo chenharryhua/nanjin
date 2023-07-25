@@ -1,8 +1,12 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.syntax.all.*
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Interval.Closed
+import eu.timepit.refined.refineV
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.avro.file.CodecFactory
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
@@ -50,7 +54,7 @@ sealed trait NJCompression extends Product with Serializable {
     case NJCompression.Brotli           => CompressionLevel.DEFAULT_COMPRESSION
     case NJCompression.Lzo              => CompressionLevel.DEFAULT_COMPRESSION
     case NJCompression.Deflate(level)   => convert(level)
-    case NJCompression.Xz(level)        => convert(level)
+    case NJCompression.Xz(level)        => convert(level.value)
     case NJCompression.Zstandard(level) => convert(level)
   }
 }
@@ -80,7 +84,7 @@ sealed trait AvroCompression extends NJCompression {
     case NJCompression.Snappy           => CodecFactory.snappyCodec()
     case NJCompression.Bzip2            => CodecFactory.bzip2Codec()
     case NJCompression.Deflate(level)   => CodecFactory.deflateCodec(level)
-    case NJCompression.Xz(level)        => CodecFactory.xzCodec(level)
+    case NJCompression.Xz(level)        => CodecFactory.xzCodec(level.value)
     case NJCompression.Zstandard(level) => CodecFactory.zstandardCodec(level)
   }
 }
@@ -98,7 +102,7 @@ object NJCompression {
       case Brotli               => Json.fromString(Brotli.shortName)
       case Lzo                  => Json.fromString(Lzo.shortName)
       case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.show}") // hadoop convention
-      case c @ Xz(level)        => Json.fromString(s"${c.shortName}-${level.show}")
+      case c @ Xz(level)        => Json.fromString(s"${c.shortName}-${level.value.show}")
       case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level.show}")
     }
 
@@ -113,9 +117,13 @@ object NJCompression {
       case Brotli.shortName       => Right(Brotli)
       case Lzo.shortName          => Right(Lzo)
       case s"deflate-${level}"    => Try(level.toInt).map(Deflate).toEither.leftMap(_.getMessage)
-      case s"xz-${level}"         => Try(level.toInt).map(Xz).toEither.leftMap(_.getMessage)
-      case s"zstd-${level}"       => Try(level.toInt).map(Zstandard).toEither.leftMap(_.getMessage)
-      case unknown                => Left(s"unknown compression: $unknown")
+      case s"xz-${level}" =>
+        Try(level.toInt).toEither
+          .leftMap(ex => ExceptionUtils.getMessage(ex))
+          .flatMap(lvl => refineV[Closed[1, 9]](lvl))
+          .map(Xz)
+      case s"zstd-${level}" => Try(level.toInt).map(Zstandard).toEither.leftMap(_.getMessage)
+      case unknown          => Left(s"unknown compression: $unknown")
     }
 
   implicit final val encoderAvroCompression: Encoder[AvroCompression] =
@@ -233,7 +241,7 @@ object NJCompression {
     override val fileExtension: String = ".deflate"
   }
 
-  final case class Xz(level: Int) extends NJCompression with AvroCompression {
+  final case class Xz(level: Int Refined Closed[1, 9]) extends NJCompression with AvroCompression {
     override val shortName: String     = "xz"
     override val fileExtension: String = ".xz"
   }

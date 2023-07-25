@@ -85,7 +85,7 @@ class ParquetTest extends AnyFunSuite {
 
   test("datetime read/write identity multi.zstd") {
     val path = root / "rooster" / "zstd"
-    roosterSaver(path).zstd(5).run.unsafeRunSync()
+    roosterSaver(path).zstd(-5).run.unsafeRunSync()
     val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)

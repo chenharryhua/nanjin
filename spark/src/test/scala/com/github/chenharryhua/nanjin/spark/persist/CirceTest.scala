@@ -64,9 +64,20 @@ class CirceTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
-  test("circe rooster rdd read/write identity multi.deflate") {
-    val path = root / "rooster" / "deflate"
+  test("circe rooster rdd read/write identity multi.deflate 3") {
+    val path = root / "rooster" / "deflate3"
     rooster(path).deflate(3).run.unsafeRunSync()
+    val t = loaders.rdd.circe[Rooster](path, sparkSession)
+    assert(RoosterData.expected == t.collect().toSet)
+    val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
+    assert(RoosterData.expected == t2.collect().toSet)
+    val t3 = loadRoosters(path).unsafeRunSync().toSet
+    assert(RoosterData.expected == t3)
+  }
+
+  test("circe rooster rdd read/write identity multi.deflate -3") {
+    val path = root / "rooster" / "deflate-3"
+    rooster(path).deflate(-3).run.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)

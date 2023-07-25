@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{AvroCompression, NJCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Interval.Closed
 import org.apache.spark.rdd.RDD
 
 final class SaveAvro[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
@@ -22,7 +24,8 @@ final class SaveAvro[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: Hoa
   def deflate(level: Int): SaveAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
   def snappy: SaveAvro[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def uncompress: SaveAvro[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def xz(level: Int): SaveAvro[F, A]      = updateConfig(cfg.outputCompression(NJCompression.Xz(level)))
+  def xz(level: Int Refined Closed[1, 9]): SaveAvro[F, A] =
+    updateConfig(cfg.outputCompression(NJCompression.Xz(level)))
 
   def withCompression(ac: AvroCompression): SaveAvro[F, A] = updateConfig(cfg.outputCompression(ac))
 

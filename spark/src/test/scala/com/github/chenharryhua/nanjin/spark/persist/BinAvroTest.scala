@@ -80,8 +80,18 @@ class BinAvroTest extends AnyFunSuite {
     val t3 = loadRooster(path).unsafeRunSync()
     assert(RoosterData.expected == t3)
   }
-  test("binary avro - deflate") {
-    val path = root / "deflate"
+  test("binary avro - deflate2") {
+    val path = root / "deflate2"
+    saver(path).deflate(2).run.unsafeRunSync()
+    val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
+    assert(RoosterData.expected == t1)
+    assert(RoosterData.expected == t2)
+    val t3 = loadRooster(path).unsafeRunSync()
+    assert(RoosterData.expected == t3)
+  }
+  test("binary avro - deflate-2") {
+    val path = root / "deflate-2"
     saver(path).deflate(2).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet

@@ -64,9 +64,9 @@ class KantanCsvTest extends AnyFunSuite {
   }
 
   test("tablet read/write identity multi.1.deflate") {
-    val path = root / "deflate1"
+    val path = root / "deflate-1"
     val cfg  = CsvConfiguration.rfc
-    val s    = saver(path, cfg).deflate(1)
+    val s    = saver(path, cfg).deflate(-1)
     s.run.unsafeRunSync()
     val t  = loaders.rdd.kantan[Tablet](path, sparkSession, cfg).collect().toSet
     val t2 = loadTablet(path, cfg).unsafeRunSync()

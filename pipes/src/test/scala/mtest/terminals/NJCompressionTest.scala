@@ -4,6 +4,7 @@ import com.github.chenharryhua.nanjin.terminals.*
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.syntax.*
+import eu.timepit.refined.auto.*
 
 class NJCompressionTest extends AnyFunSuite {
   test("json") {
