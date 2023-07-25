@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.pipes.KantanSerde
-import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPERATOR, NJCompression, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPERATOR, NJCompression, NJFileFormat, NJPath}
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
 import io.circe.{Encoder as JsonEncoder, Json}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}

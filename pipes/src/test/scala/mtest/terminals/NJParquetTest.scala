@@ -2,13 +2,11 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{NJParquet, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJPath, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.GenericRecord
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
@@ -18,49 +16,57 @@ import scala.concurrent.duration.DurationInt
 class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val parquet: NJParquet[IO] = hdp.parquet(pandaSchema)
+  val parquet: HadoopParquet[IO] = hdp.parquet(pandaSchema)
 
-  def fs2(path: NJPath, name: CompressionCodecName, data: Set[GenericRecord]): Assertion = {
-    val ts = Stream.emits(data.toList).covary[IO]
-    hdp.delete(path).unsafeRunSync()
+  def fs2(path: NJPath, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
+    val tgt = path / file.fileName
+    val ts  = Stream.emits(data.toList).covary[IO]
+    hdp.delete(tgt).unsafeRunSync()
     val action =
-      ts.through(parquet.updateWriter(_.withCompressionCodec(name)).sink(path)).compile.drain >>
-        parquet.source(path).compile.toList
+      ts.through(parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt))
+        .compile
+        .drain >>
+        parquet.source(tgt).compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/panda")
-  val fmt             = NJFileFormat.Parquet
 
   test("parquet snappy") {
-    fs2(fs2Root / Snappy.fileName(fmt), Snappy.codecName, pandaSet)
+    fs2(fs2Root, ParquetFile(Snappy), pandaSet)
   }
   test("parquet gzip") {
-    fs2(fs2Root / Gzip.fileName(fmt), Gzip.codecName, pandaSet)
+    fs2(fs2Root, ParquetFile(Gzip), pandaSet)
   }
 
   test("uncompressed parquet") {
-    fs2(fs2Root / Uncompressed.fileName(fmt), CompressionCodecName.UNCOMPRESSED, pandaSet)
+    fs2(fs2Root, ParquetFile(Uncompressed), pandaSet)
   }
 
   test("LZ4 parquet") {
-    fs2(fs2Root / Lz4.fileName(fmt), CompressionCodecName.LZ4, pandaSet)
+    fs2(fs2Root, ParquetFile(Lz4), pandaSet)
   }
 
   test("LZ4_RAW parquet") {
-    fs2(fs2Root / Lz4_Raw.fileName(fmt), CompressionCodecName.LZ4_RAW, pandaSet)
+    fs2(fs2Root, ParquetFile(Lz4_Raw), pandaSet)
   }
 
-  test("Zstandard parquet") {
-    fs2(fs2Root / Zstandard(1).fileName(fmt), CompressionCodecName.ZSTD, pandaSet)
+  test("Zstandard parquet - 0") {
+    fs2(fs2Root / 0, ParquetFile(Zstandard(0)), pandaSet)
+  }
+  test("Zstandard parquet - 1") {
+    fs2(fs2Root / 1, ParquetFile(Zstandard(1)), pandaSet)
+  }
+  test("Zstandard parquet - -1") {
+    fs2(fs2Root / -1, ParquetFile(Zstandard(-1)), pandaSet)
   }
 
   ignore("LZO parquet") {
-    fs2(fs2Root / Lzo.fileName(fmt), CompressionCodecName.LZO, pandaSet)
+    fs2(fs2Root, ParquetFile(Lzo), pandaSet)
   }
 
   ignore("BROTLI parquet") {
-    fs2(fs2Root / Brotli.fileName(fmt), CompressionCodecName.BROTLI, pandaSet)
+    fs2(fs2Root, ParquetFile(Brotli), pandaSet)
   }
 
   test("laziness") {
@@ -72,12 +78,12 @@ class NJParquetTest extends AnyFunSuite {
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
+    val file = ParquetFile(Snappy)
     Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
-        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
+      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / file.rotate(t)))
       .compile
       .drain
       .unsafeRunSync()

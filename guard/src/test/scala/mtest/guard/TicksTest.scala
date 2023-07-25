@@ -2,12 +2,12 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.time.policies
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionStart, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
 
 import scala.concurrent.duration.*
 
@@ -55,7 +55,7 @@ class TicksTest extends AnyFunSuite {
       service
         .eventStream(agent =>
           agent
-            .ticks(cron_1second, _.join(RetryPolicies.limitRetries(3)))
+            .ticks(cron_1second, _.join(policies.limitRetries(3)))
             .evalMap(idx => agent.action("policy", _.notice).retry(IO(idx)).run)
             .compile
             .drain)
@@ -76,7 +76,7 @@ class TicksTest extends AnyFunSuite {
 
     val lst = service
       .eventStream(ag =>
-        ag.ticks(cron_1minute, RetryPolicies.capDelay[IO](1.second, _))
+        ag.ticks(cron_1minute, policies.capDelay[IO](1.second, _))
           .evalMap(x => ag.action("pt", _.aware).retry(IO(x.index.asJson)).logOutput(identity).run)
           .take(3)
           .compile
@@ -89,7 +89,7 @@ class TicksTest extends AnyFunSuite {
   }
 
   test("5. fib awakeEvery") {
-    val policy = RetryPolicies.fibonacciBackoff[IO](1.second).join(RetryPolicies.limitRetries(3))
+    val policy = policies.fibonacciBackoff[IO](1.second).join(policies.limitRetries(3))
     val List(a, b, c, d, e, f, g, h) =
       service
         .eventStream(agent =>

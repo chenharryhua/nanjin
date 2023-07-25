@@ -1,7 +1,8 @@
-package mtest.common
+package mtest.terminals
 
-import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.common.NJFileFormat.*
+import com.github.chenharryhua.nanjin.terminals.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.NJFileFormat.*
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJFileFormatTest extends AnyFunSuite {
@@ -12,7 +13,6 @@ class NJFileFormatTest extends AnyFunSuite {
   }
 
   test("json") {
-    import io.circe.syntax.*
     val f1: NJFileFormat  = NJFileFormat.Unknown
     val f2: NJFileFormat  = NJFileFormat.Jackson
     val f3: NJFileFormat  = NJFileFormat.Circe

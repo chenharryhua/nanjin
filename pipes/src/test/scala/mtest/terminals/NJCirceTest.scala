@@ -3,9 +3,8 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{NJCirce, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{CirceFile, HadoopCirce, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
@@ -21,47 +20,48 @@ import retry.RetryPolicies
 import scala.concurrent.duration.DurationInt
 class NJCirceTest extends AnyFunSuite {
 
-  val json: NJCirce[IO] = hdp.circe
+  val json: HadoopCirce[IO] = hdp.circe
 
-  def fs2(path: NJPath, data: Set[Tiger]): Assertion = {
-    hdp.delete(path).unsafeRunSync()
+  def fs2(path: NJPath, file: CirceFile, data: Set[Tiger]): Assertion = {
+    val tgt = path / file.fileName
+    hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson)
-    val sink   = json.withCompressionLevel(3).sink(path)
-    val src    = json.source(path).mapFilter(_.as[Tiger].toOption)
+    val sink   = json.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
+    val src    = json.source(tgt).mapFilter(_.as[Tiger].toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")
 
-  val fmt = NJFileFormat.Circe
-
   test("uncompressed") {
-    fs2(fs2Root / Uncompressed.fileName(fmt), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(Uncompressed), TestData.tigerSet)
   }
 
   test("gzip") {
-    fs2(fs2Root / Gzip.fileName(fmt), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(Gzip), TestData.tigerSet)
   }
 
   test("snappy") {
-    fs2(fs2Root / Snappy.fileName(fmt), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(Snappy), TestData.tigerSet)
   }
 
   test("bzip2") {
-    fs2(fs2Root / Bzip2.fileName(fmt), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(Bzip2), TestData.tigerSet)
   }
 
   test("lz4") {
-    fs2(fs2Root / Lz4.fileName(fmt), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(Lz4), TestData.tigerSet)
   }
 
-  test("deflate") {
-    fs2(fs2Root / Deflate(1).fileName(fmt), TestData.tigerSet)
+  test("deflate - 1") {
+    fs2(fs2Root / 1, CirceFile(Deflate(1)), TestData.tigerSet)
   }
-
-  ignore("zstandard") {
-    fs2(fs2Root / Zstandard(1).fileName(fmt), TestData.tigerSet)
+  test("deflate - 0 ") {
+    fs2(fs2Root / 0, CirceFile(Deflate(0)), TestData.tigerSet)
+  }
+  test("deflate - -1") {
+    fs2(fs2Root / -1, CirceFile(Deflate(-1)), TestData.tigerSet)
   }
 
   test("ftp") {
@@ -92,13 +92,13 @@ class NJCirceTest extends AnyFunSuite {
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
+    val fk = CirceFile(Uncompressed)
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
-        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
+      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.rotate(t)))
       .compile
       .drain
       .unsafeRunSync()

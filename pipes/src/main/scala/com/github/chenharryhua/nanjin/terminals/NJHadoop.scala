@@ -67,11 +67,11 @@ final class NJHadoop[F[_]] private (config: Configuration) {
   }
 
   // sources and sinks
-  def bytes: NJBytes[F]                              = NJBytes[F](config)
-  def avro(schema: Schema): NJAvro[F]                = NJAvro[F](config, schema)
-  def jackson(schema: Schema): NJJackson[F]          = NJJackson[F](config, schema)
-  def binAvro(schema: Schema): NJBinAvro[F]          = NJBinAvro[F](config, schema)
-  def parquet(schema: Schema): NJParquet[F]          = NJParquet[F](config, schema)
-  def kantan(csvConf: CsvConfiguration): NJKantan[F] = NJKantan[F](config, csvConf)
-  def circe: NJCirce[F]                              = NJCirce[F](config)
+  def bytes: HadoopBytes[F]                              = HadoopBytes[F](config)
+  def avro(schema: Schema): HadoopAvro[F]                = HadoopAvro[F](config, schema)
+  def jackson(schema: Schema): HadoopJackson[F]          = HadoopJackson[F](config, schema)
+  def binAvro(schema: Schema): HadoopBinAvro[F]          = HadoopBinAvro[F](config, schema)
+  def parquet(schema: Schema): HadoopParquet[F]          = HadoopParquet[F](config, schema)
+  def kantan(csvConf: CsvConfiguration): HadoopKantan[F] = HadoopKantan[F](config, csvConf)
+  def circe: HadoopCirce[F]                              = HadoopCirce[F](config)
 }

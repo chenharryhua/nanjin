@@ -15,18 +15,18 @@ import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader}
 import retry.RetryPolicy
 
-final class NJParquet[F[_]] private (
+final class HadoopParquet[F[_]] private (
   readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]],
   writeBuilder: Reader[NJPath, AvroParquetWriter.Builder[GenericRecord]]) {
-  def updateReader(f: Endo[ParquetReader.Builder[GenericRecord]]): NJParquet[F] =
-    new NJParquet(readBuilder.map(f), writeBuilder)
+  def updateReader(f: Endo[ParquetReader.Builder[GenericRecord]]): HadoopParquet[F] =
+    new HadoopParquet(readBuilder.map(f), writeBuilder)
 
-  def updateWriter(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): NJParquet[F] =
-    new NJParquet(readBuilder, writeBuilder.map(f))
+  def updateWriter(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): HadoopParquet[F] =
+    new HadoopParquet(readBuilder, writeBuilder.map(f))
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericRecord] =
     for {
-      rd <- Stream.resource(NJReader.parquet(readBuilder, path))
+      rd <- Stream.resource(HadoopReader.parquet(readBuilder, path))
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
@@ -38,17 +38,17 @@ final class NJParquet[F[_]] private (
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
       Stream
-        .resource(NJWriter.parquet[F](writeBuilder, path))
+        .resource(HadoopWriter.parquet[F](writeBuilder, path))
         .flatMap(pw => persist[F, GenericRecord](pw, ss).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
-    def getWriter(tick: Tick): Resource[F, NJWriter[F, GenericRecord]] =
-      NJWriter.parquet[F](writeBuilder, pathBuilder(tick))
+    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
+      HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick))
 
-    val init: Resource[F, (Hotswap[F, NJWriter[F, GenericRecord]], NJWriter[F, GenericRecord])] =
-      Hotswap(NJWriter.parquet[F](writeBuilder, pathBuilder(Tick.Zero)))
+    val init: Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
+      Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(Tick.Zero)))
 
     (ss: Stream[F, GenericRecord]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>
@@ -62,9 +62,9 @@ final class NJParquet[F[_]] private (
   }
 }
 
-object NJParquet {
-  def apply[F[_]](cfg: Configuration, schema: Schema): NJParquet[F] =
-    new NJParquet[F](
+object HadoopParquet {
+  def apply[F[_]](cfg: Configuration, schema: Schema): HadoopParquet[F] =
+    new HadoopParquet[F](
       readBuilder = Reader((path: NJPath) =>
         AvroParquetReader
           .builder[GenericRecord](HadoopInputFile.fromPath(path.hadoopPath, cfg))

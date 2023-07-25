@@ -1,6 +1,5 @@
 package mtest.terminals
 
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.*
 import io.circe.parser.decode
 import org.scalatest.funsuite.AnyFunSuite
