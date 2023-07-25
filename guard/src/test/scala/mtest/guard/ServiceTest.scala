@@ -15,7 +15,7 @@ import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import retry.{PolicyDecision, RetryPolicies, RetryPolicy, RetryStatus}
+import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
@@ -29,11 +29,11 @@ class ServiceTest extends AnyFunSuite {
     .withBrief(Json.fromString("test"))
 
   val policy: RetryPolicy[IO] =
-    RetryPolicies.constantDelay[IO](0.1.seconds).join(RetryPolicies.limitRetries(3))
+    policies.constantDelay[IO](0.1.seconds).join(policies.limitRetries(3))
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .withRestartPolicy(RetryPolicies.constantDelay[IO](3.seconds))
+      .withRestartPolicy(policies.constantDelay[IO](3.seconds))
       .updateConfig(_.withMetricReport(cron_1hour))
       .updateConfig(
         _.withMetricReset("*/30 * * ? * *").withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset)
@@ -90,7 +90,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.alwaysGiveUp[IO])
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).delay(throw new Exception("oops")).run
 
@@ -196,7 +196,7 @@ class ServiceTest extends AnyFunSuite {
   test("11.should give up") {
 
     val List(a, b, c, d, e, f, g) = guard
-      .withRestartPolicy(RetryPolicies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.alwaysGiveUp[IO])
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run
       }
@@ -220,9 +220,9 @@ class ServiceTest extends AnyFunSuite {
 
   test("13.policy start over") {
     import java.time.Duration
-    val p1 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(1))
-    val p2 = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(2))
-    val p3 = RetryPolicies.constantDelay[IO](3.seconds).join(RetryPolicies.limitRetries(3))
+    val p1 = policies.constantDelay[IO](1.seconds).join(policies.limitRetries(1))
+    val p2 = policies.constantDelay[IO](2.seconds).join(policies.limitRetries(2))
+    val p3 = policies.constantDelay[IO](3.seconds).join(policies.limitRetries(3))
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(p1.followedBy(p2).followedBy(p3))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
@@ -251,7 +251,7 @@ class ServiceTest extends AnyFunSuite {
   test("14.policy threshold start over") {
     import java.time.Duration
     val List(a, b, c, d, e, f, g) = guard
-      .withRestartPolicy(RetryPolicies.fibonacciBackoff[IO](1.seconds))
+      .withRestartPolicy(policies.fibonacciBackoff[IO](1.seconds))
       .updateConfig(_.withPolicyThreshold(4.seconds))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .filter(_.isInstanceOf[ServicePanic])
@@ -272,8 +272,8 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("15.eval policy") {
-    val p1 = RetryPolicies.constantDelay[IO](1.seconds).join(RetryPolicies.limitRetries(3))
-    val p2 = RetryPolicies.constantDelay[IO](2.seconds).join(RetryPolicies.limitRetries(5))
+    val p1 = policies.constantDelay[IO](1.seconds).join(policies.limitRetries(3))
+    val p2 = policies.constantDelay[IO](2.seconds).join(policies.limitRetries(5))
     Stream
       .unfoldEval[IO, RetryStatus, FiniteDuration](RetryStatus.NoRetriesYet)(s =>
         p1.followedBy(p2).decideNextRetry(s).map {

@@ -1,9 +1,8 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{NJJackson, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.GenericRecord
@@ -16,45 +15,47 @@ import scala.concurrent.duration.DurationInt
 class NJJacksonTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val jackson: NJJackson[IO] = hdp.jackson(pandaSchema)
+  val jackson: HadoopJackson[IO] = hdp.jackson(pandaSchema)
 
-  def fs2(path: NJPath, data: Set[GenericRecord]): Assertion = {
-    hdp.delete(path).unsafeRunSync()
-    val sink   = jackson.sink(path)
-    val src    = jackson.source(path)
+  def fs2(path: NJPath, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
+    val tgt = path / file.fileName
+    hdp.delete(tgt).unsafeRunSync()
+    val sink   = jackson.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
+    val src    = jackson.source(tgt)
     val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/panda")
-  val fmt             = NJFileFormat.Jackson
   test("uncompressed") {
-    fs2(fs2Root / Uncompressed.fileName(fmt), pandaSet)
+    fs2(fs2Root, JacksonFile(Uncompressed), pandaSet)
   }
 
   test("gzip") {
-    fs2(fs2Root / Gzip.fileName(fmt), pandaSet)
+    fs2(fs2Root, JacksonFile(Gzip), pandaSet)
   }
 
   test("snappy") {
-    fs2(fs2Root / Snappy.fileName(fmt), pandaSet)
+    fs2(fs2Root, JacksonFile(Snappy), pandaSet)
   }
 
   test("bzip2") {
-    fs2(fs2Root / Bzip2.fileName(fmt), pandaSet)
+    fs2(fs2Root, JacksonFile(Bzip2), pandaSet)
   }
 
   test("lz4") {
-    fs2(fs2Root / Lz4.fileName(fmt), pandaSet)
+    fs2(fs2Root, JacksonFile(Lz4), pandaSet)
   }
 
-  test("deflate") {
-    fs2(fs2Root / Deflate(1).fileName(fmt), pandaSet)
+  test("deflate - 0 ") {
+    fs2(fs2Root, JacksonFile(Deflate(0)), pandaSet)
   }
-
-  ignore("zstandard") {
-    fs2(fs2Root / Zstandard(1).fileName(fmt), pandaSet)
+  test("deflate - 1") {
+    fs2(fs2Root, JacksonFile(Deflate(1)), pandaSet)
+  }
+  test("deflate - -1") {
+    fs2(fs2Root, JacksonFile(Deflate(-1)), pandaSet)
   }
 
   test("laziness") {
@@ -66,12 +67,12 @@ class NJJacksonTest extends AnyFunSuite {
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
+    val fk = JacksonFile(Uncompressed)
     Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
-        path / s"${t.index}.${Uncompressed.fileName(fmt)}"))
+      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.rotate(t)))
       .compile
       .drain
       .unsafeRunSync()

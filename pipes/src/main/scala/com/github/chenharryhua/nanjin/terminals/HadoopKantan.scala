@@ -5,7 +5,6 @@ import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.time.{awakeEvery, Tick}
 import fs2.{Pipe, Stream}
-import io.scalaland.enumz.Enum
 import kantan.csv.*
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -29,7 +28,7 @@ object NJHeaderEncoder {
     }
 }
 
-final class NJKantan[F[_]] private (
+final class HadoopKantan[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
   chunkSize: ChunkSize,
@@ -37,21 +36,18 @@ final class NJKantan[F[_]] private (
   csvConfiguration: CsvConfiguration
 ) {
 
-  def withChunkSize(cs: ChunkSize): NJKantan[F] =
-    new NJKantan[F](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
+  def withChunkSize(cs: ChunkSize): HadoopKantan[F] =
+    new HadoopKantan[F](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
 
-  def withBlockSizeHint(bsh: Long): NJKantan[F] =
-    new NJKantan[F](configuration, bsh, chunkSize, compressLevel, csvConfiguration)
+  def withBlockSizeHint(bsh: Long): HadoopKantan[F] =
+    new HadoopKantan[F](configuration, bsh, chunkSize, compressLevel, csvConfiguration)
 
-  def withCompressionLevel(cl: CompressionLevel): NJKantan[F] =
-    new NJKantan[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
-
-  def withCompressionLevel(level: Int): NJKantan[F] =
-    withCompressionLevel(Enum[CompressionLevel].withIndex(level))
+  def withCompressionLevel(cl: CompressionLevel): HadoopKantan[F] =
+    new HadoopKantan[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
 
   def source[A: HeaderDecoder](path: NJPath)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      reader <- Stream.resource(NJReader.kantan(configuration, csvConfiguration, path))
+      reader <- Stream.resource(HadoopReader.kantan(configuration, csvConfiguration, path))
       a <- Stream.fromBlockingIterator(reader.iterator, chunkSize.value).rethrow
     } yield a
 
@@ -63,17 +59,19 @@ final class NJKantan[F[_]] private (
   def sink[A: NJHeaderEncoder](path: NJPath)(implicit F: Sync[F]): Pipe[F, A, Nothing] = {
     (ss: Stream[F, A]) =>
       Stream
-        .resource(NJWriter.kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path))
+        .resource(
+          HadoopWriter.kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path))
         .flatMap(w => persist[F, A](w, ss).stream)
   }
 
   def sink[A: NJHeaderEncoder](policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, A, Nothing] = {
-    def getWriter(tick: Tick): Resource[F, NJWriter[F, A]] =
-      NJWriter.kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, pathBuilder(tick))
+    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, A]] =
+      HadoopWriter
+        .kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, pathBuilder(tick))
 
-    val init: Resource[F, (Hotswap[F, NJWriter[F, A]], NJWriter[F, A])] =
-      Hotswap(NJWriter
+    val init: Resource[F, (Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A])] =
+      Hotswap(HadoopWriter
         .kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, pathBuilder(Tick.Zero)))
 
     (ss: Stream[F, A]) =>
@@ -89,7 +87,7 @@ final class NJKantan[F[_]] private (
 
 }
 
-object NJKantan {
-  def apply[F[_]](hadoopCfg: Configuration, csvCfg: CsvConfiguration): NJKantan[F] =
-    new NJKantan[F](hadoopCfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
+object HadoopKantan {
+  def apply[F[_]](hadoopCfg: Configuration, csvCfg: CsvConfiguration): HadoopKantan[F] =
+    new HadoopKantan[F](hadoopCfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
 }

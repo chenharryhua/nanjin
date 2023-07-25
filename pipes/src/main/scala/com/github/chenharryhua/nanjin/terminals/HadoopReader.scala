@@ -13,7 +13,7 @@ import org.apache.parquet.hadoop.ParquetReader
 
 import java.io.InputStream
 
-private object NJReader {
+private object HadoopReader {
   def avro[F[_]](configuration: Configuration, schema: Schema, path: NJPath)(implicit
     F: Sync[F]): Resource[F, DataFileStream[GenericRecord]] =
     for {

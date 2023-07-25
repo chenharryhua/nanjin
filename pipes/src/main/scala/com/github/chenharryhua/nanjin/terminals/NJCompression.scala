@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.NJFileFormat
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.avro.file.CodecFactory
+import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 
 import scala.util.Try
@@ -24,6 +24,34 @@ sealed trait NJCompression extends Product with Serializable {
 
     case NJFileFormat.Parquet => s"$shortName.${NJFileFormat.Parquet.suffix}"
     case NJFileFormat.Avro    => s"$shortName.${NJFileFormat.Avro.suffix}"
+  }
+
+  private def convert(level: Int): CompressionLevel = level match {
+    case 0 => CompressionLevel.NO_COMPRESSION
+    case 1 => CompressionLevel.BEST_SPEED
+    case 2 => CompressionLevel.TWO
+    case 3 => CompressionLevel.THREE
+    case 4 => CompressionLevel.FOUR
+    case 5 => CompressionLevel.FIVE
+    case 6 => CompressionLevel.SIX
+    case 7 => CompressionLevel.SEVEN
+    case 8 => CompressionLevel.EIGHT
+    case 9 => CompressionLevel.BEST_SPEED
+    case _ => CompressionLevel.DEFAULT_COMPRESSION
+  }
+
+  final def compressionLevel: CompressionLevel = this match {
+    case NJCompression.Uncompressed     => CompressionLevel.NO_COMPRESSION
+    case NJCompression.Snappy           => CompressionLevel.DEFAULT_COMPRESSION
+    case NJCompression.Bzip2            => CompressionLevel.DEFAULT_COMPRESSION
+    case NJCompression.Gzip             => CompressionLevel.DEFAULT_COMPRESSION
+    case NJCompression.Lz4              => CompressionLevel.DEFAULT_COMPRESSION
+    case NJCompression.Lz4_Raw          => CompressionLevel.DEFAULT_COMPRESSION
+    case NJCompression.Brotli           => CompressionLevel.DEFAULT_COMPRESSION
+    case NJCompression.Lzo              => CompressionLevel.DEFAULT_COMPRESSION
+    case NJCompression.Deflate(level)   => convert(level)
+    case NJCompression.Xz(level)        => convert(level)
+    case NJCompression.Zstandard(level) => convert(level)
   }
 }
 
@@ -90,7 +118,7 @@ object NJCompression {
       case unknown                => Left(s"unknown compression: $unknown")
     }
 
-  implicit final val encoerAvroCompression: Encoder[AvroCompression] =
+  implicit final val encoderAvroCompression: Encoder[AvroCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderAvroCompression: Decoder[AvroCompression] =
     decoderNJCompression.emap {
@@ -98,7 +126,7 @@ object NJCompression {
       case unknown                      => Left(s"avro does not support: $unknown")
     }
 
-  implicit final val encoerBinaryAvroCompression: Encoder[BinaryAvroCompression] =
+  implicit final val encoderBinaryAvroCompression: Encoder[BinaryAvroCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderBinaryAvroCompression: Decoder[BinaryAvroCompression] =
     decoderNJCompression.emap {
@@ -106,7 +134,7 @@ object NJCompression {
       case unknown                            => Left(s"binary avro does not support: $unknown")
     }
 
-  implicit final val encoerParquetCompression: Encoder[ParquetCompression] =
+  implicit final val encoderParquetCompression: Encoder[ParquetCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderParquetCompression: Decoder[ParquetCompression] =
     decoderNJCompression.emap {
@@ -114,7 +142,7 @@ object NJCompression {
       case unknown                         => Left(s"parquet does not support: $unknown")
     }
 
-  implicit final val encoerCirceCompression: Encoder[CirceCompression] =
+  implicit final val encoderCirceCompression: Encoder[CirceCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderCirceCompression: Decoder[CirceCompression] =
     decoderNJCompression.emap {
@@ -122,7 +150,7 @@ object NJCompression {
       case unknown                       => Left(s"circe json does not support: $unknown")
     }
 
-  implicit final val encoerJacksonCompression: Encoder[JacksonCompression] =
+  implicit final val encoderJacksonCompression: Encoder[JacksonCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderJacksonCompression: Decoder[JacksonCompression] =
     decoderNJCompression.emap {
@@ -130,7 +158,7 @@ object NJCompression {
       case unknown                         => Left(s"jackson does not support: $unknown")
     }
 
-  implicit final val encoerKantanCompression: Encoder[KantanCompression] =
+  implicit final val encoderKantanCompression: Encoder[KantanCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderKantanCompression: Decoder[KantanCompression] =
     decoderNJCompression.emap {
@@ -138,7 +166,7 @@ object NJCompression {
       case unknown                        => Left(s"kantan csv does not support: $unknown")
     }
 
-  implicit final val encoerTextCompression: Encoder[TextCompression] =
+  implicit final val encoderTextCompression: Encoder[TextCompression] =
     encoderNJCompression.contramap(identity)
   implicit final val decoderTextCompression: Decoder[TextCompression] =
     decoderNJCompression.emap {
@@ -155,7 +183,7 @@ object NJCompression {
 
   case object Snappy
       extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression
-      with CirceCompression with JacksonCompression with TextCompression {
+      with CirceCompression with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "snappy"
     override val fileExtension: String = ".snappy"
   }

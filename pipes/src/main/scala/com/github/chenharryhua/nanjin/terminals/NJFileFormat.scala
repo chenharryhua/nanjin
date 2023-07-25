@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common
+package com.github.chenharryhua.nanjin.terminals
 
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import shapeless.{:+:, CNil}

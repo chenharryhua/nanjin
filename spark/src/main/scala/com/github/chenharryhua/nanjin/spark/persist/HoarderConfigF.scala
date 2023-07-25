@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.common.NJFileFormat
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJFileFormat, NJPath}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import monocle.syntax.all.*

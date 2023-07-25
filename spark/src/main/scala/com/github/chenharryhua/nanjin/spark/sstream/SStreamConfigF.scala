@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.common.{NJFileFormat, PathSegment}
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.common.PathSegment
+import com.github.chenharryhua.nanjin.terminals.{NJFileFormat, NJPath}
 import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}

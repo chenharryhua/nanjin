@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.common.time
 
-import cats.Functor
 import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.Random
 import cats.syntax.all.*
+import cats.{Applicative, Functor}
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import cron4s.expr.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.typelevel.cats.time.instances.zoneid
 import retry.PolicyDecision.{DelayAndRetry, GiveUp}
-import retry.RetryPolicy
+import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.{Duration, ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
@@ -43,4 +43,35 @@ object policies extends zoneid {
         },
       pretty = show"cronBackoff(cron=${cronExpr.show}, zoneId=${zoneId.show})"
     )
+
+  // delegate to RetryPolicies
+  def alwaysGiveUp[M[_]: Applicative]: RetryPolicy[M] = RetryPolicies.alwaysGiveUp[M]
+  def constantDelay[M[_]: Applicative](delay: FiniteDuration): RetryPolicy[M] =
+    RetryPolicies.constantDelay[M](delay)
+
+  def exponentialBackoff[M[_]: Applicative](baseDelay: FiniteDuration): RetryPolicy[M] =
+    RetryPolicies.exponentialBackoff[M](baseDelay)
+
+  def limitRetries[M[_]: Applicative](maxRetries: Int): RetryPolicy[M] =
+    RetryPolicies.limitRetries[M](maxRetries)
+
+  def fibonacciBackoff[M[_]: Applicative](baseDelay: FiniteDuration): RetryPolicy[M] =
+    RetryPolicies.fibonacciBackoff[M](baseDelay)
+
+  def fullJitter[M[_]: Applicative](baseDelay: FiniteDuration): RetryPolicy[M] =
+    RetryPolicies.fullJitter[M](baseDelay)
+
+  def capDelay[M[_]: Applicative](cap: FiniteDuration, policy: RetryPolicy[M]): RetryPolicy[M] =
+    RetryPolicies.capDelay[M](cap, policy)
+
+  def limitRetriesByDelay[M[_]: Applicative](
+    threshold: FiniteDuration,
+    policy: RetryPolicy[M]): RetryPolicy[M] =
+    RetryPolicies.limitRetriesByDelay[M](threshold, policy)
+
+  def limitRetriesByCumulativeDelay[M[_]: Applicative](
+    threshold: FiniteDuration,
+    policy: RetryPolicy[M]
+  ): RetryPolicy[M] =
+    RetryPolicies.limitRetriesByCumulativeDelay[M](threshold, policy)
 }

@@ -43,19 +43,21 @@ package object terminals {
     }
   }
 
-  private[terminals] def persist[F[_], A](writer: NJWriter[F, A], grs: Stream[F, A]): Pull[F, Nothing, Unit] =
-    grs.pull.uncons.flatMap {
+  private[terminals] def persist[F[_], A](
+    writer: HadoopWriter[F, A],
+    ss: Stream[F, A]): Pull[F, Nothing, Unit] =
+    ss.pull.uncons.flatMap {
       case Some((hl, tl)) => Pull.eval(writer.write(hl)) >> persist(writer, tl)
       case None           => Pull.done
     }
 
   private[terminals] def rotatePersist[F[_], A](
-    getWriter: Tick => Resource[F, NJWriter[F, A]],
-    hotswap: Hotswap[F, NJWriter[F, A]],
-    writer: NJWriter[F, A],
-    grs: Stream[F, Either[A, Tick]]
+    getWriter: Tick => Resource[F, HadoopWriter[F, A]],
+    hotswap: Hotswap[F, HadoopWriter[F, A]],
+    writer: HadoopWriter[F, A],
+    ss: Stream[F, Either[A, Tick]]
   ): Pull[F, Nothing, Unit] =
-    grs.pull.uncons.flatMap {
+    ss.pull.uncons.flatMap {
       case Some((head, tail)) =>
         val (data, ticks) = head.partitionEither(identity)
         ticks.last match {
