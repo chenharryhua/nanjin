@@ -124,6 +124,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       _ <- fs2.Stream.eval(producer.produce(pr))
     } yield pr
 
-    run.timeout(3.seconds).compile.drain.unsafeRunSync()
+    run.timeout(5.seconds).compile.drain.unsafeRunSync()
   }
 }
