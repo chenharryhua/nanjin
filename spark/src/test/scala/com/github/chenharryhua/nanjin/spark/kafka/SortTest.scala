@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import mtest.spark.kafka.sparKafka
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 import scala.util.Random
 
 class SortTest extends AnyFunSuite {

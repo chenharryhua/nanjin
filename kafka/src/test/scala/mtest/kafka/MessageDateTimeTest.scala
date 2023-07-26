@@ -7,7 +7,7 @@ import com.sksamuel.avro4s.Encoder
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 import java.sql.{Date, Timestamp}
 import java.time.*
 

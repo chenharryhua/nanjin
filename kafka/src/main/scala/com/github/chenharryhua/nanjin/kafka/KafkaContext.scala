@@ -4,7 +4,7 @@ import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.functor.*
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.common.kafka.{StoreName, TopicName}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import fs2.kafka.{ConsumerSettings, Deserializer}
@@ -33,6 +33,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
+  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameC): KafkaTopic[F, K, V] =
+    topic[K,V](TopicName(topicName))
+
   def consume(topicName: TopicName)(implicit F: Sync[F]): Fs2Consume[F] =
     new Fs2Consume[F](
       topicName,
@@ -40,12 +43,16 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
         Deserializer[F, Array[Byte]],
         Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)
     )
+  def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
+    consume(TopicName(topicName))
 
-  def store[K: SerdeOf, V: SerdeOf](storeName: StoreName): NJStateStore[K, V] =
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
       storeName,
       settings.schemaRegistrySettings,
       RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameC): NJStateStore[K, V] =
+    store[K, V](TopicName(storeName))
 
   def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
     streaming.KafkaStreamsBuilder[F](settings.streamSettings, topology)
@@ -53,8 +60,8 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
   def buildStreams(topology: StreamsBuilder => Unit)(implicit F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(Reader(topology))
 
-  def schema(topicName: String)(implicit F: Sync[F]): F[String] =
-    new SchemaRegistryApi[F](settings.schemaRegistrySettings)
-      .kvSchema(TopicName.unsafeFrom(topicName))
-      .map(_.show)
+  def schema(topicName: TopicName)(implicit F: Sync[F]): F[String] =
+    new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(topicName).map(_.show)
+  def schema(topicName: TopicNameC)(implicit F: Sync[F]): F[String] =
+    schema(TopicName(topicName))
 }

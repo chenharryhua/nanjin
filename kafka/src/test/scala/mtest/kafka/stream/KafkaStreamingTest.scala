@@ -36,9 +36,9 @@ object KafkaStreamingData {
   val sendT2Data =
     Stream(
       ProducerRecords(List(
-        ProducerRecord(t2Topic.topicName, 1, TableTwo("x", 0)),
-        ProducerRecord(t2Topic.topicName, 2, TableTwo("y", 1)),
-        ProducerRecord(t2Topic.topicName, 3, TableTwo("z", 2))
+        ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
+        ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
+        ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
       ))).covary[IO].through(t2Topic.produce.pipe)
 
   val harvest: Stream[IO, StreamTarget] =
@@ -85,7 +85,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     } yield a
       .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
       .peek((k, v) => println(s"out=($k, $v)"))
-      .to(tgt.topicName)(tgt.asProduced)
+      .to(tgt.topicName.value)(tgt.asProduced)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(top)
@@ -110,7 +110,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         .mapN((_, _))
     }.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
       .peek((k, v) => println(s"out=($k, $v)"))
-      .to(tgt.topicName)(tgt.asProduced)
+      .to(tgt.topicName.value)(tgt.asProduced)
 
     val sendS1Data = Stream
       .emits(List(
@@ -147,7 +147,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     } yield a
       .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
       .peek((k, v) => println(s"out=($k, $v)"))
-      .to(tgt.topicName)(tgt.asProduced)
+      .to(tgt.topicName.value)(tgt.asProduced)
 
     val sendS1Data = Stream
       .emits(List(
@@ -178,7 +178,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val top: Reader[StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName.value)(tgt.asProduced)
 
     (IO.println(Console.CYAN + "kafka stream should be able to be closed" + Console.RESET) >> ctx
       .buildStreams(top)
@@ -203,7 +203,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val top: Reader[StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
-    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName)(tgt.asProduced)
+    } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName.value)(tgt.asProduced)
 
     val res = IO.println(Console.CYAN + "kafka topic does not exist" + Console.RESET) >> ctx
       .buildStreams(top)

@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.time.Tick
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed
+import eu.timepit.refined.string.{MatchesRegex, Uri}
 import fs2.{Pull, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.CompressionCodecFactory
@@ -27,6 +28,11 @@ package object terminals {
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
+
+  type PathSegmentC = Refined[String, MatchesRegex["""^[a-zA-Z0-9_.=\-]+$"""]]
+
+  type PathRootC = Refined[String, Uri]
+
 
   def fileInputStream(path: NJPath, configuration: Configuration): InputStream = {
     val is: InputStream = path.hadoopInputFile(configuration).newStream()

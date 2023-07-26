@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, SchemaRegistrySettings, TopicDef}
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 class SchemaRegistryTest extends AnyFunSuite {
   val topicName: TopicName = TopicName("nyc_yellow_taxi_trip_data")
 
@@ -50,6 +50,6 @@ class SchemaRegistryTest extends AnyFunSuite {
     topic.schemaRegistry.register.unsafeRunSync()
   }
   test("retrieve schema") {
-    println(ctx.schema(topic.topicName.value).unsafeRunSync())
+    println(ctx.schema(topic.topicName).unsafeRunSync())
   }
 }

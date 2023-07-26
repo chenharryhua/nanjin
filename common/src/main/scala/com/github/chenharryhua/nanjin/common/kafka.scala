@@ -5,12 +5,11 @@ import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.string.MatchesRegex
 
 object kafka {
-  type TopicName = String Refined MatchesRegex["""^[a-zA-Z0-9_.\-]+$"""]
+  type TopicNameC = String Refined MatchesRegex["""^[a-zA-Z0-9_.\-]+$"""]
 
-  object TopicName extends RefinedTypeOps[TopicName, String] with CatsRefinedTypeOpsSyntax
-
-  type StoreName = TopicName
-
-  object StoreName extends RefinedTypeOps[TopicName, String] with CatsRefinedTypeOpsSyntax
-
+  final class TopicName private (val value: String) extends Serializable
+  object TopicName extends RefinedTypeOps[TopicNameC, String] with CatsRefinedTypeOpsSyntax {
+    def apply(tnc: TopicNameC): TopicName = new TopicName(tnc.value)
+    def unsafe(tn: String): TopicName     = apply(unsafeFrom(tn))
+  }
 }

@@ -54,7 +54,7 @@ class TransformerTest extends AnyFunSuite {
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       s1 <- topic1.asConsumer.kstream
       t2 <- topic2.asConsumer.ktable
-    } yield s1.process(processor, store.name).join(t2)(_ + _).to(tgt.topicName)(tgt.asProduced)
+    } yield s1.process(processor, store.name).join(t2)(_ + _).to(tgt.topicName.value)(tgt.asProduced)
 
     val kafkaStreamService =
       ctx.buildStreams(top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)

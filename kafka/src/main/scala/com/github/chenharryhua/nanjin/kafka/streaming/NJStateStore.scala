@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.common.kafka.StoreName
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{
   RawKeyValueSerdePair,
   RegisteredKeyValueSerdePair,
@@ -40,7 +40,7 @@ final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
     Stores.sessionStoreBuilder(supplier, registered.keySerde, registered.valSerde)
 }
 
-final class NJStateStore[K, V] private (storeName: StoreName, registered: RegisteredKeyValueSerdePair[K, V])
+final class NJStateStore[K, V] private (storeName: TopicName, registered: RegisteredKeyValueSerdePair[K, V])
     extends Serializable {
 
   def name: String = storeName.value
@@ -135,11 +135,11 @@ final class NJStateStore[K, V] private (storeName: StoreName, registered: Regist
 }
 
 private[kafka] object NJStateStore {
-  def apply[K, V](storeName: StoreName, registered: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
+  def apply[K, V](storeName: TopicName, registered: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
     new NJStateStore[K, V](storeName, registered)
 
   def apply[K, V](
-    storeName: StoreName,
+    storeName: TopicName,
     srs: SchemaRegistrySettings,
     rawSerdes: RawKeyValueSerdePair[K, V]): NJStateStore[K, V] =
     apply[K, V](storeName, rawSerdes.register(srs, storeName).asRegisteredKeyValueSerdePair)
