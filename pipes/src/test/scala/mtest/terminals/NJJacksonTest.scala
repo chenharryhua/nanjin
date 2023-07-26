@@ -48,14 +48,8 @@ class NJJacksonTest extends AnyFunSuite {
     fs2(fs2Root, JacksonFile(Lz4), pandaSet)
   }
 
-  test("deflate - 0 ") {
-    fs2(fs2Root, JacksonFile(Deflate(0)), pandaSet)
-  }
   test("deflate - 1") {
     fs2(fs2Root, JacksonFile(Deflate(1)), pandaSet)
-  }
-  test("deflate - -1") {
-    fs2(fs2Root, JacksonFile(Deflate(-1)), pandaSet)
   }
 
   test("laziness") {

@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, ParquetCompression}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJCompressionLevel, ParquetCompression}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.spark.rdd.RDD
 final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable {
@@ -25,23 +24,10 @@ final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
   def lz4raw: SaveParquet[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Lz4_Raw))
   def snappy: SaveParquet[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   def uncompress: SaveParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def zstd(level: Int): SaveParquet[F, A] =
+  def zstd(level: NJCompressionLevel): SaveParquet[F, A] =
     updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
 
   def withCompression(pc: ParquetCompression): SaveParquet[F, A] = updateConfig(cfg.outputCompression(pc))
-  def withCompression(name: CompressionCodecName): SaveParquet[F, A] = {
-    val pc: ParquetCompression = name match {
-      case CompressionCodecName.UNCOMPRESSED => NJCompression.Uncompressed
-      case CompressionCodecName.SNAPPY       => NJCompression.Snappy
-      case CompressionCodecName.GZIP         => NJCompression.Gzip
-      case CompressionCodecName.LZO          => NJCompression.Lzo
-      case CompressionCodecName.BROTLI       => NJCompression.Brotli
-      case CompressionCodecName.LZ4          => NJCompression.Lz4
-      case CompressionCodecName.ZSTD         => NJCompression.Zstandard(5)
-      case CompressionCodecName.LZ4_RAW      => NJCompression.Lz4_Raw
-    }
-    withCompression(pc)
-  }
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>

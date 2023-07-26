@@ -5,6 +5,9 @@ import cats.effect.std.Hotswap
 import cats.implicits.toFoldableOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.time.Tick
+import eu.timepit.refined.api.{Refined, RefinedTypeOps}
+import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
+import eu.timepit.refined.numeric.Interval.Closed
 import fs2.{Pull, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.CompressionCodecFactory
@@ -21,6 +24,9 @@ package object terminals {
   final val BLOCK_SIZE_HINT: Long    = -1
   final val BUFFER_SIZE: Information = Bytes(8192)
   final val CHUNK_SIZE: ChunkSize    = ChunkSize(1000)
+
+  type NJCompressionLevel = Int Refined Closed[1, 9]
+  object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
 
   def fileInputStream(path: NJPath, configuration: Configuration): InputStream = {
     val is: InputStream = path.hadoopInputFile(configuration).newStream()

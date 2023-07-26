@@ -79,14 +79,6 @@ class JacksonTest extends AnyFunSuite {
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
-  test("byte-array read/write identity - multi.deflate -9") {
-    import cats.implicits.*
-    val path = root / "bee" / "deflate-9"
-    bee(path).deflate(-9).run.unsafeRunSync()
-    val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec.avroDecoder).collect().toList
-    assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
-  }
-
   test("byte-array read/write identity - multi.lz4") {
     import cats.implicits.*
     val path = root / "bee" / "lz4"

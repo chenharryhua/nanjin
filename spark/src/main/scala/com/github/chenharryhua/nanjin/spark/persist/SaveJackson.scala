@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{JacksonCompression, NJCompression}
+import com.github.chenharryhua.nanjin.terminals.{JacksonCompression, NJCompression, NJCompressionLevel}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
@@ -19,7 +19,7 @@ final class SaveJackson[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
   def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.ignoreMode)
 
   def bzip2: SaveJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def deflate(level: Int): SaveJackson[F, A] = updateConfig(
+  def deflate(level: NJCompressionLevel): SaveJackson[F, A] = updateConfig(
     cfg.outputCompression(NJCompression.Deflate(level)))
   def gzip: SaveJackson[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveJackson[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))

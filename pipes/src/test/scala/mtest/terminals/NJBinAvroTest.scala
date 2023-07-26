@@ -51,14 +51,8 @@ class NJBinAvroTest extends AnyFunSuite {
     fs2(fs2Root, BinAvroFile(Lz4), pandaSet)
   }
 
-  test("deflate - 0") {
-    fs2(fs2Root / 0, BinAvroFile(Deflate(0)), pandaSet)
-  }
   test("deflate - 1") {
     fs2(fs2Root / 1, BinAvroFile(Deflate(1)), pandaSet)
-  }
-  test("deflate - -1") {
-    fs2(fs2Root / -1, BinAvroFile(Deflate(-1)), pandaSet)
   }
 
   test("laziness") {

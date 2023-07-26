@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.syntax.all.*
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Interval.Closed
-import eu.timepit.refined.refineV
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.avro.file.CodecFactory
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -31,7 +30,6 @@ sealed trait NJCompression extends Product with Serializable {
   }
 
   private def convert(level: Int): CompressionLevel = level match {
-    case 0 => CompressionLevel.NO_COMPRESSION
     case 1 => CompressionLevel.BEST_SPEED
     case 2 => CompressionLevel.TWO
     case 3 => CompressionLevel.THREE
@@ -53,9 +51,9 @@ sealed trait NJCompression extends Product with Serializable {
     case NJCompression.Lz4_Raw          => CompressionLevel.DEFAULT_COMPRESSION
     case NJCompression.Brotli           => CompressionLevel.DEFAULT_COMPRESSION
     case NJCompression.Lzo              => CompressionLevel.DEFAULT_COMPRESSION
-    case NJCompression.Deflate(level)   => convert(level)
+    case NJCompression.Deflate(level)   => convert(level.value)
     case NJCompression.Xz(level)        => convert(level.value)
-    case NJCompression.Zstandard(level) => convert(level)
+    case NJCompression.Zstandard(level) => convert(level.value)
   }
 }
 
@@ -74,7 +72,6 @@ sealed trait ParquetCompression extends NJCompression {
     case NJCompression.Brotli       => CompressionCodecName.BROTLI
     case NJCompression.Lzo          => CompressionCodecName.LZO
     case NJCompression.Zstandard(_) => CompressionCodecName.ZSTD
-
   }
 }
 
@@ -83,9 +80,9 @@ sealed trait AvroCompression extends NJCompression {
     case NJCompression.Uncompressed     => CodecFactory.nullCodec()
     case NJCompression.Snappy           => CodecFactory.snappyCodec()
     case NJCompression.Bzip2            => CodecFactory.bzip2Codec()
-    case NJCompression.Deflate(level)   => CodecFactory.deflateCodec(level)
+    case NJCompression.Deflate(level)   => CodecFactory.deflateCodec(level.value)
     case NJCompression.Xz(level)        => CodecFactory.xzCodec(level.value)
-    case NJCompression.Zstandard(level) => CodecFactory.zstandardCodec(level)
+    case NJCompression.Zstandard(level) => CodecFactory.zstandardCodec(level.value)
   }
 }
 
@@ -101,10 +98,13 @@ object NJCompression {
       case Lz4_Raw              => Json.fromString(Lz4_Raw.shortName)
       case Brotli               => Json.fromString(Brotli.shortName)
       case Lzo                  => Json.fromString(Lzo.shortName)
-      case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.show}") // hadoop convention
+      case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.value.show}") // hadoop convention
       case c @ Xz(level)        => Json.fromString(s"${c.shortName}-${level.value.show}")
-      case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level.show}")
+      case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level.value.show}")
     }
+
+  private def convertLevel(lvl: String): Either[String, Refined[Int, Closed[1, 9]]] =
+    Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage).flatMap(NJCompressionLevel.from)
 
   implicit final val decoderNJCompression: Decoder[NJCompression] =
     Decoder[String].emap[NJCompression] {
@@ -116,14 +116,10 @@ object NJCompression {
       case Lz4_Raw.shortName      => Right(Lz4_Raw)
       case Brotli.shortName       => Right(Brotli)
       case Lzo.shortName          => Right(Lzo)
-      case s"deflate-${level}"    => Try(level.toInt).map(Deflate).toEither.leftMap(_.getMessage)
-      case s"xz-${level}" =>
-        Try(level.toInt).toEither
-          .leftMap(ex => ExceptionUtils.getMessage(ex))
-          .flatMap(lvl => refineV[Closed[1, 9]](lvl))
-          .map(Xz)
-      case s"zstd-${level}" => Try(level.toInt).map(Zstandard).toEither.leftMap(_.getMessage)
-      case unknown          => Left(s"unknown compression: $unknown")
+      case s"deflate-${level}"    => convertLevel(level).map(Deflate)
+      case s"xz-${level}"         => convertLevel(level).map(Xz)
+      case s"zstd-${level}"       => convertLevel(level).map(Zstandard)
+      case unknown                => Left(s"unknown compression: $unknown")
     }
 
   implicit final val encoderAvroCompression: Encoder[AvroCompression] =
@@ -234,19 +230,20 @@ object NJCompression {
     override def fileExtension: String = ".lzo"
   }
 
-  final case class Deflate(level: Int)
+  final case class Deflate(level: NJCompressionLevel)
       extends NJCompression with BinaryAvroCompression with AvroCompression with CirceCompression
       with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "deflate"
     override val fileExtension: String = ".deflate"
   }
 
-  final case class Xz(level: Int Refined Closed[1, 9]) extends NJCompression with AvroCompression {
+  final case class Xz(level: NJCompressionLevel) extends NJCompression with AvroCompression {
     override val shortName: String     = "xz"
     override val fileExtension: String = ".xz"
   }
 
-  final case class Zstandard(level: Int) extends NJCompression with AvroCompression with ParquetCompression {
+  final case class Zstandard(level: NJCompressionLevel)
+      extends NJCompression with AvroCompression with ParquetCompression {
     override val shortName: String     = "zstd"
     override val fileExtension: String = ".zst"
   }

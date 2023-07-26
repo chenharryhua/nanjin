@@ -20,11 +20,8 @@ final class HadoopAvro[F[_]] private (
   blockSizeHint: Long,
   chunkSize: ChunkSize) {
 
-  def withCodecFactory(cf: CodecFactory): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, cf, blockSizeHint, chunkSize)
-
   def withCompression(compression: AvroCompression): HadoopAvro[F] =
-    withCodecFactory(compression.codecFactory)
+    new HadoopAvro[F](configuration, schema, compression.codecFactory, blockSizeHint, chunkSize)
 
   def withChunkSize(cs: ChunkSize): HadoopAvro[F] =
     new HadoopAvro[F](configuration, schema, codecFactory, blockSizeHint, cs)

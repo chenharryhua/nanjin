@@ -3,11 +3,10 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.time.policies
-import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.*
+import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import org.apache.avro.file.CodecFactory
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -19,10 +18,11 @@ class NJAvroTest extends AnyFunSuite {
 
   val avro: HadoopAvro[IO] = hdp.avro(pandaSchema)
 
-  def fs2(path: NJPath, codecFactory: CodecFactory, data: Set[GenericRecord]): Assertion = {
-    hdp.delete(path).unsafeRunSync()
-    val sink   = avro.withChunkSize(100).withBlockSizeHint(1000).withCodecFactory(codecFactory).sink(path)
-    val src    = avro.source(path)
+  def fs2(path: NJPath, file: AvroFile, data: Set[GenericRecord]): Assertion = {
+    val tgt = path / file.fileName
+    hdp.delete(tgt).unsafeRunSync()
+    val sink   = avro.withChunkSize(100).withBlockSizeHint(1000).withCompression(file.compression).sink(tgt)
+    val src    = avro.source(tgt)
     val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
@@ -31,33 +31,27 @@ class NJAvroTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/avro/panda")
 
   test("snappy avro") {
-    val file = AvroFile(Snappy)
-    fs2(fs2Root / file.fileName, CodecFactory.snappyCodec, pandaSet)
+    fs2(fs2Root, AvroFile(Snappy), pandaSet)
   }
 
   test("deflate 6 avro") {
-    val file = AvroFile(Deflate(6))
-    fs2(fs2Root / file.fileName, CodecFactory.deflateCodec(6), pandaSet)
+    fs2(fs2Root, AvroFile(Deflate(6)), pandaSet)
   }
 
   test("uncompressed avro") {
-    val file = AvroFile(Uncompressed)
-    fs2(fs2Root / file.fileName, CodecFactory.nullCodec(), pandaSet)
+    fs2(fs2Root, AvroFile(Uncompressed), pandaSet)
   }
 
   test("xz 1 avro") {
-    val file = AvroFile(Xz(1))
-    fs2(fs2Root / file.fileName, CodecFactory.xzCodec(1), pandaSet)
+    fs2(fs2Root, AvroFile(Xz(1)), pandaSet)
   }
 
   test("bzip2 avro") {
-    val file = AvroFile(Bzip2)
-    fs2(fs2Root / file.fileName, CodecFactory.bzip2Codec(), pandaSet)
+    fs2(fs2Root, AvroFile(Bzip2), pandaSet)
   }
 
   test("zstandard avro") {
-    val file = AvroFile(Zstandard(1))
-    fs2(fs2Root / file.fileName, CodecFactory.zstandardCodec(1), pandaSet)
+    fs2(fs2Root, AvroFile(Zstandard(1)), pandaSet)
   }
 
   test("laziness") {

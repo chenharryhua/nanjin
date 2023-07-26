@@ -51,14 +51,8 @@ class NJParquetTest extends AnyFunSuite {
     fs2(fs2Root, ParquetFile(Lz4_Raw), pandaSet)
   }
 
-  test("Zstandard parquet - 0") {
-    fs2(fs2Root / 0, ParquetFile(Zstandard(0)), pandaSet)
-  }
   test("Zstandard parquet - 1") {
     fs2(fs2Root / 1, ParquetFile(Zstandard(1)), pandaSet)
-  }
-  test("Zstandard parquet - -1") {
-    fs2(fs2Root / -1, ParquetFile(Zstandard(-1)), pandaSet)
   }
 
   ignore("LZO parquet") {

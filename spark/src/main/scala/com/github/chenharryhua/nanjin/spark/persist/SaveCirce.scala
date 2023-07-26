@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{CirceCompression, NJCompression}
+import com.github.chenharryhua.nanjin.terminals.{CirceCompression, NJCompression, NJCompressionLevel}
 import io.circe.Encoder as JsonEncoder
 import org.apache.spark.rdd.RDD
 
@@ -27,12 +27,13 @@ final class SaveCirce[F[_], A](
   // def snappy: SaveCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Snappy))
   // def zstd(level: Int): SaveCirce[F, A]    = updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
 
-  def bzip2: SaveCirce[F, A]               = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def deflate(level: Int): SaveCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
-  def gzip: SaveCirce[F, A]                = updateConfig(cfg.outputCompression(NJCompression.Gzip))
-  def lz4: SaveCirce[F, A]                 = updateConfig(cfg.outputCompression(NJCompression.Lz4))
-  def uncompress: SaveCirce[F, A]          = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def snappy: SaveCirce[F, A]              = updateConfig(cfg.outputCompression(NJCompression.Snappy))
+  def bzip2: SaveCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
+  def deflate(level: NJCompressionLevel): SaveCirce[F, A] = updateConfig(
+    cfg.outputCompression(NJCompression.Deflate(level)))
+  def gzip: SaveCirce[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
+  def lz4: SaveCirce[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
+  def uncompress: SaveCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def snappy: SaveCirce[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
 
   def withCompression(cc: CirceCompression): SaveCirce[F, A] =
     updateConfig(cfg.outputCompression(cc))

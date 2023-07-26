@@ -14,7 +14,7 @@ class NJCompressionTest extends AnyFunSuite {
     val c5: TextCompression       = NJCompression.Lz4
     val c6: NJCompression         = NJCompression.Brotli
     val c7: NJCompression         = NJCompression.Lzo
-    val c8: BinaryAvroCompression = NJCompression.Deflate(-1)
+    val c8: BinaryAvroCompression = NJCompression.Deflate(1)
     val c9: AvroCompression       = NJCompression.Xz(2)
     val c10: ParquetCompression   = NJCompression.Zstandard(3)
 
