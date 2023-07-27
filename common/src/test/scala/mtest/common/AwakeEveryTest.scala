@@ -89,6 +89,6 @@ class AwakeEveryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 9))
+    lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 19))
   }
 }

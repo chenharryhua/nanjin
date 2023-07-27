@@ -115,8 +115,8 @@ class Fs2ChannelTest extends AnyFunSuite {
       .transactional("txn")
       .updateConfig(_.withTransactionTimeout(4.seconds))
     val run = for {
-      cr <- ctx.consume(src.topicName).stream.map(src.decoder(_).decode).take(10)
       producer <- txntopic.stream
+      cr <- ctx.consume(src.topicName).stream.map(src.decoder(_).decode).take(10)
       pr = TransactionalProducerRecords.one(
         CommittableProducerRecords.one[IO, Key, smsCallInternet](
           ProducerRecord("txn-target", cr.record.key, cr.record.value),

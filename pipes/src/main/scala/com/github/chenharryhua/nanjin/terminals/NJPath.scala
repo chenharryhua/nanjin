@@ -38,21 +38,20 @@ object PathRoot extends RefinedTypeOps[NJPath.RootC, String] {
 @JsonCodec
 final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
-  def /(seg: NJPath.SegmentC): NJPath = NJPath(root, segments.appended(PathSegment(seg)))
-  def /(seg: PathSegment): NJPath     = NJPath(root, segments.appended(seg))
-  def /(tn: TopicName): NJPath        = NJPath(root, segments.appended(PathSegment.unsafe(tn.value)))
-  def /(uuid: UUID): NJPath           = NJPath(root, segments.appended(PathSegment.unsafe(uuid.toString)))
+  def /(seg: NJPath.SegmentC): NJPath = copy(segments = segments.appended(PathSegment(seg)))
+  def /(seg: PathSegment): NJPath     = copy(segments = segments.appended(seg))
+  def /(tn: TopicName): NJPath        = copy(segments = segments.appended(PathSegment.unsafe(tn.value)))
+  def /(uuid: UUID): NJPath           = copy(segments = segments.appended(PathSegment.unsafe(uuid.toString)))
 
-  def /(num: Long): NJPath = NJPath(root, segments.appended(PathSegment.unsafe(num.toString)))
-
-  def /(num: Int): NJPath = NJPath(root, segments.appended(PathSegment.unsafe(num.toString)))
+  def /(num: Long): NJPath = copy(segments = segments.appended(PathSegment.unsafe(num.toString)))
+  def /(num: Int): NJPath  = copy(segments = segments.appended(PathSegment.unsafe(num.toString)))
 
   // Year=2020/Month=01/Day=05
   def /(ld: LocalDate): NJPath = {
     val year  = PathSegment.unsafe(f"Year=${ld.getYear}%4d")
     val month = PathSegment.unsafe(f"Month=${ld.getMonthValue}%02d")
     val day   = PathSegment.unsafe(f"Day=${ld.getDayOfMonth}%02d")
-    NJPath(root, segments ::: List(year, month, day))
+    copy(segments = segments ::: List(year, month, day))
   }
 
   // Year=2020/Month=01/Day=05/Hour=23
@@ -61,7 +60,7 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
     val month = PathSegment.unsafe(f"Month=${ldt.getMonthValue}%02d")
     val day   = PathSegment.unsafe(f"Day=${ldt.getDayOfMonth}%02d")
     val hour  = PathSegment.unsafe(f"Hour=${ldt.getHour}%02d")
-    NJPath(root, segments ::: List(year, month, day, hour))
+    copy(segments = segments ::: List(year, month, day, hour))
   }
 
   lazy val uri: URI = new URI(root.value + segments.map(g => s"/${g.value}").mkString).normalize()
