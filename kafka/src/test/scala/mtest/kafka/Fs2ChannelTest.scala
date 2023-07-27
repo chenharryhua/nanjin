@@ -31,7 +31,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .stream
       .map(m => topic.decode(m))
       .take(1)
-      .debug()
+      .timeout(3.seconds)
       .compile
       .drain
       .unsafeRunSync()
@@ -51,7 +51,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         .take(1)
         .map(_.show)
         .map(println)
-        .interruptAfter(5.seconds)
+        .timeout(3.seconds)
         .compile
         .toList
         .unsafeRunSync()
@@ -66,7 +66,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .take(1)
       .map(_.toString)
       .map(println)
-      .interruptAfter(5.seconds)
+      .timeout(3.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -83,7 +83,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .rethrow
       .take(1)
       .map(_.toString)
-      .interruptAfter(5.seconds)
+      .timeout(3.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -98,7 +98,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .map(m => topic.decoder(m).tryDecode)
       .map(_.toEither)
       .rethrow
-      .interruptAfter(5.seconds)
+      .timeout(3.seconds)
       .compile
       .toList
       .unsafeRunSync()
@@ -111,12 +111,12 @@ class Fs2ChannelTest extends AnyFunSuite {
       .in(ctx)
       .withTopicName("txn-target")
       .produce
-      .updateConfig(_.withRetries(10))
+      .updateConfig(_.withRetries(3))
       .transactional("txn")
-      .updateConfig(_.withTransactionTimeout(10.seconds))
+      .updateConfig(_.withTransactionTimeout(4.seconds))
     val run = for {
-      cr <- ctx.consume(src.topicName).stream.map(src.decoder(_).decode).take(10)
       producer <- txntopic.stream
+      cr <- ctx.consume(src.topicName).stream.map(src.decoder(_).decode).take(10)
       pr = TransactionalProducerRecords.one(
         CommittableProducerRecords.one[IO, Key, smsCallInternet](
           ProducerRecord("txn-target", cr.record.key, cr.record.value),
@@ -124,6 +124,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       _ <- fs2.Stream.eval(producer.produce(pr))
     } yield pr
 
-    run.debug().compile.drain.unsafeRunSync()
+    run.timeout(5.seconds).compile.drain.unsafeRunSync()
   }
 }

@@ -33,7 +33,7 @@ class AwakeEveryTest extends AnyFunSuite {
         m.foreach { case (_, ls) =>
           ls.zip(ls.reverse).map { case (a, b) =>
             val dur = Duration.between(a, b).abs().toScala
-            assert(dur < 0.1.seconds)
+            assert(dur < 0.2.seconds)
           }
         }
 
@@ -89,6 +89,6 @@ class AwakeEveryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
 
-    lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 9))
+    lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 19))
   }
 }

@@ -15,7 +15,7 @@ import io.scalaland.chimney.dsl.*
 import mtest.spark.kafka.{ctx, sparKafka}
 import org.apache.spark.sql.types.*
 import org.scalatest.funsuite.AnyFunSuite
-
+import eu.timepit.refined.auto.*
 import java.time.Instant
 import scala.math.BigDecimal.RoundingMode
 final case class RoosterLike(c: BigDecimal, d: BigDecimal)

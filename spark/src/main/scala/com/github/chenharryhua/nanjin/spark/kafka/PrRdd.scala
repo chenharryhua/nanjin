@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
@@ -34,11 +34,11 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def ascendOffset: PrRdd[F, K, V]     = transform(sort.ascend.pr.offset)
   def descendOffset: PrRdd[F, K, V]    = transform(sort.descend.pr.offset)
 
-  def noTimestamp: PrRdd[F, K, V]                         = transform(_.map(_.noTimestamp))
-  def noPartition: PrRdd[F, K, V]                         = transform(_.map(_.noPartition))
-  def noMeta: PrRdd[F, K, V]                              = transform(_.map(_.noMeta))
-  def withTopicName(topicName: TopicName): PrRdd[F, K, V] = transform(_.map(_.withTopicName(topicName)))
-
+  def noTimestamp: PrRdd[F, K, V]                          = transform(_.map(_.noTimestamp))
+  def noPartition: PrRdd[F, K, V]                          = transform(_.map(_.noPartition))
+  def noMeta: PrRdd[F, K, V]                               = transform(_.map(_.noMeta))
+  def withTopicName(topicName: TopicName): PrRdd[F, K, V]  = transform(_.map(_.withTopicName(topicName)))
+  def withTopicName(topicName: TopicNameC): PrRdd[F, K, V] = withTopicName(TopicName(topicName))
   def replicate(num: Int): PrRdd[F, K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 

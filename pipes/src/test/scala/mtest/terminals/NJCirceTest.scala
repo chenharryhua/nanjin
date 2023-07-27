@@ -57,12 +57,6 @@ class NJCirceTest extends AnyFunSuite {
   test("deflate - 1") {
     fs2(fs2Root / 1, CirceFile(Deflate(1)), TestData.tigerSet)
   }
-  test("deflate - 0 ") {
-    fs2(fs2Root / 0, CirceFile(Deflate(0)), TestData.tigerSet)
-  }
-  test("deflate - -1") {
-    fs2(fs2Root / -1, CirceFile(Deflate(-1)), TestData.tigerSet)
-  }
 
   test("ftp") {
     val path = NJPath("ftp://localhost/data/tiger.json")

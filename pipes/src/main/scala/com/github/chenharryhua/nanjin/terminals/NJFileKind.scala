@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import com.github.chenharryhua.nanjin.common.PathSegment
 import com.github.chenharryhua.nanjin.common.time.Tick
 import io.circe.generic.JsonCodec
 
 @JsonCodec
 sealed abstract class NJFileKind(format: NJFileFormat, compression: NJCompression) {
 
-  final val fileName: PathSegment           = PathSegment.unsafeFrom(compression.fileName(format))
-  final def rotate(tick: Tick): PathSegment = PathSegment.unsafeFrom(f"${tick.index}%09d.$fileName")
+  final val fileName: PathSegment           = PathSegment.unsafe(compression.fileName(format))
+  final def rotate(tick: Tick): PathSegment = PathSegment.unsafe(f"${tick.index}%09d.${fileName.value}")
 
   final override val toString: String = fileName.value
 }

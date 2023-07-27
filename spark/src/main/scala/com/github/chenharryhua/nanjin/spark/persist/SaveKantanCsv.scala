@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{KantanCompression, NJCompression}
+import com.github.chenharryhua.nanjin.terminals.{KantanCompression, NJCompression, NJCompressionLevel}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
 import org.apache.spark.rdd.RDD
 
@@ -23,7 +23,7 @@ final class SaveKantanCsv[F[_], A](
   def ignoreIfExists: SaveKantanCsv[F, A] = updateConfig(cfg.ignoreMode)
 
   def bzip2: SaveKantanCsv[F, A] = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def deflate(level: Int): SaveKantanCsv[F, A] = updateConfig(
+  def deflate(level: NJCompressionLevel): SaveKantanCsv[F, A] = updateConfig(
     cfg.outputCompression(NJCompression.Deflate(level)))
   def gzip: SaveKantanCsv[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveKantanCsv[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))

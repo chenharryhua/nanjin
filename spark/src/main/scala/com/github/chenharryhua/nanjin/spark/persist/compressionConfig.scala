@@ -1,13 +1,11 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import com.github.chenharryhua.nanjin.terminals.NJCompression
-import io.scalaland.enumz.Enum
 import org.apache.avro.file.DataFileConstants
 import org.apache.avro.mapred.AvroOutputFormat
 import org.apache.avro.mapreduce.AvroJob
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.*
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.parquet.hadoop.codec.ZstandardCodec
@@ -52,8 +50,7 @@ private[persist] object compressionConfig {
       case c => sys.error(s"not support $c in parquet")
     }
 
-  final def set(config: Configuration, compression: NJCompression): Unit = {
-    val ecl: Enum[CompressionLevel] = Enum[CompressionLevel]
+  final def set(config: Configuration, compression: NJCompression): Unit =
     compression match {
       case NJCompression.Uncompressed => CompressionCodecs.setCodecConfiguration(config, null)
       case NJCompression.Snappy =>
@@ -61,13 +58,12 @@ private[persist] object compressionConfig {
       case NJCompression.Bzip2 => CompressionCodecs.setCodecConfiguration(config, classOf[BZip2Codec].getName)
       case NJCompression.Gzip  => CompressionCodecs.setCodecConfiguration(config, classOf[GzipCodec].getName)
       case NJCompression.Lz4   => CompressionCodecs.setCodecConfiguration(config, classOf[Lz4Codec].getName)
-      case NJCompression.Deflate(level) =>
-        ZlibFactory.setCompressionLevel(config, ecl.withIndex(level))
+      case NJCompression.Deflate(_) =>
+        ZlibFactory.setCompressionLevel(config, compression.compressionLevel)
         CompressionCodecs.setCodecConfiguration(config, classOf[DeflateCodec].getName)
-      case NJCompression.Zstandard(level) =>
-        ZlibFactory.setCompressionLevel(config, ecl.withIndex(level))
+      case NJCompression.Zstandard(_) =>
+        ZlibFactory.setCompressionLevel(config, compression.compressionLevel)
         CompressionCodecs.setCodecConfiguration(config, classOf[ZStandardCodec].getName)
       case cc => sys.error(s"${cc.shortName} is not supported")
     }
-  }
 }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{BinaryAvroCompression, NJCompression}
+import com.github.chenharryhua.nanjin.terminals.{BinaryAvroCompression, NJCompression, NJCompressionLevel}
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
@@ -19,7 +19,7 @@ final class SaveBinaryAvro[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cf
   def ignoreIfExists: SaveBinaryAvro[F, A] = updateConfig(cfg.ignoreMode)
 
   def bzip2: SaveBinaryAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def deflate(level: Int): SaveBinaryAvro[F, A] =
+  def deflate(level: NJCompressionLevel): SaveBinaryAvro[F, A] =
     updateConfig(cfg.outputCompression(NJCompression.Deflate(level)))
   def gzip: SaveBinaryAvro[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveBinaryAvro[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
