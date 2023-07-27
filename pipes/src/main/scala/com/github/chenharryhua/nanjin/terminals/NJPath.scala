@@ -4,9 +4,9 @@ import cats.Show
 import cats.kernel.Order
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.terminals
-import eu.timepit.refined.api.RefinedTypeOps
-import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
+import eu.timepit.refined.api.{Refined, RefinedTypeOps}
+import eu.timepit.refined.string.{MatchesRegex, Uri}
+import io.circe.generic.JsonCodec
 import io.circe.{Decoder, Encoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{LocatedFileStatus, Path}
@@ -16,25 +16,32 @@ import java.net.URI
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
-final class PathSegment private (val value: String) extends Serializable
+sealed abstract class PathSegment(val value: String) extends Serializable
 
-object PathSegment extends RefinedTypeOps[PathSegmentC, String] with CatsRefinedTypeOpsSyntax {
-  def apply(ps: PathSegmentC): PathSegment = new PathSegment(ps.value)
-  def unsafe(str: String): PathSegment     = apply(unsafeFrom(str))
+object PathSegment extends RefinedTypeOps[NJPath.SegmentC, String] {
+  def apply(ps: NJPath.SegmentC): PathSegment = new PathSegment(ps.value) {}
+  def unsafe(str: String): PathSegment        = apply(unsafeFrom(str))
+
+  implicit val encodePathSegment: Encoder[PathSegment] = Encoder.encodeString.contramap(_.value)
+  implicit val decodePathSegment: Decoder[PathSegment] = Decoder.decodeString.emap(from(_).map(apply))
 }
 
-final class PathRoot private (val value: String) extends Serializable
-object PathRoot extends RefinedTypeOps[PathRootC, String] with CatsRefinedTypeOpsSyntax {
-  def apply(pr: PathRootC): PathRoot = new PathRoot(pr.value)
-  def unsafe(str: String): PathRoot  = apply(unsafeFrom(str))
+sealed abstract class PathRoot(val value: String) extends Serializable
+object PathRoot extends RefinedTypeOps[NJPath.RootC, String] {
+  def apply(pr: NJPath.RootC): PathRoot = new PathRoot(pr.value) {}
+  def unsafe(str: String): PathRoot     = apply(unsafeFrom(str))
+
+  implicit val encodePathRoot: Encoder[PathRoot] = Encoder.encodeString.contramap(_.value)
+  implicit val decodePathRoot: Decoder[PathRoot] = Decoder.decodeString.emap(from(_).map(apply))
 }
 
+@JsonCodec
 final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 
-  def /(seg: PathSegmentC): NJPath = NJPath(root, segments.appended(terminals.PathSegment(seg)))
-  def /(seg: PathSegment): NJPath  = NJPath(root, segments.appended(seg))
-  def /(tn: TopicName): NJPath     = NJPath(root, segments.appended(PathSegment.unsafe(tn.value)))
-  def /(uuid: UUID): NJPath        = NJPath(root, segments.appended(PathSegment.unsafe(uuid.toString)))
+  def /(seg: NJPath.SegmentC): NJPath = NJPath(root, segments.appended(PathSegment(seg)))
+  def /(seg: PathSegment): NJPath     = NJPath(root, segments.appended(seg))
+  def /(tn: TopicName): NJPath        = NJPath(root, segments.appended(PathSegment.unsafe(tn.value)))
+  def /(uuid: UUID): NJPath           = NJPath(root, segments.appended(PathSegment.unsafe(uuid.toString)))
 
   def /(num: Long): NJPath = NJPath(root, segments.appended(PathSegment.unsafe(num.toString)))
 
@@ -70,18 +77,17 @@ final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
 }
 
 object NJPath {
-  implicit val encoderNJPath: Encoder[NJPath] = Encoder.encodeString.contramap(_.pathStr)
-  implicit val decoderNJPath: Decoder[NJPath] = Decoder.decodeURI.map(apply)
+  type SegmentC = Refined[String, MatchesRegex["""^[a-zA-Z0-9_.=\-]+$"""]]
+  type RootC    = Refined[String, Uri]
 
   def apply(root: PathRoot): NJPath         = NJPath(root, Nil)
-  def apply(root: PathRootC): NJPath        = apply(PathRoot(root))
+  def apply(root: RootC): NJPath            = apply(PathRoot(root))
   def apply(hp: Path): NJPath               = apply(PathRoot.unsafe(hp.toString))
   def apply(uri: URI): NJPath               = apply(PathRoot.unsafe(uri.toASCIIString))
   def apply(s3: S3Path): NJPath             = apply(PathRoot.unsafe(s3.s3a))
   def apply(lfs: LocatedFileStatus): NJPath = apply(lfs.getPath)
 
-  implicit final val showNJPath: Show[NJPath] = _.pathStr
-
+  implicit final val showNJPath: Show[NJPath]         = _.pathStr
   implicit final val orderingNJPath: Ordering[NJPath] = Ordering.by(_.pathStr)
   implicit final val orderNJPath: Order[NJPath]       = Order.by(_.pathStr)
 }

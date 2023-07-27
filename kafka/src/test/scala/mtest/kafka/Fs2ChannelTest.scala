@@ -111,9 +111,9 @@ class Fs2ChannelTest extends AnyFunSuite {
       .in(ctx)
       .withTopicName("txn-target")
       .produce
-      .updateConfig(_.withRetries(10))
+      .updateConfig(_.withRetries(3))
       .transactional("txn")
-      .updateConfig(_.withTransactionTimeout(10.seconds))
+      .updateConfig(_.withTransactionTimeout(4.seconds))
     val run = for {
       cr <- ctx.consume(src.topicName).stream.map(src.decoder(_).decode).take(10)
       producer <- txntopic.stream

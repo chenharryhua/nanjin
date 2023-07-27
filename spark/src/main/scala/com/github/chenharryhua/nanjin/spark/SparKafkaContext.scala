@@ -27,21 +27,28 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameC): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicName(topicName))
+
   def byteTopic(topicName: TopicName): SparKafkaTopic[F, Array[Byte], Array[Byte]] =
     topic[Array[Byte], Array[Byte]](topicName)
 
-  def stringTopic(topicName: TopicName): SparKafkaTopic[F, String, String] =
-    topic[String, String](topicName)
+  def byteTopic(topicName: TopicNameC): SparKafkaTopic[F, Array[Byte], Array[Byte]] =
+    byteTopic(TopicName(topicName))
 
   def jsonTopic(topicName: TopicName): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
     topic[KJson[Json], KJson[Json]](topicName)
 
+  def jsonTopic(topicName: TopicNameC): SparKafkaTopic[F, KJson[Json], KJson[Json]] =
+    jsonTopic(TopicName(topicName))
+
   def sstream(topicName: TopicName): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
     sk.kafkaSStream(topicName, kafkaContext.settings, sparkSession)
 
-  def dumpTopic(
-    topicName: TopicName,
-    path: NJPath,
-    dr: NJDateTimeRange = NJDateTimeRange(kafkaContext.settings.zoneId))(implicit F: Sync[F]): F[Unit] =
+  def sstream(topicName: TopicNameC): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
+    sstream(TopicName(topicName))
+
+  def dumpTopic(topicName: TopicName, path: NJPath, dr: NJDateTimeRange)(implicit F: Sync[F]): F[Unit] =
     topic[KUnknown, KUnknown](topicName).fromKafka(dr).output.circe(path).run
+
+  def dumpTopic(topicName: TopicNameC, path: NJPath, dr: NJDateTimeRange)(implicit F: Sync[F]): F[Unit] =
+    dumpTopic(TopicName(topicName), path, dr)
 }

@@ -34,7 +34,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
     topic[K, V](TopicDef[K, V](topicName))
 
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameC): KafkaTopic[F, K, V] =
-    topic[K,V](TopicName(topicName))
+    topic[K, V](TopicName(topicName))
 
   def consume(topicName: TopicName)(implicit F: Sync[F]): Fs2Consume[F] =
     new Fs2Consume[F](

@@ -54,7 +54,6 @@ class NJPathTest extends AnyFunSuite {
     assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/Hour=00/32/abc.json")
   }
 
-
   test("json") {
     val r1 = NJPath("s3a://bucket/folder") / "a" / "b" / "c"
     val r2 = decode[NJPath](r1.asJson.noSpaces).toOption.get
