@@ -22,7 +22,7 @@ class NJPathTest extends AnyFunSuite {
   test("local absolute") {
     val r1: NJPath = NJPath("/data/abc") / "efg"
     assert(r1.pathStr == "/data/abc/efg")
-    val r2: NJPath = NJPath("/data/abc/") / "efg"
+    val r2: NJPath = NJPath("/data/abc/") / "/efg"
     assert(r2.pathStr == "/data/abc/efg")
     assert(Eq[NJPath].eqv(r1, r2))
   }
@@ -55,8 +55,14 @@ class NJPathTest extends AnyFunSuite {
   }
 
   test("json") {
-    val r1 = NJPath("s3a://bucket/folder") / "a" / "b" / "c"
+    val r1 = NJPath("s3a://bucket/folder/") / "/a/" / "/b" / "c/"
     val r2 = decode[NJPath](r1.asJson.noSpaces).toOption.get
     assert(r1.pathStr === r2.pathStr)
+    assert(Eq[NJPath].eqv(r1, r2))
+  }
+
+  test("no space") {
+    val r1: NJPath = NJPath("s3a://bucket/") / "  " / " abc "
+    assert(r1.pathStr == "s3a://bucket/abc")
   }
 }

@@ -4,12 +4,13 @@ import com.github.chenharryhua.nanjin.common.time.Tick
 import io.circe.generic.JsonCodec
 
 @JsonCodec
-sealed abstract class NJFileKind(format: NJFileFormat, compression: NJCompression) {
+sealed abstract class NJFileKind(val format: NJFileFormat, compression: NJCompression) {
   final val fileName: String           = compression.fileName(format)
   final def rotate(tick: Tick): String = f"${tick.index}%09d.$fileName"
 }
 
 final case class AvroFile(compression: AvroCompression) extends NJFileKind(NJFileFormat.Avro, compression)
+
 final case class CirceFile(compression: CirceCompression) extends NJFileKind(NJFileFormat.Circe, compression)
 
 final case class BinAvroFile(compression: BinaryAvroCompression)
