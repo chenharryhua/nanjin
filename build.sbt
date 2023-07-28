@@ -245,7 +245,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb"                        % "influxdb-client-java" % "6.9.0",
+      "com.influxdb"                        % "influxdb-client-java" % "6.10.0",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
