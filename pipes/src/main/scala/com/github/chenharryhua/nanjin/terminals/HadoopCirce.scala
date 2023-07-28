@@ -27,7 +27,7 @@ final class HadoopCirce[F[_]](
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Json] =
     for {
-      is <- Stream.resource(HadoopReader.inputStream[F](configuration, path))
+      is <- Stream.resource(HadoopReader.inputStream[F](configuration, path.hadoopPath))
       json <- readInputStream[F](F.pure(is), chunkSize.value)
         .through(utf8.decode)
         .through(lines)
@@ -45,17 +45,18 @@ final class HadoopCirce[F[_]](
     ss.mapChunks(_.map(_.noSpaces)).intersperse(NEWLINE_SEPERATOR).through(utf8.encode)
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Nothing] = { (ss: Stream[F, Json]) =>
     Stream
-      .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path))
+      .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
       .flatMap(w => persist[F, Byte](w, toBytes(ss)).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Json, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick))
+      HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
 
     val init: Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Hotswap(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(Tick.Zero)))
+      Hotswap(
+        HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(Tick.Zero).hadoopPath))
 
     (ss: Stream[F, Json]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>

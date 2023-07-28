@@ -28,7 +28,7 @@ class KantanCsvPipeTest extends AnyFunSuite {
         .unsafeRunSync() === tigers)
   }
 
-  val root = NJPath("./data/pipes/csv/")
+  val root = NJPath("./data/test/pipes/csv/")
   test("write/read identity csv") {
     val path = root / "csv.csv"
     hd.delete(path).unsafeRunSync()

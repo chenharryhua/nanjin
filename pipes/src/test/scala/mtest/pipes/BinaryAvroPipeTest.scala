@@ -15,6 +15,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)
   val hd                       = NJHadoop[IO](new Configuration)
+  val root                     = NJPath("./data/test/pipes/bin_avro/")
   test("binary-json identity") {
 
     assert(
@@ -46,7 +47,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
 //  }
 
   test("write/read identity") {
-    val path = NJPath("data/pipe/bin-avro.avro")
+    val path = root / "bin-avro.avro"
     hd.delete(path).unsafeRunSync()
     val write =
       data

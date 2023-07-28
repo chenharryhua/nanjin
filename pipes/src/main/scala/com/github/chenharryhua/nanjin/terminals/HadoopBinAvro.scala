@@ -31,7 +31,7 @@ final class HadoopBinAvro[F[_]](
 
   def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] =
     for {
-      is <- Stream.resource(HadoopReader.inputStream[F](configuration, path))
+      is <- Stream.resource(HadoopReader.inputStream[F](configuration, path.hadoopPath))
       as <- readInputStream[F](F.pure(is), chunkSize.value).through(BinaryAvroSerde.fromBytes(schema))
     } yield as
 
@@ -43,17 +43,18 @@ final class HadoopBinAvro[F[_]](
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
       Stream
-        .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path))
+        .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
         .flatMap(w => persist[F, Byte](w, ss.through(BinaryAvroSerde.toBytes(schema))).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick))
+      HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
 
     val init: Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Hotswap(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(Tick.Zero)))
+      Hotswap(
+        HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(Tick.Zero).hadoopPath))
 
     (ss: Stream[F, GenericRecord]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>
