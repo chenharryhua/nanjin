@@ -6,7 +6,7 @@ addDependencyTreePlugin
 addSbtPlugin("com.github.cb372"          % "sbt-explicit-dependencies" % "0.3.1")
 addSbtPlugin("de.heikoseeberger"         % "sbt-header"                % "5.10.0")
 addSbtPlugin("net.virtual-void"          % "sbt-dependency-graph"      % "0.10.0-RC1")
-addSbtPlugin("org.typelevel" % "sbt-tpolecat"              % "0.5.0")
+addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"              % "0.4.4")
 addSbtPlugin("org.scalameta"             % "sbt-scalafmt"              % "2.5.0")
 addSbtPlugin("com.timushev.sbt"          % "sbt-updates"               % "0.6.4")
 

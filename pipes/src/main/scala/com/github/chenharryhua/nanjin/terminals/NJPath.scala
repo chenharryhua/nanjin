@@ -69,6 +69,6 @@ object NJPath {
   implicit final val orderingNJPath: Ordering[NJPath] = Ordering.by(_.pathStr)
   implicit final val orderNJPath: Order[NJPath]       = Order.by(_.pathStr)
 
-  implicit val encodeNJPath: Encoder[NJPath] = Encoder.encodeString.contramap(_.pathStr)
-  implicit val decodeNJPath: Decoder[NJPath] = Decoder.decodeString.emap(PathRoot.from).map(apply)
+  implicit final val encodeNJPath: Encoder[NJPath] = Encoder.encodeString.contramap(_.pathStr)
+  implicit final val decodeNJPath: Decoder[NJPath] = Decoder.decodeString.emap(PathRoot.from).map(apply)
 }
