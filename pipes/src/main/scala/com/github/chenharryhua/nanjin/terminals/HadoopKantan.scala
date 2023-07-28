@@ -47,7 +47,7 @@ final class HadoopKantan[F[_]] private (
 
   def source[A: HeaderDecoder](path: NJPath)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      reader <- Stream.resource(HadoopReader.kantan(configuration, csvConfiguration, path))
+      reader <- Stream.resource(HadoopReader.kantan(configuration, csvConfiguration, path.hadoopPath))
       a <- Stream.fromBlockingIterator(reader.iterator, chunkSize.value).rethrow
     } yield a
 
@@ -60,19 +60,29 @@ final class HadoopKantan[F[_]] private (
     (ss: Stream[F, A]) =>
       Stream
         .resource(
-          HadoopWriter.kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path))
+          HadoopWriter
+            .kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path.hadoopPath))
         .flatMap(w => persist[F, A](w, ss).stream)
   }
 
   def sink[A: NJHeaderEncoder](policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, A, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, A]] =
-      HadoopWriter
-        .kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, pathBuilder(tick))
+      HadoopWriter.kantan[F, A](
+        configuration,
+        compressLevel,
+        blockSizeHint,
+        csvConfiguration,
+        pathBuilder(tick).hadoopPath)
 
     val init: Resource[F, (Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A])] =
-      Hotswap(HadoopWriter
-        .kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, pathBuilder(Tick.Zero)))
+      Hotswap(
+        HadoopWriter.kantan[F, A](
+          configuration,
+          compressLevel,
+          blockSizeHint,
+          csvConfiguration,
+          pathBuilder(Tick.Zero).hadoopPath))
 
     (ss: Stream[F, A]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>

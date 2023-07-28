@@ -9,6 +9,7 @@ import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
@@ -16,8 +17,8 @@ import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader}
 import retry.RetryPolicy
 
 final class HadoopParquet[F[_]] private (
-  readBuilder: Reader[NJPath, ParquetReader.Builder[GenericRecord]],
-  writeBuilder: Reader[NJPath, AvroParquetWriter.Builder[GenericRecord]]) {
+  readBuilder: Reader[Path, ParquetReader.Builder[GenericRecord]],
+  writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]]) {
   def updateReader(f: Endo[ParquetReader.Builder[GenericRecord]]): HadoopParquet[F] =
     new HadoopParquet(readBuilder.map(f), writeBuilder)
 
@@ -26,7 +27,7 @@ final class HadoopParquet[F[_]] private (
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericRecord] =
     for {
-      rd <- Stream.resource(HadoopReader.parquet(readBuilder, path))
+      rd <- Stream.resource(HadoopReader.parquet(readBuilder, path.hadoopPath))
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
@@ -38,17 +39,17 @@ final class HadoopParquet[F[_]] private (
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
       Stream
-        .resource(HadoopWriter.parquet[F](writeBuilder, path))
+        .resource(HadoopWriter.parquet[F](writeBuilder, path.hadoopPath))
         .flatMap(pw => persist[F, GenericRecord](pw, ss).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick))
+      HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick).hadoopPath)
 
     val init: Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(Tick.Zero)))
+      Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(Tick.Zero).hadoopPath))
 
     (ss: Stream[F, GenericRecord]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>
@@ -65,14 +66,14 @@ final class HadoopParquet[F[_]] private (
 object HadoopParquet {
   def apply[F[_]](cfg: Configuration, schema: Schema): HadoopParquet[F] =
     new HadoopParquet[F](
-      readBuilder = Reader((path: NJPath) =>
+      readBuilder = Reader((path: Path) =>
         AvroParquetReader
-          .builder[GenericRecord](HadoopInputFile.fromPath(path.hadoopPath, cfg))
+          .builder[GenericRecord](HadoopInputFile.fromPath(path, cfg))
           .withDataModel(GenericData.get())
           .withConf(cfg)),
-      writeBuilder = Reader((path: NJPath) =>
+      writeBuilder = Reader((path: Path) =>
         AvroParquetWriter
-          .builder[GenericRecord](HadoopOutputFile.fromPath(path.hadoopPath, cfg))
+          .builder[GenericRecord](HadoopOutputFile.fromPath(path, cfg))
           .withDataModel(GenericData.get())
           .withConf(cfg)
           .withSchema(schema)

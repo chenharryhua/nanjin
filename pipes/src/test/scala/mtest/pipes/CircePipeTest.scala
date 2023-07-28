@@ -14,6 +14,7 @@ class CircePipeTest extends AnyFunSuite {
   import TestData.*
   val data: Stream[IO, Tiger] = Stream.emits(tigers)
   val hd: NJHadoop[IO]        = NJHadoop[IO](new Configuration)
+  val root                    = NJPath("./data/test/pipes/circe/")
 
   test("circe identity - remove null") {
     assert(
@@ -36,7 +37,7 @@ class CircePipeTest extends AnyFunSuite {
   }
 
   test("read/write test uncompressed") {
-    val path = NJPath("data/pipe/circe.json")
+    val path = root / "circe.json"
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
@@ -44,7 +45,7 @@ class CircePipeTest extends AnyFunSuite {
   }
 
   test("read/write test gzip") {
-    val path = NJPath("data/pipe/circe.json.gz")
+    val path = root / "circe.json.gz"
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
@@ -52,7 +53,7 @@ class CircePipeTest extends AnyFunSuite {
   }
 
   test("read/write test snappy") {
-    val path = NJPath("data/pipe/circe.json.snappy")
+    val path = root / "circe.json.snappy"
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
@@ -60,7 +61,7 @@ class CircePipeTest extends AnyFunSuite {
   }
 
   test("read/write bzip2") {
-    val path = NJPath("data/pipe/circe.json.bz2")
+    val path = root / "circe.json.bz2"
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
@@ -68,7 +69,7 @@ class CircePipeTest extends AnyFunSuite {
   }
 
   test("read/write lz4") {
-    val path = NJPath("data/pipe/circe.json.lz4")
+    val path = root / "circe.json.lz4"
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
@@ -76,7 +77,7 @@ class CircePipeTest extends AnyFunSuite {
   }
 
   test("read/write deflate") {
-    val path = NJPath("data/pipe/circe.json.deflate")
+    val path = root / "circe.json.deflate"
     hd.delete(path).unsafeRunSync()
     val rst = hd.bytes.source(path).through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
     data.through(CirceSerde.toBytes(true)).through(hd.bytes.sink(path)).compile.drain.unsafeRunSync()
