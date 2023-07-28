@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.terminals.{NJFileFormat, NJPath, PathSegment}
+import com.github.chenharryhua.nanjin.terminals.{NJFileFormat, NJPath}
 import eu.timepit.refined.auto.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -32,8 +32,7 @@ private[sstream] object SStreamParams {
     SStreamParams(
       zoneId = zoneId,
       fileFormat = NJFileFormat.Jackson,
-      checkpointBuilder =
-        (fmt: NJFileFormat) => NJPath("data/checkpoint/sstream") / PathSegment.unsafeFrom(fmt.format),
+      checkpointBuilder = (fmt: NJFileFormat) => NJPath("data/checkpoint/sstream") / (fmt.format),
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
       trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES),

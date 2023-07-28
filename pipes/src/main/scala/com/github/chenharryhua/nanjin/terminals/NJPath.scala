@@ -5,26 +5,14 @@ import cats.kernel.Order
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.string.{MatchesRegex, Uri}
+import eu.timepit.refined.string.Uri
 import io.circe.generic.JsonCodec
 import io.circe.{Decoder, Encoder}
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{LocatedFileStatus, Path}
-import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 
 import java.net.URI
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
-
-sealed abstract class PathSegment(val value: String) extends Serializable
-
-object PathSegment extends RefinedTypeOps[NJPath.SegmentC, String] {
-  def apply(ps: NJPath.SegmentC): PathSegment = new PathSegment(ps.value) {}
-  def unsafe(str: String): PathSegment        = apply(unsafeFrom(str))
-
-  implicit val encodePathSegment: Encoder[PathSegment] = Encoder.encodeString.contramap(_.value)
-  implicit val decodePathSegment: Decoder[PathSegment] = Decoder.decodeString.emap(from(_).map(apply))
-}
 
 sealed abstract class PathRoot(val value: String) extends Serializable
 object PathRoot extends RefinedTypeOps[NJPath.RootC, String] {
@@ -36,48 +24,43 @@ object PathRoot extends RefinedTypeOps[NJPath.RootC, String] {
 }
 
 @JsonCodec
-final case class NJPath private (root: PathRoot, segments: List[PathSegment]) {
+final case class NJPath private (root: PathRoot, segments: List[String]) {
 
-  def /(seg: NJPath.SegmentC): NJPath = copy(segments = segments.appended(PathSegment(seg)))
-  def /(seg: PathSegment): NJPath     = copy(segments = segments.appended(seg))
-  def /(tn: TopicName): NJPath        = copy(segments = segments.appended(PathSegment.unsafe(tn.value)))
-  def /(uuid: UUID): NJPath           = copy(segments = segments.appended(PathSegment.unsafe(uuid.toString)))
+  def /(seg: String): NJPath   = copy(segments = segments.appended(seg))
+  def /(tn: TopicName): NJPath = copy(segments = segments.appended(tn.value))
+  def /(uuid: UUID): NJPath    = copy(segments = segments.appended(uuid.toString))
 
-  def /(num: Long): NJPath = copy(segments = segments.appended(PathSegment.unsafe(num.toString)))
-  def /(num: Int): NJPath  = copy(segments = segments.appended(PathSegment.unsafe(num.toString)))
+  def /(num: Long): NJPath = copy(segments = segments.appended(num.toString))
+  def /(num: Int): NJPath  = copy(segments = segments.appended(num.toString))
 
   // Year=2020/Month=01/Day=05
   def /(ld: LocalDate): NJPath = {
-    val year  = PathSegment.unsafe(f"Year=${ld.getYear}%4d")
-    val month = PathSegment.unsafe(f"Month=${ld.getMonthValue}%02d")
-    val day   = PathSegment.unsafe(f"Day=${ld.getDayOfMonth}%02d")
+    val year  = f"Year=${ld.getYear}%4d"
+    val month = f"Month=${ld.getMonthValue}%02d"
+    val day   = f"Day=${ld.getDayOfMonth}%02d"
     copy(segments = segments ::: List(year, month, day))
   }
 
   // Year=2020/Month=01/Day=05/Hour=23
   def /(ldt: LocalDateTime): NJPath = {
-    val year  = PathSegment.unsafe(f"Year=${ldt.getYear}%4d")
-    val month = PathSegment.unsafe(f"Month=${ldt.getMonthValue}%02d")
-    val day   = PathSegment.unsafe(f"Day=${ldt.getDayOfMonth}%02d")
-    val hour  = PathSegment.unsafe(f"Hour=${ldt.getHour}%02d")
+    val year  = f"Year=${ldt.getYear}%4d"
+    val month = f"Month=${ldt.getMonthValue}%02d"
+    val day   = f"Day=${ldt.getDayOfMonth}%02d"
+    val hour  = f"Hour=${ldt.getHour}%02d"
     copy(segments = segments ::: List(year, month, day, hour))
   }
 
-  lazy val uri: URI = new URI(root.value + segments.map(g => s"/${g.value}").mkString).normalize()
+  lazy val uri: URI = new URI(root.value + segments.map(g => s"/$g").mkString).normalize()
 
   lazy val pathStr: String = uri.toASCIIString
 
   lazy val hadoopPath: Path = new Path(uri)
 
-  def hadoopOutputFile(cfg: Configuration): HadoopOutputFile = HadoopOutputFile.fromPath(hadoopPath, cfg)
-  def hadoopInputFile(cfg: Configuration): HadoopInputFile   = HadoopInputFile.fromPath(hadoopPath, cfg)
-
   override lazy val toString: String = pathStr
 }
 
 object NJPath {
-  type SegmentC = Refined[String, MatchesRegex["""^[a-zA-Z0-9_.=\-]+$"""]]
-  type RootC    = Refined[String, Uri]
+  type RootC = Refined[String, Uri]
 
   def apply(root: PathRoot): NJPath         = NJPath(root, Nil)
   def apply(root: RootC): NJPath            = apply(PathRoot(root))
