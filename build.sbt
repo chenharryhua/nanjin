@@ -52,7 +52,7 @@ lazy val commonSettings = List(
   ),
   scalacOptions ++= List("-Ymacro-annotations", "-Xsource:3", "-Wconf:src=src_managed/.*:silent"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / tpolecatExcludeOptions += ScalacOptions.warnNonUnitStatement
+  Test / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement
 )
 
 val circeLib = List(
