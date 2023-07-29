@@ -1,5 +1,6 @@
 package mtest.terminals
 
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
@@ -101,7 +102,7 @@ class NJParquetTest extends AnyFunSuite {
     // Month=07
     // Day=29
     def rule2(p: String): Option[Int] = Try(p.takeRight(2).toInt).toOption // Month or Day
-    val res                           = hdp.latest(path, List(rule1, rule2, rule2)).unsafeRunSync()
+    val res                           = hdp.latest(path, NonEmptyList.of(rule1, rule2, rule2)).unsafeRunSync()
     assert(res.nonEmpty)
   }
 }

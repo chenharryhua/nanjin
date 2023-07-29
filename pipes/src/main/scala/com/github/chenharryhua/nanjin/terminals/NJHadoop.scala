@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
@@ -74,7 +75,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     * @return
     *   the best path according to the rules
     */
-  def latest[T](path: NJPath, rules: List[String => Option[T]])(implicit
+  def latest[T](path: NJPath, rules: NonEmptyList[String => Option[T]])(implicit
     F: Sync[F],
     Ord: Ordering[T]): F[Option[NJPath]] =
     F.blocking {
@@ -92,7 +93,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
             }
           case Nil => Some(hp)
         }
-      go(path.hadoopPath, rules).map(NJPath(_))
+      go(path.hadoopPath, rules.toList).map(NJPath(_))
     }
 
   // sources and sinks

@@ -12,4 +12,5 @@ object zones {
   final val londonTime: ZoneId    = ZoneId.of("Europe/London")
   final val berlinTime: ZoneId    = ZoneId.of("Europe/Berlin")
   final val cairoTime: ZoneId     = ZoneId.of("Africa/Cairo")
+  final val saltaTime: ZoneId     = ZoneId.of("America/Argentina/Salta")
 }
