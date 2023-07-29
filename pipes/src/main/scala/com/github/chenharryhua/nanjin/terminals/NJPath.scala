@@ -5,6 +5,7 @@ import cats.data.NonEmptyList
 import cats.kernel.Order
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.time.{year_month_day, year_month_day_hour}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.Uri
@@ -25,21 +26,12 @@ final class NJPath private (segments: NonEmptyList[String]) extends Serializable
   def /(num: Int): NJPath  = new NJPath(segments.append(num.toString))
 
   // Year=2020/Month=01/Day=05
-  def /(ld: LocalDate): NJPath = {
-    val year  = f"Year=${ld.getYear}%4d"
-    val month = f"Month=${ld.getMonthValue}%02d"
-    val day   = f"Day=${ld.getDayOfMonth}%02d"
-    new NJPath(segments.appendList(List(year, month, day)))
-  }
+  def /(ld: LocalDate): NJPath =
+    new NJPath(segments.append(year_month_day(ld)))
 
   // Year=2020/Month=01/Day=05/Hour=23
-  def /(ldt: LocalDateTime): NJPath = {
-    val year  = f"Year=${ldt.getYear}%4d"
-    val month = f"Month=${ldt.getMonthValue}%02d"
-    val day   = f"Day=${ldt.getDayOfMonth}%02d"
-    val hour  = f"Hour=${ldt.getHour}%02d"
-    new NJPath(segments.appendList(List(year, month, day, hour)))
-  }
+  def /(ldt: LocalDateTime): NJPath =
+    new NJPath(segments.append(year_month_day_hour(ldt)))
 
   lazy val uri: URI         = new URI(segments.map(_.trim).filter(_.nonEmpty).mkString("/")).normalize()
   lazy val pathStr: String  = uri.toASCIIString

@@ -3,6 +3,11 @@ package com.github.chenharryhua.nanjin.datetime
 import cats.syntax.all.*
 import cats.{Hash, Order, Show}
 import com.github.chenharryhua.nanjin.common.time.zones.utcTime
+import com.github.chenharryhua.nanjin.common.time.{
+  year_month_day,
+  year_month_day_hour,
+  year_month_day_hour_minute
+}
 
 import java.sql.Timestamp
 import java.time.*
@@ -35,16 +40,15 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd`(zoneId: ZoneId): String =
-    s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}"
+    year_month_day(atZone(zoneId).toLocalDate)
 
   @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh`(zoneId: ZoneId): String =
-    s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(zoneId)}"
+    year_month_day_hour(atZone(zoneId).toLocalDateTime)
 
   @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh/Minute=mm`(zoneId: ZoneId): String =
-    s"Year=${yearStr(zoneId)}/Month=${monthStr(zoneId)}/Day=${dayStr(zoneId)}/Hour=${hourStr(
-        zoneId)}/Minute=${minuteStr(zoneId)}"
+    year_month_day_hour_minute(atZone(zoneId).toLocalDateTime)
 
   def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.minus(amount, unit))
