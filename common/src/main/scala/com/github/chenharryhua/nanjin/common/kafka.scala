@@ -10,7 +10,9 @@ import io.circe.{Decoder, Encoder}
 object kafka {
   type TopicNameC = String Refined MatchesRegex["""^[a-zA-Z0-9_.\-]+$"""]
 
-  final class TopicName private (val value: String) extends Serializable
+  final class TopicName private (val value: String) extends Serializable {
+    override val toString: String = value
+  }
   object TopicName extends RefinedTypeOps[TopicNameC, String] {
     def apply(tnc: TopicNameC): TopicName = new TopicName(tnc.value)
     def unsafe(str: String): TopicName    = apply(unsafeFrom(str))

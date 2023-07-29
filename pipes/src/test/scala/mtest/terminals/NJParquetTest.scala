@@ -95,14 +95,17 @@ class NJParquetTest extends AnyFunSuite {
     assert(size == number * 2)
   }
 
-  test("latest") {
+  test("best") {
     val path = fs2Root / "rotation"
-    // Year=2023
-    def rule1(p: String): Option[Int] = Try(p.takeRight(4).toInt).toOption // Year
-    // Month=07
-    // Day=29
-    def rule2(p: String): Option[Int] = Try(p.takeRight(2).toInt).toOption // Month or Day
-    val res                           = hdp.latest(path, NonEmptyList.of(rule1, rule2, rule2)).unsafeRunSync()
-    assert(res.nonEmpty)
+    val res1 = hdp.latestYmd(path).unsafeRunSync()
+    val res2 = hdp.latestYmdh(path).unsafeRunSync()
+    assert(res1.nonEmpty)
+    assert(res2.isEmpty)
+
+    def r1(str: String): Option[Int] = Try(str.takeRight(4).toInt).toOption
+    def r2(str: String): Option[Int] = Try(str.takeRight(2).toInt).toOption
+
+    val res3 = hdp.best(path, NonEmptyList.of(r1, r2)).unsafeRunSync()
+    assert(res3.exists(_.pathStr.takeRight(8).take(6) === "Month="))
   }
 }

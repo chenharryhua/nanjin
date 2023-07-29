@@ -11,7 +11,6 @@ import eu.timepit.refined.predicates.all.{And, Not}
 import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
-import monocle.macros.Lenses
 
 object aws {
   type IamArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
@@ -28,7 +27,7 @@ object aws {
   type CloudWatchNamespace = String Refined MatchesRegex["""^[a-zA-Z0-9_.\-#:]+$"""]
   object CloudWatchNamespace extends RefinedTypeOps[CloudWatchNamespace, String] with CatsRefinedTypeOpsSyntax
 
-  @JsonCodec @Lenses
+  @JsonCodec
   final case class S3Path(bucket: String, key: String) {
     val s3: String  = s"${S3Protocols.S3.entryName}://$bucket/$key"
     val s3a: String = s"${S3Protocols.S3A.entryName}://$bucket/$key"
