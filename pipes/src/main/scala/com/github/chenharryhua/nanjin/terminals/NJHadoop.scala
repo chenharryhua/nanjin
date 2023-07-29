@@ -41,6 +41,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
 
   /** retrieve all folder names which contain files under path folder
     * @param path
+    *   search root
     * @return
     */
   def dataFolders(path: NJPath)(implicit F: Sync[F]): F[List[NJPath]] = F.blocking {
@@ -53,6 +54,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
 
   /** retrieve file name under path folder, sorted by modification time
     * @param path
+    *   root
     * @return
     */
   def filesIn(path: NJPath)(implicit F: Sync[F]): F[List[NJPath]] = F.blocking {
