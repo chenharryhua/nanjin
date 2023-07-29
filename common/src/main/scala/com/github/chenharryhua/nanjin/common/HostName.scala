@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Show
-import cats.kernel.Monoid
+import cats.implicits.catsSyntaxEq
+import cats.kernel.{Eq, Monoid}
 import com.github.chenharryhua.nanjin.common.HostName.monoidHostName
 import io.circe.{Decoder, Encoder}
 
@@ -26,6 +27,8 @@ object HostName {
 
     override def combine(x: HostName, y: HostName): HostName = x / y
   }
+
+  implicit final val eqHostName: Eq[HostName] = Eq.instance((a, b) => a.value === b.value)
 
   implicit final val encoderHostName: Encoder[HostName] = Encoder.encodeString.contramap(_.value)
   implicit final val decoderHostName: Decoder[HostName] = Decoder.decodeString.map(new HostName(_))

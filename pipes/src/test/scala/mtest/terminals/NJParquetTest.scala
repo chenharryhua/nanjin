@@ -2,6 +2,8 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
+import com.github.chenharryhua.nanjin.common.time.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJPath, ParquetFile}
 import eu.timepit.refined.auto.*
@@ -12,6 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
 
 import scala.concurrent.duration.DurationInt
+import scala.util.Try
 
 class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -77,11 +80,28 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / file.rotate(t)))
+      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
+        path / t.wakeTime.atZone(sydneyTime).toLocalDate / file.rotate(t)))
       .compile
       .drain
       .unsafeRunSync()
-    val size = Stream.force(hdp.filesIn(path).map(parquet.source)).compile.toList.map(_.size).unsafeRunSync()
+    val size = Stream
+      .force(hdp.dataFolders(path).flatMap(_.flatTraverse(hdp.filesIn)).map(parquet.source))
+      .compile
+      .toList
+      .map(_.size)
+      .unsafeRunSync()
     assert(size == number * 2)
+  }
+
+  test("latest") {
+    val path = fs2Root / "rotation"
+    // Year=2023
+    def rule1(p: String): Option[Int] = Try(p.takeRight(4).toInt).toOption // Year
+    // Month=07
+    // Day=29
+    def rule2(p: String): Option[Int] = Try(p.takeRight(2).toInt).toOption // Month or Day
+    val res                           = hdp.latest(path, List(rule1, rule2, rule2)).unsafeRunSync()
+    assert(res.nonEmpty)
   }
 }
