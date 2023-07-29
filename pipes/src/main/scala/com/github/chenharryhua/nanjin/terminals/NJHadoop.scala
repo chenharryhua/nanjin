@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
@@ -7,6 +8,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
 import org.apache.parquet.hadoop.util.HiddenFileFilter
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -39,6 +41,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
 
   /** retrieve all folder names which contain files under path folder
     * @param path
+    *   search root
     * @return
     */
   def dataFolders(path: NJPath)(implicit F: Sync[F]): F[List[NJPath]] = F.blocking {
@@ -51,6 +54,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
 
   /** retrieve file name under path folder, sorted by modification time
     * @param path
+    *   root
     * @return
     */
   def filesIn(path: NJPath)(implicit F: Sync[F]): F[List[NJPath]] = F.blocking {
@@ -65,6 +69,34 @@ final class NJHadoop[F[_]] private (config: Configuration) {
         .map(s => NJPath(s.getPath))
         .toList
   }
+
+  /** @param path
+    *   the root path where search starts
+    * @param rules
+    *   list of rules
+    * @return
+    *   the best path according to the rules
+    */
+  def latest[T](path: NJPath, rules: NonEmptyList[String => Option[T]])(implicit
+    F: Sync[F],
+    Ord: Ordering[T]): F[Option[NJPath]] =
+    F.blocking {
+      val fs: FileSystem = path.hadoopPath.getFileSystem(config)
+      @tailrec
+      def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
+        js match {
+          case f :: tail =>
+            fs.listStatus(hp)
+              .flatMap(s => f(s.getPath.getName).map((_, s)))
+              .maxByOption(_._1)
+              .map(_._2) match {
+              case Some(status) => go(status.getPath, tail)
+              case None         => None
+            }
+          case Nil => Some(hp)
+        }
+      go(path.hadoopPath, rules.toList).map(NJPath(_))
+    }
 
   // sources and sinks
   def bytes: HadoopBytes[F]                              = HadoopBytes[F](config)

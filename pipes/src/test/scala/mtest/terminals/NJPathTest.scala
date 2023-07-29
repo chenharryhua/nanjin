@@ -26,6 +26,14 @@ class NJPathTest extends AnyFunSuite {
     assert(r2.pathStr == "/data/abc/efg")
     assert(Eq[NJPath].eqv(r1, r2))
   }
+
+  test(". ..") {
+    val r1: NJPath = NJPath("ftp://data/abc") / ".." / "efg"
+    assert(r1.pathStr == "ftp://data/efg")
+    val r2: NJPath = NJPath("ftp://data/abc/") / "." / "efg"
+    assert(r2.pathStr == "ftp://data/abc/efg")
+  }
+
   test("norm") {
     val r1: NJPath = NJPath("s3a://bucket/folder")
     assert(r1.pathStr == "s3a://bucket/folder")
