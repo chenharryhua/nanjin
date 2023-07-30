@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard
 
-import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.optics.jsonPlated
+import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import io.circe.Json
 import monocle.function.Plated
 

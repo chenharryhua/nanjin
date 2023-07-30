@@ -5,7 +5,7 @@ import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.AlternativeTests
 import cats.syntax.all.*
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
-import com.github.chenharryhua.nanjin.common.time.zones.{
+import com.github.chenharryhua.nanjin.datetime.zones.{
   beijingTime,
   cairoTime,
   darwinTime,
@@ -123,7 +123,6 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
           sydneyTime) == "Year=2020/Month=12/Day=29/Hour=01/Minute=00")
       assert(e.`Year=yyyy/Month=mm/Day=dd/Hour=hh`(sydneyTime) == "Year=2020/Month=12/Day=29/Hour=01")
       assert(e.`Year=yyyy/Month=mm/Day=dd`(sydneyTime) == "Year=2020/Month=12/Day=29")
-      assert(s.`yyyy-mm-dd`(sydneyTime) == "2020-12-20")
       e - s
     }.get.toDays == 8)
     assert(dr.toString == "8 days 2 hours")

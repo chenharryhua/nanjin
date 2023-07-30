@@ -1,12 +1,20 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import com.github.chenharryhua.nanjin.common.time.Tick
+import com.github.chenharryhua.nanjin.datetime.{codec, Tick}
 import io.circe.generic.JsonCodec
+
+import java.time.ZoneId
+import java.util.UUID
 
 @JsonCodec
 sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: NJCompression) {
   final val fileName: String           = compression.fileName(fileFormat)
-  final def rotate(tick: Tick): String = f"${tick.index}%09d.$fileName"
+  final def rotate(tick: Tick): String = f"${tick.index}%05d.$fileName"
+
+  final def rotate(zoneId: ZoneId, sessionId: UUID, tick: Tick): String = {
+    val ymd = codec.year_month_day(tick.wakeTime.atZone(zoneId).toLocalDate)
+    s"$ymd/${sessionId.toString.take(5)}-${rotate(tick)}"
+  }
 }
 
 final case class AvroFile(override val compression: AvroCompression)

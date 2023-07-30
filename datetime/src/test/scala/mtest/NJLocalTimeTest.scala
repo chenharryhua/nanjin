@@ -1,6 +1,6 @@
 package mtest
 
-import com.github.chenharryhua.nanjin.common.time.zones.sydneyTime
+import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.{NJLocalTime, NJLocalTimeRange}
 import org.scalatest.funsuite.AnyFunSuite
 

@@ -2,7 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.time.zones.darwinTime
+import com.github.chenharryhua.nanjin.datetime.zones.darwinTime
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.*
 import eu.timepit.refined.auto.*

@@ -4,7 +4,7 @@ import cats.effect.kernel.{Ref, Resource, Sync}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.datetime.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.{Category, GaugeKind, MetricID, MetricName}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}

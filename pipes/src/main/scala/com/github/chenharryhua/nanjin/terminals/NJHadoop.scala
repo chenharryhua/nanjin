@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.datetime.codec
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
@@ -73,11 +74,11 @@ final class NJHadoop[F[_]] private (config: Configuration) {
   /** @param path
     *   the root path where search starts
     * @param rules
-    *   list of rules
+    *   list of rules. the String looks like Year=2023 or Month=07 or Day=29
     * @return
     *   the best path according to the rules
     */
-  def latest[T](path: NJPath, rules: NonEmptyList[String => Option[T]])(implicit
+  def best[T](path: NJPath, rules: NonEmptyList[String => Option[T]])(implicit
     F: Sync[F],
     Ord: Ordering[T]): F[Option[NJPath]] =
     F.blocking {
@@ -87,6 +88,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
         js match {
           case f :: tail =>
             fs.listStatus(hp)
+              .filter(_.isDirectory)
               .flatMap(s => f(s.getPath.getName).map((_, s)))
               .maxByOption(_._1)
               .map(_._2) match {
@@ -97,6 +99,11 @@ final class NJHadoop[F[_]] private (config: Configuration) {
         }
       go(path.hadoopPath, rules.toList).map(NJPath(_))
     }
+
+  def latestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+    best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
+  def latestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+    best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
 
   // sources and sinks
   def bytes: HadoopBytes[F]                              = HadoopBytes[F](config)

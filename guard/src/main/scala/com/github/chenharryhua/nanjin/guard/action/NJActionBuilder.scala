@@ -12,7 +12,7 @@ import cats.implicits.{
 import cats.{Alternative, Endo, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.time.policies
+import com.github.chenharryhua.nanjin.datetime.policies
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionConfig,
   ActionName,

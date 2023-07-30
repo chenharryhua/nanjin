@@ -1,10 +1,10 @@
-package com.github.chenharryhua.nanjin.common.time
+package com.github.chenharryhua.nanjin.datetime
 
 import cats.effect.kernel.{Clock, Sync}
 import cats.effect.std.Random
 import cats.syntax.all.*
 import cats.{Applicative, Functor}
-import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
+import DurationFormatter.defaultFormatter
 import cron4s.expr.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import org.typelevel.cats.time.instances.zoneid

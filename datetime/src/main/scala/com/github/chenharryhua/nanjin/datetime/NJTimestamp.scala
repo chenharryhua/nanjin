@@ -2,12 +2,7 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.syntax.all.*
 import cats.{Hash, Order, Show}
-import com.github.chenharryhua.nanjin.common.time.zones.utcTime
-import com.github.chenharryhua.nanjin.common.time.{
-  year_month_day,
-  year_month_day_hour,
-  year_month_day_hour_minute
-}
+import com.github.chenharryhua.nanjin.datetime.zones.utcTime
 
 import java.sql.Timestamp
 import java.time.*
@@ -27,28 +22,17 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 
   def javaLong: java.lang.Long = milliseconds
 
-  def yearStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getYear}%4d"
-  def monthStr(zoneId: ZoneId): String  = f"${atZone(zoneId).getMonthValue}%02d"
-  def dayStr(zoneId: ZoneId): String    = f"${atZone(zoneId).getDayOfMonth}%02d"
-  def hourStr(zoneId: ZoneId): String   = f"${atZone(zoneId).getHour}%02d"
-  def minuteStr(zoneId: ZoneId): String = f"${atZone(zoneId).getMinute}%02d"
-  def secondStr(zoneId: ZoneId): String = f"${atZone(zoneId).getSecond}%02d"
-
-  @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
-  def `yyyy-mm-dd`(zoneId: ZoneId): String =
-    s"${yearStr(zoneId)}-${monthStr(zoneId)}-${dayStr(zoneId)}"
-
   @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd`(zoneId: ZoneId): String =
-    year_month_day(atZone(zoneId).toLocalDate)
+    codec.year_month_day(atZone(zoneId).toLocalDate)
 
   @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh`(zoneId: ZoneId): String =
-    year_month_day_hour(atZone(zoneId).toLocalDateTime)
+    codec.year_month_day_hour(atZone(zoneId).toLocalDateTime)
 
   @SuppressWarnings(Array("AvoidOperatorOverload", "MethodNames"))
   def `Year=yyyy/Month=mm/Day=dd/Hour=hh/Minute=mm`(zoneId: ZoneId): String =
-    year_month_day_hour_minute(atZone(zoneId).toLocalDateTime)
+    codec.year_month_day_hour_minute(atZone(zoneId).toLocalDateTime)
 
   def minus(amount: Long, unit: TemporalUnit): NJTimestamp =
     NJTimestamp(instant.minus(amount, unit))

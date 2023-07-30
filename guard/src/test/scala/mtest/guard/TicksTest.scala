@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.time.policies
+import com.github.chenharryhua.nanjin.datetime.policies
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionStart, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
