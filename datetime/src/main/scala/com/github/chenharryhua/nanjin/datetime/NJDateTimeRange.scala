@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.datetime
 import cats.{PartialOrder, Show}
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.DurationFormatter
 import monocle.Prism
 import monocle.macros.Lenses
 import shapeless.{:+:, CNil, Poly1}

@@ -9,7 +9,7 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.time.{awakeEvery, policies}
+import com.github.chenharryhua.nanjin.datetime.{awakeEvery, policies}
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   Policy,

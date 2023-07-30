@@ -5,7 +5,7 @@ import cats.data.NonEmptyList
 import cats.kernel.Order
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.common.time.{year_month_day, year_month_day_hour}
+import com.github.chenharryhua.nanjin.datetime.codec.{year_month_day, year_month_day_hour}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.Uri

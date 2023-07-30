@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.datetime.codec
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
@@ -11,7 +12,6 @@ import org.apache.parquet.hadoop.util.HiddenFileFilter
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Try
 
 object NJHadoop {
 
@@ -100,12 +100,10 @@ final class NJHadoop[F[_]] private (config: Configuration) {
       go(path.hadoopPath, rules.toList).map(NJPath(_))
     }
 
-  private def year(str: String): Option[Int]           = Try(str.takeRight(4).toInt).toOption
-  private def month_day_hour(str: String): Option[Int] = Try(str.takeRight(2).toInt).toOption
   def latestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
-    best[Int](path, NonEmptyList.of(year, month_day_hour, month_day_hour))
+    best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
   def latestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
-    best[Int](path, NonEmptyList.of(year, month_day_hour, month_day_hour, month_day_hour))
+    best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
 
   // sources and sinks
   def bytes: HadoopBytes[F]                              = HadoopBytes[F](config)

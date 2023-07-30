@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common.time
+package com.github.chenharryhua.nanjin.datetime
 
 import cats.effect.Temporal
 import cats.syntax.all.*

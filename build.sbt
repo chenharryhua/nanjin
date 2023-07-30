@@ -241,6 +241,7 @@ lazy val datetime = (project in file("datetime"))
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)
+  .dependsOn(datetime)
   .settings(commonSettings*)
   .settings(name := "nj-guard")
   .settings(
@@ -340,6 +341,7 @@ val sparkLib = List(
 ).map(_ % avroV)
 
 lazy val pipes = (project in file("pipes"))
+  .dependsOn(datetime)
   .dependsOn(messages)
   .settings(commonSettings*)
   .settings(name := "nj-pipes")

@@ -4,7 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.time.{awakeEvery, Tick}
+import com.github.chenharryhua.nanjin.datetime.{awakeEvery, Tick}
 import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}

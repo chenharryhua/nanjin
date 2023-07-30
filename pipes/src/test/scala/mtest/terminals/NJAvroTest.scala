@@ -2,7 +2,7 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.time.policies
+import com.github.chenharryhua.nanjin.datetime.policies
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*

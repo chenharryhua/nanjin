@@ -1,6 +1,6 @@
-package mtest.common
+package mtest
 
-import com.github.chenharryhua.nanjin.common.time.crontabs
+import com.github.chenharryhua.nanjin.datetime.crontabs
 import cron4s.lib.javatime.javaTemporalInstance
 import org.scalatest.funsuite.AnyFunSuite
 

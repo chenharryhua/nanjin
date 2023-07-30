@@ -1,10 +1,10 @@
-package mtest.common
+package mtest
 
 import cats.effect.IO
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{catsSyntaxPartialOrder, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.time.{awakeEvery, crontabs, policies, Tick}
+import com.github.chenharryhua.nanjin.datetime.{awakeEvery, crontabs, policies, Tick}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.temporal.ChronoField
