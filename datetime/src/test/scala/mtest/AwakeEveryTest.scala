@@ -1,13 +1,12 @@
 package mtest
 
 import cats.effect.IO
-import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
-import cats.implicits.{catsSyntaxPartialOrder, toTraverseOps}
-import com.github.chenharryhua.nanjin.datetime.{awakeEvery, crontabs, policies, Tick}
+import cats.implicits.toTraverseOps
+import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
+import com.github.chenharryhua.nanjin.datetime.{Tick, awakeEvery, crontabs, policies}
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.temporal.ChronoField
 import java.time.{Duration, Instant, ZoneId}
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
@@ -63,7 +62,7 @@ class AwakeEveryTest extends AnyFunSuite {
   }
 
   test("3.process less than 1 second") {
-    val policy = policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault())
+    val policy = policies.cronBackoff[IO](crontabs.secondly, sydneyTime)
     val ticks  = awakeEvery(policy)
 
     val fds: List[FiniteDuration] =
@@ -77,18 +76,19 @@ class AwakeEveryTest extends AnyFunSuite {
   }
 
   test("4.ticks - cron") {
-    val policy = policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault())
-    val ticks  = awakeEvery(policy)
-    val rnd =
-      Random.scalaUtilRandom[IO].flatMap(_.betweenLong(0, 2000)).flatMap(d => IO.sleep(d.millisecond).as(d))
-    val lst = ticks
-      .evalTap(t => IO(assert(t > Tick.Zero)))
-      .evalMap(tick => IO.realTimeInstant.flatMap(ts => rnd.map(fd => (tick, ts, fd))))
-      .take(10)
-      .compile
-      .toList
-      .unsafeRunSync()
+    val policy = policies.limitRetriesByCumulativeDelay[IO](
+      5.seconds,
+      policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault()))
+    val ticks = awakeEvery(policy).debug().compile.toList.unsafeRunSync()
+    assert(ticks.size === 5)
+    val spend = Duration.between(ticks.head.wakeTime, ticks(4).wakeTime)
+    assert(spend.toSeconds === 4)
+  }
 
-    lst.tail.map(_._2.get(ChronoField.MILLI_OF_SECOND)).foreach(d => assert(d < 19))
+  test("7. limitRetriesByDelay") {
+    val policy =
+      policies.limitRetriesByDelay[IO](1.seconds, policies.cronBackoff[IO](crontabs.hourly, sydneyTime))
+    val res: List[Tick] = awakeEvery(policy).compile.toList.unsafeRunSync()
+    assert(res.isEmpty)
   }
 }
