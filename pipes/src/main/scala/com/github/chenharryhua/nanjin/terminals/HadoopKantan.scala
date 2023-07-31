@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.datetime.{awakeEvery, Tick}
+import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, Tick}
 import fs2.{Pipe, Stream}
 import kantan.csv.*
 import org.apache.hadoop.conf.Configuration
@@ -76,21 +76,24 @@ final class HadoopKantan[F[_]] private (
         pathBuilder(tick).hadoopPath)
 
     val init: Resource[F, (Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A])] =
-      Hotswap(
-        HadoopWriter.kantan[F, A](
-          configuration,
-          compressLevel,
-          blockSizeHint,
-          csvConfiguration,
-          pathBuilder(Tick.Zero).hadoopPath))
+      Resource.eval(Tick.Zero[F]).flatMap { zero =>
+        Hotswap(
+          HadoopWriter.kantan[F, A](
+            configuration,
+            compressLevel,
+            blockSizeHint,
+            csvConfiguration,
+            pathBuilder(zero).hadoopPath))
+      }
 
+    // save
     (ss: Stream[F, A]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>
         rotatePersist[F, A](
           getWriter,
           hotswap,
           writer,
-          ss.map(Left(_)).mergeHaltL(awakeEvery[F](policy).map(Right(_)))
+          ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy).map(Right(_)))
         ).stream
       }
   }

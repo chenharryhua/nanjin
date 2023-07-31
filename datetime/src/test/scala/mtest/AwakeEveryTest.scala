@@ -1,94 +1,89 @@
 package mtest
 
 import cats.effect.IO
+import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
-import com.github.chenharryhua.nanjin.datetime.{Tick, awakeEvery, crontabs, policies}
+import com.github.chenharryhua.nanjin.datetime.zones.*
+import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, crontabs, policies, Tick}
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{Duration, Instant, ZoneId}
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
+import java.time.Duration as JavaDuration
 
 class AwakeEveryTest extends AnyFunSuite {
   test("1.tick") {
-    val policy = policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault())
-    val ticks  = awakeEvery(policy)
+    val policy = policies.cronBackoff[IO](crontabs.secondly, saltaTime)
+    val ticks  = awakeOnPolicy(policy)
 
-    ticks
-      .merge(ticks)
-      .merge(ticks)
-      .merge(ticks)
-      .merge(ticks)
-      .evalMap(idx => IO.realTimeInstant.map((_, idx)))
-      .take(20)
-      .fold(Map.empty[Int, List[Instant]]) { case (sum, (fd, idx)) =>
-        sum.updatedWith(idx.index)(ls => Some(fd :: ls.sequence.flatten))
-      }
-      .map { m =>
-        assert(m.forall(_._2.size == 5)) // 5 streams
-        // less than 0.1 second for the same index
-        m.foreach { case (_, ls) =>
-          ls.zip(ls.reverse).map { case (a, b) =>
-            val dur = Duration.between(a, b).abs().toScala
-            assert(dur < 0.2.seconds)
-          }
-        }
-
-        m.flatMap(_._2.headOption).toList.sorted.sliding(2).map { ls =>
-          val diff = Duration.between(ls(1), ls.head).abs.toScala
-          assert(diff > 0.9.second && diff < 1.1.seconds)
-        }
-      }
-      .compile
-      .drain
-      .unsafeRunSync()
+    val res = ticks.map(_.interval.toScala).take(5).compile.toList.unsafeRunSync()
+    assert(res.tail.forall(d => d > 0.9.seconds && d < 1.1.seconds), res)
   }
 
   test("2.process longer than 1 second") {
-    val policy = policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault())
-    val ticks  = awakeEvery(policy)
+    val policy = policies.cronBackoff[IO](crontabs.secondly, berlinTime)
+    val ticks  = awakeOnPolicy(policy)
 
-    val fds: List[FiniteDuration] =
-      ticks.evalMap(_ => IO.sleep(1.5.seconds) >> IO.monotonic).take(5).compile.toList.unsafeRunSync()
-
-    fds.sliding(2).foreach {
-      case List(a, b) =>
-        val diff = b - a
-        assert(diff > 1.9.seconds && diff < 2.1.seconds)
-      case _ => throw new Exception("not happen")
+    val fds =
+      ticks.evalTap(_ => IO.sleep(1.5.seconds)).take(5).compile.toList.unsafeRunSync()
+    fds.tail.foreach { t =>
+      val interval = t.interval.toScala
+      assert(interval > 1.9.seconds)
+      assert(interval < 2.1.seconds)
     }
   }
 
   test("3.process less than 1 second") {
-    val policy = policies.cronBackoff[IO](crontabs.secondly, sydneyTime)
-    val ticks  = awakeEvery(policy)
+    val policy = policies.cronBackoff[IO](crontabs.secondly, londonTime)
+    val ticks  = awakeOnPolicy(policy)
 
-    val fds: List[FiniteDuration] =
-      ticks.evalMap(_ => IO.sleep(0.5.seconds) >> IO.monotonic).take(5).compile.toList.unsafeRunSync()
-    fds.sliding(2).foreach {
-      case List(a, b) =>
-        val diff = b - a
-        assert(diff > 0.9.seconds && diff < 1.1.seconds)
-      case _ => throw new Exception("not happen")
+    val fds =
+      ticks.evalTap(_ => IO.sleep(0.5.seconds)).take(5).compile.toList.unsafeRunSync()
+    fds.tail.foreach { t =>
+      val interval = t.interval.toScala
+      assert(interval > 0.9.seconds)
+      assert(interval < 1.1.seconds)
     }
   }
 
   test("4.ticks - cron") {
-    val policy = policies.limitRetriesByCumulativeDelay[IO](
-      5.seconds,
-      policies.cronBackoff[IO](crontabs.secondly, ZoneId.systemDefault()))
-    val ticks = awakeEvery(policy).debug().compile.toList.unsafeRunSync()
-    assert(ticks.size === 5)
-    val spend = Duration.between(ticks.head.wakeTime, ticks(4).wakeTime)
-    assert(spend.toSeconds === 4)
+    val policy = policies
+      .limitRetriesByCumulativeDelay[IO](5.seconds, policies.cronBackoff[IO](crontabs.secondly, mumbaiTime))
+    val ticks = awakeOnPolicy(policy).compile.toList.unsafeRunSync()
+    assert(ticks.size === 5, ticks)
+    val spend = ticks(4).wakeTime.toEpochMilli / 1000 - ticks.head.wakeTime.toEpochMilli / 1000
+    assert(spend === 4, ticks)
   }
 
-  test("7. limitRetriesByDelay") {
+  test("5. limitRetriesByDelay") {
     val policy =
-      policies.limitRetriesByDelay[IO](1.seconds, policies.cronBackoff[IO](crontabs.hourly, sydneyTime))
-    val res: List[Tick] = awakeEvery(policy).compile.toList.unsafeRunSync()
+      policies.limitRetriesByDelay[IO](1.seconds, policies.cronBackoff[IO](crontabs.hourly, singaporeTime))
+    val res: List[Tick] = awakeOnPolicy(policy).compile.toList.unsafeRunSync()
     assert(res.isEmpty)
+  }
+
+  test("6. jitters") {
+    val policy = policies.cronBackoff[IO](crontabs.secondly, berlinTime)
+    val ticks  = awakeOnPolicy(policy)
+    val sleep: IO[JavaDuration] =
+      Random
+        .scalaUtilRandom[IO]
+        .flatMap(_.betweenLong(0, 2000))
+        .flatMap(d => IO.sleep(d.millisecond).as(JavaDuration.ofMillis(d)))
+
+    val jitters = ticks
+      .evalMap(t => sleep.map((t, _)))
+      .sliding(2)
+      .map { ck =>
+        val (_, l1) = ck(0)
+        val (t2, _) = ck(1)
+        JavaDuration.between(t2.previous.plus(l1).plus(t2.snooze), t2.wakeTime).toMillis
+      }
+      .take(10)
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(jitters.forall(_ >= 0))
+    assert(jitters.forall(_ < 100))
   }
 }
