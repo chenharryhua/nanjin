@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.datetime.{awakeEvery, Tick}
+import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, Tick}
 import fs2.io.readInputStream
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, Stream}
@@ -55,16 +55,19 @@ final class HadoopCirce[F[_]](
       HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
 
     val init: Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Hotswap(
-        HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(Tick.Zero).hadoopPath))
+      Resource.eval(Tick.Zero[F]).flatMap { zero =>
+        Hotswap(
+          HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(zero).hadoopPath))
+      }
 
+    // save
     (ss: Stream[F, Json]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>
         rotatePersist[F, Byte](
           getWriter,
           hotswap,
           writer,
-          toBytes(ss).map(Left(_)).mergeHaltL(awakeEvery[F](policy).map(Right(_)))
+          toBytes(ss).map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy).map(Right(_)))
         ).stream
       }
   }

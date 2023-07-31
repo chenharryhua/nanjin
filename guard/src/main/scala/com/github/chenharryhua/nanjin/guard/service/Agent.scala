@@ -5,7 +5,7 @@ import cats.effect.Resource
 import cats.effect.kernel.{Async, Unique}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.datetime.{awakeEvery, policies, Tick}
+import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, policies, Tick}
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -165,9 +165,9 @@ final class GeneralAgent[F[_]: Network] private[service] (
       serviceParams = self.serviceParams)
 
   // ticks
-  override def ticks(policy: RetryPolicy[F]): Stream[F, Tick] = awakeEvery(policy)
+  override def ticks(policy: RetryPolicy[F]): Stream[F, Tick] = awakeOnPolicy(policy)
   override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Tick] =
-    awakeEvery(f(policies.cronBackoff[F](cronExpr, zoneId)))
+    awakeOnPolicy(f(policies.cronBackoff[F](cronExpr, zoneId)))
   override def ticks(cronExpr: CronExpr): Stream[F, Tick] = ticks(cronExpr, identity)
 
   override def udpClient(udpName: String): NJUdpClient[F] = {

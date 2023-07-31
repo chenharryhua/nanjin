@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.datetime
 
 import cats.effect.Temporal
+import cats.effect.kernel.Clock
 import cats.syntax.all.*
-import cats.{Order, Show}
+import cats.{Functor, Order, Show}
 import fs2.Stream
 import io.circe.generic.JsonCodec
 import org.typelevel.cats.time.instances.{duration, instant}
@@ -30,17 +31,17 @@ object Tick extends duration with instant {
   implicit val orderTick: Order[Tick]       = Order.fromOrdering[Tick]
   implicit val showTick: Show[Tick]         = cats.derived.semiauto.show[Tick]
 
-  final def Zero: Tick = {
-    val now: Instant = Instant.now()
-    Tick(
-      index = RetryStatus.NoRetriesYet.retriesSoFar,
-      snooze = Duration.ZERO,
-      previous = now,
-      wakeTime = now
-    )
-  }
+  def Zero[F[_]: Functor](implicit F: Clock[F]): F[Tick] =
+    F.realTimeInstant.map { now =>
+      Tick(
+        index = RetryStatus.NoRetriesYet.retriesSoFar,
+        snooze = Duration.ZERO,
+        previous = now,
+        wakeTime = now
+      )
+    }
 }
-object awakeEvery {
+object awakeOnPolicy {
   final private case class Status(status: RetryStatus, previous: Instant)
 
   final def apply[F[_]](policy: RetryPolicy[F])(implicit F: Temporal[F]): Stream[F, Tick] =

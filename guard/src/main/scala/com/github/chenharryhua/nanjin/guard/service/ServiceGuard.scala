@@ -9,7 +9,7 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.datetime.{awakeEvery, policies}
+import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, policies}
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   Policy,
@@ -140,7 +140,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeEvery(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
                 .evalMap(tick =>
                   publisher.metricReport(
                     channel = channel,
@@ -154,7 +154,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeEvery(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
                 .evalMap(tick =>
                   publisher.metricReset(
                     channel = channel,

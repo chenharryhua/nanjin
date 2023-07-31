@@ -4,7 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.datetime.{awakeEvery, Tick}
+import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, Tick}
 import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -49,15 +49,18 @@ final class HadoopParquet[F[_]] private (
       HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick).hadoopPath)
 
     val init: Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(Tick.Zero).hadoopPath))
+      Resource.eval(Tick.Zero[F]).flatMap { zero =>
+        Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(zero).hadoopPath))
+      }
 
+    // save
     (ss: Stream[F, GenericRecord]) =>
       Stream.resource(init).flatMap { case (hotswap, writer) =>
         rotatePersist[F, GenericRecord](
           getWriter,
           hotswap,
           writer,
-          ss.map(Left(_)).mergeHaltL(awakeEvery[F](policy).map(Right(_)))
+          ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy).map(Right(_)))
         ).stream
       }
   }
