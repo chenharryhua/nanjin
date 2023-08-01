@@ -6,7 +6,7 @@ ThisBuild / version            := "0.17.0-SNAPSHOT"
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
-val fs2V        = "3.7.0"
+val fs2V        = "3.8.0"
 val awsV_1      = "1.12.510"
 val awsV_2      = "2.20.110"
 val catsEffectV = "3.5.1"
@@ -169,7 +169,7 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk18on" % "1.75",
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.76",
   "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.5",
   "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"

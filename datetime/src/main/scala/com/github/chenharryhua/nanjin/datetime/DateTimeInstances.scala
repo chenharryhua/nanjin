@@ -5,6 +5,8 @@ import io.circe.{Decoder, Encoder}
 import org.typelevel.cats.time.instances.all
 
 import java.sql.{Date, Timestamp}
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 /** [[https://typelevel.org/cats-time/]]
   */
@@ -29,6 +31,13 @@ private[datetime] trait DateTimeInstances extends all {
   implicit final val timestampCirceDecoder: Decoder[Timestamp] =
     Decoder.decodeInstant.map[Timestamp](Timestamp.from)
 
-  implicit final val dateCirceEncoder: Encoder[Date] = Encoder.encodeLocalDate.contramap[Date](_.toLocalDate)
-  implicit final val dateCirceDecoder: Decoder[Date] = Decoder.decodeLocalDate.map[Date](Date.valueOf)
+  implicit final val dateCirceEncoder: Encoder[Date] =
+    Encoder.encodeLocalDate.contramap[Date](_.toLocalDate)
+  implicit final val dateCirceDecoder: Decoder[Date] =
+    Decoder.decodeLocalDate.map[Date](Date.valueOf)
+
+  implicit final val finiteDurationEncoder: Encoder[FiniteDuration] =
+    Encoder.encodeDuration.contramap[FiniteDuration](_.toJava)
+  implicit final val finiteDurationDecoder: Decoder[FiniteDuration] =
+    Decoder.decodeDuration.map[FiniteDuration](_.toScala)
 }

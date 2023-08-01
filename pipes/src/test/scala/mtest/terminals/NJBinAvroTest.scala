@@ -52,7 +52,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root / 1, BinAvroFile(Deflate(1)), pandaSet)
+    fs2(fs2Root, BinAvroFile(Deflate(1)), pandaSet)
   }
 
   test("laziness") {
@@ -69,7 +69,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(binAvro.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / file.rotate(t)))
+      .through(binAvro.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / file.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

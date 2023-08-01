@@ -95,7 +95,7 @@ class NJKantanTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(csv.sink[Tiger](RetryPolicies.constantDelay[IO](1.second))(t => path / file.rotate(t)))
+      .through(csv.sink[Tiger](RetryPolicies.constantDelay[IO](1.second))(t => path / file.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

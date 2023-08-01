@@ -48,20 +48,21 @@ final class HadoopParquet[F[_]] private (
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick).hadoopPath)
 
-    val init: Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Resource.eval(Tick.Zero[F]).flatMap { zero =>
-        Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(zero).hadoopPath))
-      }
+    def init(
+      tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
+      Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick).hadoopPath))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
-      Stream.resource(init).flatMap { case (hotswap, writer) =>
-        rotatePersist[F, GenericRecord](
-          getWriter,
-          hotswap,
-          writer,
-          ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy).map(Right(_)))
-        ).stream
+      Stream.eval(Tick.Zero).flatMap { zero =>
+        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+          rotatePersist[F, GenericRecord](
+            getWriter,
+            hotswap,
+            writer,
+            ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy, zero).map(Right(_)))
+          ).stream
+        }
       }
   }
 }

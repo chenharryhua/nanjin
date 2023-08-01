@@ -54,26 +54,27 @@ final class HadoopAvro[F[_]] private (
       HadoopWriter
         .avro[F](compression.codecFactory, schema, configuration, blockSizeHint, pathBuilder(tick).hadoopPath)
 
-    val init: Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Resource.eval(Tick.Zero[F]).flatMap { zero =>
-        Hotswap(
-          HadoopWriter.avro[F](
-            compression.codecFactory,
-            schema,
-            configuration,
-            blockSizeHint,
-            pathBuilder(zero).hadoopPath))
-      }
+    def init(
+      tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
+      Hotswap(
+        HadoopWriter.avro[F](
+          compression.codecFactory,
+          schema,
+          configuration,
+          blockSizeHint,
+          pathBuilder(tick).hadoopPath))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
-      Stream.resource(init).flatMap { case (hotswap, writer) =>
-        rotatePersist[F, GenericRecord](
-          getWriter,
-          hotswap,
-          writer,
-          ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy).map(Right(_)))
-        ).stream
+      Stream.eval(Tick.Zero).flatMap { zero =>
+        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+          rotatePersist[F, GenericRecord](
+            getWriter,
+            hotswap,
+            writer,
+            ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy, zero).map(Right(_)))
+          ).stream
+        }
       }
   }
 }

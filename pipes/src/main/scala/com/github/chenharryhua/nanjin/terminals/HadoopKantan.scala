@@ -75,29 +75,28 @@ final class HadoopKantan[F[_]] private (
         csvConfiguration,
         pathBuilder(tick).hadoopPath)
 
-    val init: Resource[F, (Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A])] =
-      Resource.eval(Tick.Zero[F]).flatMap { zero =>
-        Hotswap(
-          HadoopWriter.kantan[F, A](
-            configuration,
-            compressLevel,
-            blockSizeHint,
-            csvConfiguration,
-            pathBuilder(zero).hadoopPath))
-      }
+    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A])] =
+      Hotswap(
+        HadoopWriter.kantan[F, A](
+          configuration,
+          compressLevel,
+          blockSizeHint,
+          csvConfiguration,
+          pathBuilder(tick).hadoopPath))
 
     // save
     (ss: Stream[F, A]) =>
-      Stream.resource(init).flatMap { case (hotswap, writer) =>
-        rotatePersist[F, A](
-          getWriter,
-          hotswap,
-          writer,
-          ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy).map(Right(_)))
-        ).stream
+      Stream.eval(Tick.Zero).flatMap { zero =>
+        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+          rotatePersist[F, A](
+            getWriter,
+            hotswap,
+            writer,
+            ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy, zero).map(Right(_)))
+          ).stream
+        }
       }
   }
-
 }
 
 object HadoopKantan {

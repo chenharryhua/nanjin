@@ -66,7 +66,7 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.rotate(t)))
+      .through(jackson.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

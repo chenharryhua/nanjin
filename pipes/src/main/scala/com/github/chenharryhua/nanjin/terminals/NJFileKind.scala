@@ -4,16 +4,15 @@ import com.github.chenharryhua.nanjin.datetime.{codec, Tick}
 import io.circe.generic.JsonCodec
 
 import java.time.ZoneId
-import java.util.UUID
 
 @JsonCodec
 sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: NJCompression) {
-  final val fileName: String           = compression.fileName(fileFormat)
-  final def rotate(tick: Tick): String = f"${tick.index}%05d.$fileName"
+  final val fileName: String             = compression.fileName(fileFormat)
+  final def fileName(tick: Tick): String = f"${tick.sessionId.toString.take(5)}-${tick.index}%06d.$fileName"
 
-  final def rotate(zoneId: ZoneId, sessionId: UUID, tick: Tick): String = {
+  final def fileName(zoneId: ZoneId, tick: Tick): String = {
     val ymd = codec.year_month_day(tick.wakeTime.atZone(zoneId).toLocalDate)
-    s"$ymd/${sessionId.toString.take(5)}-${rotate(tick)}"
+    s"$ymd/${fileName(tick)}"
   }
 }
 

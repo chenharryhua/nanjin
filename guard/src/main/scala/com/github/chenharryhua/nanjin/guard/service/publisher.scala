@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.Monad
+import cats.MonadError
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -15,72 +15,82 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
 }
 import fs2.concurrent.Channel
 
-import java.time.ZonedDateTime
+import java.time.{Instant, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 private object publisher {
-  def metricReport[F[_]: Monad: Clock](
+  def metricReport[F[_]](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex): F[Unit] =
-    serviceParams.zonedNow
-      .flatMap(ts =>
-        channel.send(
-          MetricReport(
-            index = index,
-            serviceParams = serviceParams,
-            timestamp = ts,
-            snapshot = MetricSnapshot(metricRegistry))))
-      .void
+    index: MetricIndex,
+    ts: Instant)(implicit F: MonadError[F, Throwable]): F[Unit] =
+    channel
+      .send(
+        MetricReport(
+          index = index,
+          serviceParams = serviceParams,
+          timestamp = serviceParams.toZonedDateTime(ts),
+          snapshot = MetricSnapshot(metricRegistry)))
+      .map(_.leftMap(_ => new Exception("metric report channel closed")))
+      .rethrow
 
-  def metricReset[F[_]: Monad: Clock](
+  def metricReset[F[_]](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex): F[Unit] =
-    for {
-      ts <- serviceParams.zonedNow
-      _ <- channel.send(
+    index: MetricIndex,
+    ts: Instant)(implicit F: MonadError[F, Throwable]): F[Unit] =
+    channel
+      .send(
         MetricReset(
           index = index,
           serviceParams = serviceParams,
-          timestamp = ts,
+          timestamp = serviceParams.toZonedDateTime(ts),
           snapshot = MetricSnapshot(metricRegistry)
         ))
-    } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
+      .map(_.leftMap(_ => new Exception("metric reset channel closed")))
+      .rethrow
+      .map(_ => metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount)))
 
-  def serviceReStart[F[_]: Monad: Clock](
-    channel: Channel[F, NJEvent],
-    serviceParams: ServiceParams): F[ZonedDateTime] =
+  def serviceReStart[F[_]: Clock](channel: Channel[F, NJEvent], serviceParams: ServiceParams)(implicit
+    F: MonadError[F, Throwable]): F[ZonedDateTime] =
     for {
       now <- serviceParams.zonedNow
-      _ <- channel.send(ServiceStart(serviceParams, now))
+      _ <- channel
+        .send(ServiceStart(serviceParams, now))
+        .map(_.leftMap(_ => new Exception("service restart channel closed")))
+        .rethrow
     } yield now
 
-  def servicePanic[F[_]: Monad: Clock](
+  def servicePanic[F[_]: Clock](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     delay: FiniteDuration,
-    ex: Throwable): F[ZonedDateTime] =
+    ex: Throwable)(implicit F: MonadError[F, Throwable]): F[ZonedDateTime] =
     for {
       ts <- Clock[F].realTimeInstant
       now  = serviceParams.toZonedDateTime(ts)
       next = serviceParams.toZonedDateTime(ts.plus(delay.toJava))
       err  = NJError(ex)
-      _ <- channel.send(
-        ServicePanic(serviceParams = serviceParams, timestamp = now, restartTime = next, error = err))
+      _ <- channel
+        .send(ServicePanic(serviceParams = serviceParams, timestamp = now, restartTime = next, error = err))
+        .map(_.leftMap(_ => new Exception("service panic channel closed")))
+        .rethrow
     } yield now
 
-  def serviceStop[F[_]: Monad: Clock](
+  def serviceStop[F[_]: Clock](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
-    cause: ServiceStopCause): F[Unit] =
+    cause: ServiceStopCause)(implicit F: MonadError[F, Throwable]): F[Unit] =
     for {
       now <- serviceParams.zonedNow
-      _ <- channel.send(ServiceStop(timestamp = now, serviceParams = serviceParams, cause = cause))
+      _ <- channel
+        .send(ServiceStop(timestamp = now, serviceParams = serviceParams, cause = cause))
+        .map(_.leftMap(_ => new Exception("service stop channel closed")))
+        .rethrow
     } yield ()
 
 }
