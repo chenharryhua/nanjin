@@ -3,13 +3,13 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.{Async, Resource, Unique}
-import cats.effect.std.{AtomicCell, Console, Dispatcher, UUIDGen}
+import cats.effect.std.{AtomicCell, Console, Dispatcher}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, policies}
+import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, policies, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   Policy,
@@ -94,19 +94,18 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
   def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
 
-  private lazy val initStatus: F[ServiceParams] = for {
-    uuid <- UUIDGen.randomUUID
-    ts <- F.realTimeInstant
+  private def initStatus(tick: Tick): F[ServiceParams] = for {
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
-    ServiceID(uuid),
-    ServiceLaunchTime(ts),
+    ServiceID(tick.sessionId),
+    ServiceLaunchTime(tick.wakeTime),
     Policy(restartPolicy),
     ServiceBrief(json))
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
-    sp <- Resource.eval(initStatus)
+    groundZero <- Resource.eval(Tick.Zero[F])
+    sp <- Resource.eval(initStatus(groundZero))
     signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
     dispatcher <- Dispatcher.parallel[F]
@@ -129,7 +128,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      serviceParams <- Stream.eval(initStatus)
+      groundZero <- Stream.eval(Tick.Zero[F])
+      serviceParams <- Stream.eval(initStatus(groundZero))
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
@@ -140,13 +140,14 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId), groundZero)
                 .evalMap(tick =>
                   publisher.metricReport(
                     channel = channel,
                     serviceParams = serviceParams,
                     metricRegistry = metricRegistry,
-                    index = MetricIndex.Periodic(tick.index)))
+                    index = MetricIndex.Periodic(tick.index),
+                    ts = tick.wakeTime))
                 .drain
           }
 
@@ -154,13 +155,14 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId))
+              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId), groundZero)
                 .evalMap(tick =>
                   publisher.metricReset(
                     channel = channel,
                     serviceParams = serviceParams,
                     metricRegistry = metricRegistry,
-                    index = MetricIndex.Periodic(tick.index)))
+                    index = MetricIndex.Periodic(tick.index),
+                    ts = tick.wakeTime))
                 .drain
           }
 

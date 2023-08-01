@@ -52,23 +52,23 @@ final class HadoopBinAvro[F[_]](
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
 
-    val init: Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Resource.eval(Tick.Zero[F]).flatMap { zero =>
-        Hotswap(
-          HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(zero).hadoopPath))
-      }
+    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
+      Hotswap(
+        HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
-      Stream.resource(init).flatMap { case (hotswap, writer) =>
-        rotatePersist[F, Byte](
-          getWriter,
-          hotswap,
-          writer,
-          ss.through(BinaryAvroSerde.toBytes[F](schema))
-            .map(Left(_))
-            .mergeHaltL(awakeOnPolicy[F](policy).map(Right(_)))
-        ).stream
+      Stream.eval(Tick.Zero).flatMap { zero =>
+        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+          rotatePersist[F, Byte](
+            getWriter,
+            hotswap,
+            writer,
+            ss.through(BinaryAvroSerde.toBytes[F](schema))
+              .map(Left(_))
+              .mergeHaltL(awakeOnPolicy[F](policy, zero).map(Right(_)))
+          ).stream
+        }
       }
   }
 }

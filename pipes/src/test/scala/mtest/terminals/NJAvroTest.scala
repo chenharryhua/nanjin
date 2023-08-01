@@ -68,7 +68,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(avro.sink(policies.constantDelay[IO](1.second))(t => path / file.rotate(t)))
+      .through(avro.sink(policies.constantDelay[IO](1.second))(t => path / file.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

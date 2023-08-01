@@ -56,7 +56,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("Zstandard parquet - 1") {
-    fs2(fs2Root / 1, ParquetFile(Zstandard(1)), pandaSet)
+    fs2(fs2Root, ParquetFile(Zstandard(1)), pandaSet)
   }
 
   ignore("LZO parquet") {
@@ -82,7 +82,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
-        path / t.wakeTime.atZone(sydneyTime).toLocalDate / file.rotate(t)))
+        path / file.fileName(sydneyTime, t)))
       .compile
       .drain
       .unsafeRunSync()

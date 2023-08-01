@@ -55,7 +55,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root / 1, CirceFile(Deflate(1)), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(Deflate(1)), TestData.tigerSet)
   }
 
   test("ftp") {
@@ -92,7 +92,7 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.rotate(t)))
+      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()
