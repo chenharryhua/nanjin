@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
+import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
   AlertLevel,
@@ -10,7 +11,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
 }
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import org.typelevel.cats.time.instances.zoneddatetime
 
 import java.time.{Duration, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
@@ -23,7 +23,7 @@ sealed trait NJEvent extends Product with Serializable {
   final def upTime: Duration = serviceParams.upTime(timestamp)
 }
 
-object NJEvent extends zoneddatetime {
+object NJEvent extends DateTimeInstances {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
 
   final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends NJEvent

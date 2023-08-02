@@ -5,18 +5,15 @@ import cats.effect.Resource
 import cats.effect.kernel.{Async, Unique}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, policies, Tick}
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import cron4s.CronExpr
-import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
 import natchez.{EntryPoint, Kernel, Span}
 import org.http4s.HttpRoutes
 import org.typelevel.vault.{Key, Locker, Vault}
-import retry.{RetryPolicies, RetryPolicy}
+import retry.RetryPolicies
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
@@ -41,11 +38,6 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F]
   def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F]
   def gauge(gaugeName: String): NJGauge[F]
-
-  // ticks
-  def ticks(policy: RetryPolicy[F]): Stream[F, Tick]
-  def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Tick]
-  def ticks(cronExpr: CronExpr): Stream[F, Tick]
 
   // udp
   def udpClient(udpName: String): NJUdpClient[F]
@@ -163,12 +155,6 @@ final class GeneralAgent[F[_]: Network] private[service] (
       channel = self.channel,
       metricRegistry = self.metricRegistry,
       serviceParams = self.serviceParams)
-
-  // ticks
-  override def ticks(policy: RetryPolicy[F]): Stream[F, Tick] = awakeOnPolicy(policy)
-  override def ticks(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): Stream[F, Tick] =
-    awakeOnPolicy(f(policies.cronBackoff[F](cronExpr, zoneId)))
-  override def ticks(cronExpr: CronExpr): Stream[F, Tick] = ticks(cronExpr, identity)
 
   override def udpClient(udpName: String): NJUdpClient[F] = {
     val name = NameConstraint.unsafeFrom(udpName).value

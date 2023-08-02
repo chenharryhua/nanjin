@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.IpLiteralSyntax
+import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import fs2.{Chunk, Stream}
@@ -83,15 +84,14 @@ class TraceTest extends AnyFunSuite {
     TaskGuard[IO]("udp_test")
       .service("udp_test")
       .eventStream { agent =>
-        agent
-          .ticks(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(3)))
-          .flatMap { _ =>
-            Stream.resource(
-              agent.udpClient("udp_test").withHistogram.withCounting.socket(ip"127.0.0.1", port"1026"))
-          }
-          .evalTap(_.write(Chunk.indexedSeq("abcdefghijklmnopqrstuvwxyz\n".getBytes())))
-          .compile
-          .drain >> agent.metrics.report
+        val ss = for {
+          writer <- Stream.resource(
+            agent.udpClient("udp_test").withHistogram.withCounting.socket(ip"127.0.0.1", port"1026"))
+          _ <- tickStream(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(3)))
+          _ <- Stream.eval(writer.write(Chunk.indexedSeq("abcdefghijklmnopqrstuvwxyz\n".getBytes())))
+        } yield ()
+
+        ss.compile.drain >> agent.metrics.report
       }
       .evalTap(console.simple[IO])
       .compile

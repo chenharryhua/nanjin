@@ -8,9 +8,8 @@ import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import org.typelevel.cats.time.instances.zoneddatetime.*
 
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, Instant}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -53,16 +52,12 @@ package object observers {
       case MetricReport(mrt, sp, now, _) =>
         mrt match {
           case MetricIndex.Adhoc => true
-          case MetricIndex.Periodic(_) =>
-            val border: ZonedDateTime =
-              sp.launchTime.plus(
-                ((Duration.between(sp.launchTime, now).toScala / interval).toLong * interval).toJava)
-            if (now === border) true
-            else
-              sp.metricParams.reportSchedule match {
-                case None     => true
-                case Some(ce) => ce.prev(now).forall(_.isBefore(border)) && now.isAfter(border)
-              }
+          case MetricIndex.Periodic(tick) =>
+            val expect: Instant =
+              sp.launchTime
+                .plus(((Duration.between(sp.launchTime, now).toScala / interval).toLong * interval).toJava)
+                .toInstant
+            tick.inBetween(expect)
         }
       case _ => true
     }
@@ -75,8 +70,8 @@ package object observers {
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc           => true
-          case MetricIndex.Periodic(index) => (index % divisor.value) === 0
+          case MetricIndex.Adhoc          => true
+          case MetricIndex.Periodic(tick) => (tick.index % divisor.value) === 0
         }
       case _ => true
     }
@@ -85,13 +80,11 @@ package object observers {
     */
   def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
     evt match {
-      case MetricReport(mrt, sp, now, _) =>
+      case MetricReport(mrt, sp, _, _) =>
         mrt match {
           case MetricIndex.Adhoc => true
-          case MetricIndex.Periodic(_) =>
-            val nextReport = sp.metricParams.nextReport(now)
-            val nextBorder = cronExpr.next(now)
-            (nextReport, nextBorder).mapN((r, b) => !r.isBefore(b)).exists(identity)
+          case MetricIndex.Periodic(tick) =>
+            cronExpr.next(sp.toZonedDateTime(tick.previous)).exists(zdt => tick.inBetween(zdt.toInstant))
         }
       case _ => true
     }

@@ -43,7 +43,7 @@ private object jsonHelper {
     "strategy" -> Json.fromString(evt.actionParams.publishStrategy.entryName)
 
   def metricIndex(index: MetricIndex): (String, Json) = index match {
-    case MetricIndex.Adhoc           => "index" -> Json.Null
-    case MetricIndex.Periodic(index) => "index" -> Json.fromInt(index)
+    case MetricIndex.Adhoc          => "index" -> Json.Null
+    case MetricIndex.Periodic(tick) => "index" -> Json.fromInt(tick.index)
   }
 }

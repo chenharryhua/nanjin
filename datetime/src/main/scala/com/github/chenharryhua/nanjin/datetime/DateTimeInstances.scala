@@ -10,7 +10,7 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 /** [[https://typelevel.org/cats-time/]]
   */
-private[datetime] trait DateTimeInstances extends all {
+trait DateTimeInstances extends all {
 
   implicit final val timestampInstance: Hash[Timestamp] & Order[Timestamp] & Show[Timestamp] =
     new Hash[Timestamp] with Order[Timestamp] with Show[Timestamp] {
@@ -36,8 +36,8 @@ private[datetime] trait DateTimeInstances extends all {
   implicit final val dateCirceDecoder: Decoder[Date] =
     Decoder.decodeLocalDate.map[Date](Date.valueOf)
 
-  implicit final val finiteDurationEncoder: Encoder[FiniteDuration] =
+  implicit final val finiteDurationCirceEncoder: Encoder[FiniteDuration] =
     Encoder.encodeDuration.contramap[FiniteDuration](_.toJava)
-  implicit final val finiteDurationDecoder: Decoder[FiniteDuration] =
+  implicit final val finiteDurationCirceDecoder: Decoder[FiniteDuration] =
     Decoder.decodeDuration.map[FiniteDuration](_.toScala)
 }

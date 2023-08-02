@@ -4,7 +4,8 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, Tick}
+import com.github.chenharryhua.nanjin.datetime.tickStream
+import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -60,7 +61,7 @@ final class HadoopParquet[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy, zero).map(Right(_)))
+            ss.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }

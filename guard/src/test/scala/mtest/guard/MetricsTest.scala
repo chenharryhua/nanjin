@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
 import com.github.chenharryhua.nanjin.common.HostName
+import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -125,8 +126,7 @@ class MetricsTest extends AnyFunSuite {
           agent.gauge("ref").ref(IO.ref(0))
 
       gauge.use(box =>
-        agent
-          .ticks(RetryPolicies.constantDelay[IO](1.seconds))
+        tickStream(RetryPolicies.constantDelay[IO](1.seconds))
           .evalTap(_ => box.updateAndGet(_ + 1))
           .compile
           .drain)

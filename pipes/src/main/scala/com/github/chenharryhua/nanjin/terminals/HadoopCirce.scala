@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, Tick}
+import com.github.chenharryhua.nanjin.datetime.tickStream
+import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.io.readInputStream
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, Stream}
@@ -66,7 +67,7 @@ final class HadoopCirce[F[_]](
             getWriter,
             hotswap,
             writer,
-            toBytes(ss).map(Left(_)).mergeHaltL(awakeOnPolicy[F](policy, zero).map(Right(_)))
+            toBytes(ss).map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }
