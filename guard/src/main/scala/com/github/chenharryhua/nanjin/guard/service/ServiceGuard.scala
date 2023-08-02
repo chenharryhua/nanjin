@@ -9,7 +9,8 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.datetime.{awakeOnPolicy, policies, Tick}
+import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
+import com.github.chenharryhua.nanjin.datetime.{policies, tickStream}
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   Policy,
@@ -98,7 +99,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
-    ServiceID(tick.sessionId),
+    ServiceID(tick.streamId),
     ServiceLaunchTime(tick.wakeTime),
     Policy(restartPolicy),
     ServiceBrief(json))
@@ -140,13 +141,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId), groundZero)
+              tickStream(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId), groundZero)
                 .evalMap(tick =>
                   publisher.metricReport(
                     channel = channel,
                     serviceParams = serviceParams,
                     metricRegistry = metricRegistry,
-                    index = MetricIndex.Periodic(tick.index),
+                    index = MetricIndex.Periodic(tick),
                     ts = tick.wakeTime))
                 .drain
           }
@@ -155,13 +156,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              awakeOnPolicy(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId), groundZero)
+              tickStream(policies.cronBackoff[F](cron, serviceParams.taskParams.zoneId), groundZero)
                 .evalMap(tick =>
                   publisher.metricReset(
                     channel = channel,
                     serviceParams = serviceParams,
                     metricRegistry = metricRegistry,
-                    index = MetricIndex.Periodic(tick.index),
+                    index = MetricIndex.Periodic(tick),
                     ts = tick.wakeTime))
                 .drain
           }

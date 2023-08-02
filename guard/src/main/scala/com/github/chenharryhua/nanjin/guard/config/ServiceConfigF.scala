@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
 import cats.{Functor, Show}
-import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -24,8 +23,6 @@ import scala.jdk.DurationConverters.ScalaDurationOps
   namePrefix: String,
   rateTimeUnit: TimeUnit,
   durationTimeUnit: TimeUnit) {
-  def nextReport(now: ZonedDateTime): Option[ZonedDateTime] = reportSchedule.flatMap(_.next(now))
-  def nextReset(now: ZonedDateTime): Option[ZonedDateTime]  = resetSchedule.flatMap(_.next(now))
 
   val rateUnitName: String = rateTimeUnit.name().toLowerCase.dropRight(1)
 

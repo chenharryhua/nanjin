@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.datetime.{policies, tickStream}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionDone,
   ServicePanic,
@@ -112,8 +113,7 @@ class MagicBoxTest extends AnyFunSuite {
     val List(a, c) =
       service.eventStream { agent =>
         val box = agent.signalBox(10)
-        agent
-          .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
+        tickStream(policies.constantDelay[IO](0.1.seconds))
           .evalTap(_ => box.update(_ + 1))
           .interruptWhen(box.map(_ > 20))
           .compile
@@ -135,8 +135,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.atomicBox(compute)
-      agent
-        .ticks(RetryPolicies.constantDelay[IO](0.5.seconds))
+      tickStream(RetryPolicies.constantDelay[IO](0.5.seconds))
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -157,8 +156,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.signalBox(compute)
-      agent
-        .ticks(RetryPolicies.constantDelay[IO](0.5.seconds))
+      tickStream(RetryPolicies.constantDelay[IO](0.5.seconds))
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -171,8 +169,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.atomicBox(IO.raiseError[Int](new Exception))
-      agent
-        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
+      tickStream(RetryPolicies.constantDelay[IO](0.1.seconds))
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain
@@ -187,8 +184,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.signalBox(IO.raiseError[Int](new Exception))
-      agent
-        .ticks(RetryPolicies.constantDelay[IO](0.1.seconds))
+      tickStream(RetryPolicies.constantDelay[IO](0.1.seconds))
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain

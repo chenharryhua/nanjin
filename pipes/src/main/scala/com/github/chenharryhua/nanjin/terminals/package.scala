@@ -4,7 +4,7 @@ import cats.effect.kernel.Resource
 import cats.effect.std.Hotswap
 import cats.implicits.toFoldableOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.datetime.Tick
+import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed

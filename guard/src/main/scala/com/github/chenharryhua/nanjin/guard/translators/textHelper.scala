@@ -54,13 +54,13 @@ private object textHelper extends localtime with localdatetime {
 
       case NJEvent.MetricReport(index, _, _, _) =>
         index match {
-          case MetricIndex.Adhoc         => "Adhoc Metric Report"
-          case MetricIndex.Periodic(idx) => s"Metric Report(index=$idx)"
+          case MetricIndex.Adhoc          => "Adhoc Metric Report"
+          case MetricIndex.Periodic(tick) => s"Metric Report(index=${tick.index})"
         }
       case NJEvent.MetricReset(index, _, _, _) =>
         index match {
-          case MetricIndex.Adhoc         => "Adhoc Metric Reset"
-          case MetricIndex.Periodic(idx) => s"Metric Reset(index=$idx)"
+          case MetricIndex.Adhoc          => "Adhoc Metric Reset"
+          case MetricIndex.Periodic(tick) => s"Metric Reset(index=${tick.index})"
         }
     }
   }
@@ -99,6 +99,6 @@ private object textHelper extends localtime with localdatetime {
     val resumeTime = evt.timestamp.plusNanos(evt.delay.toNanos)
     val next       = fmt.format(Duration.between(evt.timestamp, resumeTime))
     val localTs    = resumeTime.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
-    s"*${toOrdinalWords(evt.retriesSoFar + 1)}* retry at $localTs, in $next"
+    s"*${toOrdinalWords(evt.retriesSoFar + 1)}* retry will be at $localTs, in $next"
   }
 }

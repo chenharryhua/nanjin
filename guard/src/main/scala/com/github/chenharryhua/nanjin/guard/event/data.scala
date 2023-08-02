@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import cats.{Monad, Show}
+import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
+import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import io.circe.Codec
 import io.circe.generic.JsonCodec
 import natchez.Span
@@ -26,7 +28,7 @@ sealed trait MetricIndex extends Product with Serializable
 
 object MetricIndex {
   case object Adhoc extends MetricIndex
-  final case class Periodic(index: Int) extends MetricIndex
+  final case class Periodic(tick: Tick) extends MetricIndex
 }
 
 @JsonCodec
@@ -35,7 +37,7 @@ final case class ActionInfo(actionId: Int, launchTime: FiniteDuration, traceInfo
   def traceId: Option[String]                  = traceInfo.map(_.traceId)
 }
 
-object ActionInfo {
+object ActionInfo extends DateTimeInstances {
   implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 
   implicit final val tokenCodec: Codec.AsObject[Either[Int, TraceInfo]] =
