@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
-import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPERATOR
+import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPARATOR
 import fs2.{Pipe, RaiseThrowable, Stream}
 import fs2.text.{lines, utf8}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
@@ -14,7 +14,7 @@ object CirceSerde {
   def toBytes[F[_], A](isKeepNull: Boolean)(implicit enc: JsonEncoder[A]): Pipe[F, A, Byte] = {
     val encode = encoder[A](isKeepNull, enc)
     (ss: Stream[F, A]) =>
-      ss.mapChunks(_.map(encode(_).noSpaces)).intersperse(NEWLINE_SEPERATOR).through(utf8.encode)
+      ss.mapChunks(_.map(encode(_).noSpaces)).intersperse(NEWLINE_SEPARATOR).through(utf8.encode)
   }
 
   def fromBytes[F[_], A](implicit ev: RaiseThrowable[F], dec: JsonDecoder[A]): Pipe[F, Byte, A] =

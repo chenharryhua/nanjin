@@ -48,7 +48,7 @@ final class HadoopKantan[F[_]] private (
 
   def source[A: HeaderDecoder](path: NJPath)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      reader <- Stream.resource(HadoopReader.kantan(configuration, csvConfiguration, path.hadoopPath))
+      reader <- HadoopReader.kantan(configuration, csvConfiguration, path.hadoopPath)
       a <- Stream.fromBlockingIterator(reader.iterator, chunkSize.value).rethrow
     } yield a
 

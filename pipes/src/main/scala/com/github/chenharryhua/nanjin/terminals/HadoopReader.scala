@@ -3,6 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
+import fs2.Stream
+import fs2.io.readInputStream
 import kantan.csv.ops.toCsvInputOps
 import kantan.csv.{CsvConfiguration, CsvReader, HeaderDecoder, ReadResult}
 import org.apache.avro.Schema
@@ -13,18 +15,11 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
+import squants.information.Information
 
 import java.io.InputStream
 
 private object HadoopReader {
-
-  private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
-    val is: InputStream = HadoopInputFile.fromPath(path, configuration).newStream()
-    Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
-      case Some(cc) => cc.createInputStream(is)
-      case None     => is
-    }
-  }
 
   def avro[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Resource[F, DataFileStream[GenericRecord]] =
@@ -38,14 +33,28 @@ private object HadoopReader {
     F: Sync[F]): Resource[F, ParquetReader[GenericRecord]] =
     Resource.make(F.blocking(readBuilder.run(path).build()))(r => F.blocking(r.close()))
 
+  private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
+    val is: InputStream = HadoopInputFile.fromPath(path, configuration).newStream()
+    Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
+      case Some(cc) => cc.createInputStream(is)
+      case None     => is
+    }
+  }
+
+  def inputStream[F[_]](configuration: Configuration, path: Path)(implicit
+    F: Sync[F]): Stream[F, InputStream] =
+    Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
+
+  def bytes[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
+    F: Sync[F]): Stream[F, Byte] =
+    inputStream[F](configuration, path).flatMap(is =>
+      readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = true))
+
   def kantan[F[_], A: HeaderDecoder](
     configuration: Configuration,
     csvConfiguration: CsvConfiguration,
-    path: Path)(implicit F: Sync[F]): Resource[F, CsvReader[ReadResult[A]]] =
-    Resource.make(F.blocking(fileInputStream(path, configuration).asCsvReader[A](csvConfiguration)))(r =>
-      F.blocking(r.close()))
+    path: Path)(implicit F: Sync[F]): Stream[F, CsvReader[ReadResult[A]]] =
+    inputStream[F](configuration, path).flatMap(is =>
+      Stream.bracket(F.blocking(is.asCsvReader[A](csvConfiguration)))(r => F.blocking(r.close)))
 
-  def inputStream[F[_]](configuration: Configuration, path: Path)(implicit
-    F: Sync[F]): Resource[F, InputStream] =
-    Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
 }

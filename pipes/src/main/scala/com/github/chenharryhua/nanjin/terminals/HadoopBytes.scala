@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.Sync
-import fs2.io.readInputStream
 import fs2.{Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -14,15 +13,15 @@ final class HadoopBytes[F[_]] private (
   compressLevel: CompressionLevel) {
   def withBufferSize(bs: Information): HadoopBytes[F] =
     new HadoopBytes[F](configuration, blockSizeHint, bs, compressLevel)
+
   def withBlockSizeHint(bsh: Long): HadoopBytes[F] =
     new HadoopBytes[F](configuration, bsh, bufferSize, compressLevel)
-  def withCompressionLevel(cl: CompressionLevel) =
+
+  def withCompressionLevel(cl: CompressionLevel): HadoopBytes[F] =
     new HadoopBytes[F](configuration, blockSizeHint, bufferSize, cl)
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
-    Stream
-      .resource(HadoopReader.inputStream(configuration, path.hadoopPath))
-      .flatMap(is => readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = true))
+    HadoopReader.bytes(configuration, bufferSize, path.hadoopPath)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
     Stream

@@ -2,39 +2,50 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
-import com.github.chenharryhua.nanjin.pipes.JacksonSerde
-import fs2.io.readInputStream
-import fs2.{Pipe, Stream}
+import fs2.{Pipe, Pull, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericRecord
+import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
+import org.apache.avro.io.{DecoderFactory, JsonDecoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 
-final class HadoopJackson[F[_]](
+import java.io.{EOFException, InputStream}
+
+final class HadoopJackson[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
-  chunkSize: ChunkSize,
   compressLevel: CompressionLevel,
   schema: Schema) {
 
   def withBlockSizeHint(bsh: Long): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, bsh, chunkSize, compressLevel, schema)
+    new HadoopJackson[F](configuration, bsh, compressLevel, schema)
 
   def withCompressionLevel(cl: CompressionLevel): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, blockSizeHint, chunkSize, cl, schema)
+    new HadoopJackson[F](configuration, blockSizeHint, cl, schema)
 
-  def withChunkSize(cs: ChunkSize): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, blockSizeHint, cs, compressLevel, schema)
-
-  def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] =
+  def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] = {
+    def go(jsonDecoder: JsonDecoder, datumReader: GenericDatumReader[GenericRecord])(
+      is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
+      Pull
+        .functionKInstance(
+          F.blocking(try Some(datumReader.read(null, jsonDecoder))
+          catch {
+            case _: EOFException => None
+          }))
+        .flatMap {
+          case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[InputStream]](Some(is))
+          case None    => Pull.pure(None)
+        }
     for {
-      is <- Stream.resource(HadoopReader.inputStream[F](configuration, path.hadoopPath))
-      as <- readInputStream[F](F.pure(is), chunkSize.value).through(JacksonSerde.fromBytes(schema))
-    } yield as
+      is <- HadoopReader.inputStream[F](configuration, path.hadoopPath)
+      jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
+      datumReader = new GenericDatumReader[GenericRecord](schema)
+      gr <- Pull.loop[F, GenericRecord, InputStream](go(jsonDecoder, datumReader))(is).stream
+    } yield gr
+  }
 
   def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericRecord] =
     paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
@@ -44,30 +55,32 @@ final class HadoopJackson[F[_]](
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
       Stream
-        .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
-        .flatMap(w => persist[F, Byte](w, ss.through(JacksonSerde.toBytes(schema))).stream)
+        .resource(
+          HadoopWriter.jackson[F](configuration, compressLevel, blockSizeHint, schema, path.hadoopPath))
+        .flatMap(w => persist(w, ss).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
-    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
+    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
+      HadoopWriter
+        .jackson[F](configuration, compressLevel, blockSizeHint, schema, pathBuilder(tick).hadoopPath)
 
-    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
+    def init(
+      tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
       Hotswap(
-        HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath))
+        HadoopWriter
+          .jackson[F](configuration, compressLevel, blockSizeHint, schema, pathBuilder(tick).hadoopPath))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          rotatePersist[F, Byte](
+          rotatePersist[F, GenericRecord](
             getWriter,
             hotswap,
             writer,
-            ss.through(JacksonSerde.toBytes[F](schema))
-              .map(Left(_))
-              .mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }
@@ -76,10 +89,5 @@ final class HadoopJackson[F[_]](
 
 object HadoopJackson {
   def apply[F[_]](configuration: Configuration, schema: Schema): HadoopJackson[F] =
-    new HadoopJackson[F](
-      configuration,
-      BLOCK_SIZE_HINT,
-      CHUNK_SIZE,
-      CompressionLevel.DEFAULT_COMPRESSION,
-      schema)
+    new HadoopJackson[F](configuration, BLOCK_SIZE_HINT, CompressionLevel.DEFAULT_COMPRESSION, schema)
 }
