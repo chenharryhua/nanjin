@@ -9,12 +9,10 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.pipes.{BinaryAvroSerde, CirceSerde, JacksonSerde, JavaObjectSerde}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.AvroDStreamSink
 import frameless.TypedEncoder
-import fs2.{Pipe, RaiseThrowable}
-import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
+import fs2.Pipe
 import org.apache.avro.generic.GenericRecord
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -42,41 +40,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
       topic.topicDef.rawSerdes.valSerde.avroCodec)
 
   object pipes {
-    object circe {
-      def toBytes(isKeepNull: Boolean)(implicit
-        ev: JsonEncoder[NJConsumerRecord[K, V]]): Pipe[F, NJConsumerRecord[K, V], Byte] =
-        CirceSerde.toBytes[F, NJConsumerRecord[K, V]](isKeepNull)
-      def fromBytes(implicit
-        F: RaiseThrowable[F],
-        ev: JsonDecoder[NJConsumerRecord[K, V]]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        CirceSerde.fromBytes[F, NJConsumerRecord[K, V]]
-    }
-
-    object jackson {
-      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
-        _.mapChunks(_.map(crCodec.toRecord)).through(JacksonSerde.toBytes[F](crCodec.schema))
-
-      def fromBytes(implicit F: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        JacksonSerde.fromBytes[F](crCodec.schema).andThen(_.mapChunks(_.map(crCodec.fromRecord)))
-    }
-
-    object binAvro {
-      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] =
-        _.mapChunks(_.map(crCodec.toRecord)).through(BinaryAvroSerde.toBytes[F](crCodec.schema))
-      def fromBytes(implicit F: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        BinaryAvroSerde.fromBytes[F](crCodec.schema).andThen(_.mapChunks(_.map(crCodec.fromRecord)))
-    }
-
-    object javaObj {
-      val toBytes: Pipe[F, NJConsumerRecord[K, V], Byte] = JavaObjectSerde.toBytes[F, NJConsumerRecord[K, V]]
-      def fromBytes(implicit ce: Async[F]): Pipe[F, Byte, NJConsumerRecord[K, V]] =
-        JavaObjectSerde.fromBytes[F, NJConsumerRecord[K, V]]
-    }
-
-    object genericRecord {
-      val toRecord: Pipe[F, NJConsumerRecord[K, V], GenericRecord]   = _.mapChunks(_.map(crCodec.toRecord))
-      val fromRecord: Pipe[F, GenericRecord, NJConsumerRecord[K, V]] = _.mapChunks(_.map(crCodec.fromRecord))
-    }
+    val toRecord: Pipe[F, NJConsumerRecord[K, V], GenericRecord]   = _.mapChunks(_.map(crCodec.toRecord))
+    val fromRecord: Pipe[F, GenericRecord, NJConsumerRecord[K, V]] = _.mapChunks(_.map(crCodec.fromRecord))
   }
 
   private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
