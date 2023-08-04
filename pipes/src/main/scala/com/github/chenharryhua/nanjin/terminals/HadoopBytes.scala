@@ -11,6 +11,9 @@ final class HadoopBytes[F[_]] private (
   blockSizeHint: Long,
   bufferSize: Information,
   compressLevel: CompressionLevel) {
+
+  // config
+
   def withBufferSize(bs: Information): HadoopBytes[F] =
     new HadoopBytes[F](configuration, blockSizeHint, bs, compressLevel)
 
@@ -20,12 +23,21 @@ final class HadoopBytes[F[_]] private (
   def withCompressionLevel(cl: CompressionLevel): HadoopBytes[F] =
     new HadoopBytes[F](configuration, blockSizeHint, bufferSize, cl)
 
+  // read
+
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
-    HadoopReader.bytes(configuration, bufferSize, path.hadoopPath)
+    HadoopReader.byteS(configuration, bufferSize, path.hadoopPath)
+
+  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Byte] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) =>
+      s ++ source(p)
+    }
+
+  // write
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
     Stream
-      .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
+      .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
       .flatMap { os =>
         ss.chunks.foreach(os.write)
       }

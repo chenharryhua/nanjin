@@ -7,15 +7,19 @@ import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 import squants.information.Information
 
-final class HadoopText[F[_]] private[terminals] (
+final class HadoopText[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
   bufferSize: Information,
   compressLevel: CompressionLevel) {
+
+  // config
+
   def withBlockSizeHint(bsh: Long): HadoopText[F] =
     new HadoopText[F](configuration, bsh, bufferSize, compressLevel)
 
@@ -25,28 +29,34 @@ final class HadoopText[F[_]] private[terminals] (
   def withCompressionLevel(cl: CompressionLevel): HadoopText[F] =
     new HadoopText[F](configuration, blockSizeHint, bufferSize, cl)
 
+  // read
+
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, String] =
-    HadoopReader.bytes[F](configuration, bufferSize, path.hadoopPath).through(utf8.decode).through(lines)
+    HadoopReader.byteS[F](configuration, bufferSize, path.hadoopPath).through(utf8.decode).through(lines)
 
   def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, String] =
     paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) =>
       s ++ source(p)
     }
 
+  // write
+
+  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
+    HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path)
+
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Nothing] = { (ss: Stream[F, String]) =>
     Stream
-      .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
+      .resource(getWriterR(path.hadoopPath))
       .flatMap(w => persist[F, Byte](w, ss.intersperse(NEWLINE_SEPARATOR).through(utf8.encode)).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, String, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
+      getWriterR(pathBuilder(tick).hadoopPath)
 
     def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Hotswap(
-        HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath))
+      Hotswap(getWriter(tick))
 
     // save
     (ss: Stream[F, String]) =>
@@ -58,6 +68,7 @@ final class HadoopText[F[_]] private[terminals] (
             writer,
             ss.intersperse(NEWLINE_SEPARATOR)
               .through(utf8.encode)
+              .chunks
               .map(Left(_))
               .mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
@@ -65,6 +76,7 @@ final class HadoopText[F[_]] private[terminals] (
       }
   }
 }
+
 object HadoopText {
   def apply[F[_]](configuration: Configuration): HadoopText[F] =
     new HadoopText[F](configuration, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)

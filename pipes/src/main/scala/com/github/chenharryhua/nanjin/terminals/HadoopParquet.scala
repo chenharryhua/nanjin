@@ -20,15 +20,20 @@ import retry.RetryPolicy
 final class HadoopParquet[F[_]] private (
   readBuilder: Reader[Path, ParquetReader.Builder[GenericRecord]],
   writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]]) {
+
+  // config
+
   def updateReader(f: Endo[ParquetReader.Builder[GenericRecord]]): HadoopParquet[F] =
     new HadoopParquet(readBuilder.map(f), writeBuilder)
 
   def updateWriter(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): HadoopParquet[F] =
     new HadoopParquet(readBuilder, writeBuilder.map(f))
 
+  // read
+
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericRecord] =
     for {
-      rd <- Stream.resource(HadoopReader.parquet(readBuilder, path.hadoopPath))
+      rd <- Stream.resource(HadoopReader.parquetR(readBuilder, path.hadoopPath))
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
@@ -37,21 +42,24 @@ final class HadoopParquet[F[_]] private (
       s ++ source(p)
     }
 
+  // write
+
+  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+    HadoopWriter.parquetR[F](writeBuilder, path)
+
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
-      Stream
-        .resource(HadoopWriter.parquet[F](writeBuilder, path.hadoopPath))
-        .flatMap(pw => persist[F, GenericRecord](pw, ss).stream)
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(pw => persist[F, GenericRecord](pw, ss).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick).hadoopPath)
+      getWriterR(pathBuilder(tick).hadoopPath)
 
     def init(
       tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Hotswap(HadoopWriter.parquet[F](writeBuilder, pathBuilder(tick).hadoopPath))
+      Hotswap(getWriter(tick))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
@@ -61,7 +69,7 @@ final class HadoopParquet[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }

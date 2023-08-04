@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
+import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, Histogram, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{
   Category,
@@ -17,12 +18,19 @@ final class NJHistogram[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
   unit: StandardUnit,
   isCounting: Boolean)(implicit F: Sync[F]) {
-  private lazy val histogram: Histogram =
-    metricRegistry.histogram(
-      MetricID(name, Category.Histogram(HistogramKind.Dropwizard, unit)).asJson.noSpaces)
 
-  private lazy val counter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.HistoCounter)).asJson.noSpaces)
+  private val histogramName: String =
+    MetricID(name, Category.Histogram(HistogramKind.Dropwizard, unit)).asJson.noSpaces
+  private val counterName: String =
+    MetricID(name, Category.Counter(CounterKind.HistoCounter)).asJson.noSpaces
+
+  private lazy val histogram: Histogram = metricRegistry.histogram(histogramName)
+  private lazy val counter: Counter     = metricRegistry.counter(counterName)
+
+  private[guard] def unregister: F[Unit] = F.blocking {
+    metricRegistry.remove(histogramName)
+    metricRegistry.remove(counterName)
+  }.void
 
   def withCounting: NJHistogram[F] = new NJHistogram[F](name, metricRegistry, unit, true)
 

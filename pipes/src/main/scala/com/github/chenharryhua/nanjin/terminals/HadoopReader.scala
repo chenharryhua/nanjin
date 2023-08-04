@@ -21,7 +21,7 @@ import java.io.InputStream
 
 private object HadoopReader {
 
-  def avro[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
+  def avroR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Resource[F, DataFileStream[GenericRecord]] =
     for {
       is <- Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
@@ -29,7 +29,7 @@ private object HadoopReader {
         F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
     } yield dfs
 
-  def parquet[F[_]](readBuilder: Reader[Path, ParquetReader.Builder[GenericRecord]], path: Path)(implicit
+  def parquetR[F[_]](readBuilder: Reader[Path, ParquetReader.Builder[GenericRecord]], path: Path)(implicit
     F: Sync[F]): Resource[F, ParquetReader[GenericRecord]] =
     Resource.make(F.blocking(readBuilder.run(path).build()))(r => F.blocking(r.close()))
 
@@ -41,20 +41,20 @@ private object HadoopReader {
     }
   }
 
-  def inputStream[F[_]](configuration: Configuration, path: Path)(implicit
+  def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Stream[F, InputStream] =
     Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
 
-  def bytes[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
+  def byteS[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
     F: Sync[F]): Stream[F, Byte] =
-    inputStream[F](configuration, path).flatMap(is =>
+    inputStreamS[F](configuration, path).flatMap(is =>
       readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = true))
 
-  def kantan[F[_], A: HeaderDecoder](
+  def kantanS[F[_], A: HeaderDecoder](
     configuration: Configuration,
     csvConfiguration: CsvConfiguration,
     path: Path)(implicit F: Sync[F]): Stream[F, CsvReader[ReadResult[A]]] =
-    inputStream[F](configuration, path).flatMap(is =>
+    inputStreamS[F](configuration, path).flatMap(is =>
       Stream.bracket(F.blocking(is.asCsvReader[A](csvConfiguration)))(r => F.blocking(r.close)))
 
 }

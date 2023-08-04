@@ -26,7 +26,7 @@ sealed private trait HadoopWriter[F[_], A] {
 
 private object HadoopWriter {
 
-  def avro[F[_]](
+  def avroR[F[_]](
     codecFactory: CodecFactory,
     schema: Schema,
     configuration: Configuration,
@@ -45,8 +45,8 @@ private object HadoopWriter {
       override def write(ck: Chunk[GenericRecord]): F[Unit] = F.blocking(ck.foreach(writer.append))
     }
 
-  def parquet[F[_]](writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]], path: Path)(implicit
-    F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+  def parquetR[F[_]](writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]], path: Path)(
+    implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     Resource
       .make(F.blocking(writeBuilder.run(path).build()))(r => F.blocking(r.close()))
       .map(pw =>
@@ -67,7 +67,7 @@ private object HadoopWriter {
     }
   }
 
-  def kantan[F[_], A: NJHeaderEncoder](
+  def kantanR[F[_], A: NJHeaderEncoder](
     configuration: Configuration,
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,
@@ -92,7 +92,7 @@ private object HadoopWriter {
       fileOutputStream(path, configuration, compressionLevel, blockSizeHint)
     })(r => F.blocking(r.flush()) >> F.blocking(r.close()))
 
-  def bytes[F[_]](
+  def byteR[F[_]](
     configuration: Configuration,
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,
@@ -118,7 +118,7 @@ private object HadoopWriter {
       }
     }
 
-  def jackson[F[_]](
+  def jacksonR[F[_]](
     configuration: Configuration,
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,
@@ -132,7 +132,7 @@ private object HadoopWriter {
       schema,
       path)
 
-  def binAvro[F[_]](
+  def binAvroR[F[_]](
     configuration: Configuration,
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,

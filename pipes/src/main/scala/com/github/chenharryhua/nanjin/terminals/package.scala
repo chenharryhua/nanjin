@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Resource
 import cats.effect.std.Hotswap
-import cats.implicits.toFoldableOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed
-import fs2.{Pull, Stream}
+import fs2.{Chunk, Pull, Stream}
 import squants.information.{Bytes, Information}
 
 import java.nio.charset.StandardCharsets
@@ -35,18 +34,17 @@ package object terminals {
     getWriter: Tick => Resource[F, HadoopWriter[F, A]],
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
-    ss: Stream[F, Either[A, Tick]]
+    ss: Stream[F, Either[Chunk[A], Tick]]
   ): Pull[F, Nothing, Unit] =
-    ss.pull.uncons.flatMap {
+    ss.pull.uncons1.flatMap {
       case Some((head, tail)) =>
-        val (data, ticks) = head.partitionEither(identity)
-        ticks.last match {
-          case Some(tick) =>
-            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
-              Pull.eval(writer.write(data)) >> rotatePersist(getWriter, hotswap, writer, tail)
-            }
-          case None =>
+        head match {
+          case Left(data) =>
             Pull.eval(writer.write(data)) >> rotatePersist(getWriter, hotswap, writer, tail)
+          case Right(tick) =>
+            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
+              rotatePersist(getWriter, hotswap, writer, tail)
+            }
         }
       case None => Pull.done
     }

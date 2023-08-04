@@ -14,6 +14,8 @@ final class HadoopProtobuf[F[_]] private (
   compressLevel: CompressionLevel
 ) {
 
+  // config
+
   def withBlockSizeHint(bsh: Long): HadoopProtobuf[F] =
     new HadoopProtobuf[F](configuration, bsh, chunkSize, compressLevel)
 
@@ -23,11 +25,21 @@ final class HadoopProtobuf[F[_]] private (
   def withCompressionLevel(cl: CompressionLevel): HadoopProtobuf[F] =
     new HadoopProtobuf[F](configuration, blockSizeHint, chunkSize, cl)
 
+  // read
+
   def source[A <: GeneratedMessage](
     path: NJPath)(implicit F: Sync[F], gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
     HadoopReader
-      .inputStream(configuration, path.hadoopPath)
+      .inputStreamS(configuration, path.hadoopPath)
       .flatMap(is => Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, chunkSize.value))
+
+  def source[A <: GeneratedMessage](
+    paths: List[NJPath])(implicit F: Sync[F], gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
+    paths.foldLeft(Stream.empty.covaryAll[F, A]) { case (s, p) =>
+      s ++ source(p)
+    }
+
+  // write
 
   def sink[A <: GeneratedMessage](path: NJPath)(implicit F: Sync[F]): Pipe[F, A, Nothing] = {
     (ss: Stream[F, A]) =>

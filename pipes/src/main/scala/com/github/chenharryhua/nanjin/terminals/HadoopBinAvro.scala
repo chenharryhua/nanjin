@@ -8,6 +8,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
 import org.apache.avro.io.DecoderFactory
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 
@@ -20,14 +21,18 @@ final class HadoopBinAvro[F[_]] private (
   schema: Schema
 ) {
 
+  // config
+
   def withBlockSizeHint(bsh: Long): HadoopBinAvro[F] =
     new HadoopBinAvro[F](configuration, bsh, compressLevel, schema)
 
   def withCompressionLevel(cl: CompressionLevel): HadoopBinAvro[F] =
     new HadoopBinAvro[F](configuration, blockSizeHint, cl, schema)
 
+  // read
+
   def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] =
-    HadoopReader.inputStream[F](configuration, path.hadoopPath).flatMap { is =>
+    HadoopReader.inputStreamS[F](configuration, path.hadoopPath).flatMap { is =>
       val datumReader = new GenericDatumReader[GenericRecord](schema)
       val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
       def go(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
@@ -48,25 +53,25 @@ final class HadoopBinAvro[F[_]] private (
       s ++ source(p)
     }
 
+  // write
+
+  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+    HadoopWriter.binAvroR[F](configuration, compressLevel, blockSizeHint, schema, path)
+
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
-      Stream
-        .resource(
-          HadoopWriter.binAvro[F](configuration, compressLevel, blockSizeHint, schema, path.hadoopPath))
-        .flatMap(w => persist[F, GenericRecord](w, ss).stream)
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => persist[F, GenericRecord](w, ss).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
+
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter
-        .binAvro[F](configuration, compressLevel, blockSizeHint, schema, pathBuilder(tick).hadoopPath)
+      getWriterR(pathBuilder(tick).hadoopPath)
 
     def init(
       tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Hotswap(
-        HadoopWriter
-          .binAvro[F](configuration, compressLevel, blockSizeHint, schema, pathBuilder(tick).hadoopPath))
+      Hotswap(getWriter(tick))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
@@ -76,7 +81,7 @@ final class HadoopBinAvro[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }

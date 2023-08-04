@@ -9,6 +9,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
 import org.apache.avro.io.{DecoderFactory, JsonDecoder}
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 
@@ -20,11 +21,15 @@ final class HadoopJackson[F[_]] private (
   compressLevel: CompressionLevel,
   schema: Schema) {
 
+  // config
+
   def withBlockSizeHint(bsh: Long): HadoopJackson[F] =
     new HadoopJackson[F](configuration, bsh, compressLevel, schema)
 
   def withCompressionLevel(cl: CompressionLevel): HadoopJackson[F] =
     new HadoopJackson[F](configuration, blockSizeHint, cl, schema)
+
+  // read
 
   def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] = {
     def go(jsonDecoder: JsonDecoder, datumReader: GenericDatumReader[GenericRecord])(
@@ -40,7 +45,7 @@ final class HadoopJackson[F[_]] private (
           case None    => Pull.pure(None)
         }
     for {
-      is <- HadoopReader.inputStream[F](configuration, path.hadoopPath)
+      is <- HadoopReader.inputStreamS[F](configuration, path.hadoopPath)
       jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
       datumReader = new GenericDatumReader[GenericRecord](schema)
       gr <- Pull.loop[F, GenericRecord, InputStream](go(jsonDecoder, datumReader))(is).stream
@@ -52,25 +57,24 @@ final class HadoopJackson[F[_]] private (
       s ++ source(p)
     }
 
+  // write
+
+  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+    HadoopWriter.jacksonR[F](configuration, compressLevel, blockSizeHint, schema, path)
+
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
-      Stream
-        .resource(
-          HadoopWriter.jackson[F](configuration, compressLevel, blockSizeHint, schema, path.hadoopPath))
-        .flatMap(w => persist(w, ss).stream)
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => persist(w, ss).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter
-        .jackson[F](configuration, compressLevel, blockSizeHint, schema, pathBuilder(tick).hadoopPath)
+      getWriterR(pathBuilder(tick).hadoopPath)
 
     def init(
-      tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Hotswap(
-        HadoopWriter
-          .jackson[F](configuration, compressLevel, blockSizeHint, schema, pathBuilder(tick).hadoopPath))
+      zero: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
+      Hotswap(getWriter(zero))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
@@ -80,7 +84,7 @@ final class HadoopJackson[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }

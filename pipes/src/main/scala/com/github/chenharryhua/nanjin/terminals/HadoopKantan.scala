@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.{Pipe, Stream}
 import kantan.csv.*
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 import shapeless.ops.hlist.ToTraversable
@@ -37,6 +38,8 @@ final class HadoopKantan[F[_]] private (
   csvConfiguration: CsvConfiguration
 ) {
 
+  // config
+
   def withChunkSize(cs: ChunkSize): HadoopKantan[F] =
     new HadoopKantan[F](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
 
@@ -46,9 +49,11 @@ final class HadoopKantan[F[_]] private (
   def withCompressionLevel(cl: CompressionLevel): HadoopKantan[F] =
     new HadoopKantan[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
 
+  // read
+
   def source[A: HeaderDecoder](path: NJPath)(implicit F: Sync[F]): Stream[F, A] =
     for {
-      reader <- HadoopReader.kantan(configuration, csvConfiguration, path.hadoopPath)
+      reader <- HadoopReader.kantanS(configuration, csvConfiguration, path.hadoopPath)
       a <- Stream.fromBlockingIterator(reader.iterator, chunkSize.value).rethrow
     } yield a
 
@@ -57,33 +62,24 @@ final class HadoopKantan[F[_]] private (
       s ++ source(p)
     }
 
+  // write
+
+  private def getWriterR[A: NJHeaderEncoder](path: Path)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, A]] =
+    HadoopWriter.kantanR[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path)
+
   def sink[A: NJHeaderEncoder](path: NJPath)(implicit F: Sync[F]): Pipe[F, A, Nothing] = {
     (ss: Stream[F, A]) =>
-      Stream
-        .resource(
-          HadoopWriter
-            .kantan[F, A](configuration, compressLevel, blockSizeHint, csvConfiguration, path.hadoopPath))
-        .flatMap(w => persist[F, A](w, ss).stream)
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => persist[F, A](w, ss).stream)
   }
 
   def sink[A: NJHeaderEncoder](policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, A, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, A]] =
-      HadoopWriter.kantan[F, A](
-        configuration,
-        compressLevel,
-        blockSizeHint,
-        csvConfiguration,
-        pathBuilder(tick).hadoopPath)
+      getWriterR(pathBuilder(tick).hadoopPath)
 
     def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A])] =
-      Hotswap(
-        HadoopWriter.kantan[F, A](
-          configuration,
-          compressLevel,
-          blockSizeHint,
-          csvConfiguration,
-          pathBuilder(tick).hadoopPath))
+      Hotswap(getWriter(tick))
 
     // save
     (ss: Stream[F, A]) =>
@@ -93,7 +89,7 @@ final class HadoopKantan[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }
