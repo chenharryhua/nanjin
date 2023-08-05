@@ -43,7 +43,8 @@ private object HadoopWriter {
           F.blocking(r.flush()) >> F.blocking(r.close()))
       writer <- Resource.make(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
     } yield new HadoopWriter[F, GenericRecord] {
-      override def write(ck: Chunk[GenericRecord]): F[Unit] = F.blocking(ck.foreach(writer.append))
+      override def write(ck: Chunk[GenericRecord]): F[Unit] =
+        F.blocking(ck.foreach(writer.append)) >> F.blocking(writer.flush())
     }
 
   def parquetR[F[_]](writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]], path: Path)(
@@ -52,7 +53,8 @@ private object HadoopWriter {
       .make(F.blocking(writeBuilder.run(path).build()))(r => F.blocking(r.close()))
       .map(pw =>
         new HadoopWriter[F, GenericRecord] {
-          override def write(ck: Chunk[GenericRecord]): F[Unit] = F.blocking(ck.foreach(pw.write))
+          override def write(ck: Chunk[GenericRecord]): F[Unit] =
+            F.blocking(ck.foreach(pw.write))
         })
 
   private def fileOutputStream(
@@ -84,14 +86,14 @@ private object HadoopWriter {
         }
       }
 
-  def fileOutputStreamR[F[_]](
+  private def fileOutputStreamR[F[_]](
     path: Path,
     configuration: Configuration,
     compressionLevel: CompressionLevel,
     blockSizeHint: Long)(implicit F: Sync[F]): Resource[F, OutputStream] =
     Resource.make(F.blocking {
       fileOutputStream(path, configuration, compressionLevel, blockSizeHint)
-    })(r => F.blocking(r.flush()) >> F.blocking(r.close()))
+    })(r => F.blocking(r.close()))
 
   def byteR[F[_]](
     configuration: Configuration,
@@ -100,7 +102,8 @@ private object HadoopWriter {
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
     fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
       new HadoopWriter[F, Byte] {
-        override def write(ck: Chunk[Byte]): F[Unit] = F.blocking(os.write(ck.toArray)).void
+        override def write(ck: Chunk[Byte]): F[Unit] =
+          F.blocking(os.write(ck.toArray)) >> F.blocking(os.flush())
       })
 
   def protobufR[F[_], A <: GeneratedMessage](
@@ -110,7 +113,8 @@ private object HadoopWriter {
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, A]] =
     fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map { os =>
       new HadoopWriter[F, A] {
-        override def write(ck: Chunk[A]): F[Unit] = F.blocking(ck.foreach(_.writeDelimitedTo(os)))
+        override def write(ck: Chunk[A]): F[Unit] =
+          F.blocking(ck.foreach(_.writeDelimitedTo(os))) >> F.blocking(os.flush())
       }
     }
 
