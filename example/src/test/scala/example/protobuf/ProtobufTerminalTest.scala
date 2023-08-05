@@ -2,6 +2,8 @@ package example.protobuf
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
+import com.github.chenharryhua.nanjin.datetime.{crontabs, policies}
 import com.github.chenharryhua.nanjin.terminals.{HadoopProtobuf, NJCompression, NJPath, ProtobufFile}
 import eu.timepit.refined.auto.*
 import example.hadoop
@@ -19,9 +21,8 @@ class ProtobufTerminalTest extends AnyFunSuite {
 
   def run(file: ProtobufFile): Assertion = {
     val path: NJPath = root / file.fileName
-    val res = (data.through(pb.sink[Lion](path)).compile.drain >> pb.source[Lion](path).compile.toList)
-      .unsafeRunSync()
-    println(res)
+    val res = (hadoop.delete(path) >> data.through(pb.sink[Lion](path)).compile.drain >>
+      pb.source[Lion](path).compile.toList).unsafeRunSync()
     assert(lions === res)
   }
 
@@ -55,6 +56,13 @@ class ProtobufTerminalTest extends AnyFunSuite {
   test("10.xz") {
     run(ProtobufFile(NJCompression.Xz(3)))
   }
-
-
+  test("rotate") {
+    val file  = ProtobufFile(NJCompression.Uncompressed)
+    val path  = root / "rotate"
+    val sink  = pb.sink(policies.cronBackoff[IO](crontabs.secondly, sydneyTime))(t => path / file.fileName(t))
+    val write = Stream.emits(herd).chunkN(1).unchunks.through(sink).compile.drain
+    val read  = Stream.eval(hadoop.filesIn(path)).flatMap(pb.source[Lion]).compile.toList
+    val res   = hadoop.delete(path) >> write >> read
+    assert(res.unsafeRunSync().size === 10000)
+  }
 }

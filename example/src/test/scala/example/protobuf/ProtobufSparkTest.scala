@@ -11,8 +11,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.util.Random
 
 object ProtobufData {
-  val lions =
+  val lions: List[Lion] =
     (1 to 10).map(_ => Lion("Melbourne Zoo", Random.nextInt())).toList
+
+  val herd: List[Lion] = (1 to 10000).map(Lion("ChengDu Zoo", _)).toList
 
 //  import sparkSession.implicits.*
 //  val rdd = sparkSession.createDataset(lions).rdd

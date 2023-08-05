@@ -17,6 +17,7 @@ import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
+import scalapb.GeneratedMessage
 
 import java.io.OutputStream
 
@@ -101,6 +102,17 @@ private object HadoopWriter {
       new HadoopWriter[F, Byte] {
         override def write(ck: Chunk[Byte]): F[Unit] = F.blocking(os.write(ck.toArray)).void
       })
+
+  def protobufR[F[_], A <: GeneratedMessage](
+    configuration: Configuration,
+    compressionLevel: CompressionLevel,
+    blockSizeHint: Long,
+    path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, A]] =
+    fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map { os =>
+      new HadoopWriter[F, A] {
+        override def write(ck: Chunk[A]): F[Unit] = F.blocking(ck.foreach(_.writeDelimitedTo(os)))
+      }
+    }
 
   private def genericRecordWriter[F[_]](
     getEncoder: OutputStream => Encoder,
