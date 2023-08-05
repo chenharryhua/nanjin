@@ -44,9 +44,7 @@ final class HadoopBytes[F[_]] private (
     HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
-    Stream.resource(getWriterR(path.hadoopPath)).flatMap { os =>
-      ss.chunks.foreach(os.write)
-    }
+    Stream.resource(getWriterR(path.hadoopPath)).flatMap(os => ss.chunks.foreach(os.write))
   }
 
   // save

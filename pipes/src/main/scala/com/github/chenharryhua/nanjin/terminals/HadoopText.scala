@@ -47,7 +47,7 @@ final class HadoopText[F[_]] private (
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Nothing] = { (ss: Stream[F, String]) =>
     Stream
       .resource(getWriterR(path.hadoopPath))
-      .flatMap(w => persist[F, Byte](w, ss.intersperse(NEWLINE_SEPARATOR).through(utf8.encode)).stream)
+      .flatMap(w => ss.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write))
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit

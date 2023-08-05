@@ -52,7 +52,7 @@ final class HadoopAvro[F[_]] private (
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
-      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => persist[F, GenericRecord](w, ss).stream)
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.chunks.foreach(w.write))
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
