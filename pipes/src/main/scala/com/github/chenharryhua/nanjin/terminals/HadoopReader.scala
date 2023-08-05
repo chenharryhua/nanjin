@@ -10,6 +10,7 @@ import kantan.csv.{CsvConfiguration, CsvReader, HeaderDecoder, ReadResult}
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
+import org.apache.avro.io.{BinaryDecoder, DecoderFactory, JsonDecoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
@@ -18,6 +19,7 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 import squants.information.Information
 
 import java.io.InputStream
+import scala.util.Try
 
 private object HadoopReader {
 
@@ -56,5 +58,25 @@ private object HadoopReader {
     path: Path)(implicit F: Sync[F]): Stream[F, CsvReader[ReadResult[A]]] =
     inputStreamS[F](configuration, path).flatMap(is =>
       Stream.bracket(F.blocking(is.asCsvReader[A](csvConfiguration)))(r => F.blocking(r.close)))
+
+  def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
+    F: Sync[F]): Stream[F, GenericRecord] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val jsonDecoder: JsonDecoder                       = DecoderFactory.get().jsonDecoder(schema, is)
+      val datumReader: GenericDatumReader[GenericRecord] = new GenericDatumReader[GenericRecord](schema)
+
+      def next: Try[GenericRecord] = Try(datumReader.read(null, jsonDecoder))
+      Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
+    }
+
+  def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
+    F: Sync[F]): Stream[F, GenericRecord] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val binDecoder: BinaryDecoder                      = DecoderFactory.get().binaryDecoder(is, null)
+      val datumReader: GenericDatumReader[GenericRecord] = new GenericDatumReader[GenericRecord](schema)
+
+      def next: Try[GenericRecord] = Try(datumReader.read(null, binDecoder))
+      Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
+    }
 
 }

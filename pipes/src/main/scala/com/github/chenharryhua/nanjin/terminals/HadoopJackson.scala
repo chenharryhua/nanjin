@@ -4,16 +4,13 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
-import org.apache.avro.io.{DecoderFactory, JsonDecoder}
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
-
-import java.io.{EOFException, InputStream}
 
 final class HadoopJackson[F[_]] private (
   configuration: Configuration,
@@ -31,26 +28,8 @@ final class HadoopJackson[F[_]] private (
 
   // read
 
-  def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] = {
-    def go(jsonDecoder: JsonDecoder, datumReader: GenericDatumReader[GenericRecord])(
-      is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
-      Pull
-        .functionKInstance(
-          F.blocking(try Some(datumReader.read(null, jsonDecoder))
-          catch {
-            case _: EOFException => None
-          }))
-        .flatMap {
-          case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[InputStream]](Some(is))
-          case None    => Pull.pure(None)
-        }
-    for {
-      is <- HadoopReader.inputStreamS[F](configuration, path.hadoopPath)
-      jsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
-      datumReader = new GenericDatumReader[GenericRecord](schema)
-      gr <- Pull.loop[F, GenericRecord, InputStream](go(jsonDecoder, datumReader))(is).stream
-    } yield gr
-  }
+  def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] =
+    HadoopReader.jacksonS[F](configuration, schema, path.hadoopPath)
 
   def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericRecord] =
     paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>

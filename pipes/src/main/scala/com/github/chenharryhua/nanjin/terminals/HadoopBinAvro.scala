@@ -3,16 +3,13 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
-import org.apache.avro.io.DecoderFactory
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
-
-import java.io.{EOFException, InputStream}
 
 final class HadoopBinAvro[F[_]] private (
   configuration: Configuration,
@@ -32,21 +29,7 @@ final class HadoopBinAvro[F[_]] private (
   // read
 
   def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] =
-    HadoopReader.inputStreamS[F](configuration, path.hadoopPath).flatMap { is =>
-      val datumReader = new GenericDatumReader[GenericRecord](schema)
-      val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
-      def go(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
-        Pull
-          .functionKInstance(F.delay(try Option(datumReader.read(null, avroDecoder))
-          catch {
-            case _: EOFException => None
-          }))
-          .flatMap {
-            case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[InputStream]](Some(is))
-            case None    => Pull.pure(None)
-          }
-      Pull.loop(go)(is).stream
-    }
+    HadoopReader.binAvroS[F](configuration, schema, path.hadoopPath)
 
   def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericRecord] =
     paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
