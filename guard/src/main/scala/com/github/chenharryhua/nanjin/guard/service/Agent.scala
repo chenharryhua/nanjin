@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.Resource
-import cats.effect.kernel.{Async, Unique}
+import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -36,7 +35,9 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
   def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F]
+  def meterR(meterName: String, unitOfMeasure: StandardUnit): Resource[F, NJMeter[F]]
   def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F]
+  def histogramR(histoName: String, unitOfMeasure: StandardUnit): Resource[F, NJHistogram[F]]
   def gauge(gaugeName: String): NJGauge[F]
 
   // udp
@@ -130,6 +131,8 @@ final class GeneralAgent[F[_]: Network] private[service] (
       isCounting = false
     )
   }
+  override def meterR(meterName: String, unitOfMeasure: StandardUnit): Resource[F, NJMeter[F]] =
+    Resource.make(F.pure(meter(meterName, unitOfMeasure)))(_.unregister)
 
   override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] = {
     val name = NameConstraint.unsafeFrom(histoName).value
@@ -140,6 +143,8 @@ final class GeneralAgent[F[_]: Network] private[service] (
       isCounting = false
     )
   }
+  override def histogramR(histoName: String, unitOfMeasure: StandardUnit): Resource[F, NJHistogram[F]] =
+    Resource.make(F.pure(histogram(histoName, unitOfMeasure)))(_.unregister)
 
   override def gauge(gaugeName: String): NJGauge[F] = {
     val name = NameConstraint.unsafeFrom(gaugeName).value

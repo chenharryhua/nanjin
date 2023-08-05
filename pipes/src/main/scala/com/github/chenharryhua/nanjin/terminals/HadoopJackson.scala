@@ -2,72 +2,68 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
-import com.github.chenharryhua.nanjin.pipes.JacksonSerde
-import fs2.io.readInputStream
 import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 
-final class HadoopJackson[F[_]](
+final class HadoopJackson[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
-  chunkSize: ChunkSize,
   compressLevel: CompressionLevel,
   schema: Schema) {
 
+  // config
+
   def withBlockSizeHint(bsh: Long): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, bsh, chunkSize, compressLevel, schema)
+    new HadoopJackson[F](configuration, bsh, compressLevel, schema)
 
   def withCompressionLevel(cl: CompressionLevel): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, blockSizeHint, chunkSize, cl, schema)
+    new HadoopJackson[F](configuration, blockSizeHint, cl, schema)
 
-  def withChunkSize(cs: ChunkSize): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, blockSizeHint, cs, compressLevel, schema)
+  // read
 
   def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] =
-    for {
-      is <- Stream.resource(HadoopReader.inputStream[F](configuration, path.hadoopPath))
-      as <- readInputStream[F](F.pure(is), chunkSize.value).through(JacksonSerde.fromBytes(schema))
-    } yield as
+    HadoopReader.jacksonS[F](configuration, schema, path.hadoopPath)
 
   def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericRecord] =
     paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
       s ++ source(p)
     }
 
+  // write
+
+  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+    HadoopWriter.jacksonR[F](configuration, compressLevel, blockSizeHint, schema, path)
+
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
     (ss: Stream[F, GenericRecord]) =>
-      Stream
-        .resource(HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
-        .flatMap(w => persist[F, Byte](w, ss.through(JacksonSerde.toBytes(schema))).stream)
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => persist(w, ss).stream)
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
-    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
+    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
+      getWriterR(pathBuilder(tick).hadoopPath)
 
-    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Hotswap(
-        HadoopWriter.bytes[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath))
+    def init(
+      zero: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
+      Hotswap(getWriter(zero))
 
     // save
     (ss: Stream[F, GenericRecord]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          rotatePersist[F, Byte](
+          rotatePersist[F, GenericRecord](
             getWriter,
             hotswap,
             writer,
-            ss.through(JacksonSerde.toBytes[F](schema))
-              .map(Left(_))
-              .mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }
@@ -76,10 +72,5 @@ final class HadoopJackson[F[_]](
 
 object HadoopJackson {
   def apply[F[_]](configuration: Configuration, schema: Schema): HadoopJackson[F] =
-    new HadoopJackson[F](
-      configuration,
-      BLOCK_SIZE_HINT,
-      CHUNK_SIZE,
-      CompressionLevel.DEFAULT_COMPRESSION,
-      schema)
+    new HadoopJackson[F](configuration, BLOCK_SIZE_HINT, CompressionLevel.DEFAULT_COMPRESSION, schema)
 }

@@ -62,6 +62,7 @@ sealed trait CirceCompression extends NJCompression {}
 sealed trait JacksonCompression extends NJCompression {}
 sealed trait KantanCompression extends NJCompression {}
 sealed trait TextCompression extends NJCompression {}
+sealed trait ProtobufCompression extends NJCompression {}
 sealed trait ParquetCompression extends NJCompression {
   final def codecName: CompressionCodecName = this match {
     case NJCompression.Uncompressed => CompressionCodecName.UNCOMPRESSED
@@ -178,66 +179,77 @@ object NJCompression {
       case unknown                      => Left(s"text does not support: $unknown")
     }
 
+  implicit final val encoderProtobufCompression: Encoder[ProtobufCompression] =
+    encoderNJCompression.contramap(identity)
+  implicit final val decoderProtobufCompression: Decoder[ProtobufCompression] =
+    decoderNJCompression.emap {
+      case compression: ProtobufCompression => Right(compression)
+      case unknown                          => Left(s"protobuf does not support: $unknown")
+    }
+
   case object Uncompressed
       extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression
-      with CirceCompression with JacksonCompression with KantanCompression with TextCompression {
+      with CirceCompression with JacksonCompression with KantanCompression with TextCompression
+      with ProtobufCompression {
     override val shortName: String     = "uncompressed"
     override val fileExtension: String = ""
   }
 
   case object Snappy
       extends NJCompression with AvroCompression with BinaryAvroCompression with ParquetCompression
-      with CirceCompression with JacksonCompression with KantanCompression with TextCompression {
+      with CirceCompression with JacksonCompression with KantanCompression with TextCompression
+      with ProtobufCompression {
     override val shortName: String     = "snappy"
     override val fileExtension: String = ".snappy"
   }
 
   case object Bzip2
       extends NJCompression with AvroCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression with ProtobufCompression {
     override val shortName: String     = "bzip2"
     override val fileExtension: String = ".bz2"
   }
 
   case object Gzip
       extends NJCompression with ParquetCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression with ProtobufCompression {
     override val shortName: String     = "gzip"
     override val fileExtension: String = ".gz"
   }
 
   case object Lz4
       extends NJCompression with ParquetCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression with ProtobufCompression {
     override val shortName: String     = "lz4"
     override val fileExtension: String = ".lz4"
   }
 
   case object Lz4_Raw
       extends NJCompression with ParquetCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression with ProtobufCompression {
     override val shortName: String     = "lz4raw"
     override val fileExtension: String = ".lz4raw"
   }
 
-  case object Brotli extends NJCompression with ParquetCompression {
+  case object Brotli extends NJCompression with ParquetCompression with ProtobufCompression {
     override val shortName: String     = "brotli"
     override val fileExtension: String = ".brotli"
   }
 
-  case object Lzo extends NJCompression with ParquetCompression {
+  case object Lzo extends NJCompression with ParquetCompression with ProtobufCompression {
     override val shortName: String     = "lzo"
     override def fileExtension: String = ".lzo"
   }
 
   final case class Deflate(level: NJCompressionLevel)
       extends NJCompression with BinaryAvroCompression with AvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with TextCompression {
+      with JacksonCompression with KantanCompression with TextCompression with ProtobufCompression {
     override val shortName: String     = "deflate"
     override val fileExtension: String = ".deflate"
   }
 
-  final case class Xz(level: NJCompressionLevel) extends NJCompression with AvroCompression {
+  final case class Xz(level: NJCompressionLevel)
+      extends NJCompression with AvroCompression with ProtobufCompression {
     override val shortName: String     = "xz"
     override val fileExtension: String = ".xz"
   }

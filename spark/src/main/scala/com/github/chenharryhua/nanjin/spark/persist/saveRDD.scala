@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Show
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.pipes.KantanSerde
-import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPERATOR, NJCompression, NJFileFormat, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPARATOR, NJCompression, NJFileFormat, NJPath}
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
 import io.circe.{Encoder as JsonEncoder, Json}
 import kantan.csv.{CsvConfiguration, HeaderEncoder}
@@ -94,7 +94,7 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces + NEWLINE_SEPERATOR)))
+      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces + NEWLINE_SEPARATOR)))
       .saveAsNewAPIHadoopFile(
         path.pathStr,
         classOf[NullWritable],
@@ -151,7 +151,7 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .map(a => (NullWritable.get(), new Text(a.show + NEWLINE_SEPERATOR)))
+      .map(a => (NullWritable.get(), new Text(a.show + NEWLINE_SEPARATOR)))
       .saveAsNewAPIHadoopFile(
         path.pathStr,
         classOf[NullWritable],

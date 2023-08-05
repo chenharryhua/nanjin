@@ -34,3 +34,6 @@ final case class KantanFile(override val compression: KantanCompression)
 
 final case class ParquetFile(override val compression: ParquetCompression)
     extends NJFileKind(NJFileFormat.Parquet, compression)
+
+final case class ProtobufFile(override val compression: ProtobufCompression)
+    extends NJFileKind(NJFileFormat.ProtoBuf, compression)
