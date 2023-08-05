@@ -34,7 +34,7 @@ val nettyV      = "4.1.96.Final"
 val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
-val logbackV    = "1.4.8"
+val logbackV    = "1.4.9"
 val doobieV     = "1.0.0-RC4"
 
 lazy val commonSettings = List(
