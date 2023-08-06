@@ -63,11 +63,10 @@ object JacksonSerde {
             .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
             catch { case _: EOFException => None }))
             .flatMap {
-              case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
+              case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[InputStream]](Some(is))
               case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
             }
         Pull.loop(pullAll)(is).void.stream
       }
   }
-
 }

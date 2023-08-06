@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
-import com.github.chenharryhua.nanjin.pipes.CirceSerde
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
@@ -25,7 +24,7 @@ class CirceTest extends AnyFunSuite {
         .filesIn(path)
         .map(_.sorted)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
-          ss ++ hdp.bytes.source(hif).through(CirceSerde.fromBytes[IO, Rooster])
+          ss ++ hdp.circe.source(hif).map(_.as[Rooster]).rethrow
         })
     fs2.Stream.force(rst).compile.toList
   }
@@ -35,7 +34,7 @@ class CirceTest extends AnyFunSuite {
         .filesIn(path)
         .map(_.sorted)
         .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (_, hif) =>
-          hdp.bytes.source(hif).through(CirceSerde.fromBytes[IO, Bee])
+          hdp.circe.source(hif).map(_.as[Bee]).rethrow
         })
     fs2.Stream.force(rst).compile.toList
   }

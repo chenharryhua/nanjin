@@ -44,7 +44,7 @@ private object HadoopWriter {
       writer <- Resource.make(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
     } yield new HadoopWriter[F, GenericRecord] {
       override def write(ck: Chunk[GenericRecord]): F[Unit] =
-        F.blocking(ck.foreach(writer.append)) >> F.blocking(writer.flush())
+        F.blocking(ck.foreach(writer.append)) // don't flush
     }
 
   def parquetR[F[_]](writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]], path: Path)(
@@ -82,7 +82,8 @@ private object HadoopWriter {
           csvConfiguration)))(r => F.blocking(r.close()))
       .map { cw =>
         new HadoopWriter[F, A] {
-          override def write(ck: Chunk[A]): F[Unit] = F.blocking(cw.write(ck.iterator)).void
+          override def write(ck: Chunk[A]): F[Unit] =
+            F.blocking(cw.write(ck.iterator)).void
         }
       }
 
@@ -91,9 +92,8 @@ private object HadoopWriter {
     configuration: Configuration,
     compressionLevel: CompressionLevel,
     blockSizeHint: Long)(implicit F: Sync[F]): Resource[F, OutputStream] =
-    Resource.make(F.blocking {
-      fileOutputStream(path, configuration, compressionLevel, blockSizeHint)
-    })(r => F.blocking(r.close()))
+    Resource.make(F.blocking(fileOutputStream(path, configuration, compressionLevel, blockSizeHint)))(r =>
+      F.blocking(r.close()))
 
   def byteR[F[_]](
     configuration: Configuration,

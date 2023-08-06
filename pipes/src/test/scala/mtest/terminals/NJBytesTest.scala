@@ -3,12 +3,12 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.policies
-import com.github.chenharryhua.nanjin.pipes.CirceSerde
 import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPARATOR, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
+import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import mtest.pipes.TestData
 import mtest.pipes.TestData.Tiger
@@ -30,8 +30,14 @@ class NJBytesTest extends AnyFunSuite {
       .withBufferSize(Bytes(8192))
       .sink(path)
     val src = hdp.bytes.source(path)
-    val action = ts.through(CirceSerde.toBytes(true)).through(sink).compile.drain >>
-      src.through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
+    val action = ts
+      .map(_.asJson.noSpaces)
+      .intersperse(NEWLINE_SEPARATOR)
+      .through(utf8.encode)
+      .through(sink)
+      .compile
+      .drain >>
+      src.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
   val fs2Root: NJPath = NJPath("./data/test/terminals/bytes/fs2")
