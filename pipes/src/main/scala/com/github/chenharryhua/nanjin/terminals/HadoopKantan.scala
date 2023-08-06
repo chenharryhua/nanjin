@@ -70,7 +70,7 @@ final class HadoopKantan[F[_]] private (
 
   def sink[A: NJHeaderEncoder](path: NJPath)(implicit F: Sync[F]): Pipe[F, A, Nothing] = {
     (ss: Stream[F, A]) =>
-      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => persist[F, A](w, ss).stream)
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.chunks.foreach(w.write))
   }
 
   def sink[A: NJHeaderEncoder](policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit

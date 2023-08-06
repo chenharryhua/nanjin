@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.BinaryAvroSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{HadoopBinAvro, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
@@ -13,28 +12,22 @@ import org.scalatest.DoNotDiscover
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
+  val hdp                         = sparkSession.hadoop[IO]
+  val bin_avro: HadoopBinAvro[IO] = hdp.binAvro(Rooster.schema)
 
   def saver(path: NJPath) =
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(2)), Rooster.avroCodec.avroEncoder)
       .binAvro(path)
       .overwrite
 
-  def loadRooster(path: NJPath) = fs2.Stream
-    .force(
-      hdp
-        .filesIn(path)
-        .map(is =>
-          is.sorted.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
-            ss ++ hdp.bytes
-              .source(hif)
-              .through(BinaryAvroSerde.fromBytes(Rooster.schema))
-              .map(Rooster.avroCodec.fromRecord)
-          }))
-    .compile
-    .toList
-    .map(_.toSet)
-
-  val hdp = sparkSession.hadoop[IO]
+  def loadRooster(path: NJPath): IO[Set[Rooster]] =
+    Stream
+      .eval(hdp.filesIn(path))
+      .flatMap(bin_avro.source)
+      .map(Rooster.avroCodec.fromRecord)
+      .compile
+      .toList
+      .map(_.toSet)
 
   val root = NJPath("./data/test/spark/persist/bin_avro/") / "rooster"
   test("binary avro - uncompressed") {
@@ -118,8 +111,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
-      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.sink(path))
+      .through(bin_avro.sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -132,8 +124,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
-      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.sink(path))
+      .through(bin_avro.sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -147,8 +138,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
-      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.sink(path))
+      .through(bin_avro.sink(path))
       .compile
       .drain
       .unsafeRunSync()
@@ -162,8 +152,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
-      .through(BinaryAvroSerde.toBytes[IO](Rooster.schema))
-      .through(hdp.bytes.sink(path))
+      .through(bin_avro.sink(path))
       .compile
       .drain
       .unsafeRunSync()

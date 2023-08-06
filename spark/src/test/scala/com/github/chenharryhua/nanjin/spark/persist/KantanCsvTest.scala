@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 import better.files.File
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.KantanSerde
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{NJHeaderEncoder, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJHeaderEncoder, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.{CsvConfiguration, RowDecoder}
@@ -25,21 +24,14 @@ class KantanCsvTest extends AnyFunSuite {
   def saver(path: NJPath, cfg: CsvConfiguration): SaveKantanCsv[IO, Tablet] =
     new RddFileHoarder[IO, Tablet](IO(rdd)).kantan(path, cfg)
 
-  val hdp = sparkSession.hadoop[IO]
+  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
 
-  def loadTablet(path: NJPath, cfg: CsvConfiguration) = Stream
-    .force(
-      hdp
-        .filesIn(path)
-        .map(_.sorted)
-        .map(_.foldLeft(Stream.empty.covaryAll[IO, Tablet]) { case (ss, hip) =>
-          ss ++ hdp.bytes.source(hip).through(KantanSerde.fromBytes[IO, Tablet](cfg))
-        }))
-    .compile
-    .toList
-    .map(_.toSet)
+  def loadTablet(path: NJPath, cfg: CsvConfiguration): IO[Set[Tablet]] = {
+    val kantan = hdp.kantan(cfg)
+    Stream.eval(hdp.filesIn(path)).flatMap(kantan.source[Tablet]).compile.toList.map(_.toSet)
+  }
 
-  val root = NJPath("./data/test/spark/persist/csv/tablet")
+  val root: NJPath = NJPath("./data/test/spark/persist/csv/tablet")
   test("tablet read/write identity multi.uncompressed") {
     val path = root / "uncompressed"
     val cfg  = CsvConfiguration.rfc

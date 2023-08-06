@@ -29,7 +29,7 @@ object JavaObjectSerde {
         F.delay(try Some(ois.readObject().asInstanceOf[A])
         catch { case _: EOFException => None }))
       .flatMap {
-        case Some(a) => Pull.output1(a) >> Pull.pure(Some(ois))
+        case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[ObjectInputStream]](Some(ois))
         case None    => Pull.eval(F.blocking(ois.close())) >> Pull.pure(None)
       }
 

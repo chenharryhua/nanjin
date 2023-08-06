@@ -53,10 +53,12 @@ final class HadoopCirce[F[_]] private (
     HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Nothing] = { (ss: Stream[F, Json]) =>
-    Stream.resource(getWriterR(path.hadoopPath)).flatMap { writer =>
-      persist[F, Byte](
-        writer,
-        ss.mapChunks(_.map(_.noSpaces)).intersperse(NEWLINE_SEPARATOR).through(utf8.encode)).stream
+    Stream.resource(getWriterR(path.hadoopPath)).flatMap { w =>
+      ss.mapChunks(_.map(_.noSpaces))
+        .intersperse(NEWLINE_SEPARATOR)
+        .through(utf8.encode)
+        .chunks
+        .foreach(w.write)
     }
   }
 

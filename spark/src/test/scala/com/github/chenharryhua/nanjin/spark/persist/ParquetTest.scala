@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJCompression, NJPath}
 import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
@@ -14,23 +14,21 @@ class ParquetTest extends AnyFunSuite {
   import RoosterData.*
   val hdp = sparkSession.hadoop[IO]
 
-  def loadRooster(path: NJPath) =
+  val parquet: HadoopParquet[IO] = hdp.parquet(Rooster.avroCodec.schema)
+
+  def loadRooster(path: NJPath): IO[Set[Rooster]] =
     fs2.Stream
-      .force(
-        hdp
-          .filesIn(path)
-          .map(_.sorted)
-          .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, p) =>
-            ss ++ hdp.parquet(Rooster.schema).source(p).map(Rooster.avroCodec.fromRecord)
-          }))
+      .eval(hdp.filesIn(path))
+      .flatMap(parquet.source)
+      .map(Rooster.avroCodec.fromRecord)
       .compile
       .toList
       .map(_.toSet)
 
-  def roosterSaver(path: NJPath) =
+  def roosterSaver(path: NJPath): SaveParquet[IO, Rooster] =
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd), Rooster.avroCodec.avroEncoder).parquet(path)
 
-  val root = NJPath("./data/test/spark/persist/parquet")
+  val root: NJPath = NJPath("./data/test/spark/persist/parquet")
 
   test("spark parquet =!= apache parquet") {
     val path = root / "rooster" / "spark"
