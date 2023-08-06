@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.JacksonSerde
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
@@ -18,19 +17,12 @@ class JacksonTest extends AnyFunSuite {
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(3)), Rooster.avroCodec.avroEncoder)
       .jackson(path)
 
-  val hdp = sparkSession.hadoop[IO]
+  val hdp     = sparkSession.hadoop[IO]
+  val jackson = hdp.jackson(Rooster.schema)
 
-  def loadRooster(path: NJPath) = Stream
-    .force(
-      hdp
-        .filesIn(path)
-        .map(_.sorted)
-        .map(_.foldLeft(Stream.empty.covaryAll[IO, Rooster]) { case (ss, hip) =>
-          ss ++ hdp.bytes
-            .source(hip)
-            .through(JacksonSerde.fromBytes[IO](Rooster.schema))
-            .map(Rooster.avroCodec.fromRecord)
-        }))
+  def loadRooster(path: NJPath): IO[Set[Rooster]] = Stream
+    .eval(hdp.filesIn(path))
+    .flatMap(jackson.source(_).map(Rooster.avroCodec.fromRecord))
     .compile
     .toList
     .map(_.toSet)

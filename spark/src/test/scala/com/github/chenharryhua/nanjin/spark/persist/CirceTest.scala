@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{HadoopCirce, NJPath}
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.generic.auto.*
@@ -16,28 +16,15 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
 
-  def rooster(path: NJPath) = new RddFileHoarder[IO, Rooster](IO(RoosterData.ds.rdd)).circe(path)
-  val hdp                   = sparkSession.hadoop[IO]
-  def loadRoosters(path: NJPath) = {
-    val rst =
-      hdp
-        .filesIn(path)
-        .map(_.sorted)
-        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, hif) =>
-          ss ++ hdp.circe.source(hif).map(_.as[Rooster]).rethrow
-        })
-    fs2.Stream.force(rst).compile.toList
-  }
-  def loadBees(path: NJPath) = {
-    val rst =
-      hdp
-        .filesIn(path)
-        .map(_.sorted)
-        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Bee]) { case (_, hif) =>
-          hdp.circe.source(hif).map(_.as[Bee]).rethrow
-        })
-    fs2.Stream.force(rst).compile.toList
-  }
+  def rooster(path: NJPath)  = new RddFileHoarder[IO, Rooster](IO(RoosterData.ds.rdd)).circe(path)
+  val hdp                    = sparkSession.hadoop[IO]
+  val circe: HadoopCirce[IO] = hdp.circe
+
+  def loadRoosters(path: NJPath): IO[List[Rooster]] =
+    fs2.Stream.eval(hdp.filesIn(path)).flatMap(circe.source).map(_.as[Rooster]).rethrow.compile.toList
+
+  def loadBees(path: NJPath): IO[List[Bee]] =
+    fs2.Stream.eval(hdp.filesIn(path)).flatMap(circe.source).map(_.as[Bee]).rethrow.compile.toList
 
   val root = NJPath("./data/test/spark/persist/circe")
 

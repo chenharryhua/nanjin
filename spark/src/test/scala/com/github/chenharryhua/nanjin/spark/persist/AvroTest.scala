@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopAvro, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.apache.spark.sql.SaveMode
@@ -14,32 +14,23 @@ import org.scalatest.funsuite.AnyFunSuite
 class AvroTest extends AnyFunSuite {
   val hadoop: NJHadoop[IO] = sparkSession.hadoop[IO]
 
+  val avro: HadoopAvro[IO] = hadoop.avro(Rooster.avroCodec.schema)
+
   def singleAvro(path: NJPath): Set[Rooster] =
-    hadoop
-      .avro(Rooster.avroCodec.schema)
-      .source(path)
-      .map(Rooster.avroCodec.avroDecoder.decode)
-      .compile
-      .toList
-      .unsafeRunSync()
-      .toSet
+    avro.source(path).map(Rooster.avroCodec.avroDecoder.decode).compile.toList.unsafeRunSync().toSet
 
   def rooster =
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.ds.rdd.repartition(3)), Rooster.avroCodec.avroEncoder)
 
-  def loadRoosters(path: NJPath): IO[List[Rooster]] = {
-    val rst =
-      hadoop
-        .filesIn(path)
-        .map(_.sorted)
-        .map(_.foldLeft(fs2.Stream.empty.covaryAll[IO, Rooster]) { case (ss, p) =>
-          ss ++ hadoop.avro(Rooster.schema).source(p).map(Rooster.avroCodec.avroDecoder.decode)
-        })
+  def loadRoosters(path: NJPath): IO[List[Rooster]] =
+    fs2.Stream
+      .eval(hadoop.filesIn(path))
+      .flatMap(avro.source)
+      .map(Rooster.avroCodec.avroDecoder.decode)
+      .compile
+      .toList
 
-    fs2.Stream.force(rst).compile.toList
-  }
-
-  val root = NJPath("./data/test/spark/persist/avro/")
+  val root: NJPath = NJPath("./data/test/spark/persist/avro/")
 
   test("spark agree apache on avro") {
     val path = root / "rooster" / "spark"
