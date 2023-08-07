@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.chenharryhua.nanjin.terminals.NEWLINE_BYTES_SEPERATOR
+import com.github.chenharryhua.nanjin.terminals.NEWLINE_BYTES_SEPARATOR
 import fs2.{Chunk, Pipe, Pull, Stream}
 import fs2.io.toInputStream
 import io.circe.Printer
@@ -50,7 +50,7 @@ object JacksonSerde {
         encoder.flush()
         baos.close()
         baos.toByteArray
-      }.intersperse(NEWLINE_BYTES_SEPERATOR).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
+      }.intersperse(NEWLINE_BYTES_SEPARATOR).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
   def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = {
@@ -63,11 +63,10 @@ object JacksonSerde {
             .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
             catch { case _: EOFException => None }))
             .flatMap {
-              case Some(a) => Pull.output1(a) >> Pull.pure(Some(is))
+              case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[InputStream]](Some(is))
               case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
             }
         Pull.loop(pullAll)(is).void.stream
       }
   }
-
 }

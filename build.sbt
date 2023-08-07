@@ -8,7 +8,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.8.0"
 val awsV_1      = "1.12.520"
-val awsV_2      = "2.20.110"
+val awsV_2      = "2.20.120"
 val catsEffectV = "3.5.1"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -34,7 +34,7 @@ val nettyV      = "4.1.96.Final"
 val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
-val logbackV    = "1.4.8"
+val logbackV    = "1.4.9"
 val doobieV     = "1.0.0-RC4"
 
 lazy val commonSettings = List(
@@ -270,7 +270,7 @@ lazy val messages = (project in file("messages"))
   .settings(commonSettings*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= List(
-    "org.yaml"                       % "snakeyaml"   % "2.0", // snyk
+    "org.yaml"                       % "snakeyaml"   % "2.1", // snyk
     "org.xerial.snappy"              % "snappy-java" % "1.1.10.3", // snyk
     "io.circe" %% "circe-jackson212" % "0.14.0",
     "org.gnieh" %% "diffson-circe"   % "4.4.0"

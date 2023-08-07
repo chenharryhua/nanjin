@@ -6,15 +6,13 @@ import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.text.{lines, utf8}
 import fs2.{Pipe, Stream}
-import io.circe.Json
-import io.circe.parser.parse
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 import squants.information.Information
 
-final class HadoopCirce[F[_]] private (
+final class HadoopText[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
   bufferSize: Information,
@@ -22,28 +20,22 @@ final class HadoopCirce[F[_]] private (
 
   // config
 
-  def withBlockSizeHint(bsh: Long): HadoopCirce[F] =
-    new HadoopCirce[F](configuration, bsh, bufferSize, compressLevel)
+  def withBlockSizeHint(bsh: Long): HadoopText[F] =
+    new HadoopText[F](configuration, bsh, bufferSize, compressLevel)
 
-  def withBufferSize(bs: Information): HadoopCirce[F] =
-    new HadoopCirce[F](configuration, blockSizeHint, bs, compressLevel)
+  def withBufferSize(bs: Information): HadoopText[F] =
+    new HadoopText[F](configuration, blockSizeHint, bs, compressLevel)
 
-  def withCompressionLevel(cl: CompressionLevel): HadoopCirce[F] =
-    new HadoopCirce[F](configuration, blockSizeHint, bufferSize, cl)
+  def withCompressionLevel(cl: CompressionLevel): HadoopText[F] =
+    new HadoopText[F](configuration, blockSizeHint, bufferSize, cl)
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Json] =
-    HadoopReader
-      .byteS(configuration, bufferSize, path.hadoopPath)
-      .through(utf8.decode)
-      .through(lines)
-      .filter(_.nonEmpty)
-      .mapChunks(_.map(parse))
-      .rethrow
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, String] =
+    HadoopReader.byteS[F](configuration, bufferSize, path.hadoopPath).through(utf8.decode).through(lines)
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Json] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) =>
+  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, String] =
+    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) =>
       s ++ source(p)
     }
 
@@ -52,18 +44,14 @@ final class HadoopCirce[F[_]] private (
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
     HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path)
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Nothing] = { (ss: Stream[F, Json]) =>
-    Stream.resource(getWriterR(path.hadoopPath)).flatMap { w =>
-      ss.mapChunks(_.map(_.noSpaces))
-        .intersperse(NEWLINE_SEPARATOR)
-        .through(utf8.encode)
-        .chunks
-        .foreach(w.write)
-    }
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Nothing] = { (ss: Stream[F, String]) =>
+    Stream
+      .resource(getWriterR(path.hadoopPath))
+      .flatMap(w => ss.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write))
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Json, Nothing] = {
+    F: Async[F]): Pipe[F, String, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       getWriterR(pathBuilder(tick).hadoopPath)
 
@@ -71,15 +59,14 @@ final class HadoopCirce[F[_]] private (
       Hotswap(getWriter(tick))
 
     // save
-    (ss: Stream[F, Json]) =>
+    (ss: Stream[F, String]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
           rotatePersist[F, Byte](
             getWriter,
             hotswap,
             writer,
-            ss.mapChunks(_.map(_.noSpaces))
-              .intersperse(NEWLINE_SEPARATOR)
+            ss.intersperse(NEWLINE_SEPARATOR)
               .through(utf8.encode)
               .chunks
               .map(Left(_))
@@ -90,7 +77,7 @@ final class HadoopCirce[F[_]] private (
   }
 }
 
-object HadoopCirce {
-  def apply[F[_]](cfg: Configuration): HadoopCirce[F] =
-    new HadoopCirce[F](cfg, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)
+object HadoopText {
+  def apply[F[_]](configuration: Configuration): HadoopText[F] =
+    new HadoopText[F](configuration, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)
 }

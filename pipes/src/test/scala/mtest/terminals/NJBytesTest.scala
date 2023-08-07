@@ -2,18 +2,23 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.CirceSerde
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.datetime.policies
+import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPARATOR, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
+import io.circe.parser.decode
+import io.circe.syntax.EncoderOps
 import mtest.pipes.TestData
 import mtest.pipes.TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.Assertion
+import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
+
+import scala.concurrent.duration.DurationInt
 
 class NJBytesTest extends AnyFunSuite {
 
@@ -25,12 +30,17 @@ class NJBytesTest extends AnyFunSuite {
       .withBufferSize(Bytes(8192))
       .sink(path)
     val src = hdp.bytes.source(path)
-    val action = ts.through(CirceSerde.toBytes(true)).through(sink).compile.drain >>
-      src.through(CirceSerde.fromBytes[IO, Tiger]).compile.toList
+    val action = ts
+      .map(_.asJson.noSpaces)
+      .intersperse(NEWLINE_SEPARATOR)
+      .through(utf8.encode)
+      .through(sink)
+      .compile
+      .drain >>
+      src.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
-  val akkaRoot: NJPath = NJPath("./data/test/terminals/bytes/akka")
-  val fs2Root: NJPath  = NJPath("./data/test/terminals/bytes/fs2")
+  val fs2Root: NJPath = NJPath("./data/test/terminals/bytes/fs2")
 
   test("uncompressed") {
     fs2(fs2Root / "tiger.json", TestData.tigerSet)
@@ -60,5 +70,32 @@ class NJBytesTest extends AnyFunSuite {
   test("laziness") {
     hdp.bytes.source(NJPath("./does/not/exist"))
     hdp.bytes.sink(NJPath("./does/not/exist"))
+  }
+
+  test("rotation") {
+    val path   = fs2Root / "rotation"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    val sink = hdp.bytes.sink(policies.constantDelay[IO](1.second))(t => path / s"${t.index}.byte")
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(_.asJson.noSpaces)
+      .intersperse(NEWLINE_SEPARATOR)
+      .through(utf8.encode)
+      .through(sink)
+      .compile
+      .drain
+      .unsafeRunSync()
+    val size = Stream
+      .force(hdp.filesIn(path).map(hdp.bytes.source))
+      .through(utf8.decode)
+      .through(lines)
+      .compile
+      .toList
+      .map(_.size)
+      .unsafeRunSync()
+    assert(size == number * 10)
   }
 }

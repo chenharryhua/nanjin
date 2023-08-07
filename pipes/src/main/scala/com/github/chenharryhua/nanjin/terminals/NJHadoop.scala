@@ -80,25 +80,24 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     */
   def best[T](path: NJPath, rules: NonEmptyList[String => Option[T]])(implicit
     F: Sync[F],
-    Ord: Ordering[T]): F[Option[NJPath]] =
-    F.blocking {
-      val fs: FileSystem = path.hadoopPath.getFileSystem(config)
-      @tailrec
-      def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
-        js match {
-          case f :: tail =>
-            fs.listStatus(hp)
-              .filter(_.isDirectory)
-              .flatMap(s => f(s.getPath.getName).map((_, s)))
-              .maxByOption(_._1)
-              .map(_._2) match {
-              case Some(status) => go(status.getPath, tail)
-              case None         => None
-            }
-          case Nil => Some(hp)
-        }
-      go(path.hadoopPath, rules.toList).map(NJPath(_))
-    }
+    Ord: Ordering[T]): F[Option[NJPath]] = F.blocking {
+    val fs: FileSystem = path.hadoopPath.getFileSystem(config)
+    @tailrec
+    def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
+      js match {
+        case f :: tail =>
+          fs.listStatus(hp)
+            .filter(_.isDirectory)
+            .flatMap(s => f(s.getPath.getName).map((_, s)))
+            .maxByOption(_._1)
+            .map(_._2) match {
+            case Some(status) => go(status.getPath, tail)
+            case None         => None
+          }
+        case Nil => Some(hp)
+      }
+    go(path.hadoopPath, rules.toList).map(NJPath(_))
+  }
 
   def latestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
@@ -113,4 +112,6 @@ final class NJHadoop[F[_]] private (config: Configuration) {
   def parquet(schema: Schema): HadoopParquet[F]          = HadoopParquet[F](config, schema)
   def kantan(csvConf: CsvConfiguration): HadoopKantan[F] = HadoopKantan[F](config, csvConf)
   def circe: HadoopCirce[F]                              = HadoopCirce[F](config)
+  def protobuf: HadoopProtobuf[F]                        = HadoopProtobuf[F](config)
+  def text: HadoopText[F]                                = HadoopText[F](config)
 }

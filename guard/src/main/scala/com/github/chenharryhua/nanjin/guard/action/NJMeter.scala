@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
+import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Category, CounterKind, MeterKind, MetricID, MetricName}
 import io.circe.syntax.EncoderOps
@@ -12,12 +13,16 @@ final class NJMeter[F[_]] private[guard] (
   metricRegistry: MetricRegistry,
   unit: StandardUnit,
   isCounting: Boolean)(implicit F: Sync[F]) {
+  private val meterName   = MetricID(name, Category.Meter(MeterKind.Dropwizard, unit)).asJson.noSpaces
+  private val counterName = MetricID(name, Category.Counter(CounterKind.MeterCounter)).asJson.noSpaces
 
-  private lazy val meter: Meter =
-    metricRegistry.meter(MetricID(name, Category.Meter(MeterKind.Dropwizard, unit)).asJson.noSpaces)
+  private lazy val meter: Meter     = metricRegistry.meter(meterName)
+  private lazy val counter: Counter = metricRegistry.counter(counterName)
 
-  private lazy val counter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.MeterCounter)).asJson.noSpaces)
+  private[guard] def unregister: F[Unit] = F.blocking {
+    metricRegistry.remove(meterName)
+    metricRegistry.remove(counterName)
+  }.void
 
   def withCounting: NJMeter[F] = new NJMeter[F](name, metricRegistry, unit, true)
 
