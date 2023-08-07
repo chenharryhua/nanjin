@@ -19,7 +19,7 @@ import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
-import java.io.OutputStream
+import java.io.{OutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
 
 sealed private trait HadoopWriter[F[_], A] {
@@ -112,11 +112,17 @@ private object HadoopWriter {
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
-      new HadoopWriter[F, String] {
-        override def write(ck: Chunk[String]): F[Unit] =
-          F.blocking(ck.foreach(s => os.write(s.getBytes(StandardCharsets.UTF_8)))) >> F.blocking(os.flush())
-      })
+    Resource
+      .make(
+        F.blocking(
+          new OutputStreamWriter(
+            fileOutputStream(path, configuration, compressionLevel, blockSizeHint),
+            StandardCharsets.UTF_8)))(r => F.blocking(r.close()))
+      .map(os =>
+        new HadoopWriter[F, String] {
+          override def write(ck: Chunk[String]): F[Unit] =
+            F.blocking(ck.foreach(os.write)) >> F.blocking(os.flush())
+        })
 
   def protobufR[F[_], A <: GeneratedMessage](
     configuration: Configuration,
