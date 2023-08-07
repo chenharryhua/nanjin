@@ -60,7 +60,7 @@ final class HadoopBytes[F[_]] private (
     (ss: Stream[F, Byte]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          rotatePersist[F, Byte](
+          persist[F, Byte](
             getWriter,
             hotswap,
             writer,

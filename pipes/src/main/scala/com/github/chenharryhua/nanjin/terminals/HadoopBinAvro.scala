@@ -60,7 +60,7 @@ final class HadoopBinAvro[F[_]] private (
     (ss: Stream[F, GenericRecord]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          rotatePersist[F, GenericRecord](
+          persist[F, GenericRecord](
             getWriter,
             hotswap,
             writer,

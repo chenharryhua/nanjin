@@ -20,6 +20,7 @@ import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
 import java.io.OutputStream
+import java.nio.charset.StandardCharsets
 
 sealed private trait HadoopWriter[F[_], A] {
   def write(ck: Chunk[A]): F[Unit]
@@ -104,6 +105,17 @@ private object HadoopWriter {
       new HadoopWriter[F, Byte] {
         override def write(ck: Chunk[Byte]): F[Unit] =
           F.blocking(os.write(ck.toArray)) >> F.blocking(os.flush())
+      })
+
+  def utf8StringR[F[_]](
+    configuration: Configuration,
+    compressionLevel: CompressionLevel,
+    blockSizeHint: Long,
+    path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
+    fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
+      new HadoopWriter[F, String] {
+        override def write(ck: Chunk[String]): F[Unit] =
+          F.blocking(ck.foreach(s => os.write(s.getBytes(StandardCharsets.UTF_8)))) >> F.blocking(os.flush())
       })
 
   def protobufR[F[_], A <: GeneratedMessage](

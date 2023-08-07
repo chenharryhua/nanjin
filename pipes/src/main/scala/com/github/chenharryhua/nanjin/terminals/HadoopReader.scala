@@ -26,7 +26,8 @@ private object HadoopReader {
   def avroR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Resource[F, DataFileStream[GenericRecord]] =
     for {
-      is <- Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
+      is <- Resource.make(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
+        F.blocking(r.close()))
       dfs <- Resource.make[F, DataFileStream[GenericRecord]](
         F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
     } yield dfs

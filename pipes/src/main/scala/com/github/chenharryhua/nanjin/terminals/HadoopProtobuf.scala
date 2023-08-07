@@ -67,7 +67,7 @@ final class HadoopProtobuf[F[_]] private (
     (ss: Stream[F, A]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          rotatePersist[F, A](
+          persist[F, A](
             getWriter,
             hotswap,
             writer,

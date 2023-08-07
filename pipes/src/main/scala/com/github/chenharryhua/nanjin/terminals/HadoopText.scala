@@ -5,9 +5,8 @@ import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.text.{lines, utf8}
-import fs2.{Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 import squants.information.Information
@@ -41,36 +40,30 @@ final class HadoopText[F[_]] private (
 
   // write
 
-  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path)
-
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Nothing] = { (ss: Stream[F, String]) =>
     Stream
-      .resource(getWriterR(path.hadoopPath))
+      .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
       .flatMap(w => ss.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write))
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, String, Nothing] = {
-    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      getWriterR(pathBuilder(tick).hadoopPath)
+    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
+      HadoopWriter.utf8StringR(configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
 
-    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
+    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, String]], HadoopWriter[F, String])] =
       Hotswap(getWriter(tick))
 
     // save
     (ss: Stream[F, String]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          rotatePersist[F, Byte](
+          persistString[F](
             getWriter,
             hotswap,
             writer,
-            ss.intersperse(NEWLINE_SEPARATOR)
-              .through(utf8.encode)
-              .chunks
-              .map(Left(_))
-              .mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_))),
+            Chunk.empty
           ).stream
         }
       }
