@@ -23,7 +23,7 @@ package object terminals {
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
 
-  private[terminals] def rotatePersist[F[_], A](
+  private[terminals] def persist[F[_], A](
     getWriter: Tick => Resource[F, HadoopWriter[F, A]],
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
@@ -33,10 +33,10 @@ package object terminals {
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull.eval(writer.write(data)) >> rotatePersist(getWriter, hotswap, writer, tail)
+            Pull.eval(writer.write(data)) >> persist(getWriter, hotswap, writer, tail)
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
-              rotatePersist(getWriter, hotswap, writer, tail)
+              persist(getWriter, hotswap, writer, tail)
             }
         }
       case None => Pull.done
