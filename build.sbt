@@ -7,7 +7,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.8.0"
-val awsV_1      = "1.12.523"
+val awsV_1      = "1.12.520"
 val awsV_2      = "2.20.110"
 val catsEffectV = "3.5.1"
 val hadoopV     = "3.3.6"
