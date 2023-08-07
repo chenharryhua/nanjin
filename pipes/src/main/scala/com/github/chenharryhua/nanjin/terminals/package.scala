@@ -12,8 +12,9 @@ import squants.information.{Bytes, Information}
 
 import java.nio.charset.StandardCharsets
 package object terminals {
-  final val NEWLINE_SEPARATOR: String            = "\r\n"
-  final val NEWLINE_BYTES_SEPARATOR: Array[Byte] = NEWLINE_SEPARATOR.getBytes(StandardCharsets.UTF_8)
+  @inline final val NEWLINE_SEPARATOR: String            = "\r\n"
+  @inline final val NEWLINE_SEPARATOR_BYTES: Array[Byte] = NEWLINE_SEPARATOR.getBytes(StandardCharsets.UTF_8)
+  @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk(NEWLINE_SEPARATOR)
 
   final val BLOCK_SIZE_HINT: Long    = -1
   final val BUFFER_SIZE: Information = Bytes(8192)
@@ -36,6 +37,29 @@ package object terminals {
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
               rotatePersist(getWriter, hotswap, writer, tail)
+            }
+        }
+      case None => Pull.done
+    }
+
+  private[terminals] def persistString[F[_]](
+    getWriter: Tick => Resource[F, HadoopWriter[F, String]],
+    hotswap: Hotswap[F, HadoopWriter[F, String]],
+    writer: HadoopWriter[F, String],
+    ss: Stream[F, Either[Chunk[String], Tick]],
+    newLineSeparator: Chunk[String]
+  ): Pull[F, Nothing, Unit] =
+    ss.pull.uncons1.flatMap {
+      case Some((head, tail)) =>
+        head match {
+          case Left(data) =>
+            val (rest, last) = data.splitAt(data.size - 1)
+            Pull.eval(writer.write(newLineSeparator ++ rest.map(_.concat(NEWLINE_SEPARATOR)) ++ last)) >>
+              persistString[F](getWriter, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
+
+          case Right(tick) =>
+            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
+              persistString(getWriter, hotswap, writer, tail, Chunk.empty)
             }
         }
       case None => Pull.done
