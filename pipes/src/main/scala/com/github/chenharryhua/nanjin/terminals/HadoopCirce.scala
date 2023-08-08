@@ -79,7 +79,7 @@ final class HadoopCirce[F[_]] private (
             ss.mapChunks(_.map(_.noSpaces))
               .chunks
               .map(Left(_))
-              .mergeHaltL(tickStream[F](policy, zero).map(Right(_))),
+              .mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
             Chunk.empty
           ).stream
         }

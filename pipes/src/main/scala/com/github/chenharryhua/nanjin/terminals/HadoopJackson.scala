@@ -63,7 +63,7 @@ final class HadoopJackson[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.chunks.map(Left(_)).mergeHaltL(tickStream[F](policy, zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }

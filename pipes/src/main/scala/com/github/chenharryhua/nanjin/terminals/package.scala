@@ -9,11 +9,8 @@ import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed
 import fs2.{Chunk, Pull, Stream}
 import squants.information.{Bytes, Information}
-
-import java.nio.charset.StandardCharsets
 package object terminals {
-  @inline final val NEWLINE_SEPARATOR: String            = "\r\n"
-  @inline final val NEWLINE_SEPARATOR_BYTES: Array[Byte] = NEWLINE_SEPARATOR.getBytes(StandardCharsets.UTF_8)
+  @inline final val NEWLINE_SEPARATOR: String                = "\r\n"
   @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk(NEWLINE_SEPARATOR)
 
   final val BLOCK_SIZE_HINT: Long    = -1
