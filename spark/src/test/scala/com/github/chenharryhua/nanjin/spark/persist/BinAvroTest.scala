@@ -111,6 +111,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
+      .chunks
       .through(bin_avro.sink(path))
       .compile
       .drain
@@ -124,6 +125,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
+      .chunks
       .through(bin_avro.sink(path))
       .compile
       .drain
@@ -138,6 +140,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
+      .chunks
       .through(bin_avro.sink(path))
       .compile
       .drain
@@ -152,6 +155,7 @@ class BinAvroTest extends AnyFunSuite {
     IO(RoosterData.rdd).output
       .stream(100)
       .map(Rooster.avroCodec.toRecord)
+      .chunks
       .through(bin_avro.sink(path))
       .compile
       .drain

@@ -22,7 +22,7 @@ class NJKantanTest extends AnyFunSuite {
   def fs2(path: NJPath, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts = Stream.emits(data.toList).covary[IO]
+    val ts = Stream.emits(data.toList).covary[IO].chunks
     val sink = hdp
       .kantan(csvConfiguration)
       .withChunkSize(100)
@@ -74,6 +74,7 @@ class NJKantanTest extends AnyFunSuite {
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
+      .chunks
       .through(conn.sink[Tiger](path))
       .compile
       .drain
@@ -95,6 +96,7 @@ class NJKantanTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
+      .chunks
       .through(csv.sink[Tiger](RetryPolicies.constantDelay[IO](1.second))(t => path / file.fileName(t)))
       .compile
       .drain

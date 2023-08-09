@@ -24,7 +24,7 @@ class NJBinAvroTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink   = binAvro.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
     val src    = binAvro.source(tgt)
-    val ts     = Stream.emits(data.toList).covary[IO]
+    val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -69,6 +69,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
+      .chunks
       .through(binAvro.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / file.fileName(t)))
       .compile
       .drain

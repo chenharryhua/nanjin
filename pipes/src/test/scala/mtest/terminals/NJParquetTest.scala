@@ -24,7 +24,7 @@ class NJParquetTest extends AnyFunSuite {
 
   def fs2(path: NJPath, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
-    val ts  = Stream.emits(data.toList).covary[IO]
+    val ts  = Stream.emits(data.toList).covary[IO].chunks
     hdp.delete(tgt).unsafeRunSync()
     val action =
       ts.through(parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt))
@@ -81,6 +81,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
+      .chunks
       .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
         path / file.fileName(sydneyTime, t)))
       .compile

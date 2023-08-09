@@ -48,20 +48,22 @@ final class HadoopCirce[F[_]] private (
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Nothing] = { (ss: Stream[F, Json]) =>
-    Stream
-      .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
-      .flatMap { w =>
-        ss.mapChunks(_.map(_.noSpaces))
-          .intersperse(NEWLINE_SEPARATOR)
-          .through(utf8.encode)
-          .chunks
-          .foreach(w.write)
-      }
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Json], Nothing] = {
+    (ss: Stream[F, Chunk[Json]]) =>
+      Stream
+        .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
+        .flatMap { w =>
+          ss.unchunks
+            .mapChunks(_.map(_.noSpaces))
+            .intersperse(NEWLINE_SEPARATOR)
+            .through(utf8.encode)
+            .chunks
+            .foreach(w.write)
+        }
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Json, Nothing] = {
+    F: Async[F]): Pipe[F, Chunk[Json], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.utf8StringR[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
 
@@ -69,17 +71,14 @@ final class HadoopCirce[F[_]] private (
       Hotswap(getWriter(tick))
 
     // save
-    (ss: Stream[F, Json]) =>
+    (ss: Stream[F, Chunk[Json]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
           persistString[F](
             getWriter,
             hotswap,
             writer,
-            ss.mapChunks(_.map(_.noSpaces))
-              .chunks
-              .map(Left(_))
-              .mergeHaltL(tickStream[F](policy, zero).map(Right(_))),
+            ss.map(_.map(_.noSpaces)).map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
             Chunk.empty
           ).stream
         }

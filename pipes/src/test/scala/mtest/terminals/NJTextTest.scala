@@ -26,7 +26,7 @@ class NJTextTest extends AnyFunSuite {
   def fs2(path: NJPath, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
+    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
     val sink   = text.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
     val src    = text.source(tgt).mapFilter(decode[Tiger](_).toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
@@ -60,18 +60,19 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("ftp") {
-    val path = NJPath("ftp://localhost/data/tiger.json")
+    val path = NJPath("ftp://localhost/data/tiger.txt")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")
     conf.set("fs.ftp.user.localhost", "chenh")
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).circe
+    val conn = NJHadoop[IO](conf).text
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
-      .map(_.asJson)
+      .map(_.toString)
+      .chunks
       .through(conn.sink(path))
       .compile
       .drain
@@ -92,7 +93,8 @@ class NJTextTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .map(_.asJson.noSpaces)
+      .map(_.toString)
+      .chunks
       .through(text.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.fileName(t)))
       .compile
       .drain

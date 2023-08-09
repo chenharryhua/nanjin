@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.kernel.Async
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPARATOR_BYTES
+import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPARATOR
 import fs2.{Chunk, Pipe, Pull, Stream}
 import fs2.io.toInputStream
 import io.circe.Printer
@@ -12,6 +12,7 @@ import org.apache.avro.generic.{GenericDatumReader, GenericDatumWriter, GenericR
 import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
+import java.nio.charset.StandardCharsets
 
 object JacksonSerde {
 
@@ -24,6 +25,7 @@ object JacksonSerde {
       case Some((h, tl)) =>
         val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
+
         datumWriter.write(h, encoder)
         encoder.flush()
         baos.close()
@@ -50,7 +52,8 @@ object JacksonSerde {
         encoder.flush()
         baos.close()
         baos.toByteArray
-      }.intersperse(NEWLINE_SEPARATOR_BYTES).flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
+      }.intersperse(NEWLINE_SEPARATOR.getBytes(StandardCharsets.ISO_8859_1)) // JsonEncoder use ISO_8859_1
+        .flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
   }
 
   def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = {

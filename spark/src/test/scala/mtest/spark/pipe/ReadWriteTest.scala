@@ -46,7 +46,7 @@ class ReadWriteTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
     val writer = hdp.circe.sink(policy)(t => path / t.index)
-    data.map(_.asJson).through(writer).compile.drain.unsafeRunSync()
+    data.map(_.asJson).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.circe(path).count.unsafeRunSync()
     assert(count == number)
   }
@@ -55,7 +55,7 @@ class ReadWriteTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
     val writer = hdp.jackson(codec.schema).sink(policy)(t => path / t.index)
-    data.map(codec.toRecord).through(writer).compile.drain.unsafeRunSync()
+    data.map(codec.toRecord).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.jackson(path).count.unsafeRunSync()
     assert(count == number)
   }
@@ -65,7 +65,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
     val writer =
       hdp.kantan(CsvConfiguration.rfc).sink[TestData](policy)(t => path / t.index)
-    data.through(writer).compile.drain.unsafeRunSync()
+    data.chunks.through(writer).compile.drain.unsafeRunSync()
     val count = sparkSession
       .loadTable[IO](AvroTypedEncoder[TestData])
       .kantan(path, CsvConfiguration.rfc)
@@ -78,7 +78,7 @@ class ReadWriteTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
     val writer = hdp.avro(codec.schema).sink(policy)(t => path / t.index)
-    data.map(codec.toRecord).through(writer).compile.drain.unsafeRunSync()
+    data.map(codec.toRecord).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.avro(path).count.unsafeRunSync()
     assert(count == number)
   }
@@ -87,7 +87,7 @@ class ReadWriteTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
     val writer = hdp.binAvro(codec.schema).sink(policy)(t => path / t.index)
-    data.map(codec.toRecord).through(writer).compile.drain.unsafeRunSync()
+    data.map(codec.toRecord).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.binAvro(path).count.unsafeRunSync()
     assert(count == number)
   }
@@ -97,7 +97,7 @@ class ReadWriteTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
     val writer = hdp.parquet(codec.schema).sink(policy)(t => path / t.index)
-    data.map(codec.toRecord).through(writer).compile.drain.unsafeRunSync()
+    data.map(codec.toRecord).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.parquet(path).count.unsafeRunSync()
     assert(count == number)
   }

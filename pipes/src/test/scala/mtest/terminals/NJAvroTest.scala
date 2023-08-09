@@ -23,7 +23,7 @@ class NJAvroTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink   = avro.withChunkSize(100).withBlockSizeHint(1000).withCompression(file.compression).sink(tgt)
     val src    = avro.source(tgt)
-    val ts     = Stream.emits(data.toList).covary[IO]
+    val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -68,6 +68,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
+      .chunks
       .through(avro.sink(policies.constantDelay[IO](1.second))(t => path / file.fileName(t)))
       .compile
       .drain
