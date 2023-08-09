@@ -40,14 +40,15 @@ final class HadoopText[F[_]] private (
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Nothing] = { (ss: Stream[F, String]) =>
-    Stream
-      .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
-      .flatMap(w => ss.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write))
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[String], Nothing] = {
+    (ss: Stream[F, Chunk[String]]) =>
+      Stream
+        .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
+        .flatMap(w => ss.unchunks.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write))
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, String, Nothing] = {
+    F: Async[F]): Pipe[F, Chunk[String], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.utf8StringR(configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
 
@@ -55,14 +56,14 @@ final class HadoopText[F[_]] private (
       Hotswap(getWriter(tick))
 
     // save
-    (ss: Stream[F, String]) =>
+    (ss: Stream[F, Chunk[String]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
           persistString[F](
             getWriter,
             hotswap,
             writer,
-            ss.chunks.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
+            ss.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
             Chunk.empty
           ).stream
         }

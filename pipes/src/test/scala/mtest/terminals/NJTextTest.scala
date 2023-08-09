@@ -26,7 +26,7 @@ class NJTextTest extends AnyFunSuite {
   def fs2(path: NJPath, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
+    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
     val sink   = text.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
     val src    = text.source(tgt).mapFilter(decode[Tiger](_).toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
@@ -72,6 +72,7 @@ class NJTextTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(_.toString)
+      .chunks
       .through(conn.sink(path))
       .compile
       .drain
@@ -93,6 +94,7 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
+      .chunks
       .through(text.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.fileName(t)))
       .compile
       .drain

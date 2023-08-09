@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
-import fs2.{Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
@@ -41,13 +41,13 @@ final class HadoopJackson[F[_]] private (
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     HadoopWriter.jacksonR[F](configuration, compressLevel, blockSizeHint, schema, path)
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
-    (ss: Stream[F, GenericRecord]) =>
-      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.chunks.foreach(w.write))
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)
 
@@ -56,14 +56,14 @@ final class HadoopJackson[F[_]] private (
       Hotswap(getWriter(zero))
 
     // save
-    (ss: Stream[F, GenericRecord]) =>
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,
             hotswap,
             writer,
-            ss.chunks.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
+            ss.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }

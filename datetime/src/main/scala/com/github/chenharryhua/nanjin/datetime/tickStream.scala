@@ -65,21 +65,19 @@ object tickStream {
         case PolicyDecision.GiveUp => F.pure(None)
         case PolicyDecision.DelayAndRetry(delay) =>
           F.sleep(delay) >> F.realTimeInstant.map { wakeup =>
-            val rs: RetryStatus =
-              previous.status.addRetry(Duration.between(previous.wakeTime, wakeup).toScala)
             val tick: Tick =
               Tick(
                 streamId = previous.streamId,
                 snooze = delay.toJava,
                 previous = previous.wakeTime,
                 wakeTime = wakeup,
-                status = rs
+                status = previous.status.addRetry(Duration.between(previous.wakeTime, wakeup).toScala)
               )
             (tick, tick).some
           }
       }
     }
 
-  def apply[F[_]: UUIDGen](policy: RetryPolicy[F])(implicit F: Temporal[F]): Stream[F, Tick] =
+  def apply[F[_]: UUIDGen: Temporal](policy: RetryPolicy[F]): Stream[F, Tick] =
     Stream.eval[F, Tick](Tick.Zero[F]).flatMap(apply(policy, _))
 }

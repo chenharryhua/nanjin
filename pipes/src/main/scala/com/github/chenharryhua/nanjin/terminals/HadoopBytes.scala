@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
-import fs2.{Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -43,13 +43,14 @@ final class HadoopBytes[F[_]] private (
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
     HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path)
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
-    Stream.resource(getWriterR(path.hadoopPath)).flatMap(os => ss.chunks.foreach(os.write))
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Byte], Nothing] = {
+    (ss: Stream[F, Chunk[Byte]]) =>
+      Stream.resource(getWriterR(path.hadoopPath)).flatMap(os => ss.foreach(os.write))
   }
 
   // save
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Byte, Nothing] = {
+    F: Async[F]): Pipe[F, Chunk[Byte], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       getWriterR(pathBuilder(tick).hadoopPath)
 
@@ -57,14 +58,14 @@ final class HadoopBytes[F[_]] private (
       Hotswap(getWriter(tick))
 
     // save
-    (ss: Stream[F, Byte]) =>
+    (ss: Stream[F, Chunk[Byte]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
           persist[F, Byte](
             getWriter,
             hotswap,
             writer,
-            ss.chunks.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
+            ss.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
           ).stream
         }
       }
