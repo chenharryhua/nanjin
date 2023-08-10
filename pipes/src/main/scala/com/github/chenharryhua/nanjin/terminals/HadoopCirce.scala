@@ -78,7 +78,7 @@ final class HadoopCirce[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.map(_.map(_.noSpaces)).map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
+            ss.map(ck => Left(ck.map(_.noSpaces))).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
             Chunk.empty
           ).stream
         }
