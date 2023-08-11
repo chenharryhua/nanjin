@@ -5,13 +5,13 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
-import com.github.chenharryhua.nanjin.terminals.{NJHeaderEncoder, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
-import kantan.csv.{CsvConfiguration, RowDecoder}
+import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import kantan.csv.generic.*
 import monocle.syntax.all.*
 import mtest.spark.sparkSession
@@ -28,9 +28,9 @@ object ReadWriteTestData {
     Stream.emits(List.fill(number)(cr)).covary[IO].chunkLimit(2).unchunks.zipWithIndex.map { case (cr, idx) =>
       cr.focus(_.index).replace(idx)
     }
-  implicit val te: TypedEncoder[TestData]    = shapeless.cachedImplicit
-  implicit val hd: NJHeaderEncoder[TestData] = shapeless.cachedImplicit
-  implicit val ri: RowDecoder[TestData]      = shapeless.cachedImplicit
+  implicit val te: TypedEncoder[TestData] = shapeless.cachedImplicit
+  implicit val hd: RowEncoder[TestData]   = shapeless.cachedImplicit
+  implicit val ri: RowDecoder[TestData]   = shapeless.cachedImplicit
 
   val codec: NJAvroCodec[TestData] = NJAvroCodec[TestData]
 
@@ -64,8 +64,8 @@ class ReadWriteTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
     val writer =
-      hdp.kantan(CsvConfiguration.rfc).sink[TestData](policy)(t => path / t.index)
-    data.chunks.through(writer).compile.drain.unsafeRunSync()
+      hdp.kantan(CsvConfiguration.rfc).sink(policy)(t => path / t.index)
+    data.map(hd.encode).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = sparkSession
       .loadTable[IO](AvroTypedEncoder[TestData])
       .kantan(path, CsvConfiguration.rfc)

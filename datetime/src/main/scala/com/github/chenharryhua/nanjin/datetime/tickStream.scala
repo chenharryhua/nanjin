@@ -20,7 +20,7 @@ object tickStream {
   // ticks   zero   1          2          3
   //              first emit
   /** @param streamId
-    *  id of the stream, unchanged throughout lifecycle
+    *   id of the stream, unchanged throughout lifecycle
     * @param previous
     *   previous tick timestamp
     * @param timestamp

@@ -10,8 +10,7 @@ import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
-import mtest.pipes.TestData
-import mtest.pipes.TestData.Tiger
+import TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor
 import org.scalatest.Assertion

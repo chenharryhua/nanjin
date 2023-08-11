@@ -11,7 +11,7 @@ import org.apache.hadoop.conf.Configuration
 import org.scalatest.funsuite.AnyFunSuite
 
 class BinaryAvroPipeTest extends AnyFunSuite {
-  import TestData.*
+  import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)
   val hd                       = NJHadoop[IO](new Configuration)

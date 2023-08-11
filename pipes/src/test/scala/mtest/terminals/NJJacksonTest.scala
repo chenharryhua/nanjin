@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import mtest.pipes.TestData
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion

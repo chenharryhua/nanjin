@@ -8,7 +8,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 class JacksonAvroPipeTest extends AnyFunSuite {
-  import TestData.*
+  import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
   val schema                   = AvroSchema[Tiger]
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)

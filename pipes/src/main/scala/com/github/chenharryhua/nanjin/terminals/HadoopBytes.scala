@@ -11,6 +11,8 @@ import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 import squants.information.Information
 
+import java.io.InputStream
+
 final class HadoopBytes[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
@@ -37,6 +39,9 @@ final class HadoopBytes[F[_]] private (
     paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) =>
       s ++ source(p)
     }
+
+  def inputStream(path: NJPath)(implicit F: Sync[F]): Stream[F, InputStream] =
+    HadoopReader.inputStreamS(configuration, path.hadoopPath)
 
   // write
 

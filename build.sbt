@@ -388,14 +388,6 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    guard,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark)
+  (project in file("."))
+    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
+
