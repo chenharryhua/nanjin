@@ -2,8 +2,27 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{KantanCompression, NJCompression, NJCompressionLevel}
-import kantan.csv.{CsvConfiguration, HeaderEncoder}
+import kantan.csv.{CsvConfiguration, HeaderEncoder, RowEncoder}
 import org.apache.spark.rdd.RDD
+import shapeless.ops.hlist.ToTraversable
+import shapeless.ops.record.Keys
+import shapeless.{HList, LabelledGeneric}
+
+import scala.annotation.nowarn
+
+sealed trait NJHeaderEncoder[A] extends HeaderEncoder[A]
+
+object NJHeaderEncoder {
+  implicit def inferNJHeaderEncoder[A, Repr <: HList, KeysRepr <: HList](implicit
+    enc: RowEncoder[A],
+    @nowarn gen: LabelledGeneric.Aux[A, Repr],
+    keys: Keys.Aux[Repr, KeysRepr],
+    traversable: ToTraversable.Aux[KeysRepr, List, Symbol]): NJHeaderEncoder[A] =
+    new NJHeaderEncoder[A] {
+      override def header: Option[Seq[String]] = Some(keys().toList.map(_.name))
+      override def rowEncoder: RowEncoder[A]   = enc
+    }
+}
 
 final class SaveKantanCsv[F[_], A](
   frdd: F[RDD[A]],

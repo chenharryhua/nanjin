@@ -4,7 +4,7 @@ import better.files.File
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJHeaderEncoder, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.{CsvConfiguration, RowDecoder}

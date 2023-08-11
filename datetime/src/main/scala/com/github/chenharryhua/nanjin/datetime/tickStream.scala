@@ -8,37 +8,51 @@ import cats.{Monad, Order, Show}
 import fs2.Stream
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
+import org.typelevel.cats.time.instances.instant.*
 import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
-
 object tickStream {
 
+  // timeline |-----|----------|----------|------
+  // ticks   zero   1          2          3
+  //              first emit
   /** @param streamId
-    *   unchanged throughout lifecycle
+    *   id of the stream, unchanged throughout lifecycle
     * @param previous
-    *   last wakeup time
-    * @param wakeTime
-    *   when sleep is over
-    * @param snooze
+    *   previous tick timestamp
+    * @param timestamp
+    *   emit time
+    * @param predict
+    *
+    * Some(time): next tick comes after the time, roughly.
+    *
+    * None: next tick will never come
+    * @param snoozed
     *   sleep duration of this tick
     */
   @JsonCodec
   final case class Tick private[tickStream] (
     streamId: UUID,
-    snooze: Duration,
     previous: Instant,
-    wakeTime: Instant,
+    timestamp: Instant,
+    predict: Option[Instant],
+    snoozed: Duration,
     status: RetryStatus) {
     val index: Int              = status.retriesSoFar
-    lazy val interval: Duration = Duration.between(previous, wakeTime)
-    def isNewDay(zoneId: ZoneId): Boolean =
-      previous.atZone(zoneId).toLocalDate.isBefore(wakeTime.atZone(zoneId).toLocalDate)
+    lazy val interval: Duration = Duration.between(previous, timestamp)
 
+    def isNewDay(zoneId: ZoneId): Boolean =
+      previous.atZone(zoneId).toLocalDate.isBefore(timestamp.atZone(zoneId).toLocalDate)
+
+    /** check if an instant is in this tick frame from previous timestamp(inclusive) to current
+      * timestamp(exclusive).
+      */
     def inBetween(now: Instant): Boolean =
-      now.isAfter(previous) && now.isBefore(wakeTime)
+      (now.isAfter(previous) || (now === previous)) && now.isBefore(timestamp)
+
   }
 
   object Tick extends DateTimeInstances {
@@ -52,9 +66,10 @@ object tickStream {
         now <- F.realTimeInstant
       } yield Tick(
         streamId = uuid,
-        snooze = Duration.ZERO,
         previous = now,
-        wakeTime = now,
+        timestamp = now,
+        predict = None,
+        snoozed = Duration.ZERO,
         status = RetryStatus.NoRetriesYet
       )
   }
@@ -64,14 +79,23 @@ object tickStream {
       policy.decideNextRetry(previous.status).flatMap[Option[(Tick, Tick)]] {
         case PolicyDecision.GiveUp => F.pure(None)
         case PolicyDecision.DelayAndRetry(delay) =>
-          F.sleep(delay) >> F.realTimeInstant.map { wakeup =>
+          for {
+            _ <- F.sleep(delay)
+            wakeup <- F.realTimeInstant
+            rs = previous.status.addRetry(Duration.between(previous.timestamp, wakeup).toScala)
+            predict <- policy.decideNextRetry(rs).map {
+              case PolicyDecision.GiveUp            => None
+              case PolicyDecision.DelayAndRetry(nd) => Some(wakeup.plusNanos(nd.toNanos))
+            }
+          } yield {
             val tick: Tick =
               Tick(
                 streamId = previous.streamId,
-                snooze = delay.toJava,
-                previous = previous.wakeTime,
-                wakeTime = wakeup,
-                status = previous.status.addRetry(Duration.between(previous.wakeTime, wakeup).toScala)
+                previous = previous.timestamp,
+                timestamp = wakeup,
+                predict = predict,
+                snoozed = delay.toJava,
+                status = rs
               )
             (tick, tick).some
           }

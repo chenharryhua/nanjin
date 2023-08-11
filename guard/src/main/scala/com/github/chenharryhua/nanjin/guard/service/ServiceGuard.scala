@@ -100,7 +100,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
     ServiceID(tick.streamId),
-    ServiceLaunchTime(tick.wakeTime),
+    ServiceLaunchTime(tick.timestamp),
     Policy(restartPolicy),
     ServiceBrief(json))
 
@@ -148,7 +148,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
                     serviceParams = serviceParams,
                     metricRegistry = metricRegistry,
                     index = MetricIndex.Periodic(tick),
-                    ts = tick.wakeTime))
+                    ts = tick.timestamp))
                 .drain
           }
 
@@ -163,7 +163,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
                     serviceParams = serviceParams,
                     metricRegistry = metricRegistry,
                     index = MetricIndex.Periodic(tick),
-                    ts = tick.wakeTime))
+                    ts = tick.timestamp))
                 .drain
           }
 

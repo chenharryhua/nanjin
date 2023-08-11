@@ -54,9 +54,10 @@ class TickStreamTest extends AnyFunSuite {
       .limitRetriesByCumulativeDelay[IO](5.seconds, policies.cronBackoff[IO](crontabs.secondly, mumbaiTime))
     val ticks = tickStream(policy).compile.toList.unsafeRunSync()
     assert(ticks.size === 5, ticks)
-    val spend = ticks(4).wakeTime.toEpochMilli / 1000 - ticks.head.wakeTime.toEpochMilli / 1000
+    val spend = ticks(4).timestamp.toEpochMilli / 1000 - ticks.head.timestamp.toEpochMilli / 1000
     assert(spend === 4, ticks)
     assert(ticks.map(_.streamId).distinct.size == 1)
+    assert(ticks.last.predict.isEmpty)
   }
 
   test("5.limitRetriesByDelay") {
@@ -81,17 +82,18 @@ class TickStreamTest extends AnyFunSuite {
       .map { ck =>
         val (t1, l1) = ck(0)
         val (t2, _)  = ck(1)
-        assert(t2.interval === JavaDuration.between(t1.wakeTime, t2.wakeTime))
+        assert(t2.interval === JavaDuration.between(t1.timestamp, t2.timestamp))
         assert(t2.interval.toScala === t2.status.previousDelay.get)
-        assert(t2.snooze.toScala < t2.interval.toScala)
+        assert(t2.snoozed.toScala < t2.interval.toScala)
         val dur = JavaDuration
-          .between(t2.previous.truncatedTo(ChronoUnit.SECONDS), t2.wakeTime.truncatedTo(ChronoUnit.SECONDS))
+          .between(t2.previous.truncatedTo(ChronoUnit.SECONDS), t2.timestamp.truncatedTo(ChronoUnit.SECONDS))
           .toScala
         assert(dur === 1.second)
         assert(t1.streamId === t2.streamId)
-        assert(t2.previous === t1.wakeTime)
-        assert(t2.previous.plusNanos(t2.status.previousDelay.get.toNanos) === t2.wakeTime)
-        val j = JavaDuration.between(t2.previous.plus(l1).plus(t2.snooze), t2.wakeTime).toNanos
+        assert(t2.previous === t1.timestamp)
+        assert(t2.previous.plusNanos(t2.status.previousDelay.get.toNanos) === t2.timestamp)
+        assert(t1.predict.exists(_.isBefore(t2.timestamp)))
+        val j = JavaDuration.between(t2.previous.plus(l1).plus(t2.snoozed), t2.timestamp).toNanos
         assert(j > 0)
         t1
       }
@@ -102,8 +104,8 @@ class TickStreamTest extends AnyFunSuite {
     val t1 = jitters.head
     val t5 = jitters(5)
     val t9 = jitters(9)
-    assert(t1.previous.plus(t5.status.cumulativeDelay.toJava) == t5.wakeTime)
-    assert(t1.previous.plus(t9.status.cumulativeDelay.toJava) == t9.wakeTime)
+    assert(t1.previous.plus(t5.status.cumulativeDelay.toJava) == t5.timestamp)
+    assert(t1.previous.plus(t9.status.cumulativeDelay.toJava) == t9.timestamp)
   }
 
   test("7.constant") {
@@ -119,8 +121,8 @@ class TickStreamTest extends AnyFunSuite {
     val t1      = jitters.head
     val t5      = jitters(5)
     val t9      = jitters(9)
-    assert(t1.previous.plus(t5.status.cumulativeDelay.toJava) == t5.wakeTime)
-    assert(t1.previous.plus(t9.status.cumulativeDelay.toJava) == t9.wakeTime)
+    assert(t1.previous.plus(t5.status.cumulativeDelay.toJava) == t5.timestamp)
+    assert(t1.previous.plus(t9.status.cumulativeDelay.toJava) == t9.timestamp)
   }
 
   test("8.jitter") {
@@ -136,8 +138,8 @@ class TickStreamTest extends AnyFunSuite {
     val t1      = jitters.head
     val t5      = jitters(5)
     val t9      = jitters(9)
-    assert(t1.previous.plus(t5.status.cumulativeDelay.toJava) == t5.wakeTime)
-    assert(t1.previous.plus(t9.status.cumulativeDelay.toJava) == t9.wakeTime)
+    assert(t1.previous.plus(t5.status.cumulativeDelay.toJava) == t5.timestamp)
+    assert(t1.previous.plus(t9.status.cumulativeDelay.toJava) == t9.timestamp)
   }
 
   test("9.disable copy and new of Tick") {

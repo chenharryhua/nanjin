@@ -9,8 +9,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
-import mtest.pipes.TestData
-import mtest.pipes.TestData.Tiger
+import TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
@@ -30,6 +29,8 @@ class NJCirceTest extends AnyFunSuite {
     val src    = json.source(tgt).mapFilter(_.as[Tiger].toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
+    val lines = hdp.text.source(tgt).compile.fold(0) { case (s, _) => s + 1 }
+    assert(lines.unsafeRunSync() === data.size)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")

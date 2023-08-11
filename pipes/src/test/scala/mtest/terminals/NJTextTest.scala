@@ -10,8 +10,7 @@ import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
-import mtest.pipes.TestData
-import mtest.pipes.TestData.Tiger
+import TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion

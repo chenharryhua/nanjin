@@ -2,10 +2,11 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.avro.generic.GenericRecord
+import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import retry.RetryPolicies
@@ -50,6 +51,26 @@ class NJJacksonTest extends AnyFunSuite {
 
   test("deflate - 1") {
     fs2(fs2Root, JacksonFile(Deflate(1)), pandaSet)
+  }
+
+  test("ftp") {
+    val path = NJPath("ftp://localhost/data/tiger.jackson.json")
+    val conf = new Configuration()
+    conf.set("fs.ftp.host", "localhost")
+    conf.set("fs.ftp.user.localhost", "chenh")
+    conf.set("fs.ftp.password.localhost", "test")
+    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
+    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
+    val conn = NJHadoop[IO](conf).jackson(TestData.Tiger.avroEncoder.schema)
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .map(TestData.Tiger.to.to)
+      .chunks
+      .through(conn.sink(path))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("laziness") {

@@ -5,8 +5,6 @@ import cats.effect.Resource
 import cats.effect.kernel.Sync
 import fs2.Stream
 import fs2.io.readInputStream
-import kantan.csv.ops.toCsvInputOps
-import kantan.csv.{CsvConfiguration, CsvReader, HeaderDecoder, ReadResult}
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
@@ -52,13 +50,6 @@ private object HadoopReader {
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, path).flatMap(is =>
       readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = true))
-
-  def kantanS[F[_], A: HeaderDecoder](
-    configuration: Configuration,
-    csvConfiguration: CsvConfiguration,
-    path: Path)(implicit F: Sync[F]): Stream[F, CsvReader[ReadResult[A]]] =
-    inputStreamS[F](configuration, path).flatMap(is =>
-      Stream.bracket(F.blocking(is.asCsvReader[A](csvConfiguration)))(r => F.blocking(r.close)))
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Stream[F, GenericRecord] =

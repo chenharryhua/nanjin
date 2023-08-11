@@ -12,7 +12,7 @@ sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: 
   final def fileName(tick: Tick): String = f"${tick.streamId.toString.take(5)}-${tick.index}%06d.$fileName"
 
   final def fileName(zoneId: ZoneId, tick: Tick): String = {
-    val ymd = codec.year_month_day(tick.wakeTime.atZone(zoneId).toLocalDate)
+    val ymd = codec.year_month_day(tick.timestamp.atZone(zoneId).toLocalDate)
     s"$ymd/${fileName(tick)}"
   }
 }

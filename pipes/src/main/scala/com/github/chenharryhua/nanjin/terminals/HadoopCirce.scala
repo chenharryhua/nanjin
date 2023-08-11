@@ -13,6 +13,8 @@ import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 import squants.information.Information
 
+import java.nio.charset.StandardCharsets
+
 final class HadoopCirce[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
@@ -65,7 +67,12 @@ final class HadoopCirce[F[_]] private (
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Json], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.utf8StringR[F](configuration, compressLevel, blockSizeHint, pathBuilder(tick).hadoopPath)
+      HadoopWriter.stringR[F](
+        configuration,
+        compressLevel,
+        blockSizeHint,
+        StandardCharsets.UTF_8,
+        pathBuilder(tick).hadoopPath)
 
     def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, String]], HadoopWriter[F, String])] =
       Hotswap(getWriter(tick))
@@ -78,7 +85,7 @@ final class HadoopCirce[F[_]] private (
             getWriter,
             hotswap,
             writer,
-            ss.map(_.map(_.noSpaces)).map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
+            ss.map(ck => Left(ck.map(_.noSpaces))).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
             Chunk.empty
           ).stream
         }

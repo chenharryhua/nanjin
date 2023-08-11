@@ -105,13 +105,15 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
 
   // sources and sinks
-  def bytes: HadoopBytes[F]                              = HadoopBytes[F](config)
-  def avro(schema: Schema): HadoopAvro[F]                = HadoopAvro[F](config, schema)
-  def jackson(schema: Schema): HadoopJackson[F]          = HadoopJackson[F](config, schema)
-  def binAvro(schema: Schema): HadoopBinAvro[F]          = HadoopBinAvro[F](config, schema)
-  def parquet(schema: Schema): HadoopParquet[F]          = HadoopParquet[F](config, schema)
+
+  def avro(schema: Schema): HadoopAvro[F]       = HadoopAvro[F](config, schema)
+  def jackson(schema: Schema): HadoopJackson[F] = HadoopJackson[F](config, schema)
+  def binAvro(schema: Schema): HadoopBinAvro[F] = HadoopBinAvro[F](config, schema)
+  def parquet(schema: Schema): HadoopParquet[F] = HadoopParquet[F](config, schema)
+
   def kantan(csvConf: CsvConfiguration): HadoopKantan[F] = HadoopKantan[F](config, csvConf)
-  def circe: HadoopCirce[F]                              = HadoopCirce[F](config)
-  def protobuf: HadoopProtobuf[F]                        = HadoopProtobuf[F](config)
-  def text: HadoopText[F]                                = HadoopText[F](config)
+
+  def circe: HadoopCirce[F] = HadoopCirce[F](config)
+  def text: HadoopText[F]   = HadoopText[F](config)
+  def bytes: HadoopBytes[F] = HadoopBytes[F](config)
 }

@@ -7,7 +7,7 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
 class JavaObjectPipeTest extends AnyFunSuite {
-  import TestData.*
+  import mtest.terminals.TestData.*
   test("java object identity") {
     val data: Stream[IO, Tiger] = Stream.emits(tigers)
 
