@@ -44,7 +44,8 @@ package object terminals {
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
     ss: Stream[F, Either[Chunk[String], Tick]],
-    newLineSeparator: Chunk[String]
+    newLineSeparator: Chunk[String],
+    header: Chunk[String] // used by csv, text and circe will set it to empty
   ): Pull[F, Nothing, Unit] =
     ss.pull.uncons1.flatMap {
       case Some((head, tail)) =>
@@ -52,11 +53,12 @@ package object terminals {
           case Left(data) =>
             val (rest, last) = data.splitAt(data.size - 1)
             Pull.eval(writer.write(newLineSeparator ++ rest.map(_.concat(NEWLINE_SEPARATOR)) ++ last)) >>
-              persistString[F](getWriter, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
+              persistString[F](getWriter, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK, header)
 
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
-              persistString(getWriter, hotswap, writer, tail, Chunk.empty)
+              Pull.eval(writer.write(header)) >>
+                persistString(getWriter, hotswap, writer, tail, Chunk.empty, header)
             }
         }
       case None => Pull.done

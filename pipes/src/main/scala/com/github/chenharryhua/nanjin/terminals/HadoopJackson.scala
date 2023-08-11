@@ -32,9 +32,7 @@ final class HadoopJackson[F[_]] private (
     HadoopReader.jacksonS[F](configuration, schema, path.hadoopPath)
 
   def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericRecord] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
-      s ++ source(p)
-    }
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) => s ++ source(p) }
 
   // write
 

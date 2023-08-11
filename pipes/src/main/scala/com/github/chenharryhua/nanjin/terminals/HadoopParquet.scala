@@ -38,9 +38,7 @@ final class HadoopParquet[F[_]] private (
     } yield gr
 
   def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, GenericRecord] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
-      s ++ source(p)
-    }
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) => s ++ source(p) }
 
   // write
 

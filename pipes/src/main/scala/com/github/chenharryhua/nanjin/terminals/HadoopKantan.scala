@@ -5,15 +5,17 @@ import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
+import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.*
-import kantan.csv.engine.ReaderEngine
+import kantan.csv.CsvConfiguration.Header
+import kantan.csv.engine.{ReaderEngine, WriterEngine}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 
-import java.io.InputStreamReader
+import java.io.{InputStreamReader, StringWriter}
+import java.nio.charset.StandardCharsets
 
 final class HadoopKantan[F[_]] private (
   configuration: Configuration,
@@ -52,32 +54,53 @@ final class HadoopKantan[F[_]] private (
 
   // write
 
-  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Seq[String]]] =
-    HadoopWriter.kantanR[F](configuration, compressLevel, blockSizeHint, csvConfiguration, path)
+  private def buildCsvRow(row: Seq[String])(implicit engine: WriterEngine): String = {
+    val sw = new StringWriter()
+    engine.writerFor(sw, csvConfiguration).write(row).close()
+    sw.toString.dropRight(2) // drop CRLF
+  }
+
+  private lazy val header: Chunk[String] = csvConfiguration.header match {
+    case Header.None             => Chunk.empty
+    case Header.Implicit         => Chunk("no header explicitly provided")
+    case Header.Explicit(header) => Chunk(buildCsvRow(header))
+  }
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
     (ss: Stream[F, Chunk[Seq[String]]]) =>
-      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
+      Stream
+        .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
+        .flatMap { w =>
+          val src: Stream[F, Chunk[String]] = Stream(header) ++ ss.map(_.map(buildCsvRow))
+          src.unchunks.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
+        }
   }
 
   def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
-    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Seq[String]]] =
-      getWriterR(pathBuilder(tick).hadoopPath)
+    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
+      HadoopWriter.stringR[F](
+        configuration,
+        compressLevel,
+        blockSizeHint,
+        StandardCharsets.UTF_8,
+        pathBuilder(tick).hadoopPath)
 
-    def init(
-      tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Seq[String]]], HadoopWriter[F, Seq[String]])] =
+    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, String]], HadoopWriter[F, String])] =
       Hotswap(getWriter(tick))
 
     // save
     (ss: Stream[F, Chunk[Seq[String]]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          persist[F, Seq[String]](
+          val src: Stream[F, Chunk[String]] = Stream(header) ++ ss.map(_.map(buildCsvRow))
+          persistString[F](
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
+            src.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
+            Chunk.empty,
+            header.map(_.concat(NEWLINE_SEPARATOR))
           ).stream
         }
       }

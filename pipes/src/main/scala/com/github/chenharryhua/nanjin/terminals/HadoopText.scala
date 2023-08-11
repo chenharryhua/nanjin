@@ -36,9 +36,7 @@ final class HadoopText[F[_]] private (
     HadoopReader.byteS[F](configuration, bufferSize, path.hadoopPath).through(utf8.decode).through(lines)
 
   def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, String] =
-    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) =>
-      s ++ source(p)
-    }
+    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) => s ++ source(p) }
 
   // write
 
@@ -71,6 +69,7 @@ final class HadoopText[F[_]] private (
             hotswap,
             writer,
             ss.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
+            Chunk.empty,
             Chunk.empty
           ).stream
         }
