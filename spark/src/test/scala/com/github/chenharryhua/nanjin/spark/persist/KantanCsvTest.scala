@@ -28,7 +28,14 @@ class KantanCsvTest extends AnyFunSuite {
 
   def loadTablet(path: NJPath, cfg: CsvConfiguration): IO[Set[Tablet]] = {
     val kantan = hdp.kantan(cfg)
-    Stream.eval(hdp.filesIn(path)).flatMap(kantan.source[Tablet]).compile.toList.map(_.toSet)
+    Stream
+      .eval(hdp.filesIn(path))
+      .flatMap(kantan.source(_, 100))
+      .map(decoderTablet.decode)
+      .rethrow
+      .compile
+      .toList
+      .map(_.toSet)
   }
 
   val root: NJPath = NJPath("./data/test/spark/persist/csv/tablet")

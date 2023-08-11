@@ -17,7 +17,7 @@ class AvroTest extends AnyFunSuite {
   val avro: HadoopAvro[IO] = hadoop.avro(Rooster.avroCodec.schema)
 
   def singleAvro(path: NJPath): Set[Rooster] =
-    avro.source(path).map(Rooster.avroCodec.avroDecoder.decode).compile.toList.unsafeRunSync().toSet
+    avro.source(path,10).map(Rooster.avroCodec.avroDecoder.decode).compile.toList.unsafeRunSync().toSet
 
   def rooster =
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.ds.rdd.repartition(3)), Rooster.avroCodec.avroEncoder)
@@ -25,7 +25,7 @@ class AvroTest extends AnyFunSuite {
   def loadRoosters(path: NJPath): IO[List[Rooster]] =
     fs2.Stream
       .eval(hadoop.filesIn(path))
-      .flatMap(avro.source)
+      .flatMap(avro.source(_, 100))
       .map(Rooster.avroCodec.avroDecoder.decode)
       .compile
       .toList

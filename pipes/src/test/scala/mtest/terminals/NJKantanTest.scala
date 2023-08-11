@@ -22,13 +22,9 @@ class NJKantanTest extends AnyFunSuite {
   def fs2(path: NJPath, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
-    val sink = hdp
-      .kantan(csvConfiguration)
-      .withChunkSize(100)
-      .withCompressionLevel(file.compression.compressionLevel)
-      .sink(tgt)
-    val src    = hdp.kantan(csvConfiguration).source(tgt).map(tigerDecoder.decode).rethrow
+    val ts   = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
+    val sink = hdp.kantan(csvConfiguration).withCompressionLevel(file.compression.compressionLevel).sink(tgt)
+    val src  = hdp.kantan(csvConfiguration).source(tgt, 100).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
   }
@@ -83,7 +79,7 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.kantan(CsvConfiguration.rfc).source(NJPath("./does/not/exist"))
+    hdp.kantan(CsvConfiguration.rfc).source(NJPath("./does/not/exist"), 100)
     hdp.kantan(CsvConfiguration.rfc).sink(NJPath("./does/not/exist"))
   }
 
@@ -104,7 +100,7 @@ class NJKantanTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream.force(hdp.filesIn(path).map(csv.source)).compile.toList.map(_.size).unsafeRunSync()
+      Stream.force(hdp.filesIn(path).map(csv.source(_, 100))).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 10)
   }
 }

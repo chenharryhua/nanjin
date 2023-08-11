@@ -8,37 +8,34 @@ import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.*
-import kantan.csv.CsvConfiguration.Header
-import kantan.csv.engine.{ReaderEngine, WriterEngine}
+import kantan.csv.engine.ReaderEngine
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
 
-import java.io.{InputStreamReader, StringWriter}
+import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 
 final class HadoopKantan[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
-  chunkSize: ChunkSize,
   compressLevel: CompressionLevel,
   csvConfiguration: CsvConfiguration
 ) {
 
   // config
 
-  def withChunkSize(cs: ChunkSize): HadoopKantan[F] =
-    new HadoopKantan[F](configuration, blockSizeHint, cs, compressLevel, csvConfiguration)
-
   def withBlockSizeHint(bsh: Long): HadoopKantan[F] =
-    new HadoopKantan[F](configuration, bsh, chunkSize, compressLevel, csvConfiguration)
+    new HadoopKantan[F](configuration, bsh, compressLevel, csvConfiguration)
 
   def withCompressionLevel(cl: CompressionLevel): HadoopKantan[F] =
-    new HadoopKantan[F](configuration, blockSizeHint, chunkSize, cl, csvConfiguration)
+    new HadoopKantan[F](configuration, blockSizeHint, cl, csvConfiguration)
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F], engine: ReaderEngine): Stream[F, Seq[String]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit
+    F: Sync[F],
+    engine: ReaderEngine): Stream[F, Seq[String]] =
     HadoopReader.inputStreamS[F](configuration, path.hadoopPath).flatMap { is =>
       val reader: CsvReader[Seq[String]] =
         if (csvConfiguration.hasHeader)
@@ -49,29 +46,18 @@ final class HadoopKantan[F[_]] private (
       Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value)
     }
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Seq[String]] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Seq[String]]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Seq[String]] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Seq[String]]) { case (s, p) => s ++ source(p, chunkSize) }
 
   // write
-
-  private def buildCsvRow(row: Seq[String])(implicit engine: WriterEngine): String = {
-    val sw = new StringWriter()
-    engine.writerFor(sw, csvConfiguration).write(row).close()
-    sw.toString.dropRight(2) // drop CRLF
-  }
-
-  private lazy val header: Chunk[String] = csvConfiguration.header match {
-    case Header.None             => Chunk.empty
-    case Header.Implicit         => Chunk("no header explicitly provided")
-    case Header.Explicit(header) => Chunk(buildCsvRow(header))
-  }
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
     (ss: Stream[F, Chunk[Seq[String]]]) =>
       Stream
         .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
         .flatMap { w =>
-          val src: Stream[F, Chunk[String]] = Stream(header) ++ ss.map(_.map(buildCsvRow))
+          val src: Stream[F, Chunk[String]] =
+            Stream(csvHeader(csvConfiguration)) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
           src.unchunks.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
         }
   }
@@ -93,7 +79,8 @@ final class HadoopKantan[F[_]] private (
     (ss: Stream[F, Chunk[Seq[String]]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          val src: Stream[F, Chunk[String]] = Stream(header) ++ ss.map(_.map(buildCsvRow))
+          val header: Chunk[String]         = csvHeader(csvConfiguration)
+          val src: Stream[F, Chunk[String]] = Stream(header) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
           persistString[F](
             getWriter,
             hotswap,
@@ -109,5 +96,5 @@ final class HadoopKantan[F[_]] private (
 
 object HadoopKantan {
   def apply[F[_]](hadoopCfg: Configuration, csvCfg: CsvConfiguration): HadoopKantan[F] =
-    new HadoopKantan[F](hadoopCfg, BLOCK_SIZE_HINT, CHUNK_SIZE, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
+    new HadoopKantan[F](hadoopCfg, BLOCK_SIZE_HINT, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
 }
