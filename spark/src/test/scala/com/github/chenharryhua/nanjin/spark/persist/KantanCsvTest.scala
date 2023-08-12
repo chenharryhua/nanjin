@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import kantan.csv.{CsvConfiguration, RowDecoder}
 import kantan.csv.generic.*
 import kantan.csv.java8.*
+import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -18,8 +18,8 @@ import org.scalatest.funsuite.AnyFunSuite
 class KantanCsvTest extends AnyFunSuite {
   import TabletData.*
 
-  implicit val encoderTablet: NJHeaderEncoder[Tablet] = shapeless.cachedImplicit
-  implicit val decoderTablet: RowDecoder[Tablet]      = shapeless.cachedImplicit
+  implicit val encoderTablet: RowEncoder[Tablet] = shapeless.cachedImplicit
+  implicit val decoderTablet: RowDecoder[Tablet] = shapeless.cachedImplicit
 
   def saver(path: NJPath, cfg: CsvConfiguration): SaveKantanCsv[IO, Tablet] =
     new RddFileHoarder[IO, Tablet](IO(rdd)).kantan(path, cfg)
@@ -127,7 +127,6 @@ class KantanCsvTest extends AnyFunSuite {
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
-    checkHeader(path, "a,b,c,d,e,f")
   }
 
   test("tablet read/write identity with-header-delimiter") {
@@ -138,7 +137,6 @@ class KantanCsvTest extends AnyFunSuite {
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
-    checkHeader(path, "a|b|c|d|e|f")
   }
 
   test("tablet read/write identity with-header-delimiter-quote") {
@@ -149,6 +147,5 @@ class KantanCsvTest extends AnyFunSuite {
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
-    checkHeader(path, "*a*|*b*|*c*|*d*|*e*|*f*")
   }
 }

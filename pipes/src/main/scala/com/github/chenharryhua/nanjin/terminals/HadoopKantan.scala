@@ -83,13 +83,15 @@ final class HadoopKantan[F[_]] private (
           val header: Chunk[String] = csvHeader(csvConfiguration)
           val src: Stream[F, Chunk[String]] =
             Stream(header).filter(_.nonEmpty) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
+
+          val ts = tickStream[F](policy, zero).map(t => Right((t, header.map(_.concat(NEWLINE_SEPARATOR)))))
+
           persistString[F](
             getWriter,
             hotswap,
             writer,
-            src.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
-            Chunk.empty,
-            header.map(_.concat(NEWLINE_SEPARATOR))
+            src.map(Left(_)).mergeHaltBoth(ts),
+            Chunk.empty
           ).stream
         }
       }

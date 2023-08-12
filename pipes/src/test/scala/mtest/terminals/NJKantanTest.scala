@@ -129,7 +129,14 @@ class NJKantanTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream.force(hdp.filesIn(path).map(csv.source(_, 100))).compile.toList.map(_.size).unsafeRunSync()
+      Stream
+        .force(hdp.filesIn(path).map(csv.source(_, 1000)))
+        .map(tigerDecoder.decode)
+        .rethrow
+        .compile
+        .toList
+        .map(_.size)
+        .unsafeRunSync()
     assert(size == number)
   }
 }
