@@ -57,7 +57,8 @@ final class HadoopKantan[F[_]] private (
         .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
         .flatMap { w =>
           val src: Stream[F, Chunk[String]] =
-            Stream(csvHeader(csvConfiguration)) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
+            Stream(csvHeader(csvConfiguration)).filter(_.nonEmpty) ++
+              ss.map(_.map(buildCsvRow(csvConfiguration)))
           src.unchunks.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
         }
   }
@@ -79,8 +80,9 @@ final class HadoopKantan[F[_]] private (
     (ss: Stream[F, Chunk[Seq[String]]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          val header: Chunk[String]         = csvHeader(csvConfiguration)
-          val src: Stream[F, Chunk[String]] = Stream(header) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
+          val header: Chunk[String] = csvHeader(csvConfiguration)
+          val src: Stream[F, Chunk[String]] =
+            Stream(header).filter(_.nonEmpty) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
           persistString[F](
             getWriter,
             hotswap,

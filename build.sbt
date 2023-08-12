@@ -36,6 +36,7 @@ val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
 val logbackV    = "1.4.11"
 val doobieV     = "1.0.0-RC4"
+val okioV       = "3.5.0"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -86,7 +87,9 @@ val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.13",
   "com.google.protobuf"                       % "protobuf-java"             % protobufV,
   "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
-  "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
+  "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
+  "com.squareup.okio" % "okio"     % okioV, // synk by kafka-protobuf-serializer
+  "com.squareup.okio" % "okio-jvm" % okioV // synk by kafka-protobuf-serializer
 )
 
 val serdeLib = List(
@@ -347,8 +350,8 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "io.circe" %% "circe-jackson212" % "0.14.0",
+      "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"                    % "xz"                  % "1.9",
       "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.0", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
