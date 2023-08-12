@@ -84,7 +84,9 @@ final class HadoopKantan[F[_]] private (
           val src: Stream[F, Chunk[String]] =
             Stream(header).filter(_.nonEmpty) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
 
-          val ts = tickStream[F](policy, zero).map(t => Right((t, header.map(_.concat(NEWLINE_SEPARATOR)))))
+          val header_crlf = header.map(_.concat(NEWLINE_SEPARATOR))
+          val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
+            tickStream[F](policy, zero).map(t => Right((t, header_crlf)))
 
           persistString[F](
             getWriter,

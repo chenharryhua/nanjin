@@ -79,7 +79,9 @@ final class HadoopCirce[F[_]] private (
     (ss: Stream[F, Chunk[Json]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
-          val ts = tickStream[F](policy, zero).map(t => Right((t, Chunk.empty)))
+          val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
+            tickStream[F](policy, zero).map(t => Right((t, Chunk.empty)))
+            
           persistString[F](
             getWriter,
             hotswap,
