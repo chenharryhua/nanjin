@@ -387,7 +387,9 @@ lazy val example = (project in file("example"))
   .dependsOn(spark)
   .settings(commonSettings*)
   .settings(name := "nj-example")
-  .settings(libraryDependencies ++= testLib)
+  .settings(libraryDependencies ++= List(
+    "ch.qos.logback" % "logback-classic" % logbackV % Test
+  ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
