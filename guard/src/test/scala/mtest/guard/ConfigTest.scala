@@ -107,11 +107,10 @@ class ConfigTest extends AnyFunSuite {
     assert(as.actionParams.isTiming)
   }
 
-  test("15.should not contain {},[],()") {
+  test("15.should not contain {},[]") {
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("{a b c}"))
-    assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("(a b c)"))
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("[a b c]"))
-    NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ").value
+    NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ( )").value
   }
 
   test("16.case") {

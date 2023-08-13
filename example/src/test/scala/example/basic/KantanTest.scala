@@ -26,12 +26,14 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) {
     KantanFile(NJCompression.Lz4)
   )
 
-  private def runAction(name: String)(action: NJMeter[IO] => IO[NJPath]): IO[NJPath] =
+  private def write(job: String)(action: NJMeter[IO] => IO[NJPath]): IO[NJPath] = {
+    val name = "(write)" + job
     agent
       .gauge(name)
       .timed
       .flatMap(_ => agent.meterR(name, StandardUnit.COUNT))
       .use(meter => agent.action(name, _.notice).retry(action(meter)).run)
+  }
 
   private val kantan = hadoop.kantan(rfc)
 
@@ -39,10 +41,9 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) {
   implicit private val rowDecoder: RowDecoder[Tiger] = shapeless.cachedImplicit
 
   private def writeSingle(file: KantanFile): IO[NJPath] = {
-    val name = "write-single-" + file.fileName
     val path = root / "single" / file.fileName
     val sink = kantan.sink(path)
-    runAction(name) { meter =>
+    write(path.uri.getPath) { meter =>
       data
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
@@ -55,10 +56,9 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) {
   }
 
   private def writeRotate(file: KantanFile): IO[NJPath] = {
-    val name = "write-rotate-" + file.fileName
     val path = root / "rotate" / file.fileName
     val sink = kantan.sink(policy)(t => path / file.fileName(t))
-    runAction(name) { meter =>
+    write(path.uri.getPath) { meter =>
       data
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
@@ -71,10 +71,9 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) {
   }
 
   private def writeSingleSpark(file: KantanFile): IO[NJPath] = {
-    val name = "write-spark-single-" + file.fileName
     val path = root / "spark" / "single" / file.fileName
     val sink = kantan.sink(path)
-    runAction(name) { meter =>
+    write(path.uri.getPath) { meter =>
       table.output
         .stream(1000)
         .evalTap(_ => meter.mark(1))
@@ -88,43 +87,41 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) {
   }
 
   private def writeMultiSpark(file: KantanFile): IO[NJPath] = {
-    val name = "write-spark-multi-" + file.fileName
     val path = root / "spark" / "multi" / file.fileName
-    runAction(name)(_ => table.output.kantan(path, rfc).withCompression(file.compression).run.as(path))
+    write(path.uri.getPath)(_ =>
+      table.output.kantan(path, rfc).withCompression(file.compression).run.as(path))
+  }
+
+  private def read(job: String)(action: NJMeter[IO] => IO[Long]): IO[Long] = {
+    val name = "(read)" + job
+    agent
+      .gauge(name)
+      .timed
+      .flatMap(_ => agent.meterR(name, StandardUnit.COUNT))
+      .use(meter => agent.action(name, _.notice).retry(action(meter)).logOutput(_.asJson).run)
+      .map(_.ensuring(_ === size))
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    agent
-      .action("spark-read-" + path.uri.getPath, _.notice)
-      .retry(loader.kantan(path, rfc).count.map(_.ensuring(_ === size)))
-      .logOutput(_.asJson)
-      .run
+    read(path.uri.getPath)(_ => loader.kantan(path, rfc).count)
 
-  private def folderRead(path: NJPath): IO[Long] = agent
-    .action("folder-read-" + path.uri.getPath, _.notice)
-    .retry(
+  private def folderRead(path: NJPath): IO[Long] =
+    read(path.uri.getPath) { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(kantan.source(_, 1000).map(rowDecoder.decode).rethrow.compile.fold(0L) { case (s, _) =>
-          s + 1
-        })
-        .map(_.ensuring(_ === size)))
-    .logOutput(_.asJson)
-    .run
+        .flatMap(
+          kantan.source(_, 1000).map(rowDecoder.decode).rethrow.evalTap(_ => meter.mark(1)).compile.fold(0L) {
+            case (s, _) => s + 1
+          })
+    }
 
   private def singleRead(path: NJPath): IO[Long] =
-    agent
-      .action("single-read-" + path.uri.getPath, _.notice)
-      .retry(
-        kantan
-          .source(path, 1000)
-          .map(rowDecoder.decode)
-          .rethrow
-          .compile
-          .fold(0L) { case (s, _) => s + 1 }
-          .map(_.ensuring(_ === size)))
-      .logOutput(_.asJson)
-      .run
+    read(path.uri.getPath) { meter =>
+      kantan.source(path, 1000).map(rowDecoder.decode).rethrow.evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        case (s, _) =>
+          s + 1
+      }
+    }
 
   def run: IO[Unit] =
     files.parTraverse(writeSingle).flatMap(ps => ps.parTraverse(singleRead) >> ps.traverse(sparkRead)) >>

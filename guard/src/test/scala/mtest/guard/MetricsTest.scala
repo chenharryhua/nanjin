@@ -135,7 +135,7 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("7. namespace merge") {
-    val name = "name.space.test"
+    val name = "(name).space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")
       .withRestartPolicy(constant_1hour)
