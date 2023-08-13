@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.{HadoopBytes, NJCompression, NJPath, ProtobufFile}
 import eu.timepit.refined.auto.*
 import example.hadoop
-import fs2.{Chunk, Stream}
+import fs2.Stream
 import mtest.pb.test.Lion
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -20,12 +20,17 @@ class ProtobufTerminalTest extends AnyFunSuite {
   val gmc: GeneratedMessageCompanion[Lion] = implicitly
   def run(file: ProtobufFile): Assertion = {
     val path: NJPath = root / file.fileName
-    val res = (hadoop
-      .delete(path) >> data.map(d => Chunk.array(d.toByteArray)).through(pb.sink(path)).compile.drain >>
-      pb.inputStream(path)
-        .flatMap(is => Stream.fromIterator[IO](gmc.streamFromDelimitedInput(is).iterator, 1))
-        .compile
-        .toList).unsafeRunSync()
+
+    val write =
+      Stream.resource(pb.outputStream(path)).flatMap(os => data.map(_.writeDelimitedTo(os))).compile.drain
+
+    val read = Stream
+      .resource(pb.inputStream(path))
+      .flatMap(is => Stream.fromIterator[IO](gmc.streamFromDelimitedInput(is).iterator, 1))
+      .compile
+      .toList
+
+    val res = (hadoop.delete(path) >> write >> read).unsafeRunSync()
     assert(lions === res)
   }
 

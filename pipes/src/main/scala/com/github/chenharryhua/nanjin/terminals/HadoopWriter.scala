@@ -68,7 +68,7 @@ private object HadoopWriter {
     }
   }
 
-  private def fileOutputStreamR[F[_]](
+  def outputStreamR[F[_]](
     path: Path,
     configuration: Configuration,
     compressionLevel: CompressionLevel,
@@ -81,7 +81,7 @@ private object HadoopWriter {
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
+    outputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
       new HadoopWriter[F, Byte] {
         override def write(ck: Chunk[Byte]): F[Unit] =
           F.blocking(os.write(ck.toArray)) >> F.blocking(os.flush())
@@ -113,7 +113,7 @@ private object HadoopWriter {
     blockSizeHint: Long,
     schema: Schema,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map { os =>
+    outputStreamR(path, configuration, compressionLevel, blockSizeHint).map { os =>
       val encoder: Encoder = getEncoder(os)
       val datumWriter      = new GenericDatumWriter[GenericRecord](schema)
       new HadoopWriter[F, GenericRecord] {

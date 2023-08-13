@@ -42,9 +42,12 @@ private object HadoopReader {
     }
   }
 
+  def inputStreamR[F[_]](configuration: Configuration, path: Path)(implicit
+    F: Sync[F]): Resource[F, InputStream] =
+    Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
+
   def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
-    F: Sync[F]): Stream[F, InputStream] =
-    Stream.bracket(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
+    F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))
 
   def byteS[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
     F: Sync[F]): Stream[F, Byte] =
