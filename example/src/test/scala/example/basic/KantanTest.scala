@@ -14,7 +14,8 @@ import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) {
-  private val root = base / "kantan_no_header"
+  private val header = if (rfc.hasHeader) "kantan-with-header" else "kantan-without-header"
+  private val root   = base / header
 
   private val files: List[KantanFile] = List(
     KantanFile(NJCompression.Uncompressed),
