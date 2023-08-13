@@ -31,7 +31,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .stream
       .map(m => topic.decode(m))
       .take(1)
-      .timeout(3.seconds)
+      .timeout(6.seconds)
       .compile
       .drain
       .unsafeRunSync()

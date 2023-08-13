@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Resource
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
@@ -20,7 +19,6 @@ package object terminals {
 
   final val BLOCK_SIZE_HINT: Long    = -1
   final val BUFFER_SIZE: Information = Bytes(8192)
-  final val CHUNK_SIZE: ChunkSize    = ChunkSize(1000)
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
