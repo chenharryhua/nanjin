@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.pipes.KantanSerde
-import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPARATOR, NJCompression, NJFileFormat, NJPath}
+import com.github.chenharryhua.nanjin.terminals.*
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
 import io.circe.{Encoder as JsonEncoder, Json}
-import kantan.csv.{CsvConfiguration, HeaderEncoder}
+import kantan.csv.engine.WriterEngine
+import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.AvroJob
@@ -18,7 +18,7 @@ import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
-import java.io.ByteArrayOutputStream
+import java.io.{ByteArrayOutputStream, StringWriter}
 
 private[spark] object saveRDD {
 
@@ -151,7 +151,7 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .map(a => (NullWritable.get(), new Text(a.show + NEWLINE_SEPARATOR)))
+      .map(a => (NullWritable.get(), new Text(a.show.concat(NEWLINE_SEPARATOR))))
       .saveAsNewAPIHadoopFile(
         path.pathStr,
         classOf[NullWritable],
@@ -165,18 +165,26 @@ private[spark] object saveRDD {
     path: NJPath,
     compression: NJCompression,
     csvCfg: CsvConfiguration,
-    encoder: HeaderEncoder[A]): Unit = {
+    encoder: RowEncoder[A]): Unit = {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
     compressionConfig.set(config, compression)
+
+    val header = csvHeader(csvCfg).map(_.concat(NEWLINE_SEPARATOR)).toList.mkString
+
+    def row(row: Seq[String])(implicit engine: WriterEngine): String = {
+      val sw = new StringWriter()
+      engine.writerFor(sw, csvCfg).write(row).close()
+      sw.toString
+    }
+
     // run
     rdd
       .mapPartitions(
         iter =>
-          Iterator(Tuple2(NullWritable.get(), new Text(KantanSerde.headerStr(csvCfg, encoder)))) ++ // header
-            iter.map(r => // body
-              (NullWritable.get(), new Text(KantanSerde.rowEncode(r, csvCfg, encoder.rowEncoder)))),
+          Iterator(Tuple2(NullWritable.get(), new Text(header))) ++ // header
+            iter.map(r => (NullWritable.get(), new Text(row(encoder.encode(r))))), // body
         preservesPartitioning = true
       )
       .saveAsNewAPIHadoopFile(

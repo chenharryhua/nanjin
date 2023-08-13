@@ -4,9 +4,6 @@ import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.catsSyntaxFlatMapOps
 import fs2.Chunk
-import kantan.csv.CsvConfiguration
-import kantan.csv.CsvConfiguration.Header
-import kantan.csv.engine.WriterEngine
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
@@ -20,7 +17,7 @@ import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 
 import java.io.{OutputStream, PrintWriter}
-import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.charset.Charset
 
 sealed private trait HadoopWriter[F[_], A] {
   def write(ck: Chunk[A]): F[Unit]
@@ -71,34 +68,7 @@ private object HadoopWriter {
     }
   }
 
-  def kantanR[F[_]](
-    configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long,
-    csvConfiguration: CsvConfiguration,
-    path: Path)(implicit F: Sync[F], engine: WriterEngine): Resource[F, HadoopWriter[F, Seq[String]]] =
-    Resource
-      .make(F.blocking {
-        val pw = new PrintWriter(
-          fileOutputStream(path, configuration, compressionLevel, blockSizeHint),
-          true,
-          StandardCharsets.UTF_8)
-        val csvWriter = engine.writerFor(pw, csvConfiguration)
-        csvConfiguration.header match {
-          case Header.None             => ()
-          case Header.Implicit         => csvWriter.write(List("no explicitly provided header")): Unit
-          case Header.Explicit(header) => csvWriter.write(header): Unit
-        }
-        csvWriter
-      })(r => F.blocking(r.close()))
-      .map { cw =>
-        new HadoopWriter[F, Seq[String]] {
-          override def write(ck: Chunk[Seq[String]]): F[Unit] =
-            F.blocking(ck.foreach(cw.write(_): Unit))
-        }
-      }
-
-  private def fileOutputStreamR[F[_]](
+  def outputStreamR[F[_]](
     path: Path,
     configuration: Configuration,
     compressionLevel: CompressionLevel,
@@ -111,7 +81,7 @@ private object HadoopWriter {
     compressionLevel: CompressionLevel,
     blockSizeHint: Long,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
+    outputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
       new HadoopWriter[F, Byte] {
         override def write(ck: Chunk[Byte]): F[Unit] =
           F.blocking(os.write(ck.toArray)) >> F.blocking(os.flush())
@@ -143,7 +113,7 @@ private object HadoopWriter {
     blockSizeHint: Long,
     schema: Schema,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    fileOutputStreamR(path, configuration, compressionLevel, blockSizeHint).map { os =>
+    outputStreamR(path, configuration, compressionLevel, blockSizeHint).map { os =>
       val encoder: Encoder = getEncoder(os)
       val datumWriter      = new GenericDatumWriter[GenericRecord](schema)
       new HadoopWriter[F, GenericRecord] {

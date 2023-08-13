@@ -63,8 +63,7 @@ class ReadWriteTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/pipe/kantan.csv")
     hdp.delete(path).unsafeRunSync()
     val policy = RetryPolicies.constantDelay[IO](0.3.second)
-    val writer =
-      hdp.kantan(CsvConfiguration.rfc).sink(policy)(t => path / t.index)
+    val writer = hdp.kantan(CsvConfiguration.rfc).sink(policy)(t => path / t.index)
     data.map(hd.encode).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = sparkSession
       .loadTable[IO](AvroTypedEncoder[TestData])

@@ -1,10 +1,12 @@
 package mtest.terminals
 
+import cats.effect.IO
 import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, ToRecord}
 import kantan.csv.generic.*
 import kantan.csv.{RowDecoder, RowEncoder}
 
 import scala.util.Random
+import fs2.Stream
 
 object TestData {
   case class Tiger(id: Int, zooName: Option[String])
@@ -22,4 +24,9 @@ object TestData {
     (1 to 10).map(i => Tiger(i, if (Random.nextBoolean()) Some("ChengDu Zoo") else None)).toList
 
   val tigerSet: Set[Tiger] = tigers.toSet
+
+  val herd_number: Long = 10000L
+  val herd: Stream[IO, Tiger] =
+    Stream.range(0, herd_number).map(idx => TestData.Tiger(idx.toInt, Some("zoo"))).covary[IO]
+
 }

@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import fs2.Stream
 import io.circe.Encoder as JsonEncoder
-import kantan.csv.CsvConfiguration
+import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
@@ -31,7 +31,7 @@ sealed class RddFileHoarder[F[_], A](frdd: F[RDD[A]]) extends Serializable {
 
 // 5
   final def kantan(path: NJPath, cfg: CsvConfiguration)(implicit
-    encoder: NJHeaderEncoder[A]): SaveKantanCsv[F, A] =
+    encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
     new SaveKantanCsv[F, A](frdd, cfg, HoarderConfig(path).outputFormat(Kantan), encoder)
 
   final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =

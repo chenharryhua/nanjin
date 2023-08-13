@@ -8,7 +8,12 @@ import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed
 import fs2.{Chunk, Pull, Stream}
+import kantan.csv.CsvConfiguration
+import kantan.csv.CsvConfiguration.Header
+import kantan.csv.engine.WriterEngine
 import squants.information.{Bytes, Information}
+
+import java.io.StringWriter
 package object terminals {
   @inline final val NEWLINE_SEPARATOR: String                = "\r\n"
   @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk(NEWLINE_SEPARATOR)
@@ -43,7 +48,7 @@ package object terminals {
     getWriter: Tick => Resource[F, HadoopWriter[F, String]],
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
-    ss: Stream[F, Either[Chunk[String], Tick]],
+    ss: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]],
     newLineSeparator: Chunk[String]
   ): Pull[F, Nothing, Unit] =
     ss.pull.uncons1.flatMap {
@@ -54,11 +59,25 @@ package object terminals {
             Pull.eval(writer.write(newLineSeparator ++ rest.map(_.concat(NEWLINE_SEPARATOR)) ++ last)) >>
               persistString[F](getWriter, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
 
-          case Right(tick) =>
+          case Right((tick, header)) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
-              persistString(getWriter, hotswap, writer, tail, Chunk.empty)
+              Pull.eval(writer.write(header)) >>
+                persistString(getWriter, hotswap, writer, tail, Chunk.empty)
             }
         }
       case None => Pull.done
     }
+
+  def buildCsvRow(csvConfiguration: CsvConfiguration)(row: Seq[String])(implicit
+    engine: WriterEngine): String = {
+    val sw = new StringWriter()
+    engine.writerFor(sw, csvConfiguration).write(row).close()
+    sw.toString.dropRight(2) // drop CRLF
+  }
+
+  def csvHeader(csvConfiguration: CsvConfiguration): Chunk[String] = csvConfiguration.header match {
+    case Header.None             => Chunk.empty
+    case Header.Implicit         => Chunk("no header was explicitly provided")
+    case Header.Explicit(header) => Chunk(buildCsvRow(csvConfiguration)(header))
+  }
 }

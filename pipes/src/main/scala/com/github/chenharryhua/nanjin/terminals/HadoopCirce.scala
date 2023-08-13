@@ -44,9 +44,7 @@ final class HadoopCirce[F[_]] private (
       .rethrow
 
   def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Json] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) =>
-      s ++ source(p)
-    }
+    paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) => s ++ source(p) }
 
   // write
 
@@ -81,11 +79,14 @@ final class HadoopCirce[F[_]] private (
     (ss: Stream[F, Chunk[Json]]) =>
       Stream.eval(Tick.Zero).flatMap { zero =>
         Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+          val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
+            tickStream[F](policy, zero).map(t => Right((t, Chunk.empty)))
+
           persistString[F](
             getWriter,
             hotswap,
             writer,
-            ss.map(ck => Left(ck.map(_.noSpaces))).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_))),
+            ss.map(ck => Left(ck.map(_.noSpaces))).mergeHaltBoth(ts),
             Chunk.empty
           ).stream
         }

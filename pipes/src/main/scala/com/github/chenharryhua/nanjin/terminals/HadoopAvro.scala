@@ -18,32 +18,26 @@ final class HadoopAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema,
   compression: AvroCompression,
-  blockSizeHint: Long,
-  chunkSize: ChunkSize) {
+  blockSizeHint: Long) {
 
   // config
 
   def withCompression(compression: AvroCompression): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, compression, blockSizeHint, chunkSize)
-
-  def withChunkSize(cs: ChunkSize): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, compression, blockSizeHint, cs)
+    new HadoopAvro[F](configuration, schema, compression, blockSizeHint)
 
   def withBlockSizeHint(bsh: Long): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, compression, bsh, chunkSize)
+    new HadoopAvro[F](configuration, schema, compression, bsh)
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericRecord] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericRecord] =
     for {
       dfs <- Stream.resource(HadoopReader.avroR(configuration, schema, path.hadoopPath))
       gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
     } yield gr
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, GenericRecord] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) =>
-      s ++ source(p)
-    }
+  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericRecord] =
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) => s ++ source(p, chunkSize) }
 
   // write
 
@@ -81,5 +75,5 @@ final class HadoopAvro[F[_]] private (
 
 object HadoopAvro {
   def apply[F[_]](cfg: Configuration, schema: Schema): HadoopAvro[F] =
-    new HadoopAvro[F](cfg, schema, NJCompression.Uncompressed, BLOCK_SIZE_HINT, CHUNK_SIZE)
+    new HadoopAvro[F](cfg, schema, NJCompression.Uncompressed, BLOCK_SIZE_HINT)
 }
