@@ -17,12 +17,14 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 final class LoadTable[F[_], A] private[spark] (ate: AvroTypedEncoder[A], ss: SparkSession)(implicit
   F: Sync[F]) {
 
-  def data(ds: Dataset[A]): NJTable[F, A] = new NJTable[F, A](F.blocking(ate.normalize(ds)), ate)
+  def data(ds: Dataset[A]): NJTable[F, A] =
+    new NJTable[F, A](F.blocking(ds), ate)
   def data(tds: TypedDataset[A]): NJTable[F, A] =
-    new NJTable[F, A](F.blocking(ate.normalize(tds.dataset)), ate)
-  def data(rdd: RDD[A]): NJTable[F, A] = new NJTable[F, A](F.blocking(ate.normalize(rdd, ss)), ate)
-  def data[G[_]: Foldable](list: G[A]): NJTable[F, A] =
-    new NJTable[F, A](F.blocking(ate.normalize(ss.createDataset(list.toList)(ate.sparkEncoder))), ate)
+    new NJTable[F, A](F.blocking(tds.dataset), ate)
+  def data(rdd: RDD[A]): NJTable[F, A] =
+    new NJTable[F, A](F.blocking(ss.createDataset(rdd)(ate.sparkEncoder)), ate)
+  def data[G[_]: Foldable](ga: G[A]): NJTable[F, A] =
+    new NJTable[F, A](F.blocking(ss.createDataset(ga.toList)(ate.sparkEncoder)), ate)
 
   def empty: NJTable[F, A] = new NJTable[F, A](F.blocking(ate.emptyDataset(ss)), ate)
 

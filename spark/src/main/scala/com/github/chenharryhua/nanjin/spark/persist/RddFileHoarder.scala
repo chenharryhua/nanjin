@@ -35,7 +35,7 @@ sealed class RddFileHoarder[F[_], A](frdd: F[RDD[A]]) extends Serializable {
     new SaveKantanCsv[F, A](frdd, cfg, HoarderConfig(path).outputFormat(Kantan), encoder)
 
   final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =
-    Stream.force(F.map(frdd)(rdd => Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)))
+    Stream.eval(frdd).flatMap(rdd => Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value))
 
 }
 

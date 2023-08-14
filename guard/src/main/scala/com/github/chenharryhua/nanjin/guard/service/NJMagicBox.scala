@@ -57,8 +57,8 @@ final class NJSignalBox[F[_]: Monad, A](
       (ol: Option[Locker]) => ol.flatMap(_.unlock(key)).getOrElse(init),
       (_: Option[Locker]) => (a: A) => Some(Locker(key, a))))
 
-  override def discrete: Stream[F, A]                              = Stream.force(fsr.map(_.discrete))
-  override def continuous: Stream[F, A]                            = Stream.force(fsr.map(_.continuous))
+  override def discrete: Stream[F, A]                              = Stream.eval(fsr).flatMap(_.discrete)
+  override def continuous: Stream[F, A]                            = Stream.eval(fsr).flatMap(_.continuous)
   override def get: F[A]                                           = fsr.flatMap(_.get)
   override def access: F[(A, A => F[Boolean])]                     = fsr.flatMap(_.access)
   override def tryUpdate(f: A => A): F[Boolean]                    = fsr.flatMap(_.tryUpdate(f))

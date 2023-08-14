@@ -74,7 +74,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    val size = Stream.force(hdp.filesIn(path).map(binAvro.source)).compile.toList.map(_.size).unsafeRunSync()
+    val size = Stream.eval(hdp.filesIn(path)).flatMap(binAvro.source).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 2)
   }
 }

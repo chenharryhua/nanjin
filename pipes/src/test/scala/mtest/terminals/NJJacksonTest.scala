@@ -92,7 +92,7 @@ class NJJacksonTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    val size = Stream.force(hdp.filesIn(path).map(jackson.source)).compile.toList.map(_.size).unsafeRunSync()
+    val size = Stream.eval(hdp.filesIn(path)).flatMap(jackson.source).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 2)
   }
 }

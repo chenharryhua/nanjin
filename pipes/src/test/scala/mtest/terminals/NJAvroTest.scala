@@ -74,7 +74,7 @@ class NJAvroTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream.force(hdp.filesIn(path).map(avro.source(_, 100))).compile.toList.map(_.size).unsafeRunSync()
+      Stream.eval(hdp.filesIn(path)).flatMap(avro.source(_, 100)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 2)
   }
 }

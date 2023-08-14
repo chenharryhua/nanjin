@@ -29,5 +29,12 @@ abstract class WriteRead(agent: Agent[IO]) {
       .use(meter => agent.action(name, _.notice).retry(action(meter)).logOutput(_.asJson).run)
       .map(_.ensuring(_ === size))
   }
+  def single: IO[List[Long]]
+  def rotate: IO[List[Long]]
+  def sparkSingle: IO[List[Long]]
+  def sparkRotate: IO[List[Long]]
+  def sparkMulti: IO[List[Long]]
+
+  final def run: IO[Unit] = (single >> rotate >> sparkSingle >> sparkRotate >> sparkMulti).void
 
 }
