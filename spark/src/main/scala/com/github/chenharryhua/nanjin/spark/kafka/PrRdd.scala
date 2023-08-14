@@ -52,11 +52,12 @@ final class PrRdd[F[_], K, V] private[kafka] (
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](frdd, codec.avroEncoder)
 
   def producerRecords(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
-    Stream.force(
-      frdd.map(rdd =>
+    Stream
+      .eval(frdd)
+      .flatMap(rdd =>
         Stream
           .fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
           .chunks
-          .map(_.map(_.toProducerRecord))))
+          .map(_.map(_.toProducerRecord)))
 
 }

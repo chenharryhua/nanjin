@@ -16,9 +16,9 @@ package object basic {
   val size: Long              = 10_000
   val data: Stream[IO, Tiger] = Stream.range(0, size).map(a => Tiger(a, "a" * 1000))
 
-  val root: NJPath = NJPath("./data/example/")
+  val root: NJPath = NJPath("./data/example/basic")
 
-  val policy: RetryPolicy[IO] = policies.cronBackoff[IO](crontabs.every15Seconds, sydneyTime)
+  val policy: RetryPolicy[IO] = policies.cronBackoff[IO](crontabs.secondly, sydneyTime)
 
   implicit val te: TypedEncoder[Tiger] = shapeless.cachedImplicit
 

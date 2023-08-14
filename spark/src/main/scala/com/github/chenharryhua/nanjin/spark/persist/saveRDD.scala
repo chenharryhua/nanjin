@@ -171,11 +171,11 @@ private[spark] object saveRDD {
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
     compressionConfig.set(config, compression)
 
-    val header = csvHeader(csvCfg).map(_.concat(NEWLINE_SEPARATOR)).toList.mkString
+    val header_crlf = csvHeader(csvCfg).map(_.concat(NEWLINE_SEPARATOR)).toList.mkString
 
-    def row(row: Seq[String])(implicit engine: WriterEngine): String = {
+    def row(r: Seq[String])(implicit engine: WriterEngine): String = {
       val sw = new StringWriter()
-      engine.writerFor(sw, csvCfg).write(row).close()
+      engine.writerFor(sw, csvCfg).write(r).close()
       sw.toString
     }
 
@@ -183,7 +183,7 @@ private[spark] object saveRDD {
     rdd
       .mapPartitions(
         iter =>
-          Iterator(Tuple2(NullWritable.get(), new Text(header))) ++ // header
+          Iterator(Tuple2(NullWritable.get(), new Text(header_crlf))) ++ // header
             iter.map(r => (NullWritable.get(), new Text(row(encoder.encode(r))))), // body
         preservesPartitioning = true
       )

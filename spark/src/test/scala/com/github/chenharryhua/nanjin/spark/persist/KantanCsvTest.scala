@@ -4,7 +4,7 @@ import better.files.File
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{csvHeader, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.generic.*
@@ -127,25 +127,28 @@ class KantanCsvTest extends AnyFunSuite {
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
+    checkHeader(path, csvHeader(cfg).toList.mkString)
   }
 
   test("tablet read/write identity with-header-delimiter") {
     val path = root / "header_delimiter"
-    val cfg  = CsvConfiguration.rfc.withCellSeparator('|').withHeader
+    val cfg  = CsvConfiguration.rfc.withCellSeparator('|').withHeader("a", "b")
     val s    = saver(path, cfg)
     s.run.unsafeRunSync()
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
+    checkHeader(path, "a|b")
   }
 
   test("tablet read/write identity with-header-delimiter-quote") {
     val path = root / "header_delimiter_quote"
-    val cfg  = CsvConfiguration.rfc.withHeader.withCellSeparator('|').withQuote('*').quoteAll
+    val cfg  = CsvConfiguration.rfc.withHeader("", "b", "").withCellSeparator('|').withQuote('*').quoteAll
     val s    = saver(path, cfg)
     s.run.unsafeRunSync()
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
+    checkHeader(path, "**|*b*|**")
   }
 }
