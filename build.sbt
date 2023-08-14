@@ -2,7 +2,7 @@ ThisBuild / scalaVersion := "2.13.11"
 
 ThisBuild / version := "0.17.0-SNAPSHOT"
 
-val catsCoreV   = "2.9.0"
+val catsCoreV   = "2.10.0"
 val fs2V        = "3.8.0"
 val awsV_1      = "1.12.520"
 val awsV_2      = "2.20.120"
