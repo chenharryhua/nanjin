@@ -18,7 +18,7 @@ package object basic {
 
   val root: NJPath = NJPath("./data/example/basic")
 
-  val policy: RetryPolicy[IO] = policies.cronBackoff[IO](crontabs.every15Seconds, sydneyTime)
+  val policy: RetryPolicy[IO] = policies.cronBackoff[IO](crontabs.secondly, sydneyTime)
 
   implicit val te: TypedEncoder[Tiger] = shapeless.cachedImplicit
 

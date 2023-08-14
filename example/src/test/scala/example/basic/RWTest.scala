@@ -2,7 +2,11 @@ package example.basic
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.datetime.crontabs
+import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.observers.console
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import example.hadoop
 import kantan.csv.CsvConfiguration
 import org.scalatest.funsuite.AnyFunSuite
@@ -10,28 +14,60 @@ import org.scalatest.funsuite.AnyFunSuite
 class RWTest extends AnyFunSuite {
   hadoop.delete(root).unsafeRunSync()
 
+  val task: ServiceGuard[IO] = TaskGuard[IO]("basic")
+    .updateConfig(_.withZoneId(sydneyTime))
+    .service("test")
+    .updateConfig(_.withMetricReport(crontabs.trisecondly))
+
   test("avro") {
-    TaskGuard.dummyAgent[IO].use(a => new AvroTest(a, root).run).unsafeRunSync()
+    task.eventStream(a => new AvroTest(a, root).run).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
   test("circe") {
-    TaskGuard.dummyAgent[IO].use(a => new CirceTest(a, root).run).unsafeRunSync()
+    task
+      .eventStream(a => new CirceTest(a, root).run)
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
   }
   test("jackson") {
-    TaskGuard.dummyAgent[IO].use(a => new JacksonTest(a, root).run).unsafeRunSync()
+    task
+      .eventStream(a => new JacksonTest(a, root).run)
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
   }
   test("bin_avro") {
-    TaskGuard.dummyAgent[IO].use(a => new BinAvroTest(a, root).run).unsafeRunSync()
+    task
+      .eventStream(a => new BinAvroTest(a, root).run)
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
   }
   test("parquet") {
-    TaskGuard.dummyAgent[IO].use(a => new ParquetTest(a, root).run).unsafeRunSync()
+    task
+      .eventStream(a => new ParquetTest(a, root).run)
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
   }
   test("kantan - no-header") {
-    TaskGuard.dummyAgent[IO].use(a => new KantanTest(a, root, CsvConfiguration.rfc).run).unsafeRunSync()
+    task
+      .eventStream(a => new KantanTest(a, root, CsvConfiguration.rfc).run)
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
   }
   test("kantan - header") {
-    TaskGuard
-      .dummyAgent[IO]
-      .use(a => new KantanTest(a, root, CsvConfiguration.rfc.withHeader("a", "c")).run)
+    task
+      .eventStream(a => new KantanTest(a, root, CsvConfiguration.rfc.withHeader("a", "c")).run)
+      .evalTap(console.simple[IO])
+      .compile
+      .drain
       .unsafeRunSync()
   }
 }

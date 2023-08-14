@@ -1,9 +1,6 @@
-ThisBuild / scalaVersion       := "2.13.11"
-ThisBuild / parallelExecution  := false
-Global / cancelable            := true
-ThisBuild / evictionErrorLevel := Level.Info
-ThisBuild / version            := "0.17.0-SNAPSHOT"
-ThisBuild / versionScheme      := Some("early-semver")
+ThisBuild / scalaVersion := "2.13.11"
+
+ThisBuild / version := "0.17.0-SNAPSHOT"
 
 val catsCoreV   = "2.9.0"
 val fs2V        = "3.8.0"
@@ -40,7 +37,6 @@ val okioV       = "3.5.0"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
-  scalaVersion := scalaVersion.value,
   resolvers ++=
     Resolver.sonatypeOssRepos("public") ++
       Resolver.sonatypeOssRepos("releases") :+
@@ -51,9 +47,12 @@ lazy val commonSettings = List(
     "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
   ),
+  evictionErrorLevel := Level.Info,
+  versionScheme      := Some("early-semver"),
   scalacOptions ++= List("-Ymacro-annotations", "-Xsource:3", "-Wconf:src=src_managed/.*:silent"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement
+  Test / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
+  Test / parallelExecution := false
 )
 
 val circeLib = List(
@@ -393,6 +392,14 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    guard,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark)

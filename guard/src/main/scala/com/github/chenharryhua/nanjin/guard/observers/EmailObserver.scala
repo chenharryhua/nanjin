@@ -117,7 +117,9 @@ final class EmailObserver[F[_]] private (
                     case ExitCase.Errored(_) => ColorScheme.ErrorColor
                     case ExitCase.Canceled   => ColorScheme.ErrorColor
                   }))
-              publish(tags, ses, from, to, subject).void
+              if (tags.nonEmpty)
+                publish(tags, ses, from, to, subject).void
+              else F.unit
             })
       } yield ()
       computation.drain
