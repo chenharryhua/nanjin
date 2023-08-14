@@ -48,7 +48,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(_.asJson)
-        .chunks
+        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -69,7 +69,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(_.asJson)
-        .chunks
+        .chunkN(1000)
         .through(sink)
         .compile
         .drain

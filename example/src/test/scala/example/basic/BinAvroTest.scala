@@ -45,7 +45,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
-        .chunks
+        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -61,7 +61,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
-        .chunks
+        .chunkN(1000)
         .through(sink)
         .compile
         .drain

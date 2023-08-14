@@ -65,7 +65,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
-        .chunks
+        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -87,7 +87,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
-        .chunks
+        .chunkN(1000)
         .through(sink)
         .compile
         .drain
