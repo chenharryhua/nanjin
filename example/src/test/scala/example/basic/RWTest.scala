@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.terminals.CsvHeaderOf
 import example.hadoop
 import kantan.csv.CsvConfiguration
 import org.scalatest.funsuite.AnyFunSuite
@@ -63,8 +64,9 @@ class RWTest extends AnyFunSuite {
       .unsafeRunSync()
   }
   test("kantan - header") {
+    val tiger: CsvHeaderOf[Tiger] = shapeless.cachedImplicit
     task
-      .eventStream(a => new KantanTest(a, root, CsvConfiguration.rfc.withHeader("a", "c")).run)
+      .eventStream(a => new KantanTest(a, root, CsvConfiguration.rfc.withHeader(tiger.header)).run)
       .evalTap(console.simple[IO])
       .compile
       .drain

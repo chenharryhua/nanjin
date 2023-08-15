@@ -2,7 +2,7 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{KantanFile, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
@@ -16,8 +16,9 @@ import retry.{RetryPolicies, RetryPolicy}
 import scala.concurrent.duration.DurationInt
 
 class NJKantanTest extends AnyFunSuite {
-  implicit val tigerEncoder: RowEncoder[Tiger] = shapeless.cachedImplicit
-  implicit val tigerDecoder: RowDecoder[Tiger] = shapeless.cachedImplicit
+  val tigerEncoder: RowEncoder[Tiger]          = shapeless.cachedImplicit
+  val tigerDecoder: RowDecoder[Tiger]          = shapeless.cachedImplicit
+  implicit val tigerHeader: CsvHeaderOf[Tiger] = shapeless.cachedImplicit
 
   def fs2(path: NJPath, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
@@ -32,7 +33,7 @@ class NJKantanTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
 
   test("uncompressed - with-header") {
-    val cfg = CsvConfiguration.rfc.withHeader("a", "b", "c")
+    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.header)
     fs2(fs2Root / "header", KantanFile(Uncompressed), cfg, tigerSet)
   }
 
@@ -90,7 +91,7 @@ class NJKantanTest extends AnyFunSuite {
 
   val policy: RetryPolicy[IO] = RetryPolicies.constantDelay[IO](1.second)
   test("rotation - with-header") {
-    val csv  = hdp.kantan(CsvConfiguration.rfc.withHeader(true))
+    val csv  = hdp.kantan(CsvConfiguration.rfc.withHeader(CsvHeaderOf[Tiger]))
     val path = fs2Root / "rotation" / "header"
     val file = KantanFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()

@@ -38,7 +38,6 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
     .map { case (_, idx) =>
       ProducerRecords.one(ProducerRecord(topic.topicName.value, idx.toInt, "a"))
     }
-    .debug()
     .through(topic.topic.produce.updateConfig(_.withClientId("spark.kafka.dstream.test")).pipe)
     .interruptAfter(10.seconds)
 
@@ -61,7 +60,7 @@ class SparkDStreamTest extends AnyFunSuite with BeforeAndAfter {
             .resource)
         .flatMap(SparkDStreamListener[IO](_))
 
-    sender.concurrently(dstream.debug()).compile.drain.unsafeRunSync()
+    sender.concurrently(dstream).compile.drain.unsafeRunSync()
 
     val ts = LocalDate.now()
 
