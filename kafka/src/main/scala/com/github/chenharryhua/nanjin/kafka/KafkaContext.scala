@@ -2,22 +2,31 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
-import cats.syntax.functor.*
-import cats.syntax.show.*
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf, SerdeOfGenericRecord}
+import com.sksamuel.avro4s.AvroOutputStream
+import fs2.Stream
 import fs2.kafka.{ConsumerSettings, Deserializer}
+import io.circe.Json
+import io.circe.parser.parse
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
-final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable {
+import java.io.ByteArrayOutputStream
 
-  def updateSettings(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
+final class KafkaContext[F[_]](val settings: KafkaSettings)
+    extends UpdateConfig[KafkaSettings, KafkaContext[F]] with Serializable {
+
+  override def updateConfig(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
-  def withGroupId(groupId: String): KafkaContext[F]     = updateSettings(_.withGroupId(groupId))
-  def withApplicationId(appId: String): KafkaContext[F] = updateSettings(_.withApplicationId(appId))
+  def withGroupId(groupId: String): KafkaContext[F]     = updateConfig(_.withGroupId(groupId))
+  def withApplicationId(appId: String): KafkaContext[F] = updateConfig(_.withApplicationId(appId))
 
   def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
   def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
@@ -46,6 +55,40 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
   def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
     consume(TopicName(topicName))
 
+  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, Json] = {
+    val grTopic: F[KafkaTopic[F, GenericRecord, GenericRecord]] =
+      new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(topicName).flatMap { case (ks, vs) =>
+        (ks, vs) match {
+          case (Some(k), Some(v)) =>
+            val ksd = SerdeOfGenericRecord(k)
+            val vsd = SerdeOfGenericRecord(v)
+            F.pure(TopicDef(topicName)(ksd, vsd).in(this))
+          case (Some(_), None) => F.raiseError(new Exception("can not retrieve value schema from kafka"))
+          case (None, Some(_)) =>
+            F.raiseError(
+              new Exception(
+                "can not retrieve key schema from kafka, consider use monitorK if it is a primitive type"))
+          case (None, None) =>
+            F.raiseError(new Exception("can not retrieve both key and value schema from kafka"))
+        }
+      }
+    Stream.eval(grTopic).flatMap { tpk =>
+      val jackson = AvroOutputStream.json[NJConsumerRecord[GenericRecord, GenericRecord]](
+        NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
+      consume(tpk.topicName).stream.map { cr =>
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
+        val writer: AvroOutputStream[NJConsumerRecord[GenericRecord, GenericRecord]] =
+          jackson.to(baos).build()
+        writer.write(tpk.decode(cr).toNJConsumerRecord)
+        writer.close()
+        parse(baos.toString())
+      }.rethrow
+    }
+  }
+
+  def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
+    monitor(TopicName(topicName))
+
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
       storeName,
@@ -60,8 +103,6 @@ final class KafkaContext[F[_]](val settings: KafkaSettings) extends Serializable
   def buildStreams(topology: StreamsBuilder => Unit)(implicit F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(Reader(topology))
 
-  def schema(topicName: TopicName)(implicit F: Sync[F]): F[String] =
-    new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(topicName).map(_.show)
-  def schema(topicName: TopicNameC)(implicit F: Sync[F]): F[String] =
-    schema(TopicName(topicName))
+  def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] =
+    new SchemaRegistryApi[F](settings.schemaRegistrySettings).metaData(topicName)
 }

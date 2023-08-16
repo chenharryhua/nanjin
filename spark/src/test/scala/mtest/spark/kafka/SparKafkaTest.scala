@@ -5,17 +5,17 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KUnknown, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.{ProducerRecord, ProducerRecords}
+import io.circe.generic.auto.*
+import io.circe.syntax.*
+import monocle.syntax.all.*
 import mtest.spark.sparkSession
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
-import io.circe.generic.auto.*
-import monocle.syntax.all.*
-import io.circe.syntax.*
 
 import java.time.{Instant, LocalDate}
 object SparKafkaTestData {
@@ -153,8 +153,6 @@ class SparKafkaTest extends AnyFunSuite {
   test("should be able to save kunknown") {
     import io.circe.generic.auto.*
     val path = NJPath("./data/test/spark/kafka/kunknown")
-    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.output.circe(path / "circe").run.unsafeRunSync()
-    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.output.jackson(path / "jackson").run.unsafeRunSync()
     sparKafka
       .topic[Int, HasDuck]("duck.test")
       .fromKafka

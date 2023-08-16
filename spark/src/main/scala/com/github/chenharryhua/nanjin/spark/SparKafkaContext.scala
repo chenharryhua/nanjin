@@ -1,15 +1,11 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KUnknown, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic}
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import io.circe.Json
-import io.circe.generic.auto.*
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
 
@@ -45,10 +41,4 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def sstream(topicName: TopicNameC): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
     sstream(TopicName(topicName))
-
-  def dumpTopic(topicName: TopicName, path: NJPath, dr: NJDateTimeRange)(implicit F: Sync[F]): F[Unit] =
-    topic[KUnknown, KUnknown](topicName).fromKafka(dr).output.circe(path).run
-
-  def dumpTopic(topicName: TopicNameC, path: NJPath, dr: NJDateTimeRange)(implicit F: Sync[F]): F[Unit] =
-    dumpTopic(TopicName(topicName), path, dr)
 }

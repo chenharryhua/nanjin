@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, KUnknown, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
 import fs2.kafka.{AutoOffsetReset, CommittableProducerRecords, ProducerRecord, TransactionalProducerRecords}
 import io.circe.generic.auto.*
@@ -16,26 +16,15 @@ import scala.concurrent.duration.*
 import eu.timepit.refined.auto.*
 
 class Fs2ChannelTest extends AnyFunSuite {
-  val backblaze_smart = TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))
-  val nyc_taxi_trip   = TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data"))
+  val backblaze_smart: TopicDef[KJson[lenses_record_key], String] =
+    TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))
+  val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =
+    TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 
   val sms: TopicDef[Key, smsCallInternet] = TopicDef(
     TopicName("telecom_italia_data"),
     NJAvroCodec[Key](Key.schema).right.get,
     NJAvroCodec[smsCallInternet](smsCallInternet.schema).right.get)
-
-  test("unknown schema") {
-    val topic = ctx.topic[Array[Byte], KUnknown](nyc_taxi_trip.topicName)
-    ctx
-      .consume(topic.topicName)
-      .stream
-      .map(m => topic.decode(m))
-      .take(1)
-      .timeout(6.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
 
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)

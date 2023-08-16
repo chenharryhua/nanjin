@@ -123,7 +123,7 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
           new CachedSchemaRegistryClient(url, size)
       }))(_ => F.pure(()))
 
-  def kvSchema(topicName: TopicName): F[KvSchemaMetadata] = {
+  def metaData(topicName: TopicName): F[KvSchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     csrClient.use { client =>
       F.delay(
@@ -132,6 +132,13 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
           Try(client.getLatestSchemaMetadata(loc.valLoc)).toOption))
     }
   }
+  
+  def kvSchema(topicName: TopicName): F[(Option[Schema], Option[Schema])] =
+    metaData(topicName).map { kv =>
+      val ks = kv.key.map(_.getSchema).map(new AvroSchema(_).rawSchema())
+      val vs = kv.value.map(_.getSchema).map(new AvroSchema(_).rawSchema())
+      (ks, vs)
+    }
 
   def register(topicName: TopicName, keySchema: Schema, valSchema: Schema): F[(Option[Int], Option[Int])] = {
     val loc = SchemaLocation(topicName)
@@ -163,7 +170,7 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
       (
         F.delay(client.testCompatibility(loc.keyLoc, ks)).attempt.map(_.leftMap(_.getMessage)),
         F.delay(client.testCompatibility(loc.valLoc, vs)).attempt.map(_.leftMap(_.getMessage)),
-        kvSchema(topicName)).mapN((k, v, m) => CompatibilityTestReport(topicName, srs, m, ks, vs, k, v))
+        metaData(topicName)).mapN((k, v, m) => CompatibilityTestReport(topicName, srs, m, ks, vs, k, v))
     }
   }
 }
