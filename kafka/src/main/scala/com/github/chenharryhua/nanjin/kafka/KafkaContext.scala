@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf, SerdeOfGenericRecord}
-import com.sksamuel.avro4s.AvroOutputStream
+import com.sksamuel.avro4s.{AvroOutputStream, AvroOutputStreamBuilder}
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings, Deserializer}
 import io.circe.Json
@@ -69,8 +69,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         }
       }
     Stream.eval(grTopic).flatMap { tpk =>
-      val jackson = AvroOutputStream.json[NJConsumerRecord[GenericRecord, GenericRecord]](
-        NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
+      val jackson: AvroOutputStreamBuilder[NJConsumerRecord[GenericRecord, GenericRecord]] =
+        AvroOutputStream.json[NJConsumerRecord[GenericRecord, GenericRecord]](
+          NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
       consume(tpk.topicName).stream.map { cr =>
         val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val writer: AvroOutputStream[NJConsumerRecord[GenericRecord, GenericRecord]] =
@@ -97,8 +98,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         }
       }
     Stream.eval(grTopic).flatMap { tpk =>
-      val jackson = AvroOutputStream.json(
-        NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
+      val jackson: AvroOutputStreamBuilder[NJConsumerRecord[K, GenericRecord]] =
+        AvroOutputStream.json(
+          NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
       consume(tpk.topicName).stream.map { cr =>
         val baos: ByteArrayOutputStream = new ByteArrayOutputStream
         val writer: AvroOutputStream[NJConsumerRecord[K, GenericRecord]] =
