@@ -50,6 +50,6 @@ class SchemaRegistryTest extends AnyFunSuite {
     topic.schemaRegistry.register.unsafeRunSync()
   }
   test("retrieve schema") {
-    println(ctx.schema(topic.topicName).unsafeRunSync())
+    println(ctx.metaData(topic.topicName).unsafeRunSync())
   }
 }

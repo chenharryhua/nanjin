@@ -132,7 +132,7 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
           Try(client.getLatestSchemaMetadata(loc.valLoc)).toOption))
     }
   }
-  
+
   def kvSchema(topicName: TopicName): F[(Option[Schema], Option[Schema])] =
     metaData(topicName).map { kv =>
       val ks = kv.key.map(_.getSchema).map(new AvroSchema(_).rawSchema())

@@ -64,12 +64,8 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
             val vsd = SerdeOfGenericRecord(v)
             F.pure(TopicDef(topicName)(ksd, vsd).in(this))
           case (Some(_), None) => F.raiseError(new Exception("can not retrieve value schema from kafka"))
-          case (None, Some(_)) =>
-            F.raiseError(
-              new Exception(
-                "can not retrieve key schema from kafka, consider use monitorK if it is a primitive type"))
-          case (None, None) =>
-            F.raiseError(new Exception("can not retrieve both key and value schema from kafka"))
+          case (None, Some(_)) => F.raiseError(new Exception("can not retrieve key schema from kafka"))
+          case (None, None) => F.raiseError(new Exception("can not retrieve key and value schema from kafka"))
         }
       }
     Stream.eval(grTopic).flatMap { tpk =>
@@ -89,6 +85,34 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
     monitor(TopicName(topicName))
 
+  def monitorK[K: SerdeOf](topicName: TopicName)(implicit F: Async[F]): Stream[F, Json] = {
+    val grTopic: F[KafkaTopic[F, K, GenericRecord]] =
+      new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(topicName).flatMap { case (_, vs) =>
+        vs match {
+          case Some(v) =>
+            val ksd = SerdeOf[K]
+            val vsd = SerdeOfGenericRecord(v)
+            F.pure(TopicDef(topicName)(ksd, vsd).in(this))
+          case None => F.raiseError(new Exception("can not retrieve key and value schema from kafka"))
+        }
+      }
+    Stream.eval(grTopic).flatMap { tpk =>
+      val jackson = AvroOutputStream.json(
+        NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
+      consume(tpk.topicName).stream.map { cr =>
+        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
+        val writer: AvroOutputStream[NJConsumerRecord[K, GenericRecord]] =
+          jackson.to(baos).build()
+        writer.write(tpk.decode(cr).toNJConsumerRecord)
+        writer.close()
+        parse(baos.toString())
+      }.rethrow
+    }
+  }
+
+  def monitorK[K: SerdeOf](topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
+    monitorK[K](TopicName(topicName))
+
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
       storeName,
@@ -105,4 +129,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] =
     new SchemaRegistryApi[F](settings.schemaRegistrySettings).metaData(topicName)
+
+  def metaData(topicName: TopicNameC)(implicit F: Sync[F]): F[KvSchemaMetadata] =
+    metaData(TopicName(topicName))
 }
