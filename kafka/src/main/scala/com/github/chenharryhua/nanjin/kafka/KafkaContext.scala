@@ -9,9 +9,9 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings, Deserializer}
+import io.circe.Json
 import io.scalaland.chimney.dsl.TransformerOps
-import org.apache.avro.generic.GenericRecord
-import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
@@ -51,16 +51,16 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, GenericRecord] = {
+  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, Json] = {
     val bgr: F[BuildGenericRecord] =
       new SchemaRegistryApi[F](settings.schemaRegistrySettings).grBuilder(topicName)
     Stream.eval(bgr).flatMap { builder =>
       consume(topicName).stream.map(cr =>
-        builder.toGenericRecord(cr.record.transformInto[ConsumerRecord[Array[Byte], Array[Byte]]]))
+        builder.toJson(cr.record.transformInto[KafkaConsumerRecord[Array[Byte], Array[Byte]]]))
     }
   }
 
-  def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, GenericRecord] =
+  def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
     monitor(TopicName(topicName))
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
