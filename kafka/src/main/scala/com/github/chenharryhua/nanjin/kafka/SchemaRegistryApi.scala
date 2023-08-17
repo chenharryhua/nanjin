@@ -133,11 +133,19 @@ final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Syn
     }
   }
 
-  def kvSchema(topicName: TopicName): F[(Option[Schema], Option[Schema])] =
+  private def kvSchema(topicName: TopicName): F[(Option[Schema], Option[Schema])] =
     metaData(topicName).map { kv =>
       val ks = kv.key.map(_.getSchema).map(new AvroSchema(_).rawSchema())
       val vs = kv.value.map(_.getSchema).map(new AvroSchema(_).rawSchema())
       (ks, vs)
+    }
+
+  def grBuilder(topicName: TopicName): F[BuildGenericRecord] =
+    kvSchema(topicName).flatMap { case (ks, vs) =>
+      (ks, vs).mapN((k, v) => new BuildGenericRecord(topicName.value, k, v, srs)) match {
+        case Some(value) => F.pure(value)
+        case None        => F.raiseError(new Exception("unable to construct generic record serde"))
+      }
     }
 
   def register(topicName: TopicName, keySchema: Schema, valSchema: Schema): F[(Option[Int], Option[Int])] = {

@@ -2,22 +2,18 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf, SerdeOfGenericRecord}
-import com.sksamuel.avro4s.{AvroOutputStream, AvroOutputStreamBuilder}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings, Deserializer}
-import io.circe.Json
-import io.circe.parser.parse
+import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.generic.GenericRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
-
-import java.io.ByteArrayOutputStream
 
 final class KafkaContext[F[_]](val settings: KafkaSettings)
     extends UpdateConfig[KafkaSettings, KafkaContext[F]] with Serializable {
@@ -55,65 +51,17 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, Json] = {
-    val grTopic: F[KafkaTopic[F, GenericRecord, GenericRecord]] =
-      new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(topicName).flatMap { case (ks, vs) =>
-        (ks, vs) match {
-          case (Some(k), Some(v)) =>
-            val ksd = SerdeOfGenericRecord(k)
-            val vsd = SerdeOfGenericRecord(v)
-            F.pure(TopicDef(topicName)(ksd, vsd).in(this))
-          case (Some(_), None) => F.raiseError(new Exception("can not retrieve value schema from kafka"))
-          case (None, Some(_)) => F.raiseError(new Exception("can not retrieve key schema from kafka"))
-          case (None, None) => F.raiseError(new Exception("can not retrieve key and value schema from kafka"))
-        }
-      }
-    Stream.eval(grTopic).flatMap { tpk =>
-      val jackson: AvroOutputStreamBuilder[NJConsumerRecord[GenericRecord, GenericRecord]] =
-        AvroOutputStream.json[NJConsumerRecord[GenericRecord, GenericRecord]](
-          NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
-      consume(tpk.topicName).stream.map { cr =>
-        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-        val writer: AvroOutputStream[NJConsumerRecord[GenericRecord, GenericRecord]] =
-          jackson.to(baos).build()
-        writer.write(tpk.decode(cr).toNJConsumerRecord)
-        writer.close()
-        parse(baos.toString())
-      }.rethrow
+  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, GenericRecord] = {
+    val bgr: F[BuildGenericRecord] =
+      new SchemaRegistryApi[F](settings.schemaRegistrySettings).grBuilder(topicName)
+    Stream.eval(bgr).flatMap { builder =>
+      consume(topicName).stream.map(cr =>
+        builder.toGenericRecord(cr.record.transformInto[ConsumerRecord[Array[Byte], Array[Byte]]]))
     }
   }
 
-  def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
+  def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, GenericRecord] =
     monitor(TopicName(topicName))
-
-  def monitorK[K: SerdeOf](topicName: TopicName)(implicit F: Async[F]): Stream[F, Json] = {
-    val grTopic: F[KafkaTopic[F, K, GenericRecord]] =
-      new SchemaRegistryApi[F](settings.schemaRegistrySettings).kvSchema(topicName).flatMap { case (_, vs) =>
-        vs match {
-          case Some(v) =>
-            val ksd = SerdeOf[K]
-            val vsd = SerdeOfGenericRecord(v)
-            F.pure(TopicDef(topicName)(ksd, vsd).in(this))
-          case None => F.raiseError(new Exception("can not retrieve key and value schema from kafka"))
-        }
-      }
-    Stream.eval(grTopic).flatMap { tpk =>
-      val jackson: AvroOutputStreamBuilder[NJConsumerRecord[K, GenericRecord]] =
-        AvroOutputStream.json(
-          NJConsumerRecord.avroCodec(tpk.codec.keySerde.avroCodec, tpk.codec.valSerde.avroCodec).avroEncoder)
-      consume(tpk.topicName).stream.map { cr =>
-        val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-        val writer: AvroOutputStream[NJConsumerRecord[K, GenericRecord]] =
-          jackson.to(baos).build()
-        writer.write(tpk.decode(cr).toNJConsumerRecord)
-        writer.close()
-        parse(baos.toString())
-      }.rethrow
-    }
-  }
-
-  def monitorK[K: SerdeOf](topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
-    monitorK[K](TopicName(topicName))
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](

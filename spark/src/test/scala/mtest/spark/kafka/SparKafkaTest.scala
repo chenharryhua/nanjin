@@ -124,7 +124,6 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[NJConsumerRecord[Int, Int]]   = List(cr1, cr2, cr3)
     val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(crs)
 
-    println(cr1.asJson.spaces2)
     println(
       cr1.toNJProducerRecord
         .focus(_.key)
@@ -167,5 +166,9 @@ class SparKafkaTest extends AnyFunSuite {
       .jackson(path / "typed" / "jackson")
       .run
       .unsafeRunSync()
+  }
+  
+  test ("schema") {
+    println(sparKafka.topic[Int,HasDuck]("schema").crCodec.schema)
   }
 }

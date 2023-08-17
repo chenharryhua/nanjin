@@ -23,7 +23,7 @@ object NJHeader {
 }
 
 @AvroDoc("kafka record, optional Key and Value")
-@AvroNamespace("nj.spark.kafka")
+@AvroNamespace("nj.kafka")
 @AvroName("NJConsumerRecord")
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,
