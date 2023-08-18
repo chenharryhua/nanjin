@@ -1,16 +1,15 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.{Async, Resource, Sync}
-import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{
+  Header,
   NJConsumerMessage,
   NJConsumerRecord,
-  NJConsumerRecordWithError,
-  NJHeader
+  NJConsumerRecordWithError
 }
 import com.sksamuel.avro4s.AvroInputStream
 import fs2.Chunk
@@ -65,7 +64,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       value = v,
       topic = cr.topic,
       timestampType = cr.timestampType.id,
-      headers = cr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
+      headers = cr.headers().toArray.map(h => Header(h.key(), h.value())).toList
     )
   }
 
@@ -85,11 +84,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
     ShortLiveConsumer(topicName, context.settings.consumerSettings.javaProperties)
-
-  def monitor(implicit F: Async[F], C: Console[F]): KafkaMonitoringApi[F, K, V] =
-    KafkaMonitoringApi[F, K, V](this)
-
-  val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
 
   // Streaming
 
@@ -150,19 +144,4 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       produce.resource.use(_.produce(prs).flatten)
     }
   }
-}
-
-final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {
-
-  def register(implicit F: Sync[F]): F[(Option[Int], Option[Int])] =
-    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings)
-      .register(kt.topicName, kt.topicDef.schemaForKey.schema, kt.topicDef.schemaForVal.schema)
-
-  def delete(implicit F: Sync[F]): F[(List[Integer], List[Integer])] =
-    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings).delete(kt.topicName)
-
-  def testCompatibility(implicit F: Sync[F]): F[CompatibilityTestReport] =
-    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings)
-      .testCompatibility(kt.topicName, kt.topicDef.schemaForKey.schema, kt.topicDef.schemaForVal.schema)
-
 }

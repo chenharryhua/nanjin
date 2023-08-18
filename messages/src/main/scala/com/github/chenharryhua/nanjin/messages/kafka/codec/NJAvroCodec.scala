@@ -2,21 +2,11 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
 import cats.syntax.all.*
-import com.sksamuel.avro4s.{
-  Decoder as AvroDecoder,
-  DecoderHelpers,
-  Encoder as AvroEncoder,
-  EncoderHelpers,
-  FromRecord,
-  Record,
-  SchemaFor,
-  ToRecord
-}
+import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
-import io.circe.{parser, ParsingFailure}
+import io.circe.{ParsingFailure, parser}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
-import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
 import scala.util.Try
@@ -27,12 +17,6 @@ final case class NJAvroCodec[A](
   avroEncoder: AvroEncoder[A]) {
   val schema: Schema        = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
-
-  private[this] val toRec: ToRecord[A]     = ToRecord(avroEncoder)
-  private[this] val fromRec: FromRecord[A] = FromRecord(avroDecoder)
-
-  @inline def toRecord(a: A): Record           = toRec.to(a)
-  @inline def fromRecord(ir: IndexedRecord): A = fromRec.from(ir)
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *
@@ -109,12 +93,12 @@ object NJAvroCodec {
 
       val rwCompat: Option[String] =
         if (SchemaCompatibilityType.COMPATIBLE.compareTo(rw) =!= 0)
-          Some("read-write incompatiable.")
+          Some("read-write incompatible.")
         else None
 
       val wrCompat: Option[String] =
         if (SchemaCompatibilityType.COMPATIBLE.compareTo(wr) =!= 0)
-          Some("write-read incompatiable.")
+          Some("write-read incompatible.")
         else None
 
       val compat: Option[String]              = rwCompat |+| wrCompat

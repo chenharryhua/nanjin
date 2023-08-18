@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJCompression, NJHadoop, NJPath}
+import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
@@ -20,7 +21,7 @@ class ParquetTest extends AnyFunSuite {
     fs2.Stream
       .eval(hdp.filesIn(path))
       .flatMap(parquet.source)
-      .map(Rooster.avroCodec.fromRecord)
+      .map(FromRecord(Rooster.avroCodec.avroDecoder).from)
       .compile
       .toList
       .map(_.toSet)

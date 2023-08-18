@@ -60,7 +60,7 @@ class MessageDateTimeTest extends AnyFunSuite {
       fs2.Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, 0, m))).through(topic.produce.pipe)
     val rst = for {
       _ <- topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
-      _ <- topic.schemaRegistry.delete
+      _ <- ctx.schemaRegistry.delete(topic.topicName)
       _ <- data.compile.drain
       r <- topic.shortLiveConsumer.use(_.retrieveLastRecords)
     } yield assert(topic.decoder(r.head).decodeValue.value() === m)

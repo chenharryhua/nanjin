@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
-import fs2.kafka.{Header, Headers, ProducerRecord}
+import fs2.kafka.{Header as Fs2Header, Headers, ProducerRecord}
 import io.scalaland.chimney.dsl.*
 import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
 import shapeless.cachedImplicit
@@ -21,14 +21,14 @@ final case class NJProducerRecord[K, V](
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V],
-  headers: List[NJHeader]) {
+  headers: List[Header]) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V]       = copy(topic = name.value)
-  def withPartition(pt: Int): NJProducerRecord[K, V]               = copy(partition = Some(pt))
-  def withTimestamp(ts: Long): NJProducerRecord[K, V]              = copy(timestamp = Some(ts))
-  def withKey(k: K): NJProducerRecord[K, V]                        = copy(key = Some(k))
-  def withValue(v: V): NJProducerRecord[K, V]                      = copy(value = Some(v))
-  def withHeaders(headers: List[NJHeader]): NJProducerRecord[K, V] = copy(headers = headers)
+  def withTopicName(name: TopicName): NJProducerRecord[K, V]     = copy(topic = name.value)
+  def withPartition(pt: Int): NJProducerRecord[K, V]             = copy(partition = Some(pt))
+  def withTimestamp(ts: Long): NJProducerRecord[K, V]            = copy(timestamp = Some(ts))
+  def withKey(k: K): NJProducerRecord[K, V]                      = copy(key = Some(k))
+  def withValue(v: V): NJProducerRecord[K, V]                    = copy(value = Some(v))
+  def withHeaders(headers: List[Header]): NJProducerRecord[K, V] = copy(headers = headers)
 
   def noPartition: NJProducerRecord[K, V] = copy(partition = None)
   def noTimestamp: NJProducerRecord[K, V] = copy(timestamp = None)
@@ -38,7 +38,7 @@ final case class NJProducerRecord[K, V](
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord: ProducerRecord[K, V] = {
-    val hds = Headers.fromSeq(headers.map(h => Header(h.key, h.value)))
+    val hds = Headers.fromSeq(headers.map(h => Fs2Header(h.key, h.value)))
     val pr =
       ProducerRecord(topic, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
         .withHeaders(hds)
@@ -64,7 +64,7 @@ object NJProducerRecord {
       timestamp = Option(pr.timestamp.toLong),
       key = pr.key,
       value = pr.value,
-      headers = pr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
+      headers = pr.headers().toArray.map(h => Header(h.key(), h.value())).toList
     )
 
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =

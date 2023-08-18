@@ -10,10 +10,14 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings, Deserializer}
 import io.circe.Json
+import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
+
+import scala.util.Try
 
 final class KafkaContext[F[_]](val settings: KafkaSettings)
     extends UpdateConfig[KafkaSettings, KafkaContext[F]] with Serializable {
@@ -51,14 +55,25 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, Json] = {
-    val bgr: F[BuildGenericRecord] =
-      new SchemaRegistryApi[F](settings.schemaRegistrySettings).grBuilder(topicName)
-    Stream.eval(bgr).flatMap { builder =>
+  @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
+    val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
+    val url = settings.schemaRegistrySettings.config.get(url_config) match {
+      case Some(value) => value
+      case None        => throw new Exception(s"$url_config is absent")
+    }
+    val cacheCapacity: Int = settings.schemaRegistrySettings.config
+      .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_CONFIG)
+      .flatMap(s => Try(s.toInt).toOption)
+      .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
+    new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
+  }
+
+  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, Json] =
+    Stream.eval(schemaRegistry.fetchSchema(topicName)).flatMap { case (ks, vs) =>
+      val builder = new PullGenericRecord(topicName, ks, vs, settings.schemaRegistrySettings)
       consume(topicName).stream.map(cr =>
         builder.toJson(cr.record.transformInto[KafkaConsumerRecord[Array[Byte], Array[Byte]]]))
     }
-  }
 
   def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
     monitor(TopicName(topicName))
@@ -76,10 +91,4 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   def buildStreams(topology: StreamsBuilder => Unit)(implicit F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(Reader(topology))
-
-  def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] =
-    new SchemaRegistryApi[F](settings.schemaRegistrySettings).metaData(topicName)
-
-  def metaData(topicName: TopicNameC)(implicit F: Sync[F]): F[KvSchemaMetadata] =
-    metaData(TopicName(topicName))
 }

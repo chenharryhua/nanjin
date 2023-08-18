@@ -49,8 +49,8 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >> topic.schemaRegistry.register >> loadData)
-    .unsafeRunSync()
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+    ctx.schemaRegistry.register(topic.topicDef) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
     val rst = sparKafka.topic(topic.topicDef).fromKafka.frdd.map(_.collect()).unsafeRunSync()
@@ -167,8 +167,8 @@ class SparKafkaTest extends AnyFunSuite {
       .run
       .unsafeRunSync()
   }
-  
-  test ("schema") {
-    println(sparKafka.topic[Int,HasDuck]("schema").crCodec.schema)
+
+  test("schema") {
+    println(sparKafka.topic[Int, HasDuck]("schema").crCodec.schema)
   }
 }

@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.sksamuel.avro4s.{DefaultFieldMapper, FieldMapper, SchemaFor}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.messages.kafka.{Header, NJConsumerRecord}
+import com.sksamuel.avro4s.SchemaFor
 import io.circe.Json
 import io.circe.parser.parse
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
@@ -12,33 +13,20 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.io.ByteArrayOutputStream
-import java.util.Collections
-import scala.annotation.nowarn
-import scala.jdk.CollectionConverters.MapHasAsJava
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
+import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
+import scala.util.Try
 
-final class BuildGenericRecord(
-  topic: String,
+final class PullGenericRecord(
+  topicName: TopicName,
   keySchema: Schema,
   valSchema: Schema,
   srs: SchemaRegistrySettings)
     extends Serializable {
 
-  private case class KEY()
-  private case class VAL()
-
-  @nowarn
-  implicit private val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
-    override def schema: Schema           = keySchema
-    override def fieldMapper: FieldMapper = DefaultFieldMapper
-  }
-
-  @nowarn
-  implicit private val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
-    override def schema: Schema           = valSchema
-    override def fieldMapper: FieldMapper = DefaultFieldMapper
-  }
-
-  private val schema: Schema = SchemaFor[NJConsumerRecord[KEY, VAL]].schema
+  private val schema: Schema = NJConsumerRecord.schema(keySchema, valSchema)
+  private val topic: String  = topicName.value
 
   private val keyDecode: Array[Byte] => Any =
     keySchema.getType match {
@@ -64,7 +52,7 @@ final class BuildGenericRecord(
       case Schema.Type.DOUBLE =>
         val keyDeser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => keyDeser.deserialize(topic, data)
-      case _ => throw new Exception(s"unsupported schema $keySchema")
+      case _ => throw new Exception(s"unsupported key schema $keySchema")
     }
   private val valDecode: Array[Byte] => Any =
     valSchema.getType match {
@@ -90,19 +78,25 @@ final class BuildGenericRecord(
       case Schema.Type.DOUBLE =>
         val valDeser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => valDeser.deserialize(topic, data)
-      case _ => throw new Exception(s"unsupported schema $valSchema")
+      case _ => throw new Exception(s"unsupported value schema $valSchema")
     }
 
   private def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord = {
-    val record = new GenericData.Record(schema)
+    val record: GenericData.Record = new GenericData.Record(schema)
+    val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
+        val header = new GenericData.Record(SchemaFor[Header].schema)
+        header.put("key", h.key())
+        header.put("value", ByteBuffer.wrap(h.value()))
+        header
+      }
     record.put("topic", ccr.topic)
     record.put("partition", ccr.partition)
     record.put("offset", ccr.offset)
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
-    record.put("key", keyDecode(ccr.key))
-    record.put("value", valDecode(ccr.value))
-    record.put("headers", Collections.emptyList())
+    record.put("key", Try(keyDecode(ccr.key)).getOrElse(null))
+    record.put("value", Try(valDecode(ccr.value)).getOrElse(null))
+    record.put("headers", headers.toList.asJava)
     record
   }
 
@@ -115,8 +109,8 @@ final class BuildGenericRecord(
     datumWriter.write(gr, encoder)
     encoder.flush()
     baos.close()
-    parse(baos.toString()) match {
-      case Left(value)  => throw value
+    parse(baos.toString(StandardCharsets.UTF_8)) match {
+      case Left(value)  => throw value // should never happen
       case Right(value) => value
     }
   }

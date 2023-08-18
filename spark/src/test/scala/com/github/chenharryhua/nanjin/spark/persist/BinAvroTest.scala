@@ -4,11 +4,12 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.{HadoopBinAvro, NJPath}
+import com.sksamuel.avro4s.{FromRecord, ToRecord}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.DoNotDiscover
+import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
@@ -24,7 +25,7 @@ class BinAvroTest extends AnyFunSuite {
     Stream
       .eval(hdp.filesIn(path))
       .flatMap(bin_avro.source)
-      .map(Rooster.avroCodec.fromRecord)
+      .map(FromRecord(Rooster.avroCodec.avroDecoder).from)
       .compile
       .toList
       .map(_.toSet)
@@ -105,12 +106,13 @@ class BinAvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
-  val reverseRoot = root / "reverse"
+  val reverseRoot: NJPath         = root / "reverse"
+  val toRecord: ToRecord[Rooster] = ToRecord(Rooster.avroCodec.avroEncoder)
   test("reverse read/write gzip") {
     val path = reverseRoot / "rooster.binary.avro.gz"
     IO(RoosterData.rdd).output
       .stream(100)
-      .map(Rooster.avroCodec.toRecord)
+      .map(toRecord.to)
       .chunks
       .through(bin_avro.sink(path))
       .compile
@@ -124,7 +126,7 @@ class BinAvroTest extends AnyFunSuite {
     val path = reverseRoot / "rooster.binary.avro.bz2"
     IO(RoosterData.rdd).output
       .stream(100)
-      .map(Rooster.avroCodec.toRecord)
+      .map(toRecord.to)
       .chunks
       .through(bin_avro.sink(path))
       .compile
@@ -139,7 +141,7 @@ class BinAvroTest extends AnyFunSuite {
     val path = reverseRoot / "rooster.binary.avro"
     IO(RoosterData.rdd).output
       .stream(100)
-      .map(Rooster.avroCodec.toRecord)
+      .map(toRecord.to)
       .chunks
       .through(bin_avro.sink(path))
       .compile
@@ -154,7 +156,7 @@ class BinAvroTest extends AnyFunSuite {
     val path = NJPath("ftp://localhost/data2/bin_avro.avro")
     IO(RoosterData.rdd).output
       .stream(100)
-      .map(Rooster.avroCodec.toRecord)
+      .map(toRecord.to)
       .chunks
       .through(bin_avro.sink(path))
       .compile
