@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaSettings, KafkaTopic, KafkaTopicPartition}
-import com.github.chenharryhua.nanjin.messages.kafka.{Header, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import monocle.function.At.{atMap, remove}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -104,7 +104,7 @@ private[spark] object sk {
       .option("subscribe", topicName.value)
       .option("includeHeaders", "true")
       .load()
-      .as[(Array[Byte], Array[Byte], String, Int, Long, Timestamp, Int, Array[Header])]
+      .as[(Array[Byte], Array[Byte], String, Int, Long, Timestamp, Int, Array[NJHeader])]
       .mapPartitions(_.map { case (key, value, topic, partition, offset, timestamp, timestampType, headers) =>
         NJConsumerRecord(
           partition,

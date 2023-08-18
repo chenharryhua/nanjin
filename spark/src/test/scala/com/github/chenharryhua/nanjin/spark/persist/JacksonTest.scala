@@ -18,17 +18,13 @@ class JacksonTest extends AnyFunSuite {
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(3)), Rooster.avroCodec.avroEncoder)
       .jackson(path)
 
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: NJHadoop[IO]          = sparkSession.hadoop[IO]
   val jackson: HadoopJackson[IO] = hdp.jackson(Rooster.schema)
 
   val fromRecord: FromRecord[Rooster] = FromRecord(Rooster.avroCodec.avroDecoder)
 
-  def loadRooster(path: NJPath): IO[Set[Rooster]] = Stream
-    .eval(hdp.filesIn(path))
-    .flatMap(jackson.source(_).map(fromRecord.from))
-    .compile
-    .toList
-    .map(_.toSet)
+  def loadRooster(path: NJPath): IO[Set[Rooster]] =
+    Stream.eval(hdp.filesIn(path)).flatMap(jackson.source(_).map(fromRecord.from)).compile.toList.map(_.toSet)
 
   val root = NJPath("./data/test/spark/persist/jackson/")
   test("datetime read/write identity - uncompressed") {

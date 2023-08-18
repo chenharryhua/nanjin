@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{
-  Header,
   NJConsumerMessage,
   NJConsumerRecord,
-  NJConsumerRecordWithError
+  NJConsumerRecordWithError,
+  NJHeader
 }
 import com.sksamuel.avro4s.AvroInputStream
 import fs2.Chunk
@@ -65,7 +65,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       value = v,
       topic = cr.topic,
       timestampType = cr.timestampType.id,
-      headers = cr.headers().toArray.map(h => Header(h.key(), h.value())).toList
+      headers = cr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
     )
   }
 

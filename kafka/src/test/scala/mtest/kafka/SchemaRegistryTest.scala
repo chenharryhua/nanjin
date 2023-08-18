@@ -18,6 +18,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   test("compatiable") {
     val res = ctx.schemaRegistry.testCompatibility(topic.topicDef).unsafeRunSync()
     assert(res.isCompatible)
+    assert(res.isIdentical)
   }
 
   test("incompatiable") {
@@ -51,5 +52,6 @@ class SchemaRegistryTest extends AnyFunSuite {
   }
   test("retrieve schema") {
     println(ctx.schemaRegistry.metaData(topic.topicName).unsafeRunSync())
+    println(ctx.schemaRegistry.njConsumeRecordSchema(topic.topicName).unsafeRunSync())
   }
 }

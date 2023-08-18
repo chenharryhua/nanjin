@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.{Header, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import com.sksamuel.avro4s.SchemaFor
 import io.circe.Json
 import io.circe.parser.parse
@@ -84,11 +84,11 @@ final class PullGenericRecord(
   private def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord = {
     val record: GenericData.Record = new GenericData.Record(schema)
     val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
-        val header = new GenericData.Record(SchemaFor[Header].schema)
-        header.put("key", h.key())
-        header.put("value", ByteBuffer.wrap(h.value()))
-        header
-      }
+      val header = new GenericData.Record(SchemaFor[NJHeader].schema)
+      header.put("key", h.key())
+      header.put("value", ByteBuffer.wrap(h.value()))
+      header
+    }
     record.put("topic", ccr.topic)
     record.put("partition", ccr.partition)
     record.put("offset", ccr.offset)

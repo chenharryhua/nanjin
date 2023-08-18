@@ -21,14 +21,14 @@ final case class NJProducerRecord[K, V](
   timestamp: Option[Long],
   key: Option[K],
   value: Option[V],
-  headers: List[Header]) {
+  headers: List[NJHeader]) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V]     = copy(topic = name.value)
-  def withPartition(pt: Int): NJProducerRecord[K, V]             = copy(partition = Some(pt))
-  def withTimestamp(ts: Long): NJProducerRecord[K, V]            = copy(timestamp = Some(ts))
-  def withKey(k: K): NJProducerRecord[K, V]                      = copy(key = Some(k))
-  def withValue(v: V): NJProducerRecord[K, V]                    = copy(value = Some(v))
-  def withHeaders(headers: List[Header]): NJProducerRecord[K, V] = copy(headers = headers)
+  def withTopicName(name: TopicName): NJProducerRecord[K, V]       = copy(topic = name.value)
+  def withPartition(pt: Int): NJProducerRecord[K, V]               = copy(partition = Some(pt))
+  def withTimestamp(ts: Long): NJProducerRecord[K, V]              = copy(timestamp = Some(ts))
+  def withKey(k: K): NJProducerRecord[K, V]                        = copy(key = Some(k))
+  def withValue(v: V): NJProducerRecord[K, V]                      = copy(value = Some(v))
+  def withHeaders(headers: List[NJHeader]): NJProducerRecord[K, V] = copy(headers = headers)
 
   def noPartition: NJProducerRecord[K, V] = copy(partition = None)
   def noTimestamp: NJProducerRecord[K, V] = copy(timestamp = None)
@@ -64,7 +64,7 @@ object NJProducerRecord {
       timestamp = Option(pr.timestamp.toLong),
       key = pr.key,
       value = pr.value,
-      headers = pr.headers().toArray.map(h => Header(h.key(), h.value())).toList
+      headers = pr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
     )
 
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =

@@ -15,16 +15,18 @@ import org.apache.kafka.common.header.Headers as KafkaHeaders
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.annotation.nowarn
 
-@JsonCodec @AvroNamespace("nj.kafka")
-final case class Header(key: String, value: Array[Byte])
-object Header {
+@JsonCodec
+@AvroName("header")
+@AvroNamespace("nj.kafka")
+final case class NJHeader(key: String, value: Array[Byte])
+object NJHeader {
   // consistent with fs2.kafka
-  implicit val showNJHeader: Show[Header] = (a: Header) => Fs2Header(a.key, a.value).show
-  implicit val eqNJHeader: Eq[Header] = (x: Header, y: Header) =>
+  implicit val showNJHeader: Show[NJHeader] = (a: NJHeader) => Fs2Header(a.key, a.value).show
+  implicit val eqNJHeader: Eq[NJHeader] = (x: NJHeader, y: NJHeader) =>
     Fs2Header(x.key, x.value) === Fs2Header(y.key, y.value)
 
-  def apply(headers: KafkaHeaders): List[Header] =
-    headers.toArray.map(h => Header(h.key(), h.value())).toList
+  def apply(headers: KafkaHeaders): List[NJHeader] =
+    headers.toArray.map(h => NJHeader(h.key(), h.value())).toList
 }
 
 @AvroDoc("kafka record, optional Key and Value")
@@ -36,9 +38,9 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka timestamp in millisecond") timestamp: Long,
   @AvroDoc("kafka key") key: Option[K],
   @AvroDoc("kafka value") value: Option[V],
-  @AvroDoc("kafka topic") topic: String,
+  @AvroDoc("kafka topic name") topic: String,
   @AvroDoc("kafka timestamp type") timestampType: Int,
-  @AvroDoc("kafka headers") headers: List[Header]) {
+  @AvroDoc("kafka headers") headers: List[NJHeader]) {
 
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
@@ -68,7 +70,7 @@ object NJConsumerRecord {
       value = cr.value,
       topic = cr.topic,
       timestampType = cr.timestampType.id,
-      headers = Header(cr.headers())
+      headers = NJHeader(cr.headers())
     )
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =

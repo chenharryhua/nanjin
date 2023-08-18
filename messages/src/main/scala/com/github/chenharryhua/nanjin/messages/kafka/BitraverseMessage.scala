@@ -129,7 +129,7 @@ object NJConsumerMessage {
               Option(b.value()),
               b.topic(),
               b.timestampType().id,
-              Header(b.headers())
+              NJHeader(b.headers())
             ))
     }
 }

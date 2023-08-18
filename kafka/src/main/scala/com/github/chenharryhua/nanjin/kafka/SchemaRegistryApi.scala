@@ -117,8 +117,8 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
 
   private def kvSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Option[Schema], Option[Schema])] =
     metaData(topicName).map { kv =>
-      val ks = kv.key.map(_.getSchema).map(new AvroSchema(_).rawSchema())
-      val vs = kv.value.map(_.getSchema).map(new AvroSchema(_).rawSchema())
+      val ks = kv.key.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
+      val vs = kv.value.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
       (ks, vs)
     }
 

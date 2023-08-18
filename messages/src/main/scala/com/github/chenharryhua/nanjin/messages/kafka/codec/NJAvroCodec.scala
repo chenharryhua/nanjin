@@ -2,10 +2,16 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.data.Ior
 import cats.syntax.all.*
-import com.sksamuel.avro4s.{DecoderHelpers, EncoderHelpers, SchemaFor, Decoder as AvroDecoder, Encoder as AvroEncoder}
+import com.sksamuel.avro4s.{
+  Decoder as AvroDecoder,
+  DecoderHelpers,
+  Encoder as AvroEncoder,
+  EncoderHelpers,
+  SchemaFor
+}
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
-import io.circe.{ParsingFailure, parser}
+import io.circe.{parser, ParsingFailure}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
