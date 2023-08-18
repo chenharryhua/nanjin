@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
@@ -149,26 +150,19 @@ class SparKafkaTest extends AnyFunSuite {
     assert(rst === Seq(cr1.value.get))
   }
 
-  test("should be able to save kunknown") {
-    import io.circe.generic.auto.*
-    val path = NJPath("./data/test/spark/kafka/kunknown")
-    sparKafka
-      .topic[Int, HasDuck]("duck.test")
-      .fromKafka
-      .output
-      .circe(path / "typed" / "circe")
-      .run
-      .unsafeRunSync()
-    sparKafka
-      .topic[Int, HasDuck]("duck.test")
-      .fromKafka
-      .output
-      .jackson(path / "typed" / "jackson")
-      .run
-      .unsafeRunSync()
-  }
+  test("should be able to reproduce") {
+    import fs2.Stream
+    val path  = NJPath("./data/test/spark/kafka/reproduce/jackson")
+    val topic = sparKafka.topic[Int, HasDuck]("duck.test")
+    topic.fromKafka.output.jackson(path).run.unsafeRunSync()
 
-  test("schema") {
-    println(sparKafka.topic[Int, HasDuck]("schema").crCodec.schema)
+    val hdp = sparkSession.hadoop[IO]
+    Stream
+      .eval(hdp.filesIn(path))
+      .flatMap(hdp.jackson(topic.topic.njConsumerRecordSchema).source)
+      .through(ctx.sink(topic.topicName))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

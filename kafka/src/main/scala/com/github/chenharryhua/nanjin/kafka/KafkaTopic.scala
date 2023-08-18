@@ -16,6 +16,7 @@ import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
+import org.apache.avro.Schema
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
@@ -67,6 +68,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       headers = cr.headers().toArray.map(h => Header(h.key(), h.value())).toList
     )
   }
+
+  val njConsumerRecordSchema: Schema =
+    NJConsumerRecord.schema(codec.keySchemaFor.schema, codec.valSchemaFor.schema)
 
   def serializeKey(k: K): Array[Byte] = codec.keySerializer.serialize(topicName.value, k)
   def serializeVal(v: V): Array[Byte] = codec.valSerializer.serialize(topicName.value, v)

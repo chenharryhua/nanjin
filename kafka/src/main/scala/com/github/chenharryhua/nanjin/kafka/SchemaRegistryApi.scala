@@ -4,6 +4,7 @@ import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import diffson.*
 import diffson.circe.*
 import diffson.jsonpatch.Operation
@@ -128,6 +129,9 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
         case None        => F.raiseError(new Exception(s"unable to retrieve schema for ${topicName.value}"))
       }
     }
+
+  def njConsumeRecordSchema(topicName: TopicName)(implicit F: Sync[F]): F[Schema] =
+    fetchSchema(topicName).map { case (k, v) => NJConsumerRecord.schema(k, v) }
 
   def register(topicName: TopicName, keySchema: Schema, valSchema: Schema)(implicit
     F: Sync[F]): F[(Option[Int], Option[Int])] = {

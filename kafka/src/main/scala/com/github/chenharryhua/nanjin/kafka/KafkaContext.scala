@@ -2,17 +2,19 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
-import fs2.Stream
-import fs2.kafka.{ConsumerSettings, Deserializer}
+import fs2.{Pipe, Stream}
+import fs2.kafka.{ConsumerSettings, Deserializer, KafkaProducer, ProducerResult, ProducerSettings}
 import io.circe.Json
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import io.scalaland.chimney.dsl.TransformerOps
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -77,6 +79,22 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, Json] =
     monitor(TopicName(topicName))
+
+  def sink(topicName: TopicName)(implicit
+    F: Async[F]): Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] = {
+    (ss: Stream[F, GenericRecord]) =>
+      Stream.eval(schemaRegistry.fetchSchema(topicName)).flatMap { case (ks, vs) =>
+        val builder = new PushGenericRecord(topicName, ks, vs, settings.schemaRegistrySettings)
+        KafkaProducer[F]
+          .stream(
+            ProducerSettings[F, Array[Byte], Array[Byte]].withProperties(settings.producerSettings.config))
+          .flatMap(pd => ss.chunks.evalMap(ck => pd.produce(ck.map(builder.fromGenericRecord)).flatten))
+      }
+  }
+
+  def sink(topicName: TopicNameC)(implicit
+    F: Async[F]): Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] =
+    sink(TopicName(topicName))
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
