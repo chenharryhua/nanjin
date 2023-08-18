@@ -11,12 +11,13 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   NJConsumerRecordWithError,
   NJHeader
 }
-import com.sksamuel.avro4s.AvroInputStream
+import com.sksamuel.avro4s.{AvroInputStream, FromRecord, Record, ToRecord}
 import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.apache.avro.Schema
+import org.apache.avro.generic.IndexedRecord
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
@@ -71,6 +72,14 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   val njConsumerRecordSchema: Schema =
     NJConsumerRecord.schema(codec.keySchemaFor.schema, codec.valSchemaFor.schema)
+
+  private val nj: NJAvroCodec[NJConsumerRecord[K, V]] =
+    NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
+  private val njToRecord: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(nj.avroEncoder)
+  private val njFromRecord: FromRecord[NJConsumerRecord[K, V]] = FromRecord(nj.avroDecoder)
+
+  def toRecord(nj: NJConsumerRecord[K, V]): Record          = njToRecord.to(nj)
+  def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = njFromRecord.from(gr)
 
   def serializeKey(k: K): Array[Byte] = codec.keySerializer.serialize(topicName.value, k)
   def serializeVal(v: V): Array[Byte] = codec.valSerializer.serialize(topicName.value, v)

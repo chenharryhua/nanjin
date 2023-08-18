@@ -160,6 +160,7 @@ class SparKafkaTest extends AnyFunSuite {
     Stream
       .eval(hdp.filesIn(path))
       .flatMap(hdp.jackson(topic.topic.njConsumerRecordSchema).source)
+      .chunkN(1)
       .through(ctx.sink(topic.topicName))
       .compile
       .drain

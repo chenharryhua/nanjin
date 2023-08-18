@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
-import fs2.{Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import fs2.kafka.{ConsumerSettings, Deserializer, KafkaProducer, ProducerResult, ProducerSettings}
 import io.circe.Json
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
@@ -81,19 +81,19 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     monitor(TopicName(topicName))
 
   def sink(topicName: TopicName)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] = {
-    (ss: Stream[F, GenericRecord]) =>
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(schemaRegistry.fetchSchema(topicName)).flatMap { case (ks, vs) =>
         val builder = new PushGenericRecord(topicName, ks, vs, settings.schemaRegistrySettings)
         KafkaProducer[F]
           .stream(
             ProducerSettings[F, Array[Byte], Array[Byte]].withProperties(settings.producerSettings.config))
-          .flatMap(pd => ss.chunks.evalMap(ck => pd.produce(ck.map(builder.fromGenericRecord)).flatten))
+          .flatMap(pd => ss.evalMap(ck => pd.produce(ck.map(builder.fromGenericRecord)).flatten))
       }
   }
 
   def sink(topicName: TopicNameC)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] =
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] =
     sink(TopicName(topicName))
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
