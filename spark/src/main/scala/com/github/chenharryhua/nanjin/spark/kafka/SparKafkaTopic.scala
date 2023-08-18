@@ -12,8 +12,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProduc
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.dstream.AvroDStreamSink
 import frameless.TypedEncoder
-import fs2.Pipe
-import org.apache.avro.generic.GenericRecord
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.StreamingContext
@@ -27,8 +25,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
     AvroTypedEncoder(topic.topicDef)
 
-  val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
-  val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
+  private val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
+  private val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
 
   val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
     NJConsumerRecord.avroCodec(
@@ -38,11 +36,6 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     NJProducerRecord.avroCodec(
       topic.topicDef.rawSerdes.keySerde.avroCodec,
       topic.topicDef.rawSerdes.valSerde.avroCodec)
-
-  object pipes {
-    val toRecord: Pipe[F, NJConsumerRecord[K, V], GenericRecord]   = _.mapChunks(_.map(crCodec.toRecord))
-    val fromRecord: Pipe[F, GenericRecord, NJConsumerRecord[K, V]] = _.mapChunks(_.map(crCodec.fromRecord))
-  }
 
   private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
     crRdd(sk.kafkaBatch(topic, sparkSession, dateTimeRange))

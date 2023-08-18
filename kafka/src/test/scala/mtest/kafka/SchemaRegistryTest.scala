@@ -16,13 +16,14 @@ class SchemaRegistryTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, trip_record] = nyc.in(ctx)
 
   test("compatiable") {
-    val res = topic.schemaRegistry.testCompatibility.unsafeRunSync()
+    val res = ctx.schemaRegistry.testCompatibility(topic.topicDef).unsafeRunSync()
     assert(res.isCompatible)
+    assert(res.isIdentical)
   }
 
   test("incompatiable") {
     val other = ctx.topic[String, String](topicName)
-    val res   = other.schemaRegistry.testCompatibility.unsafeRunSync()
+    val res   = ctx.schemaRegistry.testCompatibility(other.topicDef).unsafeRunSync()
     assert(!res.isCompatible)
   }
 
@@ -32,7 +33,7 @@ class SchemaRegistryTest extends AnyFunSuite {
       .modify(_.updatedWith(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)(_ => None))(
         KafkaSettings.local)
       .ioContext
-    assertThrows[Exception](nyc.in(tmpCtx).schemaRegistry.testCompatibility.unsafeRunSync())
+    assertThrows[Exception](tmpCtx.schemaRegistry.testCompatibility(nyc).unsafeRunSync())
   }
 
   test("schema register is not reachable") {
@@ -41,15 +42,16 @@ class SchemaRegistryTest extends AnyFunSuite {
       .modify(_.updatedWith(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)(_ =>
         Some("unknown-schema-register")))(KafkaSettings.local)
       .ioContext
-    val res = nyc.in(tmpCtx).schemaRegistry.testCompatibility.unsafeRunSync()
+    val res = tmpCtx.schemaRegistry.testCompatibility(nyc).unsafeRunSync()
     assert(res.key.isLeft)
     assert(res.value.isLeft)
   }
 
   test("register schema") {
-    topic.schemaRegistry.register.unsafeRunSync()
+    ctx.schemaRegistry.register(topic.topicDef).unsafeRunSync()
   }
   test("retrieve schema") {
-    println(ctx.schema(topic.topicName).unsafeRunSync())
+    println(ctx.schemaRegistry.metaData(topic.topicName).unsafeRunSync())
+    println(ctx.schemaRegistry.njConsumeRecordSchema(topic.topicName).unsafeRunSync())
   }
 }

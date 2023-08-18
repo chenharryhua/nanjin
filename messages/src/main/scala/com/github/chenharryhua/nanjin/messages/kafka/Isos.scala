@@ -12,8 +12,8 @@ import org.apache.kafka.common.record.TimestampType
 import scala.jdk.OptionConverters.{RichOption, RichOptional}
 
 private[kafka] trait Isos {
-  implicit val isoNJHeader: Iso[NJHeader, Header] =
-    Iso[NJHeader, Header](nj => Header(nj.key, nj.value))(r => NJHeader(r.key(), r.value()))
+  implicit val isoNJHeader: Iso[Header, Header] =
+    Iso[Header, Header](nj => Header(nj.key, nj.value))(r => Header(r.key(), r.value()))
 
   implicit def isoIdentityProducerRecord[K, V]: Iso[KafkaProducerRecord[K, V], KafkaProducerRecord[K, V]] =
     Iso[KafkaProducerRecord[K, V], KafkaProducerRecord[K, V]](identity)(identity)

@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
-import fs2.kafka.{Header, Headers, ProducerRecord}
+import fs2.kafka.{Header as Fs2Header, Headers, ProducerRecord}
 import io.scalaland.chimney.dsl.*
 import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
 import shapeless.cachedImplicit
@@ -38,7 +38,7 @@ final case class NJProducerRecord[K, V](
 
   @SuppressWarnings(Array("AsInstanceOf"))
   def toProducerRecord: ProducerRecord[K, V] = {
-    val hds = Headers.fromSeq(headers.map(h => Header(h.key, h.value)))
+    val hds = Headers.fromSeq(headers.map(h => Fs2Header(h.key, h.value)))
     val pr =
       ProducerRecord(topic, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
         .withHeaders(hds)

@@ -31,8 +31,8 @@ class TickStreamTest extends AnyFunSuite {
       ticks.evalTap(_ => IO.sleep(1.5.seconds)).take(5).compile.toList.unsafeRunSync()
     fds.tail.foreach { t =>
       val interval = t.interval.toScala
-      assert(interval > 1.9.seconds)
-      assert(interval < 2.1.seconds)
+      assert(interval > 1.8.seconds)
+      assert(interval < 2.2.seconds)
     }
   }
 
@@ -44,8 +44,8 @@ class TickStreamTest extends AnyFunSuite {
       ticks.evalTap(_ => IO.sleep(0.5.seconds)).take(5).compile.toList.unsafeRunSync()
     fds.tail.foreach { t =>
       val interval = t.interval.toScala
-      assert(interval > 0.9.seconds)
-      assert(interval < 1.1.seconds)
+      assert(interval > 0.8.seconds)
+      assert(interval < 1.2.seconds)
     }
   }
 

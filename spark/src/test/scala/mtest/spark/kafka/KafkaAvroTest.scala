@@ -70,7 +70,7 @@ class KafkaAvroTest extends AnyFunSuite {
 
     val run =
       topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-        topicCO.schemaRegistry.register >>
+        ctx.schemaRegistry.register(topicCO.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.output.avro(path).run >>
         sk.load.avro(path).frdd.map(_.collect().toSet)
@@ -92,7 +92,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk          = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      topicEnum.schemaRegistry.register >>
+      ctx.schemaRegistry.register(topicEnum.topicDef) >>
       data.compile.drain >>
       sk.fromKafka.output.avro(avroPath).run >>
       sk.fromKafka.output.jackson(jacksonPath).run >>
@@ -116,7 +116,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      topicEnum.schemaRegistry.register >>
+      ctx.schemaRegistry.register(topicEnum.topicDef) >>
       data.compile.drain >>
       sk.fromKafka.output.avro(path).run >>
       sk.load.avro(path).frdd.map(_.take(10).toSet)
@@ -137,7 +137,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      topicEnum.schemaRegistry.register >>
+      ctx.schemaRegistry.register(topicEnum.topicDef) >>
       data.compile.drain >>
       sk.fromKafka.output.avro(path).snappy.run >>
       sk.load.avro(path).frdd.map(_.take(10).toSet)
@@ -156,7 +156,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      topicEnum.schemaRegistry.register >>
+      ctx.schemaRegistry.register(topicEnum.topicDef) >>
       data.compile.drain >>
       sk.fromKafka.output.binAvro(path).bzip2.run >>
       sk.load.binAvro(path).frdd.map(_.take(10).toSet)

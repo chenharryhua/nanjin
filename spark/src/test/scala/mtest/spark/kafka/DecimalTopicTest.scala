@@ -95,7 +95,7 @@ class DecimalTopicTest extends AnyFunSuite {
       .drain
 
   (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-    topic.schemaRegistry.register >>
+    ctx.schemaRegistry.register(topic.topicDef) >>
     loadData).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on circe") {

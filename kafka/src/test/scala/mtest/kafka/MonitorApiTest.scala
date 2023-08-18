@@ -4,10 +4,9 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.Instant
 import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
@@ -16,33 +15,34 @@ class MonitorApiTest extends AnyFunSuite {
 
   val st = ctx.topic[Int, Array[Byte]]("monitor.test")
 
+  val headers1: Headers = Headers.fromSeq(List(Header("a", "aaaaa")))
+  val headers2: Headers = Headers.fromSeq(List(Header("b", ""), Header("warn", "value is null as expected")))
+
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> ctx.schemaRegistry.register(
+    topic.topicDef)).unsafeRunSync()
+
   val sender: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream
-    .emits(
-      List(
-        ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)),
-        ProducerRecord[Int, Array[Byte]](st.topicName.value, 1, Array(0, 0, 0, 2)),
-        ProducerRecord[Int, Array[Byte]](st.topicName.value, 2, Array(0, 0)),
-        ProducerRecord[Int, Array[Byte]](st.topicName.value, 3, Array(0, 0, 0, 4)),
-        ProducerRecord[Int, Array[Byte]](st.topicName.value, 4, Array(0, 0, 0, 5)),
-        ProducerRecord[Int, Array[Byte]](st.topicName.value, 5, Array(0, 0, 0, 6)),
-        ProducerRecord[Int, Array[Byte]](st.topicName.value, 6, Array(0, 0, 0, 7))
-      ).map(ProducerRecords.one))
+    .emits(List(
+      ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)).withHeaders(headers1),
+      ProducerRecord[Int, Array[Byte]](st.topicName.value, 1, Array(0, 0, 0, 2)),
+      ProducerRecord[Int, Array[Byte]](st.topicName.value, 2, Array(0, 0)).withHeaders(headers2),
+      ProducerRecord[Int, Array[Byte]](st.topicName.value, 3, Array(0, 0, 0, 4)),
+      ProducerRecord[Int, Array[Byte]](st.topicName.value, 4, Array(0, 0, 0, 5)),
+      ProducerRecord[Int, Array[Byte]](st.topicName.value, 5, Array(0, 0, 0, 6)),
+      ProducerRecord[Int, Array[Byte]](st.topicName.value, 6, Array(0, 0, 0, 7))
+    ).map(ProducerRecords.one))
     .covary[IO]
+    .chunkN(1)
+    .unchunks
+    .metered(1.seconds)
     .through(st.produce.pipe)
 
-  test("realtime filter and watch") {
-    val w  = topic.monitor.watch
-    val wn = topic.monitor.watchFromEarliest
-    val wf = topic.monitor.watchFrom(s"${Instant.now.toString}")
-
-    IO.parSequenceN(7)(List(w, wn, wf)).unsafeRunTimed(10.seconds)
-  }
-  test("carbon copy") {
-    topic.monitor.carbonCopyTo(tgt).unsafeRunTimed(3.seconds)
-  }
-
-  test("summary") {
-    topic.monitor.summaries.unsafeRunSync()
-    tgt.monitor.summaries.unsafeRunSync()
+  test("monitor") {
+    sender
+      .concurrently(ctx.monitor(topic.topicName).map(_.noSpaces).debug())
+      .interruptAfter(8.seconds)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

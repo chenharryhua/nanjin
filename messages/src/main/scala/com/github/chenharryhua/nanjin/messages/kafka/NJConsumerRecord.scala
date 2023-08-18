@@ -5,25 +5,32 @@ import cats.syntax.all.*
 import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.*
-import fs2.kafka.{ConsumerRecord, Header}
+import fs2.kafka.{ConsumerRecord, Header as Fs2Header}
 import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
+import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
+import org.apache.kafka.common.header.Headers as KafkaHeaders
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.annotation.nowarn
 
 @JsonCodec
+@AvroName("header")
+@AvroNamespace("nj.kafka")
 final case class NJHeader(key: String, value: Array[Byte])
 object NJHeader {
   // consistent with fs2.kafka
-  implicit val showNJHeader: Show[NJHeader] = (a: NJHeader) => Header(a.key, a.value).show
+  implicit val showNJHeader: Show[NJHeader] = (a: NJHeader) => Fs2Header(a.key, a.value).show
   implicit val eqNJHeader: Eq[NJHeader] = (x: NJHeader, y: NJHeader) =>
-    Header(x.key, x.value) === Header(y.key, y.value)
+    Fs2Header(x.key, x.value) === Fs2Header(y.key, y.value)
+
+  def apply(headers: KafkaHeaders): List[NJHeader] =
+    headers.toArray.map(h => NJHeader(h.key(), h.value())).toList
 }
 
 @AvroDoc("kafka record, optional Key and Value")
-@AvroNamespace("nj.spark.kafka")
+@AvroNamespace("nj.kafka")
 @AvroName("NJConsumerRecord")
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,
@@ -31,7 +38,7 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka timestamp in millisecond") timestamp: Long,
   @AvroDoc("kafka key") key: Option[K],
   @AvroDoc("kafka value") value: Option[V],
-  @AvroDoc("kafka topic") topic: String,
+  @AvroDoc("kafka topic name") topic: String,
   @AvroDoc("kafka timestamp type") timestampType: Int,
   @AvroDoc("kafka headers") headers: List[NJHeader]) {
 
@@ -63,7 +70,7 @@ object NJConsumerRecord {
       value = cr.value,
       topic = cr.topic,
       timestampType = cr.timestampType.id,
-      headers = cr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
+      headers = NJHeader(cr.headers())
     )
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
@@ -82,6 +89,23 @@ object NJConsumerRecord {
     val d: Decoder[NJConsumerRecord[K, V]]          = implicitly
     val e: Encoder[NJConsumerRecord[K, V]]          = implicitly
     NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+  }
+
+  def schema(keySchema: Schema, valSchema: Schema): Schema = {
+    class KEY
+    class VAL
+    @nowarn
+    implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
+      override def schema: Schema           = keySchema
+      override def fieldMapper: FieldMapper = DefaultFieldMapper
+    }
+
+    @nowarn
+    implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
+      override def schema: Schema           = valSchema
+      override def fieldMapper: FieldMapper = DefaultFieldMapper
+    }
+    SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
 
   implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =

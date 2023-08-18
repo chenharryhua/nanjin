@@ -8,7 +8,7 @@ import io.scalaland.chimney.dsl.*
 import monocle.PLens
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
-import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import org.apache.kafka.common.record.TimestampType
 
@@ -117,7 +117,7 @@ object NJConsumerMessage {
             KafkaConsumerRecord.NULL_SIZE,
             a.key.getOrElse(null.asInstanceOf[K1]),
             a.value.getOrElse(null.asInstanceOf[V1]),
-            new RecordHeaders(a.headers.map(h => new RecordHeader(h.key, h.value): Header).toArray),
+            new RecordHeaders(a.headers.map(h => new RecordHeader(h.key, h.value): JavaHeader).toArray),
             Optional.empty[Integer]()
           ))(b =>
           _ =>
@@ -129,7 +129,7 @@ object NJConsumerMessage {
               Option(b.value()),
               b.topic(),
               b.timestampType().id,
-              b.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
+              NJHeader(b.headers())
             ))
     }
 }

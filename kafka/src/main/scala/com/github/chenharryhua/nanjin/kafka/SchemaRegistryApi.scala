@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import diffson.*
 import diffson.circe.*
 import diffson.jsonpatch.Operation
@@ -13,7 +14,6 @@ import io.circe.*
 import io.circe.parser.parse
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
-import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.avro.Schema
 
 import scala.jdk.CollectionConverters.*
@@ -26,14 +26,14 @@ final private case class SchemaLocation(topicName: TopicName) {
 
 final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
 
-  def showKey: String =
+  private def showKey: String =
     s"""|key schema:
         |id:      ${key.map(_.getId).getOrElse("none")}
         |version: ${key.map(_.getVersion).getOrElse("none")}
         |schema:  ${key.map(_.getSchema).getOrElse("none")}
     """.stripMargin
 
-  def showValue: String =
+  private def showValue: String =
     s"""|value schema:
         |id:      ${value.map(_.getId).getOrElse("none")}
         |version: ${value.map(_.getVersion).getOrElse("none")}
@@ -54,7 +54,6 @@ object KvSchemaMetadata {
 
 final case class CompatibilityTestReport(
   topicName: TopicName,
-  srSettings: SchemaRegistrySettings,
   meta: KvSchemaMetadata,
   keySchema: AvroSchema,
   valueSchema: AvroSchema,
@@ -81,26 +80,23 @@ final case class CompatibilityTestReport(
           |""".stripMargin
   )
 
-  val show: String =
+  override val toString: String =
     s"""
        |compatibility test report of topic($topicName):
        |key:   $keyDescription
        |
-       |value: $valueDescription
-       |$srSettings""".stripMargin
-
-  override val toString: String = show
+       |value: $valueDescription""".stripMargin
 
   val isCompatible: Boolean = key.flatMap(k => value.map(v => k && v)).fold(_ => false, identity)
 
   implicit val lcs: Patience[Json] = new Patience[Json]
 
-  val diffKey: Option[List[Operation[Json]]] = for {
+  private val diffKey: Option[List[Operation[Json]]] = for {
     kafkaKeySchema <- meta.key.flatMap(skm => parse(skm.getSchema).toOption)
     localKeySchema <- parse(keySchema.canonicalString()).toOption
   } yield diff(kafkaKeySchema, localKeySchema).ops
 
-  val diffVal: Option[List[Operation[Json]]] = for {
+  private val diffVal: Option[List[Operation[Json]]] = for {
     kafkaValSchema <- meta.value.flatMap(skm => parse(skm.getSchema).toOption)
     localValSchema <- parse(valueSchema.canonicalString()).toOption
   } yield diff(kafkaValSchema, localValSchema).ops
@@ -109,61 +105,64 @@ final case class CompatibilityTestReport(
 
 }
 
-final class SchemaRegistryApi[F[_]](srs: SchemaRegistrySettings)(implicit F: Sync[F]) extends Serializable {
+final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends Serializable {
 
-  private val csrClient: Resource[F, CachedSchemaRegistryClient] =
-    Resource.make[F, CachedSchemaRegistryClient](
-      F.delay(srs.config.get(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG) match {
-        case None => sys.error("schema url is mandatory but not configured")
-        case Some(url) =>
-          val size: Int = srs.config
-            .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DOC)
-            .flatMap(n => Try(n.toInt).toOption)
-            .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
-          new CachedSchemaRegistryClient(url, size)
-      }))(_ => F.pure(()))
-
-  def kvSchema(topicName: TopicName): F[KvSchemaMetadata] = {
+  def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] = {
     val loc = SchemaLocation(topicName)
-    csrClient.use { client =>
-      F.delay(
-        KvSchemaMetadata(
-          Try(client.getLatestSchemaMetadata(loc.keyLoc)).toOption,
-          Try(client.getLatestSchemaMetadata(loc.valLoc)).toOption))
-    }
+    F.delay(
+      KvSchemaMetadata(
+        Try(client.getLatestSchemaMetadata(loc.keyLoc)).toOption,
+        Try(client.getLatestSchemaMetadata(loc.valLoc)).toOption))
   }
 
-  def register(topicName: TopicName, keySchema: Schema, valSchema: Schema): F[(Option[Int], Option[Int])] = {
-    val loc = SchemaLocation(topicName)
-    csrClient.use { client =>
-      (
-        F.delay(client.register(loc.keyLoc, new AvroSchema(keySchema))).attempt.map(_.toOption),
-        F.delay(client.register(loc.valLoc, new AvroSchema(valSchema))).attempt.map(_.toOption)).mapN((_, _))
+  private def kvSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Option[Schema], Option[Schema])] =
+    metaData(topicName).map { kv =>
+      val ks = kv.key.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
+      val vs = kv.value.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
+      (ks, vs)
     }
+
+  def fetchSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Schema, Schema)] =
+    kvSchema(topicName).flatMap { case (ks, vs) =>
+      (ks, vs).mapN((_, _)) match {
+        case Some(value) => F.pure(value)
+        case None        => F.raiseError(new Exception(s"unable to retrieve schema for ${topicName.value}"))
+      }
+    }
+
+  def njConsumeRecordSchema(topicName: TopicName)(implicit F: Sync[F]): F[Schema] =
+    fetchSchema(topicName).map { case (k, v) => NJConsumerRecord.schema(k, v) }
+
+  def register(topicName: TopicName, keySchema: Schema, valSchema: Schema)(implicit
+    F: Sync[F]): F[(Option[Int], Option[Int])] = {
+    val loc = SchemaLocation(topicName)
+    (
+      F.delay(client.register(loc.keyLoc, new AvroSchema(keySchema))).attempt.map(_.toOption),
+      F.delay(client.register(loc.valLoc, new AvroSchema(valSchema))).attempt.map(_.toOption)).mapN((_, _))
   }
 
-  def delete(topicName: TopicName): F[(List[Integer], List[Integer])] = {
+  def register[K, V](topic: TopicDef[K, V])(implicit F: Sync[F]): F[(Option[Int], Option[Int])] =
+    register(topic.topicName, topic.schemaForKey.schema, topic.schemaForVal.schema)
+
+  def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)
-    csrClient.use { client =>
-      (
-        F.delay(client.deleteSubject(loc.keyLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten),
-        F.delay(client.deleteSubject(loc.valLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten))
-        .mapN((_, _))
-    }
+    (
+      F.delay(client.deleteSubject(loc.keyLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten),
+      F.delay(client.deleteSubject(loc.valLoc).asScala.toList).attempt.map(_.toOption.sequence.flatten))
+      .mapN((_, _))
   }
 
-  def testCompatibility(
-    topicName: TopicName,
-    keySchema: Schema,
-    valSchema: Schema): F[CompatibilityTestReport] = {
+  def testCompatibility(topicName: TopicName, keySchema: Schema, valSchema: Schema)(implicit
+    F: Sync[F]): F[CompatibilityTestReport] = {
     val loc = SchemaLocation(topicName)
-    csrClient.use { client =>
-      val ks = new AvroSchema(keySchema)
-      val vs = new AvroSchema(valSchema)
-      (
-        F.delay(client.testCompatibility(loc.keyLoc, ks)).attempt.map(_.leftMap(_.getMessage)),
-        F.delay(client.testCompatibility(loc.valLoc, vs)).attempt.map(_.leftMap(_.getMessage)),
-        kvSchema(topicName)).mapN((k, v, m) => CompatibilityTestReport(topicName, srs, m, ks, vs, k, v))
-    }
+    val ks  = new AvroSchema(keySchema)
+    val vs  = new AvroSchema(valSchema)
+    (
+      F.delay(client.testCompatibility(loc.keyLoc, ks)).attempt.map(_.leftMap(_.getMessage)),
+      F.delay(client.testCompatibility(loc.valLoc, vs)).attempt.map(_.leftMap(_.getMessage)),
+      metaData(topicName)).mapN((k, v, m) => CompatibilityTestReport(topicName, m, ks, vs, k, v))
   }
+
+  def testCompatibility[K, V](topic: TopicDef[K, V])(implicit F: Sync[F]): F[CompatibilityTestReport] =
+    testCompatibility(topic.topicName, topic.schemaForKey.schema, topic.schemaForVal.schema)
 }

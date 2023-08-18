@@ -5,17 +5,18 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KUnknown, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.{ProducerRecord, ProducerRecords}
+import io.circe.generic.auto.*
+import io.circe.syntax.*
+import monocle.syntax.all.*
 import mtest.spark.sparkSession
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
-import io.circe.generic.auto.*
-import monocle.syntax.all.*
-import io.circe.syntax.*
 
 import java.time.{Instant, LocalDate}
 object SparKafkaTestData {
@@ -49,8 +50,8 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >> topic.schemaRegistry.register >> loadData)
-    .unsafeRunSync()
+  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+    ctx.schemaRegistry.register(topic.topicDef) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
     val rst = sparKafka.topic(topic.topicDef).fromKafka.frdd.map(_.collect()).unsafeRunSync()
@@ -124,7 +125,6 @@ class SparKafkaTest extends AnyFunSuite {
     val crs: List[NJConsumerRecord[Int, Int]]   = List(cr1, cr2, cr3)
     val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(crs)
 
-    println(cr1.asJson.spaces2)
     println(
       cr1.toNJProducerRecord
         .focus(_.key)
@@ -150,24 +150,20 @@ class SparKafkaTest extends AnyFunSuite {
     assert(rst === Seq(cr1.value.get))
   }
 
-  test("should be able to save kunknown") {
-    import io.circe.generic.auto.*
-    val path = NJPath("./data/test/spark/kafka/kunknown")
-    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.output.circe(path / "circe").run.unsafeRunSync()
-    sparKafka.topic[Int, KUnknown]("duck.test").fromKafka.output.jackson(path / "jackson").run.unsafeRunSync()
-    sparKafka
-      .topic[Int, HasDuck]("duck.test")
-      .fromKafka
-      .output
-      .circe(path / "typed" / "circe")
-      .run
-      .unsafeRunSync()
-    sparKafka
-      .topic[Int, HasDuck]("duck.test")
-      .fromKafka
-      .output
-      .jackson(path / "typed" / "jackson")
-      .run
+  test("should be able to reproduce") {
+    import fs2.Stream
+    val path  = NJPath("./data/test/spark/kafka/reproduce/jackson")
+    val topic = sparKafka.topic[Int, HasDuck]("duck.test")
+    topic.fromKafka.output.jackson(path).run.unsafeRunSync()
+
+    val hdp = sparkSession.hadoop[IO]
+    Stream
+      .eval(hdp.filesIn(path))
+      .flatMap(hdp.jackson(topic.topic.njConsumerRecordSchema).source)
+      .chunkN(1)
+      .through(ctx.sink(topic.topicName))
+      .compile
+      .drain
       .unsafeRunSync()
   }
 }

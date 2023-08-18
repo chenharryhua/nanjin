@@ -8,13 +8,34 @@ import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.*
+import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.ReaderEngine
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import retry.RetryPolicy
+import shapeless.ops.hlist.ToTraversable
+import shapeless.ops.record.Keys
+import shapeless.{HList, LabelledGeneric}
 
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import scala.annotation.nowarn
+
+sealed trait CsvHeaderOf[A] {
+  def header: Header.Explicit
+}
+
+object CsvHeaderOf {
+  def apply[A](implicit ev: CsvHeaderOf[A]): Header.Explicit = ev.header
+
+  implicit def inferKantanCsvHeader[A, Repr <: HList, KeysRepr <: HList](implicit
+    @nowarn gen: LabelledGeneric.Aux[A, Repr],
+    keys: Keys.Aux[Repr, KeysRepr],
+    traversable: ToTraversable.Aux[KeysRepr, List, Symbol]): CsvHeaderOf[A] =
+    new CsvHeaderOf[A] {
+      override val header: Header.Explicit = Header.Explicit(keys().toList.map(_.name))
+    }
+}
 
 final class HadoopKantan[F[_]] private (
   configuration: Configuration,

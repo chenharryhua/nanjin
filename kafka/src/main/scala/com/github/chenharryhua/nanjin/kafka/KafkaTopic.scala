@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.{Async, Resource, Sync}
-import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
@@ -12,11 +11,13 @@ import com.github.chenharryhua.nanjin.messages.kafka.{
   NJConsumerRecordWithError,
   NJHeader
 }
-import com.sksamuel.avro4s.AvroInputStream
+import com.sksamuel.avro4s.{AvroInputStream, FromRecord, Record, ToRecord}
 import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
+import org.apache.avro.Schema
+import org.apache.avro.generic.IndexedRecord
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
@@ -69,6 +70,17 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     )
   }
 
+  val njConsumerRecordSchema: Schema =
+    NJConsumerRecord.schema(codec.keySchemaFor.schema, codec.valSchemaFor.schema)
+
+  private val nj: NJAvroCodec[NJConsumerRecord[K, V]] =
+    NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
+  private val njToRecord: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(nj.avroEncoder)
+  private val njFromRecord: FromRecord[NJConsumerRecord[K, V]] = FromRecord(nj.avroDecoder)
+
+  def toRecord(nj: NJConsumerRecord[K, V]): Record          = njToRecord.to(nj)
+  def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = njFromRecord.from(gr)
+
   def serializeKey(k: K): Array[Byte] = codec.keySerializer.serialize(topicName.value, k)
   def serializeVal(v: V): Array[Byte] = codec.valSerializer.serialize(topicName.value, v)
 
@@ -85,11 +97,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
     ShortLiveConsumer(topicName, context.settings.consumerSettings.javaProperties)
-
-  def monitor(implicit F: Async[F], C: Console[F]): KafkaMonitoringApi[F, K, V] =
-    KafkaMonitoringApi[F, K, V](this)
-
-  val schemaRegistry: NJSchemaRegistry[F, K, V] = new NJSchemaRegistry[F, K, V](this)
 
   // Streaming
 
@@ -150,19 +157,4 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       produce.resource.use(_.produce(prs).flatten)
     }
   }
-}
-
-final class NJSchemaRegistry[F[_], K, V](kt: KafkaTopic[F, K, V]) extends Serializable {
-
-  def register(implicit F: Sync[F]): F[(Option[Int], Option[Int])] =
-    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings)
-      .register(kt.topicName, kt.topicDef.schemaForKey.schema, kt.topicDef.schemaForVal.schema)
-
-  def delete(implicit F: Sync[F]): F[(List[Integer], List[Integer])] =
-    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings).delete(kt.topicName)
-
-  def testCompatibility(implicit F: Sync[F]): F[CompatibilityTestReport] =
-    new SchemaRegistryApi[F](kt.context.settings.schemaRegistrySettings)
-      .testCompatibility(kt.topicName, kt.topicDef.schemaForKey.schema, kt.topicDef.schemaForVal.schema)
-
 }

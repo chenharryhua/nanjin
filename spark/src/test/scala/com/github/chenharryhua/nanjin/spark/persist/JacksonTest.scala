@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, NJHadoop, NJPath}
+import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
@@ -13,19 +14,17 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
 
-  def rooster(path: NJPath) =
+  def rooster(path: NJPath): SaveJackson[IO, Rooster] =
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(3)), Rooster.avroCodec.avroEncoder)
       .jackson(path)
 
-  val hdp     = sparkSession.hadoop[IO]
-  val jackson = hdp.jackson(Rooster.schema)
+  val hdp: NJHadoop[IO]          = sparkSession.hadoop[IO]
+  val jackson: HadoopJackson[IO] = hdp.jackson(Rooster.schema)
 
-  def loadRooster(path: NJPath): IO[Set[Rooster]] = Stream
-    .eval(hdp.filesIn(path))
-    .flatMap(jackson.source(_).map(Rooster.avroCodec.fromRecord))
-    .compile
-    .toList
-    .map(_.toSet)
+  val fromRecord: FromRecord[Rooster] = FromRecord(Rooster.avroCodec.avroDecoder)
+
+  def loadRooster(path: NJPath): IO[Set[Rooster]] =
+    Stream.eval(hdp.filesIn(path)).flatMap(jackson.source(_).map(fromRecord.from)).compile.toList.map(_.toSet)
 
   val root = NJPath("./data/test/spark/persist/jackson/")
   test("datetime read/write identity - uncompressed") {
