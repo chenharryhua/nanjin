@@ -159,7 +159,7 @@ class SparKafkaTest extends AnyFunSuite {
     val hdp = sparkSession.hadoop[IO]
     Stream
       .eval(hdp.filesIn(path))
-      .flatMap(hdp.jackson(topic.topic.njConsumerRecordSchema).source)
+      .flatMap(hdp.jackson(topic.topic.topicDef.schema.consumerRecord).source)
       .chunkN(1)
       .through(ctx.sink(topic.topicName))
       .compile

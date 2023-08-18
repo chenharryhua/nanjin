@@ -11,6 +11,9 @@ final case class RawKeyValueSerdePair[K, V](keySerde: SerdeOf[K], valSerde: Serd
     KeyValueCodecPair(
       keySerde.asKey(srs.config).codec(name.value),
       valSerde.asValue(srs.config).codec(name.value))
+
+  def withSchema(pair: AvroSchemaPair): RawKeyValueSerdePair[K, V] =
+    RawKeyValueSerdePair(keySerde.withSchema(pair.key), valSerde.withSchema(pair.value))
 }
 
 final case class KeyValueCodecPair[K, V](keyCodec: NJCodec[K], valCodec: NJCodec[V]) {

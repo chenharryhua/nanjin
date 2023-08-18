@@ -16,7 +16,6 @@ import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
-import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
@@ -42,6 +41,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def withGroupId(gid: String): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef, context.withGroupId(gid))
+
+  def withSchema(pair: AvroSchemaPair): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef.withSchema(pair), context)
 
   // need to reconstruct codec when working in spark
   @transient lazy val codec: KeyValueCodecPair[K, V] =
@@ -69,9 +71,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       headers = cr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
     )
   }
-
-  val njConsumerRecordSchema: Schema =
-    NJConsumerRecord.schema(codec.keySchemaFor.schema, codec.valSchemaFor.schema)
 
   private val nj: NJAvroCodec[NJConsumerRecord[K, V]] =
     NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)

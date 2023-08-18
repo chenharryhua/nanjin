@@ -52,6 +52,6 @@ class SchemaRegistryTest extends AnyFunSuite {
   }
   test("retrieve schema") {
     println(ctx.schemaRegistry.metaData(topic.topicName).unsafeRunSync())
-    println(ctx.schemaRegistry.njConsumeRecordSchema(topic.topicName).unsafeRunSync())
+    println(ctx.schemaRegistry.fetchAvroSchema(topic.topicName).unsafeRunSync())
   }
 }

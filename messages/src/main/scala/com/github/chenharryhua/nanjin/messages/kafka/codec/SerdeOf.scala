@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import com.github.chenharryhua.nanjin.messages.kafka.KeyValueTag
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
+import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
@@ -42,7 +43,7 @@ sealed abstract class RegisteredSerde[A](
   final def codec(topicName: String): NJCodec[A] = new NJCodec[A](topicName, this)
 }
 
-trait SerdeOf[A] extends Serde[A] with Serializable {
+trait SerdeOf[A] extends Serde[A] with Serializable { outer =>
   def avroCodec: NJAvroCodec[A]
 
   final def asKey(props: Map[String, String]): RegisteredSerde[A] =
@@ -50,6 +51,12 @@ trait SerdeOf[A] extends Serde[A] with Serializable {
 
   final def asValue(props: Map[String, String]): RegisteredSerde[A] =
     new RegisteredSerde(KeyValueTag.Value, this, props) {}
+
+  final def withSchema(schema: Schema): SerdeOf[A] = new SerdeOf[A] {
+    override def avroCodec: NJAvroCodec[A]     = outer.avroCodec.withSchema(schema)
+    override def serializer: Serializer[A]     = outer.serializer()
+    override def deserializer: Deserializer[A] = outer.deserializer()
+  }
 }
 
 private[codec] trait LowerPriority {

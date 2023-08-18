@@ -10,17 +10,13 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 
 import scala.jdk.CollectionConverters.MapHasAsJava
 
-final class PushGenericRecord(
-  topicName: TopicName,
-  keySchema: Schema,
-  valSchema: Schema,
-  srs: SchemaRegistrySettings)
+final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
 
   private val topic: String = topicName.value
 
   private val keySer: AnyRef => Array[Byte] =
-    keySchema.getType match {
+    pair.key.getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
@@ -44,11 +40,11 @@ final class PushGenericRecord(
       case Schema.Type.DOUBLE =>
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
-      case _ => throw new Exception(s"unsupported key schema $keySchema")
+      case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
   private val valSer: AnyRef => Array[Byte] =
-    valSchema.getType match {
+    pair.value.getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
@@ -72,14 +68,14 @@ final class PushGenericRecord(
       case Schema.Type.DOUBLE =>
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
-      case _ => throw new Exception(s"unsupported value schema $valSchema")
+      case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
   def fromGenericRecord(gr: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] = {
     val key   = gr.get("key")
     val value = gr.get("value")
 
-    (GenericData.get().validate(keySchema, key), GenericData.get().validate(valSchema, value)) match {
+    (GenericData.get().validate(pair.key, key), GenericData.get().validate(pair.value, value)) match {
       case (true, true)   => ProducerRecord(topic, keySer(key), valSer(value))
       case (true, false)  => throw new Exception("invalid value")
       case (false, true)  => throw new Exception("invalid key")

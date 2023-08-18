@@ -15,14 +15,19 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   def withTopicName(tn: TopicName): TopicDef[K, V]  = new TopicDef[K, V](tn, rawSerdes)
   def withTopicName(tn: TopicNameC): TopicDef[K, V] = withTopicName(TopicName(tn))
 
-  val avroKeyEncoder: AvroEncoder[K] = rawSerdes.keySerde.avroCodec.avroEncoder
-  val avroKeyDecoder: AvroDecoder[K] = rawSerdes.keySerde.avroCodec.avroDecoder
+  def withSchema(pair: AvroSchemaPair): TopicDef[K, V] =
+    new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))
 
-  val avroValEncoder: AvroEncoder[V] = rawSerdes.valSerde.avroCodec.avroEncoder
-  val avroValDecoder: AvroDecoder[V] = rawSerdes.valSerde.avroCodec.avroDecoder
+  lazy val avroKeyEncoder: AvroEncoder[K] = rawSerdes.keySerde.avroCodec.avroEncoder
+  lazy val avroKeyDecoder: AvroDecoder[K] = rawSerdes.keySerde.avroCodec.avroDecoder
 
-  val schemaForKey: SchemaFor[K] = rawSerdes.keySerde.avroCodec.schemaFor
-  val schemaForVal: SchemaFor[V] = rawSerdes.valSerde.avroCodec.schemaFor
+  lazy val avroValEncoder: AvroEncoder[V] = rawSerdes.valSerde.avroCodec.avroEncoder
+  lazy val avroValDecoder: AvroDecoder[V] = rawSerdes.valSerde.avroCodec.avroDecoder
+
+  lazy val schemaForKey: SchemaFor[K] = rawSerdes.keySerde.avroCodec.schemaFor
+  lazy val schemaForVal: SchemaFor[V] = rawSerdes.valSerde.avroCodec.schemaFor
+
+  lazy val schema: AvroSchemaPair = AvroSchemaPair(schemaForKey.schema, schemaForVal.schema)
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 

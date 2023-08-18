@@ -1,10 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
+import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
 import com.sksamuel.avro4s.SchemaFor
-import io.circe.Json
-import io.circe.parser.parse
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecord}
@@ -18,18 +16,13 @@ import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
 import scala.util.Try
 
-final class PullGenericRecord(
-  topicName: TopicName,
-  keySchema: Schema,
-  valSchema: Schema,
-  srs: SchemaRegistrySettings)
+final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
-
-  private val schema: Schema = NJConsumerRecord.schema(keySchema, valSchema)
+  private val schema: Schema = pair.consumerRecord
   private val topic: String  = topicName.value
 
   private val keyDecode: Array[Byte] => Any =
-    keySchema.getType match {
+    pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
@@ -52,10 +45,10 @@ final class PullGenericRecord(
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
-      case _ => throw new Exception(s"unsupported key schema $keySchema")
+      case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
   private val valDecode: Array[Byte] => Any =
-    valSchema.getType match {
+    pair.value.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
@@ -78,10 +71,10 @@ final class PullGenericRecord(
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
-      case _ => throw new Exception(s"unsupported value schema $valSchema")
+      case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
-  private def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord = {
+  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord = {
     val record: GenericData.Record = new GenericData.Record(schema)
     val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
       val header = new GenericData.Record(SchemaFor[NJHeader].schema)
@@ -102,16 +95,13 @@ final class PullGenericRecord(
 
   private val datumWriter = new GenericDatumWriter[GenericRecord](schema)
 
-  def toJson(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Json = {
+  def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): String = {
     val gr: GenericRecord           = toGenericRecord(ccr)
     val baos: ByteArrayOutputStream = new ByteArrayOutputStream
     val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
     datumWriter.write(gr, encoder)
     encoder.flush()
     baos.close()
-    parse(baos.toString(StandardCharsets.UTF_8)) match {
-      case Left(value)  => throw value // should never happen
-      case Right(value) => value
-    }
+    baos.toString(StandardCharsets.UTF_8)
   }
 }
