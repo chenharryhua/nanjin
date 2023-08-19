@@ -18,7 +18,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   test("compatiable") {
     val res = ctx.schemaRegistry.testCompatibility(topic.topicDef).unsafeRunSync()
     assert(res.isCompatible)
-    assert(res.isIdentical)
+
   }
 
   test("incompatiable") {
@@ -48,8 +48,13 @@ class SchemaRegistryTest extends AnyFunSuite {
   }
 
   test("register schema") {
-    ctx.schemaRegistry.register(topic.topicDef).unsafeRunSync()
+    val topic = TopicDef[Int, Int](TopicName("test.register.schema"))
+    val report = ctx.schemaRegistry.delete(topic.topicName) >>
+      ctx.schemaRegistry.register(topic) >>
+      ctx.schemaRegistry.testCompatibility(topic)
+    assert(report.unsafeRunSync().isIdentical)
   }
+
   test("retrieve schema") {
     println(ctx.schemaRegistry.metaData(topic.topicName).unsafeRunSync())
     println(ctx.schemaRegistry.fetchAvroSchema(topic.topicName).unsafeRunSync())
