@@ -15,7 +15,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
   private val topic: String = topicName.value
 
-  private val keySer: AnyRef => Array[Byte] =
+  @transient private lazy val keySer: AnyRef => Array[Byte] =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
@@ -43,7 +43,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
-  private val valSer: AnyRef => Array[Byte] =
+  @transient private lazy val valSer: AnyRef => Array[Byte] =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()

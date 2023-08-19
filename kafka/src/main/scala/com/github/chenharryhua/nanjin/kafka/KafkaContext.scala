@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
@@ -46,17 +46,6 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameC): KafkaTopic[F, K, V] =
     topic[K, V](TopicName(topicName))
 
-  def consume(topicName: TopicName)(implicit F: Sync[F]): Fs2Consume[F] =
-    new Fs2Consume[F](
-      topicName,
-      ConsumerSettings[F, Array[Byte], Array[Byte]](
-        Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)
-    )
-
-  def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
-    consume(TopicName(topicName))
-
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val url = settings.schemaRegistrySettings.config.get(url_config) match {
@@ -69,6 +58,17 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
     new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
+
+  def consume(topicName: TopicName)(implicit F: Sync[F]): Fs2Consume[F] =
+    new Fs2Consume[F](
+      topicName,
+      ConsumerSettings[F, Array[Byte], Array[Byte]](
+        Deserializer[F, Array[Byte]],
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config)
+    )
+
+  def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
+    consume(TopicName(topicName))
 
   def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, String] =
     Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { schema =>
@@ -87,15 +87,15 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         builder.toGenericRecord(cr.record.transformInto[KafkaConsumerRecord[Array[Byte], Array[Byte]]]))
     }
 
-  def sink(topicName: TopicName)(implicit
-    F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
+  def sink(topicName: TopicName)(implicit F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { schema =>
         val builder = new PushGenericRecord(settings.schemaRegistrySettings, topicName, schema)
         KafkaProducer[F]
           .stream(
             ProducerSettings[F, Array[Byte], Array[Byte]].withProperties(settings.producerSettings.config))
-          .flatMap(pd => ss.evalMap(ck => pd.produce(ck.map(builder.fromGenericRecord)).flatten))
+          .flatMap(kpd => ss.evalMap(ck => kpd.produce(ck.map(builder.fromGenericRecord)).flatten))
+          .drain
       }
   }
 
@@ -112,4 +112,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   def buildStreams(topology: StreamsBuilder => Unit)(implicit F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(Reader(topology))
+
+  def shortLiveConsumer(topicName: TopicName)(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
+    ShortLiveConsumer(topicName, settings.consumerSettings.javaProperties)
 }

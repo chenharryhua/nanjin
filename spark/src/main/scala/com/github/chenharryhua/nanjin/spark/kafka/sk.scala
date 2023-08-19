@@ -35,7 +35,7 @@ private[spark] object sk {
       OffsetRange.create(tp, r.from.value, r.until.value)
     }
 
-  private def kafkaBatchRDD(
+  def kafkaBatchRDD(
     settings: KafkaSettings,
     ss: SparkSession,
     offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]])

@@ -21,7 +21,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val schema: Schema = pair.consumerRecord
   private val topic: String  = topicName.value
 
-  private val keyDecode: Array[Byte] => Any =
+ @transient  private lazy val keyDecode: Array[Byte] => Any =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
@@ -47,7 +47,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
-  private val valDecode: Array[Byte] => Any =
+
+ @transient private lazy val valDecode: Array[Byte] => Any =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
@@ -93,7 +94,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record
   }
 
-  private val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+  @transient private lazy val datumWriter = new GenericDatumWriter[GenericRecord](schema)
 
   def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): String = {
     val gr: GenericRecord           = toGenericRecord(ccr)
