@@ -2,10 +2,19 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import cats.effect.kernel.Sync
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, PullGenericRecord, TopicDef}
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, PullGenericRecord, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
+import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, sk}
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
+import com.github.chenharryhua.nanjin.terminals.NJPath
+import org.apache.spark.rdd.RDD
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, sk}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
@@ -41,7 +50,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       range <- kafkaContext.shortLiveConsumer(topicName).use(_.offsetRangeFor(dateRange))
     } yield sk.kafkaBatchRDD(kafkaContext.settings, sparkSession, range).map(builder.toJacksonString)
-    new RddFileHoarder(grRdd).text(path).withSuffix(".jackson.json").run
+    new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }
 
   def dump(topicName: TopicName, path: NJPath)(implicit F: Sync[F]): F[Unit] =
