@@ -18,39 +18,43 @@ import scala.util.{Failure, Try}
 /** @param name
   *   - topic name or state store name
   * @param registered
-  *   registered in kafka schema registry
+  *   serializer/deserializer config method was called
   * @tparam A
   *   schema related type
   */
-final class NJCodec[A](val name: String, val registered: RegisteredSerde[A]) extends Serializable {
-  def encode(a: A): Array[Byte]  = registered.serde.serializer.serialize(name, a)
-  def decode(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(name, ab)
+final class KafkaSerde[A](val name: String, registered: RegisteredSerde[A]) extends Serializable {
+  val serde: Serde[A]                 = registered.serde
+  def serialize(a: A): Array[Byte]    = serde.serializer.serialize(name, a)
+  def deserialize(ab: Array[Byte]): A = serde.deserializer.deserialize(name, ab)
 
-  def tryDecode(ab: Array[Byte]): Try[A] =
+  def tryDeserialize(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(new NullPointerException("NJCodec.tryDecode a null Array[Byte]")))(x =>
-      Try(decode(x)))
+      Try(deserialize(x)))
 }
 
 sealed abstract class RegisteredSerde[A](
   val tag: KeyValueTag,
-  val serde: SerdeOf[A],
-  val configProps: Map[String, String])
+  val configProps: Map[String, String],
+  serdeOf: SerdeOf[A])
     extends Serializable {
 
-  serde.serializer.configure(configProps.asJava, tag.isKey)
-  serde.deserializer.configure(configProps.asJava, tag.isKey)
+  serdeOf.serializer.configure(configProps.asJava, tag.isKey)
+  serdeOf.deserializer.configure(configProps.asJava, tag.isKey)
 
-  final def codec(topicName: String): NJCodec[A] = new NJCodec[A](topicName, this)
+  lazy val serde: Serde[A] = serdeOf
+
+  final def topic(topicName: String): KafkaSerde[A] =
+    new KafkaSerde[A](topicName, this)
 }
 
 trait SerdeOf[A] extends Serde[A] with Serializable { outer =>
   def avroCodec: NJAvroCodec[A]
 
   final def asKey(props: Map[String, String]): RegisteredSerde[A] =
-    new RegisteredSerde(KeyValueTag.Key, this, props) {}
+    new RegisteredSerde(KeyValueTag.Key, props, this) {}
 
   final def asValue(props: Map[String, String]): RegisteredSerde[A] =
-    new RegisteredSerde(KeyValueTag.Value, this, props) {}
+    new RegisteredSerde(KeyValueTag.Value, props, this) {}
 
   final def withSchema(schema: Schema): SerdeOf[A] = new SerdeOf[A] {
     override def avroCodec: NJAvroCodec[A]     = outer.avroCodec.withSchema(schema)

@@ -58,8 +58,8 @@ object KafkaStreamingData {
 class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
-  implicit val oneValue: Serde[StreamOne] = s1Topic.codec.valSerde
-  implicit val twoValue: Serde[TableTwo]  = t2Topic.codec.valSerde
+  implicit val oneValue: Serde[StreamOne] = s1Topic.serdePair.value.serde
+  implicit val twoValue: Serde[TableTwo]  = t2Topic.serdePair.value.serde
 
   before(sendT2Data.compile.drain.unsafeRunSync())
 
@@ -106,7 +106,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       a <- s1TopicBin.asConsumer.kstream
       b <- t2Topic.asConsumer.ktable
     } yield a.flatMap { (k, v) =>
-      (s1Topic.codec.keyCodec.tryDecode(k).toOption, s1Topic.codec.valCodec.tryDecode(v).toOption)
+      (s1Topic.serdePair.key.tryDeserialize(k).toOption, s1Topic.serdePair.value.tryDeserialize(v).toOption)
         .mapN((_, _))
     }.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
       .peek((k, v) => println(s"out=($k, $v)"))

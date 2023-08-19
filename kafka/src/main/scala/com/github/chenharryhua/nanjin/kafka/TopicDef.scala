@@ -5,7 +5,6 @@ import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
-import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 
 final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
     extends Serializable {
@@ -18,16 +17,8 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   def withSchema(pair: AvroSchemaPair): TopicDef[K, V] =
     new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))
 
-  lazy val avroKeyEncoder: AvroEncoder[K] = rawSerdes.keySerde.avroCodec.avroEncoder
-  lazy val avroKeyDecoder: AvroDecoder[K] = rawSerdes.keySerde.avroCodec.avroDecoder
-
-  lazy val avroValEncoder: AvroEncoder[V] = rawSerdes.valSerde.avroCodec.avroEncoder
-  lazy val avroValDecoder: AvroDecoder[V] = rawSerdes.valSerde.avroCodec.avroDecoder
-
-  lazy val schemaForKey: SchemaFor[K] = rawSerdes.keySerde.avroCodec.schemaFor
-  lazy val schemaForVal: SchemaFor[V] = rawSerdes.valSerde.avroCodec.schemaFor
-
-  lazy val schema: AvroSchemaPair = AvroSchemaPair(schemaForKey.schema, schemaForVal.schema)
+  lazy val schema: AvroSchemaPair =
+    AvroSchemaPair(rawSerdes.key.avroCodec.schemaFor.schema, rawSerdes.value.avroCodec.schemaFor.schema)
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 
@@ -40,8 +31,8 @@ object TopicDef {
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
       x.topicName.value === y.topicName.value &&
-        x.schemaForKey.schema == y.schemaForKey.schema &&
-        x.schemaForVal.schema == y.schemaForVal.schema
+        x.rawSerdes.key.avroCodec.schema == y.rawSerdes.key.avroCodec.schema &&
+        x.rawSerdes.value.avroCodec.schema == y.rawSerdes.value.avroCodec.schema
 
   def apply[K, V](
     topicName: TopicName,

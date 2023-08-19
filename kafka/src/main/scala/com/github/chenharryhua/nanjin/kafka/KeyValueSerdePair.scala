@@ -1,38 +1,34 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Show
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJCodec, SerdeOf}
-import com.sksamuel.avro4s.SchemaFor
-import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaSerde, SerdeOf}
+import org.apache.avro.Schema
+import org.apache.kafka.common.serialization.Serde
 
-final case class RawKeyValueSerdePair[K, V](keySerde: SerdeOf[K], valSerde: SerdeOf[V]) {
-  def register(srs: SchemaRegistrySettings, name: TopicName): KeyValueCodecPair[K, V] =
-    KeyValueCodecPair(
-      keySerde.asKey(srs.config).codec(name.value),
-      valSerde.asValue(srs.config).codec(name.value))
+final case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V]) {
+  def register(srs: SchemaRegistrySettings, name: TopicName): KeyValueSerdePair[K, V] =
+    KeyValueSerdePair(key.asKey(srs.config).topic(name.value), value.asValue(srs.config).topic(name.value))
 
   def withSchema(pair: AvroSchemaPair): RawKeyValueSerdePair[K, V] =
-    RawKeyValueSerdePair(keySerde.withSchema(pair.key), valSerde.withSchema(pair.value))
+    RawKeyValueSerdePair(key.withSchema(pair.key), value.withSchema(pair.value))
 }
 
-final case class KeyValueCodecPair[K, V](keyCodec: NJCodec[K], valCodec: NJCodec[V]) {
-  require(keyCodec.name === valCodec.name, "key and value codec should have same topic name")
-
-  val keySerde: SerdeOf[K] = keyCodec.registered.serde
-  val valSerde: SerdeOf[V] = valCodec.registered.serde
-
-  val keySchemaFor: SchemaFor[K] = keySerde.avroCodec.schemaFor
-  val valSchemaFor: SchemaFor[V] = valSerde.avroCodec.schemaFor
-
-  val keySerializer: Serializer[K] = keySerde.serializer
-  val valSerializer: Serializer[V] = valSerde.serializer
-
-  val keyDeserializer: Deserializer[K] = keySerde.deserializer
-  val valDeserializer: Deserializer[V] = valSerde.deserializer
+final case class KeyValueSerdePair[K, V](key: KafkaSerde[K], value: KafkaSerde[V]) {
+  require(key.name === value.name, "key and value codec should have same topic name")
 
   def asRegisteredKeyValueSerdePair: RegisteredKeyValueSerdePair[K, V] =
-    RegisteredKeyValueSerdePair(keySerde, valSerde)
+    RegisteredKeyValueSerdePair(key.serde, value.serde)
 }
 
-final case class RegisteredKeyValueSerdePair[K, V](keySerde: Serde[K], valSerde: Serde[V])
+final case class RegisteredKeyValueSerdePair[K, V](key: Serde[K], value: Serde[V])
+
+final case class AvroSchemaPair(key: Schema, value: Schema) {
+  val consumerRecord: Schema = NJConsumerRecord.schema(key, value)
+}
+
+object AvroSchemaPair {
+  implicit val showAvroSchemaPair: Show[AvroSchemaPair] = _.consumerRecord.toString
+}

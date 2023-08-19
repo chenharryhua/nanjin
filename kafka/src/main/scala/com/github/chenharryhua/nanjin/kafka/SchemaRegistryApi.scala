@@ -4,7 +4,6 @@ import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import diffson.*
 import diffson.circe.*
 import diffson.jsonpatch.Operation
@@ -22,14 +21,6 @@ import scala.util.Try
 final private case class SchemaLocation(topicName: TopicName) {
   val keyLoc: String = s"${topicName.value}-key"
   val valLoc: String = s"${topicName.value}-value"
-}
-
-final case class AvroSchemaPair(key: Schema, value: Schema) {
-  val consumerRecord: Schema = NJConsumerRecord.schema(key, value)
-}
-
-object AvroSchemaPair {
-  implicit val showAvroSchemaPair: Show[AvroSchemaPair] = _.consumerRecord.toString
 }
 
 final case class KvSchemaMetadata(key: Option[SchemaMetadata], value: Option[SchemaMetadata]) {
@@ -123,7 +114,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
         Try(client.getLatestSchemaMetadata(loc.valLoc)).toOption))
   }
 
-  private def kvSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Option[Schema], Option[Schema])] =
+  private def getAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Option[Schema], Option[Schema])] =
     metaData(topicName).map { kv =>
       val ks = kv.key.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
       val vs = kv.value.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
@@ -131,7 +122,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
     }
 
   def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =
-    kvSchema(topicName).flatMap { case (ks, vs) =>
+    getAvroSchema(topicName).flatMap { case (ks, vs) =>
       (ks, vs).mapN((_, _)) match {
         case Some((k, v)) => F.pure(AvroSchemaPair(k, v))
         case None         => F.raiseError(new Exception(s"unable to retrieve schema for ${topicName.value}"))

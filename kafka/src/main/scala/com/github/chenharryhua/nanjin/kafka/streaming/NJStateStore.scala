@@ -17,27 +17,27 @@ final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
   registered: RegisteredKeyValueSerdePair[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
-    Stores.keyValueStoreBuilder(supplier, registered.keySerde, registered.valSerde)
+    Stores.keyValueStoreBuilder(supplier, registered.key, registered.value)
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
-    Stores.timestampedKeyValueStoreBuilder(supplier, registered.keySerde, registered.valSerde)
+    Stores.timestampedKeyValueStoreBuilder(supplier, registered.key, registered.value)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
   registered: RegisteredKeyValueSerdePair[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
-    Stores.windowStoreBuilder(supplier, registered.keySerde, registered.valSerde)
+    Stores.windowStoreBuilder(supplier, registered.key, registered.value)
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
-    Stores.timestampedWindowStoreBuilder(supplier, registered.keySerde, registered.valSerde)
+    Stores.timestampedWindowStoreBuilder(supplier, registered.key, registered.value)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
   registered: RegisteredKeyValueSerdePair[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
-    Stores.sessionStoreBuilder(supplier, registered.keySerde, registered.valSerde)
+    Stores.sessionStoreBuilder(supplier, registered.key, registered.value)
 }
 
 final class NJStateStore[K, V] private (storeName: TopicName, registered: RegisteredKeyValueSerdePair[K, V])

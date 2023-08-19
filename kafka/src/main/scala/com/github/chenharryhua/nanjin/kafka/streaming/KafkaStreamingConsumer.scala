@@ -34,11 +34,11 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
     copy(timestampExtractor = Some(timestampExtractor))
 
   def stateSerdes: StateSerdes[K, V] =
-    new StateSerdes[K, V](topic.topicName.value, topic.codec.keySerde, topic.codec.valSerde)
+    new StateSerdes[K, V](topic.topicName.value, topic.serdePair.key.serde, topic.serdePair.value.serde)
 
   private lazy val consumed: Consumed[K, V] =
     Cont
-      .pure(Consumed.`with`[K, V](topic.codec.keySerde, topic.codec.valSerde))
+      .pure(Consumed.`with`[K, V](topic.serdePair.key.serde, topic.serdePair.value.serde))
       .map(c => resetPolicy.fold(c)(c.withOffsetResetPolicy))
       .map(c => timestampExtractor.fold(c)(c.withTimestampExtractor))
       .map(c => processorName.fold(c)(c.withName))
@@ -55,7 +55,7 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
     Reader(builder => builder.table[K, V](topic.topicName.value, mat)(consumed))
 
   def ktable(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, KTable[K, V]] =
-    ktable(Materialized.as[K, V](supplier)(topic.codec.keySerde, topic.codec.valSerde))
+    ktable(Materialized.as[K, V](supplier)(topic.serdePair.key.serde, topic.serdePair.value.serde))
 
   def gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
     Reader(builder => builder.globalTable[K, V](topic.topicName.value)(consumed))
@@ -64,5 +64,5 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
     Reader(builder => builder.globalTable[K, V](topic.topicName.value, mat)(consumed))
 
   def gktable(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, GlobalKTable[K, V]] =
-    gktable(Materialized.as[K, V](supplier)(topic.codec.keySerde, topic.codec.valSerde))
+    gktable(Materialized.as[K, V](supplier)(topic.serdePair.key.serde, topic.serdePair.value.serde))
 }
