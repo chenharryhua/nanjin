@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, PullGenericRecord, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
-import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, sk}
+import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import org.apache.spark.rdd.RDD

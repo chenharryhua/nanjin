@@ -7,11 +7,10 @@ import org.apache.spark.rdd.RDD
 
 final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, suffix: String) extends Serializable {
 
-  /**
-   *
-   * @param suffix: no leading dot(.)
-   * @return
-   */
+  /** @param suffix:
+    *   no leading dot(.)
+    * @return
+    */
   def withSuffix(suffix: String): SaveText[F, A] = new SaveText[F, A](frdd, cfg, suffix)
 
   val params: HoarderParams = cfg.evalConfig

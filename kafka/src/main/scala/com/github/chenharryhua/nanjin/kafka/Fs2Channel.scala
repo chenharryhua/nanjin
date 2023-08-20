@@ -1,21 +1,26 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.data.NonEmptyList
 import cats.Endo
+import cats.data.NonEmptyList
 import cats.effect.kernel.*
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import fs2.{Pipe, Stream}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.kafka.*
+import fs2.{Pipe, Stream}
+import org.apache.avro.generic.GenericRecord
 
 /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
   */
 
 final class Fs2Consume[F[_]] private[kafka] (
   topicName: TopicName,
-  consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]])
-    extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], Fs2Consume[F]] {
+  consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
+  schema: F[AvroSchemaPair],
+  schemaRegistrySettings: SchemaRegistrySettings
+) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], Fs2Consume[F]] {
+  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): Fs2Consume[F] =
+    new Fs2Consume[F](topicName, f(consumerSettings), schema, schemaRegistrySettings)
 
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
@@ -37,8 +42,23 @@ final class Fs2Consume[F[_]] private[kafka] (
         }
         .flatMap(_.stream)
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): Fs2Consume[F] =
-    new Fs2Consume[F](topicName, f(consumerSettings))
+  def source(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, AvroSchemaPair, GenericRecord]] =
+    Stream.eval(schema).flatMap { skm =>
+      val builder = new PullGenericRecord(schemaRegistrySettings, topicName, skm)
+      stream.map { cr =>
+        cr.bimap(_ => skm, _ => builder.toGenericRecord(cr.record))
+      }
+    }
+
+  def source(tps: KafkaTopicPartition[KafkaOffset])(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, AvroSchemaPair, GenericRecord]] =
+    Stream.eval(schema).flatMap { skm =>
+      val builder = new PullGenericRecord(schemaRegistrySettings, topicName, skm)
+      assign(tps).map { cr =>
+        cr.bimap(_ => skm, _ => builder.toGenericRecord(cr.record))
+      }
+    }
+
 }
 
 final class Fs2Produce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])

@@ -26,9 +26,9 @@ final case class KeyValueSerdePair[K, V](key: KafkaSerde[K], value: KafkaSerde[V
 final case class RegisteredKeyValueSerdePair[K, V](key: Serde[K], value: Serde[V])
 
 final case class AvroSchemaPair(key: Schema, value: Schema) {
-  val consumerRecord: Schema = NJConsumerRecord.schema(key, value)
+  val schema: Schema = NJConsumerRecord.schema(key, value)
 }
 
 object AvroSchemaPair {
-  implicit val showAvroSchemaPair: Show[AvroSchemaPair] = _.consumerRecord.toString
+  implicit val showAvroSchemaPair: Show[AvroSchemaPair] = _.schema.toString
 }
