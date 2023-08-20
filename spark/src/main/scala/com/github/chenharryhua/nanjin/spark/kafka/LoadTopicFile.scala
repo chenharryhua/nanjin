@@ -14,8 +14,8 @@ final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V]
   F: Sync[F])
     extends Serializable {
 
-  private val ack: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
-  private val acv: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
+  private val ack: NJAvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
+  private val acv: NJAvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
 
   private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv).avroDecoder
 

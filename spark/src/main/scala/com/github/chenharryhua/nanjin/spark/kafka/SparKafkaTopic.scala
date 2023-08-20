@@ -25,17 +25,17 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
     AvroTypedEncoder(topic.topicDef)
 
-  private val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.keySerde.avroCodec
-  private val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.valSerde.avroCodec
+  private val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
+  private val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
 
   val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
     NJConsumerRecord.avroCodec(
-      topic.topicDef.rawSerdes.keySerde.avroCodec,
-      topic.topicDef.rawSerdes.valSerde.avroCodec)
+      topic.topicDef.rawSerdes.key.avroCodec,
+      topic.topicDef.rawSerdes.value.avroCodec)
   val prCodec: NJAvroCodec[NJProducerRecord[K, V]] =
     NJProducerRecord.avroCodec(
-      topic.topicDef.rawSerdes.keySerde.avroCodec,
-      topic.topicDef.rawSerdes.valSerde.avroCodec)
+      topic.topicDef.rawSerdes.key.avroCodec,
+      topic.topicDef.rawSerdes.value.avroCodec)
 
   private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
     crRdd(sk.kafkaBatch(topic, sparkSession, dateTimeRange))

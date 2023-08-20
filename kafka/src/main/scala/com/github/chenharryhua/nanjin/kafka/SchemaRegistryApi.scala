@@ -4,7 +4,6 @@ import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import diffson.*
 import diffson.circe.*
 import diffson.jsonpatch.Operation
@@ -115,34 +114,31 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
         Try(client.getLatestSchemaMetadata(loc.valLoc)).toOption))
   }
 
-  private def kvSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Option[Schema], Option[Schema])] =
+  private def getAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Option[Schema], Option[Schema])] =
     metaData(topicName).map { kv =>
       val ks = kv.key.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
       val vs = kv.value.filter(_.getSchemaType === "AVRO").map(_.getSchema).map(new AvroSchema(_).rawSchema())
       (ks, vs)
     }
 
-  def fetchSchema(topicName: TopicName)(implicit F: Sync[F]): F[(Schema, Schema)] =
-    kvSchema(topicName).flatMap { case (ks, vs) =>
+  def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =
+    getAvroSchema(topicName).flatMap { case (ks, vs) =>
       (ks, vs).mapN((_, _)) match {
-        case Some(value) => F.pure(value)
-        case None        => F.raiseError(new Exception(s"unable to retrieve schema for ${topicName.value}"))
+        case Some((k, v)) => F.pure(AvroSchemaPair(k, v))
+        case None         => F.raiseError(new Exception(s"unable to retrieve schema for ${topicName.value}"))
       }
     }
 
-  def njConsumeRecordSchema(topicName: TopicName)(implicit F: Sync[F]): F[Schema] =
-    fetchSchema(topicName).map { case (k, v) => NJConsumerRecord.schema(k, v) }
-
-  def register(topicName: TopicName, keySchema: Schema, valSchema: Schema)(implicit
+  def register(topicName: TopicName, pair: AvroSchemaPair)(implicit
     F: Sync[F]): F[(Option[Int], Option[Int])] = {
     val loc = SchemaLocation(topicName)
     (
-      F.delay(client.register(loc.keyLoc, new AvroSchema(keySchema))).attempt.map(_.toOption),
-      F.delay(client.register(loc.valLoc, new AvroSchema(valSchema))).attempt.map(_.toOption)).mapN((_, _))
+      F.delay(client.register(loc.keyLoc, new AvroSchema(pair.key))).attempt.map(_.toOption),
+      F.delay(client.register(loc.valLoc, new AvroSchema(pair.value))).attempt.map(_.toOption)).mapN((_, _))
   }
 
   def register[K, V](topic: TopicDef[K, V])(implicit F: Sync[F]): F[(Option[Int], Option[Int])] =
-    register(topic.topicName, topic.schemaForKey.schema, topic.schemaForVal.schema)
+    register(topic.topicName, topic.schemaPair)
 
   def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)
@@ -152,11 +148,11 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
       .mapN((_, _))
   }
 
-  def testCompatibility(topicName: TopicName, keySchema: Schema, valSchema: Schema)(implicit
+  def testCompatibility(topicName: TopicName, pair: AvroSchemaPair)(implicit
     F: Sync[F]): F[CompatibilityTestReport] = {
     val loc = SchemaLocation(topicName)
-    val ks  = new AvroSchema(keySchema)
-    val vs  = new AvroSchema(valSchema)
+    val ks  = new AvroSchema(pair.key)
+    val vs  = new AvroSchema(pair.value)
     (
       F.delay(client.testCompatibility(loc.keyLoc, ks)).attempt.map(_.leftMap(_.getMessage)),
       F.delay(client.testCompatibility(loc.valLoc, vs)).attempt.map(_.leftMap(_.getMessage)),
@@ -164,5 +160,5 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   }
 
   def testCompatibility[K, V](topic: TopicDef[K, V])(implicit F: Sync[F]): F[CompatibilityTestReport] =
-    testCompatibility(topic.topicName, topic.schemaForKey.schema, topic.schemaForVal.schema)
+    testCompatibility(topic.topicName, topic.schemaPair)
 }

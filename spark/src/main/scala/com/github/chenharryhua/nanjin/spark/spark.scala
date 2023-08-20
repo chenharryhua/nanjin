@@ -61,7 +61,7 @@ package object spark {
       new SparKafkaContext[F](ss, ctx)
 
     def topic[F[_], K, V](topic: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
-      new SparKafkaContext[F](ss, topic.context).topic(topic)
+      new SparKafkaContext[F](ss, topic.context).topic(topic.topicDef)
 
     def hadoop[F[_]]: NJHadoop[F] = NJHadoop[F](ss.sparkContext.hadoopConfiguration)
 

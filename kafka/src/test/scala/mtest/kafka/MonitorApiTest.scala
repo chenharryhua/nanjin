@@ -39,7 +39,7 @@ class MonitorApiTest extends AnyFunSuite {
 
   test("monitor") {
     sender
-      .concurrently(ctx.monitor(topic.topicName).map(_.noSpaces).debug())
+      .concurrently(ctx.monitor(topic.topicName).debug())
       .interruptAfter(8.seconds)
       .compile
       .drain
