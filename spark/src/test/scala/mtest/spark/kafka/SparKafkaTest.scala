@@ -159,9 +159,9 @@ class SparKafkaTest extends AnyFunSuite {
     val hdp = sparkSession.hadoop[IO]
     Stream
       .eval(hdp.filesIn(path))
-      .flatMap(hdp.jackson(topic.topic.topicDef.schema.schema).source)
+      .flatMap(hdp.jackson(topic.topic.topicDef.schemaPair.schema).source)
       .chunkN(1)
-      .through(ctx.sink(topic.topicName))
+      .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).run)
       .compile
       .drain
       .unsafeRunSync()

@@ -17,7 +17,7 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   def withSchema(pair: AvroSchemaPair): TopicDef[K, V] =
     new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))
 
-  lazy val schema: AvroSchemaPair =
+  lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(rawSerdes.key.avroCodec.schemaFor.schema, rawSerdes.value.avroCodec.schemaFor.schema)
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)

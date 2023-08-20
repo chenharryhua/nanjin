@@ -138,7 +138,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   }
 
   def register[K, V](topic: TopicDef[K, V])(implicit F: Sync[F]): F[(Option[Int], Option[Int])] =
-    register(topic.topicName, topic.schema)
+    register(topic.topicName, topic.schemaPair)
 
   def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)
@@ -160,5 +160,5 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   }
 
   def testCompatibility[K, V](topic: TopicDef[K, V])(implicit F: Sync[F]): F[CompatibilityTestReport] =
-    testCompatibility(topic.topicName, topic.schema)
+    testCompatibility(topic.topicName, topic.schemaPair)
 }

@@ -7,13 +7,13 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.kafka.*
-import fs2.{Pipe, Stream}
+import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 
 /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
   */
 
-final class NJKafkaConsume[F[_]] private[kafka](
+final class NJKafkaConsume[F[_]] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
   schema: F[AvroSchemaPair],
@@ -60,7 +60,7 @@ final class NJKafkaConsume[F[_]] private[kafka](
     }
 }
 
-final class NJKafkaProduce[F[_], K, V] private[kafka](producerSettings: ProducerSettings[F, K, V])
+final class NJKafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
     extends UpdateConfig[ProducerSettings[F, K, V], NJKafkaProduce[F, K, V]] {
   def transactional(transactionalId: String): NJKafkaTransactional[F, K, V] =
     new NJKafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
@@ -78,11 +78,33 @@ final class NJKafkaProduce[F[_], K, V] private[kafka](producerSettings: Producer
     new NJKafkaProduce[F, K, V](f(producerSettings))
 }
 
-final class NJKafkaTransactional[F[_], K, V] private[kafka](txnSettings: TransactionalProducerSettings[F, K, V])
+final class NJKafkaTransactional[F[_], K, V] private[kafka] (
+  txnSettings: TransactionalProducerSettings[F, K, V])
     extends UpdateConfig[TransactionalProducerSettings[F, K, V], NJKafkaTransactional[F, K, V]] {
   def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
 
   override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): NJKafkaTransactional[F, K, V] =
     new NJKafkaTransactional[F, K, V](f(txnSettings))
+}
+
+final class NJGenericRecordSink[F[_]] private[kafka] (
+  topicName: TopicName,
+  producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]],
+  schema: F[AvroSchemaPair],
+  schemaRegistrySettings: SchemaRegistrySettings)
+    extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], NJGenericRecordSink[F]] {
+
+  override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): NJGenericRecordSink[F] =
+    new NJGenericRecordSink[F](topicName, f(producerSettings), schema, schemaRegistrySettings)
+
+  def run(implicit F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
+      Stream.eval(schema).flatMap { skm =>
+        val builder = new PushGenericRecord(schemaRegistrySettings, topicName, skm)
+        val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
+          ss.map(_.map(builder.fromGenericRecord))
+        KafkaProducer.pipe(producerSettings).apply(prStream).drain
+      }
+  }
 }

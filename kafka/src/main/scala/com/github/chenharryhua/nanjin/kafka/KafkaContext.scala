@@ -2,16 +2,14 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import fs2.Stream
 import fs2.kafka.*
-import fs2.{Chunk, Pipe, Stream}
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
-import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
@@ -78,17 +76,14 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, String] =
     monitor(TopicName(topicName))
 
-  def sink(topicName: TopicName)(implicit F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
-    (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { schema =>
-        val builder = new PushGenericRecord(settings.schemaRegistrySettings, topicName, schema)
-        KafkaProducer[F]
-          .stream(
-            ProducerSettings[F, Array[Byte], Array[Byte]].withProperties(settings.producerSettings.config))
-          .flatMap(kpd => ss.evalMap(ck => kpd.produce(ck.map(builder.fromGenericRecord)).flatten))
-          .drain
-      }
-  }
+  def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSink[F] =
+    new NJGenericRecordSink[F](
+      topicName,
+      ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+        .withProperties(settings.producerSettings.config),
+      schemaRegistry.fetchAvroSchema(topicName),
+      settings.schemaRegistrySettings
+    )
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
