@@ -2,19 +2,10 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import cats.effect.kernel.Sync
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, PullGenericRecord, TopicDef}
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, PullGenericRecord, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
-import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic}
-import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
-import com.github.chenharryhua.nanjin.terminals.NJPath
-import org.apache.spark.rdd.RDD
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, sk}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
